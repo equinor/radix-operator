@@ -1449,7 +1449,7 @@ spec:
                                         diskSize:
                                           description: |-
                                             Size (in MB) of total disk capacity that block cache can use.
-                                            0 (default) disables disk caching
+                                            0 (default) disables disk caching.
                                           format: int32
                                           minimum: 0
                                           type: integer
@@ -1469,9 +1469,7 @@ spec:
                                         poolSize:
                                           description: |-
                                             Size (in MB) of total memory preallocated for block-cache.
-                                            Minimum value:
-                                            - if prefetchCount > 0: prefetchCount * blockSize
-                                            - if prefetchCount = 0: blockSize
+                                            Minimum value = (prefetchCount + 1) * blockSize
                                           format: int32
                                           minimum: 1
                                           type: integer
@@ -2696,7 +2694,7 @@ spec:
                                   diskSize:
                                     description: |-
                                       Size (in MB) of total disk capacity that block cache can use.
-                                      0 (default) disables disk caching
+                                      0 (default) disables disk caching.
                                     format: int32
                                     minimum: 0
                                     type: integer
@@ -2715,9 +2713,7 @@ spec:
                                   poolSize:
                                     description: |-
                                       Size (in MB) of total memory preallocated for block-cache.
-                                      Minimum value:
-                                      - if prefetchCount > 0: prefetchCount * blockSize
-                                      - if prefetchCount = 0: blockSize
+                                      Minimum value = (prefetchCount + 1) * blockSize
                                     format: int32
                                     minimum: 1
                                     type: integer
@@ -3622,7 +3618,7 @@ spec:
                                         diskSize:
                                           description: |-
                                             Size (in MB) of total disk capacity that block cache can use.
-                                            0 (default) disables disk caching
+                                            0 (default) disables disk caching.
                                           format: int32
                                           minimum: 0
                                           type: integer
@@ -3642,9 +3638,7 @@ spec:
                                         poolSize:
                                           description: |-
                                             Size (in MB) of total memory preallocated for block-cache.
-                                            Minimum value:
-                                            - if prefetchCount > 0: prefetchCount * blockSize
-                                            - if prefetchCount = 0: blockSize
+                                            Minimum value = (prefetchCount + 1) * blockSize
                                           format: int32
                                           minimum: 1
                                           type: integer
@@ -4243,7 +4237,7 @@ spec:
                                   diskSize:
                                     description: |-
                                       Size (in MB) of total disk capacity that block cache can use.
-                                      0 (default) disables disk caching
+                                      0 (default) disables disk caching.
                                     format: int32
                                     minimum: 0
                                     type: integer
@@ -4262,9 +4256,7 @@ spec:
                                   poolSize:
                                     description: |-
                                       Size (in MB) of total memory preallocated for block-cache.
-                                      Minimum value:
-                                      - if prefetchCount > 0: prefetchCount * blockSize
-                                      - if prefetchCount = 0: blockSize
+                                      Minimum value = (prefetchCount + 1) * blockSize
                                     format: int32
                                     minimum: 1
                                     type: integer

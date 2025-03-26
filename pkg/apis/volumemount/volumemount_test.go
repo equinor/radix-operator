@@ -1281,7 +1281,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--attr-cache-timeout=0",
 				"--block-cache",
 				"--block-cache-block-size=4",
-				"--block-cache-pool-size=44",
+				"--block-cache-pool-size=48",
 				"--block-cache-prefetch=11",
 				"--block-cache-prefetch-on-open=false",
 				"--block-cache-parallelism=8",
@@ -1309,7 +1309,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--read-only=true",
 				"--block-cache",
 				"--block-cache-block-size=4",
-				"--block-cache-pool-size=44",
+				"--block-cache-pool-size=48",
 				"--block-cache-prefetch=11",
 				"--block-cache-prefetch-on-open=false",
 				"--block-cache-parallelism=8",
@@ -1430,7 +1430,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--attr-cache-timeout=0",
 				"--block-cache",
 				"--block-cache-block-size=4",
-				"--block-cache-pool-size=44",
+				"--block-cache-pool-size=48",
 				"--block-cache-prefetch=11",
 				"--block-cache-prefetch-on-open=false",
 				"--block-cache-parallelism=8",
@@ -1463,7 +1463,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--block-cache-prefetch-on-open=false",
 				"--block-cache-parallelism=8",
 				"--block-cache-block-size=16",
-				"--block-cache-pool-size=320",
+				"--block-cache-pool-size=336",
 				"--block-cache-prefetch=20",
 			},
 		},
@@ -1476,7 +1476,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
 						BlockSize:     pointers.Ptr[uint32](16),
-						PoolSize:      pointers.Ptr[uint32](319),
+						PoolSize:      pointers.Ptr[uint32](335),
 						PrefetchCount: pointers.Ptr[uint32](20),
 					},
 				},
@@ -1495,7 +1495,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--block-cache-prefetch-on-open=false",
 				"--block-cache-parallelism=8",
 				"--block-cache-block-size=16",
-				"--block-cache-pool-size=320",
+				"--block-cache-pool-size=336",
 				"--block-cache-prefetch=20",
 			},
 		},
@@ -1508,7 +1508,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
 						BlockSize:     pointers.Ptr[uint32](16),
-						PoolSize:      pointers.Ptr[uint32](321),
+						PoolSize:      pointers.Ptr[uint32](337),
 						PrefetchCount: pointers.Ptr[uint32](20),
 					},
 				},
@@ -1527,7 +1527,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--block-cache-prefetch-on-open=false",
 				"--block-cache-parallelism=8",
 				"--block-cache-block-size=16",
-				"--block-cache-pool-size=321",
+				"--block-cache-pool-size=337",
 				"--block-cache-prefetch=20",
 			},
 		},
@@ -1586,7 +1586,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--attr-cache-timeout=0",
 				"--block-cache",
 				"--block-cache-block-size=4",
-				"--block-cache-pool-size=44",
+				"--block-cache-pool-size=48",
 				"--block-cache-prefetch=11",
 				"--block-cache-parallelism=8",
 				"--block-cache-prefetch-on-open=true",
@@ -1616,7 +1616,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--attr-cache-timeout=0",
 				"--block-cache",
 				"--block-cache-block-size=4",
-				"--block-cache-pool-size=44",
+				"--block-cache-pool-size=48",
 				"--block-cache-prefetch=11",
 				"--block-cache-prefetch-on-open=false",
 				"--block-cache-parallelism=1337",
@@ -1646,7 +1646,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--attr-cache-timeout=0",
 				"--block-cache",
 				"--block-cache-block-size=4",
-				"--block-cache-pool-size=44",
+				"--block-cache-pool-size=48",
 				"--block-cache-prefetch=11",
 				"--block-cache-prefetch-on-open=false",
 				"--block-cache-parallelism=8",
@@ -1682,7 +1682,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--attr-cache-timeout=0",
 				"--block-cache",
 				"--block-cache-block-size=4",
-				"--block-cache-pool-size=44",
+				"--block-cache-pool-size=48",
 				"--block-cache-prefetch=11",
 				"--block-cache-prefetch-on-open=false",
 				"--block-cache-parallelism=8",
@@ -1719,11 +1719,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				"--attr-cache-timeout=0",
 				"--block-cache",
 				"--block-cache-block-size=16",
-				"--block-cache-pool-size=320",
+				"--block-cache-pool-size=336",
 				"--block-cache-prefetch=20",
 				"--block-cache-prefetch-on-open=false",
 				"--block-cache-parallelism=8",
-				"--block-cache-disk-size=320",
+				"--block-cache-disk-size=336",
 				"--block-cache-disk-timeout=120",
 			},
 			expectedMountOptionsArgNameOnly: []string{
@@ -2341,7 +2341,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
-		"blobfuse2: set StorageAccount should recreate PV and PVCx": {
+		"blobfuse2: set StorageAccount should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2357,7 +2357,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
-		"blobfuse2: change StorageAccount should recreate PV and PVCx": {
+		"blobfuse2: change StorageAccount should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2374,7 +2374,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
-		"blobfuse2: set UseAzureIdentity to the defined default should not recreate PV and PVCx": {
+		"blobfuse2: set UseAzureIdentity to the defined default should not recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2390,7 +2390,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: false,
 		},
-		"blobfuse2: set UseAzureIdentity to non-default should recreate PV and PVCx": {
+		"blobfuse2: set UseAzureIdentity to non-default should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2406,7 +2406,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
-		"blobfuse2: set ResourceGroup when UseAzureIdentity=false should not recreate PV and PVCx": {
+		"blobfuse2: set ResourceGroup when UseAzureIdentity=false should not recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2425,7 +2425,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: false,
 		},
-		"blobfuse2: change ResourceGroup when UseAzureIdentity=true should recreate PV and PVCx": {
+		"blobfuse2: change ResourceGroup when UseAzureIdentity=true should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2444,7 +2444,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
-		"blobfuse2: change SubscriptionId when UseAzureIdentity=false should not recreate PV and PVCx": {
+		"blobfuse2: change SubscriptionId when UseAzureIdentity=false should not recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2463,7 +2463,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: false,
 		},
-		"blobfuse2: change SubscriptionId when UseAzureIdentity=true should recreate PV and PVCx": {
+		"blobfuse2: change SubscriptionId when UseAzureIdentity=true should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2482,7 +2482,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
-		"blobfuse2: change TenantId when UseAzureIdentity=false should not recreate PV and PVCx": {
+		"blobfuse2: change TenantId when UseAzureIdentity=false should not recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2501,7 +2501,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: false,
 		},
-		"blobfuse2: change TenantId when UseAzureIdentity=true should recreate PV and PVCx": {
+		"blobfuse2: change TenantId when UseAzureIdentity=true should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2520,7 +2520,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			},
 			expectRecreate: true,
 		},
-		"blobfuse2: change Identity.Azure.ClientID when UseAzureIdentity=false should not recreate PV and PVCx": {
+		"blobfuse2: change Identity.Azure.ClientID when UseAzureIdentity=false should not recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -2539,7 +2539,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			changedIdentity: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "change"}},
 			expectRecreate:  false,
 		},
-		"blobfuse2: change Identity.Azure.ClientID when UseAzureIdentity=true should recreate PV and PVCx": {
+		"blobfuse2: change Identity.Azure.ClientID when UseAzureIdentity=true should recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
@@ -3086,7 +3086,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
 						BlockSize:     pointers.Ptr[uint32](8),
 						PrefetchCount: pointers.Ptr[uint32](20),
-						PoolSize:      pointers.Ptr[uint32](160),
+						PoolSize:      pointers.Ptr[uint32](168),
 					},
 				},
 			},
@@ -3112,7 +3112,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
 						BlockSize:     pointers.Ptr[uint32](8),
 						PrefetchCount: pointers.Ptr[uint32](20),
-						PoolSize:      pointers.Ptr[uint32](161),
+						PoolSize:      pointers.Ptr[uint32](169),
 					},
 				},
 			},
@@ -3138,7 +3138,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
 						BlockSize:     pointers.Ptr[uint32](8),
 						PrefetchCount: pointers.Ptr[uint32](20),
-						PoolSize:      pointers.Ptr[uint32](159),
+						PoolSize:      pointers.Ptr[uint32](167),
 					},
 				},
 			},
@@ -3324,7 +3324,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
 						BlockSize:     pointers.Ptr[uint32](8),
 						PrefetchCount: pointers.Ptr[uint32](20),
-						DiskSize:      pointers.Ptr[uint32](160),
 					},
 				},
 			},
@@ -3336,7 +3335,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
 						BlockSize:     pointers.Ptr[uint32](8),
 						PrefetchCount: pointers.Ptr[uint32](20),
-						DiskSize:      pointers.Ptr[uint32](161),
+						DiskSize:      pointers.Ptr[uint32](169),
 					},
 				},
 			},
