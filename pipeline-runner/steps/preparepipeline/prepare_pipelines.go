@@ -14,7 +14,7 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
@@ -263,7 +263,7 @@ func (pipelineCtx *pipelineContext) buildTasks(envName string, tasks []pipelinev
 			}
 		}
 
-		task.ObjectMeta.Annotations[pipelineDefaults.PipelineTaskNameAnnotation] = originalTaskName
+		task.ObjectMeta.Annotations[operatorDefaults.PipelineTaskNameAnnotation] = originalTaskName
 		if pipelineCtx.ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*pipelineCtx.ownerReference}
 		}
@@ -367,8 +367,8 @@ func (pipelineCtx *pipelineContext) getPipelineTasks(pipelineFilePath string, pi
 
 func (pipelineCtx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, error) {
 	if len(pipelineFile) == 0 {
-		pipelineFile = pipelineDefaults.DefaultPipelineFileName
-		log.Debug().Msgf("Tekton pipeline file name is not specified, using the default file name %s", pipelineDefaults.DefaultPipelineFileName)
+		pipelineFile = defaults.DefaultPipelineFileName
+		log.Debug().Msgf("Tekton pipeline file name is not specified, using the default file name %s", defaults.DefaultPipelineFileName)
 	}
 	pipelineFile = strings.TrimPrefix(pipelineFile, "/") // Tekton pipeline folder currently is relative to the Radix config file repository folder
 	configFolder := filepath.Dir(pipelineCtx.pipelineInfo.PipelineArguments.RadixConfigFile)
@@ -384,7 +384,7 @@ func (pipelineCtx *pipelineContext) createPipeline(envName string, pipeline *pip
 		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %w", originalPipelineName, err))
 	}
 
-	_, azureClientIdPipelineParamExist := pipelineCtx.GetEnvVars(envName)[pipelineDefaults.AzureClientIdEnvironmentVariable]
+	_, azureClientIdPipelineParamExist := pipelineCtx.GetEnvVars(envName)[defaults.AzureClientIdEnvironmentVariable]
 	if azureClientIdPipelineParamExist {
 		ensureAzureClientIdParamExistInPipelineParams(pipeline)
 	}
@@ -408,7 +408,7 @@ func (pipelineCtx *pipelineContext) createPipeline(envName string, pipeline *pip
 	pipeline.ObjectMeta.Labels = labels.GetSubPipelineLabelsForEnvironment(pipelineCtx.GetPipelineInfo(), envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{
 		kube.RadixBranchAnnotation:              pipelineCtx.pipelineInfo.PipelineArguments.Branch,
-		pipelineDefaults.PipelineNameAnnotation: originalPipelineName,
+		operatorDefaults.PipelineNameAnnotation: originalPipelineName,
 	}
 	if pipelineCtx.ownerReference != nil {
 		pipeline.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*pipelineCtx.ownerReference}
@@ -507,8 +507,8 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read the file %s: %v", fileName, err)
 		}
-		fileData = []byte(strings.ReplaceAll(string(fileData), pipelineDefaults.SubstitutionRadixBuildSecretsSource, pipelineDefaults.SubstitutionRadixBuildSecretsTarget))
-		fileData = []byte(strings.ReplaceAll(string(fileData), pipelineDefaults.SubstitutionRadixGitDeployKeySource, pipelineDefaults.SubstitutionRadixGitDeployKeyTarget))
+		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixBuildSecretsSource, defaults.SubstitutionRadixBuildSecretsTarget))
+		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixGitDeployKeySource, defaults.SubstitutionRadixGitDeployKeyTarget))
 
 		task := pipelinev1.Task{}
 		err = yaml.Unmarshal(fileData, &task)
@@ -527,7 +527,7 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 
 func addGitDeployKeyVolume(task *pipelinev1.Task) {
 	task.Spec.Volumes = append(task.Spec.Volumes, corev1.Volume{
-		Name: pipelineDefaults.SubstitutionRadixGitDeployKeyTarget,
+		Name: defaults.SubstitutionRadixGitDeployKeyTarget,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName:  operatorDefaults.GitPrivateKeySecretName,
@@ -554,31 +554,31 @@ func ensureAzureClientIdParamExistInTaskParams(pipeline *pipelinev1.Pipeline, pi
 }
 
 func addAzureIdentityClientIdParamToPipeline(pipeline *pipelinev1.Pipeline) {
-	pipeline.Spec.Params = append(pipeline.Spec.Params, pipelinev1.ParamSpec{Name: pipelineDefaults.AzureClientIdEnvironmentVariable, Type: pipelinev1.ParamTypeString, Description: "Defines the Client ID for a user defined managed identity or application ID for an application registration"})
+	pipeline.Spec.Params = append(pipeline.Spec.Params, pipelinev1.ParamSpec{Name: defaults.AzureClientIdEnvironmentVariable, Type: pipelinev1.ParamTypeString, Description: "Defines the Client ID for a user defined managed identity or application ID for an application registration"})
 }
 
 func pipelineHasAzureIdentityClientIdParam(pipeline *pipelinev1.Pipeline) bool {
 	return slice.Any(pipeline.Spec.Params, func(paramSpec pipelinev1.ParamSpec) bool {
-		return paramSpec.Name == pipelineDefaults.AzureClientIdEnvironmentVariable
+		return paramSpec.Name == defaults.AzureClientIdEnvironmentVariable
 	})
 }
 
 func addAzureIdentityClientIdParamToPipelineTask(pipeline *pipelinev1.Pipeline, taskIndex int) {
 	pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params,
 		pipelinev1.Param{
-			Name:  pipelineDefaults.AzureClientIdEnvironmentVariable,
-			Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: fmt.Sprintf("$(params.%s)", pipelineDefaults.AzureClientIdEnvironmentVariable)},
+			Name:  defaults.AzureClientIdEnvironmentVariable,
+			Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: fmt.Sprintf("$(params.%s)", defaults.AzureClientIdEnvironmentVariable)},
 		})
 }
 
 func taskHasAzureIdentityClientIdParam(task pipelinev1.Task) bool {
 	return slice.Any(task.Spec.Params, func(paramSpec pipelinev1.ParamSpec) bool {
-		return paramSpec.Name == pipelineDefaults.AzureClientIdEnvironmentVariable
+		return paramSpec.Name == defaults.AzureClientIdEnvironmentVariable
 	})
 }
 
 func pipelineTaskHasAzureIdentityClientIdParam(pipeline *pipelinev1.Pipeline, taskIndex int) bool {
 	return slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(param pipelinev1.Param) bool {
-		return param.Name == pipelineDefaults.AzureClientIdEnvironmentVariable
+		return param.Name == defaults.AzureClientIdEnvironmentVariable
 	})
 }

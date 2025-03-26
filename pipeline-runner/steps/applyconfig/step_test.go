@@ -52,11 +52,10 @@ func (s *applyConfigTestSuite) SetupSubTest() {
 }
 
 func (s *applyConfigTestSuite) Test_RadixConfigMap_WithoutPrepareBuildCtx_Processed() {
-	appName, radixConfigMapName := "anyapp", "preparecm"
+	const appName = "anyapp"
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	expectedRa := utils.ARadixApplication().WithAppName(appName).BuildRA()
-	s.Require().NoError(internaltest.CreatePreparePipelineConfigMapResponse(s.kubeClient, radixConfigMapName, appName, expectedRa, nil))
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
 			AppName: appName,

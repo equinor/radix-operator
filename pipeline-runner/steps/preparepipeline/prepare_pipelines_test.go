@@ -2,13 +2,13 @@ package preparepipeline
 
 import (
 	"context"
+	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"strings"
 	"testing"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
@@ -428,7 +428,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				require.Len(t, task.Spec.Steps, 1)
 				require.Len(t, task.Spec.Sidecars, 1)
 
-				assert.Equal(t, "task1", task.ObjectMeta.Annotations[pipelineDefaults.PipelineTaskNameAnnotation])
+				assert.Equal(t, "task1", task.ObjectMeta.Annotations[operatorDefaults.PipelineTaskNameAnnotation])
 				assert.Equal(t, "step1", task.Spec.Steps[0].Name)
 				assert.Equal(t, "sidecar1", task.Spec.Sidecars[0].Name)
 				assert.Equal(t, "image1", task.Spec.StepTemplate.Image)
@@ -830,14 +830,6 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 					DNSConfig:     &dnsalias.DNSConfig{},
 				},
 			}
-			/*
-
-				mockEnv.EXPECT().GetRadixPipelineType().Return(v1.Deploy).AnyTimes()
-				mockEnv.EXPECT().GetRadixConfigMapName().Return(RadixConfigMapName).AnyTimes()
-				mockEnv.EXPECT().GetRadixDeployToEnvironment().Return(Env1).AnyTimes()
-				mockEnv.EXPECT().GetDNSConfig().Return(&dnsalias.DNSConfig{}).AnyTimes()
-				mockEnv.EXPECT().GetRadixConfigBranch().Return(Env1).AnyTimes()
-			*/
 			pipelineCtx := &pipelineContext{
 				radixClient:  radixclientfake.NewSimpleClientset(),
 				kubeClient:   kubeclientfake.NewSimpleClientset(),

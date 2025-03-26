@@ -9,7 +9,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
-	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
+	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/applicationconfig"
@@ -112,7 +112,7 @@ func (pipelineCtx *pipelineContext) createPipelineRun(namespace string, pipeline
 }
 
 func (pipelineCtx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targetEnv, timestamp string) pipelinev1.PipelineRun {
-	originalPipelineName := pipeline.ObjectMeta.Annotations[pipelineDefaults.PipelineNameAnnotation]
+	originalPipelineName := pipeline.ObjectMeta.Annotations[operatorDefaults.PipelineNameAnnotation]
 	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", internal.GetShortName(targetEnv), timestamp, pipelineCtx.hash)
 	pipelineParams := pipelineCtx.getPipelineParams(pipeline, targetEnv)
 	pipelineInfo := pipelineCtx.GetPipelineInfo()
@@ -122,7 +122,7 @@ func (pipelineCtx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeli
 			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv),
 			Annotations: map[string]string{
 				kube.RadixBranchAnnotation:              pipelineCtx.pipelineInfo.PipelineArguments.Branch,
-				pipelineDefaults.PipelineNameAnnotation: originalPipelineName,
+				operatorDefaults.PipelineNameAnnotation: originalPipelineName,
 			},
 		},
 		Spec: pipelinev1.PipelineRunSpec{
@@ -183,7 +183,7 @@ func (pipelineCtx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipel
 		delete(pipelineParamsMap, envVarName)
 	}
 	for paramName, paramSpec := range pipelineParamsMap {
-		if paramName == pipelineDefaults.AzureClientIdEnvironmentVariable && len(envVars[pipelineDefaults.AzureClientIdEnvironmentVariable]) > 0 {
+		if paramName == defaults.AzureClientIdEnvironmentVariable && len(envVars[defaults.AzureClientIdEnvironmentVariable]) > 0 {
 			continue // Azure identity clientId was set by radixconfig build env-var or identity
 		}
 		param := pipelinev1.Param{Name: paramName, Value: pipelinev1.ParamValue{Type: paramSpec.Type}}
@@ -198,7 +198,7 @@ func (pipelineCtx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipel
 }
 
 func getPipelineParamSpec(pipelineParamsMap map[string]pipelinev1.ParamSpec, envVarName string) (pipelinev1.ParamSpec, bool) {
-	if envVarName == pipelineDefaults.AzureClientIdEnvironmentVariable {
+	if envVarName == defaults.AzureClientIdEnvironmentVariable {
 		return pipelinev1.ParamSpec{Name: envVarName, Type: pipelinev1.ParamTypeString}, true
 	}
 	paramSpec, ok := pipelineParamsMap[envVarName]
