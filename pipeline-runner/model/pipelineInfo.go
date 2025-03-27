@@ -118,8 +118,6 @@ type PipelineArguments struct {
 	ApplyConfigOptions ApplyConfigOptions
 	// GitWorkspace is the path to the git workspace
 	GitWorkspace string
-	// TriggeredFromWebhook indicates if the job was triggered from a webhook
-	TriggeredFromWebhook bool
 }
 
 // InitPipeline Initialize pipeline with step implementations
@@ -294,9 +292,4 @@ func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
 func (p *PipelineInfo) SetBuildContext(context *BuildContext) *PipelineInfo {
 	p.BuildContext = context
 	return p
-}
-
-// GetTriggeredFromWebhook Get triggered from webhook
-func (p *PipelineInfo) GetTriggeredFromWebhook() bool {
-	return p.PipelineArguments.TriggeredFromWebhook
 }

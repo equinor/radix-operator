@@ -228,7 +228,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api",
 				"--RADIX_RESERVED_DNS_ALIASES=grafana",
 				"--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
-				"--RADIX_PIPELINE_TRIGGERED_FROM_WEBHOOK=false",
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE=%s", s.config.nslookupImage),
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=%s", s.config.gitImage),
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE=%s", s.config.bashImage),

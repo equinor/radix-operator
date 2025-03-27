@@ -46,8 +46,8 @@ func ResetGitHead(gitWorkspace, commitHashString string) error {
 }
 
 // GetCommitHashAndTags gets target commit hash and tags from GitHub repository
-func GetCommitHashAndTags(gitWorkspace, webhookCommitId, branchName string) (string, string, error) {
-	targetCommitHash, err := GetCommitHash(gitWorkspace, webhookCommitId, branchName)
+func GetCommitHashAndTags(gitWorkspace, commitId, branchName string) (string, string, error) {
+	targetCommitHash, err := GetCommitHash(gitWorkspace, commitId, branchName)
 	if err != nil {
 		return "", "", err
 	}
@@ -84,9 +84,9 @@ func GetCommitHashFromHead(gitWorkspace string, branchName string) (string, erro
 }
 
 // getGitAffectedResourcesBetweenCommits returns the list of folders, where files were affected after beforeCommitHash (not included) till targetCommitHash commit (included)
-func getGitAffectedResourcesBetweenCommits(gitWorkspace, configBranch, configFile string, triggeredFromWebhook bool, targetCommitString, beforeCommitString string) ([]string, bool, error) {
+func getGitAffectedResourcesBetweenCommits(gitWorkspace, configBranch, configFile, targetCommitString, beforeCommitString string) ([]string, bool, error) {
 	gitDir := getGitDir(gitWorkspace)
-	targetCommitHash, err := getTargetCommitHash(triggeredFromWebhook, beforeCommitString, targetCommitString)
+	targetCommitHash, err := getTargetCommitHash(targetCommitString)
 	if err != nil {
 		return nil, false, err
 	}
@@ -175,13 +175,10 @@ func getRepository(gitDir string) (*git.Repository, string, error) {
 	return repository, currentBranch, nil
 }
 
-func getTargetCommitHash(triggeredFromWebhook bool, beforeCommitString, targetCommitString string) (*plumbing.Hash, error) {
+func getTargetCommitHash(targetCommitString string) (*plumbing.Hash, error) {
 	targetCommitHash := plumbing.NewHash(targetCommitString)
 	if targetCommitHash == plumbing.ZeroHash {
 		return nil, errors.New("invalid targetCommit")
-	}
-	if triggeredFromWebhook && strings.EqualFold(beforeCommitString, targetCommitString) {
-		return nil, errors.New("beforeCommit cannot be equal to the targetCommit")
 	}
 	return &targetCommitHash, nil
 }
@@ -304,10 +301,10 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 
 // GetCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
 // build branch
-func GetCommitHash(gitWorkspace, webhookCommitId, branchName string) (string, error) {
-	if webhookCommitId != "" {
-		log.Debug().Msgf("got git commit hash %s from env var %s", webhookCommitId, defaults.RadixGithubWebhookCommitId)
-		return webhookCommitId, nil
+func GetCommitHash(gitWorkspace, commitId, branchName string) (string, error) {
+	if commitId != "" {
+		log.Debug().Msgf("got git commit hash %s from env var %s", commitId, defaults.RadixCommitIdEnvironmentVariable)
+		return commitId, nil
 	}
 	log.Debug().Msgf("determining git commit hash of HEAD of branch %s", branchName)
 	gitCommitHash, err := GetCommitHashFromHead(gitWorkspace, branchName)
@@ -316,7 +313,7 @@ func GetCommitHash(gitWorkspace, webhookCommitId, branchName string) (string, er
 }
 
 // GetChangesFromGitRepository Get changed folders in environments and if radixconfig.yaml was changed
-func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFileName string, triggeredFromWebhook bool, targetCommitHash string, lastCommitHashesForEnvs commithash.EnvCommitHashMap) (map[string][]string, bool, error) {
+func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash string, lastCommitHashesForEnvs commithash.EnvCommitHashMap) (map[string][]string, bool, error) {
 	radixConfigWasChanged := false
 	envChanges := make(map[string][]string)
 	if len(lastCommitHashesForEnvs) == 0 {
@@ -328,7 +325,7 @@ func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFil
 	}
 	log.Info().Msgf("Changes in GitHub repository:")
 	for envName, radixDeploymentCommit := range lastCommitHashesForEnvs {
-		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(gitWorkspace, radixConfigBranch, radixConfigFileName, triggeredFromWebhook, targetCommitHash, radixDeploymentCommit.CommitHash)
+		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash, radixDeploymentCommit.CommitHash)
 		envChanges[envName] = changedFolders
 		if err != nil {
 			return nil, false, err
