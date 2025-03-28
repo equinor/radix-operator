@@ -1,0 +1,13 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: test-app
+spec:
+  environments:
+    - name: dev
+  components:
+    - name: app
+      ports:
+       - name: http
+         port: 8080
+      public: true

@@ -81,8 +81,6 @@ spec:
               value: {{ .Values.pipelineJobsHistoryLimit | quote }}
             - name: RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT
               value: {{ .Values.pipelineJobsHistoryPeriodLimit | quote }}
-            - name: RADIX_TEKTON_IMAGE
-              value: {{ .Values.radixTekton }}
             - name: RADIX_IMAGE_BUILDER
               value: {{ .Values.imageBuilder }}
             - name: RADIXOPERATOR_JOB_SCHEDULER
@@ -173,6 +171,8 @@ spec:
               value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
             - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
               value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
+            - name: RADIXOPERATOR_PIPELINE_IMAGE_TAG
+              value: {{ .Values.pipelineImageTag }}
           livenessProbe:
             httpGet:
               path: /healthz

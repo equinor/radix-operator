@@ -143,7 +143,6 @@
         "RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS": "5",
         "RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS": "10",
         "RADIX_IMAGE_BUILDER": "radix-image-builder:master-latest",
-        "RADIX_TEKTON_IMAGE": "radix-tekton:main-latest",
         "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler:main-latest",
         "RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
         "RADIX_APP_CONTAINER_REGISTRY": "radixdevapp.azurecr.io",
@@ -181,7 +180,11 @@
         "RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT": "24h",
         "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON": "0 0 * * *",
         "LOG_LEVEL": "info",
-        "LOG_PRETTY": "true"
+        "LOG_PRETTY": "true",
+        "RADIXOPERATOR_PIPELINE_IMAGE_TAG": "master-latest",
+        "RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE": "radixdevcache.azurecr.io/alpine:3.20",
+        "RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE": "radixdevcache.azurecr.io/alpine/git:2.45.2",
+        "RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE": "radixdevcache.azurecr.io/bash:5.2"
       },
       "args": ["--useOutClusterClient=false"]
     },

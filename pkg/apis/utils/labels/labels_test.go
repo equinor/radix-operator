@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 )

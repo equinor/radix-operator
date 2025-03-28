@@ -3,25 +3,16 @@ package runpipeline
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/equinor/radix-common/utils/maps"
-	internaltekton "github.com/equinor/radix-operator/pipeline-runner/internal/tekton"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -41,10 +32,10 @@ func NewRunPipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.Step 
 	}
 }
 
-func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeclient, radixclient, kubeutil, prometheusOperatorClient, rr)
+func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 	if step.jobWaiter == nil {
-		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeclient)
+		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeClient)
 	}
 }
 
@@ -65,93 +56,15 @@ func (step *RunPipelinesStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	if pipelineInfo.PrepareBuildContext != nil && len(pipelineInfo.PrepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
+	if pipelineInfo.BuildContext != nil && len(pipelineInfo.BuildContext.EnvironmentSubPipelinesToRun) == 0 {
 		log.Ctx(ctx).Info().Msg("There is no configured sub-pipelines. Skip the step.")
 		return nil
 	}
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 	appName := step.GetAppName()
-	namespace := utils.GetAppNamespace(appName)
 	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
-	job := step.getRunTektonPipelinesJobConfig(pipelineInfo)
-
-	// When debugging pipeline there will be no RJ
-	if !pipelineInfo.PipelineArguments.Debug {
-		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(ctx, step.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
-		if err != nil {
-			return err
-		}
-
-		job.OwnerReferences = ownerReference
-	}
-
-	log.Ctx(ctx).Info().Msgf("Apply job (%s) to run Tekton pipeline %s", job.Name, appName)
-	job, err := step.GetKubeclient().BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return step.jobWaiter.Wait(job)
-}
-
-func (step *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
-	appName := step.GetAppName()
-	action := pipelineDefaults.RadixPipelineActionRun
-	envVars := []corev1.EnvVar{
-		{
-			Name:  defaults.RadixPipelineActionEnvironmentVariable,
-			Value: action,
-		},
-		{
-			Name:  defaults.RadixBranchEnvironmentVariable,
-			Value: pipelineInfo.PipelineArguments.Branch,
-		},
-		{
-			Name:  defaults.RadixAppEnvironmentVariable,
-			Value: appName,
-		},
-		{
-			Name:  defaults.RadixPipelineJobEnvironmentVariable,
-			Value: pipelineInfo.PipelineArguments.JobName,
-		},
-		{
-			Name:  defaults.RadixConfigConfigMapEnvironmentVariable,
-			Value: pipelineInfo.RadixConfigMapName,
-		},
-		{
-			Name:  defaults.RadixPipelineTypeEnvironmentVariable,
-			Value: pipelineInfo.PipelineArguments.PipelineType,
-		},
-		{
-			Name:  defaults.RadixImageTagEnvironmentVariable,
-			Value: pipelineInfo.PipelineArguments.ImageTag,
-		},
-		{
-			Name:  defaults.RadixPromoteDeploymentEnvironmentVariable,
-			Value: pipelineInfo.PipelineArguments.DeploymentName,
-		},
-		{
-			Name:  defaults.RadixPromoteFromEnvironmentEnvironmentVariable,
-			Value: pipelineInfo.PipelineArguments.FromEnvironment,
-		},
-		{
-			Name:  defaults.RadixPipelineJobToEnvironmentEnvironmentVariable,
-			Value: pipelineInfo.PipelineArguments.ToEnvironment,
-		},
-		{
-			Name:  defaults.LogLevel,
-			Value: pipelineInfo.PipelineArguments.LogLevel,
-		},
-		{
-			Name:  defaults.RadixReservedAppDNSAliasesEnvironmentVariable,
-			Value: maps.ToString(pipelineInfo.PipelineArguments.DNSConfig.ReservedAppDNSAliases),
-		},
-		{
-			Name:  defaults.RadixReservedDNSAliasesEnvironmentVariable,
-			Value: strings.Join(pipelineInfo.PipelineArguments.DNSConfig.ReservedDNSAliases, ","),
-		},
-	}
-	return internaltekton.CreateActionPipelineJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
+	pipelineCtx := NewPipelineContext(step.GetTektonClient(), pipelineInfo)
+	return pipelineCtx.RunPipelinesJob()
 }

@@ -16,8 +16,8 @@ type EnvironmentSubPipelineToRun struct {
 	PipelineFile string
 }
 
-// PrepareBuildContext Provide optional build instruction from the prepare job to the pipeline job
-type PrepareBuildContext struct {
+// BuildContext Provide optional build instruction from the prepare job to the pipeline job
+type BuildContext struct {
 	// EnvironmentsToBuild List of environments with component names, which need to be built
 	EnvironmentsToBuild []EnvironmentToBuild
 	// ChangedRadixConfig Radix Config file was changed

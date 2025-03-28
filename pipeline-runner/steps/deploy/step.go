@@ -49,8 +49,7 @@ func (cli *DeployStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *DeployStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	err := cli.deploy(ctx, pipelineInfo)
-	return err
+	return cli.deploy(ctx, pipelineInfo)
 }
 
 // Deploy Handles deploy step of the pipeline
@@ -87,7 +86,7 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 		return err
 	}
 
-	activeRd, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeutil(), utils.GetEnvironmentNamespace(appName, envName))
+	activeRd, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeUtil(), utils.GetEnvironmentNamespace(appName, envName))
 	if err != nil {
 		return err
 	}
@@ -104,7 +103,7 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 		envName,
 		radixApplicationHash,
 		buildSecretHash,
-		pipelineInfo.PrepareBuildContext,
+		pipelineInfo.BuildContext,
 		pipelineInfo.PipelineArguments.ComponentsToDeploy)
 
 	if err != nil {
@@ -118,13 +117,13 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 
 	radixDeploymentName := radixDeployment.GetName()
 	log.Ctx(ctx).Info().Msgf("Apply Radix deployment %s to environment %s", radixDeploymentName, envName)
-	if _, err = cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.Background(), radixDeployment, metav1.CreateOptions{}); err != nil {
+	if _, err = cli.GetRadixClient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.Background(), radixDeployment, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s. %w", appName, envName, err)
 	}
 
 	if err = cli.radixDeploymentWatcher.WaitForActive(ctx, namespace, radixDeploymentName); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("Failed to activate Radix deployment %s in environment %s. Deleting deployment", radixDeploymentName, envName)
-		if deleteErr := cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); deleteErr != nil && !k8serrors.IsNotFound(deleteErr) {
+		if deleteErr := cli.GetRadixClient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Delete(context.Background(), radixDeploymentName, metav1.DeleteOptions{}); deleteErr != nil && !k8serrors.IsNotFound(deleteErr) {
 			log.Ctx(ctx).Error().Err(deleteErr).Msgf("Failed to delete Radix deployment")
 		}
 		return err

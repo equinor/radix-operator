@@ -26,13 +26,7 @@ const (
 )
 
 // NewController creates a new controller that handles RadixJobs
-func NewController(ctx context.Context,
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	handler Handler,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	radixInformerFactory informers.SharedInformerFactory,
-	recorder record.EventRecorder) *common.Controller {
+func NewController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, recorder record.EventRecorder) *common.Controller {
 	logger := log.With().Str("controller", controllerAgentName).Logger()
 	radixJobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
@@ -107,7 +101,7 @@ func NewController(ctx context.Context,
 			if newJob.ResourceVersion == oldJob.ResourceVersion {
 				return
 			}
-			controller.HandleObject(ctx, cur, v1.KindRadixJob, getObject)
+			controller.HandleObject(ctx, cur, v1.KindRadixJob, getRadixJob)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixJob, converted := obj.(*batchv1.Job)
@@ -117,7 +111,7 @@ func NewController(ctx context.Context,
 			}
 			// If a kubernetes job gets deleted for a running job, the running radix job should
 			// take this into account. The running job will get restarted
-			controller.HandleObject(ctx, radixJob, v1.KindRadixJob, getObject)
+			controller.HandleObject(ctx, radixJob, v1.KindRadixJob, getRadixJob)
 		},
 	}); err != nil {
 		panic(err)
@@ -136,14 +130,14 @@ func NewController(ctx context.Context,
 					return
 				}
 
-				job, err := client.BatchV1().Jobs(newPod.Namespace).Get(ctx, newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
+				kubeJob, err := client.BatchV1().Jobs(newPod.Namespace).Get(ctx, newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
 				if err != nil {
 					// This job may not be found because application is being deleted and resources are being deleted
 					logger.Debug().Msgf("Could not find owning job of pod %s due to %v", newPod.Name, err)
 					return
 				}
 
-				controller.HandleObject(ctx, job, v1.KindRadixJob, getObject)
+				controller.HandleObject(ctx, kubeJob, v1.KindRadixJob, getRadixJob)
 			}
 		},
 	}); err != nil {
@@ -153,6 +147,6 @@ func NewController(ctx context.Context,
 	return controller
 }
 
-func getObject(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+func getRadixJob(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
 	return radixClient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 }
