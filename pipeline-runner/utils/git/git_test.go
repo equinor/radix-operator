@@ -164,6 +164,15 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			expectedChangedConfigFile: true,
 		},
 		{
+			name:                      "init - add radixconfig and gitignore files with same commit",
+			targetCommit:              "7d6309f7537baa2815bb631802e6d8d613150c52",
+			beforeCommitExclusive:     "7d6309f7537baa2815bb631802e6d8d613150c52",
+			configFile:                "radixconfig.yaml",
+			configBranch:              "main",
+			expectedChangedFolders:    nil,
+			expectedChangedConfigFile: false,
+		},
+		{
 			name:                      "added app1 folder and its files. app1 component added to the radixconfig",
 			targetCommit:              "0b9ee1f93639fff492c05b8d5e662301f508debe",
 			beforeCommitExclusive:     "7d6309f7537baa2815bb631802e6d8d613150c52",
@@ -191,13 +200,22 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			expectedChangedConfigFile: false,
 		},
 		{
-			name:                      "valid the same target and before commit",
-			targetCommit:              "7d6309f7537baa2815bb631802e6d8d613150c52",
-			beforeCommitExclusive:     "7d6309f7537baa2815bb631802e6d8d613150c52",
+			name:                      "the same target and before commit, files were changed",
+			targetCommit:              "f68e88664ed51f79880b7f69d5789d21086ed1dc",
+			beforeCommitExclusive:     "f68e88664ed51f79880b7f69d5789d21086ed1dc",
 			configFile:                "radixconfig.yaml",
 			configBranch:              "main",
-			expectedChangedFolders:    []string{"."},
-			expectedChangedConfigFile: true,
+			expectedChangedFolders:    nil,
+			expectedChangedConfigFile: false,
+		},
+		{
+			name:                      "the same target and before commit, only radixconfig was changed",
+			targetCommit:              "38845f7ba0b9dbfa0a0a929aaddc7308f4db35e2",
+			beforeCommitExclusive:     "38845f7ba0b9dbfa0a0a929aaddc7308f4db35e2",
+			configFile:                "radixconfig.yaml",
+			configBranch:              "main",
+			expectedChangedFolders:    nil,
+			expectedChangedConfigFile: false,
 		},
 		{
 			name:                  "invalid target commit",
@@ -213,7 +231,7 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			beforeCommitExclusive: "",
 			configFile:            "radixconfig.yaml",
 			configBranch:          "main",
-			expectedError:         "invalid targetCommit",
+			expectedError:         "invalid empty targetCommit",
 		},
 		{
 			name:                      "Added folder app2 with files",
@@ -249,6 +267,24 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			configFile:                "radixconfig.yaml",
 			configBranch:              "main",
 			expectedChangedFolders:    []string{"app3"},
+			expectedChangedConfigFile: false,
+		},
+		{
+			name:                      "radixconfig.yaml was changed",
+			targetCommit:              "38845f7ba0b9dbfa0a0a929aaddc7308f4db35e2",
+			beforeCommitExclusive:     "2127927fa21ae471baefbadd3f05b60a4bf38b5f",
+			configFile:                "radixconfig.yaml",
+			configBranch:              "main",
+			expectedChangedFolders:    []string{"."},
+			expectedChangedConfigFile: true,
+		},
+		{
+			name:                      "File in folder 3 was changed, same commit",
+			targetCommit:              "31472b8fc3fe22a2b8d174e79ae2f891a975864d",
+			beforeCommitExclusive:     "31472b8fc3fe22a2b8d174e79ae2f891a975864d",
+			configFile:                "radixconfig.yaml",
+			configBranch:              "main",
+			expectedChangedFolders:    nil,
 			expectedChangedConfigFile: false,
 		},
 		{
@@ -382,6 +418,7 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
+			t.Log(scenario.name)
 			var changedFolderList, changedConfigFile, err = getGitAffectedResourcesBetweenCommits(gitWorkspacePath, scenario.configBranch, scenario.configFile, scenario.targetCommit, scenario.beforeCommitExclusive)
 			if scenario.expectedError == "" {
 				require.NoError(t, err)

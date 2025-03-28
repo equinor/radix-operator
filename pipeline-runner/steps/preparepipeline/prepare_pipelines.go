@@ -108,10 +108,6 @@ func (pipelineCtx *pipelineContext) prepareBuildDeployPipeline() ([]model.Enviro
 	}
 	pipelineCtx.GetPipelineInfo().SetGitAttributes(pipelineTargetCommitHash, commitTags)
 
-	if len(pipelineArgs.CommitID) > 0 {
-		return nil, false, nil
-	}
-
 	radixConfigWasChanged, environmentsToBuild, err := pipelineCtx.analyseSourceRepositoryChanges(pipelineTargetCommitHash)
 	if err != nil {
 		return nil, false, err
