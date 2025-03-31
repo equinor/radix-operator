@@ -185,7 +185,7 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 
 func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
 	cloneCfg := internalgit.CloneConfigFromPipelineArgs(c.pipelineArgs)
-	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.Branch, cloneCfg)
+	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GitWorkspace, c.pipelineArgs.Branch, cloneCfg)
 }
 
 func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {
@@ -319,7 +319,7 @@ func (c *buildKitKubeJobProps) getPodContainerEnvVars() []corev1.EnvVar {
 }
 
 func (c *buildKitKubeJobProps) getPodContainerVolumeMounts() []corev1.VolumeMount {
-	volumeMounts := getCommonPodContainerVolumeMounts(c.componentImage)
+	volumeMounts := getCommonPodContainerVolumeMounts(c.componentImage, c.pipelineArgs.GitWorkspace)
 
 	volumeMounts = append(volumeMounts,
 		corev1.VolumeMount{

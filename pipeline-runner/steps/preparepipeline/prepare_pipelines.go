@@ -116,7 +116,7 @@ func (pipelineCtx *pipelineContext) analyseSourceRepositoryChanges(pipelineTarge
 
 	changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(pipelineCtx.pipelineInfo.GetGitWorkspace(),
 		pipelineCtx.pipelineInfo.GetRadixConfigBranch(),
-		pipelineCtx.pipelineInfo.GetRadixConfigFile(),
+		pipelineCtx.pipelineInfo.GetRadixConfigFileInWorkspace(),
 		pipelineTargetCommitHash,
 		lastCommitHashesForEnvs)
 	if err != nil {

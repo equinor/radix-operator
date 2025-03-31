@@ -13,7 +13,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -307,7 +306,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 				ComponentName:        componentName,
 				EnvName:              envName,
 				ContainerName:        containerName,
-				Context:              getContext(imageSource.Source.Folder),
+				Context:              getContext(pipelineInfo.GetGitWorkspace(), imageSource.Source.Folder),
 				Dockerfile:           getDockerfileName(imageSource.Source.DockefileName),
 				ImageName:            imageName,
 				ImagePath:            imagePath,
@@ -430,9 +429,9 @@ func getDockerfileName(name string) string {
 	return name
 }
 
-func getContext(sourceFolder string) string {
+func getContext(workspace, sourceFolder string) string {
 	sourceRoot := filepath.Join("/", sourceFolder)
-	return fmt.Sprintf("%s/", filepath.Join(git.Workspace, sourceRoot))
+	return fmt.Sprintf("%s/", filepath.Join(workspace, sourceRoot))
 }
 
 func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComponent {

@@ -59,7 +59,8 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 		AppContainerRegistry:   "anyappcontainerregistry",
 		SeccompProfileFileName: "anyseccompprofilefile",
 		ExternalContainerRegistryDefaultAuthSecret: externalRegistrySecret,
-		Builder: model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+		Builder:      model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+		GitWorkspace: "/some-workspace",
 	}
 	require.Equal(t, pushImage, args.PushImage)
 	require.Equal(t, externalRegistrySecret, args.ExternalContainerRegistryDefaultAuthSecret)
@@ -151,10 +152,10 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 			assert.ElementsMatch(t, []string{"internal-nslookup", "clone", "internal-chmod"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 			cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
 			assert.Equal(t, args.GitCloneGitImage, cloneContainer.Image)
-			assert.Equal(t, []string{"sh", "-c", "git config --global --add safe.directory /workspace && git clone anycloneurl -b anybranch --verbose --progress /workspace && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd /workspace && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -"}, cloneContainer.Command)
+			assert.Equal(t, []string{"sh", "-c", "git config --global --add safe.directory /some-workspace && git clone anycloneurl -b anybranch --verbose --progress /some-workspace && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd /some-workspace && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -"}, cloneContainer.Command)
 			assert.Empty(t, cloneContainer.Args)
 			expectedCloneVolumeMounts := []corev1.VolumeMount{
-				{Name: git.BuildContextVolumeName, MountPath: git.Workspace},
+				{Name: git.BuildContextVolumeName, MountPath: "/some-workspace"},
 				{Name: git.GitSSHKeyVolumeName, MountPath: "/.ssh", ReadOnly: true},
 				{Name: git.CloneRepoHomeVolumeName, MountPath: git.CloneRepoHomeVolumePath},
 			}
@@ -227,7 +228,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 			}
 			assert.ElementsMatch(t, expectedEnvVars, c.Env)
 			expectedVolumeMounts := []corev1.VolumeMount{
-				{Name: git.BuildContextVolumeName, MountPath: git.Workspace},
+				{Name: git.BuildContextVolumeName, MountPath: "/some-workspace"},
 				{Name: fmt.Sprintf("tmp-%s", ci.ContainerName), MountPath: "/tmp", ReadOnly: false},
 				{Name: fmt.Sprintf("var-%s", ci.ContainerName), MountPath: "/var", ReadOnly: false},
 				{Name: "build-kit-run", MountPath: "/run", ReadOnly: false},

@@ -12,12 +12,12 @@ import (
 
 // LoadRadixAppConfig Load Radix config file and create RadixApplication to the PipelineInfo.RadixApplication. Output is in the PipelineInfo.BuildContext
 func (pipelineCtx *pipelineContext) LoadRadixAppConfig() (*radixv1.RadixApplication, error) {
-	radixConfigFile := pipelineCtx.GetPipelineInfo().GetRadixConfigFile()
-	configFileContent, err := os.ReadFile(radixConfigFile)
+	radixConfigFileFullName := pipelineCtx.GetPipelineInfo().GetRadixConfigFileInWorkspace()
+	configFileContent, err := os.ReadFile(radixConfigFileFullName)
 	if err != nil {
-		return nil, fmt.Errorf("error reading the Radix config file %s: %v", radixConfigFile, err)
+		return nil, fmt.Errorf("error reading the Radix config file %s: %v", radixConfigFileFullName, err)
 	}
-	log.Debug().Msgf("Radix config file %s has been loaded", radixConfigFile)
+	log.Debug().Msgf("Radix config file %s has been loaded", radixConfigFileFullName)
 
 	radixApplication, err := application.CreateRadixApplication(context.Background(), pipelineCtx.GetRadixClient(), pipelineCtx.GetPipelineInfo().GetAppName(), pipelineCtx.GetPipelineInfo().GetDNSConfig(), string(configFileContent))
 	if err != nil {

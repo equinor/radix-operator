@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/equinor/radix-common/utils/slice"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -217,9 +218,9 @@ func (p *PipelineInfo) GetRadixConfigBranch() string {
 	return p.RadixRegistration.Spec.ConfigBranch
 }
 
-// GetRadixConfigFile Get radix config file
-func (p *PipelineInfo) GetRadixConfigFile() string {
-	return p.PipelineArguments.RadixConfigFile
+// GetRadixConfigFileInWorkspace Get radix config file
+func (p *PipelineInfo) GetRadixConfigFileInWorkspace() string {
+	return filepath.Join(p.PipelineArguments.GitWorkspace, p.PipelineArguments.RadixConfigFile)
 }
 
 // GetGitWorkspace Get git workspace

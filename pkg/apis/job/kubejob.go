@@ -74,12 +74,14 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 		return nil, err
 	}
 
-	containerArguments, err := job.getPipelineJobArguments(ctx, appName, jobName, radixConfigFullName, job.radixJob.Spec, pipeline)
+	workspace := "/some-ws"
+	//workspace := git.Workspace
+	containerArguments, err := job.getPipelineJobArguments(ctx, appName, jobName, workspace, radixConfigFullName, job.radixJob.Spec, pipeline)
 	if err != nil {
 		return nil, err
 	}
 
-	initContainers := job.getInitContainersForRadixConfig(radixRegistration)
+	initContainers := job.getInitContainersForRadixConfig(radixRegistration, workspace)
 
 	jobCfg := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -108,7 +110,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 							Name:            defaults.RadixPipelineJobPipelineContainerName,
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
-							VolumeMounts:    git.GetJobContainerVolumeMounts(),
+							VolumeMounts:    git.GetJobContainerVolumeMounts(workspace),
 							Args:            containerArguments,
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithContainerDropAllCapabilities(),
@@ -138,14 +140,14 @@ func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) (strin
 	if err := radixvalidators.ValidateRadixConfigFullName(radixConfigFullName); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s/%s", git.Workspace, radixConfigFullName), nil
+	return radixConfigFullName, nil
 }
 
-func (job *Job) getInitContainersForRadixConfig(rr *radixv1.RadixRegistration) []corev1.Container {
-	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, git.CloneConfigContainerName, *job.config.PipelineJobConfig.GitCloneConfig, false)
+func (job *Job) getInitContainersForRadixConfig(rr *radixv1.RadixRegistration, workspace string) []corev1.Container {
+	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, git.CloneConfigContainerName, *job.config.PipelineJobConfig.GitCloneConfig, false, workspace)
 }
 
-func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
+func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
 
@@ -197,6 +199,7 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, r
 		fmt.Sprintf("--%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
 		fmt.Sprintf("--%s=%s", defaults.RadixReservedAppDNSAliasesEnvironmentVariable, maps.ToString(job.config.DNSConfig.ReservedAppDNSAliases)),
 		fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, strings.Join(job.config.DNSConfig.ReservedDNSAliases, ",")),
+		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
 	}
 

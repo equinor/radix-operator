@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	sampleApp = "../internal/test/testdata/radixconfig.yaml"
+	sampleAppRadixConfigFileName = "/radixconfig.yaml"
+	sampleAppWorkspace           = "../internal/test/testdata"
 )
 
 func Test_LoadRadixApplication(t *testing.T) {
@@ -48,7 +49,8 @@ func Test_LoadRadixApplication(t *testing.T) {
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
 					AppName:         ts.registeredAppName,
-					RadixConfigFile: sampleApp,
+					RadixConfigFile: sampleAppRadixConfigFileName,
+					GitWorkspace:    sampleAppWorkspace,
 				},
 			}
 			pipelineCtx := NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo)

@@ -60,8 +60,8 @@ func getCommonPodTolerations() []corev1.Toleration {
 	return utils.GetPipelineJobPodSpecTolerations()
 }
 
-func getCommonPodInitContainers(cloneURL, branch string, cloneConfig git.CloneConfig) []corev1.Container {
-	return git.CloneInitContainersWithSourceCode(cloneURL, branch, cloneConfig)
+func getCommonPodInitContainers(cloneURL, workspace, branch string, cloneConfig git.CloneConfig) []corev1.Container {
+	return git.CloneInitContainersWithSourceCode(cloneURL, branch, cloneConfig, workspace)
 }
 
 func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {
@@ -112,11 +112,11 @@ func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev
 	return volumes
 }
 
-func getCommonPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage) []corev1.VolumeMount {
+func getCommonPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage, workspace string) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      git.BuildContextVolumeName,
-			MountPath: git.Workspace,
+			MountPath: workspace,
 		},
 		{
 			Name:      getTmpVolumeNameForContainer(componentImage.ContainerName), // image-builder creates a script there

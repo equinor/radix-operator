@@ -351,6 +351,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 			ContainerRegistry: "registry",
 			Clustertype:       "clustertype",
 			Clustername:       "clustername",
+			GitWorkspace:      "/some-workspace",
 		},
 		RadixApplication: ra,
 	}
@@ -385,32 +386,32 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 	}
 	expectedBuildComponentImages := pipeline.EnvironmentBuildComponentImages{
 		envName1: []pipeline.BuildComponentImage{
-			buildComponentImageFunc(envName1, "component-1", "/workspace/client/", "client.Dockerfile"),
-			buildComponentImageFunc(envName1, "component-2", "/workspace/", "client.Dockerfile"),
-			buildComponentImageFunc(envName1, "component-3", "/workspace/client/", "Dockerfile"),
-			buildComponentImageFunc(envName1, "job-1", "/workspace/client/", "client.Dockerfile"),
-			buildComponentImageFunc(envName1, "job-2", "/workspace/", "client.Dockerfile"),
-			buildComponentImageFunc(envName1, "job-3", "/workspace/client/", "Dockerfile"),
+			buildComponentImageFunc(envName1, "component-1", "/some-workspace/client/", "client.Dockerfile"),
+			buildComponentImageFunc(envName1, "component-2", "/some-workspace/", "client.Dockerfile"),
+			buildComponentImageFunc(envName1, "component-3", "/some-workspace/client/", "Dockerfile"),
+			buildComponentImageFunc(envName1, "job-1", "/some-workspace/client/", "client.Dockerfile"),
+			buildComponentImageFunc(envName1, "job-2", "/some-workspace/", "client.Dockerfile"),
+			buildComponentImageFunc(envName1, "job-3", "/some-workspace/client/", "Dockerfile"),
 		},
 		envName2: []pipeline.BuildComponentImage{
-			buildComponentImageFunc(envName2, "component-1", "/workspace/client2/", "client.Dockerfile"),
-			buildComponentImageFunc(envName2, "component-2", "/workspace/client2/", "client.Dockerfile"),
-			buildComponentImageFunc(envName2, "component-3", "/workspace/client2/", "Dockerfile"),
-			buildComponentImageFunc(envName2, "component-4", "/workspace/client2/", "Dockerfile"),
-			buildComponentImageFunc(envName2, "job-1", "/workspace/client2/", "client.Dockerfile"),
-			buildComponentImageFunc(envName2, "job-2", "/workspace/client2/", "client.Dockerfile"),
-			buildComponentImageFunc(envName2, "job-3", "/workspace/client2/", "Dockerfile"),
-			buildComponentImageFunc(envName2, "job-4", "/workspace/client2/", "Dockerfile"),
+			buildComponentImageFunc(envName2, "component-1", "/some-workspace/client2/", "client.Dockerfile"),
+			buildComponentImageFunc(envName2, "component-2", "/some-workspace/client2/", "client.Dockerfile"),
+			buildComponentImageFunc(envName2, "component-3", "/some-workspace/client2/", "Dockerfile"),
+			buildComponentImageFunc(envName2, "component-4", "/some-workspace/client2/", "Dockerfile"),
+			buildComponentImageFunc(envName2, "job-1", "/some-workspace/client2/", "client.Dockerfile"),
+			buildComponentImageFunc(envName2, "job-2", "/some-workspace/client2/", "client.Dockerfile"),
+			buildComponentImageFunc(envName2, "job-3", "/some-workspace/client2/", "Dockerfile"),
+			buildComponentImageFunc(envName2, "job-4", "/some-workspace/client2/", "Dockerfile"),
 		},
 		envName3: []pipeline.BuildComponentImage{
-			buildComponentImageFunc(envName3, "component-1", "/workspace/client/", "client2.Dockerfile"),
-			buildComponentImageFunc(envName3, "component-2", "/workspace/", "client2.Dockerfile"),
-			buildComponentImageFunc(envName3, "component-3", "/workspace/client/", "client2.Dockerfile"),
-			buildComponentImageFunc(envName3, "component-4", "/workspace/", "client2.Dockerfile"),
-			buildComponentImageFunc(envName3, "job-1", "/workspace/client/", "client2.Dockerfile"),
-			buildComponentImageFunc(envName3, "job-2", "/workspace/", "client2.Dockerfile"),
-			buildComponentImageFunc(envName3, "job-3", "/workspace/client/", "client2.Dockerfile"),
-			buildComponentImageFunc(envName3, "job-4", "/workspace/", "client2.Dockerfile"),
+			buildComponentImageFunc(envName3, "component-1", "/some-workspace/client/", "client2.Dockerfile"),
+			buildComponentImageFunc(envName3, "component-2", "/some-workspace/", "client2.Dockerfile"),
+			buildComponentImageFunc(envName3, "component-3", "/some-workspace/client/", "client2.Dockerfile"),
+			buildComponentImageFunc(envName3, "component-4", "/some-workspace/", "client2.Dockerfile"),
+			buildComponentImageFunc(envName3, "job-1", "/some-workspace/client/", "client2.Dockerfile"),
+			buildComponentImageFunc(envName3, "job-2", "/some-workspace/", "client2.Dockerfile"),
+			buildComponentImageFunc(envName3, "job-3", "/some-workspace/client/", "client2.Dockerfile"),
+			buildComponentImageFunc(envName3, "job-4", "/some-workspace/", "client2.Dockerfile"),
 		},
 	}
 	s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages))
@@ -527,6 +528,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 			ContainerRegistry: "anyregistry",
 			Clustertype:       "anyclustertype",
 			Clustername:       "anyclustername",
+			GitWorkspace:      "/some-workspace",
 		},
 		RadixApplication: ra,
 	}
@@ -551,7 +553,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 			ComponentName:        component,
 			EnvName:              envName,
 			ContainerName:        fmt.Sprintf("build-%s-%s", component, envName),
-			Context:              "/workspace/",
+			Context:              "/some-workspace/",
 			Dockerfile:           "Dockerfile",
 			ImageName:            imageNameFunc(component),
 			ImagePath:            imagePathFunc(component),
@@ -668,6 +670,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 			ContainerRegistry: "registry",
 			Clustertype:       "clustertype",
 			Clustername:       "clustername",
+			GitWorkspace:      "/some-workspace",
 		},
 		RadixApplication: ra,
 	}
@@ -704,14 +707,14 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 	}
 	expectedBuildComponentImages := pipeline.EnvironmentBuildComponentImages{
 		envName: []pipeline.BuildComponentImage{
-			buildComponentImageFunc("client-component-1", "/workspace/client/", "client.Dockerfile"),
-			buildComponentImageFunc("client-component-2", "/workspace/client/", "client.Dockerfile"),
-			buildComponentImageFunc("client-component-4", "/workspace/client2/", "client.Dockerfile"),
-			buildComponentImageFunc("client-component-6", "/workspace/client3/", "client.Dockerfile"),
-			buildComponentImageFunc("calc-1", "/workspace/calc/", "calc.Dockerfile"),
-			buildComponentImageFunc("calc-2", "/workspace/calc/", "calc.Dockerfile"),
-			buildComponentImageFunc("calc-4", "/workspace/calc2/", "calc.Dockerfile"),
-			buildComponentImageFunc("calc-6", "/workspace/calc3/", "calc.Dockerfile"),
+			buildComponentImageFunc("client-component-1", "/some-workspace/client/", "client.Dockerfile"),
+			buildComponentImageFunc("client-component-2", "/some-workspace/client/", "client.Dockerfile"),
+			buildComponentImageFunc("client-component-4", "/some-workspace/client2/", "client.Dockerfile"),
+			buildComponentImageFunc("client-component-6", "/some-workspace/client3/", "client.Dockerfile"),
+			buildComponentImageFunc("calc-1", "/some-workspace/calc/", "calc.Dockerfile"),
+			buildComponentImageFunc("calc-2", "/some-workspace/calc/", "calc.Dockerfile"),
+			buildComponentImageFunc("calc-4", "/some-workspace/calc2/", "calc.Dockerfile"),
+			buildComponentImageFunc("calc-6", "/some-workspace/calc3/", "calc.Dockerfile"),
 		},
 	}
 	s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages))
@@ -802,6 +805,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			Clustertype:       "clustertype",
 			Clustername:       "clustername",
 			ContainerRegistry: "registry",
+			GitWorkspace:      "/some-workspace",
 		},
 		BuildContext: buildCtx,
 	}
@@ -829,7 +833,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			ComponentName:        component,
 			EnvName:              envName,
 			ContainerName:        fmt.Sprintf("build-%s-%s", component, envName),
-			Context:              "/workspace/",
+			Context:              "/some-workspace/",
 			Dockerfile:           dockerfile,
 			ImageName:            imageNameFunc(component),
 			ImagePath:            imagePathFunc(component),
@@ -918,6 +922,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 		ContainerRegistry: "registry",
 		Clustertype:       "clustertype",
 		Clustername:       "clustername",
+		GitWorkspace:      "/some-workspace",
 	}
 	type testSpec struct {
 		name                          string
@@ -944,7 +949,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 			ComponentName:        component,
 			EnvName:              envName,
 			ContainerName:        fmt.Sprintf("build-%s-%s", component, envName),
-			Context:              "/workspace/",
+			Context:              "/some-workspace/",
 			Dockerfile:           "Dockerfile",
 			ImageName:            imageNameFunc(component),
 			ImagePath:            imagePathFunc(component),
@@ -1372,6 +1377,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 				PipelineArguments: model.PipelineArguments{
 					PipelineType:  string(radixv1.Deploy),
 					ToEnvironment: "dev",
+					GitWorkspace:  "/some-workspace",
 				},
 				RadixApplication: ra,
 			}
@@ -1405,6 +1411,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInRAShouldSu
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
+			GitWorkspace:  "/some-workspace",
 		},
 		RadixApplication: ra,
 	}
@@ -1431,6 +1438,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineAr
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 			ImageTagNames: map[string]string{"deploycomp": "tag"},
+			GitWorkspace:  "/some-workspace",
 		},
 		RadixApplication: ra,
 	}
@@ -1456,6 +1464,7 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail(
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
+			GitWorkspace:  "/some-workspace",
 		},
 		RadixApplication: ra,
 	}
@@ -1485,6 +1494,7 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed(
 		PipelineArguments: model.PipelineArguments{
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
+			GitWorkspace:  "/some-workspace",
 		},
 		RadixApplication: ra,
 	}
@@ -1511,6 +1521,7 @@ func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgS
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 			ImageTagNames: map[string]string{"deployjob": "anytag"},
+			GitWorkspace:  "/some-workspace",
 		},
 		RadixApplication: ra,
 	}
@@ -1580,6 +1591,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 				PipelineArguments: model.PipelineArguments{
 					PipelineType:       string(ts.pipelineType),
 					ComponentsToDeploy: ts.componentsToDeploy,
+					GitWorkspace:       "/some-workspace",
 				},
 				RadixApplication: ra,
 			}
@@ -1636,6 +1648,7 @@ func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
 			ToEnvironment: envName,
 			JobName:       rjName,
 			ImageTagNames: map[string]string{"comp1": "comp1customtag", "job1": "job1customtag"},
+			GitWorkspace:  "/some-workspace",
 		},
 		RadixApplication: ra,
 	}
@@ -1731,6 +1744,7 @@ func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 				PipelineArguments: model.PipelineArguments{
 					PipelineType: string(radixv1.BuildDeploy),
 					Branch:       branchName,
+					GitWorkspace: "/some-workspace",
 				},
 				RadixApplication: ra,
 			}

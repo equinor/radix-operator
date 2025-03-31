@@ -165,7 +165,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
-	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName(appName).BuildRR(), metav1.CreateOptions{})
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName(appName).WithRadixConfigFullName("some-radixconfig.yaml").BuildRR(), metav1.CreateOptions{})
 	s.Require().NoError(err)
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 	rj, err := s.applyJobWithSync(utils.NewJobBuilder().
@@ -227,7 +227,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--AZURE_SUBSCRIPTION_ID=%s", s.config.subscriptionID),
 				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api",
 				"--RADIX_RESERVED_DNS_ALIASES=grafana",
-				"--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
+				"--RADIX_GITHUB_WORKSPACE=/workspace",
+				"--RADIX_FILE_NAME=some-radixconfig.yaml",
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE=%s", s.config.nslookupImage),
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=%s", s.config.gitImage),
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE=%s", s.config.bashImage),
