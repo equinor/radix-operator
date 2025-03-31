@@ -143,12 +143,11 @@ func (pipelineCtx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(ta
 	}
 }
 
-// getGitHash return git commit to which the user repository should be reset before parsing sub-pipelines.
 func (pipelineCtx *pipelineContext) getGitHash() (string, error) {
+	// getGitHash return git commit to which the user repository should be reset before parsing sub-pipelines.
 	pipelineArgs := pipelineCtx.pipelineInfo.PipelineArguments
 	pipelineType := pipelineCtx.pipelineInfo.GetRadixPipelineType()
-	if pipelineType == radixv1.Build || pipelineType == radixv1.ApplyConfig {
-		log.Info().Msg("Skipping sub-pipelines.")
+	if pipelineType == radixv1.ApplyConfig {
 		return "", nil
 	}
 
@@ -190,7 +189,7 @@ func (pipelineCtx *pipelineContext) getGitHash() (string, error) {
 		return gitHash, nil
 	}
 
-	if pipelineType == radixv1.BuildDeploy {
+	if pipelineType == radixv1.BuildDeploy || pipelineType == radixv1.Build {
 		gitHash, err := git.GetCommitHash(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
 		if err != nil {
 			return "", err

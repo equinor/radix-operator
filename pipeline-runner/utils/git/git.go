@@ -34,11 +34,10 @@ func ResetGitHead(gitWorkspace, commitHashString string) error {
 	}
 
 	commitHash := plumbing.NewHash(commitHashString)
-	err = worktree.Reset(&git.ResetOptions{
+	if err = worktree.Reset(&git.ResetOptions{
 		Commit: commitHash,
 		Mode:   git.HardReset,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	log.Debug().Msgf("reset HEAD to %s", commitHashString)

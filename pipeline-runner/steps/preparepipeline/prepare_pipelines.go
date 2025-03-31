@@ -41,21 +41,14 @@ func (pipelineCtx *pipelineContext) GetBuildContext() (*model.BuildContext, erro
 	if err != nil {
 		return nil, err
 	}
+	if err = git.ResetGitHead(pipelineCtx.GetPipelineInfo().GetGitWorkspace(), gitHash); err != nil {
+		return nil, err
+	}
 
 	pipelineType := pipelineCtx.GetPipelineInfo().GetRadixPipelineType()
 	buildContext := model.BuildContext{}
 
-	if gitHash == "" && pipelineCtx.GetPipelineInfo().GetRadixPipelineType() != radixv1.BuildDeploy {
-		// if no git hash, don't run sub-pipelines
-		return &buildContext, nil
-	}
-
-	if err = git.ResetGitHead(pipelineCtx.GetPipelineInfo().GetGitWorkspace(), gitHash); err != nil && pipelineType == radixv1.Promote {
-		log.Error().Msgf("Failed to find Git CommitID %s. Error: %v. Ignore the error for the Promote pipeline. If Sub-pipeline exists it is skipped.", gitHash, err)
-		return nil, nil
-	}
-
-	if pipelineType == radixv1.BuildDeploy {
+	if pipelineType == radixv1.BuildDeploy || pipelineType == radixv1.Build {
 		buildContext.EnvironmentsToBuild, buildContext.ChangedRadixConfig, err = pipelineCtx.prepareBuildDeployPipeline()
 		if err != nil {
 			return nil, err
@@ -82,8 +75,7 @@ func (pipelineCtx *pipelineContext) GetEnvironmentSubPipelinesToRun() ([]model.E
 			})
 		}
 	}
-	err := errors.Join(errs...)
-	if err != nil {
+	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
 	if len(environmentSubPipelinesToRun) > 0 {
