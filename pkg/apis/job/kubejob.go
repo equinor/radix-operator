@@ -74,8 +74,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 		return nil, err
 	}
 
-	workspace := "/some-ws"
-	//workspace := git.Workspace
+	workspace := git.Workspace
 	containerArguments, err := job.getPipelineJobArguments(ctx, appName, jobName, workspace, radixConfigFullName, job.radixJob.Spec, pipeline)
 	if err != nil {
 		return nil, err
