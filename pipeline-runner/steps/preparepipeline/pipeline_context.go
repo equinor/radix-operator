@@ -29,20 +29,8 @@ type Context interface {
 	GetEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error)
 	// GetPipelineInfo Get pipeline info
 	GetPipelineInfo() *model.PipelineInfo
-	// GetHash Hash, common for all pipeline Kubernetes object names
-	GetHash() string
-	// GetKubeClient Kubernetes client
-	GetKubeClient() kubernetes.Interface
-	// GetTektonClient Tekton client
-	GetTektonClient() tektonclient.Interface
-	// GetRadixApplication Gets the RadixApplication, loaded from the config-map
-	GetRadixApplication() *radixv1.RadixApplication
-	// GetEnvVars Gets build env vars
-	GetEnvVars(envName string) radixv1.EnvVarsMap
 	// SetPipelineTargetEnvironments Set target environments for the pipeline job
 	SetPipelineTargetEnvironments(environments []string)
-	// GetPipelineTargetEnvironments Get target environments for the pipeline job
-	GetPipelineTargetEnvironments() []string
 }
 
 type pipelineContext struct {
@@ -59,22 +47,27 @@ func (pipelineCtx *pipelineContext) GetPipelineInfo() *model.PipelineInfo {
 	return pipelineCtx.pipelineInfo
 }
 
+// GetHash Hash, common for all pipeline Kubernetes object names
 func (pipelineCtx *pipelineContext) GetHash() string {
 	return pipelineCtx.hash
 }
 
+// GetKubeClient Kubernetes client
 func (pipelineCtx *pipelineContext) GetKubeClient() kubernetes.Interface {
 	return pipelineCtx.kubeClient
 }
 
+// GetTektonClient Tekton client
 func (pipelineCtx *pipelineContext) GetTektonClient() tektonclient.Interface {
 	return pipelineCtx.tektonClient
 }
 
+// GetRadixApplication Gets the RadixApplication, loaded from the config-map
 func (pipelineCtx *pipelineContext) GetRadixApplication() *radixv1.RadixApplication {
 	return pipelineCtx.GetPipelineInfo().GetRadixApplication()
 }
 
+// GetEnvVars Gets build env vars
 func (pipelineCtx *pipelineContext) GetEnvVars(envName string) radixv1.EnvVarsMap {
 	envVarsMap := make(radixv1.EnvVarsMap)
 	pipelineCtx.setPipelineRunParamsFromBuild(envVarsMap)
@@ -86,6 +79,7 @@ func (pipelineCtx *pipelineContext) SetPipelineTargetEnvironments(environments [
 	pipelineCtx.targetEnvironments = environments
 }
 
+// GetPipelineTargetEnvironments Get target environments for the pipeline job
 func (pipelineCtx *pipelineContext) GetPipelineTargetEnvironments() []string {
 	return pipelineCtx.targetEnvironments
 }
