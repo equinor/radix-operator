@@ -9,13 +9,14 @@ import (
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
@@ -27,7 +28,6 @@ import (
 )
 
 const (
-	tektonImage = "radix-tekton"
 	workerImage = "radix-pipeline"
 	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
 	ResultContent = "ResultContent"
@@ -49,11 +49,20 @@ func (job *Job) createPipelineJob(ctx context.Context) error {
 }
 
 func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) {
+	radixRegistration, err := job.radixclient.RadixV1().RadixRegistrations().Get(ctx, job.radixJob.Spec.AppName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	radixConfigFullName, err := getRadixConfigFullName(radixRegistration)
+	if err != nil {
+		return nil, err
+	}
+
 	containerRegistry, err := defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
 	if err != nil {
 		return nil, err
 	}
-	imageTag := fmt.Sprintf("%s/%s:%s", containerRegistry, workerImage, job.radixJob.Spec.PipelineImage)
+	imageTag := fmt.Sprintf("%s/%s:%s", containerRegistry, workerImage, job.config.PipelineJobConfig.PipelineImageTag)
 	log.Ctx(ctx).Info().Msgf("Using image: %s", imageTag)
 
 	backOffLimit := int32(0)
@@ -65,10 +74,13 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 		return nil, err
 	}
 
-	containerArguments, err := job.getPipelineJobArguments(ctx, appName, jobName, job.radixJob.Spec, pipeline)
+	workspace := git.Workspace
+	containerArguments, err := job.getPipelineJobArguments(ctx, appName, jobName, workspace, radixConfigFullName, job.radixJob.Spec, pipeline)
 	if err != nil {
 		return nil, err
 	}
+
+	initContainers := job.getInitContainersForRadixConfig(radixRegistration, workspace)
 
 	jobCfg := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -91,11 +103,13 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 					SecurityContext: securitycontext.Pod(
 						securitycontext.WithPodFSGroup(fsGroup),
 						securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
+					InitContainers: initContainers,
 					Containers: []corev1.Container{
 						{
 							Name:            defaults.RadixPipelineJobPipelineContainerName,
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
+							VolumeMounts:    git.GetJobContainerVolumeMounts(workspace),
 							Args:            containerArguments,
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithContainerDropAllCapabilities(),
@@ -105,6 +119,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true))),
 						},
 					},
+					Volumes:       git.GetJobVolumes(),
 					RestartPolicy: "Never",
 					Affinity:      utils.GetAffinityForPipelineJob(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
 					Tolerations:   utils.GetPipelineJobPodSpecTolerations(),
@@ -116,7 +131,22 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 	return &jobCfg, nil
 }
 
-func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
+func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) (string, error) {
+	radixConfigFullName := radixRegistration.Spec.RadixConfigFullName
+	if len(radixConfigFullName) == 0 {
+		radixConfigFullName = defaults.DefaultRadixConfigFileName
+	}
+	if err := radixvalidators.ValidateRadixConfigFullName(radixConfigFullName); err != nil {
+		return "", err
+	}
+	return radixConfigFullName, nil
+}
+
+func (job *Job) getInitContainersForRadixConfig(rr *radixv1.RadixRegistration, workspace string) []corev1.Container {
+	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, git.CloneConfigContainerName, *job.config.PipelineJobConfig.GitCloneConfig, false, workspace)
+}
+
+func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
 
@@ -143,16 +173,6 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 		return nil, fmt.Errorf("invalid or missing app builder resources")
 	}
 
-	// TODO: Remove fallback to Operator GetEnv when Radix-API is upgrade
-	radixTektonImage := os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)
-	if job.radixJob.Spec.TektonImage != "" {
-		radixTektonImage = fmt.Sprintf("%s:%s", tektonImage, job.radixJob.Spec.TektonImage)
-	}
-	radixConfigFullName := jobSpec.RadixConfigFullName
-	if len(radixConfigFullName) == 0 {
-		radixConfigFullName = fmt.Sprintf("%s/%s", git.Workspace, defaults.DefaultRadixConfigFileName)
-	}
-
 	// Base arguments for all types of pipeline
 	args := []string{
 		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
@@ -164,7 +184,6 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 		fmt.Sprintf("--%s=%s", defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, job.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images
-		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, radixTektonImage),
 		fmt.Sprintf("--%s=%s", defaults.RadixImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixImageBuilderEnvironmentVariable)),
 		fmt.Sprintf("--%s=%s", defaults.RadixBuildKitImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable)),
 		fmt.Sprintf("--%s=%s", defaults.SeccompProfileFileNameEnvironmentVariable, os.Getenv(defaults.SeccompProfileFileNameEnvironmentVariable)),
@@ -178,19 +197,14 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName st
 		fmt.Sprintf("--%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
 		fmt.Sprintf("--%s=%s", defaults.RadixReservedAppDNSAliasesEnvironmentVariable, maps.ToString(job.config.DNSConfig.ReservedAppDNSAliases)),
 		fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, strings.Join(job.config.DNSConfig.ReservedDNSAliases, ",")),
+		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
 	}
 
 	// Pass git clone init container images
-	if v := os.Getenv(defaults.RadixGitCloneNsLookupImageEnvironmentVariable); len(v) > 0 {
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneNsLookupImageEnvironmentVariable, v))
-	}
-	if v := os.Getenv(defaults.RadixGitCloneGitImageEnvironmentVariable); len(v) > 0 {
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneGitImageEnvironmentVariable, v))
-	}
-	if v := os.Getenv(defaults.RadixGitCloneBashImageEnvironmentVariable); len(v) > 0 {
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneBashImageEnvironmentVariable, v))
-	}
+	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneNsLookupImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneConfig.NSlookupImage))
+	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneGitImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneConfig.GitImage))
+	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneBashImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneConfig.BashImage))
 
 	switch pipeline.Type {
 	case radixv1.BuildDeploy, radixv1.Build:

@@ -57,9 +57,6 @@ const (
 	RadixJobTypeJob                     = "job"                   // Outer job
 	RadixJobTypeManagerAux              = "job-manager-auxiliary" // Outer job
 	RadixJobTypeBuild                   = "build"
-	RadixJobTypeCloneConfig             = "clone-config"
-	RadixJobTypePreparePipelines        = "prepare-pipelines"
-	RadixJobTypeRunPipelines            = "run-pipelines"
 	RadixJobTypeJobSchedule             = "job-scheduler"
 	RadixJobTypeBatchSchedule           = "batch-scheduler"
 	RadixDefaultAliasLabel              = "radix-default-alias"

@@ -5,7 +5,7 @@ import (
 
 	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/stretchr/testify/assert"
 )
 

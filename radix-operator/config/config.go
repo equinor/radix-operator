@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/config/task"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
@@ -96,6 +97,12 @@ func NewConfig() *apiconfig.Config {
 			AppBuilderResourcesLimitsMemory:       defaults.GetResourcesLimitsMemoryForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
+			PipelineImageTag:                      viper.GetString(defaults.RadixPipelineImageTagEnvironmentVariable),
+			GitCloneConfig: &git.CloneConfig{
+				NSlookupImage: viper.GetString(defaults.RadixGitCloneNsLookupImageEnvironmentVariable),
+				GitImage:      viper.GetString(defaults.RadixGitCloneGitImageEnvironmentVariable),
+				BashImage:     viper.GetString(defaults.RadixGitCloneBashImageEnvironmentVariable),
+			},
 		},
 		CertificateAutomation: certificateconfig.AutomationConfig{
 			ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
