@@ -193,7 +193,7 @@ func (pipelineCtx *pipelineContext) preparePipelinesJobForTargetEnv(envName, tim
 	err = pipelineCtx.pipelineFileExists(pipelineFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Info().Msgf("There is no Tekton pipeline file: %s. Skip Tekton pipeline", pipelineFilePath)
+			log.Info().Msgf("There is no Tekton pipeline file: %s for the environment %s. Skip Tekton pipeline", pipelineFilePath, envName)
 			return false, "", nil
 		}
 		return false, "", err
@@ -358,12 +358,11 @@ func (pipelineCtx *pipelineContext) getPipelineFilePath(pipelineFile string) (st
 		log.Debug().Msgf("Tekton pipeline file name is not specified, using the default file name %s", defaults.DefaultPipelineFileName)
 	}
 	pipelineFile = strings.TrimPrefix(pipelineFile, "/") // Tekton pipeline folder currently is relative to the Radix config file repository folder
-	configFolder := filepath.Dir(pipelineCtx.pipelineInfo.PipelineArguments.RadixConfigFile)
+	configFolder := filepath.Dir(pipelineCtx.pipelineInfo.GetRadixConfigFileInWorkspace())
 	return filepath.Join(configFolder, pipelineFile), nil
 }
 
 func (pipelineCtx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.Pipeline, tasks []pipelinev1.Task, timestamp string) error {
-
 	originalPipelineName := pipeline.Name
 	var errs []error
 	taskMap, err := pipelineCtx.buildTasks(envName, tasks, timestamp)
