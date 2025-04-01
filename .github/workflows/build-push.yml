@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build Pipeline runner
     outputs:
-      tag_latest: ${{ steps.metadata.outputs.tag_latest }}
+      tag: ${{ steps.metadata.outputs.tag }}
       fullname_latest: ${{ steps.metadata.outputs.fullname_latest }}
     steps:
       - uses: actions/checkout@v4
