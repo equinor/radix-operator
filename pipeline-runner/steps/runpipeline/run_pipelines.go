@@ -26,7 +26,7 @@ import (
 
 // RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
 func (pipelineCtx *pipelineContext) RunPipelinesJob() error {
-	pipelineInfo := pipelineCtx.GetPipelineInfo()
+	pipelineInfo := pipelineCtx.pipelineInfo
 	if pipelineInfo.GetRadixPipelineType() == radixv1.Build {
 		log.Info().Msg("Pipeline type is build, skip Tekton pipeline run.")
 		return nil
@@ -43,13 +43,12 @@ func (pipelineCtx *pipelineContext) RunPipelinesJob() error {
 		return nil
 	}
 
-	pipelineTargetEnvironments, err := internal.GetPipelineTargetEnvironments(pipelineCtx.GetPipelineInfo())
+	pipelineCtx.targetEnvironments, err = internal.GetPipelineTargetEnvironments(pipelineInfo)
 	if err != nil {
 		return err
 	}
-	pipelineCtx.SetPipelineTargetEnvironments(pipelineTargetEnvironments)
 
-	tektonPipelineBranch := pipelineCtx.GetPipelineInfo().GetBranch()
+	tektonPipelineBranch := pipelineInfo.GetBranch()
 	if pipelineInfo.GetRadixPipelineType() == radixv1.Deploy {
 		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineInfo.GetRadixApplication(), pipelineInfo.GetRadixDeployToEnvironment())
 		if re != nil && len(re.Build.From) > 0 {
@@ -66,10 +65,9 @@ func (pipelineCtx *pipelineContext) RunPipelinesJob() error {
 		return fmt.Errorf("failed to run pipelines: %w", err)
 	}
 
-	err = pipelineCtx.GetPipelineRunsWaiter().Wait(pipelineRunMap, pipelineCtx.GetPipelineInfo())
-	if err != nil {
+	if err = pipelineCtx.waiter.Wait(pipelineRunMap, pipelineInfo); err != nil {
 		return fmt.Errorf("failed tekton pipelines for the application %s, for environment(s) %s. %w",
-			pipelineCtx.GetPipelineInfo().GetAppName(),
+			pipelineInfo.GetAppName(),
 			pipelineCtx.getTargetEnvsAsString(),
 			err)
 	}
@@ -115,7 +113,7 @@ func (pipelineCtx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeli
 	originalPipelineName := pipeline.ObjectMeta.Annotations[operatorDefaults.PipelineNameAnnotation]
 	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", internal.GetShortName(targetEnv), timestamp, pipelineCtx.hash)
 	pipelineParams := pipelineCtx.getPipelineParams(pipeline, targetEnv)
-	pipelineInfo := pipelineCtx.GetPipelineInfo()
+	pipelineInfo := pipelineCtx.pipelineInfo
 	pipelineRun := pipelinev1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pipelineRunName,
@@ -156,7 +154,7 @@ func (pipelineCtx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template 
 		},
 	}
 
-	ra := pipelineCtx.GetPipelineInfo().GetRadixApplication()
+	ra := pipelineCtx.pipelineInfo.GetRadixApplication()
 	if ra != nil && len(ra.Spec.PrivateImageHubs) > 0 {
 		podTemplate.ImagePullSecrets = []corev1.LocalObjectReference{{Name: operatorDefaults.PrivateImageHubSecretName}}
 	}

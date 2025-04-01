@@ -49,10 +49,10 @@ func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 	_, err := rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), pipelineInfo.RadixRegistration, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	_, err = tknClient.TektonV1().Pipelines(pipelineContext.GetPipelineInfo().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
+	_, err = tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   internalTest.RadixPipelineJobName,
-			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineContext.GetPipelineInfo(), internalTest.Env1),
+			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1),
 		},
 		Spec: pipelinev1.PipelineSpec{},
 	}, metav1.CreateOptions{})
@@ -61,7 +61,7 @@ func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 	err = pipelineContext.RunPipelinesJob()
 	require.NoError(t, err)
 
-	l, err := tknClient.TektonV1().PipelineRuns(pipelineContext.GetPipelineInfo().GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
+	l, err := tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, l.Items)
 

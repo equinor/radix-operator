@@ -17,20 +17,6 @@ import (
 type Context interface {
 	// RunPipelinesJob un the job, which creates Tekton PipelineRun-s
 	RunPipelinesJob() error
-	// GetPipelineInfo Get pipeline info
-	GetPipelineInfo() *model.PipelineInfo
-	// GetHash Hash, common for all pipeline Kubernetes object names
-	GetHash() string
-	// GetTektonClient Tekton client
-	GetTektonClient() tektonclient.Interface
-	// GetRadixApplication Gets the RadixApplication, loaded from the config-map
-	GetRadixApplication() *radixv1.RadixApplication
-	// GetPipelineRunsWaiter Returns a waiter that returns when all pipelineruns have completed
-	GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter
-	// GetEnvVars Gets build env vars
-	GetEnvVars(envName string) radixv1.EnvVarsMap
-	// SetPipelineTargetEnvironments Set target environments for the pipeline job
-	SetPipelineTargetEnvironments(environments []string)
 }
 
 type pipelineContext struct {
@@ -42,26 +28,7 @@ type pipelineContext struct {
 	pipelineInfo       *model.PipelineInfo
 }
 
-func (pipelineCtx *pipelineContext) GetPipelineInfo() *model.PipelineInfo {
-	return pipelineCtx.pipelineInfo
-}
-
-func (pipelineCtx *pipelineContext) GetHash() string {
-	return pipelineCtx.hash
-}
-
-func (pipelineCtx *pipelineContext) GetTektonClient() tektonclient.Interface {
-	return pipelineCtx.tektonClient
-}
-
-func (pipelineCtx *pipelineContext) GetRadixApplication() *radixv1.RadixApplication {
-	return pipelineCtx.GetPipelineInfo().GetRadixApplication()
-}
-
-func (pipelineCtx *pipelineContext) GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter {
-	return pipelineCtx.waiter
-}
-
+// GetEnvVars Gets build env vars
 func (pipelineCtx *pipelineContext) GetEnvVars(envName string) radixv1.EnvVarsMap {
 	envVarsMap := make(radixv1.EnvVarsMap)
 	pipelineCtx.setPipelineRunParamsFromBuild(envVarsMap)
@@ -69,12 +36,8 @@ func (pipelineCtx *pipelineContext) GetEnvVars(envName string) radixv1.EnvVarsMa
 	return envVarsMap
 }
 
-func (pipelineCtx *pipelineContext) SetPipelineTargetEnvironments(environments []string) {
-	pipelineCtx.targetEnvironments = environments
-}
-
 func (pipelineCtx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap radixv1.EnvVarsMap) {
-	ra := pipelineCtx.GetPipelineInfo().GetRadixApplication()
+	ra := pipelineCtx.pipelineInfo.GetRadixApplication()
 	if ra.Spec.Build == nil {
 		return
 	}
@@ -114,7 +77,7 @@ func setIdentityToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, identity *radixv1.Id
 }
 
 func (pipelineCtx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv string, envVarsMap radixv1.EnvVarsMap) {
-	for _, buildEnv := range pipelineCtx.GetPipelineInfo().GetRadixApplication().Spec.Environments {
+	for _, buildEnv := range pipelineCtx.pipelineInfo.GetRadixApplication().Spec.Environments {
 		if strings.EqualFold(buildEnv.Name, targetEnv) {
 			setBuildIdentity(envVarsMap, buildEnv.SubPipeline)
 			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)

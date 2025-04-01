@@ -80,8 +80,8 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 		return err
 	}
 
-	pipelineCtx.GetPipelineInfo().SetRadixApplication(radixApplication)
-	targetEnvironments, err := internal.GetPipelineTargetEnvironments(pipelineCtx.GetPipelineInfo())
+	pipelineInfo.SetRadixApplication(radixApplication)
+	targetEnvironments, err := internal.GetPipelineTargetEnvironments(pipelineInfo)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 	if err != nil {
 		return err
 	}
-	pipelineCtx.GetPipelineInfo().SetBuildContext(buildContext)
+	pipelineInfo.SetBuildContext(buildContext)
 
 	buildContext.EnvironmentSubPipelinesToRun, err = pipelineCtx.GetEnvironmentSubPipelinesToRun()
 	if err != nil {
