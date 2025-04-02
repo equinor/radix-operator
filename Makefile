@@ -110,7 +110,7 @@ deploy-pipeline-arm64:
 
 .PHONY: build-operator
 build-operator:
-	docker build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) -f operator.Dockerfile .
+	docker build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) --platform linux/arm64,linux/amd64 -f operator.Dockerfile . --no-cache
 
 .PHONY: deploy-operator
 deploy-operator: build-operator

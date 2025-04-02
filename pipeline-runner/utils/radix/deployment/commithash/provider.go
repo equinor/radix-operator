@@ -64,7 +64,7 @@ func (provider *provider) getRadixDeploymentsForEnvironment(name string) ([]v1.R
 	_, err := provider.kubeClient.CoreV1().Namespaces().Get(context.Background(), environmentNamespace, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) || errors.IsForbidden(err) {
-			return nil, nil //no environment namespace or no role-binding was created for the radix-tekton - maybe it is new app or env
+			return nil, nil //no environment namespace or no role-binding was created for the radix-pipeline - maybe it is new app or env
 		}
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (provider *provider) getRadixDeploymentsForEnvironment(name string) ([]v1.R
 	radixDeploymentList, err := deployments.List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		if errors.IsForbidden(err) {
-			return nil, nil //no role-binding was created for the radix-tekton - maybe it is new app or env
+			return nil, nil //no role-binding was created for the radix-pipeline - maybe it is new app or env
 		}
 		return nil, err
 	}
