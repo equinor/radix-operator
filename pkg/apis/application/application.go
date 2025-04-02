@@ -72,11 +72,6 @@ func (app *Application) OnSync(ctx context.Context) error {
 	}
 	log.Ctx(ctx).Debug().Msg("Applied secrets needed by pipelines")
 
-	err = app.applyRbacOnRadixTekton(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to grant access to Tekton resources: %w", err)
-	}
-
 	err = app.applyRbacOnPipelineRunner(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to apply pipeline permissions: %w", err)
