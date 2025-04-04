@@ -71,6 +71,8 @@ type RadixJobSpec struct {
 	// Deprecated: radix-api will be responsible for setting the RadixConfigFullName, it is taken from the RadixRegistration by the radix-operator
 	// RadixConfigFullName Full name of the radix config file within the cloned GitHUb repository
 	RadixConfigFullName string `json:"radixConfigFullName"`
+	// TriggeredFromWebhook If true, the job was triggered from a webhook
+	TriggeredFromWebhook bool `json:"triggeredFromWebhook"`
 }
 
 // RadixPipelineType Holds the different type of pipeline
