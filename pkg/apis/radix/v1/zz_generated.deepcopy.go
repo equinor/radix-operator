@@ -272,6 +272,11 @@ func (in *BuildSpec) DeepCopyInto(out *BuildSpec) {
 		*out = new(SubPipeline)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.WebhookEnabled != nil {
+		in, out := &in.WebhookEnabled, &out.WebhookEnabled
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -438,6 +443,11 @@ func (in *EnvBuild) DeepCopyInto(out *EnvBuild) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.WebhookEnabled != nil {
+		in, out := &in.WebhookEnabled, &out.WebhookEnabled
+		*out = new(bool)
+		**out = **in
 	}
 	return
 }

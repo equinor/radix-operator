@@ -71,6 +71,10 @@
               },
               "description": "Defines variables that will be available in sub-pipelines.",
               "type": "object"
+            },
+            "webhookEnabled": {
+              "description": "WebhookEnabled Enabled webhook for this environment. Default true\n\nrequired: false",
+              "type": "boolean"
             }
           },
           "type": "object"
@@ -3038,6 +3042,10 @@
                     },
                     "description": "Defines variables that will be available in sub-pipelines",
                     "type": "object"
+                  },
+                  "webhookEnabled": {
+                    "description": "WebhookEnabled Enabled webhook for this environment. Default true\n\nrequired: false",
+                    "type": "boolean"
                   }
                 },
                 "type": "object"

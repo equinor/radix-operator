@@ -97,6 +97,12 @@ spec:
                       type: string
                     description: Defines variables that will be available in sub-pipelines.
                     type: object
+                  webhookEnabled:
+                    description: |-
+                      WebhookEnabled Enabled webhook for this environment. Default true
+
+                      required: false
+                    type: boolean
                 type: object
               components:
                 description: |-
@@ -3018,6 +3024,12 @@ spec:
                           description: Defines variables that will be available in
                             sub-pipelines
                           type: object
+                        webhookEnabled:
+                          description: |-
+                            WebhookEnabled Enabled webhook for this environment. Default true
+
+                            required: false
+                          type: boolean
                       type: object
                     egress:
                       description: |-

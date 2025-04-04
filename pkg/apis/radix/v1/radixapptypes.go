@@ -153,6 +153,11 @@ type BuildSpec struct {
 	// SubPipeline common configuration for all environments.
 	// +optional
 	SubPipeline *SubPipeline `json:"subPipeline"`
+
+	// WebhookEnabled Enabled webhook for this environment. Default true
+	//
+	// required: false
+	WebhookEnabled *bool `json:"webhookEnabled,omitempty"`
 }
 
 // Environment contains environment specific configuration.
@@ -189,6 +194,11 @@ type EnvBuild struct {
 	// Defines variables that will be available in sub-pipelines
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
+
+	// WebhookEnabled Enabled webhook for this environment. Default true
+	//
+	// required: false
+	WebhookEnabled *bool `json:"webhookEnabled,omitempty"`
 }
 
 // EgressConfig contains egress configuration.
