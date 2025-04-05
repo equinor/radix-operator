@@ -144,7 +144,7 @@ jobs:
 
     - name: Get GitHub Public IP
       id: github_public_ip
-      run: echo "ipv4=$(curl 'https://ifconfig.me/ip')" >> $GITHUB_OUTPUT
+      run: echo "ipv4=$(curl 'https://ipinfo.io/ip')" >> $GITHUB_OUTPUT
 
     - name: Add GitHub IP to ACR
       id: update_firewall
