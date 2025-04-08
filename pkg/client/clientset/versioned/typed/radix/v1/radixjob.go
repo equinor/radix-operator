@@ -26,9 +26,9 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -44,33 +44,34 @@ type RadixJobsGetter interface {
 
 // RadixJobInterface has methods to work with RadixJob resources.
 type RadixJobInterface interface {
-	Create(ctx context.Context, radixJob *v1.RadixJob, opts metav1.CreateOptions) (*v1.RadixJob, error)
-	Update(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (*v1.RadixJob, error)
+	Create(ctx context.Context, radixJob *radixv1.RadixJob, opts metav1.CreateOptions) (*radixv1.RadixJob, error)
+	Update(ctx context.Context, radixJob *radixv1.RadixJob, opts metav1.UpdateOptions) (*radixv1.RadixJob, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (*v1.RadixJob, error)
+	UpdateStatus(ctx context.Context, radixJob *radixv1.RadixJob, opts metav1.UpdateOptions) (*radixv1.RadixJob, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixJob, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixJobList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*radixv1.RadixJob, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*radixv1.RadixJobList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixJob, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *radixv1.RadixJob, err error)
 	RadixJobExpansion
 }
 
 // radixJobs implements RadixJobInterface
 type radixJobs struct {
-	*gentype.ClientWithList[*v1.RadixJob, *v1.RadixJobList]
+	*gentype.ClientWithList[*radixv1.RadixJob, *radixv1.RadixJobList]
 }
 
 // newRadixJobs returns a RadixJobs
 func newRadixJobs(c *RadixV1Client, namespace string) *radixJobs {
 	return &radixJobs{
-		gentype.NewClientWithList[*v1.RadixJob, *v1.RadixJobList](
+		gentype.NewClientWithList[*radixv1.RadixJob, *radixv1.RadixJobList](
 			"radixjobs",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.RadixJob { return &v1.RadixJob{} },
-			func() *v1.RadixJobList { return &v1.RadixJobList{} }),
+			func() *radixv1.RadixJob { return &radixv1.RadixJob{} },
+			func() *radixv1.RadixJobList { return &radixv1.RadixJobList{} },
+		),
 	}
 }

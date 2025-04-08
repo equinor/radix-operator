@@ -26,13 +26,13 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	apisradixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -43,7 +43,7 @@ import (
 // RadixAlerts.
 type RadixAlertInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.RadixAlertLister
+	Lister() radixv1.RadixAlertLister
 }
 
 type radixAlertInformer struct {
@@ -78,7 +78,7 @@ func NewFilteredRadixAlertInformer(client versioned.Interface, namespace string,
 				return client.RadixV1().RadixAlerts(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&radixv1.RadixAlert{},
+		&apisradixv1.RadixAlert{},
 		resyncPeriod,
 		indexers,
 	)
@@ -89,9 +89,9 @@ func (f *radixAlertInformer) defaultInformer(client versioned.Interface, resyncP
 }
 
 func (f *radixAlertInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&radixv1.RadixAlert{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisradixv1.RadixAlert{}, f.defaultInformer)
 }
 
-func (f *radixAlertInformer) Lister() v1.RadixAlertLister {
-	return v1.NewRadixAlertLister(f.Informer().GetIndexer())
+func (f *radixAlertInformer) Lister() radixv1.RadixAlertLister {
+	return radixv1.NewRadixAlertLister(f.Informer().GetIndexer())
 }

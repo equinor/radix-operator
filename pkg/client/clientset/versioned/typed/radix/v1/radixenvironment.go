@@ -26,9 +26,9 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -44,33 +44,34 @@ type RadixEnvironmentsGetter interface {
 
 // RadixEnvironmentInterface has methods to work with RadixEnvironment resources.
 type RadixEnvironmentInterface interface {
-	Create(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.CreateOptions) (*v1.RadixEnvironment, error)
-	Update(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (*v1.RadixEnvironment, error)
+	Create(ctx context.Context, radixEnvironment *radixv1.RadixEnvironment, opts metav1.CreateOptions) (*radixv1.RadixEnvironment, error)
+	Update(ctx context.Context, radixEnvironment *radixv1.RadixEnvironment, opts metav1.UpdateOptions) (*radixv1.RadixEnvironment, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (*v1.RadixEnvironment, error)
+	UpdateStatus(ctx context.Context, radixEnvironment *radixv1.RadixEnvironment, opts metav1.UpdateOptions) (*radixv1.RadixEnvironment, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixEnvironment, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixEnvironmentList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*radixv1.RadixEnvironment, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*radixv1.RadixEnvironmentList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixEnvironment, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *radixv1.RadixEnvironment, err error)
 	RadixEnvironmentExpansion
 }
 
 // radixEnvironments implements RadixEnvironmentInterface
 type radixEnvironments struct {
-	*gentype.ClientWithList[*v1.RadixEnvironment, *v1.RadixEnvironmentList]
+	*gentype.ClientWithList[*radixv1.RadixEnvironment, *radixv1.RadixEnvironmentList]
 }
 
 // newRadixEnvironments returns a RadixEnvironments
 func newRadixEnvironments(c *RadixV1Client) *radixEnvironments {
 	return &radixEnvironments{
-		gentype.NewClientWithList[*v1.RadixEnvironment, *v1.RadixEnvironmentList](
+		gentype.NewClientWithList[*radixv1.RadixEnvironment, *radixv1.RadixEnvironmentList](
 			"radixenvironments",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1.RadixEnvironment { return &v1.RadixEnvironment{} },
-			func() *v1.RadixEnvironmentList { return &v1.RadixEnvironmentList{} }),
+			func() *radixv1.RadixEnvironment { return &radixv1.RadixEnvironment{} },
+			func() *radixv1.RadixEnvironmentList { return &radixv1.RadixEnvironmentList{} },
+		),
 	}
 }
