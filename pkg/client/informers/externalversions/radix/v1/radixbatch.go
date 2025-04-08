@@ -26,13 +26,13 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	apisradixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -43,7 +43,7 @@ import (
 // RadixBatches.
 type RadixBatchInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.RadixBatchLister
+	Lister() radixv1.RadixBatchLister
 }
 
 type radixBatchInformer struct {
@@ -78,7 +78,7 @@ func NewFilteredRadixBatchInformer(client versioned.Interface, namespace string,
 				return client.RadixV1().RadixBatches(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&radixv1.RadixBatch{},
+		&apisradixv1.RadixBatch{},
 		resyncPeriod,
 		indexers,
 	)
@@ -89,9 +89,9 @@ func (f *radixBatchInformer) defaultInformer(client versioned.Interface, resyncP
 }
 
 func (f *radixBatchInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&radixv1.RadixBatch{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisradixv1.RadixBatch{}, f.defaultInformer)
 }
 
-func (f *radixBatchInformer) Lister() v1.RadixBatchLister {
-	return v1.NewRadixBatchLister(f.Informer().GetIndexer())
+func (f *radixBatchInformer) Lister() radixv1.RadixBatchLister {
+	return radixv1.NewRadixBatchLister(f.Informer().GetIndexer())
 }

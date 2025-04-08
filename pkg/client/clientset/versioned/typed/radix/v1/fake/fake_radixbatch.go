@@ -26,129 +26,30 @@ SOFTWARE.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	radixv1 "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeRadixBatches implements RadixBatchInterface
-type FakeRadixBatches struct {
+// fakeRadixBatches implements RadixBatchInterface
+type fakeRadixBatches struct {
+	*gentype.FakeClientWithList[*v1.RadixBatch, *v1.RadixBatchList]
 	Fake *FakeRadixV1
-	ns   string
 }
 
-var radixbatchesResource = v1.SchemeGroupVersion.WithResource("radixbatches")
-
-var radixbatchesKind = v1.SchemeGroupVersion.WithKind("RadixBatch")
-
-// Get takes name of the radixBatch, and returns the corresponding radixBatch object, and an error if there is any.
-func (c *FakeRadixBatches) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixBatch, err error) {
-	emptyResult := &v1.RadixBatch{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(radixbatchesResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeRadixBatches(fake *FakeRadixV1, namespace string) radixv1.RadixBatchInterface {
+	return &fakeRadixBatches{
+		gentype.NewFakeClientWithList[*v1.RadixBatch, *v1.RadixBatchList](
+			fake.Fake,
+			namespace,
+			v1.SchemeGroupVersion.WithResource("radixbatches"),
+			v1.SchemeGroupVersion.WithKind("RadixBatch"),
+			func() *v1.RadixBatch { return &v1.RadixBatch{} },
+			func() *v1.RadixBatchList { return &v1.RadixBatchList{} },
+			func(dst, src *v1.RadixBatchList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.RadixBatchList) []*v1.RadixBatch { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.RadixBatchList, items []*v1.RadixBatch) { list.Items = gentype.FromPointerSlice(items) },
+		),
+		fake,
 	}
-	return obj.(*v1.RadixBatch), err
-}
-
-// List takes label and field selectors, and returns the list of RadixBatches that match those selectors.
-func (c *FakeRadixBatches) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixBatchList, err error) {
-	emptyResult := &v1.RadixBatchList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(radixbatchesResource, radixbatchesKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.RadixBatchList{ListMeta: obj.(*v1.RadixBatchList).ListMeta}
-	for _, item := range obj.(*v1.RadixBatchList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested radixBatches.
-func (c *FakeRadixBatches) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(radixbatchesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a radixBatch and creates it.  Returns the server's representation of the radixBatch, and an error, if there is any.
-func (c *FakeRadixBatches) Create(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.CreateOptions) (result *v1.RadixBatch, err error) {
-	emptyResult := &v1.RadixBatch{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(radixbatchesResource, c.ns, radixBatch, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixBatch), err
-}
-
-// Update takes the representation of a radixBatch and updates it. Returns the server's representation of the radixBatch, and an error, if there is any.
-func (c *FakeRadixBatches) Update(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (result *v1.RadixBatch, err error) {
-	emptyResult := &v1.RadixBatch{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(radixbatchesResource, c.ns, radixBatch, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixBatch), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRadixBatches) UpdateStatus(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (result *v1.RadixBatch, err error) {
-	emptyResult := &v1.RadixBatch{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(radixbatchesResource, "status", c.ns, radixBatch, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixBatch), err
-}
-
-// Delete takes name of the radixBatch and deletes it. Returns an error if one occurs.
-func (c *FakeRadixBatches) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(radixbatchesResource, c.ns, name, opts), &v1.RadixBatch{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeRadixBatches) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(radixbatchesResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.RadixBatchList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched radixBatch.
-func (c *FakeRadixBatches) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixBatch, err error) {
-	emptyResult := &v1.RadixBatch{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(radixbatchesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixBatch), err
 }

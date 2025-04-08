@@ -26,10 +26,10 @@ SOFTWARE.
 package v1
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // RadixDNSAliasLister helps list RadixDNSAliases.
@@ -37,19 +37,19 @@ import (
 type RadixDNSAliasLister interface {
 	// List lists all RadixDNSAliases in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixDNSAlias, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixDNSAlias, err error)
 	// Get retrieves the RadixDNSAlias from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.RadixDNSAlias, error)
+	Get(name string) (*radixv1.RadixDNSAlias, error)
 	RadixDNSAliasListerExpansion
 }
 
 // radixDNSAliasLister implements the RadixDNSAliasLister interface.
 type radixDNSAliasLister struct {
-	listers.ResourceIndexer[*v1.RadixDNSAlias]
+	listers.ResourceIndexer[*radixv1.RadixDNSAlias]
 }
 
 // NewRadixDNSAliasLister returns a new RadixDNSAliasLister.
 func NewRadixDNSAliasLister(indexer cache.Indexer) RadixDNSAliasLister {
-	return &radixDNSAliasLister{listers.New[*v1.RadixDNSAlias](indexer, v1.Resource("radixdnsalias"))}
+	return &radixDNSAliasLister{listers.New[*radixv1.RadixDNSAlias](indexer, radixv1.Resource("radixdnsalias"))}
 }

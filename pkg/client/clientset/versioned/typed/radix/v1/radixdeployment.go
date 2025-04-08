@@ -26,9 +26,9 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -44,33 +44,34 @@ type RadixDeploymentsGetter interface {
 
 // RadixDeploymentInterface has methods to work with RadixDeployment resources.
 type RadixDeploymentInterface interface {
-	Create(ctx context.Context, radixDeployment *v1.RadixDeployment, opts metav1.CreateOptions) (*v1.RadixDeployment, error)
-	Update(ctx context.Context, radixDeployment *v1.RadixDeployment, opts metav1.UpdateOptions) (*v1.RadixDeployment, error)
+	Create(ctx context.Context, radixDeployment *radixv1.RadixDeployment, opts metav1.CreateOptions) (*radixv1.RadixDeployment, error)
+	Update(ctx context.Context, radixDeployment *radixv1.RadixDeployment, opts metav1.UpdateOptions) (*radixv1.RadixDeployment, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, radixDeployment *v1.RadixDeployment, opts metav1.UpdateOptions) (*v1.RadixDeployment, error)
+	UpdateStatus(ctx context.Context, radixDeployment *radixv1.RadixDeployment, opts metav1.UpdateOptions) (*radixv1.RadixDeployment, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixDeployment, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixDeploymentList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*radixv1.RadixDeployment, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*radixv1.RadixDeploymentList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixDeployment, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *radixv1.RadixDeployment, err error)
 	RadixDeploymentExpansion
 }
 
 // radixDeployments implements RadixDeploymentInterface
 type radixDeployments struct {
-	*gentype.ClientWithList[*v1.RadixDeployment, *v1.RadixDeploymentList]
+	*gentype.ClientWithList[*radixv1.RadixDeployment, *radixv1.RadixDeploymentList]
 }
 
 // newRadixDeployments returns a RadixDeployments
 func newRadixDeployments(c *RadixV1Client, namespace string) *radixDeployments {
 	return &radixDeployments{
-		gentype.NewClientWithList[*v1.RadixDeployment, *v1.RadixDeploymentList](
+		gentype.NewClientWithList[*radixv1.RadixDeployment, *radixv1.RadixDeploymentList](
 			"radixdeployments",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.RadixDeployment { return &v1.RadixDeployment{} },
-			func() *v1.RadixDeploymentList { return &v1.RadixDeploymentList{} }),
+			func() *radixv1.RadixDeployment { return &radixv1.RadixDeployment{} },
+			func() *radixv1.RadixDeploymentList { return &radixv1.RadixDeploymentList{} },
+		),
 	}
 }

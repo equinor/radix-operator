@@ -26,10 +26,10 @@ SOFTWARE.
 package v1
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // RadixDeploymentLister helps list RadixDeployments.
@@ -37,7 +37,7 @@ import (
 type RadixDeploymentLister interface {
 	// List lists all RadixDeployments in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixDeployment, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixDeployment, err error)
 	// RadixDeployments returns an object that can list and get RadixDeployments.
 	RadixDeployments(namespace string) RadixDeploymentNamespaceLister
 	RadixDeploymentListerExpansion
@@ -45,17 +45,17 @@ type RadixDeploymentLister interface {
 
 // radixDeploymentLister implements the RadixDeploymentLister interface.
 type radixDeploymentLister struct {
-	listers.ResourceIndexer[*v1.RadixDeployment]
+	listers.ResourceIndexer[*radixv1.RadixDeployment]
 }
 
 // NewRadixDeploymentLister returns a new RadixDeploymentLister.
 func NewRadixDeploymentLister(indexer cache.Indexer) RadixDeploymentLister {
-	return &radixDeploymentLister{listers.New[*v1.RadixDeployment](indexer, v1.Resource("radixdeployment"))}
+	return &radixDeploymentLister{listers.New[*radixv1.RadixDeployment](indexer, radixv1.Resource("radixdeployment"))}
 }
 
 // RadixDeployments returns an object that can list and get RadixDeployments.
 func (s *radixDeploymentLister) RadixDeployments(namespace string) RadixDeploymentNamespaceLister {
-	return radixDeploymentNamespaceLister{listers.NewNamespaced[*v1.RadixDeployment](s.ResourceIndexer, namespace)}
+	return radixDeploymentNamespaceLister{listers.NewNamespaced[*radixv1.RadixDeployment](s.ResourceIndexer, namespace)}
 }
 
 // RadixDeploymentNamespaceLister helps list and get RadixDeployments.
@@ -63,15 +63,15 @@ func (s *radixDeploymentLister) RadixDeployments(namespace string) RadixDeployme
 type RadixDeploymentNamespaceLister interface {
 	// List lists all RadixDeployments in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixDeployment, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixDeployment, err error)
 	// Get retrieves the RadixDeployment from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.RadixDeployment, error)
+	Get(name string) (*radixv1.RadixDeployment, error)
 	RadixDeploymentNamespaceListerExpansion
 }
 
 // radixDeploymentNamespaceLister implements the RadixDeploymentNamespaceLister
 // interface.
 type radixDeploymentNamespaceLister struct {
-	listers.ResourceIndexer[*v1.RadixDeployment]
+	listers.ResourceIndexer[*radixv1.RadixDeployment]
 }

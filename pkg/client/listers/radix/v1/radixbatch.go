@@ -26,10 +26,10 @@ SOFTWARE.
 package v1
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // RadixBatchLister helps list RadixBatches.
@@ -37,7 +37,7 @@ import (
 type RadixBatchLister interface {
 	// List lists all RadixBatches in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixBatch, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixBatch, err error)
 	// RadixBatches returns an object that can list and get RadixBatches.
 	RadixBatches(namespace string) RadixBatchNamespaceLister
 	RadixBatchListerExpansion
@@ -45,17 +45,17 @@ type RadixBatchLister interface {
 
 // radixBatchLister implements the RadixBatchLister interface.
 type radixBatchLister struct {
-	listers.ResourceIndexer[*v1.RadixBatch]
+	listers.ResourceIndexer[*radixv1.RadixBatch]
 }
 
 // NewRadixBatchLister returns a new RadixBatchLister.
 func NewRadixBatchLister(indexer cache.Indexer) RadixBatchLister {
-	return &radixBatchLister{listers.New[*v1.RadixBatch](indexer, v1.Resource("radixbatch"))}
+	return &radixBatchLister{listers.New[*radixv1.RadixBatch](indexer, radixv1.Resource("radixbatch"))}
 }
 
 // RadixBatches returns an object that can list and get RadixBatches.
 func (s *radixBatchLister) RadixBatches(namespace string) RadixBatchNamespaceLister {
-	return radixBatchNamespaceLister{listers.NewNamespaced[*v1.RadixBatch](s.ResourceIndexer, namespace)}
+	return radixBatchNamespaceLister{listers.NewNamespaced[*radixv1.RadixBatch](s.ResourceIndexer, namespace)}
 }
 
 // RadixBatchNamespaceLister helps list and get RadixBatches.
@@ -63,15 +63,15 @@ func (s *radixBatchLister) RadixBatches(namespace string) RadixBatchNamespaceLis
 type RadixBatchNamespaceLister interface {
 	// List lists all RadixBatches in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixBatch, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixBatch, err error)
 	// Get retrieves the RadixBatch from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.RadixBatch, error)
+	Get(name string) (*radixv1.RadixBatch, error)
 	RadixBatchNamespaceListerExpansion
 }
 
 // radixBatchNamespaceLister implements the RadixBatchNamespaceLister
 // interface.
 type radixBatchNamespaceLister struct {
-	listers.ResourceIndexer[*v1.RadixBatch]
+	listers.ResourceIndexer[*radixv1.RadixBatch]
 }
