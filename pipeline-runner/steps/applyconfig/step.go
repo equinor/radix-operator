@@ -69,10 +69,6 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 		return err
 	}
 
-	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
-		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(ctx, pipelineInfo.BuildContext)
-	}
-
 	if err := cli.validatePipelineInfo(pipelineInfo); err != nil {
 		return err
 	}
@@ -438,22 +434,6 @@ func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComp
 	commonComponents := slice.Map(ra.Spec.Components, func(c radixv1.RadixComponent) radixv1.RadixCommonComponent { return &c })
 	commonComponents = append(commonComponents, slice.Map(ra.Spec.Jobs, func(c radixv1.RadixJobComponent) radixv1.RadixCommonComponent { return &c })...)
 	return commonComponents
-}
-
-func getPipelineShouldBeStopped(ctx context.Context, buildContext *model.BuildContext) (bool, string) {
-	if buildContext == nil || buildContext.ChangedRadixConfig ||
-		len(buildContext.EnvironmentsToBuild) == 0 ||
-		len(buildContext.EnvironmentSubPipelinesToRun) > 0 {
-		return false, ""
-	}
-	for _, environmentToBuild := range buildContext.EnvironmentsToBuild {
-		if len(environmentToBuild.Components) > 0 {
-			return false, ""
-		}
-	}
-	message := "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
-	log.Ctx(ctx).Info().Msg(message)
-	return true, message
 }
 
 func printPrepareBuildContext(ctx context.Context, buildContext *model.BuildContext) {
