@@ -26,9 +26,9 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -44,31 +44,32 @@ type RadixApplicationsGetter interface {
 
 // RadixApplicationInterface has methods to work with RadixApplication resources.
 type RadixApplicationInterface interface {
-	Create(ctx context.Context, radixApplication *v1.RadixApplication, opts metav1.CreateOptions) (*v1.RadixApplication, error)
-	Update(ctx context.Context, radixApplication *v1.RadixApplication, opts metav1.UpdateOptions) (*v1.RadixApplication, error)
+	Create(ctx context.Context, radixApplication *radixv1.RadixApplication, opts metav1.CreateOptions) (*radixv1.RadixApplication, error)
+	Update(ctx context.Context, radixApplication *radixv1.RadixApplication, opts metav1.UpdateOptions) (*radixv1.RadixApplication, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixApplication, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixApplicationList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*radixv1.RadixApplication, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*radixv1.RadixApplicationList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixApplication, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *radixv1.RadixApplication, err error)
 	RadixApplicationExpansion
 }
 
 // radixApplications implements RadixApplicationInterface
 type radixApplications struct {
-	*gentype.ClientWithList[*v1.RadixApplication, *v1.RadixApplicationList]
+	*gentype.ClientWithList[*radixv1.RadixApplication, *radixv1.RadixApplicationList]
 }
 
 // newRadixApplications returns a RadixApplications
 func newRadixApplications(c *RadixV1Client, namespace string) *radixApplications {
 	return &radixApplications{
-		gentype.NewClientWithList[*v1.RadixApplication, *v1.RadixApplicationList](
+		gentype.NewClientWithList[*radixv1.RadixApplication, *radixv1.RadixApplicationList](
 			"radixapplications",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.RadixApplication { return &v1.RadixApplication{} },
-			func() *v1.RadixApplicationList { return &v1.RadixApplicationList{} }),
+			func() *radixv1.RadixApplication { return &radixv1.RadixApplication{} },
+			func() *radixv1.RadixApplicationList { return &radixv1.RadixApplicationList{} },
+		),
 	}
 }
