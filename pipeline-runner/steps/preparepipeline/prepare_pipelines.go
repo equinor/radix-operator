@@ -49,22 +49,48 @@ func (pipelineCtx *pipelineContext) GetBuildContext() (*model.BuildContext, erro
 	buildContext := model.BuildContext{}
 
 	if pipelineType == radixv1.BuildDeploy || pipelineType == radixv1.Build {
-		buildContext.EnvironmentsToBuild, buildContext.ChangedRadixConfig, err = pipelineCtx.prepareBuildDeployPipeline()
+		pipelineTargetCommitHash, commitTags, err := pipelineCtx.getGitAttributes()
 		if err != nil {
 			return nil, err
 		}
+		pipelineCtx.GetPipelineInfo().SetGitAttributes(pipelineTargetCommitHash, commitTags)
+
+		if pipelineCtx.HasCommitID() {
+			radixConfigWasChanged, environmentsToBuild, err := pipelineCtx.analyseSourceRepositoryChanges(pipelineTargetCommitHash)
+			if err != nil {
+				return nil, err
+			}
+			buildContext.ChangedRadixConfig = radixConfigWasChanged
+			buildContext.EnvironmentsToBuild = environmentsToBuild
+		} // when commit hash is not provided, build all
 	}
 	return &buildContext, nil
+}
+
+func (pipelineCtx *pipelineContext) getGitAttributes() (string, string, error) {
+	pipelineArgs := pipelineCtx.GetPipelineInfo().PipelineArguments
+	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
+	if err != nil {
+		return "", "", err
+	}
+	if err = validate.GitTagsContainIllegalChars(commitTags); err != nil {
+		return "", "", err
+	}
+	return pipelineTargetCommitHash, commitTags, nil
 }
 
 // GetEnvironmentSubPipelinesToRun Prepare sub-pipelines for the target environments
 func (pipelineCtx *pipelineContext) GetEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error) {
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
+	if pipelineCtx.GetPipelineInfo().StopPipeline {
+		log.Info().Msg("Pipeline is stopped, skip sub-pipelines")
+		return nil, nil
+	}
 	var errs []error
 	timestamp := time.Now().Format("20060102150405")
 	for _, targetEnv := range pipelineCtx.GetPipelineTargetEnvironments() {
 		log.Debug().Msgf("create a sub-pipeline for the environment %s", targetEnv)
-		runSubPipeline, pipelineFilePath, err := pipelineCtx.preparePipelinesJobForTargetEnv(targetEnv, timestamp)
+		runSubPipeline, pipelineFilePath, err := pipelineCtx.prepareSubPipelineForTargetEnv(targetEnv, timestamp)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -87,24 +113,6 @@ func (pipelineCtx *pipelineContext) GetEnvironmentSubPipelinesToRun() ([]model.E
 	}
 	log.Info().Msg("No sub-pipelines to run")
 	return nil, nil
-}
-
-func (pipelineCtx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToBuild, bool, error) {
-	pipelineArgs := pipelineCtx.GetPipelineInfo().PipelineArguments
-	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
-	if err != nil {
-		return nil, false, err
-	}
-	if err = validate.GitTagsContainIllegalChars(commitTags); err != nil {
-		return nil, false, err
-	}
-	pipelineCtx.GetPipelineInfo().SetGitAttributes(pipelineTargetCommitHash, commitTags)
-
-	radixConfigWasChanged, environmentsToBuild, err := pipelineCtx.analyseSourceRepositoryChanges(pipelineTargetCommitHash)
-	if err != nil {
-		return nil, false, err
-	}
-	return environmentsToBuild, radixConfigWasChanged, nil
 }
 
 func (pipelineCtx *pipelineContext) analyseSourceRepositoryChanges(pipelineTargetCommitHash string) (bool, []model.EnvironmentToBuild, error) {
@@ -184,7 +192,7 @@ func cleanPathAndSurroundBySlashes(dir string) string {
 	return dir
 }
 
-func (pipelineCtx *pipelineContext) preparePipelinesJobForTargetEnv(envName, timestamp string) (bool, string, error) {
+func (pipelineCtx *pipelineContext) prepareSubPipelineForTargetEnv(envName, timestamp string) (bool, string, error) {
 	pipelineFilePath, err := pipelineCtx.getPipelineFilePath("") // TODO - get pipeline for the envName
 	if err != nil {
 		return false, "", err

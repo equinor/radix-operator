@@ -47,6 +47,10 @@ func (pipelineCtx *pipelineContext) GetPipelineInfo() *model.PipelineInfo {
 	return pipelineCtx.pipelineInfo
 }
 
+func (pipelineCtx *pipelineContext) HasCommitID() bool {
+	return len(pipelineCtx.pipelineInfo.PipelineArguments.CommitID) > 0
+}
+
 // GetHash Hash, common for all pipeline Kubernetes object names
 func (pipelineCtx *pipelineContext) GetHash() string {
 	return pipelineCtx.hash

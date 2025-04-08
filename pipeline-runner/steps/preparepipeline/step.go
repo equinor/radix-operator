@@ -93,11 +93,31 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 	}
 	pipelineInfo.SetBuildContext(buildContext)
 
+	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
+		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(ctx, pipelineInfo.BuildContext)
+	}
+
 	buildContext.EnvironmentSubPipelinesToRun, err = pipelineCtx.GetEnvironmentSubPipelinesToRun()
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func getPipelineShouldBeStopped(ctx context.Context, buildContext *model.BuildContext) (bool, string) {
+	if buildContext == nil || buildContext.ChangedRadixConfig ||
+		len(buildContext.EnvironmentsToBuild) == 0 ||
+		len(buildContext.EnvironmentSubPipelinesToRun) > 0 {
+		return false, ""
+	}
+	for _, environmentToBuild := range buildContext.EnvironmentsToBuild {
+		if len(environmentToBuild.Components) > 0 {
+			return false, ""
+		}
+	}
+	message := "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
+	log.Ctx(ctx).Info().Msg(message)
+	return true, message
 }
 
 func logPipelineInfo(ctx context.Context, pipelineType radixv1.RadixPipelineType, appName, branch, commitID string) {
