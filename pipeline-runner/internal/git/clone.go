@@ -2,7 +2,7 @@ package git
 
 import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	gitclone "github.com/equinor/radix-operator/pkg/apis/utils/git"
+	gitclone "github.com/equinor/radix-operator/pkg/apis/git"
 )
 
 func CloneConfigFromPipelineArgs(args model.PipelineArguments) gitclone.CloneConfig {

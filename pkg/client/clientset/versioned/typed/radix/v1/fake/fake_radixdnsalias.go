@@ -26,120 +26,32 @@ SOFTWARE.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	radixv1 "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeRadixDNSAliases implements RadixDNSAliasInterface
-type FakeRadixDNSAliases struct {
+// fakeRadixDNSAliases implements RadixDNSAliasInterface
+type fakeRadixDNSAliases struct {
+	*gentype.FakeClientWithList[*v1.RadixDNSAlias, *v1.RadixDNSAliasList]
 	Fake *FakeRadixV1
 }
 
-var radixdnsaliasesResource = v1.SchemeGroupVersion.WithResource("radixdnsaliases")
-
-var radixdnsaliasesKind = v1.SchemeGroupVersion.WithKind("RadixDNSAlias")
-
-// Get takes name of the radixDNSAlias, and returns the corresponding radixDNSAlias object, and an error if there is any.
-func (c *FakeRadixDNSAliases) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixDNSAlias, err error) {
-	emptyResult := &v1.RadixDNSAlias{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetActionWithOptions(radixdnsaliasesResource, name, options), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeRadixDNSAliases(fake *FakeRadixV1) radixv1.RadixDNSAliasInterface {
+	return &fakeRadixDNSAliases{
+		gentype.NewFakeClientWithList[*v1.RadixDNSAlias, *v1.RadixDNSAliasList](
+			fake.Fake,
+			"",
+			v1.SchemeGroupVersion.WithResource("radixdnsaliases"),
+			v1.SchemeGroupVersion.WithKind("RadixDNSAlias"),
+			func() *v1.RadixDNSAlias { return &v1.RadixDNSAlias{} },
+			func() *v1.RadixDNSAliasList { return &v1.RadixDNSAliasList{} },
+			func(dst, src *v1.RadixDNSAliasList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.RadixDNSAliasList) []*v1.RadixDNSAlias { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.RadixDNSAliasList, items []*v1.RadixDNSAlias) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.RadixDNSAlias), err
-}
-
-// List takes label and field selectors, and returns the list of RadixDNSAliases that match those selectors.
-func (c *FakeRadixDNSAliases) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixDNSAliasList, err error) {
-	emptyResult := &v1.RadixDNSAliasList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListActionWithOptions(radixdnsaliasesResource, radixdnsaliasesKind, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.RadixDNSAliasList{ListMeta: obj.(*v1.RadixDNSAliasList).ListMeta}
-	for _, item := range obj.(*v1.RadixDNSAliasList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested radixDNSAliases.
-func (c *FakeRadixDNSAliases) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchActionWithOptions(radixdnsaliasesResource, opts))
-}
-
-// Create takes the representation of a radixDNSAlias and creates it.  Returns the server's representation of the radixDNSAlias, and an error, if there is any.
-func (c *FakeRadixDNSAliases) Create(ctx context.Context, radixDNSAlias *v1.RadixDNSAlias, opts metav1.CreateOptions) (result *v1.RadixDNSAlias, err error) {
-	emptyResult := &v1.RadixDNSAlias{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(radixdnsaliasesResource, radixDNSAlias, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixDNSAlias), err
-}
-
-// Update takes the representation of a radixDNSAlias and updates it. Returns the server's representation of the radixDNSAlias, and an error, if there is any.
-func (c *FakeRadixDNSAliases) Update(ctx context.Context, radixDNSAlias *v1.RadixDNSAlias, opts metav1.UpdateOptions) (result *v1.RadixDNSAlias, err error) {
-	emptyResult := &v1.RadixDNSAlias{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateActionWithOptions(radixdnsaliasesResource, radixDNSAlias, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixDNSAlias), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRadixDNSAliases) UpdateStatus(ctx context.Context, radixDNSAlias *v1.RadixDNSAlias, opts metav1.UpdateOptions) (result *v1.RadixDNSAlias, err error) {
-	emptyResult := &v1.RadixDNSAlias{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(radixdnsaliasesResource, "status", radixDNSAlias, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixDNSAlias), err
-}
-
-// Delete takes name of the radixDNSAlias and deletes it. Returns an error if one occurs.
-func (c *FakeRadixDNSAliases) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(radixdnsaliasesResource, name, opts), &v1.RadixDNSAlias{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeRadixDNSAliases) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionActionWithOptions(radixdnsaliasesResource, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.RadixDNSAliasList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched radixDNSAlias.
-func (c *FakeRadixDNSAliases) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixDNSAlias, err error) {
-	emptyResult := &v1.RadixDNSAlias{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceActionWithOptions(radixdnsaliasesResource, name, pt, data, opts, subresources...), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixDNSAlias), err
 }

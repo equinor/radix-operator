@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -41,7 +42,6 @@ type RadixJobTestSuiteBase struct {
 	config      struct {
 		clusterName    string
 		egressIps      string
-		tektonImage    string
 		builderImage   string
 		buildkitImage  string
 		buildahSecComp string
@@ -60,7 +60,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 	s.config = struct {
 		clusterName    string
 		egressIps      string
-		tektonImage    string
 		builderImage   string
 		buildkitImage  string
 		buildahSecComp string
@@ -75,7 +74,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 	}{
 		clusterName:    "AnyClusterName",
 		egressIps:      "0.0.0.0",
-		tektonImage:    "tekton:any",
 		builderImage:   "builder:any",
 		buildkitImage:  "buildkit:any",
 		buildahSecComp: "anyseccomp",
@@ -110,7 +108,6 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	s.T().Setenv(defaults.RadixZoneEnvironmentVariable, s.config.radixZone)
 	s.T().Setenv(defaults.ContainerRegistryEnvironmentVariable, s.config.registry)
 	s.T().Setenv(defaults.AppContainerRegistryEnvironmentVariable, s.config.appRegistry)
-	s.T().Setenv(defaults.RadixTektonPipelineImageEnvironmentVariable, s.config.tektonImage)
 	s.T().Setenv(defaults.RadixImageBuilderEnvironmentVariable, s.config.builderImage)
 	s.T().Setenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable, s.config.buildkitImage)
 	s.T().Setenv(defaults.SeccompProfileFileNameEnvironmentVariable, s.config.buildahSecComp)
@@ -168,6 +165,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName(appName).WithRadixConfigFullName("some-radixconfig.yaml").BuildRR(), metav1.CreateOptions{})
+	s.Require().NoError(err)
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 	rj, err := s.applyJobWithSync(utils.NewJobBuilder().
 		WithJobName(jobName).
@@ -217,7 +216,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU=100m",
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY=2000Mi",
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-				fmt.Sprintf("--RADIX_TEKTON_IMAGE=%s", s.config.tektonImage),
 				fmt.Sprintf("--RADIX_IMAGE_BUILDER=%s", s.config.builderImage),
 				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
@@ -229,7 +227,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--AZURE_SUBSCRIPTION_ID=%s", s.config.subscriptionID),
 				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api",
 				"--RADIX_RESERVED_DNS_ALIASES=grafana",
-				"--RADIX_FILE_NAME=/workspace/radixconfig.yaml",
+				"--RADIX_GITHUB_WORKSPACE=/workspace",
+				"--RADIX_FILE_NAME=some-radixconfig.yaml",
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE=%s", s.config.nslookupImage),
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=%s", s.config.gitImage),
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE=%s", s.config.bashImage),
@@ -238,6 +237,18 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--TO_ENVIRONMENT=%s", envName),
 				fmt.Sprintf("--COMMIT_ID=%s", commitID),
 				"--PUSH_IMAGE=1",
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "build-context",
+					MountPath: "/workspace",
+					ReadOnly:  false,
+				},
+				{
+					Name:      "pod-labels",
+					MountPath: "/pod-labels",
+					ReadOnly:  false,
+				},
 			},
 			SecurityContext: &corev1.SecurityContext{
 				Privileged:               pointers.Ptr(false),
@@ -252,6 +263,104 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		},
 	}
 
+	expectedInitContainers := []corev1.Container{
+		{
+			Name:            "internal-nslookup",
+			Image:           s.config.nslookupImage,
+			Command:         []string{"/bin/sh", "-c"},
+			Args:            []string{"n=1;max=10;delay=2;while true; do if [ \"$n\" -lt \"$max\" ]; then nslookup github.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo \"The command has failed after $n attempts.\"; break; fi done"},
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			SecurityContext: &corev1.SecurityContext{
+				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
+				RunAsNonRoot:             pointers.Ptr(true),
+				RunAsUser:                pointers.Ptr[int64](1000),
+				RunAsGroup:               pointers.Ptr[int64](1000),
+				SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+				ReadOnlyRootFilesystem:   pointers.Ptr(true),
+				AllowPrivilegeEscalation: pointers.Ptr(false),
+				Privileged:               pointers.Ptr(false),
+			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+				},
+			},
+		},
+		{
+			Name:            "clone-config",
+			Image:           s.config.gitImage,
+			Command:         []string{"sh", "-c", "git config --global --add safe.directory /workspace && git clone  -b  --verbose --progress /workspace && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") "},
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Env:             []corev1.EnvVar{{Name: "HOME", Value: "/home/clone"}},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "build-context",
+					MountPath: "/workspace",
+					ReadOnly:  false,
+				},
+				{
+					Name:      "git-ssh-keys",
+					MountPath: "/.ssh",
+					ReadOnly:  true,
+				},
+				{
+					Name:      "builder-home",
+					MountPath: "/home/clone",
+					ReadOnly:  false,
+				},
+			},
+			SecurityContext: &corev1.SecurityContext{
+				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
+				RunAsNonRoot:             pointers.Ptr(true),
+				RunAsUser:                pointers.Ptr[int64](65534),
+				RunAsGroup:               pointers.Ptr[int64](1000),
+				SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+				ReadOnlyRootFilesystem:   pointers.Ptr(true),
+				AllowPrivilegeEscalation: pointers.Ptr(false),
+				Privileged:               pointers.Ptr(false),
+				ProcMount:                nil,
+			},
+		},
+		{
+			Name:            "internal-chmod",
+			Image:           s.config.bashImage,
+			Command:         []string{"/usr/local/bin/bash", "-O", "dotglob", "-c"},
+			Args:            []string{"chmod -R g+rw /workspace/*"},
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "build-context",
+					MountPath: "/workspace",
+					ReadOnly:  false,
+				},
+			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+				},
+			},
+			SecurityContext: &corev1.SecurityContext{
+				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
+				RunAsNonRoot:             pointers.Ptr(true),
+				RunAsUser:                pointers.Ptr[int64](65534),
+				RunAsGroup:               pointers.Ptr[int64](1000),
+				SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+				ReadOnlyRootFilesystem:   pointers.Ptr(true),
+				AllowPrivilegeEscalation: pointers.Ptr(false),
+				Privileged:               pointers.Ptr(false),
+				ProcMount:                nil,
+			},
+		},
+	}
+	expectedVolumes := []corev1.Volume{
+		{Name: "build-context"},
+		{Name: "builder-home"},
+		{Name: "git-ssh-keys", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "git-ssh-keys", DefaultMode: pointers.Ptr[int32](256)}}},
+		{Name: "pod-labels", VolumeSource: corev1.VolumeSource{DownwardAPI: &corev1.DownwardAPIVolumeSource{Items: []corev1.DownwardAPIVolumeFile{{Path: "labels", FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.labels"}}}}}},
+	}
+
 	expectedPodLabels := map[string]string{kube.RadixJobNameLabel: jobName}
 	s.Equal(expectedPodLabels, podTemplate.Labels)
 	expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
@@ -263,6 +372,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		ServiceAccountName: "radix-pipeline",
 		SecurityContext:    expectedSecurityCtx,
 		Containers:         expectedContainers,
+		InitContainers:     expectedInitContainers,
+		Volumes:            expectedVolumes,
 	}
 	s.Equal(expectedPodSpec, podTemplate.Spec)
 }
@@ -301,8 +412,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_GitCloneArguments() {
 			if test.unsetBash {
 				s.T().Setenv(defaults.RadixGitCloneBashImageEnvironmentVariable, "")
 			}
-
-			_, err := s.applyJobWithSync(utils.NewJobBuilder().
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName(appName).BuildRR(), metav1.CreateOptions{})
+			s.Require().NoError(err)
+			_, err = s.applyJobWithSync(utils.NewJobBuilder().
 				WithJobName(jobName).
 				WithAppName(appName).
 				WithPipelineType(radixv1.BuildDeploy), config)
@@ -316,32 +428,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_GitCloneArguments() {
 			s.Subset(actualArgs, test.expectedArgs)
 		})
 	}
-}
-
-func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreatedWithTektonImageTag() {
-	appName, jobName, branch, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
-	config := getConfigWithPipelineJobsHistoryLimit(3)
-	rj, err := s.applyJobWithSync(utils.NewJobBuilder().
-		WithJobName(jobName).
-		WithAppName(appName).
-		WithBranch(branch).
-		WithCommitID(commitID).
-		WithPushImage(true).
-		WithImageTag(imageTag).
-		WithDeploymentName(deploymentName).
-		WithTektonImageTag("test-tekton-image").
-		WithPipelineType(radixv1.BuildDeploy).
-		WithPipelineImageTag(pipelineTag), config)
-	s.Require().NoError(err)
-	s.Equal("test-tekton-image", rj.Spec.TektonImage)
-	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
-	s.Require().Len(jobs.Items, 1)
-	job := jobs.Items[0]
-	podTemplate := job.Spec.Template
-
-	expected := fmt.Sprintf("--%s=radix-tekton:%s", defaults.RadixTektonPipelineImageEnvironmentVariable, "test-tekton-image")
-	actualArgs := podTemplate.Spec.Containers[0].Args
-	assert.Contains(s.T(), actualArgs, expected)
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
@@ -391,6 +477,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplication() {
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName("some-app").BuildRR(), metav1.CreateOptions{})
+	s.Require().NoError(err)
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 	// Setup
 	firstJob, err := s.testUtils.ApplyJob(utils.AStartedBuildDeployJob().WithRadixApplication(nil).WithJobName("FirstJob").WithBranch("master"))
@@ -1160,6 +1248,8 @@ func (s *RadixJobTestSuite) Test_MultipleJobsForSameEnv() {
 	for _, scenario := range scenarios {
 		s.Run(scenario.name, func() {
 			s.setupTest()
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName(appName).BuildRR(), metav1.CreateOptions{})
+			s.Require().NoError(err)
 			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)
 			if scenario.raBuilder != nil {
@@ -1255,6 +1345,8 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentIsSetWhenRadixApplicationExist(
 
 func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissing() {
 	config := getConfigWithPipelineJobsHistoryLimit(3)
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName("some-app").BuildRR(), metav1.CreateOptions{})
+	s.Require().NoError(err)
 
 	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithRadixApplication(nil).WithJobName("test").WithBranch("master"), config)
 	s.Require().NoError(err)
@@ -1306,7 +1398,14 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
 					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
 					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
-				}},
+					GitCloneConfig: &git.CloneConfig{
+						NSlookupImage: "nslookup:any",
+						GitImage:      "git:any",
+						BashImage:     "bash:any",
+					},
+					PipelineImageTag: "anypipelinetag",
+				},
+			},
 			expectedError:                             "",
 			expectedAppBuilderResourcesRequestsCPU:    "123m",
 			expectedAppBuilderResourcesRequestsMemory: "1234Mi",
@@ -1319,6 +1418,12 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 				PipelineJobConfig: &pipelinejob.Config{
 					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
 					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
+					GitCloneConfig: &git.CloneConfig{
+						NSlookupImage: "nslookup:any",
+						GitImage:      "git:any",
+						BashImage:     "bash:any",
+					},
+					PipelineImageTag: "anypipelinetag",
 				}},
 			expectedError: "invalid or missing app builder resources",
 		},
@@ -1329,6 +1434,12 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 				PipelineJobConfig: &pipelinejob.Config{
 					AppBuilderResourcesRequestsCPU:  pointers.Ptr(resource.MustParse("123m")),
 					AppBuilderResourcesLimitsMemory: pointers.Ptr(resource.MustParse("2345Mi")),
+					GitCloneConfig: &git.CloneConfig{
+						NSlookupImage: "nslookup:any",
+						GitImage:      "git:any",
+						BashImage:     "bash:any",
+					},
+					PipelineImageTag: "anypipelinetag",
 				}},
 			expectedError: "invalid or missing app builder resources",
 		},
@@ -1339,6 +1450,12 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 				PipelineJobConfig: &pipelinejob.Config{
 					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
 					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+					GitCloneConfig: &git.CloneConfig{
+						NSlookupImage: "nslookup:any",
+						GitImage:      "git:any",
+						BashImage:     "bash:any",
+					},
+					PipelineImageTag: "anypipelinetag",
 				}},
 			expectedError: "invalid or missing app builder resources",
 		},
@@ -1391,9 +1508,15 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 		},
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:          historyLimit,
+			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
 			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
 			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
-			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
+			GitCloneConfig: &git.CloneConfig{
+				NSlookupImage: "nslookup:any",
+				GitImage:      "git:any",
+				BashImage:     "bash:any",
+			},
+			PipelineImageTag: "anypipelinetag",
 		},
 		ContainerRegistryConfig: containerregistry.Config{
 			ExternalRegistryAuthSecret: "an-external-registry-secret",

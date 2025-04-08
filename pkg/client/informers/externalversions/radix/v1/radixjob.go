@@ -26,13 +26,13 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	apisradixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -43,7 +43,7 @@ import (
 // RadixJobs.
 type RadixJobInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.RadixJobLister
+	Lister() radixv1.RadixJobLister
 }
 
 type radixJobInformer struct {
@@ -78,7 +78,7 @@ func NewFilteredRadixJobInformer(client versioned.Interface, namespace string, r
 				return client.RadixV1().RadixJobs(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&radixv1.RadixJob{},
+		&apisradixv1.RadixJob{},
 		resyncPeriod,
 		indexers,
 	)
@@ -89,9 +89,9 @@ func (f *radixJobInformer) defaultInformer(client versioned.Interface, resyncPer
 }
 
 func (f *radixJobInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&radixv1.RadixJob{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisradixv1.RadixJob{}, f.defaultInformer)
 }
 
-func (f *radixJobInformer) Lister() v1.RadixJobLister {
-	return v1.NewRadixJobLister(f.Informer().GetIndexer())
+func (f *radixJobInformer) Lister() radixv1.RadixJobLister {
+	return radixv1.NewRadixJobLister(f.Informer().GetIndexer())
 }

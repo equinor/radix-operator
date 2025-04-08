@@ -97,27 +97,6 @@ func (app *Application) applyRbacOnPipelineRunner(ctx context.Context) error {
 	return nil
 }
 
-func (app *Application) applyRbacOnRadixTekton(ctx context.Context) error {
-	serviceAccount, err := app.kubeutil.CreateServiceAccount(ctx, utils.GetAppNamespace(app.registration.Name), defaults.RadixTektonServiceAccountName)
-	if err != nil {
-		return fmt.Errorf("failed to apply Tekton pipeline service account: %w", err)
-	}
-
-	if err = app.givePipelineAccessToRR(ctx, serviceAccount, defaults.RadixTektonRRRoleNamePrefix); err != nil {
-		return fmt.Errorf("failed to grant Tekton pipeline access to RadixRegistration: %w", err)
-	}
-
-	if err = app.giveAccessToRadixDNSAliases(ctx, serviceAccount, defaults.RadixTektonRadixDNSAliasRoleNamePrefix); err != nil {
-		return fmt.Errorf("failed to grant Tekton pipeline access to RadixDNSAliases: %w", err)
-	}
-
-	if err := app.giveRadixTektonAccessToAppNamespace(ctx, serviceAccount); err != nil {
-		return fmt.Errorf("failed to grant Tekton pipeline access to app namespace: %w", err)
-	}
-
-	return nil
-}
-
 func (app *Application) givePipelineAccessToRR(ctx context.Context, serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
 	clusterRoleName := fmt.Sprintf("%s-%s", clusterRoleNamePrefix, app.registration.Name)
 	clusterRole := app.buildRRClusterRole(ctx, clusterRoleName, []string{"get"})
@@ -144,12 +123,6 @@ func (app *Application) givePipelineAccessToAppNamespace(ctx context.Context, se
 	return app.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
-func (app *Application) giveRadixTektonAccessToAppNamespace(ctx context.Context, serviceAccount *corev1.ServiceAccount) error {
-	namespace := utils.GetAppNamespace(app.registration.Name)
-	roleBinding := app.radixTektonRoleBinding(ctx, serviceAccount)
-	return app.kubeutil.ApplyRoleBinding(ctx, namespace, roleBinding)
-}
-
 func (app *Application) pipelineRoleBinding(ctx context.Context, serviceAccount *corev1.ServiceAccount) *rbacv1.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
@@ -170,38 +143,6 @@ func (app *Application) pipelineRoleBinding(ctx context.Context, serviceAccount 
 			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
 			Name:     defaults.PipelineAppRoleName,
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      rbacv1.ServiceAccountKind,
-				Name:      serviceAccount.Name,
-				Namespace: serviceAccount.Namespace,
-			},
-		},
-	}
-	return rolebinding
-}
-
-func (app *Application) radixTektonRoleBinding(ctx context.Context, serviceAccount *corev1.ServiceAccount) *rbacv1.RoleBinding {
-	registration := app.registration
-	appName := registration.Name
-	log.Ctx(ctx).Debug().Msgf("Create rolebinding config %s", defaults.RadixTektonAppRoleName)
-
-	rolebinding := &rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindRoleBinding,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.RadixTektonAppRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: rbacv1.GroupName,
-			Kind:     k8s.KindClusterRole,
-			Name:     defaults.RadixTektonAppRoleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{

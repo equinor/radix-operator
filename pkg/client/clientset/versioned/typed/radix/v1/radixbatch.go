@@ -26,9 +26,9 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -44,33 +44,34 @@ type RadixBatchesGetter interface {
 
 // RadixBatchInterface has methods to work with RadixBatch resources.
 type RadixBatchInterface interface {
-	Create(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.CreateOptions) (*v1.RadixBatch, error)
-	Update(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (*v1.RadixBatch, error)
+	Create(ctx context.Context, radixBatch *radixv1.RadixBatch, opts metav1.CreateOptions) (*radixv1.RadixBatch, error)
+	Update(ctx context.Context, radixBatch *radixv1.RadixBatch, opts metav1.UpdateOptions) (*radixv1.RadixBatch, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, radixBatch *v1.RadixBatch, opts metav1.UpdateOptions) (*v1.RadixBatch, error)
+	UpdateStatus(ctx context.Context, radixBatch *radixv1.RadixBatch, opts metav1.UpdateOptions) (*radixv1.RadixBatch, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixBatch, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixBatchList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*radixv1.RadixBatch, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*radixv1.RadixBatchList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixBatch, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *radixv1.RadixBatch, err error)
 	RadixBatchExpansion
 }
 
 // radixBatches implements RadixBatchInterface
 type radixBatches struct {
-	*gentype.ClientWithList[*v1.RadixBatch, *v1.RadixBatchList]
+	*gentype.ClientWithList[*radixv1.RadixBatch, *radixv1.RadixBatchList]
 }
 
 // newRadixBatches returns a RadixBatches
 func newRadixBatches(c *RadixV1Client, namespace string) *radixBatches {
 	return &radixBatches{
-		gentype.NewClientWithList[*v1.RadixBatch, *v1.RadixBatchList](
+		gentype.NewClientWithList[*radixv1.RadixBatch, *radixv1.RadixBatchList](
 			"radixbatches",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.RadixBatch { return &v1.RadixBatch{} },
-			func() *v1.RadixBatchList { return &v1.RadixBatchList{} }),
+			func() *radixv1.RadixBatch { return &radixv1.RadixBatch{} },
+			func() *radixv1.RadixBatchList { return &radixv1.RadixBatchList{} },
+		),
 	}
 }

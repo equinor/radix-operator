@@ -82,7 +82,7 @@ func (s *buildTestSuite) Test_TargetEnvironmentsEmpty_ShouldSkip() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(0)
 	var m mock.Mock
 	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments:    model.PipelineArguments{},
@@ -101,7 +101,7 @@ func (s *buildTestSuite) Test_BuildComponentImagesEmpty_ShouldSkip() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(0)
 	var m mock.Mock
 	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments:    model.PipelineArguments{},
@@ -128,7 +128,7 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
 	var m mock.Mock
 	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -178,7 +178,7 @@ func (s *buildTestSuite) Test_AppWithoutBuildSecrets_Validation() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
 	var m mock.Mock
 	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -216,7 +216,7 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
 	var m mock.Mock
 	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{

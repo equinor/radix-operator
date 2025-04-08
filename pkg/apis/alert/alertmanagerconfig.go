@@ -231,7 +231,7 @@ func (syncer *alertSyncer) getAlertmanagerConfigRoutes(ctx context.Context) []v1
 			GroupWait:      defaultGroupWait,
 			GroupInterval:  defaultGroupInterval,
 			RepeatInterval: getRepeatInterval(alertConfig),
-			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert.Alert}},
+			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert.Alert, MatchType: v1alpha1.MatchEqual}},
 		})
 	}
 

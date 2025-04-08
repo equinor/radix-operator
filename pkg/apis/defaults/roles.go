@@ -37,15 +37,6 @@ const (
 	// PipelineEnvRoleName Give radix-pipeline service account inside app namespace access to make deployments through radix-pipeline-runner clusterrole
 	PipelineEnvRoleName = "radix-pipeline-env"
 
-	// RadixTektonServiceAccountName Service account name for radix-tekton jobs
-	RadixTektonServiceAccountName = "radix-tekton"
-
-	// RadixTektonAppRoleName Role of user to apply radixconfig to configmap and process Tekton objects
-	RadixTektonAppRoleName = "radix-tekton-app"
-
-	// RadixTektonEnvRoleName Role to get app environment data for prepare pipeline job
-	RadixTektonEnvRoleName = "radix-tekton-env"
-
 	// RadixPipelineRRRoleNamePrefix Role of to get RadixRegistrations for pipeline job
 	RadixPipelineRRRoleNamePrefix = "radix-pipeline-rr"
 
@@ -57,12 +48,6 @@ const (
 
 	// RadixApplicationReaderRadixDNSAliasRoleNamePrefix Role of to get RadixDNSAliases for application reader
 	RadixApplicationReaderRadixDNSAliasRoleNamePrefix = "radix-platform-user-rda-reader"
-
-	// RadixTektonRRRoleNamePrefix Role of to get RadixRegistrations for prepare pipeline job
-	RadixTektonRRRoleNamePrefix = "radix-tekton-rr"
-
-	// RadixTektonRadixDNSAliasRoleNamePrefix Role of to get RadixDNSAliases for prepare pipeline job
-	RadixTektonRadixDNSAliasRoleNamePrefix = "radix-tekton-rda"
 
 	// PlatformUserRoleName Name of platform user cluster role
 	PlatformUserRoleName = "radix-platform-user"

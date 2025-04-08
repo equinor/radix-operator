@@ -26,9 +26,9 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -44,33 +44,34 @@ type RadixAlertsGetter interface {
 
 // RadixAlertInterface has methods to work with RadixAlert resources.
 type RadixAlertInterface interface {
-	Create(ctx context.Context, radixAlert *v1.RadixAlert, opts metav1.CreateOptions) (*v1.RadixAlert, error)
-	Update(ctx context.Context, radixAlert *v1.RadixAlert, opts metav1.UpdateOptions) (*v1.RadixAlert, error)
+	Create(ctx context.Context, radixAlert *radixv1.RadixAlert, opts metav1.CreateOptions) (*radixv1.RadixAlert, error)
+	Update(ctx context.Context, radixAlert *radixv1.RadixAlert, opts metav1.UpdateOptions) (*radixv1.RadixAlert, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, radixAlert *v1.RadixAlert, opts metav1.UpdateOptions) (*v1.RadixAlert, error)
+	UpdateStatus(ctx context.Context, radixAlert *radixv1.RadixAlert, opts metav1.UpdateOptions) (*radixv1.RadixAlert, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixAlert, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixAlertList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*radixv1.RadixAlert, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*radixv1.RadixAlertList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixAlert, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *radixv1.RadixAlert, err error)
 	RadixAlertExpansion
 }
 
 // radixAlerts implements RadixAlertInterface
 type radixAlerts struct {
-	*gentype.ClientWithList[*v1.RadixAlert, *v1.RadixAlertList]
+	*gentype.ClientWithList[*radixv1.RadixAlert, *radixv1.RadixAlertList]
 }
 
 // newRadixAlerts returns a RadixAlerts
 func newRadixAlerts(c *RadixV1Client, namespace string) *radixAlerts {
 	return &radixAlerts{
-		gentype.NewClientWithList[*v1.RadixAlert, *v1.RadixAlertList](
+		gentype.NewClientWithList[*radixv1.RadixAlert, *radixv1.RadixAlertList](
 			"radixalerts",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1.RadixAlert { return &v1.RadixAlert{} },
-			func() *v1.RadixAlertList { return &v1.RadixAlertList{} }),
+			func() *radixv1.RadixAlert { return &radixv1.RadixAlert{} },
+			func() *radixv1.RadixAlertList { return &radixv1.RadixAlertList{} },
+		),
 	}
 }

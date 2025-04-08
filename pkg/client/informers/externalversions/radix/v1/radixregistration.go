@@ -26,13 +26,13 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	apisradixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -43,7 +43,7 @@ import (
 // RadixRegistrations.
 type RadixRegistrationInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.RadixRegistrationLister
+	Lister() radixv1.RadixRegistrationLister
 }
 
 type radixRegistrationInformer struct {
@@ -77,7 +77,7 @@ func NewFilteredRadixRegistrationInformer(client versioned.Interface, resyncPeri
 				return client.RadixV1().RadixRegistrations().Watch(context.TODO(), options)
 			},
 		},
-		&radixv1.RadixRegistration{},
+		&apisradixv1.RadixRegistration{},
 		resyncPeriod,
 		indexers,
 	)
@@ -88,9 +88,9 @@ func (f *radixRegistrationInformer) defaultInformer(client versioned.Interface, 
 }
 
 func (f *radixRegistrationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&radixv1.RadixRegistration{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisradixv1.RadixRegistration{}, f.defaultInformer)
 }
 
-func (f *radixRegistrationInformer) Lister() v1.RadixRegistrationLister {
-	return v1.NewRadixRegistrationLister(f.Informer().GetIndexer())
+func (f *radixRegistrationInformer) Lister() radixv1.RadixRegistrationLister {
+	return radixv1.NewRadixRegistrationLister(f.Informer().GetIndexer())
 }

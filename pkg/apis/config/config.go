@@ -11,8 +11,9 @@ import (
 
 // Config from environment variables
 type Config struct {
-	LogLevel                string
-	LogPretty               bool
+	LogLevel  string
+	LogPretty bool
+	// DNSConfig Settings for the cluster DNS
 	DNSConfig               *dnsalias.DNSConfig
 	PipelineJobConfig       *pipelinejob.Config
 	CertificateAutomation   certificate.AutomationConfig

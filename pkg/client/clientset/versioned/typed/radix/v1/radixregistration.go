@@ -26,9 +26,9 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -44,33 +44,34 @@ type RadixRegistrationsGetter interface {
 
 // RadixRegistrationInterface has methods to work with RadixRegistration resources.
 type RadixRegistrationInterface interface {
-	Create(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.CreateOptions) (*v1.RadixRegistration, error)
-	Update(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.UpdateOptions) (*v1.RadixRegistration, error)
+	Create(ctx context.Context, radixRegistration *radixv1.RadixRegistration, opts metav1.CreateOptions) (*radixv1.RadixRegistration, error)
+	Update(ctx context.Context, radixRegistration *radixv1.RadixRegistration, opts metav1.UpdateOptions) (*radixv1.RadixRegistration, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.UpdateOptions) (*v1.RadixRegistration, error)
+	UpdateStatus(ctx context.Context, radixRegistration *radixv1.RadixRegistration, opts metav1.UpdateOptions) (*radixv1.RadixRegistration, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixRegistration, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixRegistrationList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*radixv1.RadixRegistration, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*radixv1.RadixRegistrationList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixRegistration, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *radixv1.RadixRegistration, err error)
 	RadixRegistrationExpansion
 }
 
 // radixRegistrations implements RadixRegistrationInterface
 type radixRegistrations struct {
-	*gentype.ClientWithList[*v1.RadixRegistration, *v1.RadixRegistrationList]
+	*gentype.ClientWithList[*radixv1.RadixRegistration, *radixv1.RadixRegistrationList]
 }
 
 // newRadixRegistrations returns a RadixRegistrations
 func newRadixRegistrations(c *RadixV1Client) *radixRegistrations {
 	return &radixRegistrations{
-		gentype.NewClientWithList[*v1.RadixRegistration, *v1.RadixRegistrationList](
+		gentype.NewClientWithList[*radixv1.RadixRegistration, *radixv1.RadixRegistrationList](
 			"radixregistrations",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1.RadixRegistration { return &v1.RadixRegistration{} },
-			func() *v1.RadixRegistrationList { return &v1.RadixRegistrationList{} }),
+			func() *radixv1.RadixRegistration { return &radixv1.RadixRegistration{} },
+			func() *radixv1.RadixRegistrationList { return &radixv1.RadixRegistrationList{} },
+		),
 	}
 }

@@ -152,7 +152,7 @@ func (h *deployHandler) buildDeployment(ctx context.Context, envInfo envInfo) (*
 		envInfo.envName,
 		envInfo.activeRd.Annotations[kube.RadixConfigHash],
 		envInfo.activeRd.Annotations[kube.RadixBuildSecretHash],
-		h.pipelineInfo.PrepareBuildContext,
+		h.pipelineInfo.BuildContext,
 		h.pipelineInfo.PipelineArguments.ComponentsToDeploy,
 	)
 	if err != nil {

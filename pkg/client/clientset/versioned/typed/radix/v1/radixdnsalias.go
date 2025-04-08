@@ -26,9 +26,9 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -44,33 +44,34 @@ type RadixDNSAliasesGetter interface {
 
 // RadixDNSAliasInterface has methods to work with RadixDNSAlias resources.
 type RadixDNSAliasInterface interface {
-	Create(ctx context.Context, radixDNSAlias *v1.RadixDNSAlias, opts metav1.CreateOptions) (*v1.RadixDNSAlias, error)
-	Update(ctx context.Context, radixDNSAlias *v1.RadixDNSAlias, opts metav1.UpdateOptions) (*v1.RadixDNSAlias, error)
+	Create(ctx context.Context, radixDNSAlias *radixv1.RadixDNSAlias, opts metav1.CreateOptions) (*radixv1.RadixDNSAlias, error)
+	Update(ctx context.Context, radixDNSAlias *radixv1.RadixDNSAlias, opts metav1.UpdateOptions) (*radixv1.RadixDNSAlias, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, radixDNSAlias *v1.RadixDNSAlias, opts metav1.UpdateOptions) (*v1.RadixDNSAlias, error)
+	UpdateStatus(ctx context.Context, radixDNSAlias *radixv1.RadixDNSAlias, opts metav1.UpdateOptions) (*radixv1.RadixDNSAlias, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixDNSAlias, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixDNSAliasList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*radixv1.RadixDNSAlias, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*radixv1.RadixDNSAliasList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixDNSAlias, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *radixv1.RadixDNSAlias, err error)
 	RadixDNSAliasExpansion
 }
 
 // radixDNSAliases implements RadixDNSAliasInterface
 type radixDNSAliases struct {
-	*gentype.ClientWithList[*v1.RadixDNSAlias, *v1.RadixDNSAliasList]
+	*gentype.ClientWithList[*radixv1.RadixDNSAlias, *radixv1.RadixDNSAliasList]
 }
 
 // newRadixDNSAliases returns a RadixDNSAliases
 func newRadixDNSAliases(c *RadixV1Client) *radixDNSAliases {
 	return &radixDNSAliases{
-		gentype.NewClientWithList[*v1.RadixDNSAlias, *v1.RadixDNSAliasList](
+		gentype.NewClientWithList[*radixv1.RadixDNSAlias, *radixv1.RadixDNSAliasList](
 			"radixdnsaliases",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1.RadixDNSAlias { return &v1.RadixDNSAlias{} },
-			func() *v1.RadixDNSAliasList { return &v1.RadixDNSAliasList{} }),
+			func() *radixv1.RadixDNSAlias { return &radixv1.RadixDNSAlias{} },
+			func() *radixv1.RadixDNSAliasList { return &radixv1.RadixDNSAliasList{} },
+		),
 	}
 }

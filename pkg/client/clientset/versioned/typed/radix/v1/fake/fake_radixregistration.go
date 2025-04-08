@@ -26,120 +26,34 @@ SOFTWARE.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	radixv1 "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeRadixRegistrations implements RadixRegistrationInterface
-type FakeRadixRegistrations struct {
+// fakeRadixRegistrations implements RadixRegistrationInterface
+type fakeRadixRegistrations struct {
+	*gentype.FakeClientWithList[*v1.RadixRegistration, *v1.RadixRegistrationList]
 	Fake *FakeRadixV1
 }
 
-var radixregistrationsResource = v1.SchemeGroupVersion.WithResource("radixregistrations")
-
-var radixregistrationsKind = v1.SchemeGroupVersion.WithKind("RadixRegistration")
-
-// Get takes name of the radixRegistration, and returns the corresponding radixRegistration object, and an error if there is any.
-func (c *FakeRadixRegistrations) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixRegistration, err error) {
-	emptyResult := &v1.RadixRegistration{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetActionWithOptions(radixregistrationsResource, name, options), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeRadixRegistrations(fake *FakeRadixV1) radixv1.RadixRegistrationInterface {
+	return &fakeRadixRegistrations{
+		gentype.NewFakeClientWithList[*v1.RadixRegistration, *v1.RadixRegistrationList](
+			fake.Fake,
+			"",
+			v1.SchemeGroupVersion.WithResource("radixregistrations"),
+			v1.SchemeGroupVersion.WithKind("RadixRegistration"),
+			func() *v1.RadixRegistration { return &v1.RadixRegistration{} },
+			func() *v1.RadixRegistrationList { return &v1.RadixRegistrationList{} },
+			func(dst, src *v1.RadixRegistrationList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.RadixRegistrationList) []*v1.RadixRegistration {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1.RadixRegistrationList, items []*v1.RadixRegistration) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.RadixRegistration), err
-}
-
-// List takes label and field selectors, and returns the list of RadixRegistrations that match those selectors.
-func (c *FakeRadixRegistrations) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixRegistrationList, err error) {
-	emptyResult := &v1.RadixRegistrationList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListActionWithOptions(radixregistrationsResource, radixregistrationsKind, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.RadixRegistrationList{ListMeta: obj.(*v1.RadixRegistrationList).ListMeta}
-	for _, item := range obj.(*v1.RadixRegistrationList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested radixRegistrations.
-func (c *FakeRadixRegistrations) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchActionWithOptions(radixregistrationsResource, opts))
-}
-
-// Create takes the representation of a radixRegistration and creates it.  Returns the server's representation of the radixRegistration, and an error, if there is any.
-func (c *FakeRadixRegistrations) Create(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.CreateOptions) (result *v1.RadixRegistration, err error) {
-	emptyResult := &v1.RadixRegistration{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(radixregistrationsResource, radixRegistration, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixRegistration), err
-}
-
-// Update takes the representation of a radixRegistration and updates it. Returns the server's representation of the radixRegistration, and an error, if there is any.
-func (c *FakeRadixRegistrations) Update(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.UpdateOptions) (result *v1.RadixRegistration, err error) {
-	emptyResult := &v1.RadixRegistration{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateActionWithOptions(radixregistrationsResource, radixRegistration, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixRegistration), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRadixRegistrations) UpdateStatus(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.UpdateOptions) (result *v1.RadixRegistration, err error) {
-	emptyResult := &v1.RadixRegistration{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(radixregistrationsResource, "status", radixRegistration, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixRegistration), err
-}
-
-// Delete takes name of the radixRegistration and deletes it. Returns an error if one occurs.
-func (c *FakeRadixRegistrations) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(radixregistrationsResource, name, opts), &v1.RadixRegistration{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeRadixRegistrations) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionActionWithOptions(radixregistrationsResource, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.RadixRegistrationList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched radixRegistration.
-func (c *FakeRadixRegistrations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixRegistration, err error) {
-	emptyResult := &v1.RadixRegistration{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceActionWithOptions(radixregistrationsResource, name, pt, data, opts, subresources...), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixRegistration), err
 }

@@ -92,22 +92,11 @@ Two cluster roles are created for administrative purposes: `radix-operator-view`
   - Purpose: Get access to read RR belonging to \<app\>
   - Created by: Operator
   - Cluster Role binding: radix-pipeline-rr-\<app\>
-- radix-tekton-app
-  - Purpose: Role to run cloning of radixconfig from master branch and to put into temporary config map, create Tekton tasks and pipelines
-  - Created by: Operator
-  - Role binding: radix-tekton-app
-- radix-tekton-env
-  - Purpose: Role that grants the radix-tekton pipeline step access to read RadixDeployment resources in app environment namespaces
-  - Created by: Operator
-  - Role binding: radix-tekton-env
 
 #### Clusterrole bindings
 
 - radix-pipeline-rr-\<app\>
   - Purpose: Give radix-pipeline service account inside app namespace access to read RR belonging to \<app\> through radix-pipeline-rr-\<app\> clusterrole
-  - Created by: Operator
-- radix-tekton-rr-\<app\>
-  - Purpose: Give radix-tekton service account inside app namespace access to read RR belonging to \<app\> through radix-tekton-\<app\> clusterrole
   - Created by: Operator
 
 #### Role bindings

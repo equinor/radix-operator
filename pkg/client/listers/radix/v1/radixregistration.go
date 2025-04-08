@@ -26,10 +26,10 @@ SOFTWARE.
 package v1
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // RadixRegistrationLister helps list RadixRegistrations.
@@ -37,19 +37,19 @@ import (
 type RadixRegistrationLister interface {
 	// List lists all RadixRegistrations in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixRegistration, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixRegistration, err error)
 	// Get retrieves the RadixRegistration from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.RadixRegistration, error)
+	Get(name string) (*radixv1.RadixRegistration, error)
 	RadixRegistrationListerExpansion
 }
 
 // radixRegistrationLister implements the RadixRegistrationLister interface.
 type radixRegistrationLister struct {
-	listers.ResourceIndexer[*v1.RadixRegistration]
+	listers.ResourceIndexer[*radixv1.RadixRegistration]
 }
 
 // NewRadixRegistrationLister returns a new RadixRegistrationLister.
 func NewRadixRegistrationLister(indexer cache.Indexer) RadixRegistrationLister {
-	return &radixRegistrationLister{listers.New[*v1.RadixRegistration](indexer, v1.Resource("radixregistration"))}
+	return &radixRegistrationLister{listers.New[*radixv1.RadixRegistration](indexer, radixv1.Resource("radixregistration"))}
 }

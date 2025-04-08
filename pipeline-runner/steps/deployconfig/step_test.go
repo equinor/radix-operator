@@ -580,7 +580,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(len(affectedEnvs))
 
 			cli := deployconfig.NewDeployConfigStep(radixDeploymentWatcher)
-			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
 			if err := cli.Run(context.Background(), pipelineInfo); err != nil {
 				t.Logf("Error: %v", err)
 				s.Require().NoError(err)

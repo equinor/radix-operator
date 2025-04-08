@@ -552,7 +552,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 
 		return v1alpha1.Route{
 			Receiver:       receiverName,
-			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert}},
+			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert, MatchType: v1alpha1.MatchEqual}},
 			GroupBy:        alertConfigs[alert].GroupBy,
 			GroupWait:      defaultGroupWait,
 			GroupInterval:  defaultGroupInterval,

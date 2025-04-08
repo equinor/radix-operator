@@ -79,9 +79,6 @@ func (env *Environment) OnSync(ctx context.Context, time metav1.Time) error {
 	if err := env.ApplyAdGroupRoleBinding(ctx, namespaceName); err != nil {
 		return fmt.Errorf("failed to apply RBAC on namespace %s: %w", namespaceName, err)
 	}
-	if err := env.applyRadixTektonEnvRoleBinding(ctx, namespaceName); err != nil {
-		return fmt.Errorf("failed to apply RBAC for radix-tekton-env on namespace %s: %w", namespaceName, err)
-	}
 	if err := env.ApplyRadixPipelineRunnerRoleBinding(ctx, namespaceName); err != nil {
 		return fmt.Errorf("failed to apply RBAC for radix-pipeline-runner on namespace %s: %w", namespaceName, err)
 	}
@@ -178,35 +175,6 @@ func (env *Environment) ApplyAdGroupRoleBinding(ctx context.Context, namespace s
 	}
 
 	return nil
-}
-
-func (env *Environment) applyRadixTektonEnvRoleBinding(ctx context.Context, namespace string) error {
-	roleBinding := &rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindRoleBinding,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.RadixTektonEnvRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: env.config.Spec.AppName,
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: rbacv1.GroupName,
-			Kind:     k8s.KindClusterRole,
-			Name:     defaults.RadixTektonEnvRoleName,
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      rbacv1.ServiceAccountKind,
-				Name:      defaults.RadixTektonServiceAccountName,
-				Namespace: utils.GetAppNamespace(env.config.Spec.AppName),
-			},
-		},
-	}
-	roleBinding.SetOwnerReferences(env.AsOwnerReference())
-	return env.kubeutil.ApplyRoleBinding(ctx, namespace, roleBinding)
 }
 
 func (env *Environment) ApplyRadixPipelineRunnerRoleBinding(ctx context.Context, namespace string) error {

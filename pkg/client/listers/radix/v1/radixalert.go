@@ -26,10 +26,10 @@ SOFTWARE.
 package v1
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // RadixAlertLister helps list RadixAlerts.
@@ -37,7 +37,7 @@ import (
 type RadixAlertLister interface {
 	// List lists all RadixAlerts in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixAlert, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixAlert, err error)
 	// RadixAlerts returns an object that can list and get RadixAlerts.
 	RadixAlerts(namespace string) RadixAlertNamespaceLister
 	RadixAlertListerExpansion
@@ -45,17 +45,17 @@ type RadixAlertLister interface {
 
 // radixAlertLister implements the RadixAlertLister interface.
 type radixAlertLister struct {
-	listers.ResourceIndexer[*v1.RadixAlert]
+	listers.ResourceIndexer[*radixv1.RadixAlert]
 }
 
 // NewRadixAlertLister returns a new RadixAlertLister.
 func NewRadixAlertLister(indexer cache.Indexer) RadixAlertLister {
-	return &radixAlertLister{listers.New[*v1.RadixAlert](indexer, v1.Resource("radixalert"))}
+	return &radixAlertLister{listers.New[*radixv1.RadixAlert](indexer, radixv1.Resource("radixalert"))}
 }
 
 // RadixAlerts returns an object that can list and get RadixAlerts.
 func (s *radixAlertLister) RadixAlerts(namespace string) RadixAlertNamespaceLister {
-	return radixAlertNamespaceLister{listers.NewNamespaced[*v1.RadixAlert](s.ResourceIndexer, namespace)}
+	return radixAlertNamespaceLister{listers.NewNamespaced[*radixv1.RadixAlert](s.ResourceIndexer, namespace)}
 }
 
 // RadixAlertNamespaceLister helps list and get RadixAlerts.
@@ -63,15 +63,15 @@ func (s *radixAlertLister) RadixAlerts(namespace string) RadixAlertNamespaceList
 type RadixAlertNamespaceLister interface {
 	// List lists all RadixAlerts in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixAlert, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixAlert, err error)
 	// Get retrieves the RadixAlert from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.RadixAlert, error)
+	Get(name string) (*radixv1.RadixAlert, error)
 	RadixAlertNamespaceListerExpansion
 }
 
 // radixAlertNamespaceLister implements the RadixAlertNamespaceLister
 // interface.
 type radixAlertNamespaceLister struct {
-	listers.ResourceIndexer[*v1.RadixAlert]
+	listers.ResourceIndexer[*radixv1.RadixAlert]
 }

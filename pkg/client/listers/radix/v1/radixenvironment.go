@@ -26,10 +26,10 @@ SOFTWARE.
 package v1
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // RadixEnvironmentLister helps list RadixEnvironments.
@@ -37,19 +37,19 @@ import (
 type RadixEnvironmentLister interface {
 	// List lists all RadixEnvironments in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixEnvironment, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixEnvironment, err error)
 	// Get retrieves the RadixEnvironment from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.RadixEnvironment, error)
+	Get(name string) (*radixv1.RadixEnvironment, error)
 	RadixEnvironmentListerExpansion
 }
 
 // radixEnvironmentLister implements the RadixEnvironmentLister interface.
 type radixEnvironmentLister struct {
-	listers.ResourceIndexer[*v1.RadixEnvironment]
+	listers.ResourceIndexer[*radixv1.RadixEnvironment]
 }
 
 // NewRadixEnvironmentLister returns a new RadixEnvironmentLister.
 func NewRadixEnvironmentLister(indexer cache.Indexer) RadixEnvironmentLister {
-	return &radixEnvironmentLister{listers.New[*v1.RadixEnvironment](indexer, v1.Resource("radixenvironment"))}
+	return &radixEnvironmentLister{listers.New[*radixv1.RadixEnvironment](indexer, radixv1.Resource("radixenvironment"))}
 }
