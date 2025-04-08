@@ -168,7 +168,9 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 // as deriving info from the config
 func (p *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
 	p.RadixApplication = applicationConfig.GetRadixApplicationConfig()
+}
 
+func (p *PipelineInfo) SetTargetEnvironments() {
 	// Obtain metadata for rest of pipeline
 	targetEnvironments := application.GetTargetEnvironments(p.PipelineArguments.Branch, p.RadixApplication)
 
@@ -183,7 +185,6 @@ func (p *PipelineInfo) SetApplicationConfig(applicationConfig *application.Appli
 		len(p.PipelineArguments.ToEnvironment) > 0 {
 		targetEnvironments = []string{p.PipelineArguments.ToEnvironment}
 	}
-
 	p.TargetEnvironments = targetEnvironments
 }
 

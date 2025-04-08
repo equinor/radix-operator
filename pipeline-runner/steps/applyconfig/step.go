@@ -61,6 +61,7 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 		pipelineInfo.PipelineArguments.DNSConfig)
 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetTargetEnvironments()
 
 	if err := cli.setBuildSecret(pipelineInfo); err != nil {
 		return err
