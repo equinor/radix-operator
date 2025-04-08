@@ -173,6 +173,10 @@ func (*ingressPublicConfigAnnotationProvider) GetAnnotations(component radixv1.R
 		annotations["nginx.ingress.kubernetes.io/proxy-body-size"] = string(*v)
 	}
 
+	if v := cfg.ProxyBufferSize; v != nil {
+		annotations["nginx.ingress.kubernetes.io/proxy-buffer-size"] = string(*v)
+	}
+
 	if v := cfg.ProxyReadTimeout; v != nil {
 		annotations["nginx.ingress.kubernetes.io/proxy-read-timeout"] = strconv.FormatUint(uint64(*v), 10)
 	}
