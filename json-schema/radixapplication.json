@@ -1176,7 +1176,7 @@
                                   "type": "string"
                                 },
                                 "proxyBufferSize": {
-                                  "description": "Sets the size of the buffer used for reading the first part of the response received from the proxied server.\nThe size must be large enough to hold the response headers.\nIf the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.\nSizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, \"1024\", \"64k\", \"32m\", \"2g\"\nIf the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.",
+                                  "description": "Sets the size of the buffer used for reading the first part of the response received from the proxied server.\nThe size must be large enough to hold the response headers.\nSizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, \"1024\", \"64k\", \"32m\", \"2g\"\nIf the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.",
                                   "pattern": "^(?:0|[1-9][0-9]*[kKmMgG]?)$",
                                   "type": "string"
                                 },
@@ -2411,7 +2411,7 @@
                             "type": "string"
                           },
                           "proxyBufferSize": {
-                            "description": "Sets the size of the buffer used for reading the first part of the response received from the proxied server.\nThe size must be large enough to hold the response headers.\nIf the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.\nSizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, \"1024\", \"64k\", \"32m\", \"2g\"\nIf the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.",
+                            "description": "Sets the size of the buffer used for reading the first part of the response received from the proxied server.\nThe size must be large enough to hold the response headers.\nSizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, \"1024\", \"64k\", \"32m\", \"2g\"\nIf the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.",
                             "pattern": "^(?:0|[1-9][0-9]*[kKmMgG]?)$",
                             "type": "string"
                           },
