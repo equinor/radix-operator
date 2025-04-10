@@ -3,9 +3,9 @@ package runpipeline
 import (
 	"context"
 	"fmt"
-
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
+	"strings"
 )
 
 // RunPipelinesStepImplementation Step to run Tekton pipelines
@@ -60,11 +61,17 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 		log.Ctx(ctx).Info().Msg("There is no configured sub-pipelines. Skip the step.")
 		return nil
 	}
+	targetEnvironments, ignoredForWebhookEnvs, err := internal.GetPipelineTargetEnvironments(ctx, pipelineInfo)
+	if err != nil {
+		return err
+	}
+	if len(ignoredForWebhookEnvs) > 0 {
+		log.Ctx(ctx).Info().Msgf("Run sub-pipelines for following environment(s) are ignored to be triggered by the webhook: %s", strings.Join(ignoredForWebhookEnvs, ", "))
+	}
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 	appName := step.GetAppName()
 	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
-
-	pipelineCtx := NewPipelineContext(step.GetTektonClient(), pipelineInfo)
+	pipelineCtx := NewPipelineContext(step.GetTektonClient(), pipelineInfo, targetEnvironments)
 	return pipelineCtx.RunPipelinesJob()
 }

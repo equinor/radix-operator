@@ -829,6 +829,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 					ToEnvironment: internalTest.Env1,
 					DNSConfig:     &dnsalias.DNSConfig{},
 				},
+				RadixApplication: applicationBuilder.BuildRA(),
 			}
 			pipelineCtx := &pipelineContext{
 				radixClient:  radixclientfake.NewSimpleClientset(),
@@ -837,7 +838,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				//TODO: fix targetEnvironments: scenario.fields.targetEnvironments,
 				hash:           scenario.fields.hash,
 				ownerReference: scenario.fields.ownerReference,
-				pipelineInfo:   pipelineInfo.SetRadixApplication(applicationBuilder.BuildRA()),
+				pipelineInfo:   pipelineInfo,
 			}
 			if pipelineCtx.ownerReference == nil {
 				pipelineCtx.ownerReference = &metav1.OwnerReference{

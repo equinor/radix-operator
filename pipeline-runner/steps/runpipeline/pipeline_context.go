@@ -88,20 +88,20 @@ func (pipelineCtx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(ta
 type NewPipelineContextOption func(pipelineCtx *pipelineContext)
 
 // NewPipelineContext Create new NewPipelineContext instance
-func NewPipelineContext(tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo, options ...NewPipelineContextOption) Context {
+func NewPipelineContext(tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo, targetEnvironments []string, options ...NewPipelineContextOption) Context {
 	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
 	pipelineCtx := &pipelineContext{
-		tektonClient:   tektonClient,
-		pipelineInfo:   pipelineInfo,
-		hash:           strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName)),
-		ownerReference: ownerReference,
-		waiter:         wait.NewPipelineRunsCompletionWaiter(tektonClient),
+		tektonClient:       tektonClient,
+		pipelineInfo:       pipelineInfo,
+		hash:               strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName)),
+		ownerReference:     ownerReference,
+		waiter:             wait.NewPipelineRunsCompletionWaiter(tektonClient),
+		targetEnvironments: targetEnvironments,
 	}
 
 	for _, option := range options {
 		option(pipelineCtx)
 	}
-
 	return pipelineCtx
 }
 

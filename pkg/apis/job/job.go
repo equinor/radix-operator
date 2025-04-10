@@ -216,7 +216,8 @@ func (job *Job) getTargetEnvironments(ra *v1.RadixApplication) map[string]struct
 		if ra == nil {
 			return targetEnvs
 		}
-		return slice.Reduce(applicationconfig.GetTargetEnvironments(job.radixJob.Spec.Build.Branch, ra, job.radixJob.Spec.TriggeredFromWebhook),
+		environments, _ := applicationconfig.GetTargetEnvironments(job.radixJob.Spec.Build.Branch, ra, job.radixJob.Spec.TriggeredFromWebhook)
+		return slice.Reduce(environments,
 			targetEnvs, func(acc map[string]struct{}, envName string) map[string]struct{} {
 				if len(job.radixJob.Spec.Build.ToEnvironment) == 0 || envName == job.radixJob.Spec.Build.ToEnvironment {
 					acc[envName] = struct{}{}

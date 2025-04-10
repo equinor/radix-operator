@@ -44,7 +44,7 @@ func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 		RadixRegistration: rrBuilder.BuildRR(),
 		RadixApplication:  raBuilder.BuildRA(),
 	}
-	pipelineContext := runpipeline.NewPipelineContext(tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	pipelineContext := runpipeline.NewPipelineContext(tknClient, pipelineInfo, []string{internalTest.Env1}, runpipeline.WithPipelineRunsWaiter(completionWaiter))
 
 	_, err := rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), pipelineInfo.RadixRegistration, metav1.CreateOptions{})
 	require.NoError(t, err)
@@ -247,7 +247,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 				},
 				RadixApplication: ra,
 			}
-			pipelineCtx := runpipeline.NewPipelineContext(tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
+			pipelineCtx := runpipeline.NewPipelineContext(tknClient, pipelineInfo, []string{internalTest.Env1}, runpipeline.WithPipelineRunsWaiter(completionWaiter))
 
 			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), &radixv1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{Name: internalTest.AppName}, Spec: radixv1.RadixRegistrationSpec{}}, metav1.CreateOptions{})
@@ -400,7 +400,7 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 				RadixRegistration: rr,
 				RadixApplication:  raBuilder.BuildRA(),
 			}
-			pipelineCtx := runpipeline.NewPipelineContext(tknClient, pipelineInfo, runpipeline.WithPipelineRunsWaiter(completionWaiter))
+			pipelineCtx := runpipeline.NewPipelineContext(tknClient, pipelineInfo, []string{internalTest.Env1}, runpipeline.WithPipelineRunsWaiter(completionWaiter))
 
 			_, err = tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1)},

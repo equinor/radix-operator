@@ -1,10 +1,9 @@
 package internal
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"strings"
-
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -12,34 +11,30 @@ import (
 )
 
 // GetPipelineTargetEnvironments Get target environments for the pipeline
-func GetPipelineTargetEnvironments(pipelineInfo *model.PipelineInfo) ([]string, error) {
-	log.Debug().Msg("Set target environment")
+func GetPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, []string, error) {
+	log.Ctx(ctx).Debug().Msg("Set target environment")
 	switch pipelineInfo.GetRadixPipelineType() {
 	case v1.ApplyConfig:
-		return nil, nil
+		return nil, nil, nil
 	case v1.Promote:
-		return setTargetEnvironmentsForPromote(pipelineInfo)
+		environmentsForPromote, err := setTargetEnvironmentsForPromote(ctx, pipelineInfo)
+		return environmentsForPromote, nil, err
 	case v1.Deploy:
-		return setTargetEnvironmentsForDeploy(pipelineInfo)
+		environmentsForDeploy, err := setTargetEnvironmentsForDeploy(ctx, pipelineInfo)
+		return environmentsForDeploy, nil, err
 	}
 	var targetEnvironments []string
 	deployToEnvironment := pipelineInfo.GetRadixDeployToEnvironment()
-	environments := applicationconfig.GetTargetEnvironments(pipelineInfo.GetBranch(), pipelineInfo.GetRadixApplication(), pipelineInfo.PipelineArguments.TriggeredFromWebhook)
+	environments, ignoredForWebhookEnvs := applicationconfig.GetTargetEnvironments(pipelineInfo.GetBranch(), pipelineInfo.GetRadixApplication(), pipelineInfo.PipelineArguments.TriggeredFromWebhook)
 	for _, envName := range environments {
 		if len(deployToEnvironment) == 0 || deployToEnvironment == envName {
 			targetEnvironments = append(targetEnvironments, envName)
 		}
 	}
-	if len(targetEnvironments) > 0 {
-		log.Info().Msgf("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(targetEnvironments), pipelineInfo.GetBranch())
-	} else {
-		log.Info().Msgf("No environments are mapped to the branch %s.", pipelineInfo.GetBranch())
-	}
-	log.Info().Msgf("Pipeline type: %s", pipelineInfo.GetRadixPipelineType())
-	return targetEnvironments, nil
+	return targetEnvironments, ignoredForWebhookEnvs, nil
 }
 
-func setTargetEnvironmentsForPromote(pipelineInfo *model.PipelineInfo) ([]string, error) {
+func setTargetEnvironmentsForPromote(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, error) {
 	var errs []error
 	if len(pipelineInfo.GetRadixPromoteDeployment()) == 0 {
 		errs = append(errs, fmt.Errorf("missing promote deployment name"))
@@ -51,23 +46,19 @@ func setTargetEnvironmentsForPromote(pipelineInfo *model.PipelineInfo) ([]string
 		errs = append(errs, fmt.Errorf("missing promote target environment name"))
 	}
 	if len(errs) > 0 {
-		log.Info().Msg("Pipeline type: promote")
+		log.Ctx(ctx).Info().Msg("Pipeline type: promote")
 		return nil, errors.Join(errs...)
 	}
-	log.Info().Msgf("promote the deployment %s from the environment %s to %s", pipelineInfo.GetRadixPromoteDeployment(), pipelineInfo.GetRadixPromoteFromEnvironment(), pipelineInfo.GetRadixDeployToEnvironment())
+	log.Ctx(ctx).Info().Msgf("promote the deployment %s from the environment %s to %s", pipelineInfo.GetRadixPromoteDeployment(), pipelineInfo.GetRadixPromoteFromEnvironment(), pipelineInfo.GetRadixDeployToEnvironment())
 	return []string{pipelineInfo.GetRadixDeployToEnvironment()}, nil // run Tekton pipelines for the promote target environment
 }
 
-func setTargetEnvironmentsForDeploy(pipelineInfo *model.PipelineInfo) ([]string, error) {
+func setTargetEnvironmentsForDeploy(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, error) {
 	targetEnvironment := pipelineInfo.GetRadixDeployToEnvironment()
 	if len(targetEnvironment) == 0 {
 		return nil, fmt.Errorf("no target environment is specified for the deploy pipeline")
 	}
-	log.Info().Msgf("Target environment: %v", targetEnvironment)
-	log.Info().Msgf("Pipeline type: %s", pipelineInfo.GetRadixPipelineType())
+	log.Ctx(ctx).Info().Msgf("Target environment: %v", targetEnvironment)
+	log.Ctx(ctx).Info().Msgf("Pipeline type: %s", pipelineInfo.GetRadixPipelineType())
 	return []string{targetEnvironment}, nil
-}
-
-func getEnvironmentList(environmentNames []string) string {
-	return strings.Join(environmentNames, ", ")
 }

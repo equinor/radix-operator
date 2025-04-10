@@ -21,16 +21,12 @@ import (
 
 // Context of the pipeline
 type Context interface {
-	// LoadRadixAppConfig Load Radix config file and create RadixApplication
-	LoadRadixAppConfig() (*radixv1.RadixApplication, error)
 	// GetBuildContext Get build context
-	GetBuildContext() (*model.BuildContext, error)
+	GetBuildContext(pipelineInfo *model.PipelineInfo) (*model.BuildContext, error)
 	// GetEnvironmentSubPipelinesToRun Get environment sub-pipelines to run
-	GetEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error)
+	GetEnvironmentSubPipelinesToRun(pipelineInfo *model.PipelineInfo, targetEnvironments []string) ([]model.EnvironmentSubPipelineToRun, error)
 	// GetPipelineInfo Get pipeline info
 	GetPipelineInfo() *model.PipelineInfo
-	// SetPipelineTargetEnvironments Set target environments for the pipeline job
-	SetPipelineTargetEnvironments(environments []string)
 }
 
 type pipelineContext struct {
@@ -77,10 +73,6 @@ func (pipelineCtx *pipelineContext) GetEnvVars(envName string) radixv1.EnvVarsMa
 	pipelineCtx.setPipelineRunParamsFromBuild(envVarsMap)
 	pipelineCtx.setPipelineRunParamsFromEnvironmentBuilds(envName, envVarsMap)
 	return envVarsMap
-}
-
-func (pipelineCtx *pipelineContext) SetPipelineTargetEnvironments(environments []string) {
-	pipelineCtx.targetEnvironments = environments
 }
 
 // GetPipelineTargetEnvironments Get target environments for the pipeline job
@@ -141,17 +133,17 @@ func (pipelineCtx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(ta
 	}
 }
 
-func (pipelineCtx *pipelineContext) getGitHash() (string, error) {
+func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
 	// getGitHash return git commit to which the user repository should be reset before parsing sub-pipelines.
-	pipelineArgs := pipelineCtx.pipelineInfo.PipelineArguments
-	pipelineType := pipelineCtx.pipelineInfo.GetRadixPipelineType()
+	pipelineArgs := pipelineInfo.PipelineArguments
+	pipelineType := pipelineInfo.GetRadixPipelineType()
 	if pipelineType == radixv1.ApplyConfig {
 		return "", nil
 	}
 
 	if pipelineType == radixv1.Promote {
-		sourceRdHashFromAnnotation := pipelineCtx.pipelineInfo.SourceDeploymentGitCommitHash
-		sourceDeploymentGitBranch := pipelineCtx.pipelineInfo.SourceDeploymentGitBranch
+		sourceRdHashFromAnnotation := pipelineInfo.SourceDeploymentGitCommitHash
+		sourceDeploymentGitBranch := pipelineInfo.SourceDeploymentGitBranch
 		if sourceRdHashFromAnnotation != "" {
 			return sourceRdHashFromAnnotation, nil
 		}
@@ -159,7 +151,7 @@ func (pipelineCtx *pipelineContext) getGitHash() (string, error) {
 			log.Info().Msg("source deployment has no git metadata, skipping sub-pipelines")
 			return "", nil
 		}
-		sourceRdHashFromBranchHead, err := git.GetCommitHashFromHead(pipelineCtx.GetPipelineInfo().GetGitWorkspace(), sourceDeploymentGitBranch)
+		sourceRdHashFromBranchHead, err := git.GetCommitHashFromHead(pipelineInfo.GetGitWorkspace(), sourceDeploymentGitBranch)
 		if err != nil {
 			return "", nil
 		}
@@ -168,7 +160,7 @@ func (pipelineCtx *pipelineContext) getGitHash() (string, error) {
 
 	if pipelineType == radixv1.Deploy {
 		pipelineJobBranch := ""
-		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineCtx.GetPipelineInfo().GetRadixApplication(), pipelineArgs.ToEnvironment)
+		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineInfo.GetRadixApplication(), pipelineArgs.ToEnvironment)
 		if re != nil {
 			pipelineJobBranch = re.Build.From
 		}
@@ -200,15 +192,16 @@ func (pipelineCtx *pipelineContext) getGitHash() (string, error) {
 type NewPipelineContextOption func(pipelineCtx *pipelineContext)
 
 // NewPipelineContext Create new NewPipelineContext instance
-func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo, options ...NewPipelineContextOption) Context {
+func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo, targetEnvironments []string, options ...NewPipelineContextOption) Context {
 	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
 	pipelineCtx := &pipelineContext{
-		kubeClient:     kubeClient,
-		radixClient:    radixClient,
-		tektonClient:   tektonClient,
-		pipelineInfo:   pipelineInfo,
-		hash:           strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName)),
-		ownerReference: ownerReference,
+		kubeClient:         kubeClient,
+		radixClient:        radixClient,
+		tektonClient:       tektonClient,
+		pipelineInfo:       pipelineInfo,
+		hash:               strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName)),
+		ownerReference:     ownerReference,
+		targetEnvironments: targetEnvironments,
 	}
 
 	for _, option := range options {

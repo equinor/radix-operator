@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -10,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -243,12 +245,6 @@ func (p *PipelineInfo) GetRadixPipelineType() radixv1.RadixPipelineType {
 // GetRadixApplication Get radix application
 func (p *PipelineInfo) GetRadixApplication() *radixv1.RadixApplication {
 	return p.RadixApplication
-}
-
-// SetRadixApplication Set radix application
-func (p *PipelineInfo) SetRadixApplication(radixApplication *radixv1.RadixApplication) *PipelineInfo {
-	p.RadixApplication = radixApplication
-	return p
 }
 
 // GetBranch Get branch
