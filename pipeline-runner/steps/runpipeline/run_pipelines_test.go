@@ -58,7 +58,7 @@ func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 	}, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	err = pipelineContext.RunPipelinesJob()
+	err = pipelineContext.RunPipelinesJob(nil)
 	require.NoError(t, err)
 
 	l, err := tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
@@ -258,7 +258,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
 			require.NoError(t, err)
 
-			err = pipelineCtx.RunPipelinesJob()
+			err = pipelineCtx.RunPipelinesJob(nil)
 			require.NoError(t, err)
 
 			pipelineRunList, err := tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
@@ -407,7 +407,7 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
 			require.NoError(t, err)
 
-			err = pipelineCtx.RunPipelinesJob()
+			err = pipelineCtx.RunPipelinesJob(nil)
 			require.NoError(t, err)
 
 			pipelineRunList, err := tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})

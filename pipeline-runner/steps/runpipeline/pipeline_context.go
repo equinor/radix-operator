@@ -16,7 +16,7 @@ import (
 // Context of the pipeline
 type Context interface {
 	// RunPipelinesJob un the job, which creates Tekton PipelineRun-s
-	RunPipelinesJob() error
+	RunPipelinesJob(*model.PipelineInfo) error
 }
 
 type pipelineContext struct {
@@ -29,15 +29,15 @@ type pipelineContext struct {
 }
 
 // GetEnvVars Gets build env vars
-func (pipelineCtx *pipelineContext) GetEnvVars(envName string) radixv1.EnvVarsMap {
+func (step *RunPipelinesStepImplementation) GetEnvVars(envName string) radixv1.EnvVarsMap {
 	envVarsMap := make(radixv1.EnvVarsMap)
-	pipelineCtx.setPipelineRunParamsFromBuild(envVarsMap)
-	pipelineCtx.setPipelineRunParamsFromEnvironmentBuilds(envName, envVarsMap)
+	step.setPipelineRunParamsFromBuild(envVarsMap)
+	step.setPipelineRunParamsFromEnvironmentBuilds(envName, envVarsMap)
 	return envVarsMap
 }
 
-func (pipelineCtx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap radixv1.EnvVarsMap) {
-	ra := pipelineCtx.pipelineInfo.GetRadixApplication()
+func (step *RunPipelinesStepImplementation) setPipelineRunParamsFromBuild(envVarsMap radixv1.EnvVarsMap) {
+	ra := step.pipelineInfo.GetRadixApplication()
 	if ra.Spec.Build == nil {
 		return
 	}
@@ -76,8 +76,8 @@ func setIdentityToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, identity *radixv1.Id
 	}
 }
 
-func (pipelineCtx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv string, envVarsMap radixv1.EnvVarsMap) {
-	for _, buildEnv := range pipelineCtx.pipelineInfo.GetRadixApplication().Spec.Environments {
+func (step *RunPipelinesStepImplementation) setPipelineRunParamsFromEnvironmentBuilds(targetEnv string, envVarsMap radixv1.EnvVarsMap) {
+	for _, buildEnv := range step.pipelineInfo.GetRadixApplication().Spec.Environments {
 		if strings.EqualFold(buildEnv.Name, targetEnv) {
 			setBuildIdentity(envVarsMap, buildEnv.SubPipeline)
 			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
@@ -85,12 +85,12 @@ func (pipelineCtx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(ta
 	}
 }
 
-type NewPipelineContextOption func(pipelineCtx *pipelineContext)
+type NewPipelineContextOption func(step *RunPipelinesStepImplementation)
 
 // NewPipelineContext Create new NewPipelineContext instance
 func NewPipelineContext(tektonClient tektonclient.Interface, pipelineInfo *model.PipelineInfo, targetEnvironments []string, options ...NewPipelineContextOption) Context {
 	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
-	pipelineCtx := &pipelineContext{
+	step := &pipelineContext{
 		tektonClient:       tektonClient,
 		pipelineInfo:       pipelineInfo,
 		hash:               strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName)),
@@ -100,14 +100,14 @@ func NewPipelineContext(tektonClient tektonclient.Interface, pipelineInfo *model
 	}
 
 	for _, option := range options {
-		option(pipelineCtx)
+		option(step)
 	}
-	return pipelineCtx
+	return step
 }
 
 // WithPipelineRunsWaiter Set pipeline runs waiter
 func WithPipelineRunsWaiter(waiter wait.PipelineRunsCompletionWaiter) NewPipelineContextOption {
-	return func(pipelineCtx *pipelineContext) {
-		pipelineCtx.waiter = waiter
+	return func(step *RunPipelinesStepImplementation) {
+		step.waiter = waiter
 	}
 }
