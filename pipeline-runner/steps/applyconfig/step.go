@@ -62,6 +62,12 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
+	targetEnvironments, ignoredForWebhookEnvs := pipelineInfo.GetTargetEnvironments()
+	pipelineInfo.TargetEnvironments = targetEnvironments
+	if len(ignoredForWebhookEnvs) > 0 {
+		log.Ctx(ctx).Info().Msgf("Build for following environment(s) are ignored to be triggered by the webhook: %s", strings.Join(ignoredForWebhookEnvs, ", "))
+	}
+
 	if err := cli.setBuildSecret(pipelineInfo); err != nil {
 		return err
 	}

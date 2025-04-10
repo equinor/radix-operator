@@ -66,7 +66,8 @@ type RadixJobSpec struct {
 	ApplyConfig   RadixApplyConfigSpec `json:"applyConfig"`
 	// Stop If true, the job will be stopped
 	Stop bool `json:"stop"`
-	TriggeredFromWebhook bool                 `json:"triggeredFromWebhook"`
+	// TriggeredFromWebhook If true, the job was triggered from a webhook
+	TriggeredFromWebhook bool `json:"triggeredFromWebhook"`
 	// TriggeredBy Name of the user or UID oa a system principal which triggered the job
 	TriggeredBy string `json:"triggeredBy"`
 	// Deprecated: radix-api will be responsible for setting the RadixConfigFullName, it is taken from the RadixRegistration by the radix-operator

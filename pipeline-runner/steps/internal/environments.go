@@ -24,7 +24,7 @@ func GetPipelineTargetEnvironments(pipelineInfo *model.PipelineInfo) ([]string, 
 	}
 	var targetEnvironments []string
 	deployToEnvironment := pipelineInfo.GetRadixDeployToEnvironment()
-	environments := applicationconfig.GetTargetEnvironments(pipelineInfo.GetBranch(), pipelineInfo.GetRadixApplication())
+	environments := applicationconfig.GetTargetEnvironments(pipelineInfo.GetBranch(), pipelineInfo.GetRadixApplication(), pipelineInfo.PipelineArguments.TriggeredFromWebhook)
 	for _, envName := range environments {
 		if len(deployToEnvironment) == 0 || deployToEnvironment == envName {
 			targetEnvironments = append(targetEnvironments, envName)

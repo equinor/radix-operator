@@ -73,7 +73,7 @@ type PipelineArguments struct {
 	ToEnvironment         string
 	ComponentsToDeploy    []string
 	TriggeredFromWebhook  bool
-	RadixConfigFile string
+	RadixConfigFile       string
 
 	// ImageBuilder Points to the image builder (repository and tag only)
 	ImageBuilder string
@@ -166,9 +166,12 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 // as deriving info from the config
 func (p *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
 	p.RadixApplication = applicationConfig.GetRadixApplicationConfig()
+}
 
+// GetTargetEnvironments Get target environments for the pipeline, and optionally environments ignored for webhook
+func (p *PipelineInfo) GetTargetEnvironments() ([]string, []string) {
 	// Obtain metadata for rest of pipeline
-	targetEnvironments := application.GetTargetEnvironments(p.PipelineArguments.Branch, p.RadixApplication, false)
+	targetEnvironments, ignoredForWebhookEnvs := application.GetTargetEnvironments(p.PipelineArguments.Branch, p.RadixApplication, p.PipelineArguments.TriggeredFromWebhook)
 
 	// For deploy-only pipeline
 	if p.IsPipelineType(radixv1.Deploy) &&
@@ -181,8 +184,7 @@ func (p *PipelineInfo) SetApplicationConfig(applicationConfig *application.Appli
 		len(p.PipelineArguments.ToEnvironment) > 0 {
 		targetEnvironments = []string{p.PipelineArguments.ToEnvironment}
 	}
-
-	p.TargetEnvironments = targetEnvironments
+	return targetEnvironments, ignoredForWebhookEnvs
 }
 
 // SetGitAttributes Set git attributes to be used later by other steps
