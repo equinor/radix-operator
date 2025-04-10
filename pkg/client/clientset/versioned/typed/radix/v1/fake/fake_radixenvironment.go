@@ -26,120 +26,32 @@ SOFTWARE.
 package fake
 
 import (
-	"context"
-
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	radixv1 "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeRadixEnvironments implements RadixEnvironmentInterface
-type FakeRadixEnvironments struct {
+// fakeRadixEnvironments implements RadixEnvironmentInterface
+type fakeRadixEnvironments struct {
+	*gentype.FakeClientWithList[*v1.RadixEnvironment, *v1.RadixEnvironmentList]
 	Fake *FakeRadixV1
 }
 
-var radixenvironmentsResource = v1.SchemeGroupVersion.WithResource("radixenvironments")
-
-var radixenvironmentsKind = v1.SchemeGroupVersion.WithKind("RadixEnvironment")
-
-// Get takes name of the radixEnvironment, and returns the corresponding radixEnvironment object, and an error if there is any.
-func (c *FakeRadixEnvironments) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixEnvironment, err error) {
-	emptyResult := &v1.RadixEnvironment{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetActionWithOptions(radixenvironmentsResource, name, options), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeRadixEnvironments(fake *FakeRadixV1) radixv1.RadixEnvironmentInterface {
+	return &fakeRadixEnvironments{
+		gentype.NewFakeClientWithList[*v1.RadixEnvironment, *v1.RadixEnvironmentList](
+			fake.Fake,
+			"",
+			v1.SchemeGroupVersion.WithResource("radixenvironments"),
+			v1.SchemeGroupVersion.WithKind("RadixEnvironment"),
+			func() *v1.RadixEnvironment { return &v1.RadixEnvironment{} },
+			func() *v1.RadixEnvironmentList { return &v1.RadixEnvironmentList{} },
+			func(dst, src *v1.RadixEnvironmentList) { dst.ListMeta = src.ListMeta },
+			func(list *v1.RadixEnvironmentList) []*v1.RadixEnvironment { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1.RadixEnvironmentList, items []*v1.RadixEnvironment) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1.RadixEnvironment), err
-}
-
-// List takes label and field selectors, and returns the list of RadixEnvironments that match those selectors.
-func (c *FakeRadixEnvironments) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixEnvironmentList, err error) {
-	emptyResult := &v1.RadixEnvironmentList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListActionWithOptions(radixenvironmentsResource, radixenvironmentsKind, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1.RadixEnvironmentList{ListMeta: obj.(*v1.RadixEnvironmentList).ListMeta}
-	for _, item := range obj.(*v1.RadixEnvironmentList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested radixEnvironments.
-func (c *FakeRadixEnvironments) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchActionWithOptions(radixenvironmentsResource, opts))
-}
-
-// Create takes the representation of a radixEnvironment and creates it.  Returns the server's representation of the radixEnvironment, and an error, if there is any.
-func (c *FakeRadixEnvironments) Create(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.CreateOptions) (result *v1.RadixEnvironment, err error) {
-	emptyResult := &v1.RadixEnvironment{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(radixenvironmentsResource, radixEnvironment, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixEnvironment), err
-}
-
-// Update takes the representation of a radixEnvironment and updates it. Returns the server's representation of the radixEnvironment, and an error, if there is any.
-func (c *FakeRadixEnvironments) Update(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (result *v1.RadixEnvironment, err error) {
-	emptyResult := &v1.RadixEnvironment{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateActionWithOptions(radixenvironmentsResource, radixEnvironment, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixEnvironment), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRadixEnvironments) UpdateStatus(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (result *v1.RadixEnvironment, err error) {
-	emptyResult := &v1.RadixEnvironment{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(radixenvironmentsResource, "status", radixEnvironment, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixEnvironment), err
-}
-
-// Delete takes name of the radixEnvironment and deletes it. Returns an error if one occurs.
-func (c *FakeRadixEnvironments) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(radixenvironmentsResource, name, opts), &v1.RadixEnvironment{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeRadixEnvironments) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionActionWithOptions(radixenvironmentsResource, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1.RadixEnvironmentList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched radixEnvironment.
-func (c *FakeRadixEnvironments) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixEnvironment, err error) {
-	emptyResult := &v1.RadixEnvironment{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceActionWithOptions(radixenvironmentsResource, name, pt, data, opts, subresources...), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1.RadixEnvironment), err
 }

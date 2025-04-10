@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -60,8 +60,8 @@ func getCommonPodTolerations() []corev1.Toleration {
 	return utils.GetPipelineJobPodSpecTolerations()
 }
 
-func getCommonPodInitContainers(cloneURL, branch string, cloneConfig git.CloneConfig) []corev1.Container {
-	return git.CloneInitContainers(cloneURL, branch, cloneConfig)
+func getCommonPodInitContainers(cloneURL, workspace, branch string, cloneConfig git.CloneConfig) []corev1.Container {
+	return git.CloneInitContainersWithSourceCode(cloneURL, branch, cloneConfig, workspace)
 }
 
 func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {
@@ -112,11 +112,11 @@ func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev
 	return volumes
 }
 
-func getCommonPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage) []corev1.VolumeMount {
+func getCommonPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage, workspace string) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      git.BuildContextVolumeName,
-			MountPath: git.Workspace,
+			MountPath: workspace,
 		},
 		{
 			Name:      getTmpVolumeNameForContainer(componentImage.ContainerName), // image-builder creates a script there

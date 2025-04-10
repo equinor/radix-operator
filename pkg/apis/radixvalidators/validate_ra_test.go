@@ -3,6 +3,7 @@ package radixvalidators_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -10,7 +11,6 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -89,8 +89,8 @@ func Test_invalid_ra(t *testing.T) {
 	tooLongPortName := "abcdefghijklmnop"
 	invalidBranchName := "/master"
 	invalidResourceName := "invalid,char.re"
-	oauthAuxSuffixComponentName := fmt.Sprintf("app-%s", defaults.OAuthProxyAuxiliaryComponentSuffix)
-	oauthAuxSuffixJobName := fmt.Sprintf("job-%s", defaults.OAuthProxyAuxiliaryComponentSuffix)
+	oauthAuxSuffixComponentName := fmt.Sprintf("app-%s", radixv1.OAuthProxyAuxiliaryComponentSuffix)
+	oauthAuxSuffixJobName := fmt.Sprintf("job-%s", radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	invalidVariableName := "invalid:variable"
 	noReleatedRRAppName := "no related rr"
 	noExistingEnvironment := "nonexistingenv"
@@ -136,7 +136,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"duplicate component name", radixvalidators.DuplicateComponentOrJobNameErrorWithMessage([]string{validRAFirstComponentName}), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components = append(ra.Spec.Components, *ra.Spec.Components[0].DeepCopy())
 		}},
-		{"component name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixErrorWithMessage(oauthAuxSuffixComponentName, "component", defaults.OAuthProxyAuxiliaryComponentSuffix), func(ra *radixv1.RadixApplication) {
+		{"component name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixErrorWithMessage(oauthAuxSuffixComponentName, "component", radixv1.OAuthProxyAuxiliaryComponentSuffix), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Name = oauthAuxSuffixComponentName
 		}},
 		{"invalid port name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("port name", invalidResourceName), func(ra *radixv1.RadixApplication) {
@@ -187,8 +187,11 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[1].Secrets[0] = conflictingVariableName
 			ra.Spec.Components[1].EnvironmentConfig = nil
 		}},
-		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica+1, "environment replicas"), func(ra *radixv1.RadixApplication) {
-			*ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
+		{"invalid number of replicas in an environment", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica+1, "environment replicas"), func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Replicas = pointers.Ptr(radixvalidators.MaxReplica + 1)
+		}},
+		{"invalid number of replicas in a component", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica+1, "replicas"), func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Replicas = pointers.Ptr(radixvalidators.MaxReplica + 1)
 		}},
 		{"invalid env name", radixvalidators.InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage("env name", invalidResourceName), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Environments[0].Name = invalidResourceName
@@ -384,7 +387,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"duplicate job name", radixvalidators.DuplicateComponentOrJobNameErrorWithMessage([]string{validRAFirstJobName}), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs = append(ra.Spec.Jobs, *ra.Spec.Jobs[0].DeepCopy())
 		}},
-		{"job name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixErrorWithMessage(oauthAuxSuffixJobName, "job", defaults.OAuthProxyAuxiliaryComponentSuffix), func(ra *radixv1.RadixApplication) {
+		{"job name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixErrorWithMessage(oauthAuxSuffixJobName, "job", radixv1.OAuthProxyAuxiliaryComponentSuffix), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Name = oauthAuxSuffixJobName
 		}},
 		{"invalid job secret name", radixvalidators.InvalidResourceNameErrorWithMessage("secret name", invalidVariableName), func(ra *radixv1.RadixApplication) {
@@ -606,6 +609,21 @@ func Test_invalid_ra(t *testing.T) {
 		{"oauth cookie expire less than refresh", radixvalidators.OAuthCookieRefreshMustBeLessThanExpireErrorWithMessage(validRAFirstComponentName, "prod"), func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "30m"
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
+		}},
+		{"oauth SkipAuthRoutes are correct", nil, func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SkipAuthRoutes = []string{"POST=^/api/public-entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"}
+		}},
+		{"oauth SkipAuthRoutes are invalid", errors.New("invalid configuration for component app: SkipAuthRoutes in oauth2 configuration are invalid in the component app in environment prod: failed to compile OAuth2 proxy skipAuthRoutes regex(es) //(foo,/foo/bar),^]/foo/bar[$,^]/foo/bar[$/"), func(rr *radixv1.RadixApplication) {
+			// Bad regexes do not compile
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SkipAuthRoutes = []string{
+				"POST=/(foo",
+				"OPTIONS=/foo/bar)",
+				"GET=^]/foo/bar[$",
+				"GET=^]/foo/bar[$",
+			}
+		}},
+		{"oauth SkipAuthRoutes failed because has comma", errors.New("invalid configuration for component app: SkipAuthRoutes in oauth2 configuration are invalid in the component app in environment prod: failed to compile OAuth2 proxy skipAuthRoutes regex /POST=^/api/public,entity/?$/: comma is not allowed"), func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SkipAuthRoutes = []string{"POST=^/api/public,entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"}
 		}},
 		{"invalid healthchecks are invalid", radixvalidators.ErrInvalidHealthCheckProbe, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
@@ -1241,6 +1259,12 @@ func Test_Variables(t *testing.T) {
 }
 
 func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
+	const (
+		storageAccountName1 = "anystorageaccount"
+		resourceGroup1      = "any-resource-group"
+		subscriptionId1     = "any-subscription-id"
+		tenantId1           = "any-tenant-id"
+	)
 	type volumeMountsFunc func() []radixv1.RadixVolumeMount
 	type setVolumeMountsFunc func(*radixv1.RadixApplication, []radixv1.RadixVolumeMount)
 
@@ -1339,10 +1363,10 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Type:      "azure-blob",
-						Name:      "some_name",
-						Path:      "some_path",
-						Container: "any-storage",
+						Type:    "azure-blob",
+						Name:    "some_name",
+						Path:    "some_path",
+						Storage: "any-storage",
 					},
 				}
 
@@ -1364,7 +1388,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				return volumeMounts
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountMissingContainer,
+			expectedError: radixvalidators.ErrVolumeMountMissingStorage,
 		},
 		"deprecated common: invalid type": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1416,24 +1440,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: nil,
 		},
-		"blobfuse2: valid requestsStorage": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-							Container:       "any-container",
-							RequestsStorage: "50Mi",
-						},
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: nil,
-		},
 		"blobfuse2: invalid protocol": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
@@ -1467,15 +1473,86 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixvalidators.ErrVolumeMountMissingContainer,
 		},
-		"blobfuse2: invalid requestsStorage": {
+		"blobfuse2: has optional storage account": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
 						Name: "some_name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-							Container:       "any-container",
-							RequestsStorage: "100x",
+							Container:      "any-container",
+							StorageAccount: storageAccountName1,
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2: has invalid short storage account": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: "st",
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountInvalidStorageAccount,
+		},
+		"blobfuse2: has invalid long storage account": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: strings.Repeat("a", 25),
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountInvalidStorageAccount,
+		},
+		"blobfuse2: has invalid chars in storage account": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:      "any-container",
+							StorageAccount: "name._-123",
+						},
+					},
+				}
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountInvalidStorageAccount,
+		},
+		"blobfuse2 with useAzureIdentity: missing subscription": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							ResourceGroup:    resourceGroup1,
+							TenantId:         tenantId1,
 						},
 					},
 				}
@@ -1483,7 +1560,166 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				return volumeMounts
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixvalidators.ErrVolumeMountInvalidRequestsStorage,
+			expectedError: radixvalidators.ErrVolumeMountWithUseAzureIdentityMissingSubscriptionId,
+		},
+		"blobfuse2 with useAzureIdentity: missing storage account name": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							SubscriptionId:   subscriptionId1,
+							ResourceGroup:    resourceGroup1,
+							TenantId:         tenantId1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountWithUseAzureIdentityMissingStorageAccount,
+		},
+		"blobfuse2 with useAzureIdentity: missing resource group": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							SubscriptionId:   subscriptionId1,
+							TenantId:         tenantId1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrVolumeMountWithUseAzureIdentityMissingResourceGroup,
+		},
+		"blobfuse2 with useAzureIdentity: Tenant id is optional": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							SubscriptionId:   subscriptionId1,
+							ResourceGroup:    resourceGroup1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2 with useAzureIdentity: component or job identity azure clientId is required": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				volumeMounts := []radixv1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+							Container:        "any-container",
+							UseAzureIdentity: pointers.Ptr(true),
+							StorageAccount:   storageAccountName1,
+							SubscriptionId:   subscriptionId1,
+							ResourceGroup:    resourceGroup1,
+						},
+					},
+				}
+
+				return volumeMounts
+			},
+			updateRA: []setVolumeMountsFunc{
+				func(ra *radixv1.RadixApplication, volumeMounts []radixv1.RadixVolumeMount) {
+					ra.Spec.Components[0].Identity.Azure = nil
+					ra.Spec.Components[0].EnvironmentConfig[0].Identity.Azure = nil
+					ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				},
+				func(ra *radixv1.RadixApplication, volumeMounts []radixv1.RadixVolumeMount) {
+					ra.Spec.Jobs[0].Identity.Azure = nil
+					ra.Spec.Jobs[0].EnvironmentConfig[0].Identity.Azure = nil
+					ra.Spec.Jobs[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				},
+			},
+			expectedError: radixvalidators.ErrVolumeMountMissingAzureIdentity,
+		},
+		"blobfuse2.blockCache prefetchCount 0 is valid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](0),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2.blockCache prefetchCount 11 is valid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](11),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: nil,
+		},
+		"blobfuse2.blockCache prefetchCount 1 is invalid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](1),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrInvalidBlobFuse2BlockCachePrefetchCount,
+		},
+		"blobfuse2.blockCache prefetchCount 10 is invalid": {
+			volumeMounts: func() []radixv1.RadixVolumeMount {
+				return []radixv1.RadixVolumeMount{{
+					Name: "anyname",
+					Path: "anypath",
+					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
+						Container: "anycontainer",
+						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
+							PrefetchCount: pointers.Ptr[uint32](10),
+						},
+					},
+				}}
+			},
+			updateRA:      setComponentAndJobsVolumeMounts,
+			expectedError: radixvalidators.ErrInvalidBlobFuse2BlockCachePrefetchCount,
 		},
 		"emptyDir: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1749,7 +1985,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrMinReplicasGreaterThanMaxReplicas},
 		},
 		{
-			"Copmonent with Trigger config and Resource config should fail",
+			"Component with Trigger config and Resource config should fail",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
 					MinReplicas: pointers.Ptr(int32(2)),
@@ -1767,7 +2003,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrCombiningTriggersWithResourcesIsIllegal},
 		},
 		{
-			"Copmonent with 0 replicas is correct when combined with atleast 1 non-resource trigger",
+			"Component with 0 replicas is correct when combined with atleast 1 non-resource trigger",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(0).
@@ -1781,7 +2017,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			nil,
 		},
 		{
-			"Copmonent with 0 replicas is invalid with only resource triggers",
+			"Component with 0 replicas is invalid with only resource triggers",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(0).
@@ -1793,7 +2029,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers},
 		},
 		{
-			"Copmonent with multiple definitions in same trigger must fail",
+			"Component with multiple definitions in same trigger must fail",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(1).
@@ -1804,7 +2040,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrMoreThanOneDefinitionInTrigger},
 		},
 		{
-			"Copmonent with multiple definitions of same type is allowed",
+			"Component with multiple definitions of same type is allowed",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(1).
@@ -1816,7 +2052,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			nil,
 		},
 		{
-			"Copmonent must have unique name",
+			"Component must have unique name",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMinReplicas(1).
@@ -2252,7 +2488,10 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 }
 
 func createValidRA() *radixv1.RadixApplication {
-	validRA, _ := utils.GetRadixApplicationFromFile("testdata/radixconfig.yaml")
+	validRA, err := utils.GetRadixApplicationFromFile("testdata/radixconfig.yaml")
+	if err != nil {
+		panic(err)
+	}
 
 	return validRA
 }

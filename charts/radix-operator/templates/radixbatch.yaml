@@ -148,7 +148,7 @@ spec:
                         gpu:
                           description: |-
                             Defines rules for allowed GPU types.
-                            More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
+                            More info: https://www.radix.equinor.com/radix-config#gpu
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.

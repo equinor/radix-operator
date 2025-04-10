@@ -47,19 +47,31 @@ const (
 
 // RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
-	AppName              string               `json:"appName"`
-	CloneURL             string               `json:"cloneURL"`
-	TektonImage          string               `json:"tektonImage"`
-	PipeLineType         RadixPipelineType    `json:"pipeLineType"`
-	PipelineImage        string               `json:"pipelineImage"`
-	Build                RadixBuildSpec       `json:"build"`
-	Promote              RadixPromoteSpec     `json:"promote"`
-	Deploy               RadixDeploySpec      `json:"deploy"`
-	ApplyConfig          RadixApplyConfigSpec `json:"applyConfig"`
-	Stop                 bool                 `json:"stop"`
+	// AppName Name of the Radix application
+	AppName string `json:"appName"`
+	// Deprecated: radix-api will be responsible for setting the CloneURL, it is taken from the RadixRegistration by the radix-operator
+	// CloneURL GitHub repository URL
+	CloneURL string `json:"cloneURL"`
+	// Deprecated: this repository is merged to radix-operator
+	// TektonImage Image of the radix-tekton
+	TektonImage string `json:"tektonImage"`
+	// PipeLineType Type of the pipeline
+	PipeLineType RadixPipelineType `json:"pipeLineType"`
+	// Deprecated: radix-api will be responsible for setting the PipelineImage, it is taken from the radix-operator configuration
+	// PipelineImage Image tag of the radix-pipeline
+	PipelineImage string               `json:"pipelineImage"`
+	Build         RadixBuildSpec       `json:"build"`
+	Promote       RadixPromoteSpec     `json:"promote"`
+	Deploy        RadixDeploySpec      `json:"deploy"`
+	ApplyConfig   RadixApplyConfigSpec `json:"applyConfig"`
+	// Stop If true, the job will be stopped
+	Stop bool `json:"stop"`
 	TriggeredFromWebhook bool                 `json:"triggeredFromWebhook"`
-	TriggeredBy          string               `json:"triggeredBy"`
-	RadixConfigFullName  string               `json:"radixConfigFullName"`
+	// TriggeredBy Name of the user or UID oa a system principal which triggered the job
+	TriggeredBy string `json:"triggeredBy"`
+	// Deprecated: radix-api will be responsible for setting the RadixConfigFullName, it is taken from the RadixRegistration by the radix-operator
+	// RadixConfigFullName Full name of the radix config file within the cloned GitHUb repository
+	RadixConfigFullName string `json:"radixConfigFullName"`
 }
 
 // RadixPipelineType Holds the different type of pipeline

@@ -501,6 +501,10 @@ func (deploy *Deployment) maintainHistoryLimit(ctx context.Context, deploymentHi
 			log.Ctx(ctx).Info().Msgf("Not deleting deployment %s as it is referenced by scheduled jobs", deployment.Name)
 			continue
 		}
+		if deployment.IsActive() {
+			log.Ctx(ctx).Info().Msgf("Ignoring active RadixDeployment %s", deployment.Name)
+			continue
+		}
 		log.Ctx(ctx).Info().Msgf("Removing deployment %s from %s", deployment.Name, deployment.Namespace)
 		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(ctx, deployment.Name, metav1.DeleteOptions{})
 		if err != nil {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/networking/v1"
@@ -74,7 +74,7 @@ func allowOauthAuxComponentEgressNetworkPolicy(appName string, env string, owner
 	// This is because egress rule must allow traffic to the login.microsoftonline.com FQDN.
 	// This FQDN has IP ranges 20.190.128.0/18 and 40.126.0.0/18 as of April 2022,
 	// but may change at some point in the future.
-	return allowEgressNetworkByPortPolicy("radix-allow-oauth-aux-egress", kube.RadixAuxiliaryComponentTypeLabel, defaults.OAuthProxyAuxiliaryComponentType, appName, env, owner, []egreessPortPolicy{
+	return allowEgressNetworkByPortPolicy("radix-allow-oauth-aux-egress", kube.RadixAuxiliaryComponentTypeLabel, radixv1.OAuthProxyAuxiliaryComponentType, appName, env, owner, []egreessPortPolicy{
 		{port: 53, protocol: corev1.ProtocolTCP},
 		{port: 53, protocol: corev1.ProtocolUDP},
 		{port: 443, protocol: corev1.ProtocolTCP},

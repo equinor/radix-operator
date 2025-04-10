@@ -41,13 +41,8 @@ spec:
               value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
               value: {{ .Values.clusterType }}
-            {{if eq .Values.clusterType "playground"}}
             - name: RADIXOPERATOR_DEFAULT_USER_GROUP
-              value: "{{ .Values.radixGroups.playground }}"
-            {{else}}
-            - name: RADIXOPERATOR_DEFAULT_USER_GROUP
-              value: "{{ .Values.radixGroups.user }}"
-            {{end}}
+              value: "{{ required ".Values.radixGroups.user is required" .Values.radixGroups.user }}"
             # For configuring limit ranges on app namespaces
             - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY
               value: {{ .Values.app.limitrange.default.memory | quote }}
@@ -86,8 +81,6 @@ spec:
               value: {{ .Values.pipelineJobsHistoryLimit | quote }}
             - name: RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT
               value: {{ .Values.pipelineJobsHistoryPeriodLimit | quote }}
-            - name: RADIX_TEKTON_IMAGE
-              value: {{ .Values.radixTekton }}
             - name: RADIX_IMAGE_BUILDER
               value: {{ .Values.imageBuilder }}
             - name: RADIXOPERATOR_JOB_SCHEDULER
@@ -178,6 +171,8 @@ spec:
               value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
             - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
               value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
+            - name: RADIXOPERATOR_PIPELINE_IMAGE_TAG
+              value: {{ .Values.pipelineImageTag }}
           livenessProbe:
             httpGet:
               path: /healthz

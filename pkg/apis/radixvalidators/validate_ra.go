@@ -57,7 +57,8 @@ var (
 		ValidateNotificationsForRA,
 	}
 
-	ipOrCidrRegExp = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`)
+	ipOrCidrRegExp           = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`)
+	storageAccountNameRegExp = regexp.MustCompile(`^[a-z0-9]{3,24}$`)
 )
 
 // RadixApplicationValidator defines a validator function for a RadixApplication
@@ -352,6 +353,10 @@ func validateComponentEnvironment(app *radixv1.RadixApplication, component radix
 		errs = append(errs, EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, component.Name))
 	}
 
+	if err := validateReplica(component.Replicas, "component replicas"); err != nil {
+		errs = append(errs, err)
+	}
+
 	if err := validateReplica(environment.Replicas, "environment replicas"); err != nil {
 		errs = append(errs, err)
 	}
@@ -617,7 +622,7 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 	}
 
 	// Validate RedisStore
-	if oauthWithDefaults.SessionStoreType == radixv1.SessionStoreRedis {
+	if oauthWithDefaults.GetSessionStoreType() == radixv1.SessionStoreRedis {
 		if redisStore := oauthWithDefaults.RedisStore; redisStore == nil {
 			errors = append(errors, OAuthRedisStoreEmptyErrorWithMessage(componentName, environmentName))
 		} else if len(strings.TrimSpace(redisStore.ConnectionURL)) == 0 {
@@ -690,6 +695,9 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 		}
 	}
 
+	if err = validateSkipAuthRoutes(oauthWithDefaults.SkipAuthRoutes); err != nil {
+		errors = append(errors, OAuthSkipAuthRoutesErrorWithMessage(err, componentName, environmentName))
+	}
 	return
 }
 
@@ -1000,7 +1008,7 @@ func validateSecretRefs(commonComponent radixv1.RadixCommonComponent, secretRefs
 		useAzureIdentity := azureKeyVault.UseAzureIdentity
 		if useAzureIdentity != nil && *useAzureIdentity {
 			if !azureIdentityIsSet(commonComponent) {
-				return MissingAzureIdentityErrorWithMessage(azureKeyVault.Name, commonComponent.GetName())
+				return MissingAzureIdentityForAzureKeyVaultErrorWithMessage(azureKeyVault.Name, commonComponent.GetName())
 			}
 			// TODO: validate for env-chain
 		}
@@ -1464,21 +1472,25 @@ func hasNonResourceTypeTriggers(config *radixv1.RadixHorizontalScaling) bool {
 func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, component := range app.Spec.Components {
-		if err := validateVolumeMounts(component.VolumeMounts); err != nil {
+		hasComponentIdentityAzureClientId := len(component.Identity.GetAzure().GetClientId()) > 0
+		if err := validateVolumeMounts(component.VolumeMounts, hasComponentIdentityAzureClientId); err != nil {
 			errs = append(errs, volumeMountValidationFailedForComponent(component.Name, err))
 		}
 		for _, envConfig := range component.EnvironmentConfig {
-			if err := validateVolumeMounts(envConfig.VolumeMounts); err != nil {
+			hasEnvIdentityAzureClientId := hasComponentIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
+			if err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId); err != nil {
 				errs = append(errs, volumeMountValidationFailedForComponentInEnvironment(component.Name, envConfig.Environment, err))
 			}
 		}
 	}
 	for _, job := range app.Spec.Jobs {
-		if err := validateVolumeMounts(job.VolumeMounts); err != nil {
+		hasJobIdentityAzureClientId := len(job.Identity.GetAzure().GetClientId()) > 0
+		if err := validateVolumeMounts(job.VolumeMounts, hasJobIdentityAzureClientId); err != nil {
 			errs = append(errs, volumeMountValidationFailedForJobComponent(job.Name, err))
 		}
 		for _, envConfig := range job.EnvironmentConfig {
-			if err := validateVolumeMounts(envConfig.VolumeMounts); err != nil {
+			hasEnvIdentityAzureClientId := hasJobIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
+			if err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId); err != nil {
 				errs = append(errs, volumeMountValidationFailedForJobComponentInEnvironment(job.Name, envConfig.Environment, err))
 			}
 		}
@@ -1563,7 +1575,7 @@ func getRadixCommonComponentByName(app *radixv1.RadixApplication, componentName 
 	return nil, nil
 }
 
-func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
+func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount, hasIdentityAzureClientId bool) error {
 	if len(volumeMounts) == 0 {
 		return nil
 	}
@@ -1602,7 +1614,7 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount) error {
 				return volumeMountValidationError(v.Name, err)
 			}
 		case v.HasBlobFuse2():
-			if err := validateVolumeMountBlobFuse2(v.BlobFuse2); err != nil {
+			if err := validateVolumeMountBlobFuse2(v.BlobFuse2, hasIdentityAzureClientId); err != nil {
 				return volumeMountValidationError(v.Name, err)
 			}
 		case v.HasEmptyDir():
@@ -1621,20 +1633,13 @@ func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) error {
 		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountInvalidType)
 	}
 	//nolint:staticcheck
-	if len(v.RequestsStorage) > 0 {
-		//nolint:staticcheck
-		if _, err := resource.ParseQuantity(v.RequestsStorage); err != nil {
-			return volumeMountDeprecatedSourceValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidRequestsStorage, err))
-		}
-	}
-	//nolint:staticcheck
-	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Container) == 0 {
-		return volumeMountBlobFuse2ValidationError(ErrVolumeMountMissingContainer)
+	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Storage) == 0 {
+		return volumeMountDeprecatedSourceValidationError(ErrVolumeMountMissingStorage)
 	}
 	return nil
 }
 
-func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount) error {
+func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount, hasIdentityAzureClientId bool) error {
 	if !slices.Contains([]radixv1.BlobFuse2Protocol{radixv1.BlobFuse2ProtocolFuse2, ""}, fuse2.Protocol) {
 		return volumeMountBlobFuse2ValidationError(ErrVolumeMountInvalidProtocol)
 	}
@@ -1643,11 +1648,40 @@ func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount) erro
 		return volumeMountBlobFuse2ValidationError(ErrVolumeMountMissingContainer)
 	}
 
-	if len(fuse2.RequestsStorage) > 0 {
-		if _, err := resource.ParseQuantity(fuse2.RequestsStorage); err != nil {
-			return volumeMountBlobFuse2ValidationError(fmt.Errorf("%w. %w", ErrVolumeMountInvalidRequestsStorage, err))
+	if len(fuse2.StorageAccount) > 0 && !storageAccountNameRegExp.Match([]byte(fuse2.StorageAccount)) {
+		return volumeMountBlobFuse2ValidationError(ErrVolumeMountInvalidStorageAccount)
+	}
+	if fuse2.UseAzureIdentity != nil && *fuse2.UseAzureIdentity {
+		if !hasIdentityAzureClientId {
+			return volumeMountBlobFuse2ValidationError(ErrVolumeMountMissingAzureIdentity)
+		}
+		if fuse2.SubscriptionId == "" {
+			return volumeMountBlobFuse2ValidationError(ErrVolumeMountWithUseAzureIdentityMissingSubscriptionId)
+		}
+		if fuse2.ResourceGroup == "" {
+			return volumeMountBlobFuse2ValidationError(ErrVolumeMountWithUseAzureIdentityMissingResourceGroup)
+		}
+		if fuse2.StorageAccount == "" {
+			return volumeMountBlobFuse2ValidationError(ErrVolumeMountWithUseAzureIdentityMissingStorageAccount)
 		}
 	}
+
+	if err := validateBlobFuse2BlockCache(fuse2.BlockCacheOptions); err != nil {
+		return fmt.Errorf("invalid blockCache configuration: %w", err)
+	}
+
+	return nil
+}
+
+func validateBlobFuse2BlockCache(blockCache *radixv1.BlobFuse2BlockCacheOptions) error {
+	if blockCache == nil {
+		return nil
+	}
+
+	if prefetchCount := blockCache.PrefetchCount; prefetchCount != nil && !(*prefetchCount == 0 || *prefetchCount > 10) {
+		return ErrInvalidBlobFuse2BlockCachePrefetchCount
+	}
+
 	return nil
 }
 
@@ -1735,7 +1769,7 @@ func validateComponentName(componentName, componentType string) error {
 		return err
 	}
 
-	for _, aux := range []string{defaults.OAuthProxyAuxiliaryComponentSuffix} {
+	for _, aux := range []string{radixv1.OAuthProxyAuxiliaryComponentSuffix} {
 		if strings.HasSuffix(componentName, fmt.Sprintf("-%s", aux)) {
 			return ComponentNameReservedSuffixErrorWithMessage(componentName, componentType, string(aux))
 		}
@@ -1785,5 +1819,29 @@ func validateIPOrCIDR(ipOrCidr radixv1.IPOrCIDR) error {
 		return ErrInvalidIPv4OrCIDR
 	}
 
+	return nil
+}
+
+func validateSkipAuthRoutes(skipAuthRoutes []string) error {
+	var invalidRegexes []string
+	for _, route := range skipAuthRoutes {
+		if strings.Contains(route, ",") {
+			return fmt.Errorf("failed to compile OAuth2 proxy skipAuthRoutes regex /%s/: comma is not allowed", route)
+		}
+		var regex string
+		parts := strings.SplitN(route, "=", 2)
+		if len(parts) == 1 {
+			regex = parts[0]
+		} else {
+			regex = parts[1]
+		}
+		_, err := regexp.Compile(regex)
+		if err != nil {
+			invalidRegexes = append(invalidRegexes, regex)
+		}
+	}
+	if len(invalidRegexes) > 0 {
+		return fmt.Errorf("failed to compile OAuth2 proxy skipAuthRoutes regex(es) /%s/", strings.Join(invalidRegexes, ","))
+	}
 	return nil
 }

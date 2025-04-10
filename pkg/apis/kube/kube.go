@@ -57,9 +57,6 @@ const (
 	RadixJobTypeJob                     = "job"                   // Outer job
 	RadixJobTypeManagerAux              = "job-manager-auxiliary" // Outer job
 	RadixJobTypeBuild                   = "build"
-	RadixJobTypeCloneConfig             = "clone-config"
-	RadixJobTypePreparePipelines        = "prepare-pipelines"
-	RadixJobTypeRunPipelines            = "run-pipelines"
 	RadixJobTypeJobSchedule             = "job-scheduler"
 	RadixJobTypeBatchSchedule           = "batch-scheduler"
 	RadixDefaultAliasLabel              = "radix-default-alias"
@@ -83,6 +80,7 @@ const (
 	RadixPodIsJobAuxObjectLabel         = "is-job-aux-object"
 	IsServiceAccountForComponent        = "is-service-account-for-component"
 	IsServiceAccountForSubPipelineLabel = "is-service-account-for-subpipeline"
+	IsServiceAccountForOAuthProxyLabel  = "is-service-account-for-oauth-proxy"
 	RadixBatchNameLabel                 = "radix-batch-name"
 	RadixBatchJobNameLabel              = "radix-batch-job-name"
 	RadixBatchTypeLabel                 = "radix-batch-type"

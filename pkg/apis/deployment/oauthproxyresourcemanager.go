@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -29,6 +30,14 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/cache"
+)
+
+const (
+	oauth2ProxyClientSecretEnvironmentVariable              = "OAUTH2_PROXY_CLIENT_SECRET"
+	oauth2ProxyCookieSecretEnvironmentVariable              = "OAUTH2_PROXY_COOKIE_SECRET"
+	oauth2ProxyRedisPasswordEnvironmentVariable             = "OAUTH2_PROXY_REDIS_PASSWORD"
+	oauth2ProxyEntraIdFederatedTokenAuthEnvironmentVariable = "OAUTH2_PROXY_ENTRA_ID_FEDERATED_TOKEN_AUTH"
+	oauth2ProxySkipAuthRoutesEnvironmentVariable            = "OAUTH2_PROXY_SKIP_AUTH_ROUTES"
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
@@ -227,7 +236,7 @@ func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1
 	if appName := object.GetLabels()[kube.RadixAppLabel]; appName != o.rd.Spec.AppName {
 		return false
 	}
-	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != defaults.OAuthProxyAuxiliaryComponentType {
+	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != v1.OAuthProxyAuxiliaryComponentType {
 		return false
 	}
 	auxTargetComponentName, nameExist := RadixComponentNameFromAuxComponentLabel(object)
@@ -255,6 +264,12 @@ func (o *oauthProxyResourceManager) install(ctx context.Context, component v1.Ra
 		return err
 	}
 
+	if err := createOrUpdateOAuthProxyServiceAccount(ctx, o.kubeutil, o.rd, component); err != nil {
+		return fmt.Errorf("failed to create OAuth proxy service account: %w", err)
+	}
+	if err := garbageCollectServiceAccountNoLongerInSpecForOAuthProxyComponent(ctx, o.kubeutil, o.rd, component); err != nil {
+		return fmt.Errorf("failed to garbage collect service account no longer in spec for OAuth proxy component: %w", err)
+	}
 	return o.createOrUpdateDeployment(ctx, component)
 }
 
@@ -269,6 +284,10 @@ func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component v1.
 	}
 
 	if err := o.deleteServices(ctx, component); err != nil {
+		return err
+	}
+
+	if err := deleteOAuthProxyServiceAccounts(ctx, o.kubeutil, o.rd.Namespace, component); err != nil {
 		return err
 	}
 
@@ -449,27 +468,29 @@ func (o *oauthProxyResourceManager) createOrUpdateService(ctx context.Context, c
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	secret, err := o.kubeutil.GetSecret(ctx, o.rd.Namespace, secretName)
-
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
+	existingSecret, err := o.kubeutil.GetSecret(ctx, o.rd.Namespace, secretName)
 	if err != nil {
 		if !kubeerrors.IsNotFound(err) {
 			return err
 		}
-		secret, err = o.buildSecretSpec(component)
+		secret, err := buildOAuthProxySecret(o.rd.Spec.AppName, component)
 		if err != nil {
 			return err
 		}
-	} else {
-		oauthutil.MergeAuxComponentResourceLabels(secret, o.rd.Spec.AppName, component)
-		if component.GetAuthentication().OAuth2.SessionStoreType != v1.SessionStoreRedis {
-			if secret.Data != nil && len(secret.Data[defaults.OAuthRedisPasswordKeyName]) > 0 {
-				delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
-			}
-		}
+		_, err = o.kubeutil.CreateSecret(ctx, o.rd.Namespace, secret)
+		return err
 	}
 
-	_, err = o.kubeutil.ApplySecret(ctx, o.rd.Namespace, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
+	secret := existingSecret.DeepCopy()
+	oauthutil.MergeAuxComponentResourceLabels(secret, o.rd.Spec.AppName, component)
+	if _, ok := secret.Data[defaults.OAuthRedisPasswordKeyName]; ok && component.GetAuthentication().GetOAuth2().GetSessionStoreType() != v1.SessionStoreRedis {
+		delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
+	}
+	if _, ok := secret.Data[defaults.OAuthClientSecretKeyName]; ok && component.GetAuthentication().GetOAuth2().GetUseAzureIdentity() {
+		delete(secret.Data, defaults.OAuthClientSecretKeyName)
+	}
+	_, err = o.kubeutil.UpdateSecret(ctx, existingSecret, secret)
 	return err
 }
 
@@ -482,7 +503,7 @@ func (o *oauthProxyResourceManager) createOrUpdateRbac(ctx context.Context, comp
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName("radix-app-adm", component.GetName())
 	namespace := o.rd.Namespace
 
@@ -509,7 +530,7 @@ func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Conte
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName("radix-app-reader", component.GetName())
 	namespace := o.rd.Namespace
 
@@ -533,12 +554,12 @@ func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Cont
 }
 
 func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(prefix, componentName string) string {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
 	return fmt.Sprintf("%s-%s", prefix, deploymentName)
 }
 
-func (o *oauthProxyResourceManager) buildSecretSpec(component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+func buildOAuthProxySecret(appName string, component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 
 	secret := &corev1.Secret{
 		Type: corev1.SecretTypeOpaque,
@@ -547,8 +568,8 @@ func (o *oauthProxyResourceManager) buildSecretSpec(component v1.RadixCommonDepl
 		},
 		Data: make(map[string][]byte),
 	}
-	oauthutil.MergeAuxComponentResourceLabels(secret, o.rd.Spec.AppName, component)
-	cookieSecret, err := o.generateRandomCookieSecret()
+	oauthutil.MergeAuxComponentResourceLabels(secret, appName, component)
+	cookieSecret, err := generateRandomCookieSecret()
 	if err != nil {
 		return nil, err
 	}
@@ -557,7 +578,7 @@ func (o *oauthProxyResourceManager) buildSecretSpec(component v1.RadixCommonDepl
 }
 
 func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
-	serviceName := utils.GetAuxiliaryComponentServiceName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	serviceName := utils.GetAuxiliaryComponentServiceName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -580,7 +601,7 @@ func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDep
 	return service
 }
 
-func (o *oauthProxyResourceManager) generateRandomCookieSecret() ([]byte, error) {
+func generateRandomCookieSecret() ([]byte, error) {
 	randomBytes := commonutils.GenerateRandomKey(32)
 	// Extra check to make sure correct number of bytes are returned for the random key
 	if len(randomBytes) != 32 {
@@ -605,7 +626,7 @@ func (o *oauthProxyResourceManager) createOrUpdateDeployment(ctx context.Context
 }
 
 func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 
 	currentDeployment, err := o.kubeutil.GetDeployment(ctx, o.rd.Namespace, deploymentName)
 	if err != nil && !kubeerrors.IsNotFound(err) {
@@ -620,14 +641,16 @@ func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(ctx context.C
 }
 
 func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	componentName := component.GetName()
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
+	oauth2 := component.GetAuthentication().GetOAuth2()
 	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(defaults.OAuthProxyPortNumber)
 	if err != nil {
 		return nil, err
 	}
 
 	var replicas int32 = 1
-	if isComponentStopped(component) {
+	if isComponentStopped(component) || componentHasZeroReplicas(component) {
 		replicas = 0
 	}
 
@@ -645,12 +668,15 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
+					Labels: radixlabels.Merge(
+						radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
+						radixlabels.ForOAuthProxyPodWithRadixIdentity(oauth2),
+					),
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:            component.GetName(),
+							Name:            componentName,
 							Image:           o.oauth2ProxyDockerImage,
 							ImagePullPolicy: corev1.PullAlways,
 							Env:             o.getEnvVars(component),
@@ -668,15 +694,19 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 							Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),
 						},
 					},
-					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
-					Affinity:        utils.GetAffinityForOAuthAuxComponent(),
+					SecurityContext:    securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
+					Affinity:           utils.GetAffinityForOAuthAuxComponent(),
+					ServiceAccountName: oauth2.GetServiceAccountName(componentName),
 				},
 			},
 		},
 	}
-
 	oauthutil.MergeAuxComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
 	return desiredDeployment, nil
+}
+
+func componentHasZeroReplicas(component v1.RadixCommonDeployComponent) bool {
+	return component.GetReplicas() != nil && *component.GetReplicas() == 0
 }
 
 func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {
@@ -701,7 +731,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	}
 
 	// oauth2-proxy env-vars
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PROVIDER", Value: "oidc"})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PROVIDER", Value: getOAuthProxyProvider(oauth)})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_HTTPONLY", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_SECURE", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PASS_BASIC_AUTH", Value: "false"})
@@ -709,11 +739,17 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", defaults.OAuthProxyPortNumber)})
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	envVars = append(envVars, o.createEnvVarWithSecretRef("OAUTH2_PROXY_COOKIE_SECRET", secretName, defaults.OAuthCookieSecretKeyName))
-	envVars = append(envVars, o.createEnvVarWithSecretRef("OAUTH2_PROXY_CLIENT_SECRET", secretName, defaults.OAuthClientSecretKeyName))
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
+	envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyCookieSecretEnvironmentVariable, secretName, defaults.OAuthCookieSecretKeyName))
+
+	if oauth.GetUseAzureIdentity() {
+		envVars = append(envVars, corev1.EnvVar{Name: oauth2ProxyEntraIdFederatedTokenAuthEnvironmentVariable, Value: "true"})
+	} else {
+		envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyClientSecretEnvironmentVariable, secretName, defaults.OAuthClientSecretKeyName))
+	}
+
 	if oauth.SessionStoreType == v1.SessionStoreRedis {
-		envVars = append(envVars, o.createEnvVarWithSecretRef("OAUTH2_PROXY_REDIS_PASSWORD", secretName, defaults.OAuthRedisPasswordKeyName))
+		envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyRedisPasswordEnvironmentVariable, secretName, defaults.OAuthRedisPasswordKeyName))
 	}
 
 	addEnvVarIfSet("OAUTH2_PROXY_CLIENT_ID", oauth.ClientID)
@@ -747,8 +783,17 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	if redisStore := oauth.RedisStore; redisStore != nil {
 		addEnvVarIfSet("OAUTH2_PROXY_REDIS_CONNECTION_URL", redisStore.ConnectionURL)
 	}
-
+	if len(oauth.SkipAuthRoutes) > 0 {
+		addEnvVarIfSet(oauth2ProxySkipAuthRoutesEnvironmentVariable, strings.Join(oauth.SkipAuthRoutes, ","))
+	}
 	return envVars
+}
+
+func getOAuthProxyProvider(oauth *v1.OAuth2) string {
+	if oauth.GetUseAzureIdentity() {
+		return defaults.OAuthProxyProviderEntraId
+	}
+	return defaults.OAuthProxyProviderOIDC
 }
 
 func (o *oauthProxyResourceManager) createEnvVarWithSecretRef(envVarName, secretName, key string) corev1.EnvVar {

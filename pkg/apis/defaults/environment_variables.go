@@ -106,9 +106,6 @@ const (
 	// RadixImageTagNameEnvironmentVariable Image tag name for Radix application components
 	RadixImageTagNameEnvironmentVariable = "IMAGE_TAG_NAME"
 
-	// RadixGithubWebhookCommitId Value of the git commit hash sent from GitHub webhook
-	RadixGithubWebhookCommitId = "RADIX_GITHUB_WEBHOOK_COMMIT_ID"
-
 	// RadixActiveClusterEgressIpsEnvironmentVariable IPs assigned to the cluster
 	RadixActiveClusterEgressIpsEnvironmentVariable = "RADIX_ACTIVE_CLUSTER_EGRESS_IPS"
 
@@ -117,10 +114,6 @@ const (
 
 	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
 	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
-
-	// RadixTektonPipelineImageEnvironmentVariable Points to the utility image for preparing radixconfig copying
-	// /config/file to/map and preparing Tekton resources
-	RadixTektonPipelineImageEnvironmentVariable = "RADIX_TEKTON_IMAGE"
 
 	// RadixConfigFileEnvironmentVariable Path to a radixconfig.yaml
 	// to be loaded from Radix application config branch
@@ -137,12 +130,6 @@ const (
 
 	// RadixPipelineJobEnvironmentVariable Radix pipeline job name
 	RadixPipelineJobEnvironmentVariable = "JOB_NAME"
-
-	// RadixConfigConfigMapEnvironmentVariable Name of a ConfigMap with loaded radixconfig.yaml
-	RadixConfigConfigMapEnvironmentVariable = "RADIX_CONFIG_CONFIGMAP"
-
-	// RadixGitConfigMapEnvironmentVariable Name of a ConfigMap with git commit hash and git tags
-	RadixGitConfigMapEnvironmentVariable = "GIT_CONFIGMAP"
 
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
@@ -219,6 +206,9 @@ const (
 	// RadixCertificateAutomationRenewBeforeVariable Defines renew_before for certificates issued by cluster issuer
 	RadixCertificateAutomationRenewBeforeVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE"
 
+	// RadixPipelineImageTagEnvironmentVariable Radix pipeline image tag
+	RadixPipelineImageTagEnvironmentVariable = "RADIXOPERATOR_PIPELINE_IMAGE_TAG"
+
 	// RadixGitCloneNsLookupImageEnvironmentVariable The container image containing nslookup, used in pipeline git clone init containers
 	RadixGitCloneNsLookupImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE"
 
@@ -237,4 +227,7 @@ const (
 
 	// RadixOrphanedEnvironmentsCleanupCronVariable The cron expression for cleaning up orphaned environments
 	RadixOrphanedEnvironmentsCleanupCronVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON"
+
+	// RadixGithubWorkspaceEnvironmentVariable Path to a cloned GitHub repository
+	RadixGithubWorkspaceEnvironmentVariable = "RADIX_GITHUB_WORKSPACE"
 )

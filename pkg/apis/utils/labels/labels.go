@@ -2,7 +2,6 @@ package labels
 
 import (
 	maputils "github.com/equinor/radix-common/utils/maps"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
@@ -117,27 +116,24 @@ func ForServiceAccountIsForComponent() kubelabels.Set {
 	return kubelabels.Set{
 		kube.IsServiceAccountForComponent: "true",
 	}
-} // ForServiceAccountIsForComponent returns labels indicating that a service account is used by a component or job
+}
+
+// ForServiceAccountIsForSubPipeline returns labels indicating that a service account is used by a subpipeline
 func ForServiceAccountIsForSubPipeline() kubelabels.Set {
 	return kubelabels.Set{
 		kube.IsServiceAccountForSubPipelineLabel: "true",
 	}
 }
 
-// ForServiceAccountWithRadixIdentity returns labels for configuring a ServiceAccount with external identities,
-// e.g. for Azure Workload Identity: "azure.workload.identity/use": "true"
-func ForServiceAccountWithRadixIdentity(identity *v1.Identity) kubelabels.Set {
-	if identity == nil {
-		return nil
-	}
-
-	var labels kubelabels.Set
-
-	if identity.Azure != nil {
-		labels = Merge(labels, forAzureWorkloadUseIdentity())
-	}
-
-	return labels
+// ForOAuthProxyComponentServiceAccount returns labels for configuring a ServiceAccount for an aux OAuth2 proxy
+func ForOAuthProxyComponentServiceAccount(component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return Merge(
+		kubelabels.Set{
+			kube.RadixAuxiliaryComponentLabel:       component.GetName(),
+			kube.RadixAuxiliaryComponentTypeLabel:   v1.OAuthProxyAuxiliaryComponentType,
+			kube.IsServiceAccountForOAuthProxyLabel: "true",
+		},
+	)
 }
 
 // ForPodWithRadixIdentity returns labels for configuring a Pod with external identities,
@@ -153,6 +149,19 @@ func ForPodWithRadixIdentity(identity *v1.Identity) kubelabels.Set {
 		labels = Merge(labels, forAzureWorkloadUseIdentity())
 	}
 
+	return labels
+}
+
+// ForOAuthProxyPodWithRadixIdentity returns labels for configuring a OAuth Proxy Pod with external identities,
+// e.g. for Azure Workload Identity: "azure.workload.identity/use": "true"
+func ForOAuthProxyPodWithRadixIdentity(oauth2 *v1.OAuth2) kubelabels.Set {
+	if oauth2 == nil {
+		return nil
+	}
+	var labels kubelabels.Set
+	if oauth2.GetUseAzureIdentity() {
+		labels = Merge(labels, forAzureWorkloadUseIdentity())
+	}
 	return labels
 }
 
@@ -240,7 +249,7 @@ func ForAuxComponent(appName string, component v1.RadixCommonDeployComponent) ma
 	return map[string]string{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
-		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
+		kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType,
 	}
 }
 
@@ -273,7 +282,7 @@ func forAuxComponentIngress(appName string, component v1.RadixCommonDeployCompon
 	return kubelabels.Set{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
-		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
+		kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType,
 		aliasLabel:                            aliasLabelValue,
 	}
 }
@@ -340,5 +349,23 @@ func ForExternalDNSCertificate(appName string, externalDns v1.RadixDeployExterna
 	return kubelabels.Set{
 		kube.RadixAppLabel:               appName,
 		kube.RadixExternalAliasFQDNLabel: externalDns.FQDN,
+	}
+}
+
+func ForBlobCSIAzurePersistentVolume(appName, namespace, componentName string, radixVolumeMount v1.RadixVolumeMount) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:             appName,
+		kube.RadixNamespace:            namespace,
+		kube.RadixComponentLabel:       componentName,
+		kube.RadixVolumeMountNameLabel: radixVolumeMount.Name,
+	}
+}
+
+func ForBlobCSIAzurePersistentVolumeClaim(appName, componentName string, radixVolumeMount v1.RadixVolumeMount) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:             appName,
+		kube.RadixComponentLabel:       componentName,
+		kube.RadixMountTypeLabel:       string(radixVolumeMount.GetVolumeMountType()), // TODO: Discuss if we really need this. It is not used anywhere, and I don't see a reason why we would need it.
+		kube.RadixVolumeMountNameLabel: radixVolumeMount.Name,
 	}
 }

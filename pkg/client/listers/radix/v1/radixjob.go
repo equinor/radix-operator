@@ -26,10 +26,10 @@ SOFTWARE.
 package v1
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // RadixJobLister helps list RadixJobs.
@@ -37,7 +37,7 @@ import (
 type RadixJobLister interface {
 	// List lists all RadixJobs in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixJob, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixJob, err error)
 	// RadixJobs returns an object that can list and get RadixJobs.
 	RadixJobs(namespace string) RadixJobNamespaceLister
 	RadixJobListerExpansion
@@ -45,17 +45,17 @@ type RadixJobLister interface {
 
 // radixJobLister implements the RadixJobLister interface.
 type radixJobLister struct {
-	listers.ResourceIndexer[*v1.RadixJob]
+	listers.ResourceIndexer[*radixv1.RadixJob]
 }
 
 // NewRadixJobLister returns a new RadixJobLister.
 func NewRadixJobLister(indexer cache.Indexer) RadixJobLister {
-	return &radixJobLister{listers.New[*v1.RadixJob](indexer, v1.Resource("radixjob"))}
+	return &radixJobLister{listers.New[*radixv1.RadixJob](indexer, radixv1.Resource("radixjob"))}
 }
 
 // RadixJobs returns an object that can list and get RadixJobs.
 func (s *radixJobLister) RadixJobs(namespace string) RadixJobNamespaceLister {
-	return radixJobNamespaceLister{listers.NewNamespaced[*v1.RadixJob](s.ResourceIndexer, namespace)}
+	return radixJobNamespaceLister{listers.NewNamespaced[*radixv1.RadixJob](s.ResourceIndexer, namespace)}
 }
 
 // RadixJobNamespaceLister helps list and get RadixJobs.
@@ -63,15 +63,15 @@ func (s *radixJobLister) RadixJobs(namespace string) RadixJobNamespaceLister {
 type RadixJobNamespaceLister interface {
 	// List lists all RadixJobs in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.RadixJob, err error)
+	List(selector labels.Selector) (ret []*radixv1.RadixJob, err error)
 	// Get retrieves the RadixJob from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.RadixJob, error)
+	Get(name string) (*radixv1.RadixJob, error)
 	RadixJobNamespaceListerExpansion
 }
 
 // radixJobNamespaceLister implements the RadixJobNamespaceLister
 // interface.
 type radixJobNamespaceLister struct {
-	listers.ResourceIndexer[*v1.RadixJob]
+	listers.ResourceIndexer[*radixv1.RadixJob]
 }

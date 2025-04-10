@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
@@ -42,16 +42,19 @@ func Test_ForPodIsJobScheduler(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func Test_ForServiceAccountWithRadixIdentity(t *testing.T) {
-	actual := ForServiceAccountWithRadixIdentity(nil)
-	assert.Equal(t, kubelabels.Set(nil), actual)
+func Test_ForOAuthProxyPodWithRadixIdentityWithWorkloadIdentity(t *testing.T) {
+	actual := ForOAuthProxyPodWithRadixIdentity(nil)
+	assert.Equal(t, kubelabels.Set(nil), actual, "Not expected labels when there is no OAuth2")
 
-	actual = ForServiceAccountWithRadixIdentity(&v1.Identity{})
-	assert.Equal(t, kubelabels.Set(nil), actual)
+	actual = ForOAuthProxyPodWithRadixIdentity(&v1.OAuth2{})
+	assert.Equal(t, kubelabels.Set(nil), actual, "Not expected labels when there is no Credentials")
 
-	actual = ForServiceAccountWithRadixIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "any"}})
+	actual = ForOAuthProxyPodWithRadixIdentity(&v1.OAuth2{Credentials: v1.Secret, ClientID: "any-client-id"})
+	assert.Equal(t, kubelabels.Set(nil), actual, "Not expected labels when Credentials is Secret")
+
+	actual = ForOAuthProxyPodWithRadixIdentity(&v1.OAuth2{Credentials: v1.AzureWorkloadIdentity, ClientID: "any-client-id"})
 	expected := kubelabels.Set{"azure.workload.identity/use": "true"}
-	assert.Equal(t, expected, actual)
+	assert.Equal(t, expected, actual, "Expected labels when Credentials is AzureWorkloadIdentity")
 }
 
 func Test_ForPodWithRadixIdentity(t *testing.T) {
@@ -175,6 +178,46 @@ func Test_ForExternalDNSTLSSecret(t *testing.T) {
 func Test_ForExternalDNSCertificate(t *testing.T) {
 	actual := ForExternalDNSCertificate("any-app", v1.RadixDeployExternalDNS{FQDN: "test.com"})
 	expected := kubelabels.Set{kube.RadixAppLabel: "any-app", kube.RadixExternalAliasFQDNLabel: "test.com"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForBlobCSIAzurePersistentVolume(t *testing.T) {
+	actual := ForBlobCSIAzurePersistentVolume("any-app", "any-ns", "any-comp", v1.RadixVolumeMount{Name: "any-vol"})
+	expected := kubelabels.Set{
+		kube.RadixAppLabel:             "any-app",
+		kube.RadixNamespace:            "any-ns",
+		kube.RadixComponentLabel:       "any-comp",
+		kube.RadixVolumeMountNameLabel: "any-vol",
+	}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForBlobCSIAzurePersistentVolumeClaim(t *testing.T) {
+	actual := ForBlobCSIAzurePersistentVolumeClaim("any-app", "any-comp", v1.RadixVolumeMount{Name: "any-vol"})
+	expected := kubelabels.Set{
+		kube.RadixAppLabel:             "any-app",
+		kube.RadixComponentLabel:       "any-comp",
+		kube.RadixVolumeMountNameLabel: "any-vol",
+		kube.RadixMountTypeLabel:       "unsupported",
+	}
+	assert.Equal(t, expected, actual)
+
+	actual = ForBlobCSIAzurePersistentVolumeClaim("any-app", "any-comp", v1.RadixVolumeMount{Name: "any-vol", Type: "any-type"})
+	expected = kubelabels.Set{
+		kube.RadixAppLabel:             "any-app",
+		kube.RadixComponentLabel:       "any-comp",
+		kube.RadixVolumeMountNameLabel: "any-vol",
+		kube.RadixMountTypeLabel:       "any-type",
+	}
+	assert.Equal(t, expected, actual)
+
+	actual = ForBlobCSIAzurePersistentVolumeClaim("any-app", "any-comp", v1.RadixVolumeMount{Name: "any-vol", BlobFuse2: &v1.RadixBlobFuse2VolumeMount{}})
+	expected = kubelabels.Set{
+		kube.RadixAppLabel:             "any-app",
+		kube.RadixComponentLabel:       "any-comp",
+		kube.RadixVolumeMountNameLabel: "any-vol",
+		kube.RadixMountTypeLabel:       string(v1.MountTypeBlobFuse2Fuse2CsiAzure),
+	}
 	assert.Equal(t, expected, actual)
 }
 

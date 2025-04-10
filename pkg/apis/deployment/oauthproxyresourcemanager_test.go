@@ -15,6 +15,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -67,6 +68,10 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) SetupTest() {
+	s.setupTest()
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) setupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.kedaClient = kedafake.NewSimpleClientset()
@@ -169,6 +174,125 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 	}
 }
 
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity() {
+	type scenarioDef struct {
+		name                        string
+		rd                          *v1.RadixDeployment
+		expectedSa                  *corev1.ServiceAccount
+		expectedAuxOauthDeployCount int
+		existingSa                  *corev1.ServiceAccount
+	}
+	const (
+		appName                    = "anyapp"
+		componentAzureClientId     = "some-azure-client-id"
+		oauth2ClientId             = "oauth2-client-id"
+		componentName1             = "comp1"
+		expectedServiceAccountName = "comp1-aux-oauth-sa"
+		envName                    = "qa"
+	)
+
+	identity := &v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}
+	auxOAuthServiceAccount := buildServiceAccount(utils.GetEnvironmentNamespace(appName, envName), expectedServiceAccountName,
+		getLabelsForAuxOAuthComponentServiceAccount(componentName1),
+		oauth2ClientId)
+	scenarios := []scenarioDef{
+		{name: "Not created service account without Authentication", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}})).
+			BuildRD(),
+			expectedAuxOauthDeployCount: 0},
+		{name: "Not created service account with Authentication, no OAuth2", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}).
+			WithAuthentication(&v1.Authentication{})).BuildRD(),
+			expectedAuxOauthDeployCount: 0},
+		{name: "Not created service account with Authentication, OAuth2, false useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}).
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId}})).BuildRD(),
+			expectedAuxOauthDeployCount: 1,
+		},
+		{name: "Created the service account with Authentication, OAuth2, true useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).
+			WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(identity).
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId, Credentials: v1.AzureWorkloadIdentity}})).BuildRD(),
+			expectedAuxOauthDeployCount: 1,
+			expectedSa:                  auxOAuthServiceAccount,
+		},
+		{name: "Delete existing service account, with Authentication, OAuth2, no useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: componentAzureClientId}}).
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId}})).BuildRD(),
+			expectedAuxOauthDeployCount: 1,
+			existingSa:                  auxOAuthServiceAccount,
+		},
+		{name: "Not overridden the existing service account with Authentication, OAuth2, true useAzureIdentity", rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).
+			WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(identity).
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: oauth2ClientId, Credentials: v1.AzureWorkloadIdentity}})).BuildRD(),
+			expectedAuxOauthDeployCount: 1,
+			existingSa:                  auxOAuthServiceAccount,
+			expectedSa:                  auxOAuthServiceAccount,
+		},
+	}
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+
+	for _, scenario := range scenarios {
+		s.Run(scenario.name, func() {
+			s.setupTest()
+			sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()), "", zerolog.Nop()}
+			if scenario.existingSa != nil {
+				_, err := sut.kubeutil.KubeClient().CoreV1().ServiceAccounts(scenario.existingSa.Namespace).Create(context.Background(), scenario.existingSa, metav1.CreateOptions{})
+				s.NoError(err, "Failed to create service account")
+			}
+			auxOAuthSecret, err := buildOAuthProxySecret(appName, &scenario.rd.Spec.Components[0])
+			auxOAuthSecret.SetNamespace(scenario.rd.Namespace)
+			s.NoError(err, "Failed to build secret")
+			auxOAuthSecret.Data[defaults.OAuthClientSecretKeyName] = []byte("some-client-secret")
+			_, err = s.kubeUtil.KubeClient().CoreV1().Secrets(scenario.rd.Namespace).Create(context.Background(), auxOAuthSecret, metav1.CreateOptions{})
+			s.NoError(err, "Failed to create secret")
+
+			err = sut.Sync(context.Background())
+			s.Nil(err)
+
+			deploys, err := sut.kubeutil.KubeClient().AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+			s.NoError(err, "Failed to list deployments")
+			s.Len(deploys.Items, scenario.expectedAuxOauthDeployCount, "Expected aux oauth deployment count")
+			saList, err := sut.kubeutil.KubeClient().CoreV1().ServiceAccounts(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: getLabelsForAuxOAuthComponentServiceAccount(componentName1).String()})
+			s.NoError(err, "Failed to list service accounts")
+			existsClientSecretEnvVar := false
+			existsOAuthProxyDeployment := len(deploys.Items) > 0
+			if existsOAuthProxyDeployment {
+				auxOAuthDeployment := deploys.Items[0]
+				auxOAuthContainer := auxOAuthDeployment.Spec.Template.Spec.Containers[0]
+				secretName := utils.GetAuxiliaryComponentSecretName(scenario.rd.Spec.Components[0].GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
+				existsClientSecretEnvVar = slice.Any(auxOAuthContainer.Env, func(ev corev1.EnvVar) bool {
+					return ev.Name == oauth2ProxyClientSecretEnvironmentVariable && ev.ValueFrom != nil && ev.ValueFrom.SecretKeyRef != nil &&
+						ev.ValueFrom.SecretKeyRef.Key == defaults.OAuthClientSecretKeyName &&
+						ev.ValueFrom.SecretKeyRef.LocalObjectReference.Name == secretName
+				})
+				actualSecret, err := sut.kubeutil.KubeClient().CoreV1().Secrets(scenario.rd.Namespace).Get(context.Background(), auxOAuthSecret.GetName(), metav1.GetOptions{})
+				s.NoError(err, "Failed to get aux OAuth secret")
+				_, existsOAuthClientSecret := actualSecret.Data[defaults.OAuthClientSecretKeyName]
+				azureWorkloadIdentityUse, existsAzureWorkloadIdentityUse := auxOAuthDeployment.Spec.Template.GetLabels()["azure.workload.identity/use"]
+				if scenario.expectedSa != nil {
+					s.False(existsOAuthClientSecret, "Unexpected client secret")
+					s.Equal("true", azureWorkloadIdentityUse, "Expected azure workload identity use label")
+				} else {
+					s.True(existsOAuthClientSecret, "Expected client secret")
+					s.False(existsAzureWorkloadIdentityUse, "Unexpected azure workload identity use label")
+				}
+			}
+			if scenario.expectedSa != nil {
+				s.Len(saList.Items, 1, fmt.Sprintf("Expected service account %s", scenario.expectedSa.GetName()))
+				s.Equal(scenario.expectedSa, &saList.Items[0], fmt.Sprintf("Expected service account %s", scenario.expectedSa.GetName()))
+				if existsOAuthProxyDeployment {
+					s.False(existsClientSecretEnvVar, "Unexpected client secret env var")
+				}
+			} else {
+				s.Len(saList.Items, 0, "Expected no service account")
+				if existsOAuthProxyDeployment {
+					s.True(existsClientSecretEnvVar, "Expected client secret env var")
+				}
+			}
+		})
+	}
+}
+
+func getLabelsForAuxOAuthComponentServiceAccount(componentName string) labels.Set {
+	return radixlabels.ForOAuthProxyComponentServiceAccount(&v1.RadixDeployComponent{Name: componentName})
+}
+
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas() {
 	auth := &v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}}
 	appName := "anyapp"
@@ -205,6 +329,13 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 		},
 		{
 			name: "component replicas set to 0",
+			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+				WithComponent(baseComp().WithReplicas(pointers.Ptr(0))).
+				BuildRD(),
+			expectedReplicas: 0,
+		},
+		{
+			name: "component replicas set override to 0",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
 				WithComponent(baseComp().WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(0))).
 				BuildRD(),
@@ -246,7 +377,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 			sut := &oauthProxyResourceManager{test.rd, rr, s.kubeUtil, []ingress.AnnotationProvider{}, s.oauth2Config, "", zerolog.Nop()}
 			err := sut.Sync(context.Background())
 			s.Nil(err)
-			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+			deploys, _ := sut.kubeutil.KubeClient().AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
 			s.Equal(test.expectedReplicas, *deploys.Items[0].Spec.Replicas)
 		})
 	}
@@ -283,6 +414,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 			SkipDiscovery:           pointers.Ptr(true),
 			InsecureSkipVerifyNonce: pointers.Ptr(false),
 		},
+		SkipAuthRoutes: []string{"POST=^/api/public-entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"},
 	}
 	s.oauth2Config.EXPECT().MergeWith(inputOAuth).Times(1).Return(returnOAuth, nil)
 
@@ -300,10 +432,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Len(actualDeploys.Items, 1)
 
 	actualDeploy := actualDeploys.Items[0]
-	s.Equal(utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix), actualDeploy.Name)
+	s.Equal(utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix), actualDeploy.Name)
 	s.ElementsMatch([]metav1.OwnerReference{getOwnerReferenceOfDeployment(rd)}, actualDeploy.OwnerReferences)
 
-	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
+	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType}
 	s.Equal(expectedLabels, actualDeploy.Labels)
 	s.Len(actualDeploy.Spec.Template.Spec.Containers, 1)
 	s.Equal(expectedLabels, actualDeploy.Spec.Template.Labels)
@@ -325,7 +457,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	}
 	s.Equal(expectedAffinity, actualDeploy.Spec.Template.Spec.Affinity, "oauth2 aux deployment must not use component's runtime config")
 
-	s.Len(defaultContainer.Env, 30)
+	s.Len(defaultContainer.Env, 31)
 	s.Equal("oidc", s.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))
 	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_HTTPONLY", defaultContainer.Env))
 	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_SECURE", defaultContainer.Env))
@@ -353,10 +485,11 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Equal(string(returnOAuth.Cookie.SameSite), s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_SAMESITE", defaultContainer.Env))
 	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SESSION_COOKIE_MINIMAL", defaultContainer.Env))
 	s.Equal(returnOAuth.RedisStore.ConnectionURL, s.getEnvVarValueByName("OAUTH2_PROXY_REDIS_CONNECTION_URL", defaultContainer.Env))
-	secretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
-	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthCookieSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName("OAUTH2_PROXY_COOKIE_SECRET", defaultContainer.Env))
-	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthClientSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName("OAUTH2_PROXY_CLIENT_SECRET", defaultContainer.Env))
-	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthRedisPasswordKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName("OAUTH2_PROXY_REDIS_PASSWORD", defaultContainer.Env))
+	s.Equal("POST=^/api/public-entity/?$,GET=^/skip/auth/routes/get,!=^/api", s.getEnvVarValueByName(oauth2ProxySkipAuthRoutesEnvironmentVariable, defaultContainer.Env))
+	secretName := utils.GetAuxiliaryComponentSecretName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
+	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthCookieSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyCookieSecretEnvironmentVariable, defaultContainer.Env))
+	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthClientSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyClientSecretEnvironmentVariable, defaultContainer.Env))
+	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthRedisPasswordKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyRedisPasswordEnvironmentVariable, defaultContainer.Env))
 
 	// Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie
 	returnOAuth.SessionStoreType = "cookie"
@@ -364,8 +497,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	err = sut.Sync(context.Background())
 	s.Nil(err)
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 29)
-	s.False(s.getEnvVarExist("OAUTH2_PROXY_REDIS_PASSWORD", actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env))
+	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 30)
+	s.False(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env))
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCreated() {
@@ -385,8 +518,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCr
 	err := sut.Sync(context.Background())
 	s.Nil(err)
 
-	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
-	expectedSecretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType}
+	expectedSecretName := utils.GetAuxiliaryComponentSecretName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
 	actualSecrets, _ := s.kubeClient.CoreV1().Secrets(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualSecrets.Items, 1)
 	s.Equal(expectedSecretName, actualSecrets.Items[0].Name)
@@ -411,14 +544,14 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	err := sut.Sync(context.Background())
 	s.Nil(err)
 
-	expectedRoles := []string{fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix))}
-	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
-	expectedSecretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	expectedRoles := []string{fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)), fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix))}
+	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType}
+	expectedSecretName := utils.GetAuxiliaryComponentSecretName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
 
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(envNs).List(context.Background(), metav1.ListOptions{})
 	s.ElementsMatch(expectedRoles, getRoleNames(actualRoles))
 
-	admRole := getRoleByName(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoles)
+	admRole := getRoleByName(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)), actualRoles)
 	s.Equal(expectedLabels, admRole.Labels)
 	s.Len(admRole.Rules, 1)
 	s.ElementsMatch([]string{""}, admRole.Rules[0].APIGroups)
@@ -426,7 +559,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	s.ElementsMatch([]string{expectedSecretName}, admRole.Rules[0].ResourceNames)
 	s.ElementsMatch([]string{"get", "update", "patch", "list", "watch", "delete"}, admRole.Rules[0].Verbs)
 
-	readerRole := getRoleByName(fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoles)
+	readerRole := getRoleByName(fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)), actualRoles)
 	s.Equal(expectedLabels, readerRole.Labels)
 	s.Len(readerRole.Rules, 1)
 	s.ElementsMatch([]string{""}, readerRole.Rules[0].APIGroups)
@@ -437,7 +570,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(envNs).List(context.Background(), metav1.ListOptions{})
 	s.ElementsMatch(expectedRoles, getRoleBindingNames(actualRoleBindings))
 
-	admRoleBinding := getRoleBindingByName(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoleBindings)
+	admRoleBinding := getRoleBindingByName(fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)), actualRoleBindings)
 	s.Equal(expectedLabels, admRoleBinding.Labels)
 	s.Equal(admRole.Name, admRoleBinding.RoleRef.Name)
 	expectedSubjects := []rbacv1.Subject{
@@ -448,7 +581,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	}
 	s.ElementsMatch(expectedSubjects, admRoleBinding.Subjects)
 
-	readerRoleBinding := getRoleBindingByName(fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)), actualRoleBindings)
+	readerRoleBinding := getRoleBindingByName(fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)), actualRoleBindings)
 	s.Equal(expectedLabels, readerRoleBinding.Labels)
 	s.Equal(readerRole.Name, readerRoleBinding.RoleRef.Name)
 	expectedSubjects = []rbacv1.Subject{
@@ -465,7 +598,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarb
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreRedis}, nil)
 
-	secretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
 	_, err := s.kubeClient.CoreV1().Secrets(envNs).Create(
 		context.Background(),
 		&corev1.Secret{
@@ -525,8 +658,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyServiceCreated(
 	err := sut.Sync(context.Background())
 	s.Nil(err)
 
-	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
-	expectedServiceName := utils.GetAuxiliaryComponentServiceName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType}
+	expectedServiceName := utils.GetAuxiliaryComponentServiceName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
 	actualServices, _ := s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualServices.Items, 1)
 	s.Equal(expectedServiceName, actualServices.Items[0].Name)
@@ -671,7 +804,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 					PathType: &pathType,
 					Backend: networkingv1.IngressBackend{
 						Service: &networkingv1.IngressServiceBackend{
-							Name: utils.GetAuxiliaryComponentServiceName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix),
+							Name: utils.GetAuxiliaryComponentServiceName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix),
 							Port: networkingv1.ServiceBackendPort{Number: defaults.OAuthProxyPortNumber},
 						},
 					},
@@ -680,7 +813,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		}
 	}
 	// Ingresses for server component
-	ingressName := fmt.Sprintf("%s-%s", ingServer.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	ingressName := fmt.Sprintf("%s-%s", ingServer.Name, v1.OAuthProxyAuxiliaryComponentSuffix)
 	actualIngress := getIngress(ingressName, actualIngresses.Items)
 	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
 	s.Equal(expectedIngServerAnnotations, actualIngress.Annotations)
@@ -691,7 +824,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	s.Equal(getExpectedIngressRule(component1Name, "auth1"), actualIngress.Spec.Rules[0].IngressRuleValue)
 
 	// Ingresses for web component
-	ingressName = fmt.Sprintf("%s-%s", ingWeb1.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	ingressName = fmt.Sprintf("%s-%s", ingWeb1.Name, v1.OAuthProxyAuxiliaryComponentSuffix)
 	actualIngress = getIngress(ingressName, actualIngresses.Items)
 	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
@@ -701,7 +834,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	s.Equal(ingWeb1.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
 	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
 
-	ingressName = fmt.Sprintf("%s-%s", ingWeb2.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	ingressName = fmt.Sprintf("%s-%s", ingWeb2.Name, v1.OAuthProxyAuxiliaryComponentSuffix)
 	actualIngress = getIngress(ingressName, actualIngresses.Items)
 	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
@@ -711,7 +844,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	s.Equal(ingWeb2.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
 	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
 
-	ingressName = fmt.Sprintf("%s-%s", ingWeb3.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	ingressName = fmt.Sprintf("%s-%s", ingWeb3.Name, v1.OAuthProxyAuxiliaryComponentSuffix)
 	actualIngress = getIngress(ingressName, actualIngresses.Items)
 	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
@@ -721,7 +854,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	s.Equal(ingWeb3.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
 	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
 
-	ingressName = fmt.Sprintf("%s-%s", ingWeb4.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	ingressName = fmt.Sprintf("%s-%s", ingWeb4.Name, v1.OAuthProxyAuxiliaryComponentSuffix)
 	actualIngress = getIngress(ingressName, actualIngresses.Items)
 	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
@@ -731,7 +864,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	s.Equal(ingWeb4.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
 	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
 
-	ingressName = fmt.Sprintf("%s-%s", ingWeb5.Name, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	ingressName = fmt.Sprintf("%s-%s", ingWeb5.Name, v1.OAuthProxyAuxiliaryComponentSuffix)
 	actualIngress = getIngress(ingressName, actualIngresses.Items)
 	s.Require().NotNil(actualIngress, "not found aux ingress %s", ingressName)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
@@ -810,13 +943,13 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 	s.Nil(err)
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualDeploys.Items, 1)
-	s.Equal(utils.GetAuxiliaryComponentDeploymentName(component1Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualDeploys.Items[0].Name)
+	s.Equal(utils.GetAuxiliaryComponentDeploymentName(component1Name, v1.OAuthProxyAuxiliaryComponentSuffix), actualDeploys.Items[0].Name)
 	actualServices, _ = s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualServices.Items, 1)
-	s.Equal(utils.GetAuxiliaryComponentServiceName(component1Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualServices.Items[0].Name)
+	s.Equal(utils.GetAuxiliaryComponentServiceName(component1Name, v1.OAuthProxyAuxiliaryComponentSuffix), actualServices.Items[0].Name)
 	actualSecrets, _ = s.kubeClient.CoreV1().Secrets(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualSecrets.Items, 1)
-	s.Equal(utils.GetAuxiliaryComponentSecretName(component1Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualSecrets.Items[0].Name)
+	s.Equal(utils.GetAuxiliaryComponentSecretName(component1Name, v1.OAuthProxyAuxiliaryComponentSuffix), actualSecrets.Items[0].Name)
 	actualRoles, _ = s.kubeClient.RbacV1().Roles(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoles.Items, 2)
 	actualRoleBindings, _ = s.kubeClient.RbacV1().RoleBindings(envNs).List(context.Background(), metav1.ListOptions{})
@@ -837,7 +970,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GetOwnerReferenceOfIngress() {
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GetIngressName() {
 	actualIngressName := oauthutil.GetAuxAuthProxyIngressName("ing")
-	s.Equal(fmt.Sprintf("%s-%s", "ing", defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngressName)
+	s.Equal(fmt.Sprintf("%s-%s", "ing", v1.OAuthProxyAuxiliaryComponentSuffix), actualIngressName)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect() {
@@ -849,53 +982,53 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName("c2")).
 		BuildRD()
 
-	s.addDeployment("d1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addDeployment("d2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addDeployment("d3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addDeployment("d4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d1", "myapp-dev", "myapp", "c1", v1.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d2", "myapp-dev", "myapp", "c2", v1.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d3", "myapp-dev", "myapp", "c3", v1.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d4", "myapp-dev", "myapp", "c4", v1.OAuthProxyAuxiliaryComponentType)
 	s.addDeployment("d5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	s.addDeployment("d6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addDeployment("d7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d6", "myapp-dev", "myapp2", "c6", v1.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d7", "myapp-qa", "myapp", "c7", v1.OAuthProxyAuxiliaryComponentType)
 
-	s.addSecret("sec1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addSecret("sec2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addSecret("sec3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addSecret("sec4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec1", "myapp-dev", "myapp", "c1", v1.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec2", "myapp-dev", "myapp", "c2", v1.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec3", "myapp-dev", "myapp", "c3", v1.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec4", "myapp-dev", "myapp", "c4", v1.OAuthProxyAuxiliaryComponentType)
 	s.addSecret("sec5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	s.addSecret("sec6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addSecret("sec7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec6", "myapp-dev", "myapp2", "c6", v1.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec7", "myapp-qa", "myapp", "c7", v1.OAuthProxyAuxiliaryComponentType)
 
-	s.addService("svc1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addService("svc2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addService("svc3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addService("svc4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc1", "myapp-dev", "myapp", "c1", v1.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc2", "myapp-dev", "myapp", "c2", v1.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc3", "myapp-dev", "myapp", "c3", v1.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc4", "myapp-dev", "myapp", "c4", v1.OAuthProxyAuxiliaryComponentType)
 	s.addService("svc5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	s.addService("svc6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addService("svc7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc6", "myapp-dev", "myapp2", "c6", v1.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc7", "myapp-qa", "myapp", "c7", v1.OAuthProxyAuxiliaryComponentType)
 
-	s.addIngress("ing1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addIngress("ing2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addIngress("ing3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addIngress("ing4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing1", "myapp-dev", "myapp", "c1", v1.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing2", "myapp-dev", "myapp", "c2", v1.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing3", "myapp-dev", "myapp", "c3", v1.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing4", "myapp-dev", "myapp", "c4", v1.OAuthProxyAuxiliaryComponentType)
 	s.addIngress("ing5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	s.addIngress("ing6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addIngress("ing7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing6", "myapp-dev", "myapp2", "c6", v1.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing7", "myapp-qa", "myapp", "c7", v1.OAuthProxyAuxiliaryComponentType)
 
-	s.addRole("r1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addRole("r2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addRole("r3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addRole("r4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r1", "myapp-dev", "myapp", "c1", v1.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r2", "myapp-dev", "myapp", "c2", v1.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r3", "myapp-dev", "myapp", "c3", v1.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r4", "myapp-dev", "myapp", "c4", v1.OAuthProxyAuxiliaryComponentType)
 	s.addRole("r5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	s.addRole("r6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addRole("r7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r6", "myapp-dev", "myapp2", "c6", v1.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r7", "myapp-qa", "myapp", "c7", v1.OAuthProxyAuxiliaryComponentType)
 
-	s.addRoleBinding("rb1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addRoleBinding("rb2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addRoleBinding("rb3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addRoleBinding("rb4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb1", "myapp-dev", "myapp", "c1", v1.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb2", "myapp-dev", "myapp", "c2", v1.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb3", "myapp-dev", "myapp", "c3", v1.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb4", "myapp-dev", "myapp", "c4", v1.OAuthProxyAuxiliaryComponentType)
 	s.addRoleBinding("rb5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	s.addRoleBinding("rb6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	s.addRoleBinding("rb7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb6", "myapp-dev", "myapp2", "c6", v1.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb7", "myapp-qa", "myapp", "c7", v1.OAuthProxyAuxiliaryComponentType)
 
 	sut := oauthProxyResourceManager{rd: rd, kubeutil: s.kubeUtil}
 	err := sut.GarbageCollect(context.Background())
@@ -1040,14 +1173,14 @@ func (s *OAuthProxyResourceManagerTestSuite) addRole(name, namespace, appName, a
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) addRoleBinding(name, namespace, appName, auxComponentName, auxComponentType string) {
-	rolebinding := &rbacv1.RoleBinding{
+	roleBinding := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 		},
 	}
-	_, err := s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), rolebinding, metav1.CreateOptions{})
+	_, err := s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), roleBinding, metav1.CreateOptions{})
 
 	s.Require().NoError(err)
 }

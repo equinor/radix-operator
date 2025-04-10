@@ -10,23 +10,18 @@ import (
 	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	pipelineApplication "github.com/equinor/radix-operator/pkg/apis/pipeline/application"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
 )
 
 // ApplyConfigStepImplementation Step to apply RA
@@ -59,33 +54,10 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	appName := cli.GetAppName()
-	// Get pipeline info from configmap created by prepare pipeline step
-	namespace := operatorutils.GetAppNamespace(appName)
-	configMap, err := cli.GetKubeutil().GetConfigMap(ctx, namespace, pipelineInfo.RadixConfigMapName)
-	if err != nil {
-		return err
-	}
+	printPrepareBuildContext(ctx, pipelineInfo.BuildContext)
 
-	// Read build context info from configmap
-	pipelineInfo.PrepareBuildContext, err = getPrepareBuildContext(ctx, configMap)
-	if err != nil {
-		return err
-	}
-
-	// Read radixconfig from configmap
-	configFileContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapContent]
-	if !ok {
-		return fmt.Errorf("failed load RadixApplication from ConfigMap")
-	}
-	ra, err := pipelineApplication.CreateRadixApplication(ctx, cli.GetRadixclient(), appName, pipelineInfo.PipelineArguments.DNSConfig, configFileContent)
-	if err != nil {
-		return err
-	}
-
-	// Apply RA to cluster
-	applicationConfig := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(),
-		cli.GetRadixclient(), cli.GetRegistration(), ra,
+	applicationConfig := application.NewApplicationConfig(cli.GetKubeClient(), cli.GetKubeUtil(),
+		cli.GetRadixClient(), cli.GetRegistration(), pipelineInfo.RadixApplication,
 		pipelineInfo.PipelineArguments.DNSConfig)
 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
@@ -95,16 +67,6 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	}
 	if err := cli.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
 		return err
-	}
-
-	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
-		gitCommitHash, gitTags := cli.getHashAndTags(ctx, namespace, pipelineInfo)
-		err = validate.GitTagsContainIllegalChars(gitTags)
-		if err != nil {
-			return err
-		}
-		pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(ctx, pipelineInfo.PrepareBuildContext)
 	}
 
 	if err := cli.validatePipelineInfo(pipelineInfo); err != nil {
@@ -119,7 +81,7 @@ func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.Pip
 		return nil
 	}
 
-	secret, err := cli.GetKubeclient().CoreV1().Secrets(operatorutils.GetAppNamespace(cli.GetAppName())).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
+	secret, err := cli.GetKubeClient().CoreV1().Secrets(operatorutils.GetAppNamespace(cli.GetAppName())).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
 	if err != nil {
 		// For new applications, or when buildsecrets is first added to radixconfig, the secret
 		// or role bindings may not be synced yet by radix-operator
@@ -265,12 +227,12 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx
 	environmentComponentImageSources := make(environmentComponentImageSourceMap)
 	for _, envName := range pipelineInfo.TargetEnvironments {
 		envNamespace := operatorutils.GetEnvironmentNamespace(ra.GetName(), envName)
-		activeRadixDeployment, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeutil(), envNamespace)
+		activeRadixDeployment, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeUtil(), envNamespace)
 		if err != nil {
 			return nil, err
 		}
 
-		mustBuildComponent, err := mustBuildComponentForEnvironment(ctx, envName, pipelineInfo.PrepareBuildContext, activeRadixDeployment, pipelineInfo.RadixApplication, pipelineInfo.BuildSecret)
+		mustBuildComponent, err := mustBuildComponentForEnvironment(ctx, envName, pipelineInfo.BuildContext, activeRadixDeployment, pipelineInfo.RadixApplication, pipelineInfo.BuildSecret)
 		if err != nil {
 			return nil, err
 		}
@@ -280,7 +242,6 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx
 			environmentComponentImageSources[envName] = componentImageSources
 		}
 	}
-
 	return environmentComponentImageSources, nil
 }
 
@@ -341,7 +302,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 				ComponentName:        componentName,
 				EnvName:              envName,
 				ContainerName:        containerName,
-				Context:              getContext(imageSource.Source.Folder),
+				Context:              getContext(pipelineInfo.GetGitWorkspace(), imageSource.Source.Folder),
 				Dockerfile:           getDockerfileName(imageSource.Source.DockefileName),
 				ImageName:            imageName,
 				ImagePath:            imagePath,
@@ -360,7 +321,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 func getLengthLimitedName(name string) string {
 	validatedName := strings.ToLower(name)
 	if len(validatedName) > 10 {
-		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandString(4)))
+		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandStringStrSeed(4, validatedName)))
 	}
 	return validatedName
 }
@@ -425,12 +386,12 @@ func isBuildSecretNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.
 	return !hashEqual, err
 }
 
-func mustBuildComponentForEnvironment(ctx context.Context, environmentName string, prepareBuildContext *model.PrepareBuildContext, currentRd *radixv1.RadixDeployment, ra *radixv1.RadixApplication, buildSecret *corev1.Secret) (func(comp radixv1.RadixCommonComponent) bool, error) {
+func mustBuildComponentForEnvironment(ctx context.Context, environmentName string, buildContext *model.BuildContext, currentRd *radixv1.RadixDeployment, ra *radixv1.RadixApplication, buildSecret *corev1.Secret) (func(comp radixv1.RadixCommonComponent) bool, error) {
 	alwaysBuild := func(comp radixv1.RadixCommonComponent) bool {
 		return true
 	}
 
-	if prepareBuildContext == nil || currentRd == nil {
+	if buildContext == nil || currentRd == nil {
 		return alwaysBuild, nil
 	}
 
@@ -446,7 +407,7 @@ func mustBuildComponentForEnvironment(ctx context.Context, environmentName strin
 		return alwaysBuild, nil
 	}
 
-	envBuildContext, found := slice.FindFirst(prepareBuildContext.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == environmentName })
+	envBuildContext, found := slice.FindFirst(buildContext.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == environmentName })
 	if !found {
 		return alwaysBuild, nil
 	}
@@ -464,9 +425,9 @@ func getDockerfileName(name string) string {
 	return name
 }
 
-func getContext(sourceFolder string) string {
+func getContext(workspace, sourceFolder string) string {
 	sourceRoot := filepath.Join("/", sourceFolder)
-	return fmt.Sprintf("%s/", filepath.Join(git.Workspace, sourceRoot))
+	return fmt.Sprintf("%s/", filepath.Join(workspace, sourceRoot))
 }
 
 func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComponent {
@@ -475,47 +436,16 @@ func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComp
 	return commonComponents
 }
 
-func getPrepareBuildContext(ctx context.Context, configMap *corev1.ConfigMap) (*model.PrepareBuildContext, error) {
-	prepareBuildContextContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapBuildContext]
-	if !ok {
-		log.Ctx(ctx).Debug().Msg("Prepare Build Context does not exist in the ConfigMap")
-		return nil, nil
+func printPrepareBuildContext(ctx context.Context, buildContext *model.BuildContext) {
+	if buildContext == nil {
+		return
 	}
-	prepareBuildContext := &model.PrepareBuildContext{}
-	err := yaml.Unmarshal([]byte(prepareBuildContextContent), &prepareBuildContext)
-	if err != nil {
-		return nil, err
-	}
-	if prepareBuildContext == nil {
-		return nil, nil
-	}
-	printPrepareBuildContext(ctx, prepareBuildContext)
-	return prepareBuildContext, nil
-}
-
-func getPipelineShouldBeStopped(ctx context.Context, prepareBuildContext *model.PrepareBuildContext) (bool, string) {
-	if prepareBuildContext == nil || prepareBuildContext.ChangedRadixConfig ||
-		len(prepareBuildContext.EnvironmentsToBuild) == 0 ||
-		len(prepareBuildContext.EnvironmentSubPipelinesToRun) > 0 {
-		return false, ""
-	}
-	for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
-		if len(environmentToBuild.Components) > 0 {
-			return false, ""
-		}
-	}
-	message := "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
-	log.Ctx(ctx).Info().Msg(message)
-	return true, message
-}
-
-func printPrepareBuildContext(ctx context.Context, prepareBuildContext *model.PrepareBuildContext) {
-	if prepareBuildContext.ChangedRadixConfig {
+	if buildContext.ChangedRadixConfig {
 		log.Ctx(ctx).Info().Msg("Radix config file was changed in the repository")
 	}
-	if len(prepareBuildContext.EnvironmentsToBuild) > 0 {
+	if len(buildContext.EnvironmentsToBuild) > 0 {
 		log.Ctx(ctx).Info().Msg("Components with changed source code in environments:")
-		for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
+		for _, environmentToBuild := range buildContext.EnvironmentsToBuild {
 			if len(environmentToBuild.Components) == 0 {
 				log.Ctx(ctx).Info().Msgf(" - %s: no components or jobs with changed source code", environmentToBuild.Environment)
 			} else {
@@ -523,38 +453,14 @@ func printPrepareBuildContext(ctx context.Context, prepareBuildContext *model.Pr
 			}
 		}
 	}
-	if len(prepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
+	if len(buildContext.EnvironmentSubPipelinesToRun) == 0 {
 		log.Ctx(ctx).Info().Msg("No sub-pipelines to run")
 	} else {
 		log.Ctx(ctx).Info().Msg("Sub-pipelines to run")
-		for _, envSubPipeline := range prepareBuildContext.EnvironmentSubPipelinesToRun {
+		for _, envSubPipeline := range buildContext.EnvironmentSubPipelinesToRun {
 			log.Ctx(ctx).Info().Msgf(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
 		}
 	}
-}
-
-func (cli *ApplyConfigStepImplementation) getHashAndTags(ctx context.Context, namespace string, pipelineInfo *model.PipelineInfo) (string, string) {
-	gitConfigMap, err := cli.GetKubeutil().GetConfigMap(ctx, namespace, pipelineInfo.GitConfigMapName)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msgf("Could not retrieve git values from temporary configmap %s", pipelineInfo.GitConfigMapName)
-		return "", ""
-	}
-	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
-	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
-	err = errors.Join(commitErr, tagsErr)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msgf("could not retrieve git values from temporary configmap %s", pipelineInfo.GitConfigMapName)
-		return "", ""
-	}
-	return gitCommitHash, gitTags
-}
-
-func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, error) {
-	value, ok := configMap.Data[key]
-	if !ok {
-		return "", fmt.Errorf("failed to get %s from configMap %s", key, configMap.Name)
-	}
-	return value, nil
 }
 
 func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironmentComponentImages, ra *radixv1.RadixApplication) error {

@@ -25,7 +25,7 @@ type PreservingDeployComponents struct {
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(ctx context.Context, config *radixv1.RadixApplication, activeRadixDeployment *radixv1.RadixDeployment, jobName, imageTag, branch, commitID, gitTags string, componentImages pipeline.DeployComponentImages, envName string, radixConfigHash, buildSecretHash string, buildContext *model.PrepareBuildContext, componentsToDeploy []string) (*radixv1.RadixDeployment, error) {
+func ConstructForTargetEnvironment(ctx context.Context, config *radixv1.RadixApplication, activeRadixDeployment *radixv1.RadixDeployment, jobName, imageTag, branch, commitID, gitTags string, componentImages pipeline.DeployComponentImages, envName string, radixConfigHash, buildSecretHash string, buildContext *model.BuildContext, componentsToDeploy []string) (*radixv1.RadixDeployment, error) {
 	preservingDeployComponents := getPreservingDeployComponents(ctx, activeRadixDeployment, envName, buildContext, componentsToDeploy)
 
 	defaultEnvVars := radixv1.EnvVarsMap{
@@ -95,7 +95,7 @@ func constructRadixDeployment(radixApplication *radixv1.RadixApplication, env, j
 	return radixDeployment
 }
 
-func getPreservingDeployComponents(ctx context.Context, activeRadixDeployment *radixv1.RadixDeployment, envName string, buildContext *model.PrepareBuildContext, componentsToDeploy []string) PreservingDeployComponents {
+func getPreservingDeployComponents(ctx context.Context, activeRadixDeployment *radixv1.RadixDeployment, envName string, buildContext *model.BuildContext, componentsToDeploy []string) PreservingDeployComponents {
 	preservingDeployComponents := PreservingDeployComponents{}
 	existEnvironmentComponentsToBuild := buildContext != nil && !buildContext.ChangedRadixConfig && slice.Any(buildContext.EnvironmentsToBuild, func(environmentToBuild model.EnvironmentToBuild) bool {
 		return len(environmentToBuild.Components) > 0

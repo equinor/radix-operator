@@ -27,12 +27,11 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 		expectedVolumeAttributePrefixes  map[string]string
 	}
 	scenarios := []struct {
-		name                    string
-		deployComponentBuilders []utils.DeployCommonComponentBuilder
-		componentName           string
-		azureKeyVaults          []v1.RadixAzureKeyVault
-		expectedVolumeProps     []expectedVolumeProps
-		radixVolumeMounts       []v1.RadixVolumeMount
+		name                string
+		componentName       string
+		azureKeyVaults      []v1.RadixAzureKeyVault
+		expectedVolumeProps []expectedVolumeProps
+		radixVolumeMounts   []v1.RadixVolumeMount
 	}{
 		{
 			name:                "No Azure Key volumes as no RadixAzureKeyVault-s",

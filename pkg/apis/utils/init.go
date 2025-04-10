@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -51,7 +52,7 @@ func (zl ZerologWarningHandlerAdapter) HandleWarningHeader(_ int, _ string, text
 }
 
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface) {
+func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface, tektonclient.Interface) {
 	logger := log.Ctx(ctx)
 	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
@@ -111,8 +112,14 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 		logger.Fatal().Err(err).Msg("Failed to initialize CertManager client")
 	}
 
+	tektonClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*tektonclient.Clientset, error) {
+		return tektonclient.NewForConfig(config)
+	})
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to initialize Tekton client")
+	}
 	logger.Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, certClient
+	return client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, certClient, tektonClient
 }
 
 func prometheusMetrics(rt http.RoundTripper) http.RoundTripper {

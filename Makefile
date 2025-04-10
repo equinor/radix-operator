@@ -91,7 +91,7 @@ mocks: bootstrap
 	mockgen -source ./pipeline-runner/internal/watcher/radix_deployment_watcher.go -destination ./pipeline-runner/internal/watcher/radix_deployment_watcher_mock.go -package watcher
 	mockgen -source ./pipeline-runner/internal/watcher/namespace.go -destination ./pipeline-runner/internal/watcher/namespace_mock.go -package watcher
 	mockgen -source ./pipeline-runner/internal/jobs/build/interface.go -destination ./pipeline-runner/internal/jobs/build/mock/job.go -package mock
-
+	mockgen -source ./pipeline-runner/steps/internal/wait/pipelinerun.go -destination ./pipeline-runner/steps/internal/wait/pipelinerun_mock.go -package wait
 
 
 .PHONY: build-pipeline
@@ -110,7 +110,7 @@ deploy-pipeline-arm64:
 
 .PHONY: build-operator
 build-operator:
-	docker build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) -f operator.Dockerfile .
+	docker build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) --platform linux/arm64,linux/amd64 -f operator.Dockerfile . --no-cache
 
 .PHONY: deploy-operator
 deploy-operator: build-operator
@@ -187,7 +187,7 @@ HAS_KUBECTL := $(shell command -v kubectl;)
 .PHONY: bootstrap
 bootstrap: vendor
 ifndef HAS_GOLANGCI_LINT
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.60.3
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.64.3
 endif
 ifndef HAS_MOCKGEN
 	go install github.com/golang/mock/mockgen@v1.6.0
