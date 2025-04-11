@@ -376,7 +376,7 @@ func fileExists(filePath string) (bool, error) {
 func (cli *PreparePipelinesStepImplementation) buildTasks(envName string, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) (map[string]v1.Task, error) {
 	var errs []error
 	taskMap := make(map[string]v1.Task)
-	hash := getJobNameHash(pipelineInfo)
+	hash := internal.GetJobNameHash(pipelineInfo)
 	for _, task := range tasks {
 		originalTaskName := task.Name
 		task.ObjectMeta.Name = fmt.Sprintf("radix-task-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalTaskName), timestamp, hash)
@@ -413,10 +413,6 @@ func (cli *PreparePipelinesStepImplementation) buildTasks(envName string, tasks 
 		log.Debug().Msgf("created the task %s", task.Name)
 	}
 	return taskMap, errors.Join(errs...)
-}
-
-func getJobNameHash(pipelineInfo *model.PipelineInfo) string {
-	return strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
 }
 
 func sanitizeAzureSkipContainersAnnotation(task *v1.Task) error {
@@ -547,7 +543,7 @@ func (cli *PreparePipelinesStepImplementation) createPipeline(envName string, pi
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
-	hash := getJobNameHash(pipelineInfo)
+	hash := internal.GetJobNameHash(pipelineInfo)
 	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalPipelineName), timestamp, hash)
 	pipeline.ObjectMeta.Name = pipelineName
 	pipeline.ObjectMeta.Labels = labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName)
