@@ -2,7 +2,6 @@ package runpipeline_test
 
 import (
 	"context"
-	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -12,7 +11,6 @@ import (
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/test"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -25,6 +23,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
+	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	tektonfake "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,7 +59,6 @@ func (s *stepTestSuite) SetupSubTest() {
 
 func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 	mockCtrl := gomock.NewController(s.T())
-	_, rxClient, tknClient := test.Setup()
 	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
@@ -80,12 +78,12 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 		RadixApplication:  raBuilder.BuildRA(),
 	}
 	ctx := context.Background()
-	_, err := rxClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 
-	_, err = tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   internalTest.RadixPipelineJobName,
 			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1),
@@ -97,7 +95,7 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 	err = step.Run(ctx, pipelineInfo)
 	s.Require().NoError(err)
 
-	l, err := tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
+	l, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
 	s.Require().NoError(err)
 	s.Assert().NotEmpty(l.Items)
 
@@ -413,7 +411,6 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyIdentity() {
 		s.T().Run(ts.name, func(t *testing.T) {
 			s.SetupTest()
 			mockCtrl := gomock.NewController(t)
-			_, rxClient, tknClient := test.Setup()
 			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 
@@ -427,7 +424,7 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyIdentity() {
 				raBuilder = raBuilder.WithSubPipeline(utils.NewSubPipelineBuilder().WithIdentity(ts.buildIdentity))
 			}
 			rr := rrBuilder.BuildRR()
-			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
 			pipelineInfo := &model.PipelineInfo{
@@ -447,15 +444,17 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyIdentity() {
 			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
 			step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 
-			_, err = tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
-				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1)},
-				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
+			appNamespace := pipelineInfo.GetAppNamespace()
+			_, err = s.tknClient.TektonV1().Pipelines(appNamespace).Create(context.TODO(), &pipelinev1.Pipeline{
+				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Namespace: appNamespace,
+					Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1)},
+				Spec: ts.pipelineSpec}, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
 			err = step.Run(context.Background(), pipelineInfo)
 			s.Require().NoError(err)
 
-			pipelineRunList, err := tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
+			pipelineRunList, err := s.tknClient.TektonV1().PipelineRuns(appNamespace).List(context.TODO(), metav1.ListOptions{})
 			s.Require().NoError(err)
 			assert.Len(t, pipelineRunList.Items, 1, "mismatching pipelineRun count")
 			pr := pipelineRunList.Items[0]

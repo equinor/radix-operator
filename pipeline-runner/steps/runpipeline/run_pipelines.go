@@ -33,8 +33,9 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 		return nil
 	}
 	namespace := utils.GetAppNamespace(step.GetAppName())
+	labelSelector := fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, pipelineInfo.GetRadixPipelineJobName())
 	pipelineList, err := step.GetTektonClient().TektonV1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, pipelineInfo.GetRadixPipelineJobName()),
+		LabelSelector: labelSelector,
 	})
 	if err != nil {
 		return err

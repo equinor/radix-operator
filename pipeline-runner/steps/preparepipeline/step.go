@@ -15,7 +15,6 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
-	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
@@ -46,28 +45,17 @@ import (
 type PreparePipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
-	jobWaiter internalwait.JobCompletionWaiter
 }
 
 // NewPreparePipelinesStep Constructor.
-// jobWaiter is optional and will be set by Init(...) function if nil.
-func NewPreparePipelinesStep(jobWaiter internalwait.JobCompletionWaiter) model.Step {
+func NewPreparePipelinesStep() model.Step {
 	return &PreparePipelinesStepImplementation{
-		stepType:  pipeline.PreparePipelinesStep,
-		jobWaiter: jobWaiter,
+		stepType: pipeline.PreparePipelinesStep,
 	}
 }
 
 func (cli *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	cli.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
-	if cli.jobWaiter == nil {
-		cli.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeClient)
-	}
-}
-
-// ImplementationForType Override of default step method
-func (cli *PreparePipelinesStepImplementation) ImplementationForType() pipeline.StepType {
-	return cli.stepType
 }
 
 // SucceededMsg Override of default step method
