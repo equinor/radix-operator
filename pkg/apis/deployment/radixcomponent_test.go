@@ -2085,6 +2085,9 @@ func Test_Test_GetRadixComponentsForEnv_NetworkIngressPublicConfig(t *testing.T)
 			cfg.ProxyBodySize = pointers.Ptr(radixv1.NginxSizeFormat("20m"))
 		},
 		func(cfg *radixv1.IngressPublic) {
+			cfg.ProxyBufferSize = pointers.Ptr(radixv1.NginxSizeFormat("201"))
+		},
+		func(cfg *radixv1.IngressPublic) {
 			cfg.ProxyReadTimeout = pointers.Ptr[uint](100)
 		},
 		func(cfg *radixv1.IngressPublic) {
@@ -2097,6 +2100,9 @@ func Test_Test_GetRadixComponentsForEnv_NetworkIngressPublicConfig(t *testing.T)
 		},
 		func(cfg *radixv1.IngressPublic) {
 			cfg.ProxyBodySize = pointers.Ptr(radixv1.NginxSizeFormat("10m"))
+		},
+		func(cfg *radixv1.IngressPublic) {
+			cfg.ProxyBufferSize = pointers.Ptr(radixv1.NginxSizeFormat("11m"))
 		},
 		func(cfg *radixv1.IngressPublic) {
 			cfg.ProxyReadTimeout = pointers.Ptr[uint](10)

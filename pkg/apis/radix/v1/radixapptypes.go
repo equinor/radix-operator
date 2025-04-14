@@ -1708,6 +1708,14 @@ type IngressPublic struct {
 	//
 	// +optional
 	ProxyBodySize *NginxSizeFormat `json:"proxyBodySize,omitempty"`
+
+	// Sets the size of the buffer used for reading the first part of the response received from the proxied server.
+	// The size must be large enough to hold the response headers.
+	// Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
+	// If the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.
+	//
+	// +optional
+	ProxyBufferSize *NginxSizeFormat `json:"proxyBufferSize,omitempty"`
 }
 
 // RadixCommonComponent defines a common component interface for Radix components
