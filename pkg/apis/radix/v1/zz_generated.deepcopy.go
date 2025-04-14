@@ -582,6 +582,11 @@ func (in *IngressPublic) DeepCopyInto(out *IngressPublic) {
 		*out = new(NginxSizeFormat)
 		**out = **in
 	}
+	if in.ProxyBufferSize != nil {
+		in, out := &in.ProxyBufferSize, &out.ProxyBufferSize
+		*out = new(NginxSizeFormat)
+		**out = **in
+	}
 	return
 }
 

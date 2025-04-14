@@ -211,16 +211,22 @@ func Test_PublicIngressConfigAnnotationProvider(t *testing.T) {
 			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{ProxyBodySize: pointers.Ptr(radixv1.NginxSizeFormat("789k"))}}}},
 			expectedAnnotation: map[string]string{"nginx.ingress.kubernetes.io/proxy-body-size": "789k"},
 		},
+		"proxyBufferSize annotation set": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{ProxyBufferSize: pointers.Ptr(radixv1.NginxSizeFormat("123k"))}}}},
+			expectedAnnotation: map[string]string{"nginx.ingress.kubernetes.io/proxy-buffer-size": "123k"},
+		},
 		"all fields set": {
 			component: &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{
 				ProxyReadTimeout: pointers.Ptr[uint](123),
 				ProxySendTimeout: pointers.Ptr[uint](456),
 				ProxyBodySize:    pointers.Ptr(radixv1.NginxSizeFormat("789k")),
+				ProxyBufferSize:  pointers.Ptr(radixv1.NginxSizeFormat("123k")),
 			}}}},
 			expectedAnnotation: map[string]string{
 				"nginx.ingress.kubernetes.io/proxy-read-timeout": "123",
 				"nginx.ingress.kubernetes.io/proxy-send-timeout": "456",
 				"nginx.ingress.kubernetes.io/proxy-body-size":    "789k",
+				"nginx.ingress.kubernetes.io/proxy-buffer-size":  "123k",
 			},
 		},
 	}
