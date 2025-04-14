@@ -26,8 +26,8 @@ SOFTWARE.
 package versioned
 
 import (
-	"fmt"
-	"net/http"
+	fmt "fmt"
+	http "net/http"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
 	discovery "k8s.io/client-go/discovery"

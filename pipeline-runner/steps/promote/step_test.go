@@ -153,7 +153,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), scenario.appName, metav1.GetOptions{})
 
 			cli := promote.NewPromoteStep()
-			cli.Init(context.Background(), kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
+			cli.Init(context.Background(), kubeclient, radixclient, kube, &monitoring.Clientset{}, nil, rr)
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
@@ -312,7 +312,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
 	cli := promote.NewPromoteStep()
-	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -437,7 +437,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
 	cli := promote.NewPromoteStep()
-	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -531,7 +531,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
 	cli := promote.NewPromoteStep()
-	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -648,7 +648,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
 	cli := promote.NewPromoteStep()
-	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -709,7 +709,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
 	cli := promote.NewPromoteStep()
-	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -828,7 +828,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 			ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.Background(), anyApp, metav1.GetOptions{})
 
 			cli := promote.NewPromoteStep()
-			cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+			cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
@@ -890,7 +890,7 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyAppName)).Get(context.Background(), anyAppName, metav1.GetOptions{})
 
 	cli := promote.NewPromoteStep()
-	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -967,7 +967,7 @@ func TestPromote_Runtime_KeepFromSourceRD(t *testing.T) {
 	require.NoError(t, err)
 
 	cli := promote.NewPromoteStep()
-	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr.BuildRR())
+	cli.Init(context.Background(), kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, nil, rr.BuildRR())
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{

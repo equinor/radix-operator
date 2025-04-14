@@ -26,7 +26,7 @@ SOFTWARE.
 package externalversions
 
 import (
-	"fmt"
+	fmt "fmt"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

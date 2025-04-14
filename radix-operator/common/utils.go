@@ -5,13 +5,7 @@ import (
 	"sync"
 
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	radixscheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
-	"github.com/rs/zerolog"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes/scheme"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -55,19 +49,6 @@ func NamePartitionKey(obj string) (lockKey string, identifier string, err error)
 
 // GetOwner Function pointer to pass to retrieve owner
 type GetOwner func(context.Context, radixclient.Interface, string, string) (interface{}, error)
-
-// NewEventRecorder Creates an event recorder for controller
-func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterface, logger zerolog.Logger) record.EventRecorder {
-	if err := radixscheme.AddToScheme(scheme.Scheme); err != nil {
-		panic(err)
-	}
-	logger.Info().Msg("Creating event broadcaster")
-	eventBroadcaster := record.NewBroadcaster()
-	// TODO: Should we skip setting StartLogging? This generates many duplicate records in the log
-	eventBroadcaster.StartLogging(func(format string, args ...interface{}) { logger.Info().Msgf(format, args...) })
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: events})
-	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
-}
 
 func NewRateLimitedWorkQueue(ctx context.Context, name string) workqueue.TypedRateLimitingInterface[string] {
 	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[string](), workqueue.TypedRateLimitingQueueConfig[string]{Name: name})

@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	internaltest "github.com/equinor/radix-operator/pipeline-runner/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/deploy"
+	internaltest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -62,7 +62,7 @@ func (s *deployTestSuite) Test_EmptyTargetEnvironments_SkipDeployment() {
 	radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
 	radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	cli := deploy.NewDeployStep(namespaceWatcher, radixDeploymentWatcher)
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
 	err := cli.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 }
@@ -164,7 +164,7 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 	radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
 	radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	cli := deploy.NewDeployStep(namespaceWatcher, radixDeploymentWatcher)
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
 	err := cli.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 
@@ -239,7 +239,7 @@ func (s *deployTestSuite) Test_RadixConfigHashAnnotation() {
 	radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
 	radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	cli := deploy.NewDeployStep(namespaceWatcher, radixDeploymentWatcher)
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		RadixApplication:   ra,
@@ -274,7 +274,7 @@ func (s *deployTestSuite) Test_RadixBuildSecretHashAnnotation_BuildSecretSet() {
 	radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
 	radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	cli := deploy.NewDeployStep(namespaceWatcher, radixDeploymentWatcher)
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		RadixApplication:   ra,
@@ -308,7 +308,7 @@ func (s *deployTestSuite) Test_RadixBuildSecretHashAnnotation_BuildSecretNot() {
 	radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
 	radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	cli := deploy.NewDeployStep(namespaceWatcher, radixDeploymentWatcher)
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		RadixApplication:   ra,
@@ -342,7 +342,7 @@ func (s *deployTestSuite) TestDeploy_RadixCommitLabel_FromGitCommitHashIfSet() {
 	radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
 	radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	cli := deploy.NewDeployStep(namespaceWatcher, radixDeploymentWatcher)
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	const commitID = "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
 
@@ -385,7 +385,7 @@ func (s *deployTestSuite) TestDeploy_RadixCommitLabel_FromCommtIdIfGitCommitHash
 	radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
 	radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	cli := deploy.NewDeployStep(namespaceWatcher, radixDeploymentWatcher)
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 	const commitID = "222ca8595c5283a9d0f17a623b9255a0d9866a2e"
 
@@ -442,7 +442,7 @@ func (s *deployTestSuite) TestDeploy_WaitActiveDeployment() {
 			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
 			radixDeploymentWatcher.EXPECT().WaitForActive(context.Background(), namespace, radixDeploymentNameMatcher{envName: envName, imageTag: anyImageTag}).Return(ts.watcherError)
 			cli := deploy.NewDeployStep(namespaceWatcher, radixDeploymentWatcher)
-			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, rr)
+			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, nil, rr)
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{

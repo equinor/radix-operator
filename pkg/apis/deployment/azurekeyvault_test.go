@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/stretchr/testify/assert"

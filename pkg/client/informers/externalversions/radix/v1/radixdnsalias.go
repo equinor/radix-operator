@@ -26,13 +26,13 @@ SOFTWARE.
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	apisradixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -43,7 +43,7 @@ import (
 // RadixDNSAliases.
 type RadixDNSAliasInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.RadixDNSAliasLister
+	Lister() radixv1.RadixDNSAliasLister
 }
 
 type radixDNSAliasInformer struct {
@@ -77,7 +77,7 @@ func NewFilteredRadixDNSAliasInformer(client versioned.Interface, resyncPeriod t
 				return client.RadixV1().RadixDNSAliases().Watch(context.TODO(), options)
 			},
 		},
-		&radixv1.RadixDNSAlias{},
+		&apisradixv1.RadixDNSAlias{},
 		resyncPeriod,
 		indexers,
 	)
@@ -88,9 +88,9 @@ func (f *radixDNSAliasInformer) defaultInformer(client versioned.Interface, resy
 }
 
 func (f *radixDNSAliasInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&radixv1.RadixDNSAlias{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisradixv1.RadixDNSAlias{}, f.defaultInformer)
 }
 
-func (f *radixDNSAliasInformer) Lister() v1.RadixDNSAliasLister {
-	return v1.NewRadixDNSAliasLister(f.Informer().GetIndexer())
+func (f *radixDNSAliasInformer) Lister() radixv1.RadixDNSAliasLister {
+	return radixv1.NewRadixDNSAliasLister(f.Informer().GetIndexer())
 }

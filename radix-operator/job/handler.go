@@ -61,13 +61,13 @@ func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClien
 }
 
 // Sync Is created on sync of resource
-func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
-	radixJob, err := t.radixclient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+func (t *handler) Sync(ctx context.Context, namespace, jobName string, eventRecorder record.EventRecorder) error {
+	radixJob, err := t.radixclient.RadixV1().RadixJobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
 		// The Job resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			log.Ctx(ctx).Info().Msgf("RadixJob %s/%s in work queue no longer exists", namespace, name)
+			log.Ctx(ctx).Info().Msgf("RadixJob %s/%s in work queue no longer exists", namespace, jobName)
 			return nil
 		}
 
@@ -78,9 +78,8 @@ func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	syncJob := radixJob.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync job %s", syncJob.Name)
 
-	job := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, syncJob, t.config)
-	err = job.OnSync(ctx)
-	if err != nil {
+	syncer := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, syncJob, t.config)
+	if err = syncer.OnSync(ctx); err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		// Put back on queue
 		return err

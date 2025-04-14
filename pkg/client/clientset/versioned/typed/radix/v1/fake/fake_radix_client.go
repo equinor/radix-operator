@@ -36,35 +36,35 @@ type FakeRadixV1 struct {
 }
 
 func (c *FakeRadixV1) RadixAlerts(namespace string) v1.RadixAlertInterface {
-	return &FakeRadixAlerts{c, namespace}
+	return newFakeRadixAlerts(c, namespace)
 }
 
 func (c *FakeRadixV1) RadixApplications(namespace string) v1.RadixApplicationInterface {
-	return &FakeRadixApplications{c, namespace}
+	return newFakeRadixApplications(c, namespace)
 }
 
 func (c *FakeRadixV1) RadixBatches(namespace string) v1.RadixBatchInterface {
-	return &FakeRadixBatches{c, namespace}
+	return newFakeRadixBatches(c, namespace)
 }
 
 func (c *FakeRadixV1) RadixDNSAliases() v1.RadixDNSAliasInterface {
-	return &FakeRadixDNSAliases{c}
+	return newFakeRadixDNSAliases(c)
 }
 
 func (c *FakeRadixV1) RadixDeployments(namespace string) v1.RadixDeploymentInterface {
-	return &FakeRadixDeployments{c, namespace}
+	return newFakeRadixDeployments(c, namespace)
 }
 
 func (c *FakeRadixV1) RadixEnvironments() v1.RadixEnvironmentInterface {
-	return &FakeRadixEnvironments{c}
+	return newFakeRadixEnvironments(c)
 }
 
 func (c *FakeRadixV1) RadixJobs(namespace string) v1.RadixJobInterface {
-	return &FakeRadixJobs{c, namespace}
+	return newFakeRadixJobs(c, namespace)
 }
 
 func (c *FakeRadixV1) RadixRegistrations() v1.RadixRegistrationInterface {
-	return &FakeRadixRegistrations{c}
+	return newFakeRadixRegistrations(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate
