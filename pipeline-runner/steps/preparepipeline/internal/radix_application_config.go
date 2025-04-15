@@ -1,4 +1,4 @@
-package preparepipeline
+package internal
 
 import (
 	"context"

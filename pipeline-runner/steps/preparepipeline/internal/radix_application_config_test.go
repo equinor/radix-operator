@@ -1,8 +1,9 @@
-package preparepipeline
+package internal_test
 
 import (
 	"context"
 	"errors"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -14,7 +15,7 @@ import (
 
 const (
 	sampleAppRadixConfigFileName = "/radixconfig.yaml"
-	sampleAppWorkspace           = "../internal/test/testdata"
+	sampleAppWorkspace           = "../../internal/test/testdata"
 )
 
 func Test_LoadRadixApplication(t *testing.T) {
@@ -53,7 +54,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 					GitWorkspace:    sampleAppWorkspace,
 				},
 			}
-			_, err = LoadRadixAppConfig(rxClient, pipelineInfo)
+			_, err = internal.LoadRadixAppConfig(rxClient, pipelineInfo)
 			if ts.expectedError == nil {
 				require.NoError(t, err)
 			} else {

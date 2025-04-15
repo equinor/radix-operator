@@ -1,7 +1,10 @@
-package preparepipeline
+package preparepipeline_test
 
 import (
 	"context"
+	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/golang/mock/gomock"
 	"strings"
 	"testing"
 
@@ -11,10 +14,10 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -31,7 +34,12 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
-func (s *stepTestSuite) Test_RunTestSuite(t *testing.T) {
+const (
+	sampleAppRadixConfigFileName = "/radixconfig.yaml"
+	sampleAppWorkspace           = "../internal/test/testdata"
+)
+
+func Test_RunTestSuite(t *testing.T) {
 	suite.Run(t, new(stepTestSuite))
 }
 
@@ -56,348 +64,6 @@ func (s *stepTestSuite) SetupTest() {
 
 func (s *stepTestSuite) SetupSubTest() {
 	s.SetupTest()
-}
-
-func (s *stepTestSuite) Test_ComponentHasChangedSource() {
-	const (
-		envDev1 = "dev1"
-		envDev2 = "dev2"
-	)
-	var (
-		testScenarios = []struct {
-			description          string
-			changedFolders       []string
-			sourceFolder         string
-			checkChangesEnvName  string
-			envName1SourceFolder *string
-			envName1Enabled      *bool
-			envName1Image        string
-			expectedResult       bool
-		}{
-			{
-				description:         "sourceFolder is dot",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        ".",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "several dots and slashes",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "././",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "no changes in the sourceFolder folder with trailing slash",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "nonexistingdir/",
-				checkChangesEnvName: envDev1,
-				expectedResult:      false,
-			},
-			{
-				description:         "no changes in the sourceFolder folder without slashes",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "nonexistingdir",
-				checkChangesEnvName: envDev1,
-				expectedResult:      false,
-			},
-			{
-				description:         "real source dir with trailing slash",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "src/",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "sourceFolder has surrounding slashes and leading dot",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "./src/",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "real source dir without trailing slash",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "./src",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "changes in the sourceFolder folder subfolder",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "src",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "changes in the sourceFolder multiple element path subfolder",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "src/subdir",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "changes in the sourceFolder multiple element path subfolder with trailing slash",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "src/subdir/",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "no changes in the sourceFolder multiple element path subfolder",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "src/subdir/water",
-				checkChangesEnvName: envDev1,
-				expectedResult:      false,
-			},
-			{
-				description:         "changes in the sourceFolder multiple element path subfolder with trailing slash",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "src/subdir/water/",
-				checkChangesEnvName: envDev1,
-				expectedResult:      false,
-			},
-			{
-				description:         "sourceFolder has name of changed folder",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "notebooks",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "empty sourceFolder is affected by any changes",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        "",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "empty sourceFolder is affected by any changes",
-				changedFolders:      []string{"src/some/subdir"},
-				sourceFolder:        "",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "sourceFolder sub-folder in the root",
-				changedFolders:      []string{".", "app1"},
-				sourceFolder:        "./app1",
-				checkChangesEnvName: envDev1,
-				expectedResult:      true,
-			},
-			{
-				description:         "sourceFolder sub-folder in the root, no changed folders",
-				changedFolders:      []string{},
-				sourceFolder:        ".",
-				checkChangesEnvName: envDev1,
-				expectedResult:      false,
-			},
-			{
-				description:         "sourceFolder sub-folder in empty, no changed folders",
-				changedFolders:      []string{},
-				sourceFolder:        "",
-				checkChangesEnvName: envDev1,
-				expectedResult:      false,
-			},
-			{
-				description:         "sourceFolder sub-folder in slash, no changed folders",
-				changedFolders:      []string{},
-				sourceFolder:        "/",
-				checkChangesEnvName: envDev1,
-				expectedResult:      false,
-			},
-			{
-				description:         "sourceFolder sub-folder in slash with dot, no changed folders",
-				changedFolders:      []string{},
-				sourceFolder:        "/.",
-				checkChangesEnvName: envDev1,
-				expectedResult:      false,
-			},
-			{
-				description:          "sourceFolder is dot, env sourceFolder is empty",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         ".",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr(""),
-				expectedResult:       true,
-			},
-			{
-				description:         "sourceFolder is dot, env sourceFolder has image",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        ".",
-				checkChangesEnvName: envDev1,
-				envName1Image:       "some-image",
-				expectedResult:      false,
-			},
-			{
-				description:         "sourceFolder is dot, disabled env sourceFolder has image",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        ".",
-				checkChangesEnvName: envDev1,
-				envName1Enabled:     pointers.Ptr(false),
-				envName1Image:       "some-image",
-				expectedResult:      false,
-			},
-			{
-				description:         "sourceFolder is dot, enabled env sourceFolder has image",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        ".",
-				checkChangesEnvName: envDev1,
-				envName1Enabled:     pointers.Ptr(true),
-				envName1Image:       "some-image",
-				expectedResult:      false,
-			},
-			{
-				description:         "sourceFolder is dot, env sourceFolder has no image",
-				changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:        ".",
-				checkChangesEnvName: envDev2,
-				envName1Image:       "some-image",
-				expectedResult:      true,
-			},
-			{
-				description:          "sourceFolder is not changed, env sourceFolder is changed",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         "noneexistingdir",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr("src"),
-				expectedResult:       true,
-			},
-			{
-				description:          "sourceFolder is not changed, enabled env sourceFolder is changed",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         "noneexistingdir",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr("src"),
-				envName1Enabled:      pointers.Ptr(true),
-				expectedResult:       true,
-			},
-			{
-				description:          "sourceFolder is not changed, disabled env sourceFolder is changed",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         "noneexistingdir",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr("src"),
-				envName1Enabled:      pointers.Ptr(false),
-				expectedResult:       false,
-			},
-			{
-				description:          "sourceFolder is not changed, disabled env sourceFolder is changed, checking another env",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         "noneexistingdir",
-				checkChangesEnvName:  envDev2,
-				envName1SourceFolder: pointers.Ptr("src"),
-				envName1Enabled:      pointers.Ptr(false),
-				expectedResult:       false,
-			},
-			{
-				description:          "sourceFolder is src, env sourceFolder is dot",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         "src/",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr("."),
-				expectedResult:       true,
-			},
-			{
-				description:          "sourceFolder is dot, env sourceFolder is src",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         ".",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr("src/"),
-				expectedResult:       true,
-			},
-			{
-				description:          "sourceFolder is dot, no env sourceFolder",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         ".",
-				checkChangesEnvName:  envDev2,
-				envName1SourceFolder: pointers.Ptr("src/"),
-				expectedResult:       true,
-			},
-			{
-				description:          "no changes in the sourceFolder folder, env sourceFolder is empty",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         "nonexistingdir",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr(""),
-				expectedResult:       false,
-			},
-			{
-				description:          "changes in the sourceFolder folder, env sourceFolder changed",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         ".",
-				checkChangesEnvName:  envDev2,
-				envName1SourceFolder: pointers.Ptr("nonexistingdir"),
-				expectedResult:       true,
-			},
-			{
-				description:          "changes in the sourceFolder folder, disabled env sourceFolder not changed",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         ".",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr("nonexistingdir"),
-				envName1Enabled:      pointers.Ptr(false),
-				expectedResult:       false,
-			},
-			{
-				description:          "no changes in the sourceFolder folder, env sourceFolder is changed",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         "nonexistingdir",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr("src"),
-				expectedResult:       true,
-			},
-			{
-				description:          "no changes in the sourceFolder folder, env sourceFolder is not changed",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         "nonexistingdir",
-				checkChangesEnvName:  envDev2,
-				envName1SourceFolder: pointers.Ptr("src"),
-				expectedResult:       false,
-			},
-			{
-				description:          "changes in the sourceFolder folder subfolder, env sourceFolder is same folder",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         "src",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr("src"),
-				expectedResult:       true,
-			},
-			{
-				description:          "sourceFolder is dot, env sourceFolder is disabled",
-				changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-				sourceFolder:         ".",
-				checkChangesEnvName:  envDev1,
-				envName1SourceFolder: pointers.Ptr(""),
-				expectedResult:       true,
-			},
-		}
-	)
-
-	var applicationComponent v1.RadixComponent
-
-	for _, testScenario := range testScenarios {
-		s.T().Run(testScenario.description, func(t *testing.T) {
-			environmentConfigBuilder := utils.AnEnvironmentConfig().WithEnvironment(envDev1).WithImage(testScenario.envName1Image)
-			if testScenario.envName1SourceFolder != nil {
-				environmentConfigBuilder.WithSourceFolder(*testScenario.envName1SourceFolder)
-			}
-			if testScenario.envName1Enabled != nil {
-				environmentConfigBuilder.WithEnabled(*testScenario.envName1Enabled)
-			}
-			applicationComponent =
-				utils.AnApplicationComponent().
-					WithName("client-component-1").
-					WithEnvironmentConfigs(
-						environmentConfigBuilder,
-					).
-					WithSourceFolder(testScenario.sourceFolder).
-					BuildComponent()
-			sourceHasChanged := componentHasChangedSource(testScenario.checkChangesEnvName, &applicationComponent, testScenario.changedFolders)
-			assert.Equal(t, testScenario.expectedResult, sourceHasChanged)
-		})
-	}
 }
 
 func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
@@ -427,7 +93,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 		fields         fields
 		args           args
 		wantErr        func(t *testing.T, err error)
-		assertScenario func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string)
+		assertScenario func(t *testing.T, step model.Step, pipelineName string)
 	}{
 		{
 			name: "one default task",
@@ -451,7 +117,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string) {
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
 				pipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
 				require.NoError(t, err)
 				require.Len(t, pipeline.Spec.Tasks, 1)
@@ -507,7 +173,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
-			assertScenario: func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string) {
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
 				pipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
 				require.NoError(t, err)
 				require.Len(t, pipeline.Spec.Tasks, 1)
@@ -563,7 +229,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			wantErr: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
-			assertScenario: func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string) {
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
 				pipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
 				require.NoError(t, err)
 				require.Len(t, pipeline.Spec.Tasks, 1)
@@ -619,7 +285,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string) {
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
 				pipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
 				require.NoError(t, err)
 				require.Len(t, pipeline.Spec.Tasks, 1)
@@ -668,7 +334,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string) {
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
 				pipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
 				require.NoError(t, err)
 				require.Len(t, pipeline.Spec.Tasks, 1)
@@ -711,7 +377,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string) {
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
 				pipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
 				require.NoError(t, err)
 				require.Len(t, pipeline.Spec.Tasks, 1)
@@ -751,7 +417,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string) {
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
 				pipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
 				require.NoError(t, err)
 				require.Len(t, pipeline.Spec.Tasks, 1)
@@ -786,7 +452,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string) {
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
 				pipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
 				require.NoError(t, err)
 				require.Len(t, pipeline.Spec.Tasks, 1)
@@ -822,7 +488,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			wantErr: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, validation.ErrSkipStepNotFound)
 			},
-			assertScenario: func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string) {},
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {},
 		},
 		{
 			name: "Test illegal azure WI label value in task",
@@ -843,7 +509,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			wantErr: func(t *testing.T, err error) {
 				assert.ErrorIs(t, err, validation.ErrInvalidTaskLabelValue)
 			},
-			assertScenario: func(t *testing.T, step *PreparePipelinesStepImplementation, pipelineName string) {},
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {},
 		},
 	}
 	for _, scenario := range scenarios {
@@ -854,43 +520,137 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			}
 			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+			require.NoError(t, err, "Failed to create radix registration. Error %v", err)
+			radixPipelineType := v1.Deploy
+			pipelineType, err := pipeline.GetPipelineFromName(string(radixPipelineType))
+			require.NoError(t, err, "Failed to get pipeline type. Error %v", err)
 			pipelineInfo := &model.PipelineInfo{
+				Definition: pipelineType,
 				PipelineArguments: model.PipelineArguments{
-					AppName:       appName,
-					ImageTag:      radixImageTag,
-					JobName:       radixPipelineJobName,
-					Branch:        branchMain,
-					PipelineType:  string(v1.Deploy),
-					ToEnvironment: internalTest.Env1,
-					DNSConfig:     &dnsalias.DNSConfig{},
+					AppName:         appName,
+					ImageTag:        radixImageTag,
+					JobName:         radixPipelineJobName,
+					Branch:          branchMain,
+					PipelineType:    string(radixPipelineType),
+					ToEnvironment:   internalTest.Env1,
+					DNSConfig:       &dnsalias.DNSConfig{},
+					RadixConfigFile: sampleAppRadixConfigFileName,
+					GitWorkspace:    sampleAppWorkspace,
 				},
 				RadixRegistration: rr,
 				RadixApplication:  applicationBuilder.BuildRA(),
 			}
-			step := &PreparePipelinesStepImplementation{
-				stepType: pipeline.PreparePipelinesStep,
-			}
+			ctrl := gomock.NewController(s.T())
+			defer ctrl.Finish()
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
+			buildContext := &model.BuildContext{}
+			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext, nil)
+			step := preparepipeline.NewPreparePipelinesStep(func(step *preparepipeline.PreparePipelinesStepImplementation) {
+				step.Builder = mockContextBuilder
+			})
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
-			step.Run(ctx, pipelineInfo)
-			//err := pipelineCtx.createPipeline(scenario.args.envName, scenario.args.pipeline, scenario.args.tasks, scenario.args.timestamp)
+			err = step.Run(ctx, pipelineInfo)
 			scenario.wantErr(t, err)
 			scenario.assertScenario(t, step, scenario.args.pipeline.ObjectMeta.Name)
 		})
 	}
 }
 
+func (s *stepTestSuite) Test_prepare_test() {
+	type fields struct {
+		radixApplicationBuilder utils.ApplicationBuilder
+		targetEnvironments      []string
+		hash                    string
+		ownerReference          *metav1.OwnerReference
+	}
+	type args struct {
+		envName   string
+		pipeline  *pipelinev1.Pipeline
+		tasks     []pipelinev1.Task
+		timestamp string
+	}
+	const (
+		appName              = "test-app"
+		envDev               = "dev"
+		branchMain           = "main"
+		radixImageTag        = "tag-123"
+		radixPipelineJobName = "pipeline-job-123"
+	)
+
+	scenarios := []struct {
+		name           string
+		fields         fields
+		args           args
+		wantErr        func(t *testing.T, err error)
+		assertScenario func(t *testing.T, step model.Step, pipelineName string)
+		RaEnvs         []v1.Environment
+	}{
+		{name: "one env",
+			RaEnvs: []v1.Environment{{
+				Name: envDev,
+				Build: v1.EnvBuild{
+					From:           "main",
+					WebhookEnabled: nil,
+				},
+			}},
+		},
+	}
+	for _, scenario := range scenarios {
+		s.T().Run(scenario.name, func(t *testing.T) {
+			rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
+			applicationBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
+				WithRadixRegistration(rrBuilder).
+				WithComponent(getComponentBuilder())
+			for _, env := range scenario.RaEnvs {
+				applicationBuilder.WithApplicationEnvironmentBuilders(utils.NewApplicationEnvironmentBuilder().WithName(env.Name).
+					WithBuildFrom(env.Build.From))
+			}
+			rr := rrBuilder.BuildRR()
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+			radixPipelineType := v1.Deploy
+			pipelineType, err := pipeline.GetPipelineFromName(string(radixPipelineType))
+			pipelineInfo := &model.PipelineInfo{
+				Definition: pipelineType,
+				PipelineArguments: model.PipelineArguments{
+					AppName:       appName,
+					ImageTag:      radixImageTag,
+					JobName:       radixPipelineJobName,
+					Branch:        branchMain,
+					PipelineType:  string(radixPipelineType),
+					ToEnvironment: internalTest.Env1,
+					DNSConfig:     &dnsalias.DNSConfig{},
+				},
+				RadixRegistration: rr,
+				RadixApplication:  applicationBuilder.BuildRA(),
+			}
+			ctrl := gomock.NewController(s.T())
+			defer ctrl.Finish()
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
+			buildContext := &model.BuildContext{}
+			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext).AnyTimes()
+			step := preparepipeline.NewPreparePipelinesStep(func(step *preparepipeline.PreparePipelinesStepImplementation) {
+				step.Builder = mockContextBuilder
+			})
+			ctx := context.Background()
+			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
+			err = step.Run(ctx, pipelineInfo)
+			scenario.wantErr(t, err)
+		})
+	}
+}
+
 func getTestPipeline(modify func(pipeline *pipelinev1.Pipeline)) *pipelinev1.Pipeline {
-	pipeline := &pipelinev1.Pipeline{
+	pl := &pipelinev1.Pipeline{
 		ObjectMeta: metav1.ObjectMeta{Name: "pipeline1"},
 		Spec: pipelinev1.PipelineSpec{
 			Tasks: []pipelinev1.PipelineTask{},
 		},
 	}
 	if modify != nil {
-		modify(pipeline)
+		modify(pl)
 	}
-	return pipeline
+	return pl
 }
 
 func getRadixApplicationBuilder(appName, environment, buildFrom string) utils.ApplicationBuilder {

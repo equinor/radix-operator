@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
-	"regexp"
 	"sigs.k8s.io/yaml"
 	"slices"
 	"strings"
@@ -20,16 +18,13 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
+	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	ownerreferences "github.com/equinor/radix-operator/pipeline-runner/utils/owner_references"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/applicationconfig"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -41,21 +36,39 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+var privateSshFolderMode int32 = 0444
+
 // PreparePipelinesStepImplementation Step to prepare radixconfig and Tekton pipelines
 type PreparePipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
+	Builder prepareInternal.ContextBuilder
+}
+type Option func(step *PreparePipelinesStepImplementation)
+
+// WithContextBuilder is used to set the context builder for the step
+func (cli *PreparePipelinesStepImplementation) WithContextBuilder(builder prepareInternal.ContextBuilder) Option {
+	return func(step *PreparePipelinesStepImplementation) {
+		step.Builder = builder
+	}
 }
 
 // NewPreparePipelinesStep Constructor.
-func NewPreparePipelinesStep() model.Step {
-	return &PreparePipelinesStepImplementation{
+func NewPreparePipelinesStep(opt ...Option) model.Step {
+	implementation := PreparePipelinesStepImplementation{
 		stepType: pipeline.PreparePipelinesStep,
 	}
+	for _, option := range opt {
+		option(&implementation)
+	}
+	return &implementation
 }
 
 func (cli *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	cli.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
+	if cli.Builder == nil {
+		cli.Builder = prepareInternal.NewContextBuilder(kubeClient, radixClient)
+	}
 }
 
 // ImplementationForType Override of default step method
@@ -89,7 +102,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 		pipelineInfo.SourceDeploymentGitBranch = sourceDeploymentGitBranch
 	}
 
-	radixApplication, err := LoadRadixAppConfig(cli.GetRadixClient(), pipelineInfo)
+	radixApplication, err := prepareInternal.LoadRadixAppConfig(cli.GetRadixClient(), pipelineInfo)
 	if err != nil {
 		return err
 	}
@@ -109,7 +122,7 @@ func (cli *PreparePipelinesStepImplementation) Run(ctx context.Context, pipeline
 
 	log.Ctx(ctx).Info().Msgf("Pipeline type: %s", pipelineInfo.GetRadixPipelineType())
 
-	buildContext, err := cli.GetBuildContext(pipelineInfo, targetEnvironments)
+	buildContext, err := cli.Builder.GetBuildContext(pipelineInfo, targetEnvironments)
 	if err != nil {
 		return err
 	}
@@ -165,52 +178,6 @@ func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx co
 	return gitHash, gitBranch, err
 }
 
-// GetBuildContext Prepare build context
-func (cli *PreparePipelinesStepImplementation) GetBuildContext(pipelineInfo *model.PipelineInfo, targetEnvironments []string) (*model.BuildContext, error) {
-	gitHash, err := getGitHash(pipelineInfo)
-	if err != nil {
-		return nil, err
-	}
-	if err = git.ResetGitHead(pipelineInfo.GetGitWorkspace(), gitHash); err != nil {
-		return nil, err
-	}
-
-	pipelineType := pipelineInfo.GetRadixPipelineType()
-	buildContext := model.BuildContext{}
-
-	if pipelineType == radixv1.BuildDeploy || pipelineType == radixv1.Build {
-		pipelineTargetCommitHash, commitTags, err := getGitAttributes(pipelineInfo)
-		if err != nil {
-			return nil, err
-		}
-		pipelineInfo.SetGitAttributes(pipelineTargetCommitHash, commitTags)
-
-		if len(pipelineInfo.PipelineArguments.CommitID) > 0 {
-			radixConfigWasChanged, environmentsToBuild, err := cli.analyseSourceRepositoryChanges(pipelineInfo, targetEnvironments, pipelineTargetCommitHash)
-			if err != nil {
-				return nil, err
-			}
-			buildContext.ChangedRadixConfig = radixConfigWasChanged
-			buildContext.EnvironmentsToBuild = environmentsToBuild
-		} // when commit hash is not provided, build all
-	}
-	return &buildContext, nil
-}
-
-func getGitAttributes(pipelineInfo *model.PipelineInfo) (string, string, error) {
-	pipelineArgs := pipelineInfo.PipelineArguments
-	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
-	if err != nil {
-		return "", "", err
-	}
-	if err = radixvalidators.GitTagsContainIllegalChars(commitTags); err != nil {
-		return "", "", err
-	}
-	return pipelineTargetCommitHash, commitTags, nil
-}
-
-var privateSshFolderMode int32 = 0444
-
 // GetEnvironmentSubPipelinesToRun Prepare sub-pipelines for the target environments
 func (cli *PreparePipelinesStepImplementation) GetEnvironmentSubPipelinesToRun(pipelineInfo *model.PipelineInfo, targetEnvironments []string) ([]model.EnvironmentSubPipelineToRun, error) {
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
@@ -245,83 +212,6 @@ func (cli *PreparePipelinesStepImplementation) GetEnvironmentSubPipelinesToRun(p
 	}
 	log.Info().Msg("No sub-pipelines to run")
 	return nil, nil
-}
-
-func (cli *PreparePipelinesStepImplementation) analyseSourceRepositoryChanges(pipelineInfo *model.PipelineInfo, targetEnvironments []string, pipelineTargetCommitHash string) (bool, []model.EnvironmentToBuild, error) {
-	radixDeploymentCommitHashProvider := commithash.NewProvider(cli.GetKubeClient(), cli.GetRadixClient(), pipelineInfo.GetAppName(), targetEnvironments)
-	lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
-	if err != nil {
-		return false, nil, err
-	}
-
-	changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(pipelineInfo.GetGitWorkspace(),
-		pipelineInfo.GetRadixConfigBranch(),
-		pipelineInfo.GetRadixConfigFileInWorkspace(),
-		pipelineTargetCommitHash,
-		lastCommitHashesForEnvs)
-	if err != nil {
-		return false, nil, err
-	}
-
-	environmentsToBuild := cli.getEnvironmentsToBuild(pipelineInfo, changesFromGitRepository)
-	return radixConfigWasChanged, environmentsToBuild, nil
-}
-
-func (cli *PreparePipelinesStepImplementation) getEnvironmentsToBuild(pipelineInfo *model.PipelineInfo, changesFromGitRepository map[string][]string) []model.EnvironmentToBuild {
-	var environmentsToBuild []model.EnvironmentToBuild
-	for envName, changedFolders := range changesFromGitRepository {
-		var componentsWithChangedSource []string
-		for _, radixComponent := range pipelineInfo.GetRadixApplication().Spec.Components {
-			if componentHasChangedSource(envName, &radixComponent, changedFolders) {
-				componentsWithChangedSource = append(componentsWithChangedSource, radixComponent.GetName())
-			}
-		}
-		for _, radixJobComponent := range pipelineInfo.GetRadixApplication().Spec.Jobs {
-			if componentHasChangedSource(envName, &radixJobComponent, changedFolders) {
-				componentsWithChangedSource = append(componentsWithChangedSource, radixJobComponent.GetName())
-			}
-		}
-		environmentsToBuild = append(environmentsToBuild, model.EnvironmentToBuild{
-			Environment: envName,
-			Components:  componentsWithChangedSource,
-		})
-	}
-	return environmentsToBuild
-}
-
-func componentHasChangedSource(envName string, component radixv1.RadixCommonComponent, changedFolders []string) bool {
-	image := component.GetImageForEnvironment(envName)
-	if len(image) > 0 {
-		return false
-	}
-	environmentConfig := component.GetEnvironmentConfigByName(envName)
-	if !component.GetEnabledForEnvironmentConfig(environmentConfig) {
-		return false
-	}
-
-	componentSource := component.GetSourceForEnvironment(envName)
-	sourceFolder := cleanPathAndSurroundBySlashes(componentSource.Folder)
-	if path.Dir(sourceFolder) == path.Dir("/") && len(changedFolders) > 0 {
-		return true // for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
-	}
-
-	for _, folder := range changedFolders {
-		if strings.HasPrefix(cleanPathAndSurroundBySlashes(folder), sourceFolder) {
-			return true
-		}
-	}
-	return false
-}
-
-func cleanPathAndSurroundBySlashes(dir string) string {
-	if !strings.HasSuffix(dir, "/") {
-		dir = fmt.Sprintf("%s/", dir)
-	}
-	dir = fmt.Sprintf("%s/", path.Dir(dir))
-	if !strings.HasPrefix(dir, "/") {
-		return fmt.Sprintf("/%s", dir)
-	}
-	return dir
 }
 
 func (cli *PreparePipelinesStepImplementation) prepareSubPipelineForTargetEnv(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, error) {
@@ -772,72 +662,4 @@ func (cli *PreparePipelinesStepImplementation) setPipelineRunParamsFromEnvironme
 			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
 		}
 	}
-}
-
-func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
-	// getGitHash return git commit to which the user repository should be reset before parsing sub-pipelines.
-	pipelineArgs := pipelineInfo.PipelineArguments
-	pipelineType := pipelineInfo.GetRadixPipelineType()
-	if pipelineType == radixv1.ApplyConfig {
-		return "", nil
-	}
-
-	if pipelineType == radixv1.Promote {
-		sourceRdHashFromAnnotation := pipelineInfo.SourceDeploymentGitCommitHash
-		sourceDeploymentGitBranch := pipelineInfo.SourceDeploymentGitBranch
-		if sourceRdHashFromAnnotation != "" {
-			return sourceRdHashFromAnnotation, nil
-		}
-		if sourceDeploymentGitBranch == "" {
-			log.Info().Msg("source deployment has no git metadata, skipping sub-pipelines")
-			return "", nil
-		}
-		sourceRdHashFromBranchHead, err := git.GetCommitHashFromHead(pipelineInfo.GetGitWorkspace(), sourceDeploymentGitBranch)
-		if err != nil {
-			return "", nil
-		}
-		return sourceRdHashFromBranchHead, nil
-	}
-
-	if pipelineType == radixv1.Deploy {
-		pipelineJobBranch := ""
-		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineInfo.GetRadixApplication(), pipelineArgs.ToEnvironment)
-		if re != nil {
-			pipelineJobBranch = re.Build.From
-		}
-		if pipelineJobBranch == "" {
-			log.Info().Msg("deploy job with no build branch, skipping sub-pipelines.")
-			return "", nil
-		}
-		if containsRegex(pipelineJobBranch) {
-			log.Info().Msg("deploy job with build branch having regex pattern, skipping sub-pipelines.")
-			return "", nil
-		}
-		gitHash, err := git.GetCommitHashFromHead(pipelineArgs.GitWorkspace, pipelineJobBranch)
-		if err != nil {
-			return "", err
-		}
-		return gitHash, nil
-	}
-
-	if pipelineType == radixv1.BuildDeploy || pipelineType == radixv1.Build {
-		gitHash, err := git.GetCommitHash(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
-		if err != nil {
-			return "", err
-		}
-		return gitHash, nil
-	}
-	return "", fmt.Errorf("unknown pipeline type %s", pipelineType)
-}
-
-func containsRegex(value string) bool {
-	if simpleSentence := regexp.MustCompile(`^[a-zA-Z0-9\s\.\-/]+$`); simpleSentence.MatchString(value) {
-		return false
-	}
-	// Regex value that looks for typical regex special characters
-	if specialRegexChars := regexp.MustCompile(`[\[\](){}.*+?^$\\|]`); specialRegexChars.FindStringIndex(value) != nil {
-		_, err := regexp.Compile(value)
-		return err == nil
-	}
-	return false
 }
