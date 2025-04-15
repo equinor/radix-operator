@@ -544,10 +544,15 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			defer ctrl.Finish()
 			mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
 			buildContext := &model.BuildContext{}
-			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext, nil)
-			step := preparepipeline.NewPreparePipelinesStep(func(step *preparepipeline.PreparePipelinesStepImplementation) {
-				step.Builder = mockContextBuilder
-			})
+			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext).AnyTimes()
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(ctrl)
+			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, internalTest.Env1).Return(true, "tekton/pipeline.yaml", scenario.args.pipeline, scenario.args.tasks, nil).AnyTimes()
+			step := preparepipeline.NewPreparePipelinesStep(
+				func(step *preparepipeline.PreparePipelinesStepImplementation) {
+					step.Builder = mockContextBuilder
+				}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
+					step.SubPipelineReader = mockSubPipelineReader
+				})
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 			err = step.Run(ctx, pipelineInfo)
@@ -629,9 +634,14 @@ func (s *stepTestSuite) Test_prepare_test() {
 			mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
 			buildContext := &model.BuildContext{}
 			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext).AnyTimes()
-			step := preparepipeline.NewPreparePipelinesStep(func(step *preparepipeline.PreparePipelinesStepImplementation) {
-				step.Builder = mockContextBuilder
-			})
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(ctrl)
+			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, internalTest.Env1).Return(false, "", nil, nil, nil).AnyTimes()
+			step := preparepipeline.NewPreparePipelinesStep(
+				func(step *preparepipeline.PreparePipelinesStepImplementation) {
+					step.Builder = mockContextBuilder
+				}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
+					step.SubPipelineReader = mockSubPipelineReader
+				})
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 			err = step.Run(ctx, pipelineInfo)

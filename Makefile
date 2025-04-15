@@ -93,6 +93,7 @@ mocks: bootstrap
 	mockgen -source ./pipeline-runner/internal/jobs/build/interface.go -destination ./pipeline-runner/internal/jobs/build/mock/job.go -package mock
 	mockgen -source ./pipeline-runner/steps/internal/wait/pipelinerun.go -destination ./pipeline-runner/steps/internal/wait/pipelinerun_mock.go -package wait
 	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/context_builder.go -destination ./pipeline-runner/steps/preparepipeline/internal/context_builder_mock.go -package internal
+	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/subpipeline_reader.go -destination ./pipeline-runner/steps/preparepipeline/internal/subpipeline_reader_mock.go -package internal
 
 
 .PHONY: build-pipeline
