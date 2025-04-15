@@ -75,7 +75,7 @@ func GetTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication, t
 	var ignoredForWebhookEnvs []string
 	for _, env := range ra.Spec.Environments {
 		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
-			if triggeredFromWebhook && env.Build.DisableWebhook {
+			if triggeredFromWebhook && env.Build.WebhookEnabled != nil && !*env.Build.WebhookEnabled {
 				ignoredForWebhookEnvs = append(ignoredForWebhookEnvs, env.Name)
 			} else {
 				targetEnvs = append(targetEnvs, env.Name)

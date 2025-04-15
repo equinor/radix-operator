@@ -439,6 +439,11 @@ func (in *EnvBuild) DeepCopyInto(out *EnvBuild) {
 			(*out)[key] = val
 		}
 	}
+	if in.WebhookEnabled != nil {
+		in, out := &in.WebhookEnabled, &out.WebhookEnabled
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

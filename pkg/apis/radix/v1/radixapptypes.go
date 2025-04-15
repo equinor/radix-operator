@@ -190,10 +190,10 @@ type EnvBuild struct {
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
-	// DisableWebhook indicates whether the webhook should be disabled for the environment.
-	// If set to true, the webhook will not be triggered for this environment.
+	// WebhookEnabled indicates whether the webhook should be disabled for the environment.
+	// If set to false, the webhook will not be triggered for this environment. Default is true
 	// +optional
-	DisableWebhook bool `json:"disableWebhook,omitempty"`
+	WebhookEnabled *bool `json:"webhookEnabled,omitempty"`
 }
 
 // EgressConfig contains egress configuration.

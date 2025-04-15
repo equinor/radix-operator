@@ -58,6 +58,11 @@ func (cli *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeCli
 	cli.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 }
 
+// ImplementationForType Override of default step method
+func (cli *PreparePipelinesStepImplementation) ImplementationForType() pipeline.StepType {
+	return cli.stepType
+}
+
 // SucceededMsg Override of default step method
 func (cli *PreparePipelinesStepImplementation) SucceededMsg() string {
 	return fmt.Sprintf("Succeded: prepare pipelines step for application %s", cli.GetAppName())
