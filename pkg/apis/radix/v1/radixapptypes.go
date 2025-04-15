@@ -189,6 +189,11 @@ type EnvBuild struct {
 	// Defines variables that will be available in sub-pipelines
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
+
+	// DisableWebhook indicates whether the webhook should be disabled for the environment.
+	// If set to true, the webhook will not be triggered for this environment.
+	// +optional
+	DisableWebhook bool `json:"disableWebhook,omitempty"`
 }
 
 // EgressConfig contains egress configuration.

@@ -3023,6 +3023,11 @@ spec:
                         Build configuration for the environment.
                         More info: https://www.radix.equinor.com/radix-config#build-2
                       properties:
+                        disableWebhook:
+                          description: |-
+                            DisableWebhook indicates whether the webhook should be disabled for the environment.
+                            If set to true, the webhook will not be triggered for this environment.
+                          type: boolean
                         from:
                           description: Name of the Github branch to build from
                           maxLength: 255

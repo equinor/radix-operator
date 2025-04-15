@@ -103,10 +103,10 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 
 func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registration *v1.RadixRegistration) []model.Step {
 	stepImplementations := make([]model.Step, 0)
-	stepImplementations = append(stepImplementations, preparepipeline.NewPreparePipelinesStep(nil))
+	stepImplementations = append(stepImplementations, preparepipeline.NewPreparePipelinesStep())
 	stepImplementations = append(stepImplementations, applyconfig.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, build.NewBuildStep(nil))
-	stepImplementations = append(stepImplementations, runpipeline.NewRunPipelinesStep(nil))
+	stepImplementations = append(stepImplementations, runpipeline.NewRunPipelinesStep())
 	stepImplementations = append(stepImplementations, deploy.NewDeployStep(watcher.NewNamespaceWatcherImpl(cli.kubeClient), watcher.NewRadixDeploymentWatcher(cli.radixClient, time.Minute*5)))
 	stepImplementations = append(stepImplementations, deployconfig.NewDeployConfigStep(watcher.NewRadixDeploymentWatcher(cli.radixClient, time.Minute*5)))
 	stepImplementations = append(stepImplementations, promote.NewPromoteStep())
