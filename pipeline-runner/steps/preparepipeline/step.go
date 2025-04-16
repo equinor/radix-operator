@@ -37,33 +37,12 @@ import (
 type PreparePipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
-	Builder               prepareInternal.ContextBuilder
-	SubPipelineReader     prepareInternal.SubPipelineReader
-	OwnerReferenceFactory ownerreferences.OwnerReferenceFactory
-	RadixConfigReader     prepareInternal.RadixConfigReader
+	contextBuilder        prepareInternal.ContextBuilder
+	subPipelineReader     prepareInternal.SubPipelineReader
+	ownerReferenceFactory ownerreferences.OwnerReferenceFactory
+	radixConfigReader     prepareInternal.RadixConfigReader
 }
 type Option func(step *PreparePipelinesStepImplementation)
-
-// WithContextBuilder is used to set the context builder for the step
-func (step *PreparePipelinesStepImplementation) WithContextBuilder(builder prepareInternal.ContextBuilder) Option {
-	return func(step *PreparePipelinesStepImplementation) {
-		step.Builder = builder
-	}
-}
-
-// WithSubPipelineReader is used to set the sub-pipeline reader for the step
-func (step *PreparePipelinesStepImplementation) WithSubPipelineReader(subPipelineReader prepareInternal.SubPipelineReader) Option {
-	return func(step *PreparePipelinesStepImplementation) {
-		step.SubPipelineReader = subPipelineReader
-	}
-}
-
-// WithOwnerReferenceFactory is used to set the owner reference factory for the step
-func (step *PreparePipelinesStepImplementation) WithOwnerReferenceFactory(ownerReferenceFactory ownerreferences.OwnerReferenceFactory) Option {
-	return func(step *PreparePipelinesStepImplementation) {
-		step.OwnerReferenceFactory = ownerReferenceFactory
-	}
-}
 
 // NewPreparePipelinesStep Constructor.
 func NewPreparePipelinesStep(opt ...Option) model.Step {
@@ -76,19 +55,40 @@ func NewPreparePipelinesStep(opt ...Option) model.Step {
 	return &implementation
 }
 
+// WithContextBuilder is used to set the context builder for the step
+func (step *PreparePipelinesStepImplementation) WithContextBuilder(builder prepareInternal.ContextBuilder) Option {
+	return func(step *PreparePipelinesStepImplementation) {
+		step.contextBuilder = builder
+	}
+}
+
+// WithSubPipelineReader is used to set the sub-pipeline reader for the step
+func (step *PreparePipelinesStepImplementation) WithSubPipelineReader(reader prepareInternal.SubPipelineReader) Option {
+	return func(step *PreparePipelinesStepImplementation) {
+		step.subPipelineReader = reader
+	}
+}
+
+// WithOwnerReferenceFactory is used to set the owner reference factory for the step
+func (step *PreparePipelinesStepImplementation) WithOwnerReferenceFactory(factory ownerreferences.OwnerReferenceFactory) Option {
+	return func(step *PreparePipelinesStepImplementation) {
+		step.ownerReferenceFactory = factory
+	}
+}
+
 func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
-	if step.Builder == nil {
-		step.Builder = prepareInternal.NewContextBuilder(kubeClient, radixClient)
+	if step.contextBuilder == nil {
+		step.contextBuilder = prepareInternal.NewContextBuilder(kubeClient, radixClient)
 	}
-	if step.SubPipelineReader == nil {
-		step.SubPipelineReader = prepareInternal.NewSubPipelineReader()
+	if step.subPipelineReader == nil {
+		step.subPipelineReader = prepareInternal.NewSubPipelineReader()
 	}
-	if step.OwnerReferenceFactory == nil {
-		step.OwnerReferenceFactory = ownerreferences.NewOwnerReferenceFactory()
+	if step.ownerReferenceFactory == nil {
+		step.ownerReferenceFactory = ownerreferences.NewOwnerReferenceFactory()
 	}
-	if step.RadixConfigReader == nil {
-		step.RadixConfigReader = prepareInternal.NewRadixConfigReader(radixClient)
+	if step.radixConfigReader == nil {
+		step.radixConfigReader = prepareInternal.NewRadixConfigReader(radixClient)
 	}
 }
 
@@ -112,6 +112,8 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.PipelineArguments.CommitID
 	appName := step.GetAppName()
+	log.Ctx(ctx).Info().Msgf("Pipeline type: %s", pipelineInfo.GetRadixPipelineType())
+
 	logPipelineInfo(ctx, pipelineInfo.Definition.Type, appName, branch, commitID)
 
 	if pipelineInfo.IsPipelineType(radixv1.Promote) {
@@ -123,11 +125,12 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 		pipelineInfo.SourceDeploymentGitBranch = sourceDeploymentGitBranch
 	}
 
-	radixApplication, err := step.RadixConfigReader.Read(pipelineInfo)
+	radixApplication, err := step.radixConfigReader.Read(pipelineInfo)
 	if err != nil {
 		return err
 	}
 	pipelineInfo.RadixApplication = radixApplication
+
 	targetEnvironments, ignoredForWebhookEnvs, err := internal.GetPipelineTargetEnvironments(ctx, pipelineInfo)
 	if err != nil {
 		return err
@@ -141,9 +144,7 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 		log.Ctx(ctx).Info().Msgf("Following environment(s) are ignored for the webhook: %s.", strings.Join(ignoredForWebhookEnvs, ", "))
 	}
 
-	log.Ctx(ctx).Info().Msgf("Pipeline type: %s", pipelineInfo.GetRadixPipelineType())
-
-	buildContext, err := step.Builder.GetBuildContext(pipelineInfo, targetEnvironments)
+	buildContext, err := step.contextBuilder.GetBuildContext(pipelineInfo, targetEnvironments)
 	if err != nil {
 		return err
 	}
@@ -158,6 +159,70 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 		return err
 	}
 	return nil
+}
+
+// GetEnvironmentSubPipelinesToRun Prepare sub-pipelines for the target environments
+func (step *PreparePipelinesStepImplementation) GetEnvironmentSubPipelinesToRun(pipelineInfo *model.PipelineInfo, targetEnvironments []string) ([]model.EnvironmentSubPipelineToRun, error) {
+	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
+	if pipelineInfo.StopPipeline {
+		log.Info().Msg("Pipeline is stopped, skip sub-pipelines")
+		return nil, nil
+	}
+	var errs []error
+	timestamp := time.Now().Format("20060102150405")
+	for _, targetEnv := range targetEnvironments {
+		log.Debug().Msgf("create a sub-pipeline for the environment %s", targetEnv)
+		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForTargetEnv(pipelineInfo, targetEnv, timestamp)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if runSubPipeline {
+			environmentSubPipelinesToRun = append(environmentSubPipelinesToRun, model.EnvironmentSubPipelineToRun{
+				Environment:  targetEnv,
+				PipelineFile: pipelineFilePath,
+			})
+		}
+	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+	if len(environmentSubPipelinesToRun) > 0 {
+		log.Info().Msg("Run sub-pipelines:")
+		for _, subPipelineToRun := range environmentSubPipelinesToRun {
+			log.Info().Msgf("- environment %s, pipeline file %s", subPipelineToRun.Environment, subPipelineToRun.PipelineFile)
+		}
+		return environmentSubPipelinesToRun, nil
+	}
+	log.Info().Msg("No sub-pipelines to run")
+	return nil, nil
+}
+
+// GetEnvVars Gets build env vars
+func (step *PreparePipelinesStepImplementation) GetEnvVars(ra *radixv1.RadixApplication, envName string) radixv1.EnvVarsMap {
+	envVarsMap := make(radixv1.EnvVarsMap)
+	step.setPipelineRunParamsFromBuild(ra, envVarsMap)
+	step.setPipelineRunParamsFromEnvironmentBuilds(ra, envName, envVarsMap)
+	return envVarsMap
+}
+
+// SetContextBuilder is used to set the context builder for the step
+func (step *PreparePipelinesStepImplementation) SetContextBuilder(builder prepareInternal.ContextBuilder) {
+	step.contextBuilder = builder
+}
+
+// SetSubPipelineReader is used to set the sub-pipeline reader for the step
+func (step *PreparePipelinesStepImplementation) SetSubPipelineReader(reader prepareInternal.SubPipelineReader) {
+	step.subPipelineReader = reader
+}
+
+// SetOwnerReferenceFactory is used to set the owner reference factory for the step
+func (step *PreparePipelinesStepImplementation) SetOwnerReferenceFactory(factory ownerreferences.OwnerReferenceFactory) {
+	step.ownerReferenceFactory = factory
+}
+
+// SetRadixConfigReader is used to set the radix config reader for the step
+func (step *PreparePipelinesStepImplementation) SetRadixConfigReader(reader prepareInternal.RadixConfigReader) {
+	step.radixConfigReader = reader
 }
 
 func getPipelineShouldBeStopped(ctx context.Context, buildContext *model.BuildContext) (bool, string) {
@@ -199,44 +264,8 @@ func (step *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx c
 	return gitHash, gitBranch, err
 }
 
-// GetEnvironmentSubPipelinesToRun Prepare sub-pipelines for the target environments
-func (step *PreparePipelinesStepImplementation) GetEnvironmentSubPipelinesToRun(pipelineInfo *model.PipelineInfo, targetEnvironments []string) ([]model.EnvironmentSubPipelineToRun, error) {
-	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
-	if pipelineInfo.StopPipeline {
-		log.Info().Msg("Pipeline is stopped, skip sub-pipelines")
-		return nil, nil
-	}
-	var errs []error
-	timestamp := time.Now().Format("20060102150405")
-	for _, targetEnv := range targetEnvironments {
-		log.Debug().Msgf("create a sub-pipeline for the environment %s", targetEnv)
-		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForTargetEnv(pipelineInfo, targetEnv, timestamp)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if runSubPipeline {
-			environmentSubPipelinesToRun = append(environmentSubPipelinesToRun, model.EnvironmentSubPipelineToRun{
-				Environment:  targetEnv,
-				PipelineFile: pipelineFilePath,
-			})
-		}
-	}
-	if err := errors.Join(errs...); err != nil {
-		return nil, err
-	}
-	if len(environmentSubPipelinesToRun) > 0 {
-		log.Info().Msg("Run sub-pipelines:")
-		for _, subPipelineToRun := range environmentSubPipelinesToRun {
-			log.Info().Msgf("- environment %s, pipeline file %s", subPipelineToRun.Environment, subPipelineToRun.PipelineFile)
-		}
-		return environmentSubPipelinesToRun, nil
-	}
-	log.Info().Msg("No sub-pipelines to run")
-	return nil, nil
-}
-
 func (step *PreparePipelinesStepImplementation) prepareSubPipelineForTargetEnv(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, error) {
-	subPipelineExists, pipelineFilePath, pl, tasks, err := step.SubPipelineReader.ReadPipelineAndTasks(pipelineInfo, envName)
+	subPipelineExists, pipelineFilePath, pl, tasks, err := step.subPipelineReader.ReadPipelineAndTasks(pipelineInfo, envName)
 	if err != nil {
 		return false, "", err
 	}
@@ -279,7 +308,7 @@ func (step *PreparePipelinesStepImplementation) buildTasks(envName string, tasks
 		}
 
 		task.ObjectMeta.Annotations[defaults.PipelineTaskNameAnnotation] = originalTaskName
-		if ownerReference := step.OwnerReferenceFactory.Create(); ownerReference != nil {
+		if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 		}
 
@@ -394,7 +423,7 @@ func (step *PreparePipelinesStepImplementation) createPipeline(envName string, p
 		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch,
 		defaults.PipelineNameAnnotation: originalPipelineName,
 	}
-	if ownerReference := step.OwnerReferenceFactory.Create(); ownerReference != nil {
+	if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
 		pipeline.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 	}
 	err = step.createTasks(taskMap)
@@ -464,14 +493,6 @@ func pipelineTaskHasAzureIdentityClientIdParam(pipeline *v1.Pipeline, taskIndex 
 	return slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(param v1.Param) bool {
 		return param.Name == pipelineDefaults.AzureClientIdEnvironmentVariable
 	})
-}
-
-// GetEnvVars Gets build env vars
-func (step *PreparePipelinesStepImplementation) GetEnvVars(ra *radixv1.RadixApplication, envName string) radixv1.EnvVarsMap {
-	envVarsMap := make(radixv1.EnvVarsMap)
-	step.setPipelineRunParamsFromBuild(ra, envVarsMap)
-	step.setPipelineRunParamsFromEnvironmentBuilds(ra, envName, envVarsMap)
-	return envVarsMap
 }
 
 func (step *PreparePipelinesStepImplementation) setPipelineRunParamsFromBuild(ra *radixv1.RadixApplication, envVarsMap radixv1.EnvVarsMap) {

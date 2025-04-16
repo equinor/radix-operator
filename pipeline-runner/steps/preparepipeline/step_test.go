@@ -555,7 +555,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext, nil).AnyTimes()
 			step := createMockedStep(ctrl, ts, pipelineInfo, buildContext, true, pl, tasks,
 				func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.Builder = mockContextBuilder
+					step.SetContextBuilder(mockContextBuilder)
 				})
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
@@ -689,10 +689,10 @@ func (s *stepTestSuite) Test_prepare_test() {
 			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(ra, nil).AnyTimes()
 			step := createMockedStep(ctrl, ts.testScenario, pipelineInfo, buildContext, false, nil, nil,
 				func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.Builder = mockContextBuilder
+					step.SetContextBuilder(mockContextBuilder)
 				},
 				func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.RadixConfigReader = mockRadixConfigReader
+					step.SetRadixConfigReader(mockRadixConfigReader)
 				})
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
@@ -722,9 +722,9 @@ func createMockedStep(ctrl *gomock.Controller, scenario testScenario, pipelineIn
 	mockOwnerReferenceFactory.EXPECT().Create().Return(scenario.fields.ownerReference).AnyTimes()
 	options := []preparepipeline.Option{
 		func(step *preparepipeline.PreparePipelinesStepImplementation) {
-			step.SubPipelineReader = mockSubPipelineReader
+			step.SetSubPipelineReader(mockSubPipelineReader)
 		}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
-			step.OwnerReferenceFactory = mockOwnerReferenceFactory
+			step.SetOwnerReferenceFactory(mockOwnerReferenceFactory)
 		}}
 	for _, o := range opt {
 		options = append(options, o)
