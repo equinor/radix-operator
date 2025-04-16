@@ -2,6 +2,7 @@ package preparepipeline_test
 
 import (
 	"context"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/golang/mock/gomock"
@@ -66,35 +67,39 @@ func (s *stepTestSuite) SetupSubTest() {
 	s.SetupTest()
 }
 
-func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
-	type fields struct {
-		radixApplicationBuilder utils.ApplicationBuilder
-		targetEnvironments      []string
-		hash                    string
-		ownerReference          *metav1.OwnerReference
-	}
-	type args struct {
-		envName   string
-		pipeline  *pipelinev1.Pipeline
-		tasks     []pipelinev1.Task
-		timestamp string
-	}
-	const (
-		appName              = "test-app"
-		envDev               = "dev"
-		branchMain           = "main"
-		radixImageTag        = "tag-123"
-		radixPipelineJobName = "pipeline-job-123"
-		hash                 = "some-hash"
-	)
+type fields struct {
+	radixApplicationBuilder utils.ApplicationBuilder
+	targetEnvironments      []string
+	hash                    string
+	ownerReference          *metav1.OwnerReference
+}
 
-	scenarios := []struct {
-		name           string
-		fields         fields
-		args           args
-		wantErr        func(t *testing.T, err error)
-		assertScenario func(t *testing.T, step model.Step, pipelineName string)
-	}{
+const (
+	appName              = "test-app"
+	envDev               = "dev"
+	branchMain           = "main"
+	radixImageTag        = "tag-123"
+	radixPipelineJobName = "pipeline-job-123"
+	hash                 = "some-hash"
+)
+
+type args struct {
+	envName   string
+	pipeline  *pipelinev1.Pipeline
+	tasks     []pipelinev1.Task
+	timestamp string
+}
+
+type testScenario struct {
+	name           string
+	fields         fields
+	args           args
+	wantErr        func(t *testing.T, err error)
+	assertScenario func(t *testing.T, step model.Step, pipelineName string)
+}
+
+func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
+	scenarios := []testScenario{
 		{
 			name: "one default task",
 			fields: fields{
@@ -512,9 +517,10 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {},
 		},
 	}
-	for _, scenario := range scenarios {
-		s.T().Run(scenario.name, func(t *testing.T) {
-			applicationBuilder := scenario.fields.radixApplicationBuilder
+	for _, ts := range scenarios {
+		s.T().Run(ts.name, func(t *testing.T) {
+			s.SetupTest()
+			applicationBuilder := ts.fields.radixApplicationBuilder
 			if applicationBuilder == nil {
 				applicationBuilder = getRadixApplicationBuilder(appName, envDev, branchMain)
 			}
@@ -540,58 +546,33 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 				RadixRegistration: rr,
 				RadixApplication:  applicationBuilder.BuildRA(),
 			}
+			pl := ts.args.pipeline
+			buildContext := &model.BuildContext{}
+			tasks := ts.args.tasks
 			ctrl := gomock.NewController(s.T())
 			defer ctrl.Finish()
-			mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
-			buildContext := &model.BuildContext{}
-			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext).AnyTimes()
-			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(ctrl)
-			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, internalTest.Env1).Return(true, "tekton/pipeline.yaml", scenario.args.pipeline, scenario.args.tasks, nil).AnyTimes()
-			step := preparepipeline.NewPreparePipelinesStep(
-				func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.Builder = mockContextBuilder
-				}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.SubPipelineReader = mockSubPipelineReader
-				})
+			step := createMockedStep(ctrl, ts, pipelineInfo, buildContext, true, pl, tasks)
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 			err = step.Run(ctx, pipelineInfo)
-			scenario.wantErr(t, err)
-			scenario.assertScenario(t, step, scenario.args.pipeline.ObjectMeta.Name)
+			ts.wantErr(t, err)
+			ts.assertScenario(t, step, ts.args.pipeline.ObjectMeta.Name)
 		})
 	}
 }
 
 func (s *stepTestSuite) Test_prepare_test() {
-	type fields struct {
-		radixApplicationBuilder utils.ApplicationBuilder
-		targetEnvironments      []string
-		hash                    string
-		ownerReference          *metav1.OwnerReference
-	}
-	type args struct {
-		envName   string
-		pipeline  *pipelinev1.Pipeline
-		tasks     []pipelinev1.Task
-		timestamp string
-	}
-	const (
-		appName              = "test-app"
-		envDev               = "dev"
-		branchMain           = "main"
-		radixImageTag        = "tag-123"
-		radixPipelineJobName = "pipeline-job-123"
-	)
-
 	scenarios := []struct {
-		name           string
-		fields         fields
-		args           args
-		wantErr        func(t *testing.T, err error)
-		assertScenario func(t *testing.T, step model.Step, pipelineName string)
-		RaEnvs         []v1.Environment
+		testScenario
+		RaEnvs []v1.Environment
 	}{
-		{name: "one env",
+		{
+			testScenario: testScenario{
+				name: "one env",
+				wantErr: func(t *testing.T, err error) {
+					assert.NoError(t, err)
+				},
+			},
 			RaEnvs: []v1.Environment{{
 				Name: envDev,
 				Build: v1.EnvBuild{
@@ -601,13 +582,14 @@ func (s *stepTestSuite) Test_prepare_test() {
 			}},
 		},
 	}
-	for _, scenario := range scenarios {
-		s.T().Run(scenario.name, func(t *testing.T) {
+	for _, ts := range scenarios {
+		s.T().Run(ts.name, func(t *testing.T) {
+			s.SetupTest()
 			rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
 			applicationBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
 				WithRadixRegistration(rrBuilder).
 				WithComponent(getComponentBuilder())
-			for _, env := range scenario.RaEnvs {
+			for _, env := range ts.RaEnvs {
 				applicationBuilder.WithApplicationEnvironmentBuilders(utils.NewApplicationEnvironmentBuilder().WithName(env.Name).
 					WithBuildFrom(env.Build.From))
 			}
@@ -618,34 +600,27 @@ func (s *stepTestSuite) Test_prepare_test() {
 			pipelineInfo := &model.PipelineInfo{
 				Definition: pipelineType,
 				PipelineArguments: model.PipelineArguments{
-					AppName:       appName,
-					ImageTag:      radixImageTag,
-					JobName:       radixPipelineJobName,
-					Branch:        branchMain,
-					PipelineType:  string(radixPipelineType),
-					ToEnvironment: internalTest.Env1,
-					DNSConfig:     &dnsalias.DNSConfig{},
+					AppName:         appName,
+					ImageTag:        radixImageTag,
+					JobName:         radixPipelineJobName,
+					Branch:          branchMain,
+					PipelineType:    string(radixPipelineType),
+					ToEnvironment:   internalTest.Env1,
+					DNSConfig:       &dnsalias.DNSConfig{},
+					RadixConfigFile: sampleAppRadixConfigFileName,
+					GitWorkspace:    sampleAppWorkspace,
 				},
 				RadixRegistration: rr,
 				RadixApplication:  applicationBuilder.BuildRA(),
 			}
+			buildContext := &model.BuildContext{}
 			ctrl := gomock.NewController(s.T())
 			defer ctrl.Finish()
-			mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
-			buildContext := &model.BuildContext{}
-			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext).AnyTimes()
-			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(ctrl)
-			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, internalTest.Env1).Return(false, "", nil, nil, nil).AnyTimes()
-			step := preparepipeline.NewPreparePipelinesStep(
-				func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.Builder = mockContextBuilder
-				}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.SubPipelineReader = mockSubPipelineReader
-				})
+			step := createMockedStep(ctrl, ts.testScenario, pipelineInfo, buildContext, false, nil, nil)
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 			err = step.Run(ctx, pipelineInfo)
-			scenario.wantErr(t, err)
+			ts.wantErr(t, err)
 		})
 	}
 }
@@ -661,6 +636,24 @@ func getTestPipeline(modify func(pipeline *pipelinev1.Pipeline)) *pipelinev1.Pip
 		modify(pl)
 	}
 	return pl
+}
+
+func createMockedStep(ctrl *gomock.Controller, scenario testScenario, pipelineInfo *model.PipelineInfo, buildContext *model.BuildContext, pipelineExists bool, pl *pipelinev1.Pipeline, tasks []pipelinev1.Task) model.Step {
+	mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
+	mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext, nil).AnyTimes()
+	mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(ctrl)
+	mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, internalTest.Env1).Return(pipelineExists, "tekton/pipeline.yaml", pl, tasks, nil).AnyTimes()
+	mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(ctrl)
+	mockOwnerReferenceFactory.EXPECT().Create().Return(scenario.fields.ownerReference).AnyTimes()
+	step := preparepipeline.NewPreparePipelinesStep(
+		func(step *preparepipeline.PreparePipelinesStepImplementation) {
+			step.Builder = mockContextBuilder
+		}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
+			step.SubPipelineReader = mockSubPipelineReader
+		}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
+			step.OwnerReferenceFactory = mockOwnerReferenceFactory
+		})
+	return step
 }
 
 func getRadixApplicationBuilder(appName, environment, buildFrom string) utils.ApplicationBuilder {

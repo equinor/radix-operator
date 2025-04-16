@@ -39,11 +39,12 @@ func (m *MockSubPipelineReader) EXPECT() *MockSubPipelineReaderMockRecorder {
 func (m *MockSubPipelineReader) ReadPipelineAndTasks(pipelineInfo *model.PipelineInfo, envName string) (bool, string, *v1.Pipeline, []v1.Task, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadPipelineAndTasks", pipelineInfo, envName)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(*v1.Pipeline)
-	ret2, _ := ret[2].([]v1.Task)
-	ret3, _ := ret[3].(error)
-	return false, ret0, ret1, ret2, ret3
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(*v1.Pipeline)
+	ret3, _ := ret[3].([]v1.Task)
+	ret4, _ := ret[4].(error)
+	return ret0, ret1, ret2, ret3, ret4
 }
 
 // ReadPipelineAndTasks indicates an expected call of ReadPipelineAndTasks.

@@ -11,8 +11,20 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// GetOwnerReferenceOfJobFromLabels Created an OwnerReference from the DownwardAPI created file, if exist
-func GetOwnerReferenceOfJobFromLabels() *metav1.OwnerReference {
+// OwnerReferenceFactory The factory to create an owner reference for a pipeline job
+type OwnerReferenceFactory interface {
+	Create() *metav1.OwnerReference
+}
+
+type ownerReferenceFactory struct{}
+
+// NewOwnerReferenceFactory New instance of the factory
+func NewOwnerReferenceFactory() OwnerReferenceFactory {
+	return &ownerReferenceFactory{}
+}
+
+// Create an OwnerReference from the DownwardAPI created file, if exist
+func (f *ownerReferenceFactory) Create() *metav1.OwnerReference {
 	controllerUid, jobName, err := getOwnerReferencePropertiesFromDownwardsApiFile()
 	if err != nil {
 		log.Debug().Msgf("%v", err)
@@ -35,7 +47,7 @@ func getOwnerReferencePropertiesFromDownwardsApiFile() (string, string, error) {
 	file, err := os.Open(labelsFile)
 	defer func() {
 		if err == nil {
-			file.Close()
+			_ = file.Close()
 		}
 	}()
 	if err != nil {

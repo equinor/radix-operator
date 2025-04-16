@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
 	"slices"
 	"strings"
 	"time"
@@ -17,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
-	ownerreferences "github.com/equinor/radix-operator/pipeline-runner/utils/owner_references"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -37,8 +37,9 @@ import (
 type PreparePipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
-	Builder           prepareInternal.ContextBuilder
-	SubPipelineReader prepareInternal.SubPipelineReader
+	Builder               prepareInternal.ContextBuilder
+	SubPipelineReader     prepareInternal.SubPipelineReader
+	OwnerReferenceFactory ownerreferences.OwnerReferenceFactory
 }
 type Option func(step *PreparePipelinesStepImplementation)
 
@@ -53,6 +54,13 @@ func (step *PreparePipelinesStepImplementation) WithContextBuilder(builder prepa
 func (step *PreparePipelinesStepImplementation) WithSubPipelineReader(subPipelineReader prepareInternal.SubPipelineReader) Option {
 	return func(step *PreparePipelinesStepImplementation) {
 		step.SubPipelineReader = subPipelineReader
+	}
+}
+
+// WithOwnerReferenceFactory is used to set the owner reference factory for the step
+func (step *PreparePipelinesStepImplementation) WithOwnerReferenceFactory(ownerReferenceFactory ownerreferences.OwnerReferenceFactory) Option {
+	return func(step *PreparePipelinesStepImplementation) {
+		step.OwnerReferenceFactory = ownerReferenceFactory
 	}
 }
 
@@ -74,6 +82,9 @@ func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeCl
 	}
 	if step.SubPipelineReader == nil {
 		step.SubPipelineReader = prepareInternal.NewSubPipelineReader()
+	}
+	if step.OwnerReferenceFactory == nil {
+		step.OwnerReferenceFactory = ownerreferences.NewOwnerReferenceFactory()
 	}
 }
 
@@ -221,14 +232,14 @@ func (step *PreparePipelinesStepImplementation) GetEnvironmentSubPipelinesToRun(
 }
 
 func (step *PreparePipelinesStepImplementation) prepareSubPipelineForTargetEnv(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, error) {
-	subPipelineExists, pipelineFilePath, pipeline, tasks, err := step.SubPipelineReader.ReadPipelineAndTasks(pipelineInfo, envName)
+	subPipelineExists, pipelineFilePath, pl, tasks, err := step.SubPipelineReader.ReadPipelineAndTasks(pipelineInfo, envName)
 	if err != nil {
 		return false, "", err
 	}
 	if !subPipelineExists {
 		return false, "", nil
 	}
-	if err = step.createPipeline(envName, pipeline, tasks, timestamp, pipelineInfo); err != nil {
+	if err = step.createPipeline(envName, pl, tasks, timestamp, pipelineInfo); err != nil {
 		return false, "", err
 	}
 	return true, pipelineFilePath, nil
@@ -264,8 +275,7 @@ func (step *PreparePipelinesStepImplementation) buildTasks(envName string, tasks
 		}
 
 		task.ObjectMeta.Annotations[defaults.PipelineTaskNameAnnotation] = originalTaskName
-		ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
-		if ownerReference != nil {
+		if ownerReference := step.OwnerReferenceFactory.Create(); ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 		}
 
@@ -380,8 +390,7 @@ func (step *PreparePipelinesStepImplementation) createPipeline(envName string, p
 		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch,
 		defaults.PipelineNameAnnotation: originalPipelineName,
 	}
-	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
-	if ownerReference != nil {
+	if ownerReference := step.OwnerReferenceFactory.Create(); ownerReference != nil {
 		pipeline.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 	}
 	err = step.createTasks(taskMap)

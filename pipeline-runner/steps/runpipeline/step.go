@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 	"time"
 
@@ -14,8 +13,8 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/owner_references"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/applicationconfig"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -29,6 +28,7 @@ import (
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -36,7 +36,8 @@ import (
 type RunPipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
-	waiter wait.PipelineRunsCompletionWaiter
+	waiter                wait.PipelineRunsCompletionWaiter
+	OwnerReferenceFactory ownerreferences.OwnerReferenceFactory
 }
 
 // NewRunPipelinesStep Constructor.
@@ -55,6 +56,9 @@ func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeClient
 	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 	if step.waiter == nil {
 		step.waiter = wait.NewPipelineRunsCompletionWaiter(tektonClient)
+	}
+	if step.OwnerReferenceFactory == nil {
+		step.OwnerReferenceFactory = ownerreferences.NewOwnerReferenceFactory()
 	}
 }
 
@@ -257,7 +261,7 @@ func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev
 			},
 		},
 	}
-	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
+	ownerReference := step.OwnerReferenceFactory.Create()
 	if ownerReference != nil {
 		pipelineRun.ObjectMeta.OwnerReferences = []v1.OwnerReference{*ownerReference}
 	}

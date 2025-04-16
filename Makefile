@@ -94,7 +94,7 @@ mocks: bootstrap
 	mockgen -source ./pipeline-runner/steps/internal/wait/pipelinerun.go -destination ./pipeline-runner/steps/internal/wait/pipelinerun_mock.go -package wait
 	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/context_builder.go -destination ./pipeline-runner/steps/preparepipeline/internal/context_builder_mock.go -package internal
 	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/subpipeline_reader.go -destination ./pipeline-runner/steps/preparepipeline/internal/subpipeline_reader_mock.go -package internal
-
+	mockgen -source ./pipeline-runner/steps/internal/ownerreferences/owner_references.go -destination ./pipeline-runner/steps/internal/ownerreferences/owner_references_mock.go -package ownerreferences
 
 .PHONY: build-pipeline
 build-pipeline:
