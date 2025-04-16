@@ -54,7 +54,8 @@ func Test_LoadRadixApplication(t *testing.T) {
 					GitWorkspace:    sampleAppWorkspace,
 				},
 			}
-			_, err = internal.LoadRadixAppConfig(rxClient, pipelineInfo)
+			radixConfigReader := internal.NewRadixConfigReader(rxClient)
+			_, err = radixConfigReader.Read(pipelineInfo)
 			if ts.expectedError == nil {
 				require.NoError(t, err)
 			} else {

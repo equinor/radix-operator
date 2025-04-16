@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
 	"slices"
 	"strings"
 	"time"
@@ -15,6 +14,7 @@ import (
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
@@ -40,6 +40,7 @@ type PreparePipelinesStepImplementation struct {
 	Builder               prepareInternal.ContextBuilder
 	SubPipelineReader     prepareInternal.SubPipelineReader
 	OwnerReferenceFactory ownerreferences.OwnerReferenceFactory
+	RadixConfigReader     prepareInternal.RadixConfigReader
 }
 type Option func(step *PreparePipelinesStepImplementation)
 
@@ -86,6 +87,9 @@ func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeCl
 	if step.OwnerReferenceFactory == nil {
 		step.OwnerReferenceFactory = ownerreferences.NewOwnerReferenceFactory()
 	}
+	if step.RadixConfigReader == nil {
+		step.RadixConfigReader = prepareInternal.NewRadixConfigReader(radixClient)
+	}
 }
 
 // ImplementationForType Override of default step method
@@ -119,7 +123,7 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 		pipelineInfo.SourceDeploymentGitBranch = sourceDeploymentGitBranch
 	}
 
-	radixApplication, err := prepareInternal.LoadRadixAppConfig(step.GetRadixClient(), pipelineInfo)
+	radixApplication, err := step.RadixConfigReader.Read(pipelineInfo)
 	if err != nil {
 		return err
 	}

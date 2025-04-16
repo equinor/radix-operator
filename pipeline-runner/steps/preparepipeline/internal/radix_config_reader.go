@@ -12,8 +12,24 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// LoadRadixAppConfig Load Radix config file and create RadixApplication
-func LoadRadixAppConfig(radixClient radixclient.Interface, pipelineInfo *model.PipelineInfo) (*radixv1.RadixApplication, error) {
+// RadixConfigReader interface for reading Radix config file
+type RadixConfigReader interface {
+	Read(pipelineInfo *model.PipelineInfo) (*radixv1.RadixApplication, error)
+}
+
+type radixConfigReader struct {
+	radixClient radixclient.Interface
+}
+
+// NewRadixConfigReader creates a new instance of RadixConfigReader
+func NewRadixConfigReader(radixClient radixclient.Interface) RadixConfigReader {
+	return &radixConfigReader{
+		radixClient: radixClient,
+	}
+}
+
+// Read Reads Radix config file and create RadixApplication
+func (r *radixConfigReader) Read(pipelineInfo *model.PipelineInfo) (*radixv1.RadixApplication, error) {
 	radixConfigFileFullName := pipelineInfo.GetRadixConfigFileInWorkspace()
 	configFileContent, err := os.ReadFile(radixConfigFileFullName)
 	if err != nil {
@@ -21,7 +37,7 @@ func LoadRadixAppConfig(radixClient radixclient.Interface, pipelineInfo *model.P
 	}
 	log.Debug().Msgf("Radix config file %s has been loaded", radixConfigFileFullName)
 
-	radixApplication, err := application.CreateRadixApplication(context.Background(), radixClient, pipelineInfo.GetAppName(), pipelineInfo.GetDNSConfig(), string(configFileContent))
+	radixApplication, err := application.CreateRadixApplication(context.Background(), r.radixClient, pipelineInfo.GetAppName(), pipelineInfo.GetDNSConfig(), string(configFileContent))
 	if err != nil {
 		return nil, err
 	}

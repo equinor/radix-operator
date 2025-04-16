@@ -551,7 +551,12 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			tasks := ts.args.tasks
 			ctrl := gomock.NewController(s.T())
 			defer ctrl.Finish()
-			step := createMockedStep(ctrl, ts, pipelineInfo, buildContext, true, pl, tasks)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
+			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext, nil).AnyTimes()
+			step := createMockedStep(ctrl, ts, pipelineInfo, buildContext, true, pl, tasks,
+				func(step *preparepipeline.PreparePipelinesStepImplementation) {
+					step.Builder = mockContextBuilder
+				})
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 			err = step.Run(ctx, pipelineInfo)
@@ -564,22 +569,79 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 func (s *stepTestSuite) Test_prepare_test() {
 	scenarios := []struct {
 		testScenario
-		RaEnvs []v1.Environment
+		raEnvs               []v1.Environment
+		triggeredFromWebhook bool
+		expectedTargetEnvs   []string
 	}{
 		{
 			testScenario: testScenario{
-				name: "one env",
+				name: "one env, WebhookEnabled nil, not triggered from webhook",
 				wantErr: func(t *testing.T, err error) {
 					assert.NoError(t, err)
 				},
 			},
-			RaEnvs: []v1.Environment{{
-				Name: envDev,
+			raEnvs: []v1.Environment{{
+				Name: internalTest.Env1,
 				Build: v1.EnvBuild{
 					From:           "main",
 					WebhookEnabled: nil,
 				},
 			}},
+			triggeredFromWebhook: false,
+			expectedTargetEnvs:   []string{internalTest.Env1},
+		},
+		{
+			testScenario: testScenario{
+				name: "one env, WebhookEnabled true, not triggered from webhook",
+				wantErr: func(t *testing.T, err error) {
+					assert.NoError(t, err)
+				},
+			},
+			raEnvs: []v1.Environment{{
+				Name: internalTest.Env1,
+				Build: v1.EnvBuild{
+					From:           "main",
+					WebhookEnabled: pointers.Ptr(true),
+				},
+			}},
+			triggeredFromWebhook: false,
+			expectedTargetEnvs:   []string{internalTest.Env1},
+		},
+		{
+			testScenario: testScenario{
+				name: "one env, WebhookEnabled false, not triggered from webhook",
+				wantErr: func(t *testing.T, err error) {
+					assert.NoError(t, err)
+				},
+			},
+			raEnvs: []v1.Environment{{
+				Name: internalTest.Env1,
+				Build: v1.EnvBuild{
+					From:           "main",
+					WebhookEnabled: pointers.Ptr(false),
+				},
+			},
+			},
+			triggeredFromWebhook: false,
+			expectedTargetEnvs:   []string{internalTest.Env1},
+		},
+		{
+			testScenario: testScenario{
+				name: "one env, WebhookEnabled false, triggered from webhook",
+				wantErr: func(t *testing.T, err error) {
+					assert.NoError(t, err)
+				},
+			},
+			raEnvs: []v1.Environment{{
+				Name: internalTest.Env1,
+				Build: v1.EnvBuild{
+					From:           "main",
+					WebhookEnabled: pointers.Ptr(false),
+				},
+			},
+			},
+			triggeredFromWebhook: true,
+			expectedTargetEnvs:   nil,
 		},
 	}
 	for _, ts := range scenarios {
@@ -589,34 +651,49 @@ func (s *stepTestSuite) Test_prepare_test() {
 			applicationBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
 				WithRadixRegistration(rrBuilder).
 				WithComponent(getComponentBuilder())
-			for _, env := range ts.RaEnvs {
-				applicationBuilder.WithApplicationEnvironmentBuilders(utils.NewApplicationEnvironmentBuilder().WithName(env.Name).
-					WithBuildFrom(env.Build.From))
+			for _, env := range ts.raEnvs {
+				applicationBuilder.WithApplicationEnvironmentBuilders(
+					utils.NewApplicationEnvironmentBuilder().
+						WithName(env.Name).
+						WithBuildFrom(env.Build.From).
+						WithWebhookEnabled(env.Build.WebhookEnabled))
 			}
 			rr := rrBuilder.BuildRR()
 			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
-			radixPipelineType := v1.Deploy
+			radixPipelineType := v1.BuildDeploy
 			pipelineType, err := pipeline.GetPipelineFromName(string(radixPipelineType))
+			ra := applicationBuilder.BuildRA()
 			pipelineInfo := &model.PipelineInfo{
 				Definition: pipelineType,
 				PipelineArguments: model.PipelineArguments{
-					AppName:         appName,
-					ImageTag:        radixImageTag,
-					JobName:         radixPipelineJobName,
-					Branch:          branchMain,
-					PipelineType:    string(radixPipelineType),
-					ToEnvironment:   internalTest.Env1,
-					DNSConfig:       &dnsalias.DNSConfig{},
-					RadixConfigFile: sampleAppRadixConfigFileName,
-					GitWorkspace:    sampleAppWorkspace,
+					AppName:              appName,
+					ImageTag:             radixImageTag,
+					JobName:              radixPipelineJobName,
+					Branch:               branchMain,
+					PipelineType:         string(radixPipelineType),
+					ToEnvironment:        internalTest.Env1,
+					DNSConfig:            &dnsalias.DNSConfig{},
+					RadixConfigFile:      sampleAppRadixConfigFileName,
+					GitWorkspace:         sampleAppWorkspace,
+					TriggeredFromWebhook: ts.triggeredFromWebhook,
 				},
 				RadixRegistration: rr,
-				RadixApplication:  applicationBuilder.BuildRA(),
+				RadixApplication:  ra,
 			}
 			buildContext := &model.BuildContext{}
 			ctrl := gomock.NewController(s.T())
 			defer ctrl.Finish()
-			step := createMockedStep(ctrl, ts.testScenario, pipelineInfo, buildContext, false, nil, nil)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
+			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, ts.expectedTargetEnvs).Return(buildContext, nil).AnyTimes()
+			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(ctrl)
+			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(ra, nil).AnyTimes()
+			step := createMockedStep(ctrl, ts.testScenario, pipelineInfo, buildContext, false, nil, nil,
+				func(step *preparepipeline.PreparePipelinesStepImplementation) {
+					step.Builder = mockContextBuilder
+				},
+				func(step *preparepipeline.PreparePipelinesStepImplementation) {
+					step.RadixConfigReader = mockRadixConfigReader
+				})
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 			err = step.Run(ctx, pipelineInfo)
@@ -638,22 +715,21 @@ func getTestPipeline(modify func(pipeline *pipelinev1.Pipeline)) *pipelinev1.Pip
 	return pl
 }
 
-func createMockedStep(ctrl *gomock.Controller, scenario testScenario, pipelineInfo *model.PipelineInfo, buildContext *model.BuildContext, pipelineExists bool, pl *pipelinev1.Pipeline, tasks []pipelinev1.Task) model.Step {
-	mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
-	mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, gomock.Any()).Return(buildContext, nil).AnyTimes()
+func createMockedStep(ctrl *gomock.Controller, scenario testScenario, pipelineInfo *model.PipelineInfo, buildContext *model.BuildContext, pipelineExists bool, pl *pipelinev1.Pipeline, tasks []pipelinev1.Task, opt ...preparepipeline.Option) model.Step {
 	mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(ctrl)
 	mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, internalTest.Env1).Return(pipelineExists, "tekton/pipeline.yaml", pl, tasks, nil).AnyTimes()
 	mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(ctrl)
 	mockOwnerReferenceFactory.EXPECT().Create().Return(scenario.fields.ownerReference).AnyTimes()
-	step := preparepipeline.NewPreparePipelinesStep(
+	options := []preparepipeline.Option{
 		func(step *preparepipeline.PreparePipelinesStepImplementation) {
-			step.Builder = mockContextBuilder
-		}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
 			step.SubPipelineReader = mockSubPipelineReader
 		}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
 			step.OwnerReferenceFactory = mockOwnerReferenceFactory
-		})
-	return step
+		}}
+	for _, o := range opt {
+		options = append(options, o)
+	}
+	return preparepipeline.NewPreparePipelinesStep(options...)
 }
 
 func getRadixApplicationBuilder(appName, environment, buildFrom string) utils.ApplicationBuilder {
