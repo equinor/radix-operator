@@ -716,6 +716,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 			rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
 			rr := rrBuilder.BuildRR()
 			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+			s.Require().NoError(err, "Failed to create radix registration. Error %v", err)
 
 			var envBuilders []utils.ApplicationEnvironmentBuilder
 			for _, env := range ts.raEnvs {
@@ -732,6 +733,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 
 			radixPipelineType := v1.BuildDeploy
 			pipelineType, err := pipeline.GetPipelineFromName(string(radixPipelineType))
+			s.Require().NoError(err, "Failed to get pipeline type. Error %v", err)
 			pipelineInfo := &model.PipelineInfo{
 				Definition: pipelineType,
 				PipelineArguments: model.PipelineArguments{
