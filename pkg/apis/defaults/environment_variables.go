@@ -94,6 +94,9 @@ const (
 	// RadixPipelineJobToEnvironmentEnvironmentVariable Name of Radix environment for pipeline build-deploy or promote to
 	RadixPipelineJobToEnvironmentEnvironmentVariable = "TO_ENVIRONMENT"
 
+	// RadixPipelineJobTriggeredFromWebhookEnvironmentVariable Indicates that the pipeline job was triggered from a webhook
+	RadixPipelineJobTriggeredFromWebhookEnvironmentVariable = "TRIGGERED_FROM_WEBHOOK"
+
 	// RadixPromoteSourceDeploymentCommitHashEnvironmentVariable Git commit hash of source deployment in promote jobs
 	RadixPromoteSourceDeploymentCommitHashEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_COMMIT_HASH"
 

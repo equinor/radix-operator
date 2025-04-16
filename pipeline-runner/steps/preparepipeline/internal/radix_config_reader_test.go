@@ -1,8 +1,9 @@
-package preparepipeline
+package internal_test
 
 import (
 	"context"
 	"errors"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -14,7 +15,7 @@ import (
 
 const (
 	sampleAppRadixConfigFileName = "/radixconfig.yaml"
-	sampleAppWorkspace           = "../internal/test/testdata"
+	sampleAppWorkspace           = "../../internal/test/testdata"
 )
 
 func Test_LoadRadixApplication(t *testing.T) {
@@ -41,7 +42,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			kubeClient, rxClient, tknClient := test.Setup()
+			_, rxClient, _ := test.Setup()
 			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{Name: appName},
 			}, metav1.CreateOptions{})
@@ -53,9 +54,8 @@ func Test_LoadRadixApplication(t *testing.T) {
 					GitWorkspace:    sampleAppWorkspace,
 				},
 			}
-			pipelineCtx := NewPipelineContext(kubeClient, rxClient, tknClient, pipelineInfo)
-
-			_, err = pipelineCtx.LoadRadixAppConfig()
+			radixConfigReader := internal.NewRadixConfigReader(rxClient)
+			_, err = radixConfigReader.Read(pipelineInfo)
 			if ts.expectedError == nil {
 				require.NoError(t, err)
 			} else {

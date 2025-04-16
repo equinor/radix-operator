@@ -62,9 +62,9 @@ func (s *applyConfigTestSuite) Test_RadixConfigMap_WithoutPrepareBuildCtx_Proces
 		},
 		RadixApplication: expectedRa,
 	}
-	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
+	step := applyconfig.NewApplyConfigStep()
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	err := step.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	s.Nil(pipelineInfo.BuildContext)
 }
@@ -88,9 +88,9 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsNotMapped() {
 		RadixApplication: expectedRa,
 	}
 
-	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
+	step := applyconfig.NewApplyConfigStep()
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	err := step.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	s.Empty(pipelineInfo.TargetEnvironments)
 }
@@ -124,9 +124,9 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsMapped() {
 		RadixApplication: ra,
 	}
 
-	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
+	step := applyconfig.NewApplyConfigStep()
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	err := step.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	s.ElementsMatch([]string{"mappedenv1", "mappedenv2"}, pipelineInfo.TargetEnvironments)
 }
