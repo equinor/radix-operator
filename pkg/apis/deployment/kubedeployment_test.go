@@ -53,7 +53,7 @@ func TestComponentWithoutCustomHealthChecks(t *testing.T) {
 	assert.Nil(t, component.HealthChecks)
 }
 func TestComponentWithCustomHealthChecks(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	createProbe := func(handler v1.RadixProbeHandler, seconds int32) *v1.RadixProbe {
 		return &v1.RadixProbe{
 			RadixProbeHandler:   handler,
@@ -77,19 +77,49 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 		Command: []string{"echo", "hello"},
 	}}, 30)
 
-	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
+	rd, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
 		utils.ARadixDeployment().
 			WithComponents(utils.NewDeployComponentBuilder().
 				WithName("comp1").
 				WithHealthChecks(startuProbe, readynessProbe, livenessProbe)).
 			WithAppName("any-app").
-			WithEnvironment("test"))
+			WithEnvironment("test").
+			WithDeploymentName("deployment1"))
+	require.NoError(t, err, "failed to apply deployment1")
 
 	component := rd.GetComponentByName("comp1")
 	require.NotNil(t, component.HealthChecks)
 	assert.Equal(t, readynessProbe, component.HealthChecks.ReadinessProbe)
 	assert.Equal(t, livenessProbe, component.HealthChecks.LivenessProbe)
 	assert.Equal(t, startuProbe, component.HealthChecks.StartupProbe)
+	deployment, err := kubeClient.AppsV1().Deployments("any-app-test").Get(context.Background(), "comp1", metav1.GetOptions{})
+	require.NoError(t, err, "failed to get deployment")
+	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe, "readiness probe should be set")
+	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].LivenessProbe, "liveness probe should be set")
+	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].StartupProbe, "startup probe should be set")
+	assert.Equal(t, readynessProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid readiness probe initial delay")
+	assert.Equal(t, livenessProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].LivenessProbe.InitialDelaySeconds, "invalid liveness probe initial delay")
+	assert.Equal(t, startuProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].StartupProbe.InitialDelaySeconds, "invalid startup probe initial delay")
+
+	rd, err = ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
+		utils.ARadixDeployment().
+			WithComponents(utils.NewDeployComponentBuilder().
+				WithName("comp1").WithPorts([]v1.ComponentPort{{Name: "http", Port: 8000}}).WithPublicPort("http")).
+			WithAppName("any-app").
+			WithEnvironment("test").
+			WithDeploymentName("deployment2"))
+	require.NoError(t, err, "failed to apply deployment")
+
+	component = rd.GetComponentByName("comp1")
+	require.Nil(t, component.HealthChecks)
+	deployment, err = kubeClient.AppsV1().Deployments("any-app-test").Get(context.Background(), "comp1", metav1.GetOptions{})
+	require.NoError(t, err, "failed to get deployment2")
+	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe, "default readiness probe should be set")
+	assert.Nil(t, deployment.Spec.Template.Spec.Containers[0].LivenessProbe, "liveness probe should not be set")
+	assert.Nil(t, deployment.Spec.Template.Spec.Containers[0].StartupProbe, "startup probe should not be set")
+	assert.Equal(t, int32(5), deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid default readiness probe initial delay")
+	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.TCPSocket, "default readiness probe should be tcp")
+	assert.Equal(t, int32(8000), deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.TCPSocket.Port.IntVal, "invalid default readiness probe port")
 }
 
 func Test_UpdateResourcesInDeployment(t *testing.T) {
