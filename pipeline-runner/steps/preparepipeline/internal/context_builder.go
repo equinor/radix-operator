@@ -18,7 +18,7 @@ import (
 )
 
 type ContextBuilder interface {
-	GetBuildContext(pipelineInfo *model.PipelineInfo, targetEnvironments []string) (*model.BuildContext, error)
+	GetBuildContext(pipelineInfo *model.PipelineInfo) (*model.BuildContext, error)
 }
 
 type contextBuilder struct {
@@ -70,7 +70,7 @@ func cleanPathAndSurroundBySlashes(dir string) string {
 }
 
 // GetBuildContext Prepare build context
-func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, targetEnvironments []string) (*model.BuildContext, error) {
+func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo) (*model.BuildContext, error) {
 	gitHash, err := getGitHash(pipelineInfo)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, targ
 		pipelineInfo.SetGitAttributes(pipelineTargetCommitHash, commitTags)
 
 		if len(pipelineInfo.PipelineArguments.CommitID) > 0 {
-			radixConfigWasChanged, environmentsToBuild, err := cb.analyseSourceRepositoryChanges(pipelineInfo, targetEnvironments, pipelineTargetCommitHash)
+			radixConfigWasChanged, environmentsToBuild, err := cb.analyseSourceRepositoryChanges(pipelineInfo, pipelineTargetCommitHash)
 			if err != nil {
 				return nil, err
 			}
@@ -113,8 +113,8 @@ func getGitAttributes(pipelineInfo *model.PipelineInfo) (string, string, error) 
 	return pipelineTargetCommitHash, commitTags, nil
 }
 
-func (cb *contextBuilder) analyseSourceRepositoryChanges(pipelineInfo *model.PipelineInfo, targetEnvironments []string, pipelineTargetCommitHash string) (bool, []model.EnvironmentToBuild, error) {
-	radixDeploymentCommitHashProvider := commithash.NewProvider(cb.kubeClient, cb.radixClient, pipelineInfo.GetAppName(), targetEnvironments)
+func (cb *contextBuilder) analyseSourceRepositoryChanges(pipelineInfo *model.PipelineInfo, pipelineTargetCommitHash string) (bool, []model.EnvironmentToBuild, error) {
+	radixDeploymentCommitHashProvider := commithash.NewProvider(cb.kubeClient, cb.radixClient, pipelineInfo.GetAppName(), pipelineInfo.TargetEnvironments)
 	lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
 	if err != nil {
 		return false, nil, err
@@ -170,7 +170,7 @@ func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
 			return sourceRdHashFromAnnotation, nil
 		}
 		if sourceDeploymentGitBranch == "" {
-			log.Info().Msg("source deployment has no git metadata, skipping sub-pipelines")
+			log.Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
 			return "", nil
 		}
 		sourceRdHashFromBranchHead, err := git.GetCommitHashFromHead(pipelineInfo.GetGitWorkspace(), sourceDeploymentGitBranch)
@@ -187,11 +187,11 @@ func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
 			pipelineJobBranch = re.Build.From
 		}
 		if pipelineJobBranch == "" {
-			log.Info().Msg("deploy job with no build branch, skipping sub-pipelines.")
+			log.Info().Msg("Deploy job with no build branch, skipping sub-pipelines.")
 			return "", nil
 		}
 		if containsRegex(pipelineJobBranch) {
-			log.Info().Msg("deploy job with build branch having regex pattern, skipping sub-pipelines.")
+			log.Info().Msg("Deploy job with build branch having regex pattern, skipping sub-pipelines.")
 			return "", nil
 		}
 		gitHash, err := git.GetCommitHashFromHead(pipelineArgs.GitWorkspace, pipelineJobBranch)

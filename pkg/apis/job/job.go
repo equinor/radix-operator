@@ -181,7 +181,7 @@ func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, 
 		switch existingRadixJob.Spec.PipeLineType {
 		case v1.BuildDeploy, v1.Build:
 			if len(jobTargetEnvironments) > 0 {
-				existingJobTargetEnvironments, _ := applicationconfig.GetTargetEnvironments(existingRadixJob.Spec.Build.Branch, ra, false)
+				existingJobTargetEnvironments := applicationconfig.GetAllTargetEnvironments(existingRadixJob.Spec.Build.Branch, ra)
 				for _, existingJobTargetEnvironment := range existingJobTargetEnvironments {
 					if _, ok := jobTargetEnvironments[existingJobTargetEnvironment]; ok {
 						return true

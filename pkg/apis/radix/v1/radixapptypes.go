@@ -191,7 +191,8 @@ type EnvBuild struct {
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
 	// WebhookEnabled indicates whether the webhook should be disabled for the environment.
-	// If set to false, the webhook will not be triggered for this environment. Default is true
+	// If set to false, the webhook will not be triggered for this environment.
+	// +kubebuilder:default:=true
 	// +optional
 	WebhookEnabled *bool `json:"webhookEnabled,omitempty"`
 }

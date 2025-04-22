@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
@@ -80,25 +79,17 @@ func (step *RunPipelinesStepImplementation) ErrorMsg(err error) string {
 // Run Override of default step method
 func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.BuildContext != nil && len(pipelineInfo.BuildContext.EnvironmentSubPipelinesToRun) == 0 {
-		log.Ctx(ctx).Info().Msg("There is no configured sub-pipelines. Skip the step.")
+		log.Ctx(ctx).Info().Msg("There are no configured sub-pipelines. Skip the step.")
 		return nil
-	}
-	targetEnvironments, ignoredForWebhookEnvs, err := internal.GetPipelineTargetEnvironments(ctx, pipelineInfo)
-	if err != nil {
-		return err
-	}
-	if len(ignoredForWebhookEnvs) > 0 {
-		log.Ctx(ctx).Info().Msgf("Run sub-pipelines for following environment(s) are ignored to be triggered by the webhook: %s", strings.Join(ignoredForWebhookEnvs, ", "))
 	}
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 	appName := step.GetAppName()
 	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
-	return step.RunPipelinesJob(pipelineInfo, targetEnvironments)
+	return step.RunPipelinesJob(pipelineInfo)
 }
 
-// GetEnvVars Gets build env vars
-func (step *RunPipelinesStepImplementation) GetEnvVars(pipelineInfo *model.PipelineInfo, envName string) radixv1.EnvVarsMap {
+func (step *RunPipelinesStepImplementation) getEnvVars(pipelineInfo *model.PipelineInfo, envName string) radixv1.EnvVarsMap {
 	envVarsMap := make(radixv1.EnvVarsMap)
 	step.setPipelineRunParamsFromBuild(pipelineInfo, envVarsMap)
 	step.setPipelineRunParamsFromEnvironmentBuilds(pipelineInfo, envName, envVarsMap)
@@ -164,7 +155,7 @@ func WithPipelineRunsWaiter(waiter wait.PipelineRunsCompletionWaiter) RunPipelin
 }
 
 // RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
-func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.PipelineInfo, targetEnvironments []string) error {
+func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.GetRadixPipelineType() == radixv1.Build {
 		log.Info().Msg("Pipeline type is build, skip Tekton pipeline run.")
 		return nil
@@ -193,7 +184,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 	}
 	log.Info().Msgf("Run tekton pipelines for the branch %s", tektonPipelineBranch)
 
-	pipelineRunMap, err := step.runPipelines(pipelineList.Items, namespace, pipelineInfo, targetEnvironments)
+	pipelineRunMap, err := step.runPipelines(pipelineList.Items, namespace, pipelineInfo)
 
 	if err != nil {
 		return fmt.Errorf("failed to run pipelines: %w", err)
@@ -202,18 +193,18 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 	if err = step.waiter.Wait(pipelineRunMap, pipelineInfo); err != nil {
 		return fmt.Errorf("failed tekton pipelines for the application %s, for environment(s) %s. %w",
 			pipelineInfo.GetAppName(),
-			strings.Join(targetEnvironments, ","),
+			strings.Join(pipelineInfo.TargetEnvironments, ","),
 			err)
 	}
 	return nil
 }
 
-func (step *RunPipelinesStepImplementation) runPipelines(pipelines []pipelinev1.Pipeline, namespace string, pipelineInfo *model.PipelineInfo, targetEnvironments []string) (map[string]*pipelinev1.PipelineRun, error) {
+func (step *RunPipelinesStepImplementation) runPipelines(pipelines []pipelinev1.Pipeline, namespace string, pipelineInfo *model.PipelineInfo) (map[string]*pipelinev1.PipelineRun, error) {
 	timestamp := time.Now().Format("20060102150405")
 	pipelineRunMap := make(map[string]*pipelinev1.PipelineRun)
 	var errs []error
 	for _, pl := range pipelines {
-		createdPipelineRun, err := step.createPipelineRun(namespace, &pl, timestamp, pipelineInfo, targetEnvironments)
+		createdPipelineRun, err := step.createPipelineRun(namespace, &pl, timestamp, pipelineInfo)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -223,19 +214,14 @@ func (step *RunPipelinesStepImplementation) runPipelines(pipelines []pipelinev1.
 	return pipelineRunMap, errors.Join(errs...)
 }
 
-func (step *RunPipelinesStepImplementation) createPipelineRun(namespace string, pipeline *pipelinev1.Pipeline, timestamp string, pipelineInfo *model.PipelineInfo, targetEnvironments []string) (*pipelinev1.PipelineRun, error) {
+func (step *RunPipelinesStepImplementation) createPipelineRun(namespace string, pipeline *pipelinev1.Pipeline, timestamp string, pipelineInfo *model.PipelineInfo) (*pipelinev1.PipelineRun, error) {
 	targetEnv, pipelineTargetEnvDefined := pipeline.ObjectMeta.Labels[kube.RadixEnvLabel]
 	if !pipelineTargetEnvDefined {
 		return nil, fmt.Errorf("missing target environment in labels of the pipeline %s", pipeline.Name)
 	}
 
 	log.Debug().Msgf("run pipelinerun for the target environment %s", targetEnv)
-	if !slice.Any(targetEnvironments, func(envName string) bool { return envName == targetEnv }) {
-		return nil, fmt.Errorf("missing target environment %s for the pipeline %s", targetEnv, pipeline.Name)
-	}
-
 	pipelineRun := step.buildPipelineRun(pipeline, targetEnv, timestamp, pipelineInfo)
-
 	return step.GetTektonClient().TektonV1().PipelineRuns(namespace).Create(context.Background(), &pipelineRun, v1.CreateOptions{})
 }
 
@@ -293,7 +279,7 @@ func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipeline
 }
 
 func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipelinev1.Pipeline, targetEnv string, pipelineInfo *model.PipelineInfo) []pipelinev1.Param {
-	envVars := step.GetEnvVars(pipelineInfo, targetEnv)
+	envVars := step.getEnvVars(pipelineInfo, targetEnv)
 	pipelineParamsMap := getPipelineParamSpecsMap(pipeline)
 	var pipelineParams []pipelinev1.Param
 	for envVarName, envVarValue := range envVars {

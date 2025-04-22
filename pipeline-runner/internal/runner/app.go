@@ -78,7 +78,7 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 
 // Run runs through the steps in the defined pipeline
 func (cli *PipelineRunner) Run(ctx context.Context) error {
-	log.Ctx(ctx).Info().Msgf("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Type, cli.appName)
+	printPipelineDescription(ctx, cli.pipelineInfo)
 	for _, step := range cli.pipelineInfo.Steps {
 		logger := log.Ctx(ctx)
 		ctx := logger.WithContext(ctx)
@@ -145,4 +145,21 @@ func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
 	log.Ctx(ctx).Debug().Msgf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 	_, err = cli.kubeUtil.CreateConfigMap(ctx, utils.GetAppNamespace(cli.appName), &configMap)
 	return err
+}
+
+func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineInfo) {
+	appName := pipelineInfo.GetAppName()
+	branch := pipelineInfo.GetBranch()
+	switch pipelineInfo.GetRadixPipelineType() {
+	case radixv1.ApplyConfig:
+		log.Ctx(ctx).Info().Msgf("Apply the radixconfig for the application %s", appName)
+	case radixv1.BuildDeploy:
+		log.Ctx(ctx).Info().Msgf("Build and deploy the application %s from the branch %s", appName, branch)
+	case radixv1.Build:
+		log.Ctx(ctx).Info().Msgf("Build the application %s from the branch %s", appName, branch)
+	case radixv1.Deploy:
+		log.Ctx(ctx).Info().Msgf("Deploy the application %s to the environment %s", appName, pipelineInfo.GetRadixDeployToEnvironment())
+	case radixv1.Promote:
+		log.Ctx(ctx).Info().Msgf("Promote the deployment %s of the application %s from the environment %s to %s", pipelineInfo.GetRadixPromoteDeployment(), appName, pipelineInfo.GetRadixPromoteFromEnvironment(), pipelineInfo.GetRadixDeployToEnvironment())
+	}
 }

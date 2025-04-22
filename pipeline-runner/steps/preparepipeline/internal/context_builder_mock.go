@@ -35,16 +35,16 @@ func (m *MockContextBuilder) EXPECT() *MockContextBuilderMockRecorder {
 }
 
 // GetBuildContext mocks base method.
-func (m *MockContextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, targetEnvironments []string) (*model.BuildContext, error) {
+func (m *MockContextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo) (*model.BuildContext, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBuildContext", pipelineInfo, targetEnvironments)
+	ret := m.ctrl.Call(m, "GetBuildContext", pipelineInfo)
 	ret0, _ := ret[0].(*model.BuildContext)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetBuildContext indicates an expected call of GetBuildContext.
-func (mr *MockContextBuilderMockRecorder) GetBuildContext(pipelineInfo, targetEnvironments interface{}) *gomock.Call {
+func (mr *MockContextBuilderMockRecorder) GetBuildContext(pipelineInfo interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBuildContext", reflect.TypeOf((*MockContextBuilder)(nil).GetBuildContext), pipelineInfo, targetEnvironments)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBuildContext", reflect.TypeOf((*MockContextBuilder)(nil).GetBuildContext), pipelineInfo)
 }

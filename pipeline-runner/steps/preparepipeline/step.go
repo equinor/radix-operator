@@ -18,6 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -112,7 +113,6 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.PipelineArguments.CommitID
 	appName := step.GetAppName()
-	log.Ctx(ctx).Info().Msgf("Pipeline type: %s", pipelineInfo.GetRadixPipelineType())
 
 	logPipelineInfo(ctx, pipelineInfo.Definition.Type, appName, branch, commitID)
 
@@ -131,20 +131,11 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 	}
 	pipelineInfo.RadixApplication = radixApplication
 
-	targetEnvironments, ignoredForWebhookEnvs, err := internal.GetPipelineTargetEnvironments(ctx, pipelineInfo)
-	if err != nil {
+	if err = setPipelineTargetEnvironments(ctx, pipelineInfo); err != nil {
 		return err
 	}
-	if len(targetEnvironments) > 0 {
-		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to the branch %s.", strings.Join(targetEnvironments, ", "), pipelineInfo.GetBranch())
-	} else {
-		log.Ctx(ctx).Info().Msgf("No environments are mapped to the branch %s.", pipelineInfo.GetBranch())
-	}
-	if len(ignoredForWebhookEnvs) > 0 {
-		log.Ctx(ctx).Info().Msgf("Following environment(s) are ignored for the webhook: %s.", strings.Join(ignoredForWebhookEnvs, ", "))
-	}
 
-	buildContext, err := step.contextBuilder.GetBuildContext(pipelineInfo, targetEnvironments)
+	buildContext, err := step.contextBuilder.GetBuildContext(pipelineInfo)
 	if err != nil {
 		return err
 	}
@@ -154,15 +145,14 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(ctx, pipelineInfo.BuildContext)
 	}
 
-	buildContext.EnvironmentSubPipelinesToRun, err = step.GetEnvironmentSubPipelinesToRun(pipelineInfo, targetEnvironments)
+	buildContext.EnvironmentSubPipelinesToRun, err = step.getEnvironmentSubPipelinesToRun(pipelineInfo)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// GetEnvironmentSubPipelinesToRun Prepare sub-pipelines for the target environments
-func (step *PreparePipelinesStepImplementation) GetEnvironmentSubPipelinesToRun(pipelineInfo *model.PipelineInfo, targetEnvironments []string) ([]model.EnvironmentSubPipelineToRun, error) {
+func (step *PreparePipelinesStepImplementation) getEnvironmentSubPipelinesToRun(pipelineInfo *model.PipelineInfo) ([]model.EnvironmentSubPipelineToRun, error) {
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
 	if pipelineInfo.StopPipeline {
 		log.Info().Msg("Pipeline is stopped, skip sub-pipelines")
@@ -170,8 +160,8 @@ func (step *PreparePipelinesStepImplementation) GetEnvironmentSubPipelinesToRun(
 	}
 	var errs []error
 	timestamp := time.Now().Format("20060102150405")
-	for _, targetEnv := range targetEnvironments {
-		log.Debug().Msgf("create a sub-pipeline for the environment %s", targetEnv)
+	for _, targetEnv := range pipelineInfo.TargetEnvironments {
+		log.Debug().Msgf("Create sub-pipeline for environment %s", targetEnv)
 		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForTargetEnv(pipelineInfo, targetEnv, timestamp)
 		if err != nil {
 			errs = append(errs, err)
@@ -430,13 +420,13 @@ func (step *PreparePipelinesStepImplementation) createPipeline(envName string, p
 	if err != nil {
 		return fmt.Errorf("tasks have not been created. Error: %w", err)
 	}
-	log.Info().Msgf("creates %d tasks for the environment %s", len(taskMap), envName)
+	log.Info().Msgf("Created %d task(s) for environment %s", len(taskMap), envName)
 
 	_, err = step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(pipelineInfo.GetAppName())).Create(context.Background(), pipeline, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("pipeline %s has not been created. Error: %w", pipeline.Name, err)
 	}
-	log.Info().Msgf("created the pipeline %s for the environment %s", pipeline.Name, envName)
+	log.Info().Msgf("Created pipeline %s for environment %s", pipeline.Name, envName)
 	return nil
 }
 
@@ -541,4 +531,66 @@ func (step *PreparePipelinesStepImplementation) setPipelineRunParamsFromEnvironm
 			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
 		}
 	}
+}
+
+func setPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	log.Ctx(ctx).Debug().Msg("Set target environments")
+	targetEnvironments, environmentsToIgnore, err := getPipelineTargetEnvironments(ctx, pipelineInfo)
+	if err != nil {
+		return err
+	}
+	pipelineInfo.TargetEnvironments = targetEnvironments
+	if len(pipelineInfo.TargetEnvironments) > 0 {
+		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to the branch %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetBranch())
+	} else {
+		log.Ctx(ctx).Info().Msgf("No environments are mapped to the branch %s.", pipelineInfo.GetBranch())
+	}
+	if len(environmentsToIgnore) > 0 {
+		log.Ctx(ctx).Info().Msgf("The following environment(s) are configured to be ignored when triggered from GitHub webhook: %s", strings.Join(environmentsToIgnore, ", "))
+	}
+	return nil
+}
+
+func getPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, []string, error) {
+	switch pipelineInfo.GetRadixPipelineType() {
+	case radixv1.ApplyConfig:
+		return nil, nil, nil
+	case radixv1.Promote:
+		environmentsForPromote, err := getTargetEnvironmentsForPromote(ctx, pipelineInfo)
+		return environmentsForPromote, nil, err
+	case radixv1.Deploy:
+		environmentsForDeploy, err := getTargetEnvironmentsForDeploy(ctx, pipelineInfo)
+		return environmentsForDeploy, nil, err
+	}
+
+	deployToEnvironment := pipelineInfo.GetRadixDeployToEnvironment()
+	targetEnvironments, ignoredForWebhookEnvs := applicationconfig.GetTargetEnvironments(pipelineInfo.GetBranch(), pipelineInfo.GetRadixApplication(), pipelineInfo.PipelineArguments.TriggeredFromWebhook)
+	applicableTargetEnvironments := slice.FindAll(targetEnvironments, func(envName string) bool { return len(deployToEnvironment) == 0 || deployToEnvironment == envName })
+	return applicableTargetEnvironments, ignoredForWebhookEnvs, nil
+}
+
+func getTargetEnvironmentsForPromote(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, error) {
+	var errs []error
+	if len(pipelineInfo.GetRadixPromoteDeployment()) == 0 {
+		errs = append(errs, fmt.Errorf("missing promote deployment name"))
+	}
+	if len(pipelineInfo.GetRadixPromoteFromEnvironment()) == 0 {
+		errs = append(errs, fmt.Errorf("missing promote source environment name"))
+	}
+	if len(pipelineInfo.GetRadixDeployToEnvironment()) == 0 {
+		errs = append(errs, fmt.Errorf("missing promote target environment name"))
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+	return []string{pipelineInfo.GetRadixDeployToEnvironment()}, nil // run Tekton pipelines for the promote target environment
+}
+
+func getTargetEnvironmentsForDeploy(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, error) {
+	targetEnvironment := pipelineInfo.GetRadixDeployToEnvironment()
+	if len(targetEnvironment) == 0 {
+		return nil, fmt.Errorf("no target environment is specified for the deploy pipeline")
+	}
+	log.Ctx(ctx).Info().Msgf("Target environment: %v", targetEnvironment)
+	return []string{targetEnvironment}, nil
 }
