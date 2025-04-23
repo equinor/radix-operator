@@ -878,13 +878,6 @@ func applyRadixAppWithPrivateImageHub(tu *test.Utils, client kubernetes.Interfac
 	return applyApplicationWithSync(tu, client, kubeUtil, radixClient, appBuilder)
 }
 
-func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) *applicationconfig.ApplicationConfig {
-	ra := applicationBuilder.BuildRA()
-	radixRegistration, _ := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), ra.Name, metav1.GetOptions{})
-
-	return applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
-}
-
 func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
 
 	ra, err := tu.ApplyApplication(applicationBuilder)
