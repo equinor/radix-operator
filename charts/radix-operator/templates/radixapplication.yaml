@@ -3034,6 +3034,12 @@ spec:
                           description: Defines variables that will be available in
                             sub-pipelines
                           type: object
+                        webhookEnabled:
+                          default: true
+                          description: |-
+                            WebhookEnabled indicates whether the webhook should be disabled for the environment.
+                            If set to false, the webhook will not be triggered for this environment.
+                          type: boolean
                       type: object
                     egress:
                       description: |-

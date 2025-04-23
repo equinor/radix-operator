@@ -69,15 +69,26 @@ func IsConfigBranch(branch string, rr *radixv1.RadixRegistration) bool {
 	return strings.EqualFold(branch, GetConfigBranch(rr))
 }
 
-// GetTargetEnvironments Checks if given branch requires deployment to environments
-func GetTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication) []string {
+// GetTargetEnvironments Gets applicable target environments to be built for a given branch
+func GetTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication, triggeredFromWebhook bool) ([]string, []string) {
 	var targetEnvs []string
+	var ignoredForWebhookEnvs []string
 	for _, env := range ra.Spec.Environments {
 		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
-			targetEnvs = append(targetEnvs, env.Name)
+			if triggeredFromWebhook && env.Build.WebhookEnabled != nil && !*env.Build.WebhookEnabled {
+				ignoredForWebhookEnvs = append(ignoredForWebhookEnvs, env.Name)
+			} else {
+				targetEnvs = append(targetEnvs, env.Name)
+			}
 		}
 	}
-	return targetEnvs
+	return targetEnvs, ignoredForWebhookEnvs
+}
+
+// GetAllTargetEnvironments Gets all target environments for a given branch
+func GetAllTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication) []string {
+	environments, _ := GetTargetEnvironments(branchToBuild, ra, false)
+	return environments
 }
 
 // ApplyConfigToApplicationNamespace Will apply the config to app namespace so that the operator can act on it

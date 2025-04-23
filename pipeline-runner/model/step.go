@@ -25,6 +25,7 @@ type Step interface {
 	GetRegistration() *v1.RadixRegistration
 	GetKubeClient() kubernetes.Interface
 	GetRadixClient() radixclient.Interface
+	GetTektonClient() tektonclient.Interface
 	GetKubeUtil() *kube.Kube
 	GetPrometheusOperatorClient() monitoring.Interface
 }
