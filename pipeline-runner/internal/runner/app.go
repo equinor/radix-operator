@@ -142,7 +142,7 @@ func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
 		},
 		Data: map[string]string{jobs.ResultContent: string(resultContent)},
 	}
-	log.Ctx(ctx).Debug().Msgf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
+	log.Ctx(ctx).Debug().Msgf("Create result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 	_, err = cli.kubeUtil.CreateConfigMap(ctx, utils.GetAppNamespace(cli.appName), &configMap)
 	return err
 }
@@ -152,14 +152,14 @@ func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineI
 	branch := pipelineInfo.GetBranch()
 	switch pipelineInfo.GetRadixPipelineType() {
 	case v1.ApplyConfig:
-		log.Ctx(ctx).Info().Msgf("Apply the radixconfig for the application %s", appName)
+		log.Ctx(ctx).Info().Msgf("Apply radixconfig for application %s", appName)
 	case v1.BuildDeploy:
-		log.Ctx(ctx).Info().Msgf("Build and deploy the application %s from the branch %s", appName, branch)
+		log.Ctx(ctx).Info().Msgf("Build and deploy application %s from branch %s", appName, branch)
 	case v1.Build:
-		log.Ctx(ctx).Info().Msgf("Build the application %s from the branch %s", appName, branch)
+		log.Ctx(ctx).Info().Msgf("Build application %s from branch %s", appName, branch)
 	case v1.Deploy:
-		log.Ctx(ctx).Info().Msgf("Deploy the application %s to the environment %s", appName, pipelineInfo.GetRadixDeployToEnvironment())
+		log.Ctx(ctx).Info().Msgf("Deploy application %s to environment %s", appName, pipelineInfo.GetRadixDeployToEnvironment())
 	case v1.Promote:
-		log.Ctx(ctx).Info().Msgf("Promote the deployment %s of the application %s from the environment %s to %s", pipelineInfo.GetRadixPromoteDeployment(), appName, pipelineInfo.GetRadixPromoteFromEnvironment(), pipelineInfo.GetRadixDeployToEnvironment())
+		log.Ctx(ctx).Info().Msgf("Promote deployment %s of application %s from environment %s to %s", pipelineInfo.GetRadixPromoteDeployment(), appName, pipelineInfo.GetRadixPromoteFromEnvironment(), pipelineInfo.GetRadixDeployToEnvironment())
 	}
 }
