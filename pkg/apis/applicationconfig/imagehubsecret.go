@@ -16,61 +16,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func getSyncTargetAnnotation(appName string) string {
-	return fmt.Sprintf("%s-sync=%s", defaults.PrivateImageHubSecretName, appName)
-}
-
 func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) error {
-	namespace := utils.GetAppNamespace(app.config.Name)
-	secret, err := app.kubeutil.GetSecret(ctx, namespace, defaults.PrivateImageHubSecretName)
-	if err != nil && !kubeerrors.IsNotFound(err) {
-		return fmt.Errorf("failed to get private image hub secret: %W", err)
+	currentSecret, desiredSecret, err := app.getCurrentAndDesiredImageHubSecret(ctx)
+	if err != nil {
+		return fmt.Errorf("failed get current and desired private image hub secret: %w", err)
 	}
 
-	var secretValue []byte
-	if kubeerrors.IsNotFound(err) || secret == nil {
-		secretValue, err = createImageHubsSecretValue(app.config.Spec.PrivateImageHubs)
-		if err != nil {
-			return fmt.Errorf("failed to create private image hub secret: %w", err)
-		}
-	} else {
-		// update if changes
-		imageHubs, err := GetImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
-		if err != nil {
-			return fmt.Errorf("failed to get private image hub secret value: %w", err)
-		}
-
-		// remove configs that doesn't exist
-		for server := range imageHubs {
-			if app.config.Spec.PrivateImageHubs[server] == nil {
-				delete(imageHubs, server)
-			}
-		}
-
-		// update existing configs
-		for server, config := range app.config.Spec.PrivateImageHubs {
-			if currentConfig, ok := imageHubs[server]; ok {
-				if config.Username != currentConfig.Username || config.Email != currentConfig.Email {
-					currentConfig.Username = config.Username
-					currentConfig.Email = config.Email
-					imageHubs[server] = currentConfig
-				}
-			} else {
-				imageHubs[server] = docker.Credential{
-					Username: config.Username,
-					Email:    config.Email,
-				}
-			}
-		}
-
-		secretValue, err = GetImageHubsSecretValue(imageHubs)
-		if err != nil {
+	if currentSecret != nil {
+		if _, err := app.kubeutil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
 			return fmt.Errorf("failed to update private image hub secret: %w", err)
 		}
-	}
-	err = ApplyPrivateImageHubSecret(ctx, app.kubeutil, namespace, app.config.Name, secretValue)
-	if err != nil {
-		return nil
+	} else {
+		if _, err := app.kubeutil.CreateSecret(ctx, desiredSecret.Namespace, desiredSecret); err != nil {
+			return fmt.Errorf("failed to create private image hub secret: %w", err)
+		}
 	}
 
 	err = utils.GrantAppReaderAccessToSecret(ctx, app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
@@ -86,31 +45,79 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) er
 	return nil
 }
 
-// ApplyPrivateImageHubSecret create a private image hub secret based on SecretTypeDockerConfigJson
-func ApplyPrivateImageHubSecret(ctx context.Context, kubeutil *kube.Kube, ns, appName string, secretValue []byte) error {
-	secret := corev1.Secret{
-		Type: corev1.SecretTypeDockerConfigJson,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.PrivateImageHubSecretName,
-			Namespace: ns,
-			Annotations: map[string]string{
-				"kubed.appscode.com/sync":                         getSyncTargetAnnotation(appName),
-				"replicator.v1.mittwald.de/replicate-to-matching": getSyncTargetAnnotation(appName),
+func (app *ApplicationConfig) getCurrentAndDesiredImageHubSecret(ctx context.Context) (current, desired *corev1.Secret, err error) {
+	ns := utils.GetAppNamespace(app.config.Name)
+	currentInternal, err := app.kubeutil.GetSecret(ctx, ns, defaults.PrivateImageHubSecretName)
+	if err != nil {
+		if !kubeerrors.IsNotFound(err) {
+			return nil, nil, fmt.Errorf("failed to get private image hub secret: %w", err)
+		}
+		desired = &corev1.Secret{
+			Type: corev1.SecretTypeDockerConfigJson,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.PrivateImageHubSecretName,
+				Namespace: ns,
 			},
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
-		},
-		Data: map[string][]byte{},
-	}
-	if secretValue != nil {
-		secret.Data[corev1.DockerConfigJsonKey] = secretValue
+		}
+	} else {
+		desired = currentInternal.DeepCopy()
+		current = currentInternal
 	}
 
-	_, err := kubeutil.ApplySecret(ctx, ns, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
-	if err != nil {
-		return fmt.Errorf("failed to create private image hub secrets in namespace %s: %w", ns, err)
+	desired.Labels = map[string]string{
+		kube.RadixAppLabel: app.config.Name,
 	}
+	if desired.Annotations == nil {
+		desired.Annotations = map[string]string{}
+	}
+
+	// Set annotation for Kubernetes Replicator
+	desired.Annotations["replicator.v1.mittwald.de/replicate-to-matching"] = fmt.Sprintf("%s-sync=%s", defaults.PrivateImageHubSecretName, app.config.Name)
+	// Deleted deprecated Kubernetes Config Syncer annotation
+	delete(desired.Annotations, "kubed.appscode.com/sync")
+
+	if err := setPrivateImageHubSecretData(desired, app.config.Spec.PrivateImageHubs); err != nil {
+		return nil, nil, fmt.Errorf("failed to set private image hub data: %w", err)
+	}
+
+	return current, desired, nil
+}
+
+func setPrivateImageHubSecretData(secret *corev1.Secret, privateImageHubs v1.PrivateImageHubEntries) error {
+	auths := docker.Auths{}
+	if existingData, ok := secret.Data[corev1.DockerConfigJsonKey]; ok {
+		tmpAuths, err := GetImageHubSecretValue(existingData)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal existing private image hub data: %w", err)
+		}
+		auths = tmpAuths
+	}
+
+	// Remove servers from auths no longer in the private image hubs spec
+	for server := range auths {
+		if _, exist := privateImageHubs[server]; !exist {
+			delete(auths, server)
+		}
+	}
+
+	// Update existing/add missing private image hubs from spec
+	for server, config := range privateImageHubs {
+		cred := auths[server]
+		cred.Username = config.Username
+		cred.Email = config.Email
+		auths[server] = cred
+	}
+
+	authData, err := GetImageHubsSecretValue(auths)
+	if err != nil {
+		return fmt.Errorf("failed to marshal private image hub data: %w", err)
+	}
+
+	if secret.Data == nil {
+		secret.Data = map[string][]byte{}
+	}
+	secret.Data[corev1.DockerConfigJsonKey] = authData
+
 	return nil
 }
 
@@ -123,22 +130,6 @@ func GetImageHubSecretValue(value []byte) (docker.Auths, error) {
 	}
 
 	return secretValue.Auths, nil
-}
-
-// createImageHubsSecretValue turn PrivateImageHubEntries into a json string correctly formated for k8s and ImagePullSecrets
-func createImageHubsSecretValue(imagehubs v1.PrivateImageHubEntries) ([]byte, error) {
-	imageHubs := docker.Auths{}
-
-	for server, config := range imagehubs {
-		pwd := ""
-		imageHub := docker.Credential{
-			Username: config.Username,
-			Email:    config.Email,
-			Password: pwd,
-		}
-		imageHubs[server] = imageHub
-	}
-	return GetImageHubsSecretValue(imageHubs)
 }
 
 // GetImageHubsSecretValue turn SecretImageHubs into a correctly formated secret for k8s ImagePullSecrets

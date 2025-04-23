@@ -407,7 +407,7 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 	assert.False(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
 }
 
-func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
+func Test_PrivateImageHubSecret_RoleAndRoleBinding(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest(t)
 
 	adminGroups, adminUsers := []string{"admin1", "admin2"}, []string{"adminUser1", "adminUser2"}
@@ -452,119 +452,217 @@ func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 		})
 	}
 }
-func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
-	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+
+func Test_PrivateImageHubSecret_MetadataAndDataCorrectlySet(t *testing.T) {
+	tu, client, kubeUtil, radixClient := setupTest(t)
+	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
 
 	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
-	assert.Equal(t, "radix-private-image-hubs-sync=any-app", secret.ObjectMeta.Annotations["kubed.appscode.com/sync"])
-	assert.Equal(t, "radix-private-image-hubs-sync=any-app", secret.ObjectMeta.Annotations["replicator.v1.mittwald.de/replicate-to-matching"])
+	// actualAuths, err := applicationconfig.GetImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
+	// require.NoError(t, err)
+	// expectedAuths := docker.Auths{
+	// 	"privaterepodeleteme.azurecr.io": docker.Credential{
+	// 		Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+	// 		Email:    "radix@equinor.com",
+	// 		Auth:     "ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==",
+	// 	},
+	// }
+	// assert.Equal(t, expectedAuths, actualAuths)
+	expectedData := "{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}"
+	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
+	expectedLabels := map[string]string{kube.RadixAppLabel: "any-app"}
+	assert.Equal(t, expectedLabels, secret.ObjectMeta.Labels)
+	expectedAnnotations := map[string]string{"replicator.v1.mittwald.de/replicate-to-matching": "radix-private-image-hubs-sync=any-app"}
+	assert.Equal(t, expectedAnnotations, secret.ObjectMeta.Annotations)
 }
 
-func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdatedNewAdded(t *testing.T) {
-	applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+func Test_PrivateImageHubSecret_RemoveDeprecatedAnnotoation(t *testing.T) {
+	tu, client, kubeUtil, radixClient := setupTest(t)
+	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
 
-	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-		"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	secret.Annotations["kubed.appscode.com/sync"] = "any-value"
+	_, err = client.CoreV1().Secrets("any-app-app").Update(context.Background(), secret, metav1.UpdateOptions{})
+	require.NoError(t, err)
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
+	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
+	secret, err = client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedAnnotations := map[string]string{"replicator.v1.mittwald.de/replicate-to-matching": "radix-private-image-hubs-sync=any-app"}
+	assert.Equal(t, expectedAnnotations, secret.ObjectMeta.Annotations)
 }
 
-func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateUsername(t *testing.T) {
-	applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+func Test_PrivateImageHubSecret_KeepCustomAnnotations(t *testing.T) {
+	tu, client, kubeUtil, radixClient := setupTest(t)
+	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
 
-	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abb2",
-			Email:    "radix@equinor.com",
-		},
-	})
+	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	secret.Annotations["any-annotation"] = "any-value"
+	_, err = client.CoreV1().Secrets("any-app-app").Update(context.Background(), secret, metav1.UpdateOptions{})
+	require.NoError(t, err)
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abb2\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmIyOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
+	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
+	secret, err = client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedAnnotations := map[string]string{
+		"replicator.v1.mittwald.de/replicate-to-matching": "radix-private-image-hubs-sync=any-app",
+		"any-annotation": "any-value",
+	}
+	assert.Equal(t, expectedAnnotations, secret.ObjectMeta.Annotations)
 }
 
-func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateServerName(t *testing.T) {
-	applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+func Test_PrivateImageHubSecret_AddServer(t *testing.T) {
+	tu, client, kubeUtil, radixClient := setupTest(t)
+	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
 
-	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme1.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+			"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
 
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme1.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
+	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedData := "{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}"
+	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
 }
 
-func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
-	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-		"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+func Test_PrivateImageHubSecret_UpdateUsername(t *testing.T) {
+	tu, client, kubeUtil, radixClient := setupTest(t)
+	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
+	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abb2",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
 
-	client, _, _ = applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedData := "{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abb2\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmIyOg==\"}}}"
+	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
+}
 
-	secret, _ = client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
+func Test_PrivateImageHubSecret_UpdateServerName(t *testing.T) {
+	tu, client, kubeUtil, radixClient := setupTest(t)
+	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
+
+	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme1.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
+
+	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedData := "{\"auths\":{\"privaterepodeleteme1.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}"
+	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
+}
+
+func Test_PrivateImageHubSecret_DeleteServer(t *testing.T) {
+	tu, client, kubeUtil, radixClient := setupTest(t)
+	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+			"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
+
+	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedData := "{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}"
+	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
+
+	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
+
+	secret, err = client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedData = "{\"auths\":{\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}"
+	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
 }
 
 func Test_RadixEnvironment(t *testing.T) {
@@ -687,8 +785,7 @@ func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	}
 }
 
-func applyRadixAppWithPrivateImageHub(t *testing.T, privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *applicationconfig.ApplicationConfig, *kube.Kube) {
-	tu, client, kubeUtil, radixClient := setupTest(t)
+func applyRadixAppWithPrivateImageHub(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, privateImageHubs radixv1.PrivateImageHubEntries) error {
 	appBuilder := utils.ARadixApplication().
 		WithAppName("any-app").
 		WithEnvironment("dev", "master")
@@ -696,12 +793,7 @@ func applyRadixAppWithPrivateImageHub(t *testing.T, privateImageHubs radixv1.Pri
 		appBuilder.WithPrivateImageRegistry(key, config.Username, config.Email)
 	}
 
-	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, appBuilder)
-	if err != nil {
-		return nil, nil, nil
-	}
-	appConfig := getAppConfig(client, kubeUtil, radixClient, appBuilder)
-	return client, appConfig, kubeUtil
+	return applyApplicationWithSync(tu, client, kubeUtil, radixClient, appBuilder)
 }
 
 func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) *applicationconfig.ApplicationConfig {
@@ -711,8 +803,7 @@ func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient 
 	return applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
 }
 
-func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
-	radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
+func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
 
 	ra, err := tu.ApplyApplication(applicationBuilder)
 	if err != nil {
