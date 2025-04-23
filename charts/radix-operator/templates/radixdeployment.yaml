@@ -1011,8 +1011,10 @@ spec:
                           type: object
                       type: object
                     node:
-                      description: RadixNode defines node attributes, where container
-                        should be scheduled
+                      description: |-
+                        Deprecated: use nodeType instead.
+                        Defines GPU requirements for the component.
+                        More info: https://www.radix.equinor.com/radix-config#node
                       properties:
                         gpu:
                           description: |-
@@ -1023,6 +1025,13 @@ spec:
                           description: Defines minimum number of required GPUs.
                           type: string
                       type: object
+                    nodeType:
+                      description: |-
+                        Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
+                        More info: https://www.radix.equinor.com/radix-config#nodetype
+                      maxLength: 15
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                      type: string
                     ports:
                       items:
                         description: ComponentPort defines a named port.
@@ -1641,8 +1650,7 @@ spec:
                     name:
                       type: string
                     node:
-                      description: RadixNode defines node attributes, where container
-                        should be scheduled
+                      description: 'Deprecated: use nodeType instead.'
                       properties:
                         gpu:
                           description: |-
@@ -1653,6 +1661,8 @@ spec:
                           description: Defines minimum number of required GPUs.
                           type: string
                       type: object
+                    nodeType:
+                      type: string
                     notifications:
                       description: Notifications is the spec for notification about
                         internal events or changes

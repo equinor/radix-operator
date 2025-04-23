@@ -118,6 +118,7 @@ func (c *jobComponentsBuilder) buildJobComponent(ctx context.Context, radixJobCo
 		EnvironmentVariables: getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig, defaultEnvVars),
 		Resources:            getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig),
 		Node:                 getRadixCommonComponentNode(ctx, &radixJobComponent, environmentSpecificConfig),
+		NodeType:             getRadixCommonComponentNodeType(&radixJobComponent, environmentSpecificConfig),
 		SecretRefs:           getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig),
 		BackoffLimit:         getRadixJobComponentBackoffLimit(radixJobComponent, environmentSpecificConfig),
 		TimeLimitSeconds:     getRadixJobComponentTimeLimitSeconds(radixJobComponent, environmentSpecificConfig),

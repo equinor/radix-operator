@@ -442,10 +442,18 @@ type RadixComponent struct {
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
+	// Deprecated: use nodeType instead.
 	// Defines GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
+
+	// Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
+	// More info: https://www.radix.equinor.com/radix-config#nodetype
+	// +kubebuilder:validation:MaxLength=15
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +optional
+	NodeType *string `json:"nodeType,omitempty"`
 
 	// Configuration for TLS client certificate or OAuth2 authentication.
 	// More info: https://www.radix.equinor.com/radix-config#authentication
@@ -549,10 +557,18 @@ type RadixEnvironmentConfig struct {
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
+	// Deprecated: use nodeType instead.
 	// Environment specific GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
+
+	// Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
+	// More info: https://www.radix.equinor.com/radix-config#nodetype
+	// +kubebuilder:validation:MaxLength=15
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +optional
+	NodeType *string `json:"nodeType,omitempty"`
 
 	// Environment specific configuration for TLS client certificate or OAuth2 authentication.
 	// More info: https://www.radix.equinor.com/radix-config#authentication
@@ -683,10 +699,18 @@ type RadixJobComponent struct {
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
+	// Deprecated: use nodeType instead.
 	// Defines GPU requirements for the job.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
+
+	// Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
+	// More info: https://www.radix.equinor.com/radix-config#nodetype
+	// +kubebuilder:validation:MaxLength=15
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +optional
+	NodeType *string `json:"nodeType,omitempty"`
 
 	// The maximum number of seconds the job can run.
 	// More info: https://www.radix.equinor.com/radix-config#timelimitseconds
@@ -852,10 +876,18 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
+	// Deprecated: use nodeType instead.
 	// Environment specific GPU requirements for the job.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
+
+	// Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
+	// More info: https://www.radix.equinor.com/radix-config#nodetype
+	// +kubebuilder:validation:MaxLength=15
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +optional
+	NodeType *string `json:"nodeType,omitempty"`
 
 	// Environment specific configuration for external secret stores, like Azure KeyVault.
 	// More info: https://www.radix.equinor.com/radix-config#secretrefs
@@ -1731,6 +1763,8 @@ type RadixCommonComponent interface {
 	GetSourceForEnvironment(environment string) ComponentSource
 	// GetNode Gets component node parameters
 	GetNode() *RadixNode
+	// GetNodeType Gets node type of the component
+	GetNodeType() *string
 	// GetVariables Gets component environment variables
 	GetVariables() EnvVarsMap
 	// GetPorts Gets component ports
@@ -1801,6 +1835,10 @@ func (component *RadixComponent) GetSourceForEnvironment(environment string) Com
 
 func (component *RadixComponent) GetNode() *RadixNode {
 	return &component.Node
+}
+
+func (component *RadixComponent) GetNodeType() *string {
+	return component.NodeType
 }
 
 func (component *RadixComponent) GetVariables() EnvVarsMap {
@@ -1934,6 +1972,10 @@ func (component *RadixJobComponent) GetSourceForEnvironment(environment string) 
 
 func (component *RadixJobComponent) GetNode() *RadixNode {
 	return &component.Node
+}
+
+func (component *RadixJobComponent) GetNodeType() *string {
+	return component.NodeType
 }
 
 func (component *RadixJobComponent) GetVariables() EnvVarsMap {

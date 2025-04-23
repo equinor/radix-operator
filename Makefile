@@ -94,6 +94,10 @@ mocks: bootstrap
 	mockgen -source ./pipeline-runner/steps/internal/wait/pipelinerun.go -destination ./pipeline-runner/steps/internal/wait/pipelinerun_mock.go -package wait
 
 
+.PHONY: tidy
+tidy:
+	go mod tidy
+
 .PHONY: build-pipeline
 build-pipeline:
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) --platform linux/arm64,linux/amd64 -f pipeline.Dockerfile .
@@ -167,7 +171,7 @@ lint: bootstrap
 generate: bootstrap code-gen crds mocks
 
 .PHONY: verify-generate
-verify-generate: bootstrap generate
+verify-generate: bootstrap tidy generate
 	git diff --exit-code
 
 .PHONY: apply-ra

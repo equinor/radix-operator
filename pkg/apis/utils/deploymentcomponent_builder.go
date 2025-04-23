@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/equinor/radix-common/utils/pointers"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
@@ -26,6 +27,7 @@ type DeployComponentBuilder interface {
 	WithHealthChecks(startupProbe, readynessProbe, livenessProbe *v1.RadixProbe) DeployComponentBuilder
 	WithNodeGpu(gpu string) DeployComponentBuilder
 	WithNodeGpuCount(gpuCount string) DeployComponentBuilder
+	WithNodeType(nodeType string) DeployComponentBuilder
 	WithIngressConfiguration(...string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) DeployComponentBuilder
@@ -61,12 +63,14 @@ type deployComponentBuilder struct {
 	secretRefs              v1.RadixSecretRefs
 	dnsAppAlias             bool
 	// Deprecated: For backwards compatibility externalAppAlias is still supported, new code should use externalDNS instead
-	externalAppAlias   []string
-	externalDNS        []v1.RadixDeployExternalDNS
-	resources          v1.ResourceRequirements
-	horizontalScaling  *v1.RadixHorizontalScaling
-	volumeMounts       []v1.RadixVolumeMount
+	externalAppAlias  []string
+	externalDNS       []v1.RadixDeployExternalDNS
+	resources         v1.ResourceRequirements
+	horizontalScaling *v1.RadixHorizontalScaling
+	volumeMounts      []v1.RadixVolumeMount
+	// Deprecated: use nodeType instead.
 	node               v1.RadixNode
+	nodeType           *string
 	authentication     *v1.Authentication
 	identity           *v1.Identity
 	readOnlyFileSystem *bool
@@ -95,6 +99,11 @@ func (dcb *deployComponentBuilder) WithNodeGpu(gpu string) DeployComponentBuilde
 
 func (dcb *deployComponentBuilder) WithNodeGpuCount(gpuCount string) DeployComponentBuilder {
 	dcb.node.GpuCount = gpuCount
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithNodeType(nodeType string) DeployComponentBuilder {
+	dcb.nodeType = pointers.Ptr(nodeType)
 	return dcb
 }
 
@@ -273,6 +282,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		VolumeMounts:            dcb.volumeMounts,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 		Node:                    dcb.node,
+		NodeType:                dcb.nodeType,
 		Authentication:          dcb.authentication,
 		Identity:                dcb.identity,
 		ReadOnlyFileSystem:      dcb.readOnlyFileSystem,

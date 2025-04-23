@@ -1559,6 +1559,11 @@ func (in *RadixComponent) DeepCopyInto(out *RadixComponent) {
 		**out = **in
 	}
 	out.Node = in.Node
+	if in.NodeType != nil {
+		in, out := &in.NodeType, &out.NodeType
+		*out = new(string)
+		**out = **in
+	}
 	if in.Authentication != nil {
 		in, out := &in.Authentication, &out.Authentication
 		*out = new(Authentication)
@@ -1777,6 +1782,11 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 		}
 	}
 	out.Node = in.Node
+	if in.NodeType != nil {
+		in, out := &in.NodeType, &out.NodeType
+		*out = new(string)
+		**out = **in
+	}
 	if in.Authentication != nil {
 		in, out := &in.Authentication, &out.Authentication
 		*out = new(Authentication)
@@ -1872,6 +1882,11 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 		**out = **in
 	}
 	out.Node = in.Node
+	if in.NodeType != nil {
+		in, out := &in.NodeType, &out.NodeType
+		*out = new(string)
+		**out = **in
+	}
 	if in.TimeLimitSeconds != nil {
 		in, out := &in.TimeLimitSeconds, &out.TimeLimitSeconds
 		*out = new(int64)
@@ -2169,6 +2184,11 @@ func (in *RadixEnvironmentConfig) DeepCopyInto(out *RadixEnvironmentConfig) {
 		**out = **in
 	}
 	out.Node = in.Node
+	if in.NodeType != nil {
+		in, out := &in.NodeType, &out.NodeType
+		*out = new(string)
+		**out = **in
+	}
 	if in.Authentication != nil {
 		in, out := &in.Authentication, &out.Authentication
 		*out = new(Authentication)
@@ -2638,6 +2658,11 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	out.Node = in.Node
+	if in.NodeType != nil {
+		in, out := &in.NodeType, &out.NodeType
+		*out = new(string)
+		**out = **in
+	}
 	if in.TimeLimitSeconds != nil {
 		in, out := &in.TimeLimitSeconds, &out.TimeLimitSeconds
 		*out = new(int64)
@@ -2722,6 +2747,11 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 		}
 	}
 	out.Node = in.Node
+	if in.NodeType != nil {
+		in, out := &in.NodeType, &out.NodeType
+		*out = new(string)
+		**out = **in
+	}
 	in.SecretRefs.DeepCopyInto(&out.SecretRefs)
 	if in.TimeLimitSeconds != nil {
 		in, out := &in.TimeLimitSeconds, &out.TimeLimitSeconds
