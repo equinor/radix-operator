@@ -151,15 +151,15 @@ func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineI
 	appName := pipelineInfo.GetAppName()
 	branch := pipelineInfo.GetBranch()
 	switch pipelineInfo.GetRadixPipelineType() {
-	case radixv1.ApplyConfig:
+	case v1.ApplyConfig:
 		log.Ctx(ctx).Info().Msgf("Apply the radixconfig for the application %s", appName)
-	case radixv1.BuildDeploy:
+	case v1.BuildDeploy:
 		log.Ctx(ctx).Info().Msgf("Build and deploy the application %s from the branch %s", appName, branch)
-	case radixv1.Build:
+	case v1.Build:
 		log.Ctx(ctx).Info().Msgf("Build the application %s from the branch %s", appName, branch)
-	case radixv1.Deploy:
+	case v1.Deploy:
 		log.Ctx(ctx).Info().Msgf("Deploy the application %s to the environment %s", appName, pipelineInfo.GetRadixDeployToEnvironment())
-	case radixv1.Promote:
+	case v1.Promote:
 		log.Ctx(ctx).Info().Msgf("Promote the deployment %s of the application %s from the environment %s to %s", pipelineInfo.GetRadixPromoteDeployment(), appName, pipelineInfo.GetRadixPromoteFromEnvironment(), pipelineInfo.GetRadixDeployToEnvironment())
 	}
 }

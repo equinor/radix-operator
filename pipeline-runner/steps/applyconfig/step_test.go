@@ -121,7 +121,8 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsMapped() {
 			PipelineType: string(radixv1.BuildDeploy),
 			Branch:       mappedBranch,
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{"mappedenv1", "mappedenv2"},
 	}
 
 	step := applyconfig.NewApplyConfigStep()
@@ -147,7 +148,8 @@ func (s *applyConfigTestSuite) Test_TargetEnvironments_DeployOnly() {
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: toEnvironment,
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{toEnvironment},
 	}
 
 	cli := applyconfig.NewApplyConfigStep()
@@ -174,7 +176,8 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretMissing() {
 			PipelineType: string(radixv1.BuildDeploy),
 			Branch:       mappedBranch,
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{"test"},
 	}
 
 	cli := applyconfig.NewApplyConfigStep()
@@ -233,7 +236,8 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFa
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{"dev"},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -260,7 +264,8 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{"dev"},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -353,7 +358,8 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 			Clustername:       "clustername",
 			GitWorkspace:      "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{envName1, envName2, envName3, envName4},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -530,7 +536,8 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 			Clustername:       "anyclustername",
 			GitWorkspace:      "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{envName},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -672,7 +679,8 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 			Clustername:       "clustername",
 			GitWorkspace:      "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{envName},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -807,7 +815,8 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			ContainerRegistry: "registry",
 			GitWorkspace:      "/some-workspace",
 		},
-		BuildContext: buildCtx,
+		BuildContext:       buildCtx,
+		TargetEnvironments: []string{envName},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1317,9 +1326,10 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), test.existingRd, metav1.CreateOptions{})
 			}
 			pipelineInfo := model.PipelineInfo{
-				PipelineArguments: pipelineArgs,
-				RadixApplication:  ra,
-				BuildContext:      test.prepareBuildCtx,
+				PipelineArguments:  pipelineArgs,
+				RadixApplication:   ra,
+				BuildContext:       test.prepareBuildCtx,
+				TargetEnvironments: []string{envName},
 			}
 			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
@@ -1379,7 +1389,8 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 					ToEnvironment: "dev",
 					GitWorkspace:  "/some-workspace",
 				},
-				RadixApplication: ra,
+				RadixApplication:   ra,
+				TargetEnvironments: []string{"dev"},
 			}
 
 			applyStep := applyconfig.NewApplyConfigStep()
@@ -1413,7 +1424,8 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInRAShouldSu
 			ToEnvironment: "dev",
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{"dev"},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1440,7 +1452,8 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineAr
 			ImageTagNames: map[string]string{"deploycomp": "tag"},
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{"dev"},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1466,7 +1479,8 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail(
 			ToEnvironment: "dev",
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{"dev"},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1496,7 +1510,8 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed(
 			ToEnvironment: "dev",
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{"dev"},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1523,7 +1538,8 @@ func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgS
 			ImageTagNames: map[string]string{"deployjob": "anytag"},
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{"dev"},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1593,7 +1609,8 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 					ComponentsToDeploy: ts.componentsToDeploy,
 					GitWorkspace:       "/some-workspace",
 				},
-				RadixApplication: ra,
+				RadixApplication:   ra,
+				TargetEnvironments: []string{"dev"},
 			}
 			switch ts.pipelineType {
 			case radixv1.Deploy:
@@ -1650,7 +1667,8 @@ func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
 			ImageTagNames: map[string]string{"comp1": "comp1customtag", "job1": "job1customtag"},
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []string{envName},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1746,7 +1764,8 @@ func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 					Branch:       branchName,
 					GitWorkspace: "/some-workspace",
 				},
-				RadixApplication: ra,
+				RadixApplication:   ra,
+				TargetEnvironments: []string{"dev"},
 			}
 
 			applyStep := applyconfig.NewApplyConfigStep()
