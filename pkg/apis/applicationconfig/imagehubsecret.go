@@ -19,7 +19,7 @@ import (
 func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) error {
 	currentSecret, desiredSecret, err := app.getCurrentAndDesiredImageHubSecret(ctx)
 	if err != nil {
-		return fmt.Errorf("failed get current and desired private image hub secret: %w", err)
+		return fmt.Errorf("failed to get current and desired private image hub secret: %w", err)
 	}
 
 	if currentSecret != nil {
