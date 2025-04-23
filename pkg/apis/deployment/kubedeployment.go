@@ -287,8 +287,12 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	spec := NewServiceAccountSpec(deploy.radixDeployment, deployComponent)
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = spec.AutomountServiceAccountToken()
 	desiredDeployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
-	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
-	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent.GetNode())
+	affinity, err := utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
+	if err != nil {
+		return err
+	}
+	desiredDeployment.Spec.Template.Spec.Affinity = affinity
+	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent)
 
 	existingVolumes, err := deploy.getDeployComponentExistingVolumes(ctx, deployComponent, desiredDeployment)
 	if err != nil {

@@ -1248,6 +1248,11 @@ func (in *RadixBatchJob) DeepCopyInto(out *RadixBatchJob) {
 		*out = new(RadixNode)
 		**out = **in
 	}
+	if in.NodeType != nil {
+		in, out := &in.NodeType, &out.NodeType
+		*out = new(string)
+		**out = **in
+	}
 	if in.TimeLimitSeconds != nil {
 		in, out := &in.TimeLimitSeconds, &out.TimeLimitSeconds
 		*out = new(int64)

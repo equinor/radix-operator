@@ -121,6 +121,11 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 		node = batchJob.Node
 	}
 
+	nodeType := jobComponent.GetNodeType()
+	if batchJob.NodeType != nil {
+		nodeType = batchJob.NodeType
+	}
+
 	backoffLimit := jobComponent.BackoffLimit
 	if batchJob.BackoffLimit != nil {
 		backoffLimit = batchJob.BackoffLimit
@@ -158,8 +163,8 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 					SecurityContext:              securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					RestartPolicy:                corev1.RestartPolicyNever,
 					ImagePullSecrets:             s.getJobPodImagePullSecrets(rd),
-					Affinity:                     operatorUtils.GetAffinityForBatchJob(ctx, jobComponent, node),
-					Tolerations:                  operatorUtils.GetScheduledJobPodSpecTolerations(node),
+					Affinity:                     operatorUtils.GetAffinityForBatchJob(ctx, jobComponent, node, nodeType),
+					Tolerations:                  operatorUtils.GetScheduledJobPodSpecTolerations(node, nodeType),
 					ActiveDeadlineSeconds:        timeLimitSeconds,
 					ServiceAccountName:           serviceAccountSpec.ServiceAccountName(),
 					AutomountServiceAccountToken: serviceAccountSpec.AutomountServiceAccountToken(),

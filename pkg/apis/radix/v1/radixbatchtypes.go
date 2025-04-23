@@ -63,10 +63,18 @@ type RadixBatchJob struct {
 	// +optional
 	Resources *ResourceRequirements `json:"resources,omitempty"`
 
+	// Deprecated: use nodeType instead.
 	// Specifies node attributes, where container should be scheduled.
 	// Overrides node configuration defined for job component in RadixDeployment.
 	// +optional
 	Node *RadixNode `json:"node,omitempty"`
+
+	// Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
+	// More info: https://www.radix.equinor.com/radix-config#nodetype
+	// +kubebuilder:validation:MaxLength=15
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +optional
+	NodeType *string `json:"nodeType,omitempty"`
 
 	// Specifies maximum job run time.
 	// Overrides timeLimitSeconds defined for job component in RadixDeployment.

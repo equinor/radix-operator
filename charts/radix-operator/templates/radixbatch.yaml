@@ -142,6 +142,7 @@ spec:
                       type: string
                     node:
                       description: |-
+                        Deprecated: use nodeType instead.
                         Specifies node attributes, where container should be scheduled.
                         Overrides node configuration defined for job component in RadixDeployment.
                       properties:
@@ -154,6 +155,13 @@ spec:
                           description: Defines minimum number of required GPUs.
                           type: string
                       type: object
+                    nodeType:
+                      description: |-
+                        Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
+                        More info: https://www.radix.equinor.com/radix-config#nodetype
+                      maxLength: 15
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                      type: string
                     payloadSecretRef:
                       description: Specifies the Secret name and data key containing
                         the payload for the job
