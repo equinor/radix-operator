@@ -6,6 +6,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/equinor/radix-common/pkg/docker"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -453,30 +454,13 @@ func Test_PrivateImageHubSecret_RoleAndRoleBinding(t *testing.T) {
 	}
 }
 
-func Test_PrivateImageHubSecret_MetadataAndDataCorrectlySet(t *testing.T) {
+func Test_PrivateImageHubSecret_LabelsAndAnnotations(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest(t)
-	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-		})
+	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient, radixv1.PrivateImageHubEntries{})
 	require.NoError(t, err)
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	// actualAuths, err := applicationconfig.GetImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
-	// require.NoError(t, err)
-	// expectedAuths := docker.Auths{
-	// 	"privaterepodeleteme.azurecr.io": docker.Credential{
-	// 		Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-	// 		Email:    "radix@equinor.com",
-	// 		Auth:     "ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==",
-	// 	},
-	// }
-	// assert.Equal(t, expectedAuths, actualAuths)
-	expectedData := "{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}"
-	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
+	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
 	expectedLabels := map[string]string{kube.RadixAppLabel: "any-app"}
 	assert.Equal(t, expectedLabels, secret.ObjectMeta.Labels)
 	expectedAnnotations := map[string]string{"replicator.v1.mittwald.de/replicate-to-matching": "radix-private-image-hubs-sync=any-app"}
@@ -548,121 +532,219 @@ func Test_PrivateImageHubSecret_KeepCustomAnnotations(t *testing.T) {
 	assert.Equal(t, expectedAnnotations, secret.ObjectMeta.Annotations)
 }
 
-func Test_PrivateImageHubSecret_AddServer(t *testing.T) {
-	tu, client, kubeUtil, radixClient := setupTest(t)
-	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
+func Test_PrivateImageHubSecret_UpdateSpec(t *testing.T) {
+	tests := map[string]struct {
+		initialSpec         radixv1.PrivateImageHubEntries
+		initialExpectedAuth docker.Auths
+		passwords           map[string]string
+		updatedSpec         radixv1.PrivateImageHubEntries
+		updatedExpectedAuth docker.Auths
+	}{
+		"password retained when resync with no changes": {
+			initialSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
 			},
+			initialExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+			},
+			passwords: map[string]string{"registry.server.com": "anypassword"},
+			updatedSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			updatedExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Password: "anypassword",
+					Auth:     "YW55dXNlcjphbnlwYXNzd29yZA==",
+				},
+			},
+		},
+		"password retained when resync with changed username": {
+			initialSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			initialExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+			},
+			passwords: map[string]string{"registry.server.com": "anypassword"},
+			updatedSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "newuser",
+					Email:    "any@email.com",
+				},
+			},
+			updatedExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "newuser",
+					Email:    "any@email.com",
+					Password: "anypassword",
+					Auth:     "bmV3dXNlcjphbnlwYXNzd29yZA==",
+				},
+			},
+		},
+		"password retained when resync with changed email": {
+			initialSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			initialExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+			},
+			passwords: map[string]string{"registry.server.com": "anypassword"},
+			updatedSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "new@email.com",
+				},
+			},
+			updatedExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "new@email.com",
+					Password: "anypassword",
+					Auth:     "YW55dXNlcjphbnlwYXNzd29yZA==",
+				},
+			},
+		},
+		"password cleared when resync with changed server": {
+			initialSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			initialExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+			},
+			passwords: map[string]string{"registry.server.com": "anypassword"},
+			updatedSpec: radixv1.PrivateImageHubEntries{
+				"newregistry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			updatedExpectedAuth: docker.Auths{
+				"newregistry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+			},
+		},
+		"password retained when adding and removing servers": {
+			initialSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+				"oldregistry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "olduser",
+					Email:    "old@email.com",
+				},
+			},
+			initialExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+				"oldregistry.server.com": docker.Credential{
+					Username: "olduser",
+					Email:    "old@email.com",
+					Auth:     "b2xkdXNlcjo=",
+				},
+			},
+			passwords: map[string]string{"registry.server.com": "anypassword"},
+			updatedSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+				"newregistry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "newuser",
+					Email:    "new@email.com",
+				},
+			},
+			updatedExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Password: "anypassword",
+					Auth:     "YW55dXNlcjphbnlwYXNzd29yZA==",
+				},
+				"newregistry.server.com": docker.Credential{
+					Username: "newuser",
+					Email:    "new@email.com",
+					Auth:     "bmV3dXNlcjo=",
+				},
+			},
+		},
+	}
+
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			tu, client, kubeUtil, radixClient := setupTest(t)
+
+			// Check initial private image hub spec
+			err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient, testSpec.initialSpec)
+			require.NoError(t, err)
+			initialSecret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+			require.NoError(t, err)
+			initialActualAuthConfig, err := applicationconfig.UnmarshalPrivateImageHubAuthConfig(initialSecret.Data[corev1.DockerConfigJsonKey])
+			require.NoError(t, err)
+			assert.Equal(t, testSpec.initialExpectedAuth, initialActualAuthConfig.Auths)
+
+			// Update secret with passwords
+			for server, cred := range initialActualAuthConfig.Auths {
+				if pwd, found := testSpec.passwords[server]; found {
+					cred.Password = pwd
+					initialActualAuthConfig.Auths[server] = cred
+				}
+			}
+			authConfigData, err := applicationconfig.MarshalPrivateImageHubAuthConfig(initialActualAuthConfig)
+			require.NoError(t, err)
+			initialSecret.Data[corev1.DockerConfigJsonKey] = authConfigData
+			_, err = client.CoreV1().Secrets("any-app-app").Update(context.Background(), initialSecret, metav1.UpdateOptions{})
+			require.NoError(t, err)
+
+			// Check updated private image hub spec
+			err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient, testSpec.updatedSpec)
+			require.NoError(t, err)
+			updatedSecret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+			require.NoError(t, err)
+			updatedActualAuthConfig, err := applicationconfig.UnmarshalPrivateImageHubAuthConfig(updatedSecret.Data[corev1.DockerConfigJsonKey])
+			require.NoError(t, err)
+			assert.Equal(t, testSpec.updatedExpectedAuth, updatedActualAuthConfig.Auths)
 		})
-	require.NoError(t, err)
-
-	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-			"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-		})
-	require.NoError(t, err)
-
-	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	require.NoError(t, err)
-	expectedData := "{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}"
-	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
-}
-
-func Test_PrivateImageHubSecret_UpdateUsername(t *testing.T) {
-	tu, client, kubeUtil, radixClient := setupTest(t)
-	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-		})
-	require.NoError(t, err)
-
-	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abb2",
-				Email:    "radix@equinor.com",
-			},
-		})
-	require.NoError(t, err)
-
-	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	require.NoError(t, err)
-	expectedData := "{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abb2\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmIyOg==\"}}}"
-	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
-}
-
-func Test_PrivateImageHubSecret_UpdateServerName(t *testing.T) {
-	tu, client, kubeUtil, radixClient := setupTest(t)
-	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-		})
-	require.NoError(t, err)
-
-	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme1.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-		})
-	require.NoError(t, err)
-
-	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	require.NoError(t, err)
-	expectedData := "{\"auths\":{\"privaterepodeleteme1.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}"
-	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
-}
-
-func Test_PrivateImageHubSecret_DeleteServer(t *testing.T) {
-	tu, client, kubeUtil, radixClient := setupTest(t)
-	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-			"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-		})
-	require.NoError(t, err)
-
-	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	require.NoError(t, err)
-	expectedData := "{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}"
-	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
-
-	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-		})
-	require.NoError(t, err)
-
-	secret, err = client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	require.NoError(t, err)
-	expectedData = "{\"auths\":{\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}"
-	assert.Equal(t, expectedData, string(secret.Data[corev1.DockerConfigJsonKey]))
+	}
 }
 
 func Test_RadixEnvironment(t *testing.T) {

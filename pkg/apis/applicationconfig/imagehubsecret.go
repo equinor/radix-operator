@@ -84,35 +84,37 @@ func (app *ApplicationConfig) getCurrentAndDesiredImageHubSecret(ctx context.Con
 }
 
 func setPrivateImageHubSecretData(secret *corev1.Secret, privateImageHubs v1.PrivateImageHubEntries) error {
-	auths := docker.Auths{}
+	authConfig := docker.AuthConfig{}
 	if existingData, ok := secret.Data[corev1.DockerConfigJsonKey]; ok {
-		tmpAuths, err := GetImageHubSecretValue(existingData)
+		tmpAuthConfig, err := UnmarshalPrivateImageHubAuthConfig(existingData)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal existing private image hub data: %w", err)
 		}
-		auths = tmpAuths
+		authConfig = tmpAuthConfig
+	}
+	if authConfig.Auths == nil {
+		authConfig.Auths = docker.Auths{}
 	}
 
 	// Remove servers from auths no longer in the private image hubs spec
-	for server := range auths {
+	for server := range authConfig.Auths {
 		if _, exist := privateImageHubs[server]; !exist {
-			delete(auths, server)
+			delete(authConfig.Auths, server)
 		}
 	}
 
 	// Update existing/add missing private image hubs from spec
 	for server, config := range privateImageHubs {
-		cred := auths[server]
+		cred := authConfig.Auths[server]
 		cred.Username = config.Username
 		cred.Email = config.Email
-		auths[server] = cred
+		authConfig.Auths[server] = cred
 	}
 
-	authData, err := GetImageHubsSecretValue(auths)
+	authData, err := MarshalPrivateImageHubAuthConfig(authConfig)
 	if err != nil {
 		return fmt.Errorf("failed to marshal private image hub data: %w", err)
 	}
-
 	if secret.Data == nil {
 		secret.Data = map[string][]byte{}
 	}
@@ -121,28 +123,21 @@ func setPrivateImageHubSecretData(secret *corev1.Secret, privateImageHubs v1.Pri
 	return nil
 }
 
-// GetImageHubSecretValue gets imagehub secret value
-func GetImageHubSecretValue(value []byte) (docker.Auths, error) {
-	secretValue := docker.AuthConfig{}
-	err := json.Unmarshal(value, &secretValue)
-	if err != nil {
-		return nil, err
-	}
-
-	return secretValue.Auths, nil
+// UnmarshalPrivateImageHubAuthConfig unmarshals DockerConfigJsonKey secret data
+func UnmarshalPrivateImageHubAuthConfig(value []byte) (docker.AuthConfig, error) {
+	authConfig := docker.AuthConfig{}
+	err := json.Unmarshal(value, &authConfig)
+	return authConfig, err
 }
 
-// GetImageHubsSecretValue turn SecretImageHubs into a correctly formated secret for k8s ImagePullSecrets
-func GetImageHubsSecretValue(imageHubs docker.Auths) ([]byte, error) {
-	for server, config := range imageHubs {
+// MarshalPrivateImageHubAuthConfig marshals AuthConfig as valid secret data to be used as ImagePullSecrets
+func MarshalPrivateImageHubAuthConfig(authConfig docker.AuthConfig) ([]byte, error) {
+	for server, config := range authConfig.Auths {
 		config.Auth = encodeAuthField(config.Username, config.Password)
-		imageHubs[server] = config
+		authConfig.Auths[server] = config
 	}
 
-	imageHubJSON := docker.AuthConfig{
-		Auths: imageHubs,
-	}
-	return json.Marshal(imageHubJSON)
+	return json.Marshal(authConfig)
 }
 
 func encodeAuthField(username, password string) string {
