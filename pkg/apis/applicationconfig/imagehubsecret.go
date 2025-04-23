@@ -73,8 +73,6 @@ func (app *ApplicationConfig) getCurrentAndDesiredImageHubSecret(ctx context.Con
 
 	// Set annotation for Kubernetes Replicator
 	desired.Annotations["replicator.v1.mittwald.de/replicate-to-matching"] = fmt.Sprintf("%s-sync=%s", defaults.PrivateImageHubSecretName, app.config.Name)
-	// Deleted deprecated Kubernetes Config Syncer annotation
-	delete(desired.Annotations, "kubed.appscode.com/sync")
 
 	if err := setPrivateImageHubSecretData(desired, app.config.Spec.PrivateImageHubs); err != nil {
 		return nil, nil, fmt.Errorf("failed to set private image hub data: %w", err)

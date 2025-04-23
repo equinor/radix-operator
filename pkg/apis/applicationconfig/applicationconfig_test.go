@@ -467,37 +467,6 @@ func Test_PrivateImageHubSecret_LabelsAndAnnotations(t *testing.T) {
 	assert.Equal(t, expectedAnnotations, secret.ObjectMeta.Annotations)
 }
 
-func Test_PrivateImageHubSecret_RemoveDeprecatedAnnotoation(t *testing.T) {
-	tu, client, kubeUtil, radixClient := setupTest(t)
-	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-		})
-	require.NoError(t, err)
-
-	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	require.NoError(t, err)
-	secret.Annotations["kubed.appscode.com/sync"] = "any-value"
-	_, err = client.CoreV1().Secrets("any-app-app").Update(context.Background(), secret, metav1.UpdateOptions{})
-	require.NoError(t, err)
-
-	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
-		radixv1.PrivateImageHubEntries{
-			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-				Email:    "radix@equinor.com",
-			},
-		})
-	require.NoError(t, err)
-	secret, err = client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	require.NoError(t, err)
-	expectedAnnotations := map[string]string{"replicator.v1.mittwald.de/replicate-to-matching": "radix-private-image-hubs-sync=any-app"}
-	assert.Equal(t, expectedAnnotations, secret.ObjectMeta.Annotations)
-}
-
 func Test_PrivateImageHubSecret_KeepCustomAnnotations(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest(t)
 	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
