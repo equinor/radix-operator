@@ -399,7 +399,7 @@ func (deployJobComponent *RadixDeployJobComponent) SetEnvironmentVariables(envVa
 }
 
 // GetNrOfReplicas gets number of replicas component will run
-func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
+func (deployComponent *RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
 	if deployComponent.HorizontalScaling != nil && deployComponent.HorizontalScaling.MinReplicas != nil {
 		replicas = *deployComponent.HorizontalScaling.MinReplicas
