@@ -15,15 +15,12 @@ import (
 )
 
 // GetAffinityForDeployComponent  Gets component pod specific affinity
-func GetAffinityForDeployComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent, appName string, componentName string) (*corev1.Affinity, error) {
-	nodeAffinity, err := getNodeAffinityForDeployComponent(ctx, component)
-	if err != nil {
-		return nil, err
-	}
+func GetAffinityForDeployComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent, appName string, componentName string) *corev1.Affinity {
+	nodeAffinity := getNodeAffinityForDeployComponent(ctx, component)
 	return &corev1.Affinity{
 		PodAntiAffinity: getPodAntiAffinity(appName, componentName),
 		NodeAffinity:    nodeAffinity,
-	}, nil
+	}
 
 }
 
@@ -69,28 +66,27 @@ func GetAffinityForJobAPIAuxComponent() *corev1.Affinity {
 	}
 }
 
-func getNodeAffinityForDeployComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) (*corev1.NodeAffinity, error) {
-	affinity := &corev1.NodeAffinity{}
-	nodeTypeAffinity, ok, err := getNodeTypeAffinity(component.GetNodeType())
-	if err != nil {
-		return nil, err
-	}
-	if nodeTypeAffinity != nil {
-		affinity = nodeTypeAffinity
+func getNodeAffinityForDeployComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) *corev1.NodeAffinity {
+	var affinityNodeSelectorTerms []corev1.NodeSelectorTerm
+	if selectorTerm := getNodeTypeAffinitySelectorTerm(component.GetNodeType()); selectorTerm != nil {
+		affinityNodeSelectorTerms = append(affinityNodeSelectorTerms, *selectorTerm)
 	} else if affinity := getNodeAffinityForGPUNode(ctx, component.GetNode()); affinity != nil {
-		return affinity, nil
+		return affinity
 	}
-	affinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
-		NodeSelectorTerms: []corev1.NodeSelectorTerm{
-			{
-				MatchExpressions: getNodeSelectorRequirementsForRuntimeEnvironment(component.GetRuntime()),
-			},
+	affinityNodeSelectorTerms = append(affinityNodeSelectorTerms, getRuntimeAffinitySelectorTerm(component))
+	return &corev1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+			NodeSelectorTerms: affinityNodeSelectorTerms,
 		},
 	}
-	return affinity, nil
+}
+
+func getRuntimeAffinitySelectorTerm(component radixv1.RadixCommonDeployComponent) corev1.NodeSelectorTerm {
+	return corev1.NodeSelectorTerm{MatchExpressions: getNodeSelectorRequirementsForRuntimeEnvironment(component.GetRuntime())}
 }
 
 func getNodeAffinityForBatchJob(ctx context.Context, job *radixv1.RadixDeployJobComponent, node *radixv1.RadixNode, nodeType *string) *corev1.NodeAffinity {
+	//TODO: add nodeType NodeSelectorTerm to job
 	if affinity := getNodeAffinityForGPUNode(ctx, node); affinity != nil {
 		return affinity
 	}
@@ -212,21 +208,9 @@ func getNodeSelectorRequirementsForJobNodePool() []corev1.NodeSelectorRequiremen
 	}
 }
 
-func getNodeTypeAffinity(nodeType *string) (*corev1.NodeAffinity, bool, error) {
-	if nodeType == nil {
-		return nil, false, nil
+func getNodeTypeAffinitySelectorTerm(nodeType *string) *corev1.NodeSelectorTerm {
+	if nodeType == nil || len(*nodeType) == 0 {
+		return nil
 	}
-	if len(*nodeType) == 0 {
-		return nil, true, nil
-	}
-	return &corev1.NodeAffinity{
-		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-			NodeSelectorTerms: []corev1.NodeSelectorTerm{
-				{
-					MatchExpressions: []corev1.NodeSelectorRequirement{
-						{Key: *nodeType, Operator: corev1.NodeSelectorOpExists},
-					},
-				},
-			},
-		}}, true, nil
+	return &corev1.NodeSelectorTerm{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: *nodeType, Operator: corev1.NodeSelectorOpExists}}}
 }
