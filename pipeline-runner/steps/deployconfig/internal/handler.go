@@ -123,14 +123,14 @@ func (h *deployHandler) applyDeployments(ctx context.Context, rdList []*radixv1.
 
 func (h *deployHandler) buildDeploymentsForEnvironments(ctx context.Context, environments envInfoList) ([]*radixv1.RadixDeployment, error) {
 	var rdList []*radixv1.RadixDeployment
-	for _, envInfo := range environments {
-		rd, err := h.buildDeployment(ctx, envInfo)
+	for _, env := range environments {
+		rd, err := h.buildDeployment(ctx, env)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build Radix deployment for environment %s: %w", envInfo.envName, err)
+			return nil, fmt.Errorf("failed to build Radix deployment for environment %s: %w", env.envName, err)
 		}
 
 		// Add deployment if new deployment spec differs from active deployment
-		if !cmp.Equal(rd.Spec, envInfo.activeRd.Spec, cmpopts.EquateEmpty()) {
+		if !cmp.Equal(rd.Spec, env.activeRd.Spec, cmpopts.EquateEmpty()) {
 			rdList = append(rdList, rd)
 		}
 	}
@@ -138,20 +138,20 @@ func (h *deployHandler) buildDeploymentsForEnvironments(ctx context.Context, env
 	return rdList, nil
 }
 
-func (h *deployHandler) buildDeployment(ctx context.Context, envInfo envInfo) (*radixv1.RadixDeployment, error) {
+func (h *deployHandler) buildDeployment(ctx context.Context, env envInfo) (*radixv1.RadixDeployment, error) {
 	sourceRd, err := internal.ConstructForTargetEnvironment(
 		ctx,
 		h.pipelineInfo.RadixApplication,
-		&envInfo.activeRd,
+		&env.activeRd,
 		h.pipelineInfo.PipelineArguments.JobName,
 		h.pipelineInfo.PipelineArguments.ImageTag,
-		envInfo.activeRd.Annotations[kube.RadixBranchAnnotation],
-		envInfo.activeRd.Annotations[kube.RadixCommitAnnotation],
-		envInfo.activeRd.Annotations[kube.RadixGitTagsAnnotation],
+		env.activeRd.Annotations[kube.RadixBranchAnnotation],
+		env.activeRd.Annotations[kube.RadixCommitAnnotation],
+		env.activeRd.Annotations[kube.RadixGitTagsAnnotation],
 		nil,
-		envInfo.envName,
-		envInfo.activeRd.Annotations[kube.RadixConfigHash],
-		envInfo.activeRd.Annotations[kube.RadixBuildSecretHash],
+		env.envName,
+		env.activeRd.Annotations[kube.RadixConfigHash],
+		env.activeRd.Annotations[kube.RadixBuildSecretHash],
 		h.pipelineInfo.BuildContext,
 		h.pipelineInfo.PipelineArguments.ComponentsToDeploy,
 	)
@@ -159,12 +159,12 @@ func (h *deployHandler) buildDeployment(ctx context.Context, envInfo envInfo) (*
 		return nil, fmt.Errorf("failed to construct Radix deployment: %w", err)
 	}
 
-	targetRd := envInfo.activeRd.DeepCopy()
+	targetRd := env.activeRd.DeepCopy()
 	targetRd.ObjectMeta = *sourceRd.ObjectMeta.DeepCopy()
 	targetRd.Status = radixv1.RadixDeployStatus{}
 
 	for _, updater := range h.featureProviders {
-		if err := updater.Mutate(*targetRd, *sourceRd); err != nil {
+		if err := updater.Mutate(sourceRd, targetRd); err != nil {
 			return nil, fmt.Errorf("failed to apply configuration to Radix deployment: %w", err)
 		}
 	}

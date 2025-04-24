@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"fmt"
 	"slices"
 
@@ -23,7 +24,7 @@ func (d *ExternalDNSFeatureProvider) IsEnabledForEnvironment(envName string, ra 
 	return false
 }
 
-func (d *ExternalDNSFeatureProvider) Mutate(target, source radixv1.RadixDeployment) error {
+func (d *ExternalDNSFeatureProvider) Mutate(source, target *radixv1.RadixDeployment) error {
 	for i, targetComp := range target.Spec.Components {
 		sourceComp, found := slice.FindFirst(source.Spec.Components, func(c radixv1.RadixDeployComponent) bool { return c.Name == targetComp.Name })
 		if !found {

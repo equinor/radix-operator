@@ -230,8 +230,9 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixComponentsToDeployVariable, strings.Join(jobSpec.Deploy.ComponentsToDeploy, ",")))
 	case radixv1.ApplyConfig:
 		args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixPipelineApplyConfigDeployExternalDNSFlag, jobSpec.ApplyConfig.DeployExternalDNS))
+		args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixPipelineApplyConfigDeployComponentAttributesFlag, jobSpec.ApplyConfig.DeployComponentAttributes))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, jobSpec.ApplyConfig.ToEnvironment))
 	}
-
 	return args, nil
 }
 

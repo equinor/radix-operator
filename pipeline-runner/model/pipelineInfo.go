@@ -53,7 +53,8 @@ type Builder struct {
 }
 
 type ApplyConfigOptions struct {
-	DeployExternalDNS bool
+	DeployExternalDNS         bool
+	DeployComponentAttributes bool
 }
 
 // PipelineArguments Holds arguments for the pipeline

@@ -149,7 +149,11 @@ const (
 	// RadixPipelineActionEnvironmentVariable Pipeline action: prepare, run
 	RadixPipelineActionEnvironmentVariable = "RADIX_PIPELINE_ACTION"
 
+	// RadixPipelineApplyConfigDeployExternalDNSFlag Indicates if External DNS-es need to be applied with the 'apply-config' pipeline
 	RadixPipelineApplyConfigDeployExternalDNSFlag = "APPLY_CONFIG_DEPLOY_EXTERNALDNS"
+
+	// RadixPipelineApplyConfigDeployComponentAttributesFlag Indicates if components or job-components attributes need to be applied with the 'apply-config' pipeline
+	RadixPipelineApplyConfigDeployComponentAttributesFlag = "APPLY_CONFIG_DEPLOY_COMPONENT_ATTRIBUTES"
 
 	// OperatorTenantIdEnvironmentVariable Tenant-id of the subscription
 	OperatorTenantIdEnvironmentVariable = "RADIXOPERATOR_TENANT_ID"

@@ -4,17 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/rs/zerolog/log"
-
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -49,31 +45,14 @@ func (cli *PromoteStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	var radixDeployment *v1.RadixDeployment
-
-	// Get radix application from cluster as promote step run as single step
-	radixApplication, err := cli.GetRadixClient().RadixV1().RadixApplications(utils.GetAppNamespace(cli.GetAppName())).Get(ctx, cli.GetAppName(), metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
 	log.Ctx(ctx).Info().Msgf("Promoting %s for application %s from %s to %s", pipelineInfo.PipelineArguments.DeploymentName, cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
-	err = areArgumentsValid(pipelineInfo.PipelineArguments)
-	if err != nil {
+	if err := areArgumentsValid(pipelineInfo.PipelineArguments); err != nil {
 		return err
 	}
 
-	fromNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
-	toNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment)
-
-	_, err = cli.GetKubeClient().CoreV1().Namespaces().Get(ctx, fromNs, metav1.GetOptions{})
+	fromNs, toNs, err := cli.getNamespaces(ctx, pipelineInfo)
 	if err != nil {
-		return NonExistingFromEnvironment(pipelineInfo.PipelineArguments.FromEnvironment)
-	}
-
-	_, err = cli.GetKubeClient().CoreV1().Namespaces().Get(ctx, toNs, metav1.GetOptions{})
-	if err != nil {
-		return NonExistingToEnvironment(pipelineInfo.PipelineArguments.ToEnvironment)
+		return err
 	}
 
 	rd, err := cli.GetRadixClient().RadixV1().RadixDeployments(fromNs).Get(ctx, pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
@@ -81,7 +60,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 		return NonExistingDeployment(pipelineInfo.PipelineArguments.DeploymentName)
 	}
 
-	radixDeployment = rd.DeepCopy()
+	radixDeployment := rd.DeepCopy()
 	radixDeployment.Name = utils.GetDeploymentName(pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
 
 	activeRadixDeployment, err := cli.GetKubeUtil().GetActiveDeployment(ctx, toNs)
@@ -105,21 +84,28 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(ctx, radixApplication, activeRadixDeployment, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment])
-	if err != nil {
+	if err = internal.MergeRadixDeploymentWithRadixApplicationAttributes(pipelineInfo.RadixApplication, activeRadixDeployment, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment]); err != nil {
 		return err
 	}
 
-	err = radixvalidators.CanRadixDeploymentBeInserted(radixDeployment)
-	if err != nil {
+	if err = radixvalidators.CanRadixDeploymentBeInserted(radixDeployment); err != nil {
 		return err
 	}
 
-	if _, err := cli.GetRadixClient().RadixV1().RadixDeployments(toNs).Create(ctx, radixDeployment, metav1.CreateOptions{}); err != nil {
-		return err
-	}
+	_, err = cli.GetRadixClient().RadixV1().RadixDeployments(toNs).Create(ctx, radixDeployment, metav1.CreateOptions{})
+	return err
+}
 
-	return nil
+func (cli *PromoteStepImplementation) getNamespaces(ctx context.Context, pipelineInfo *model.PipelineInfo) (string, string, error) {
+	fromNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
+	if _, err := cli.GetKubeClient().CoreV1().Namespaces().Get(ctx, fromNs, metav1.GetOptions{}); err != nil {
+		return "", "", NonExistingFromEnvironment(pipelineInfo.PipelineArguments.FromEnvironment)
+	}
+	toNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment)
+	if _, err = cli.GetKubeClient().CoreV1().Namespaces().Get(ctx, toNs, metav1.GetOptions{}); err != nil {
+		return "", "", NonExistingToEnvironment(pipelineInfo.PipelineArguments.ToEnvironment)
+	}
+	return fromNs, toNs, nil
 }
 
 func areArgumentsValid(arguments model.PipelineArguments) error {
@@ -144,82 +130,4 @@ func areArgumentsValid(arguments model.PipelineArguments) error {
 	}
 
 	return nil
-}
-
-func mergeWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages) error {
-	defaultEnvVars := getDefaultEnvVarsFromRadixDeployment(radixDeployment)
-	if err := mergeComponentsWithRadixApplication(ctx, radixConfig, activeRadixDeployment, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
-		return err
-	}
-
-	if err := mergeJobComponentsWithRadixApplication(ctx, radixConfig, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func mergeJobComponentsWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
-	newEnvJobs, err := deployment.
-		NewJobComponentsBuilder(radixConfig, environment, componentImages, defaultEnvVars, nil).
-		JobComponents(ctx)
-	if err != nil {
-		return err
-	}
-	newEnvJobsMap := make(map[string]v1.RadixDeployJobComponent)
-	for _, job := range newEnvJobs {
-		newEnvJobsMap[job.Name] = job
-	}
-
-	for idx, job := range radixDeployment.Spec.Jobs {
-		newEnvJob, found := newEnvJobsMap[job.Name]
-		if !found {
-			return NonExistingComponentName(radixConfig.GetName(), job.Name)
-		}
-		// Environment variables, SecretRefs are taken from current configuration
-		newEnvJob.Secrets = job.Secrets
-		newEnvJob.Image = job.Image
-		newEnvJob.Runtime = job.Runtime
-		radixDeployment.Spec.Jobs[idx] = newEnvJob
-	}
-
-	return nil
-}
-
-func mergeComponentsWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
-	newEnvComponents, err := deployment.GetRadixComponentsForEnv(ctx, radixConfig, activeRadixDeployment, environment, componentImages, defaultEnvVars, nil)
-	if err != nil {
-		return err
-	}
-
-	newEnvComponentsMap := make(map[string]v1.RadixDeployComponent)
-	for _, component := range newEnvComponents {
-		newEnvComponentsMap[component.Name] = component
-	}
-
-	for idx, component := range radixDeployment.Spec.Components {
-		newEnvComponent, found := newEnvComponentsMap[component.Name]
-		if !found {
-			return NonExistingComponentName(radixConfig.GetName(), component.Name)
-		}
-		// Environment variables, SecretRefs are taken from current configuration
-		newEnvComponent.Secrets = component.Secrets
-		newEnvComponent.Image = component.Image
-		newEnvComponent.Runtime = component.Runtime
-		radixDeployment.Spec.Components[idx] = newEnvComponent
-	}
-
-	return nil
-}
-
-func getDefaultEnvVarsFromRadixDeployment(radixDeployment *v1.RadixDeployment) v1.EnvVarsMap {
-	envVarsMap := make(v1.EnvVarsMap)
-	gitCommitHash := internal.GetGitCommitHashFromDeployment(radixDeployment)
-	if gitCommitHash != "" {
-		envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
-	}
-	if gitTags, ok := radixDeployment.Annotations[kube.RadixGitTagsAnnotation]; ok {
-		envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
-	}
-	return envVarsMap
 }

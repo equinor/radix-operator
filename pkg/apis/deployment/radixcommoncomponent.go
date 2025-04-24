@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -12,10 +11,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 )
 
-func updateComponentNode(ctx context.Context, component v1.RadixCommonComponent, node *v1.RadixNode) {
+func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) error {
 	if len(node.Gpu) <= 0 {
 		node.Gpu = component.GetNode().Gpu
 	}
@@ -23,13 +21,13 @@ func updateComponentNode(ctx context.Context, component v1.RadixCommonComponent,
 	nodeGpuCount := node.GpuCount
 	if len(nodeGpuCount) <= 0 {
 		node.GpuCount = component.GetNode().GpuCount
-		return
+		return nil
 	}
 	if gpuCount, err := strconv.Atoi(nodeGpuCount); err != nil || gpuCount <= 0 {
-		// TODO: should the error be returned to caller?
-		log.Ctx(ctx).Error().Err(err).Msgf("Invalid environment node GPU count: %s in component %s", nodeGpuCount, component.GetName())
-		node.GpuCount = component.GetNode().GpuCount
+		return fmt.Errorf("invalid environment node GPU count: %s in component %s", nodeGpuCount, component.GetName())
 	}
+	node.GpuCount = component.GetNode().GpuCount
+	return nil
 }
 
 func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) v1.EnvVarsMap {
@@ -70,13 +68,15 @@ func getRadixCommonComponentResources(component v1.RadixCommonComponent, environ
 	return resources
 }
 
-func getRadixCommonComponentNode(ctx context.Context, radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.RadixNode {
+func getRadixCommonComponentNode(radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) (v1.RadixNode, error) {
 	var node v1.RadixNode
 	if !commonUtils.IsNil(environmentSpecificConfig) {
 		node = environmentSpecificConfig.GetNode()
 	}
-	updateComponentNode(ctx, radixComponent, &node)
-	return node
+	if err := updateComponentNode(radixComponent, &node); err != nil {
+		return v1.RadixNode{}, err
+	}
+	return node, nil
 }
 
 func getImagePath(componentName string, componentImage pipeline.DeployComponentImage, componentImageTagName string, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) (string, error) {

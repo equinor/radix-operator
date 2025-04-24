@@ -46,6 +46,9 @@ func (cli *DeployConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 	if pipelineInfo.PipelineArguments.ApplyConfigOptions.DeployExternalDNS {
 		featureProviders = append(featureProviders, &internal.ExternalDNSFeatureProvider{})
 	}
+	if pipelineInfo.PipelineArguments.ApplyConfigOptions.DeployComponentAttributes {
+		featureProviders = append(featureProviders, &internal.ComponentAttributesProvider{PipelineInfo: pipelineInfo})
+	}
 
 	handler := internal.NewHandler(pipelineInfo, cli.GetKubeUtil(), cli.radixDeploymentWatcher, featureProviders)
 	if err := handler.Deploy(ctx); err != nil {

@@ -173,6 +173,14 @@ type RadixApplyConfigSpec struct {
 	//
 	// +optional
 	DeployExternalDNS bool `json:"deployExternalDNS,omitempty"`
+	// Deploy components and job-components attributes
+	//
+	// +optional
+	DeployComponentAttributes bool `json:"deployComponentAttributes,omitempty"`
+	// Target environment for deploy
+	//
+	// +optional
+	ToEnvironment string `json:"toEnvironment,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

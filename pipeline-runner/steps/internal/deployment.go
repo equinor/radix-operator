@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -33,7 +34,7 @@ func ConstructForTargetEnvironment(ctx context.Context, config *radixv1.RadixApp
 		defaults.RadixGitTagsEnvironmentVariable:    gitTags,
 	}
 
-	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, config, activeRadixDeployment, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
+	deployComponents, err := deployment.GetRadixComponentsForEnv(config, activeRadixDeployment, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
 	if err != nil {
 		return nil, err
 	}
@@ -148,4 +149,78 @@ func GetActiveRadixDeployment(ctx context.Context, kubeUtil *kube.Kube, namespac
 		}
 	}
 	return currentRd, nil
+}
+
+// MergeRadixDeploymentWithRadixApplicationAttributes merges attributes of the active RadixDeployment components with attributes of the RadixApplication components and job-components
+// component and job-component lists should match
+func MergeRadixDeploymentWithRadixApplicationAttributes(radixConfig *radixv1.RadixApplication, activeRadixDeployment, radixDeployment *radixv1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages) error {
+	defaultEnvVars := getDefaultEnvVarsFromRadixDeployment(radixDeployment)
+	if err := mergeComponentsWithRadixApplication(radixConfig, activeRadixDeployment, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
+		return err
+	}
+	return mergeJobComponentsWithRadixApplication(radixConfig, radixDeployment, environment, defaultEnvVars, componentImages)
+}
+
+func mergeJobComponentsWithRadixApplication(radixConfig *radixv1.RadixApplication, radixDeployment *radixv1.RadixDeployment, environment string, defaultEnvVars radixv1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
+	newEnvJobs, err := deployment.NewJobComponentsBuilder(radixConfig, environment, componentImages, defaultEnvVars, nil).
+		JobComponents()
+	if err != nil {
+		return err
+	}
+	newEnvJobsMap := make(map[string]radixv1.RadixDeployJobComponent)
+	for _, job := range newEnvJobs {
+		newEnvJobsMap[job.Name] = job
+	}
+
+	for idx, job := range radixDeployment.Spec.Jobs {
+		newEnvJob, found := newEnvJobsMap[job.Name]
+		if !found {
+			return promote.NonExistingComponentName(radixConfig.GetName(), job.Name)
+		}
+		// Environment variables, SecretRefs are taken from current configuration
+		newEnvJob.Secrets = job.Secrets
+		newEnvJob.Image = job.Image
+		newEnvJob.Runtime = job.Runtime
+		radixDeployment.Spec.Jobs[idx] = newEnvJob
+	}
+
+	return nil
+}
+
+func mergeComponentsWithRadixApplication(radixConfig *radixv1.RadixApplication, activeRadixDeployment, radixDeployment *radixv1.RadixDeployment, environment string, defaultEnvVars radixv1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
+	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, activeRadixDeployment, environment, componentImages, defaultEnvVars, nil)
+	if err != nil {
+		return err
+	}
+
+	newEnvComponentsMap := make(map[string]radixv1.RadixDeployComponent)
+	for _, component := range newEnvComponents {
+		newEnvComponentsMap[component.Name] = component
+	}
+
+	for idx, component := range radixDeployment.Spec.Components {
+		newEnvComponent, found := newEnvComponentsMap[component.Name]
+		if !found {
+			return promote.NonExistingComponentName(radixConfig.GetName(), component.Name)
+		}
+		// Environment variables, SecretRefs are taken from current configuration
+		newEnvComponent.Secrets = component.Secrets
+		newEnvComponent.Image = component.Image
+		newEnvComponent.Runtime = component.Runtime
+		radixDeployment.Spec.Components[idx] = newEnvComponent
+	}
+
+	return nil
+}
+
+func getDefaultEnvVarsFromRadixDeployment(radixDeployment *radixv1.RadixDeployment) radixv1.EnvVarsMap {
+	envVarsMap := make(radixv1.EnvVarsMap)
+	gitCommitHash := GetGitCommitHashFromDeployment(radixDeployment)
+	if gitCommitHash != "" {
+		envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
+	}
+	if gitTags, ok := radixDeployment.Annotations[kube.RadixGitTagsAnnotation]; ok {
+		envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
+	}
+	return envVarsMap
 }

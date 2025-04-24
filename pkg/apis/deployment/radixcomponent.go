@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
@@ -17,7 +16,8 @@ var (
 	mergoTranformers mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}, mergoutils.ResourceQuantityTransformer{}}}
 )
 
-func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.RadixApplication, currentRadixDeployment *radixv1.RadixDeployment, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
+// GetRadixComponentsForEnv returns a list of RadixDeployComponent for the given environment
+func GetRadixComponentsForEnv(radixApplication *radixv1.RadixApplication, currentRadixDeployment *radixv1.RadixDeployment, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	var deployComponents []radixv1.RadixDeployComponent
 	preservingDeployComponentMap := slice.Reduce(preservingDeployComponents, make(map[string]radixv1.RadixDeployComponent), func(acc map[string]radixv1.RadixDeployComponent, component radixv1.RadixDeployComponent) map[string]radixv1.RadixDeployComponent {
@@ -66,7 +66,11 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		if err != nil {
 			return nil, err
 		}
-		deployComponent.Node = getRadixCommonComponentNode(ctx, &radixComponent, environmentSpecificConfig)
+		node, err := getRadixCommonComponentNode(&radixComponent, environmentSpecificConfig)
+		if err != nil {
+			return nil, err
+		}
+		deployComponent.Node = node
 		deployComponent.Resources = getRadixCommonComponentResources(&radixComponent, environmentSpecificConfig)
 		deployComponent.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig, defaultEnvVars)
 		deployComponent.AlwaysPullImageOnDeploy = getRadixComponentAlwaysPullImageOnDeployFlag(&radixComponent, environmentSpecificConfig)
