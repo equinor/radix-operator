@@ -78,7 +78,7 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 
 // Run runs through the steps in the defined pipeline
 func (cli *PipelineRunner) Run(ctx context.Context) error {
-	log.Ctx(ctx).Info().Msgf("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Type, cli.appName)
+	printPipelineDescription(ctx, cli.pipelineInfo)
 	for _, step := range cli.pipelineInfo.Steps {
 		logger := log.Ctx(ctx)
 		ctx := logger.WithContext(ctx)
@@ -103,10 +103,10 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 
 func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registration *v1.RadixRegistration) []model.Step {
 	stepImplementations := make([]model.Step, 0)
-	stepImplementations = append(stepImplementations, preparepipeline.NewPreparePipelinesStep(nil))
+	stepImplementations = append(stepImplementations, preparepipeline.NewPreparePipelinesStep())
 	stepImplementations = append(stepImplementations, applyconfig.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, build.NewBuildStep(nil))
-	stepImplementations = append(stepImplementations, runpipeline.NewRunPipelinesStep(nil))
+	stepImplementations = append(stepImplementations, runpipeline.NewRunPipelinesStep())
 	stepImplementations = append(stepImplementations, deploy.NewDeployStep(watcher.NewNamespaceWatcherImpl(cli.kubeClient), watcher.NewRadixDeploymentWatcher(cli.radixClient, time.Minute*5)))
 	stepImplementations = append(stepImplementations, deployconfig.NewDeployConfigStep(watcher.NewRadixDeploymentWatcher(cli.radixClient, time.Minute*5)))
 	stepImplementations = append(stepImplementations, promote.NewPromoteStep())
@@ -142,7 +142,24 @@ func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
 		},
 		Data: map[string]string{jobs.ResultContent: string(resultContent)},
 	}
-	log.Ctx(ctx).Debug().Msgf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
+	log.Ctx(ctx).Debug().Msgf("Create result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 	_, err = cli.kubeUtil.CreateConfigMap(ctx, utils.GetAppNamespace(cli.appName), &configMap)
 	return err
+}
+
+func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineInfo) {
+	appName := pipelineInfo.GetAppName()
+	branch := pipelineInfo.GetBranch()
+	switch pipelineInfo.GetRadixPipelineType() {
+	case v1.ApplyConfig:
+		log.Ctx(ctx).Info().Msgf("Apply radixconfig for application %s", appName)
+	case v1.BuildDeploy:
+		log.Ctx(ctx).Info().Msgf("Build and deploy application %s from branch %s", appName, branch)
+	case v1.Build:
+		log.Ctx(ctx).Info().Msgf("Build application %s from branch %s", appName, branch)
+	case v1.Deploy:
+		log.Ctx(ctx).Info().Msgf("Deploy application %s to environment %s", appName, pipelineInfo.GetRadixDeployToEnvironment())
+	case v1.Promote:
+		log.Ctx(ctx).Info().Msgf("Promote deployment %s of application %s from environment %s to %s", pipelineInfo.GetRadixPromoteDeployment(), appName, pipelineInfo.GetRadixPromoteFromEnvironment(), pipelineInfo.GetRadixDeployToEnvironment())
+	}
 }

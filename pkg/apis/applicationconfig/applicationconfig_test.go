@@ -140,7 +140,7 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T)
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
 	assert.ElementsMatch(t, []string{"prod", "qa"}, targetEnvs)
 }
 
@@ -152,7 +152,7 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_Lis
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -164,7 +164,7 @@ func TestIsThereAnythingToDeploy_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBu
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
 	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
@@ -176,7 +176,7 @@ func TestIsThereAnythingToDeploy_twoEnvNoBranch(t *testing.T) {
 		WithEnvironmentNoBranch("prod").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -186,7 +186,7 @@ func TestIsThereAnythingToDeploy_NoEnv(t *testing.T) {
 	ra := utils.NewRadixApplicationBuilder().
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -198,7 +198,7 @@ func TestIsThereAnythingToDeploy_promotionScheme_ListsBothButOnlyOneShouldBeBuil
 		WithEnvironment("prod", "").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
 	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
@@ -210,7 +210,7 @@ func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
 	assert.ElementsMatch(t, []string{"feature"}, targetEnvs)
 }
 
