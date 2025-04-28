@@ -12,8 +12,8 @@ func GetPipelineJobPodSpecTolerations() []corev1.Toleration {
 }
 
 // GetScheduledJobPodSpecTolerations returns tolerations required to schedule the job-component pod on specific nodes
-func GetScheduledJobPodSpecTolerations(node *v1.RadixNode, nodeType *string) []corev1.Toleration {
-	if tolerations, done := getNodeTypeTolerations(nodeType); done {
+func GetScheduledJobPodSpecTolerations(node *v1.RadixNode, nodeType *string, nodeArch string) []corev1.Toleration {
+	if tolerations, done := getNodeTypeTolerations(nodeType, nodeArch); done {
 		return tolerations
 	}
 	if UseGPUNode(node) {
@@ -24,7 +24,7 @@ func GetScheduledJobPodSpecTolerations(node *v1.RadixNode, nodeType *string) []c
 
 // GetDeploymentPodSpecTolerations returns tolerations required to schedule the component pod on specific nodes
 func GetDeploymentPodSpecTolerations(deployComponent v1.RadixCommonDeployComponent) []corev1.Toleration {
-	if tolerations, done := getNodeTypeTolerations(deployComponent.GetRuntime().GetNodeType()); done {
+	if tolerations, done := getNodeTypeTolerations(deployComponent.GetRuntime().GetNodeType(), ""); done {
 		return tolerations
 	}
 	node := deployComponent.GetNode()
@@ -37,7 +37,8 @@ func GetDeploymentPodSpecTolerations(deployComponent v1.RadixCommonDeployCompone
 	return nil
 }
 
-func getNodeTypeTolerations(nodeType *string) ([]corev1.Toleration, bool) {
+func getNodeTypeTolerations(nodeType *string, nodeArch string) ([]corev1.Toleration, bool) {
+	// TODO add nodeArch
 	if nodeType == nil {
 		return nil, false
 	}

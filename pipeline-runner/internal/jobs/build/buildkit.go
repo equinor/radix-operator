@@ -2,6 +2,7 @@ package build
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	"path"
 	"strings"
 	"time"
@@ -106,7 +107,8 @@ func (c *buildKitKubeJobProps) PodTolerations() []corev1.Toleration {
 }
 
 func (c *buildKitKubeJobProps) PodAffinity() *corev1.Affinity {
-	return getCommonPodAffinity(c.componentImage.Runtime)
+	nodeArch, _ := runtime.GetArchitectureFromRuntime(c.componentImage.Runtime)
+	return getCommonPodAffinity(nodeArch)
 }
 
 func (*buildKitKubeJobProps) PodSecurityContext() *corev1.PodSecurityContext {

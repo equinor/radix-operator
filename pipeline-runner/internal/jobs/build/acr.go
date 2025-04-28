@@ -84,7 +84,7 @@ func (c *acrKubeJobProps) PodTolerations() []corev1.Toleration {
 }
 
 func (c *acrKubeJobProps) PodAffinity() *corev1.Affinity {
-	return getCommonPodAffinity(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64})
+	return getCommonPodAffinity(string(radixv1.RuntimeArchitectureArm64))
 }
 
 func (*acrKubeJobProps) PodSecurityContext() *corev1.PodSecurityContext {

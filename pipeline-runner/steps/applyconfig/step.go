@@ -137,7 +137,8 @@ func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
 }
 
 func hasNonDefaultRuntimeArchitecture(c pipeline.BuildComponentImage) bool {
-	return runtime.GetArchitectureFromRuntime(c.Runtime) != defaults.DefaultNodeSelectorArchitecture
+	arch, _ := runtime.GetArchitectureFromRuntime(c.Runtime)
+	return arch != defaults.DefaultNodeSelectorArchitecture
 }
 
 func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
@@ -186,7 +187,8 @@ func printEnvironmentComponentImageSources(ctx context.Context, imageSourceMap e
 			continue
 		}
 		for _, componentSource := range componentImageSources {
-			attrs := fmt.Sprintf("arch: %s", runtime.GetArchitectureFromRuntime(componentSource.Runtime))
+			nodeArch, _ := runtime.GetArchitectureFromRuntime(componentSource.Runtime)
+			attrs := fmt.Sprintf("arch: %s", nodeArch)
 			if nodeType := componentSource.Runtime.GetNodeType(); nodeType != nil {
 				attrs = fmt.Sprintf("%s, Node type: %s", attrs, *nodeType)
 			}

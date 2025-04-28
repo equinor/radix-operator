@@ -3,6 +3,7 @@ package batch
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/numbers"
@@ -120,10 +121,13 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	if batchJob.Node != nil {
 		node = batchJob.Node
 	}
-
 	nodeType := jobComponent.GetRuntime().GetNodeType()
 	if batchNodeType := batchJob.Runtime.GetNodeType(); batchNodeType != nil {
 		nodeType = batchNodeType
+	}
+	nodeArch, _ := runtime.GetArchitectureFromRuntime(jobComponent.GetRuntime())
+	if batchNodeArch, ok := runtime.GetArchitectureFromRuntime(batchJob.Runtime); ok {
+		nodeArch = batchNodeArch
 	}
 
 	backoffLimit := jobComponent.BackoffLimit
@@ -163,8 +167,8 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 					SecurityContext:              securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					RestartPolicy:                corev1.RestartPolicyNever,
 					ImagePullSecrets:             s.getJobPodImagePullSecrets(rd),
-					Affinity:                     operatorUtils.GetAffinityForBatchJob(ctx, jobComponent, node, nodeType),
-					Tolerations:                  operatorUtils.GetScheduledJobPodSpecTolerations(node, nodeType),
+					Affinity:                     operatorUtils.GetAffinityForBatchJob(ctx, jobComponent, node, nodeType, nodeArch),
+					Tolerations:                  operatorUtils.GetScheduledJobPodSpecTolerations(node, nodeType, nodeArch),
 					ActiveDeadlineSeconds:        timeLimitSeconds,
 					ServiceAccountName:           serviceAccountSpec.ServiceAccountName(),
 					AutomountServiceAccountToken: serviceAccountSpec.AutomountServiceAccountToken(),
