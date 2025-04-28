@@ -25,7 +25,7 @@ func GetAffinityForDeployComponent(ctx context.Context, component radixv1.RadixC
 }
 
 // GetAffinityForBatchJob  Gets batch job pod specific affinity
-func GetAffinityForBatchJob(ctx context.Context, job *radixv1.RadixDeployJobComponent, node *radixv1.RadixNode, nodeType *string, nodeArch string) *corev1.Affinity {
+func GetAffinityForBatchJob(ctx context.Context, node *radixv1.RadixNode, nodeType *string, nodeArch string) *corev1.Affinity {
 	return &corev1.Affinity{
 		NodeAffinity: getNodeAffinityForBatchJob(ctx, node, nodeType, nodeArch),
 	}
@@ -215,5 +215,5 @@ func getNodeTypeAffinitySelectorTerm(nodeType *string) *corev1.NodeSelectorTerm 
 	if nodeType == nil || len(*nodeType) == 0 {
 		return nil
 	}
-	return &corev1.NodeSelectorTerm{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: *nodeType, Operator: corev1.NodeSelectorOpExists}}}
+	return &corev1.NodeSelectorTerm{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: runtime.NodeTypeAffinityKey, Operator: corev1.NodeSelectorOpIn, Values: []string{*nodeType}}}}
 }

@@ -3,6 +3,7 @@ package utils
 import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -12,8 +13,8 @@ func GetPipelineJobPodSpecTolerations() []corev1.Toleration {
 }
 
 // GetScheduledJobPodSpecTolerations returns tolerations required to schedule the job-component pod on specific nodes
-func GetScheduledJobPodSpecTolerations(node *v1.RadixNode, nodeType *string, nodeArch string) []corev1.Toleration {
-	if tolerations, done := getNodeTypeTolerations(nodeType, nodeArch); done {
+func GetScheduledJobPodSpecTolerations(node *v1.RadixNode, nodeType *string) []corev1.Toleration {
+	if tolerations, done := getNodeTypeTolerations(nodeType); done {
 		return tolerations
 	}
 	if UseGPUNode(node) {
@@ -24,7 +25,7 @@ func GetScheduledJobPodSpecTolerations(node *v1.RadixNode, nodeType *string, nod
 
 // GetDeploymentPodSpecTolerations returns tolerations required to schedule the component pod on specific nodes
 func GetDeploymentPodSpecTolerations(deployComponent v1.RadixCommonDeployComponent) []corev1.Toleration {
-	if tolerations, done := getNodeTypeTolerations(deployComponent.GetRuntime().GetNodeType(), ""); done {
+	if tolerations, done := getNodeTypeTolerations(deployComponent.GetRuntime().GetNodeType()); done {
 		return tolerations
 	}
 	node := deployComponent.GetNode()
@@ -37,13 +38,17 @@ func GetDeploymentPodSpecTolerations(deployComponent v1.RadixCommonDeployCompone
 	return nil
 }
 
-func getNodeTypeTolerations(nodeType *string, nodeArch string) ([]corev1.Toleration, bool) {
-	// TODO add nodeArch
+func getNodeTypeTolerations(nodeType *string) ([]corev1.Toleration, bool) {
 	if nodeType == nil {
 		return nil, false
 	}
 	if len(*nodeType) > 0 {
-		return []corev1.Toleration{getNodeTolerationExists(*nodeType)}, true
+		return []corev1.Toleration{corev1.Toleration{
+			Key:      runtime.NodeTypeTolerationKey,
+			Operator: corev1.TolerationOpEqual,
+			Value:    *nodeType,
+			Effect:   corev1.TaintEffectNoSchedule,
+		}}, true
 	}
 	return nil, true
 }

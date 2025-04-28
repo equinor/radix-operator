@@ -1256,7 +1256,7 @@
                         },
                         "nodeType": {
                           "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
-                          "maxLength": 15,
+                          "maxLength": 120,
                           "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                           "type": "string"
                         }
@@ -2539,7 +2539,7 @@
                   },
                   "nodeType": {
                     "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
-                    "maxLength": 15,
+                    "maxLength": 120,
                     "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
@@ -3513,7 +3513,7 @@
                         },
                         "nodeType": {
                           "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
-                          "maxLength": 15,
+                          "maxLength": 120,
                           "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                           "type": "string"
                         }
@@ -4135,7 +4135,7 @@
                   },
                   "nodeType": {
                     "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
-                    "maxLength": 15,
+                    "maxLength": 120,
                     "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }

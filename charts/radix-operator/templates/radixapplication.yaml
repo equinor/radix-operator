@@ -1292,7 +1292,7 @@ spec:
                                 description: |-
                                   Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
                                   More info: https://www.radix.equinor.com/radix-config#nodetype
-                                maxLength: 15
+                                maxLength: 120
                                 pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                                 type: string
                             type: object
@@ -2549,7 +2549,7 @@ spec:
                           description: |-
                             Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
                             More info: https://www.radix.equinor.com/radix-config#nodetype
-                          maxLength: 15
+                          maxLength: 120
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
@@ -3485,7 +3485,7 @@ spec:
                                 description: |-
                                   Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
                                   More info: https://www.radix.equinor.com/radix-config#nodetype
-                                maxLength: 15
+                                maxLength: 120
                                 pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                                 type: string
                             type: object
@@ -4100,7 +4100,7 @@ spec:
                           description: |-
                             Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
                             More info: https://www.radix.equinor.com/radix-config#nodetype
-                          maxLength: 15
+                          maxLength: 120
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object

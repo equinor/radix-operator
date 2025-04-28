@@ -20,10 +20,10 @@ func Test_GetArchitectureFromRuntime(t *testing.T) {
 	nodeArch, ok = runtime.GetArchitectureFromRuntime(&v1.Runtime{Architecture: "customarch"})
 	assert.Equal(t, "customarch", nodeArch, "use when runtime.architecture set")
 	assert.Truef(t, ok, "use when runtime.architecture set")
-	nodeArch, ok = runtime.GetArchitectureFromRuntime(&v1.Runtime{NodeType: pointers.Ptr(string(runtime.MemoryOptimizedV1Node))})
+	nodeArch, ok = runtime.GetArchitectureFromRuntime(&v1.Runtime{NodeType: pointers.Ptr("memory-optimized-v1")})
 	assert.Equal(t, string(v1.RuntimeArchitectureAmd64), nodeArch, "use when runtime.nodeType set")
 	assert.True(t, ok, "use when runtime.nodeType set")
-	nodeArch, ok = runtime.GetArchitectureFromRuntime(&v1.Runtime{NodeType: pointers.Ptr(string(runtime.GpuV1))})
+	nodeArch, ok = runtime.GetArchitectureFromRuntime(&v1.Runtime{NodeType: pointers.Ptr("gpu-a100-v1")})
 	assert.Equal(t, string(v1.RuntimeArchitectureAmd64), nodeArch, "use when runtime.nodeType set")
 	assert.True(t, ok, "use when runtime.nodeType set")
 }
