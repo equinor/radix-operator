@@ -1213,12 +1213,6 @@
                       },
                       "type": "object"
                     },
-                    "nodeType": {
-                      "description": "Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
-                      "maxLength": 15,
-                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
-                      "type": "string"
-                    },
                     "readOnlyFileSystem": {
                       "description": "Controls if the filesystem shall be read-only.",
                       "type": "boolean"
@@ -1258,6 +1252,12 @@
                             "amd64",
                             "arm64"
                           ],
+                          "type": "string"
+                        },
+                        "nodeType": {
+                          "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                          "maxLength": 15,
+                          "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                           "type": "string"
                         }
                       },
@@ -2454,12 +2454,6 @@
                 },
                 "type": "object"
               },
-              "nodeType": {
-                "description": "Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
-                "maxLength": 15,
-                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
-                "type": "string"
-              },
               "ports": {
                 "description": "List of ports that the component bind to.",
                 "items": {
@@ -2541,6 +2535,12 @@
                       "amd64",
                       "arm64"
                     ],
+                    "type": "string"
+                  },
+                  "nodeType": {
+                    "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                    "maxLength": 15,
+                    "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
                 },
@@ -3463,12 +3463,6 @@
                       },
                       "type": "object"
                     },
-                    "nodeType": {
-                      "description": "Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
-                      "maxLength": 15,
-                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
-                      "type": "string"
-                    },
                     "notifications": {
                       "description": "Notifications about batch or job status changes",
                       "properties": {
@@ -3515,6 +3509,12 @@
                             "amd64",
                             "arm64"
                           ],
+                          "type": "string"
+                        },
+                        "nodeType": {
+                          "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                          "maxLength": 15,
+                          "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                           "type": "string"
                         }
                       },
@@ -4039,12 +4039,6 @@
                 },
                 "type": "object"
               },
-              "nodeType": {
-                "description": "Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
-                "maxLength": 15,
-                "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
-                "type": "string"
-              },
               "notifications": {
                 "description": "Notifications about batch or job status changes",
                 "properties": {
@@ -4137,6 +4131,12 @@
                       "amd64",
                       "arm64"
                     ],
+                    "type": "string"
+                  },
+                  "nodeType": {
+                    "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                    "maxLength": 15,
+                    "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
                 },

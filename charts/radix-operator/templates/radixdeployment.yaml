@@ -1025,13 +1025,6 @@ spec:
                           description: Defines minimum number of required GPUs.
                           type: string
                       type: object
-                    nodeType:
-                      description: |-
-                        Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
-                        More info: https://www.radix.equinor.com/radix-config#nodetype
-                      maxLength: 15
-                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
-                      type: string
                     ports:
                       items:
                         description: ComponentPort defines a named port.
@@ -1096,6 +1089,13 @@ spec:
                           enum:
                           - amd64
                           - arm64
+                          type: string
+                        nodeType:
+                          description: |-
+                            Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
+                            More info: https://www.radix.equinor.com/radix-config#nodetype
+                          maxLength: 15
+                          pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
                     secretRefs:
@@ -1650,7 +1650,7 @@ spec:
                     name:
                       type: string
                     node:
-                      description: 'Deprecated: use nodeType instead.'
+                      description: 'Deprecated: use Runtime.NodeType instead.'
                       properties:
                         gpu:
                           description: |-
@@ -1661,8 +1661,6 @@ spec:
                           description: Defines minimum number of required GPUs.
                           type: string
                       type: object
-                    nodeType:
-                      type: string
                     notifications:
                       description: Notifications is the spec for notification about
                         internal events or changes
@@ -1741,6 +1739,13 @@ spec:
                           enum:
                           - amd64
                           - arm64
+                          type: string
+                        nodeType:
+                          description: |-
+                            Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
+                            More info: https://www.radix.equinor.com/radix-config#nodetype
+                          maxLength: 15
+                          pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
                     schedulerPort:

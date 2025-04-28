@@ -14,6 +14,7 @@ func GetRuntimeForEnvironment(radixComponent v1.RadixCommonComponent, environmen
 
 	if rt := radixComponent.GetRuntime(); rt != nil {
 		finalRuntime.Architecture = rt.Architecture
+		finalRuntime.NodeType = rt.NodeType
 	}
 
 	environmentSpecificConfig := radixComponent.GetEnvironmentConfigByName(environment)
@@ -21,6 +22,9 @@ func GetRuntimeForEnvironment(radixComponent v1.RadixCommonComponent, environmen
 	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetRuntime() != nil {
 		if arch := environmentSpecificConfig.GetRuntime().Architecture; len(arch) > 0 {
 			finalRuntime.Architecture = arch
+		}
+		if nodeType := environmentSpecificConfig.GetRuntime().GetNodeType(); nodeType != nil {
+			finalRuntime.NodeType = nodeType
 		}
 	}
 

@@ -121,9 +121,9 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 		node = batchJob.Node
 	}
 
-	nodeType := jobComponent.GetNodeType()
-	if batchJob.NodeType != nil {
-		nodeType = batchJob.NodeType
+	nodeType := jobComponent.GetRuntime().GetNodeType()
+	if batchNodeType := batchJob.Runtime.GetNodeType(); batchNodeType != nil {
+		nodeType = batchNodeType
 	}
 
 	backoffLimit := jobComponent.BackoffLimit

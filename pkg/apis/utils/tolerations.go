@@ -24,7 +24,7 @@ func GetScheduledJobPodSpecTolerations(node *v1.RadixNode, nodeType *string) []c
 
 // GetDeploymentPodSpecTolerations returns tolerations required to schedule the component pod on specific nodes
 func GetDeploymentPodSpecTolerations(deployComponent v1.RadixCommonDeployComponent) []corev1.Toleration {
-	if tolerations, done := getNodeTypeTolerations(deployComponent.GetNodeType()); done {
+	if tolerations, done := getNodeTypeTolerations(deployComponent.GetRuntime().GetNodeType()); done {
 		return tolerations
 	}
 	node := deployComponent.GetNode()

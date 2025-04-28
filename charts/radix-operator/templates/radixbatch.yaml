@@ -155,13 +155,6 @@ spec:
                           description: Defines minimum number of required GPUs.
                           type: string
                       type: object
-                    nodeType:
-                      description: |-
-                        Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
-                        More info: https://www.radix.equinor.com/radix-config#nodetype
-                      maxLength: 15
-                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
-                      type: string
                     payloadSecretRef:
                       description: Specifies the Secret name and data key containing
                         the payload for the job
@@ -207,6 +200,26 @@ spec:
                         - the job is running - the job is stopped and started again.
                         This timestamp set to the job's status.restart.
                       type: string
+                    runtime:
+                      description: Runtime defines the target runtime requirements
+                        for the batch job
+                      properties:
+                        architecture:
+                          default: amd64
+                          description: CPU architecture target for the component or
+                            job. Defaults to amd64.
+                          enum:
+                          - amd64
+                          - arm64
+                          type: string
+                        nodeType:
+                          description: |-
+                            Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
+                            More info: https://www.radix.equinor.com/radix-config#nodetype
+                          maxLength: 15
+                          pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                          type: string
+                      type: object
                     stop:
                       description: |-
                         Controls if a job should be stopped.

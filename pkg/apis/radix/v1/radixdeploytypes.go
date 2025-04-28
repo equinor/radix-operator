@@ -137,13 +137,7 @@ type RadixDeployComponent struct {
 	// Deprecated: use nodeType instead.
 	// Defines GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/radix-config#node
-	Node RadixNode `json:"node,omitempty"`
-	// Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
-	// More info: https://www.radix.equinor.com/radix-config#nodetype
-	// +kubebuilder:validation:MaxLength=15
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
-	// +optional
-	NodeType           *string         `json:"nodeType,omitempty"`
+	Node               RadixNode       `json:"node,omitempty"`
 	Authentication     *Authentication `json:"authentication,omitempty"`
 	Identity           *Identity       `json:"identity,omitempty"`
 	ReadOnlyFileSystem *bool           `json:"readOnlyFileSystem,omitempty"`
@@ -250,10 +244,6 @@ func (deployComponent *RadixDeployComponent) GetIngressConfiguration() []string 
 
 func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 	return &deployComponent.Node
-}
-
-func (deployComponent *RadixDeployComponent) GetNodeType() *string {
-	return deployComponent.NodeType
 }
 
 func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication {
@@ -375,10 +365,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
 	return &deployJobComponent.Node
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetNodeType() *string {
-	return deployJobComponent.NodeType
-}
-
 func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authentication {
 	return nil
 }
@@ -443,9 +429,8 @@ type RadixDeployJobComponent struct {
 	SchedulerPort           *int32                    `json:"schedulerPort,omitempty"`
 	Payload                 *RadixJobComponentPayload `json:"payload,omitempty"`
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy"`
-	// Deprecated: use nodeType instead.
+	// Deprecated: use Runtime.NodeType instead.
 	Node               RadixNode      `json:"node,omitempty"`
-	NodeType           *string        `json:"nodeType,omitempty"`
 	TimeLimitSeconds   *int64         `json:"timeLimitSeconds,omitempty"`
 	BackoffLimit       *int32         `json:"backoffLimit,omitempty"`
 	Identity           *Identity      `json:"identity,omitempty"`
@@ -496,7 +481,6 @@ type RadixCommonDeployComponent interface {
 	IsDNSAppAlias() bool
 	GetIngressConfiguration() []string
 	GetNode() *RadixNode
-	GetNodeType() *string
 	GetAuthentication() *Authentication
 	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)

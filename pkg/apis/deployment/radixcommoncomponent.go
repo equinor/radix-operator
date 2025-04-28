@@ -79,16 +79,6 @@ func getRadixCommonComponentNode(ctx context.Context, radixComponent v1.RadixCom
 	return node
 }
 
-func getRadixCommonComponentNodeType(radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) *string {
-	if commonUtils.IsNil(environmentSpecificConfig) {
-		return radixComponent.GetNodeType()
-	}
-	if nodeType := environmentSpecificConfig.GetNodeType(); nodeType != nil {
-		return nodeType
-	}
-	return radixComponent.GetNodeType()
-}
-
 func getImagePath(componentName string, componentImage pipeline.DeployComponentImage, componentImageTagName string, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) (string, error) {
 	image := componentImage.ImagePath
 	if componentImage.Build {

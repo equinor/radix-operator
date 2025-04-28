@@ -14,10 +14,8 @@ type RadixCommonEnvironmentConfig interface {
 	GetVariables() EnvVarsMap
 	GetSecretRefs() RadixSecretRefs
 	GetResources() ResourceRequirements
-	// Deprecated: use GetNodeType instead.
+	// Deprecated: use GetRuntime().GetNodeType() instead.
 	GetNode() RadixNode
-	// GetNodeType Gets node type of the component
-	GetNodeType() *string
 	GetImageTagName() string
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetReplicas() *int
@@ -62,10 +60,6 @@ func (config *RadixEnvironmentConfig) GetResources() ResourceRequirements {
 
 func (config *RadixEnvironmentConfig) GetNode() RadixNode {
 	return config.Node
-}
-
-func (config *RadixEnvironmentConfig) GetNodeType() *string {
-	return config.NodeType
 }
 
 func (config *RadixEnvironmentConfig) GetImageTagName() string {
@@ -134,10 +128,6 @@ func (config *RadixJobComponentEnvironmentConfig) GetResources() ResourceRequire
 
 func (config *RadixJobComponentEnvironmentConfig) GetNode() RadixNode {
 	return config.Node
-}
-
-func (config *RadixJobComponentEnvironmentConfig) GetNodeType() *string {
-	return config.NodeType
 }
 
 func (config *RadixJobComponentEnvironmentConfig) GetImageTagName() string {

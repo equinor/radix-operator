@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	runtime2 "github.com/equinor/radix-operator/pkg/apis/runtime"
 	"slices"
 	"strconv"
 
@@ -68,7 +69,7 @@ func GetAffinityForJobAPIAuxComponent() *corev1.Affinity {
 
 func getNodeAffinityForDeployComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) *corev1.NodeAffinity {
 	var affinityNodeSelectorTerms []corev1.NodeSelectorTerm
-	if selectorTerm := getNodeTypeAffinitySelectorTerm(component.GetNodeType()); selectorTerm != nil {
+	if selectorTerm := getNodeTypeAffinitySelectorTerm(component.GetRuntime().GetNodeType()); selectorTerm != nil {
 		affinityNodeSelectorTerms = append(affinityNodeSelectorTerms, *selectorTerm)
 	} else if affinity := getNodeAffinityForGPUNode(ctx, component.GetNode()); affinity != nil {
 		return affinity
@@ -198,7 +199,7 @@ func addNodeSelectorRequirement(nodeSelectorTerm *corev1.NodeSelectorTerm, key s
 func getNodeSelectorRequirementsForRuntimeEnvironment(runtime *radixv1.Runtime) []corev1.NodeSelectorRequirement {
 	return []corev1.NodeSelectorRequirement{
 		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{GetArchitectureFromRuntime(runtime)}},
+		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{runtime2.GetArchitectureFromRuntime(runtime)}},
 	}
 }
 

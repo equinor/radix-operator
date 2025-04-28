@@ -69,12 +69,9 @@ type RadixBatchJob struct {
 	// +optional
 	Node *RadixNode `json:"node,omitempty"`
 
-	// Defines the node type for the component. It is a node-pool label, where the component's or job's pods will be scheduled.
-	// More info: https://www.radix.equinor.com/radix-config#nodetype
-	// +kubebuilder:validation:MaxLength=15
-	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// Runtime defines the target runtime requirements for the batch job
 	// +optional
-	NodeType *string `json:"nodeType,omitempty"`
+	Runtime *Runtime `json:"runtime,omitempty"`
 
 	// Specifies maximum job run time.
 	// Overrides timeLimitSeconds defined for job component in RadixDeployment.
