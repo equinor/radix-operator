@@ -13,17 +13,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/rs/zerolog/log"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func tlsSecretDefaultData() map[string][]byte {
-	return map[string][]byte{
-		v1.TLSCertKey:       nil,
-		v1.TLSPrivateKeyKey: nil,
-	}
-}
 
 func (deploy *Deployment) createOrUpdateSecrets(ctx context.Context) error {
 	log.Ctx(ctx).Debug().Msg("Apply empty secrets based on radix deployment obj")

@@ -226,7 +226,10 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context
 				Name:      secretName,
 				Namespace: ns,
 			},
-			Data: tlsSecretDefaultData(),
+			Data: map[string][]byte{
+				corev1.TLSCertKey:       nil,
+				corev1.TLSPrivateKeyKey: nil,
+			},
 		}
 		currentSecret = nil
 	} else {
