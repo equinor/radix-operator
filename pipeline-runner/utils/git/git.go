@@ -104,7 +104,7 @@ func getGitAffectedResourcesBetweenCommits(gitWorkspace, configBranch, configFil
 		return nil, false, err
 	}
 	if targetCommit == nil {
-		return nil, false, errors.New("commit not found")
+		return nil, false, errors.New("invalid targetCommit")
 	}
 
 	beforeCommit, err := findCommit(beforeCommitString, repository)
@@ -221,6 +221,10 @@ func findCommit(commitHash string, repository *git.Repository) (*object.Commit, 
 
 	if err != io.EOF {
 		return nil, err
+	}
+
+	if hash.IsZero() {
+		return nil, nil
 	}
 
 	return repository.CommitObject(hash)
