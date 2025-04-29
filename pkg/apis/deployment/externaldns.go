@@ -15,7 +15,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -214,25 +214,37 @@ func (deploy *Deployment) applyCertificate(ctx context.Context, cert *cmv1.Certi
 
 func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS, secretName string) error {
 	ns := deploy.radixDeployment.Namespace
-	secret := v1.Secret{
-		Type: v1.SecretTypeTLS,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   secretName,
-			Labels: radixlabels.ForExternalDNSTLSSecret(deploy.registration.Name, externalDns),
-		},
-		Data: tlsSecretDefaultData(),
-	}
-
-	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
-	if err == nil {
-		secret.Data = existingSecret.Data
-	} else if !k8serrors.IsNotFound(err) {
-		return err
-	}
-
-	_, err = deploy.kubeutil.ApplySecret(ctx, ns, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
+	var currentSecret, desiredSecret *corev1.Secret
+	currentSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
-		return err
+		if !k8serrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get current external DNS secret: %w", err)
+		}
+		desiredSecret = &corev1.Secret{
+			Type: corev1.SecretTypeTLS,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: ns,
+			},
+			Data: tlsSecretDefaultData(),
+		}
+		currentSecret = nil
+	} else {
+		desiredSecret = currentSecret.DeepCopy()
+	}
+
+	desiredSecret.Labels = radixlabels.ForExternalDNSTLSSecret(deploy.registration.Name, externalDns)
+
+	if currentSecret == nil {
+		if _, err := deploy.kubeutil.CreateSecret(ctx, ns, desiredSecret); err != nil {
+			return fmt.Errorf("failed to create external DNS secret: %w", err)
+		}
+
+		return nil
+	}
+
+	if _, err := deploy.kubeutil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
+		return fmt.Errorf("failed to update external DNS secret: %w", err)
 	}
 
 	return nil
