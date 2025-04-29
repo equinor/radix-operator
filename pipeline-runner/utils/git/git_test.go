@@ -413,6 +413,15 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			expectedChangedFolders:    []string{"app3/data/level2"},
 			expectedChangedConfigFile: false,
 		},
+		{
+			name:                      "Change of binary files is tracked correctly",
+			targetCommit:              "efa70bd57f3a965aa13429ca856f54feaf3d2645",
+			beforeCommitExclusive:     "4a7624fd54c19adbf72bba72b0ae16829680db34",
+			configFile:                "radixconfig-in-root.yaml",
+			configBranch:              "main",
+			expectedChangedFolders:    []string{"app1/data/level2"},
+			expectedChangedConfigFile: false,
+		},
 	}
 
 	zips := map[string]string{
