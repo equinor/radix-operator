@@ -223,7 +223,7 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			beforeCommitExclusive: "",
 			configFile:            "radixconfig.yaml",
 			configBranch:          "main",
-			expectedError:         "invalid targetCommit",
+			expectedError:         "commit not found",
 		},
 		{
 			name:                  "invalid empty target commit",
@@ -415,22 +415,29 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 		},
 	}
 
-	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
-	for _, scenario := range scenarios {
-		t.Run(scenario.name, func(t *testing.T) {
-			t.Log(scenario.name)
-			var changedFolderList, changedConfigFile, err = getGitAffectedResourcesBetweenCommits(gitWorkspacePath, scenario.configBranch, scenario.configFile, scenario.targetCommit, scenario.beforeCommitExclusive)
-			if scenario.expectedError == "" {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				require.Equal(t, scenario.expectedError, err.Error())
-			}
-			assert.ElementsMatch(t, scenario.expectedChangedFolders, changedFolderList, "Unexpected changed folder list")
-			assert.Equal(t, scenario.expectedChangedConfigFile, changedConfigFile, "Unexpected changed config file")
-		})
+	zips := map[string]string{
+		"test-data-git-commits-blobless.zip": "test-data-git-commits-blobless",
+		"test-data-git-commits.zip":          "test-data-git-commits",
 	}
-	tearDownGitTest()
+
+	for zipFile, folder := range zips {
+		gitWorkspacePath := setupGitTest(zipFile, folder)
+		for _, scenario := range scenarios {
+			t.Run(scenario.name, func(t *testing.T) {
+				t.Logf("%s (zip: %s, folder: %s)", scenario.name, zipFile, folder)
+				var changedFolderList, changedConfigFile, err = getGitAffectedResourcesBetweenCommits(gitWorkspacePath, scenario.configBranch, scenario.configFile, scenario.targetCommit, scenario.beforeCommitExclusive)
+				if scenario.expectedError == "" {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+					require.Equal(t, scenario.expectedError, err.Error())
+				}
+				assert.ElementsMatch(t, scenario.expectedChangedFolders, changedFolderList, "Unexpected changed folder list")
+				assert.Equal(t, scenario.expectedChangedConfigFile, changedConfigFile, "Unexpected changed config file")
+			})
+		}
+		tearDownGitTest()
+	}
 }
 
 func setupLog() {
