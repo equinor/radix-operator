@@ -448,7 +448,7 @@ type RadixComponent struct {
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
-	// Deprecated: use nodeType instead.
+	// Deprecated: use Runtime.NodeType instead.
 	// Defines GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
