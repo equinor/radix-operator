@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -94,47 +95,48 @@ func getGitAffectedResourcesBetweenCommits(gitWorkspace, configBranch, configFil
 		return nil, false, nil
 	}
 	gitDir := getGitDir(gitWorkspace)
-	targetCommitHash, err := getTargetCommitHash(targetCommitString)
-	if err != nil {
-		return nil, false, err
-	}
 	repository, currentBranch, err := getRepository(gitDir)
 	if err != nil {
 		return nil, false, err
 	}
-	foundBeforeCommitHash, err := getCommitHash(beforeCommitString, repository)
-	if (err != nil && err != io.EOF) && foundBeforeCommitHash == nil {
-		return nil, false, err
-	}
-	beforeCommit, err := repository.CommitObject(*foundBeforeCommitHash)
+	targetCommit, err := findCommit(targetCommitString, repository)
 	if err != nil {
 		return nil, false, err
 	}
-	targetCommit, err := repository.CommitObject(*targetCommitHash)
-	if (err != nil && err != io.EOF) && targetCommit == nil {
+	if targetCommit == nil {
+		return nil, false, errors.New("invalid targetCommit")
+	}
+
+	beforeCommit, err := findCommit(beforeCommitString, repository)
+	if err != nil {
 		return nil, false, err
 	}
 
-	if strings.EqualFold(foundBeforeCommitHash.String(), targetCommitString) { // targetCommit is the very first commit in the repo
-		return getChangedFoldersOfCommitFiles(beforeCommit, configBranch, currentBranch, configFile)
-	}
-
-	return getChangedFoldersFromTargetCommitTillExclusiveBeforeCommit(beforeCommit, targetCommit, configBranch, currentBranch, configFile)
+	return getChangedFoldersFromTargetCommitTillExclusiveBeforeCommit(targetCommit, beforeCommit, configBranch, currentBranch, configFile)
 }
 
 func getChangedFoldersFromTargetCommitTillExclusiveBeforeCommit(targetCommit *object.Commit, beforeCommit *object.Commit, configBranch string, currentBranch string, configFile string) ([]string, bool, error) {
-	beforeTree, err := beforeCommit.Tree()
-	if err != nil {
-		return nil, false, err
+	if targetCommit == nil {
+		return nil, false, errors.New("targetCommit must be set")
 	}
+
 	targetTree, err := targetCommit.Tree()
 	if err != nil {
 		return nil, false, err
 	}
-	changes, err := beforeTree.Diff(targetTree)
+
+	var beforeTree *object.Tree
+	if beforeCommit != nil {
+		beforeTree, err = beforeCommit.Tree()
+		if err != nil {
+			return nil, false, err
+		}
+	}
+	changes, err := object.DiffTreeContext(context.TODO(), beforeTree, targetTree)
 	if err != nil {
 		return nil, false, err
 	}
+
 	changedFolderNamesMap := make(map[string]bool)
 	changedConfigFile := false
 	for _, change := range changes {
@@ -153,23 +155,6 @@ func getChangedFoldersFromTargetCommitTillExclusiveBeforeCommit(targetCommit *ob
 	return maps.GetKeysFromMap(changedFolderNamesMap), changedConfigFile, nil
 }
 
-func getChangedFoldersOfCommitFiles(commit *object.Commit, configBranch string, currentBranch string, configFile string) ([]string, bool, error) {
-	changedFolderNamesMap := make(map[string]bool)
-	changedConfigFile := false
-	fileIter, err := commit.Files()
-	if err != nil {
-		return nil, false, err
-	}
-	err = fileIter.ForEach(func(file *object.File) error {
-		appendFolderToMap(changedFolderNamesMap, &changedConfigFile, configBranch, currentBranch, configFile, file.Name, file.Mode)
-		return nil
-	})
-	if err != nil {
-		return nil, false, err
-	}
-	return maps.GetKeysFromMap(changedFolderNamesMap), changedConfigFile, nil
-}
-
 func getRepository(gitDir string) (*git.Repository, string, error) {
 	log.Debug().Msgf("opened gitDir %s", gitDir)
 	repository, err := git.PlainOpen(gitDir)
@@ -181,14 +166,6 @@ func getRepository(gitDir string) (*git.Repository, string, error) {
 		return nil, "", err
 	}
 	return repository, currentBranch, nil
-}
-
-func getTargetCommitHash(targetCommitString string) (*plumbing.Hash, error) {
-	targetCommitHash := plumbing.NewHash(targetCommitString)
-	if targetCommitHash == plumbing.ZeroHash {
-		return nil, errors.New("invalid targetCommit")
-	}
-	return &targetCommitHash, nil
 }
 
 func getCurrentBranch(repository *git.Repository) (string, error) {
@@ -224,22 +201,33 @@ func appendFolderToMap(changedFolderNamesMap map[string]bool, changedConfigFile 
 	}
 }
 
-func getCommitHash(commitHash string, repository *git.Repository) (*plumbing.Hash, error) {
+// findCommit will return a Hash if found, or nil if not found.
+func findCommit(commitHash string, repository *git.Repository) (*object.Commit, error) {
 	logIter, err := repository.Log(&git.LogOptions{
 		Order: git.LogOrderBSF, // sorted from latest down to oldest
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	var hash plumbing.Hash
 	err = logIter.ForEach(func(c *object.Commit) error {
-		hash = c.Hash
-		if len(commitHash) > 0 && c.Hash.String() == commitHash {
-			return io.EOF // break iteration loop
+		if c.Hash.String() == commitHash {
+			hash = c.Hash
+			return io.EOF
 		}
 		return nil // continue iteration loop
 	})
-	return &hash, err // return the first repo commit hash if commitHash is empty
+
+	if err != io.EOF {
+		return nil, err
+	}
+
+	if hash.IsZero() {
+		return nil, nil
+	}
+
+	return repository.CommitObject(hash)
 }
 
 func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, error) {
