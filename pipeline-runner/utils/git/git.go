@@ -17,6 +17,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/protocol/packp"
 	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/rs/zerolog/log"
 )
@@ -42,7 +43,7 @@ func ResetGitHead(gitWorkspace, commitHashString string) error {
 		if errors.Is(err, plumbing.ErrObjectNotFound) {
 			return fmt.Errorf("commit %s not found", commitHashString)
 		}
-		return err
+		return fmt.Errorf("unable to reset git head %s: %w", commitHashString, err)
 	}
 	log.Debug().Msgf("reset HEAD to %s", commitHashString)
 	return nil
