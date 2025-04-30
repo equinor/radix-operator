@@ -46,7 +46,11 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(10, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(50, resource.Mega),
 				},
 			},
 			ImagePullPolicy: corev1.PullIfNotPresent,
@@ -85,6 +89,16 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 					ReadOnly:  false,
 				},
 			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(100, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(250, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(250, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(2000, resource.Mega),
+				},
+			},
 			SecurityContext: securitycontext.Container(
 				securitycontext.WithContainerRunAsUser(65534), // Must be this user when running as non root
 				securitycontext.WithContainerRunAsGroup(1000),
@@ -109,6 +123,10 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
 					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(50, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(100, resource.Mega),
 				},
 			},
 			SecurityContext: securitycontext.Container(
