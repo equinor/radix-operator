@@ -27,11 +27,11 @@ require (
 	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac
 	golang.org/x/sync v0.13.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.33.0
-	k8s.io/apiextensions-apiserver v0.33.0
-	k8s.io/apimachinery v0.33.0
-	k8s.io/client-go v0.33.0
-	k8s.io/code-generator v0.33.0
+	k8s.io/api v0.32.2
+	k8s.io/apiextensions-apiserver v0.32.1
+	k8s.io/apimachinery v0.32.2
+	k8s.io/client-go v0.32.2
+	k8s.io/code-generator v0.32.2
 	knative.dev/pkg v0.0.0-20250326102644-9f3e60a9244c
 	sigs.k8s.io/secrets-store-csi-driver v1.4.5
 	sigs.k8s.io/yaml v1.4.0
@@ -148,3 +148,5 @@ retract (
 	v1.90.4 //dev version
 	v1.90.3 //dev version
 )
+
+replace github.com/prometheus/prometheus => github.com/prometheus/prometheus v0.54.0
