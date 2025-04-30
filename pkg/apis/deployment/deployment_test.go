@@ -1505,6 +1505,74 @@ func TestConfigMap_RetainDataBetweenSync(t *testing.T) {
 	assert.Equal(t, map[string]kube.EnvVarMetadata{"JOB2VAR1": {RadixConfigValue: "job2_original1"}}, varMeta)
 }
 
+func Test_ComponentAndJobSecrets_SecretKeyExistAndDataRetainedBetweenSync(t *testing.T) {
+	appName, envName := "anyapp", "anyenv"
+	ns := utils.GetEnvironmentNamespace(appName, envName)
+
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+
+	initialRD := utils.ARadixDeployment().
+		WithDeploymentName("rd-init").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithSecrets([]string{"compsecret1", "compsecret2", "compsecret3", "compsecret4"})).
+		WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("job").WithSecrets([]string{"jobsecret1", "jobsecret2", "jobsecret3", "jobsecret4"}))
+	updatedRD := utils.ARadixDeployment().
+		WithDeploymentName("rd-update").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithSecrets([]string{"compsecret1", "compsecret3", "compsecret5"})).
+		WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("job").WithSecrets([]string{"jobsecret1", "jobsecret3", "jobsecret5"}))
+
+	// Apply initial RD
+	_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, initialRD)
+	require.NoError(t, err)
+	// Verify secret created and Data is empty
+	actualCompSecret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), utils.GetComponentSecretName("comp"), metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, actualCompSecret.Data)
+	actualJobSecret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), utils.GetComponentSecretName("job"), metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, actualJobSecret.Data)
+
+	// Set secret data for test
+	actualCompSecret.Data = map[string][]byte{
+		"compsecret1": []byte("compvalue1"),
+		"compsecret2": []byte("compvalue2"),
+		"compsecret3": []byte("compvalue3"),
+		"compsecret4": []byte("compvalue4"),
+	}
+	_, err = kubeclient.CoreV1().Secrets(ns).Update(context.Background(), actualCompSecret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+	actualJobSecret.Data = map[string][]byte{
+		"jobsecret1": []byte("jobvalue1"),
+		"jobsecret2": []byte("jobvalue2"),
+		"jobsecret3": []byte("jobvalue3"),
+		"jobsecret4": []byte("jobvalue4"),
+	}
+	_, err = kubeclient.CoreV1().Secrets(ns).Update(context.Background(), actualJobSecret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	// Apply updated RD
+	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, updatedRD)
+	require.NoError(t, err)
+	actualCompSecret, err = kubeclient.CoreV1().Secrets(ns).Get(context.Background(), utils.GetComponentSecretName("comp"), metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedCompSecretData := map[string][]byte{
+		"compsecret1": []byte("compvalue1"),
+		"compsecret3": []byte("compvalue3"),
+	}
+	assert.Equal(t, expectedCompSecretData, actualCompSecret.Data)
+	actualJobSecret, err = kubeclient.CoreV1().Secrets(ns).Get(context.Background(), utils.GetComponentSecretName("job"), metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedJobSecretData := map[string][]byte{
+		"jobsecret1": []byte("jobvalue1"),
+		"jobsecret3": []byte("jobvalue3"),
+	}
+	assert.Equal(t, expectedJobSecretData, actualJobSecret.Data)
+}
+
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
