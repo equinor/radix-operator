@@ -579,8 +579,7 @@ func trimVolumeNameToValidLength(volumeName string) string {
 
 func getCsiAzureVolumeMountCredsSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, componentName, volumeMountName string) (string, []byte, []byte) {
 	secretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, volumeMountName)
-	accountKey := []byte(defaults.SecretDefaultData)
-	accountName := []byte(defaults.SecretDefaultData)
+	var accountKey, accountName []byte
 	if kubeUtil.SecretExists(ctx, namespace, secretName) {
 		oldSecret, _ := kubeUtil.GetSecret(ctx, namespace, secretName)
 		accountKey = oldSecret.Data[defaults.CsiAzureCredsAccountKeyPart]

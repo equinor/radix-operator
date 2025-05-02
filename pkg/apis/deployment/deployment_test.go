@@ -1573,6 +1573,113 @@ func Test_ComponentAndJobSecrets_SecretKeyExistAndDataRetainedBetweenSync(t *tes
 	assert.Equal(t, expectedJobSecretData, actualJobSecret.Data)
 }
 
+func Test_BlobFuse2VolumeMountSecret_ExpectedKeysAndData(t *testing.T) {
+	tests := map[string]struct {
+		initialSpec         radixv1.RadixBlobFuse2VolumeMount
+		expectedInitialData map[string][]byte
+		setData             map[string][]byte
+		updateSpec          radixv1.RadixBlobFuse2VolumeMount
+		expectedUpdateData  map[string][]byte
+	}{
+		"volume requiring account key+name": {
+			initialSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any"},
+			expectedInitialData: map[string][]byte{
+				"accountkey":  nil,
+				"accountname": nil,
+			},
+			setData: map[string][]byte{
+				"accountkey":  []byte("anykey"),
+				"accountname": []byte("anyname"),
+			},
+			updateSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any"},
+			expectedUpdateData: map[string][]byte{
+				"accountkey":  []byte("anykey"),
+				"accountname": []byte("anyname"),
+			},
+		},
+		"initial volume requiring account key+name, updated volume only key": {
+			initialSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any"},
+			expectedInitialData: map[string][]byte{
+				"accountkey":  nil,
+				"accountname": nil,
+			},
+			setData: map[string][]byte{
+				"accountkey":  []byte("anykey"),
+				"accountname": []byte("anyname"),
+			},
+			updateSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any", StorageAccount: "anyaccount"},
+			expectedUpdateData: map[string][]byte{
+				"accountkey": []byte("anykey"),
+			},
+		},
+		"initial volume requiring account key only, updated volume key+name": {
+			initialSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any", StorageAccount: "anyaccount"},
+			expectedInitialData: map[string][]byte{
+				"accountkey": nil,
+			},
+			setData: map[string][]byte{
+				"accountkey": []byte("anykey"),
+			},
+			updateSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any"},
+			expectedUpdateData: map[string][]byte{
+				"accountkey":  []byte("anykey"),
+				"accountname": nil,
+			},
+		},
+	}
+
+	appName, envName := "anyapp", "anyenv"
+	ns := utils.GetEnvironmentNamespace(appName, envName)
+
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+			defer TeardownTest()
+
+			testComponentSecret := func(componentName string, expectedData map[string][]byte) *corev1.Secret {
+				secret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, "vol"), metav1.GetOptions{})
+				require.NoError(t, err)
+				assert.Equal(t, expectedData, secret.Data)
+				return secret
+			}
+
+			initialVolume := radixv1.RadixVolumeMount{Name: "vol", BlobFuse2: &testSpec.initialSpec}
+			initialRD := utils.ARadixDeployment().
+				WithDeploymentName("rd-init").
+				WithAppName(appName).
+				WithEnvironment(envName).
+				WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithVolumeMounts(initialVolume)).
+				WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("job").WithVolumeMounts(initialVolume))
+
+			_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, initialRD)
+			require.NoError(t, err)
+			compSecret := testComponentSecret("comp", testSpec.expectedInitialData)
+			jobSecret := testComponentSecret("job", testSpec.expectedInitialData)
+			for k, v := range testSpec.setData {
+				compSecret.Data[k] = v
+				jobSecret.Data[k] = v
+			}
+			_, err = kubeclient.CoreV1().Secrets(ns).Update(context.Background(), compSecret, metav1.UpdateOptions{})
+			require.NoError(t, err)
+			_, err = kubeclient.CoreV1().Secrets(ns).Update(context.Background(), jobSecret, metav1.UpdateOptions{})
+			require.NoError(t, err)
+
+			updatedVolume := radixv1.RadixVolumeMount{Name: "vol", BlobFuse2: &testSpec.updateSpec}
+			updatedRD := utils.ARadixDeployment().
+				WithDeploymentName("rd-update").
+				WithAppName(appName).
+				WithEnvironment(envName).
+				WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithVolumeMounts(updatedVolume)).
+				WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("job").WithVolumeMounts(updatedVolume))
+
+			_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, updatedRD)
+			require.NoError(t, err)
+			_ = testComponentSecret("comp", testSpec.expectedUpdateData)
+			_ = testComponentSecret("job", testSpec.expectedUpdateData)
+		})
+	}
+}
+
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
