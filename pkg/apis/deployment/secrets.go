@@ -48,7 +48,7 @@ func (deploy *Deployment) syncComponentSecrets(ctx context.Context, component ra
 		secretsToManage = append(secretsToManage, secretName)
 	}
 
-	volumeMountSecretsToManage, err := volumemount.CreateOrUpdateVolumeMountSecrets(ctx, deploy.kubeutil, deploy.registration.Name, namespace, component.GetName(), component.GetVolumeMounts())
+	volumeMountSecretsToManage, err := volumemount.CreateOrUpdateVolumeMountSecrets(ctx, deploy.kubeutil, deploy.registration.Name, namespace, component)
 	if err != nil {
 		return err
 	}

@@ -119,19 +119,64 @@ func GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx context.Context
 }
 
 // CreateOrUpdateVolumeMountSecrets creates or updates secrets for volume mounts
-func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, appName, namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
-	var volumeMountSecretsToManage []string
-	for _, volumeMount := range volumeMounts {
+func CreateOrUpdateVolumeMountSecrets(ctx context.Context, kubeUtil *kube.Kube, appName, namespace string, component radixv1.RadixCommonDeployComponent) ([]string, error) {
+	var secretsToManage []string
+	for _, volumeMount := range component.GetVolumeMounts() {
 		if volumeMount.HasEmptyDir() || volumeMount.UseAzureIdentity() {
 			continue
 		}
-		secretName, accountKey, accountName := getCsiAzureVolumeMountCredsSecrets(ctx, kubeUtil, namespace, componentName, volumeMount.Name)
-		volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
-		if err := createOrUpdateCsiAzureVolumeMountsSecrets(ctx, kubeUtil, appName, namespace, componentName, &volumeMount, secretName, accountName, accountKey); err != nil {
+		secretName := defaults.GetCsiAzureVolumeMountCredsSecretName(component.GetName(), volumeMount.Name)
+		if err := createOrUpdateVolumeMountSecret(ctx, kubeUtil, appName, namespace, component.GetName(), secretName, volumeMount); err != nil {
 			return nil, err
 		}
+		secretsToManage = append(secretsToManage, secretName)
 	}
-	return volumeMountSecretsToManage, nil
+	return secretsToManage, nil
+}
+
+func createOrUpdateVolumeMountSecret(ctx context.Context, kubeUtil *kube.Kube, appName, namespace, componentName string, secretName string, volumeMount radixv1.RadixVolumeMount) error {
+	var currentSecret, desiredSecret *corev1.Secret
+	currentSecret, err := kubeUtil.KubeClient().CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get current volume mount secret: %w", err)
+		}
+		desiredSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: namespace,
+			},
+		}
+		currentSecret = nil
+	} else {
+		desiredSecret = currentSecret.DeepCopy()
+	}
+
+	desiredSecret.Labels = map[string]string{
+		kube.RadixAppLabel:             appName,
+		kube.RadixComponentLabel:       componentName,
+		kube.RadixMountTypeLabel:       string(volumeMount.GetVolumeMountType()),
+		kube.RadixVolumeMountNameLabel: volumeMount.Name,
+	}
+	data := map[string][]byte{}
+	data[defaults.CsiAzureCredsAccountKeyPart] = desiredSecret.Data[defaults.CsiAzureCredsAccountKeyPart]
+	if volumeMount.BlobFuse2 == nil || len(volumeMount.BlobFuse2.StorageAccount) == 0 {
+		data[defaults.CsiAzureCredsAccountNamePart] = desiredSecret.Data[defaults.CsiAzureCredsAccountNamePart]
+	}
+	desiredSecret.Data = data
+
+	if currentSecret == nil {
+		if _, err := kubeUtil.CreateSecret(ctx, namespace, desiredSecret); err != nil {
+			return fmt.Errorf("failed to create volume mount secret: %w", err)
+		}
+		return nil
+	}
+
+	if _, err := kubeUtil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
+		return fmt.Errorf("failed to update volume mount DNS secret: %w", err)
+	}
+
+	return nil
 }
 
 func getCsiAzurePvsForNamespace(ctx context.Context, kubeClient kubernetes.Interface, namespace string) ([]corev1.PersistentVolume, error) {
@@ -399,37 +444,6 @@ func getCsiAzurePvName() string {
 	return fmt.Sprintf(csiPersistentVolumeNameTemplate, uuid.New().String())
 }
 
-func createOrUpdateCsiAzureVolumeMountsSecrets(ctx context.Context, kubeUtil *kube.Kube, appName, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, secretName string, accountName, accountKey []byte) error {
-	secret := corev1.Secret{
-		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:             appName,
-				kube.RadixComponentLabel:       componentName,
-				kube.RadixMountTypeLabel:       string(radixVolumeMount.GetVolumeMountType()),
-				kube.RadixVolumeMountNameLabel: radixVolumeMount.Name,
-			},
-		},
-	}
-
-	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
-	data := make(map[string][]byte)
-	data[defaults.CsiAzureCredsAccountKeyPart] = accountKey
-	if radixVolumeMount.BlobFuse2 == nil || len(radixVolumeMount.BlobFuse2.StorageAccount) == 0 {
-		data[defaults.CsiAzureCredsAccountNamePart] = accountName
-	}
-
-	secret.Data = data
-
-	_, err := kubeUtil.ApplySecret(ctx, namespace, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func pvIsForCsiDriver(pv corev1.PersistentVolume) bool {
 	return pv.Spec.CSI != nil
 }
@@ -575,17 +589,6 @@ func trimVolumeNameToValidLength(volumeName string) string {
 
 	randString := strings.ToLower(commonUtils.RandStringStrSeed(nameRandPartLength, volumeName))
 	return fmt.Sprintf("%s-%s", volumeName[:63-nameRandPartLength-1], randString)
-}
-
-func getCsiAzureVolumeMountCredsSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, componentName, volumeMountName string) (string, []byte, []byte) {
-	secretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, volumeMountName)
-	var accountKey, accountName []byte
-	if kubeUtil.SecretExists(ctx, namespace, secretName) {
-		oldSecret, _ := kubeUtil.GetSecret(ctx, namespace, secretName)
-		accountKey = oldSecret.Data[defaults.CsiAzureCredsAccountKeyPart]
-		accountName = oldSecret.Data[defaults.CsiAzureCredsAccountNamePart]
-	}
-	return secretName, accountKey, accountName
 }
 
 func getLabelSelectorForCsiAzureVolumeMountSecret(component radixv1.RadixCommonDeployComponent) string {
