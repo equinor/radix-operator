@@ -95,10 +95,12 @@ func getNodeAffinityForBatchJob(ctx context.Context, node *radixv1.RadixNode, no
 	var nodeSelectorRequirements []corev1.NodeSelectorRequirement
 	if nodeSelectorRequirement := getNodeTypeAffinityNodeSelectorRequirement(nodeType); len(nodeSelectorRequirement) > 0 {
 		nodeSelectorRequirements = append(nodeSelectorRequirements, nodeSelectorRequirement...)
-	} else if affinity := getNodeAffinityForGPUNode(ctx, node); affinity != nil { // TODO delete when NodeType is deployed and no Node is used
-		return affinity
+	} else {
+		if affinity := getNodeAffinityForGPUNode(ctx, node); affinity != nil { // TODO delete when NodeType is deployed and no Node is used
+			return affinity
+		}
+		nodeSelectorRequirements = append(nodeSelectorRequirements, slices.Concat(getNodeSelectorRequirementsForJobNodePool(), getNodeSelectorRequirementsForRuntimeEnvironment(nodeArch))...)
 	}
-	nodeSelectorRequirements = append(nodeSelectorRequirements, slices.Concat(getNodeSelectorRequirementsForJobNodePool(), getNodeSelectorRequirementsForRuntimeEnvironment(nodeArch))...)
 	return &corev1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{
 			{MatchExpressions: nodeSelectorRequirements},

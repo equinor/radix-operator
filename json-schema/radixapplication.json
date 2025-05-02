@@ -1250,7 +1250,8 @@
                           "description": "CPU architecture target for the component or job. Defaults to amd64.",
                           "enum": [
                             "amd64",
-                            "arm64"
+                            "arm64",
+                            ""
                           ],
                           "type": "string"
                         },
@@ -2441,7 +2442,7 @@
                 "type": "object"
               },
               "node": {
-                "description": "Deprecated: use nodeType instead.\nDefines GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                "description": "Deprecated: use Runtime.NodeType instead.\nDefines GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
                 "properties": {
                   "gpu": {
                     "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -2533,7 +2534,8 @@
                     "description": "CPU architecture target for the component or job. Defaults to amd64.",
                     "enum": [
                       "amd64",
-                      "arm64"
+                      "arm64",
+                      ""
                     ],
                     "type": "string"
                   },
@@ -3507,7 +3509,8 @@
                           "description": "CPU architecture target for the component or job. Defaults to amd64.",
                           "enum": [
                             "amd64",
-                            "arm64"
+                            "arm64",
+                            ""
                           ],
                           "type": "string"
                         },
@@ -4129,7 +4132,8 @@
                     "description": "CPU architecture target for the component or job. Defaults to amd64.",
                     "enum": [
                       "amd64",
-                      "arm64"
+                      "arm64",
+                      ""
                     ],
                     "type": "string"
                   },

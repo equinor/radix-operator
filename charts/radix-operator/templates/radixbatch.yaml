@@ -211,6 +211,7 @@ spec:
                           enum:
                           - amd64
                           - arm64
+                          - ""
                           type: string
                         nodeType:
                           description: |-

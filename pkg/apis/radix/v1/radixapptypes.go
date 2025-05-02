@@ -1613,7 +1613,7 @@ const (
 // Runtime defines the component or job's target runtime requirements
 type Runtime struct {
 	// CPU architecture target for the component or job. Defaults to amd64.
-	// +kubebuilder:validation:Enum=amd64;arm64
+	// +kubebuilder:validation:Enum=amd64;arm64;""
 	// +kubebuilder:default:=amd64
 	// +optional
 	Architecture RuntimeArchitecture `json:"architecture,omitempty"`
