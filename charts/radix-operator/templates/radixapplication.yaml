@@ -1281,9 +1281,9 @@ spec:
                               runtime requirements for the component
                             properties:
                               architecture:
-                                default: amd64
                                 description: CPU architecture target for the component
-                                  or job. Defaults to amd64.
+                                  or job. When Architecture and NodeType are not defined,
+                                  the Architecture defaults to amd64.
                                 enum:
                                 - amd64
                                 - arm64
@@ -1291,7 +1291,7 @@ spec:
                                 type: string
                               nodeType:
                                 description: |-
-                                  Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
+                                  Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.
                                   More info: https://www.radix.equinor.com/radix-config#nodetype
                                 maxLength: 120
                                 pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
@@ -2539,9 +2539,9 @@ spec:
                         for the component
                       properties:
                         architecture:
-                          default: amd64
                           description: CPU architecture target for the component or
-                            job. Defaults to amd64.
+                            job. When Architecture and NodeType are not defined, the
+                            Architecture defaults to amd64.
                           enum:
                           - amd64
                           - arm64
@@ -2549,7 +2549,7 @@ spec:
                           type: string
                         nodeType:
                           description: |-
-                            Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
+                            Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.
                             More info: https://www.radix.equinor.com/radix-config#nodetype
                           maxLength: 120
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
@@ -3476,9 +3476,9 @@ spec:
                               runtime requirements for the job
                             properties:
                               architecture:
-                                default: amd64
                                 description: CPU architecture target for the component
-                                  or job. Defaults to amd64.
+                                  or job. When Architecture and NodeType are not defined,
+                                  the Architecture defaults to amd64.
                                 enum:
                                 - amd64
                                 - arm64
@@ -3486,7 +3486,7 @@ spec:
                                 type: string
                               nodeType:
                                 description: |-
-                                  Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
+                                  Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.
                                   More info: https://www.radix.equinor.com/radix-config#nodetype
                                 maxLength: 120
                                 pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
@@ -4092,9 +4092,9 @@ spec:
                         the job
                       properties:
                         architecture:
-                          default: amd64
                           description: CPU architecture target for the component or
-                            job. Defaults to amd64.
+                            job. When Architecture and NodeType are not defined, the
+                            Architecture defaults to amd64.
                           enum:
                           - amd64
                           - arm64
@@ -4102,7 +4102,7 @@ spec:
                           type: string
                         nodeType:
                           description: |-
-                            Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
+                            Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.
                             More info: https://www.radix.equinor.com/radix-config#nodetype
                           maxLength: 120
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$

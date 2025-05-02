@@ -1612,13 +1612,12 @@ const (
 
 // Runtime defines the component or job's target runtime requirements
 type Runtime struct {
-	// CPU architecture target for the component or job. Defaults to amd64.
+	// CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.
 	// +kubebuilder:validation:Enum=amd64;arm64;""
-	// +kubebuilder:default:=amd64
 	// +optional
 	Architecture RuntimeArchitecture `json:"architecture,omitempty"`
 
-	// Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.
+	// Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.
 	// More info: https://www.radix.equinor.com/radix-config#nodetype
 	// +kubebuilder:validation:MaxLength=120
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
