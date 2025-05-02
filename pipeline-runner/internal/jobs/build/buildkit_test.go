@@ -59,7 +59,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 		AppContainerRegistry:   "anyappcontainerregistry",
 		SeccompProfileFileName: "anyseccompprofilefile",
 		ExternalContainerRegistryDefaultAuthSecret: externalRegistrySecret,
-		Builder:      model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
+		Builder:      model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M", ResourcesLimitsCPU: "50m"},
 		GitWorkspace: "/some-workspace",
 	}
 	require.Equal(t, pushImage, args.PushImage)
@@ -174,6 +174,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 				},
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(args.Builder.ResourcesLimitsMemory),
+					corev1.ResourceCPU:    resource.MustParse(args.Builder.ResourcesLimitsCPU),
 				},
 			}
 			assert.Equal(t, expectedResources, c.Resources)

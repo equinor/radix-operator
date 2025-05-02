@@ -144,6 +144,7 @@ func createConfig() *config.Config {
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:          3,
 			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
+			AppBuilderResourcesLimitsCPU:      pointers.Ptr(resource.MustParse("200m")),
 			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
 			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
 			GitCloneConfig: &git.CloneConfig{
