@@ -33,7 +33,7 @@ func CloneInitContainersWithSourceCode(sshURL, branch string, config CloneConfig
 // CloneInitContainersWithContainerName The sidecars for cloning repo. Lfs is to support large files in cloned source code, it is not needed for Radix config ot SubPipeline
 func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, config CloneConfig, useLfs bool, workspace string) []corev1.Container {
 	gitConfigCommand := fmt.Sprintf("git config --global --add safe.directory %s", workspace)
-	gitCloneCommand := fmt.Sprintf("git clone %s -b %s --verbose --filter=blob:none --progress %s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")", sshURL, branch, workspace)
+	gitCloneCommand := fmt.Sprintf("git clone %s -b %s --verbose --progress %s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")", sshURL, branch, workspace)
 	getLfsFilesCommands := fmt.Sprintf("cd %s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", workspace)
 	gitCloneCmd := []string{"sh", "-c", fmt.Sprintf("%s && %s %s", gitConfigCommand, gitCloneCommand,
 		utils.TernaryString(useLfs, fmt.Sprintf("&& %s", getLfsFilesCommands), ""))}

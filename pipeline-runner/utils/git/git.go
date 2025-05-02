@@ -42,7 +42,7 @@ func ResetGitHead(gitWorkspace, commitHashString string) error {
 		if errors.Is(err, plumbing.ErrObjectNotFound) {
 			return fmt.Errorf("commit %s not found", commitHashString)
 		}
-		return err
+		return fmt.Errorf("unable to reset git head %s: %w", commitHashString, err)
 	}
 	log.Debug().Msgf("reset HEAD to %s", commitHashString)
 	return nil
