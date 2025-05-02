@@ -1680,6 +1680,90 @@ func Test_BlobFuse2VolumeMountSecret_ExpectedKeysAndData(t *testing.T) {
 	}
 }
 
+func Test_ClientCertificateSecretGetsSet(t *testing.T) {
+	// Setup
+	testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+	appName, environment := "edcradix", "test"
+	componentName1, componentName2, componentName3, componentName4 := "component1", "component2", "component3", "component4"
+
+	// Test
+	radixDeployment, err := ApplyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+		WithAppName(appName).
+		WithEnvironment(environment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName1). // Secret expected
+				WithPort("http", 8080).   //
+				WithPublicPort("http").   // Public port set
+				WithAuthentication(       // Authentication set
+					&radixv1.Authentication{
+						ClientCertificate: &radixv1.ClientCertificate{
+							Verification:              pointers.Ptr(radixv1.VerificationTypeOn),
+							PassCertificateToUpstream: pointers.Ptr(true),
+						},
+					},
+				),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName2). // Secret not expected; No Secret needed based on Certificate
+				WithPort("http", 8081).   //
+				WithPublicPort("http").   // Public port set
+				WithAuthentication(       // Authentication set
+					&radixv1.Authentication{
+						ClientCertificate: &radixv1.ClientCertificate{
+							Verification:              pointers.Ptr(radixv1.VerificationTypeOff),
+							PassCertificateToUpstream: pointers.Ptr(false),
+						},
+					},
+				),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName3). // Secret not expected; No "Public port" set
+				WithPort("http", 8082).   //
+				WithAuthentication(       // Authentication set
+					&radixv1.Authentication{
+						ClientCertificate: &radixv1.ClientCertificate{
+							Verification:              pointers.Ptr(radixv1.VerificationTypeOn),
+							PassCertificateToUpstream: pointers.Ptr(true),
+						},
+					},
+				),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName4). // Secret not expected; No "Authentication" supplied
+				WithPort("https", 8443).  //
+				WithPublicPort("https"),  // Public port set
+		),
+	)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, radixDeployment)
+
+	t.Run("validate secrets", func(t *testing.T) {
+		var secretName string
+		var secretExists bool
+
+		envNamespace := utils.GetEnvironmentNamespace(appName, environment)
+		secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
+		assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
+
+		secretName = utils.GetComponentClientCertificateSecretName(componentName1)
+		secretExists = secretByNameExists(secretName, secrets)
+		assert.True(t, secretExists, "expected secret to exist")
+
+		secretName = utils.GetComponentClientCertificateSecretName(componentName2)
+		secretExists = secretByNameExists(secretName, secrets)
+		assert.False(t, secretExists, "expected secret not to exist")
+
+		secretName = utils.GetComponentClientCertificateSecretName(componentName3)
+		secretExists = secretByNameExists(secretName, secrets)
+		assert.False(t, secretExists, "expected secret not to exist")
+
+		secretName = utils.GetComponentClientCertificateSecretName(componentName4)
+		secretExists = secretByNameExists(secretName, secrets)
+		assert.False(t, secretExists, "expected secret not to exist")
+	})
+
+}
+
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
