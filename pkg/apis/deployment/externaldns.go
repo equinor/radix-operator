@@ -242,7 +242,6 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context
 		if _, err := deploy.kubeutil.CreateSecret(ctx, ns, desiredSecret); err != nil {
 			return fmt.Errorf("failed to create external DNS secret: %w", err)
 		}
-
 		return nil
 	}
 

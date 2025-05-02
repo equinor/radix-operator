@@ -1725,7 +1725,7 @@ func Test_ClientCertificate_Secrets(t *testing.T) {
 				})
 			},
 			initialExpectSecret: true,
-			initialExpectedData: map[string][]byte{"ca.crt": []byte("xx")},
+			initialExpectedData: map[string][]byte{"ca.crt": nil},
 		},
 		"secret created when Verification is Optional": {
 			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
@@ -1736,7 +1736,7 @@ func Test_ClientCertificate_Secrets(t *testing.T) {
 				})
 			},
 			initialExpectSecret: true,
-			initialExpectedData: map[string][]byte{"ca.crt": []byte("xx")},
+			initialExpectedData: map[string][]byte{"ca.crt": nil},
 		},
 		"secret created when Verification is OptionalNoCa": {
 			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
@@ -1747,7 +1747,7 @@ func Test_ClientCertificate_Secrets(t *testing.T) {
 				})
 			},
 			initialExpectSecret: true,
-			initialExpectedData: map[string][]byte{"ca.crt": []byte("xx")},
+			initialExpectedData: map[string][]byte{"ca.crt": nil},
 		},
 		"secret created when PassCertificateToUpstream is true": {
 			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
@@ -1759,7 +1759,7 @@ func Test_ClientCertificate_Secrets(t *testing.T) {
 				})
 			},
 			initialExpectSecret: true,
-			initialExpectedData: map[string][]byte{"ca.crt": []byte("xx")},
+			initialExpectedData: map[string][]byte{"ca.crt": nil},
 		},
 		"secret data persisted between syncs": {
 			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
@@ -1770,7 +1770,7 @@ func Test_ClientCertificate_Secrets(t *testing.T) {
 				})
 			},
 			initialExpectSecret: true,
-			initialExpectedData: map[string][]byte{"ca.crt": []byte("xx")},
+			initialExpectedData: map[string][]byte{"ca.crt": nil},
 			setData:             map[string][]byte{"ca.crt": []byte("updated cert")},
 			updateComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
 				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{

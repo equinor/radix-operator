@@ -61,10 +61,8 @@ func (deploy *Deployment) syncComponentSecrets(ctx context.Context, component ra
 
 	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
 	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && ingress.IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
-		if !deploy.kubeutil.SecretExists(ctx, namespace, clientCertificateSecretName) {
-			if err := deploy.createClientCertificateSecret(ctx, namespace, deploy.registration.Name, component.GetName(), clientCertificateSecretName); err != nil {
-				return err
-			}
+		if err := deploy.createOrUpdateClientCertificateSecret(ctx, component.GetName(), clientCertificateSecretName); err != nil {
+			return err
 		}
 		secretsToManage = append(secretsToManage, clientCertificateSecretName)
 	} else if deploy.kubeutil.SecretExists(ctx, namespace, clientCertificateSecretName) {
@@ -202,7 +200,6 @@ func (deploy *Deployment) createOrUpdateComponentSecret(ctx context.Context, com
 		if _, err := deploy.kubeutil.CreateSecret(ctx, ns, desiredSecret); err != nil {
 			return fmt.Errorf("failed to create secret: %w", err)
 		}
-
 		return nil
 	}
 
@@ -238,25 +235,44 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 	return &secret
 }
 
-func (deploy *Deployment) createClientCertificateSecret(ctx context.Context, ns, app, component, secretName string) error {
-	secret := corev1.Secret{
-		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:       app,
-				kube.RadixComponentLabel: component,
+func (deploy *Deployment) createOrUpdateClientCertificateSecret(ctx context.Context, componentName, secretName string) error {
+	ns := deploy.radixDeployment.Namespace
+	var currentSecret, desiredSecret *corev1.Secret
+	currentSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		if !kubeerrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get current client certificate secret: %w", err)
+		}
+		desiredSecret = &corev1.Secret{
+			Type: corev1.SecretTypeOpaque,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: ns,
 			},
-		},
+			Data: map[string][]byte{
+				"ca.crt": nil,
+			},
+		}
+		currentSecret = nil
+	} else {
+		desiredSecret = currentSecret.DeepCopy()
 	}
 
-	defaultValue := []byte(defaults.SecretDefaultData)
+	desiredSecret.Labels = map[string]string{
+		kube.RadixAppLabel:       deploy.registration.Name,
+		kube.RadixComponentLabel: componentName,
+	}
 
-	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
-	data := make(map[string][]byte)
-	data["ca.crt"] = defaultValue
-	secret.Data = data
+	if currentSecret == nil {
+		if _, err := deploy.kubeutil.CreateSecret(ctx, ns, desiredSecret); err != nil {
+			return fmt.Errorf("failed to create volume mount secret: %w", err)
+		}
+		return nil
+	}
 
-	_, err := deploy.kubeutil.ApplySecret(ctx, ns, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
-	return err
+	if _, err := deploy.kubeutil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
+		return fmt.Errorf("failed to update volume mount DNS secret: %w", err)
+	}
+
+	return nil
 }
