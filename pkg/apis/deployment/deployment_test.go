@@ -1680,88 +1680,163 @@ func Test_BlobFuse2VolumeMountSecret_ExpectedKeysAndData(t *testing.T) {
 	}
 }
 
-func Test_ClientCertificateSecretGetsSet(t *testing.T) {
-	// Setup
-	testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	appName, environment := "edcradix", "test"
-	componentName1, componentName2, componentName3, componentName4 := "component1", "component2", "component3", "component4"
-
-	// Test
-	radixDeployment, err := ApplyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(appName).
-		WithEnvironment(environment).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(componentName1). // Secret expected
-				WithPort("http", 8080).   //
-				WithPublicPort("http").   // Public port set
-				WithAuthentication(       // Authentication set
-					&radixv1.Authentication{
-						ClientCertificate: &radixv1.ClientCertificate{
-							Verification:              pointers.Ptr(radixv1.VerificationTypeOn),
-							PassCertificateToUpstream: pointers.Ptr(true),
-						},
+func Test_ClientCertificate_Secrets(t *testing.T) {
+	tests := map[string]struct {
+		initialComp         func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder
+		initialExpectSecret bool
+		initialExpectedData map[string][]byte
+		setData             map[string][]byte
+		updateComp          func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder
+		updateExpectSecret  bool
+		updateExpectedData  map[string][]byte
+	}{
+		"no secret when ClientCertificate not set": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http")
+			},
+			initialExpectSecret: false,
+		},
+		"no secret when Verificate is Off": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOff),
 					},
-				),
-			utils.NewDeployComponentBuilder().
-				WithName(componentName2). // Secret not expected; No Secret needed based on Certificate
-				WithPort("http", 8081).   //
-				WithPublicPort("http").   // Public port set
-				WithAuthentication(       // Authentication set
-					&radixv1.Authentication{
-						ClientCertificate: &radixv1.ClientCertificate{
-							Verification:              pointers.Ptr(radixv1.VerificationTypeOff),
-							PassCertificateToUpstream: pointers.Ptr(false),
-						},
+				})
+			},
+			initialExpectSecret: false,
+		},
+		"no secret when PublicPort not set": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
 					},
-				),
-			utils.NewDeployComponentBuilder().
-				WithName(componentName3). // Secret not expected; No "Public port" set
-				WithPort("http", 8082).   //
-				WithAuthentication(       // Authentication set
-					&radixv1.Authentication{
-						ClientCertificate: &radixv1.ClientCertificate{
-							Verification:              pointers.Ptr(radixv1.VerificationTypeOn),
-							PassCertificateToUpstream: pointers.Ptr(true),
-						},
+				})
+			},
+			initialExpectSecret: false,
+		},
+		"secret created when Verification is On": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
 					},
-				),
-			utils.NewDeployComponentBuilder().
-				WithName(componentName4). // Secret not expected; No "Authentication" supplied
-				WithPort("https", 8443).  //
-				WithPublicPort("https"),  // Public port set
-		),
-	)
+				})
+			},
+			initialExpectSecret: true,
+			initialExpectedData: map[string][]byte{"ca.crt": []byte("xx")},
+		},
+		"secret created when Verification is Optional": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOptional),
+					},
+				})
+			},
+			initialExpectSecret: true,
+			initialExpectedData: map[string][]byte{"ca.crt": []byte("xx")},
+		},
+		"secret created when Verification is OptionalNoCa": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOptionalNoCa),
+					},
+				})
+			},
+			initialExpectSecret: true,
+			initialExpectedData: map[string][]byte{"ca.crt": []byte("xx")},
+		},
+		"secret created when PassCertificateToUpstream is true": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification:              pointers.Ptr(radixv1.VerificationTypeOff),
+						PassCertificateToUpstream: pointers.Ptr(true),
+					},
+				})
+			},
+			initialExpectSecret: true,
+			initialExpectedData: map[string][]byte{"ca.crt": []byte("xx")},
+		},
+		"secret data persisted between syncs": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
+					},
+				})
+			},
+			initialExpectSecret: true,
+			initialExpectedData: map[string][]byte{"ca.crt": []byte("xx")},
+			setData:             map[string][]byte{"ca.crt": []byte("updated cert")},
+			updateComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
+					},
+				})
+			},
+			updateExpectSecret: true,
+			updateExpectedData: map[string][]byte{"ca.crt": []byte("updated cert")},
+		},
+	}
 
-	assert.NoError(t, err)
-	assert.NotNil(t, radixDeployment)
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			appName, environment, componentName := "anyapp", "test", "anycomp"
+			secretName := utils.GetComponentClientCertificateSecretName(componentName)
+			namespace := utils.GetEnvironmentNamespace(appName, environment)
+			testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+			defer TeardownTest()
 
-	t.Run("validate secrets", func(t *testing.T) {
-		var secretName string
-		var secretExists bool
+			if testSpec.initialComp == nil {
+				testSpec.initialComp = func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder { return b }
+			}
+			if testSpec.updateComp == nil {
+				testSpec.updateComp = func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder { return b }
+			}
 
-		envNamespace := utils.GetEnvironmentNamespace(appName, environment)
-		secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
-		assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
+			initialRD := utils.ARadixDeployment().
+				WithDeploymentName("initial-rd").
+				WithAppName(appName).
+				WithEnvironment(environment).
+				WithComponents(testSpec.initialComp(utils.NewDeployComponentBuilder().WithName(componentName).WithSecrets([]string{"any"}))) // Need to fake creation of another k8s secret due to the way cleanup works
+			_, err := ApplyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, initialRD)
+			require.NoError(t, err)
 
-		secretName = utils.GetComponentClientCertificateSecretName(componentName1)
-		secretExists = secretByNameExists(secretName, secrets)
-		assert.True(t, secretExists, "expected secret to exist")
+			initialSecret, err := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+			if testSpec.initialExpectSecret {
+				require.NoError(t, err)
+				assert.Equal(t, testSpec.initialExpectedData, initialSecret.Data)
+				for k, v := range testSpec.setData {
+					initialSecret.Data[k] = v
+				}
+				_, err = client.CoreV1().Secrets(namespace).Update(context.Background(), initialSecret, metav1.UpdateOptions{})
+				require.NoError(t, err)
+			} else {
+				assert.True(t, kubeerrors.IsNotFound(err))
+			}
 
-		secretName = utils.GetComponentClientCertificateSecretName(componentName2)
-		secretExists = secretByNameExists(secretName, secrets)
-		assert.False(t, secretExists, "expected secret not to exist")
+			updateRD := utils.ARadixDeployment().
+				WithDeploymentName("updated-rd").
+				WithAppName(appName).
+				WithEnvironment(environment).
+				WithComponents(testSpec.updateComp(utils.NewDeployComponentBuilder().WithName(componentName).WithSecrets([]string{"any"})))
+			_, err = ApplyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, updateRD)
+			require.NoError(t, err)
 
-		secretName = utils.GetComponentClientCertificateSecretName(componentName3)
-		secretExists = secretByNameExists(secretName, secrets)
-		assert.False(t, secretExists, "expected secret not to exist")
-
-		secretName = utils.GetComponentClientCertificateSecretName(componentName4)
-		secretExists = secretByNameExists(secretName, secrets)
-		assert.False(t, secretExists, "expected secret not to exist")
-	})
-
+			updatedSecret, err := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+			if testSpec.updateExpectSecret {
+				require.NoError(t, err)
+				assert.Equal(t, testSpec.updateExpectedData, updatedSecret.Data)
+			} else {
+				assert.True(t, kubeerrors.IsNotFound(err))
+			}
+		})
+	}
 }
 
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
