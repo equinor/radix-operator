@@ -284,7 +284,11 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(10, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(50, resource.Mega),
 				},
 			},
 		},
@@ -309,6 +313,16 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 					Name:      "builder-home",
 					MountPath: "/home/clone",
 					ReadOnly:  false,
+				},
+			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(100, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(250, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(1000, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(2000, resource.Mega),
 				},
 			},
 			SecurityContext: &corev1.SecurityContext{
@@ -340,6 +354,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
 					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(50, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(100, resource.Mega),
 				},
 			},
 			SecurityContext: &corev1.SecurityContext{
@@ -373,10 +391,18 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		ServiceAccountName: "radix-pipeline",
 		SecurityContext:    expectedSecurityCtx,
 		Containers:         expectedContainers,
-		InitContainers:     expectedInitContainers,
 		Volumes:            expectedVolumes,
 	}
+
+	actualInitContainers := podTemplate.Spec.InitContainers
+	podTemplate.Spec.InitContainers = nil
+
 	s.Equal(expectedPodSpec, podTemplate.Spec)
+	s.Require().Equal(len(expectedInitContainers), len(actualInitContainers))
+	for i, _ := range expectedInitContainers {
+		s.Equal(expectedInitContainers[i], actualInitContainers[i], "init container %s not equal", expectedInitContainers[i].Name)
+	}
+
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_GitCloneArguments() {

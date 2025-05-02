@@ -95,7 +95,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 					corev1.ResourceMemory: *resource.NewScaledQuantity(250, resource.Mega),
 				},
 				Limits: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(250, resource.Milli),
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(1000, resource.Milli),
 					corev1.ResourceMemory: *resource.NewScaledQuantity(2000, resource.Mega),
 				},
 			},
