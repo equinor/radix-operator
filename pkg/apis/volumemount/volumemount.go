@@ -173,7 +173,7 @@ func createOrUpdateVolumeMountSecret(ctx context.Context, kubeUtil *kube.Kube, a
 	}
 
 	if _, err := kubeUtil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
-		return fmt.Errorf("failed to update volume mount DNS secret: %w", err)
+		return fmt.Errorf("failed to update volume mount secret: %w", err)
 	}
 
 	return nil
