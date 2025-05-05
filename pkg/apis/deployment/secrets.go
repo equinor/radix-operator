@@ -41,7 +41,7 @@ func (deploy *Deployment) syncComponentSecrets(ctx context.Context, component ra
 
 	if len(component.GetSecrets()) > 0 {
 		secretName := utils.GetComponentSecretName(component.GetName())
-		err := deploy.createOrUpdateComponentSecret(ctx, component, secretName)
+		err := deploy.createOrUpdateComponentRuntimeSecret(ctx, component, secretName)
 		if err != nil {
 			return err
 		}
@@ -163,7 +163,7 @@ func listSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, labelSelec
 	return secrets, err
 }
 
-func (deploy *Deployment) createOrUpdateComponentSecret(ctx context.Context, component radixv1.RadixCommonDeployComponent, secretName string) error {
+func (deploy *Deployment) createOrUpdateComponentRuntimeSecret(ctx context.Context, component radixv1.RadixCommonDeployComponent, secretName string) error {
 	ns := deploy.radixDeployment.Namespace
 	var currentSecret, desiredSecret *corev1.Secret
 	currentSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
