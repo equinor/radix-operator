@@ -410,7 +410,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 
 	s.Equal(expectedPodSpec, podTemplate.Spec)
 	s.Require().Equal(len(expectedInitContainers), len(actualInitContainers))
-	for i, _ := range expectedInitContainers {
+	for i := range expectedInitContainers {
 		s.Equal(expectedInitContainers[i], actualInitContainers[i], "init container %s not equal", expectedInitContainers[i].Name)
 	}
 
