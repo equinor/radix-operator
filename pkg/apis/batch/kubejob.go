@@ -118,8 +118,8 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	}
 
 	node := jobComponent.GetNode()
-	if batchJob.Node != nil {
-		node = batchJob.Node
+	if batchJob.Node != nil { // nolint:staticcheck // SA1019: Ignore linting deprecated fields
+		node = batchJob.Node // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	}
 	nodeType := jobComponent.GetRuntime().GetNodeType()
 	if batchNodeType := batchJob.Runtime.GetNodeType(); batchNodeType != nil {
