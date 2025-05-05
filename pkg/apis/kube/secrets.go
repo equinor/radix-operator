@@ -2,7 +2,6 @@ package kube
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -15,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 // SecretExists Checks if secret already exists
@@ -67,63 +65,6 @@ func (kubeutil *Kube) UpdateSecret(ctx context.Context, original, modified *core
 	}
 	log.Ctx(ctx).Info().Msgf("Updated secret %s/%s", updated.Namespace, updated.Name)
 	return updated, err
-}
-
-// Deprecated: ApplySecret is not safe to use because it does not use the resourceVersion of the supplied secret when updating. Use UpdateSecret or CreateSecret instead.
-// ApplySecret Creates or updates secret to namespace
-func (kubeutil *Kube) ApplySecret(ctx context.Context, namespace string, secret *corev1.Secret) (savedSecret *corev1.Secret, err error) {
-	secretName := secret.GetName()
-	// file deepcode ignore ClearTextLogging: logs name of secret only
-	log.Ctx(ctx).Debug().Msgf("Applies secret %s in namespace %s", secretName, namespace)
-
-	oldSecret, err := kubeutil.GetSecret(ctx, namespace, secretName)
-	if err != nil && errors.IsNotFound(err) {
-		savedSecret, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
-		if err != nil {
-			return nil, err
-		}
-		log.Ctx(ctx).Info().Msgf("Created secret: %s in namespace %s", secret.GetName(), namespace)
-		return savedSecret, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to get Secret object: %w", err)
-	}
-
-	oldSecretJSON, err := json.Marshal(oldSecret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal old secret object: %w", err)
-	}
-
-	// Avoid unnecessary patching
-	newSecret := oldSecret.DeepCopy()
-	newSecret.ObjectMeta.Labels = secret.ObjectMeta.Labels
-	newSecret.ObjectMeta.Annotations = secret.ObjectMeta.Annotations
-	newSecret.ObjectMeta.OwnerReferences = secret.ObjectMeta.OwnerReferences
-	newSecret.Data = secret.Data
-
-	newSecretJSON, err := json.Marshal(newSecret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal new secret object: %w", err)
-	}
-
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldSecretJSON, newSecretJSON, corev1.Secret{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create two way merge patch secret objects: %w", err)
-	}
-
-	if !IsEmptyPatch(patchBytes) {
-		// Will perform update as patching not properly remove secret data entries
-		patchedSecret, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Update(ctx, newSecret, metav1.UpdateOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("failed to update secret object: %w", err)
-		}
-
-		log.Ctx(ctx).Info().Msgf("Updated secret: %s in namespace %s", patchedSecret.GetName(), namespace)
-		return patchedSecret, nil
-
-	}
-
-	log.Ctx(ctx).Debug().Msgf("No need to patch secret: %s ", secretName)
-	return oldSecret, nil
 }
 
 // GetSecret Get secret from cache, if lister exist
