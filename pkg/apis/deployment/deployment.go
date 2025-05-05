@@ -216,7 +216,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 		return fmt.Errorf("failed to configure rbac: %w", err)
 	}
 
-	if err := deploy.createOrUpdateSecrets(ctx); err != nil {
+	if err := deploy.syncSecrets(ctx); err != nil {
 		return fmt.Errorf("failed to provision secrets: %w", err)
 	}
 
