@@ -27,7 +27,7 @@ func (app *Application) applySecretsForPipelines(ctx context.Context) error {
 		return fmt.Errorf("failed to apply pipeline git deploy keys: %w", err)
 	}
 
-	if err := app.applyServicePrincipalACRSecretToBuildNamespace(ctx); err != nil {
+	if err := app.applyContainerRegistryCredentialSecretsToAppNamespace(ctx); err != nil {
 		return fmt.Errorf("failed to apply pipeline service principal ACR secrets: %w", err)
 	}
 
@@ -156,53 +156,57 @@ func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx cont
 	return current, desired, nil
 }
 
-func (app *Application) applyServicePrincipalACRSecretToBuildNamespace(ctx context.Context) error {
-	buildNamespace := utils.GetAppNamespace(app.registration.Name)
-	servicePrincipalSecretForBuild, err := app.createNewServicePrincipalACRSecret(ctx, buildNamespace, defaults.AzureACRServicePrincipleSecretName)
-	if err != nil {
-		return err
-	}
+func (app *Application) applyContainerRegistryCredentialSecretsToAppNamespace(ctx context.Context) error {
+	appNamespace := utils.GetAppNamespace(app.registration.Name)
 
-	servicePrincipalSecretForBuildahBuild, err := app.createNewServicePrincipalACRSecret(ctx, buildNamespace, defaults.AzureACRServicePrincipleBuildahSecretName)
-	if err != nil {
-		return err
-	}
-
-	tokenSecretForAppRegistry, err := app.createNewServicePrincipalACRSecret(ctx, buildNamespace, defaults.AzureACRTokenPasswordAppRegistrySecretName)
-	if err != nil {
-		return err
-	}
-
-	for _, secret := range []*corev1.Secret{servicePrincipalSecretForBuild, servicePrincipalSecretForBuildahBuild, tokenSecretForAppRegistry} {
-		_, err = app.kubeutil.ApplySecret(ctx, buildNamespace, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
+	for _, secretName := range []string{defaults.AzureACRServicePrincipleSecretName, defaults.AzureACRServicePrincipleBuildahSecretName, defaults.AzureACRTokenPasswordAppRegistrySecretName} {
+		err := app.copySecretData(ctx, corev1.NamespaceDefault, appNamespace, secretName)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to sync secret %s: %w", secretName, err)
 		}
 	}
 
 	return nil
 }
 
-func (app *Application) createNewServicePrincipalACRSecret(ctx context.Context, namespace, secretName string) (*corev1.Secret, error) {
-	servicePrincipalSecret, err := app.kubeutil.GetSecret(ctx, corev1.NamespaceDefault, secretName)
+func (app *Application) copySecretData(ctx context.Context, sourceNamespace, targetNamespace, secretName string) error {
+	sourceSecret, err := app.kubeutil.GetSecret(ctx, sourceNamespace, secretName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get secret %s from default namespace: %w", secretName, err)
+		return fmt.Errorf("failed to get source secret: %w", err)
 	}
 
-	data := map[string][]byte{}
-	for key := range servicePrincipalSecret.Data {
-		data[key] = servicePrincipalSecret.Data[key]
+	var currentSecret, desiredSecret *corev1.Secret
+	currentSecret, err = app.kubeutil.GetSecret(ctx, targetNamespace, secretName)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get current target secret: %w", err)
+		}
+		desiredSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: targetNamespace,
+			},
+			Type: sourceSecret.Type,
+		}
+		currentSecret = nil
+	} else {
+		desiredSecret = currentSecret.DeepCopy()
 	}
 
-	secret := corev1.Secret{
-		Type: "Opaque",
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: namespace,
-		},
-		Data: data,
+	desiredSecret.Data = sourceSecret.Data
+
+	if currentSecret == nil {
+		if _, err := app.kubeutil.CreateSecret(ctx, targetNamespace, desiredSecret); err != nil {
+			return fmt.Errorf("failed to create target secret: %w", err)
+		}
+		return nil
 	}
-	return &secret, nil
+
+	if _, err := app.kubeutil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
+		return fmt.Errorf("failed to update target secret: %w", err)
+	}
+
+	return nil
 }
 
 func secretHasGitPrivateDeployKey(secret *corev1.Secret) bool {
