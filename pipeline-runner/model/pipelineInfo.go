@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/equinor/radix-common/utils/slice"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -72,8 +71,8 @@ type PipelineArguments struct {
 	FromEnvironment       string
 	ToEnvironment         string
 	ComponentsToDeploy    []string
-
-	RadixConfigFile string
+	TriggeredFromWebhook  bool
+	RadixConfigFile       string
 
 	// ImageBuilder Points to the image builder (repository and tag only)
 	ImageBuilder string
@@ -166,23 +165,6 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 // as deriving info from the config
 func (p *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
 	p.RadixApplication = applicationConfig.GetRadixApplicationConfig()
-
-	// Obtain metadata for rest of pipeline
-	targetEnvironments := application.GetTargetEnvironments(p.PipelineArguments.Branch, p.RadixApplication)
-
-	// For deploy-only pipeline
-	if p.IsPipelineType(radixv1.Deploy) &&
-		!slice.Any(targetEnvironments, func(s string) bool { return s == p.PipelineArguments.ToEnvironment }) {
-		targetEnvironments = append(targetEnvironments, p.PipelineArguments.ToEnvironment)
-	}
-
-	// For build and build-deploy pipeline
-	if (p.IsPipelineType(radixv1.Build) || p.IsPipelineType(radixv1.BuildDeploy)) &&
-		len(p.PipelineArguments.ToEnvironment) > 0 {
-		targetEnvironments = []string{p.PipelineArguments.ToEnvironment}
-	}
-
-	p.TargetEnvironments = targetEnvironments
 }
 
 // SetGitAttributes Set git attributes to be used later by other steps
@@ -241,12 +223,6 @@ func (p *PipelineInfo) GetRadixPipelineType() radixv1.RadixPipelineType {
 // GetRadixApplication Get radix application
 func (p *PipelineInfo) GetRadixApplication() *radixv1.RadixApplication {
 	return p.RadixApplication
-}
-
-// SetRadixApplication Set radix application
-func (p *PipelineInfo) SetRadixApplication(radixApplication *radixv1.RadixApplication) *PipelineInfo {
-	p.RadixApplication = radixApplication
-	return p
 }
 
 // GetBranch Get branch
