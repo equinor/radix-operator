@@ -2,7 +2,6 @@ package build
 
 import (
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	"path"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"

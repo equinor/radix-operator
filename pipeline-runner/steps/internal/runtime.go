@@ -28,6 +28,10 @@ func GetRuntimeForEnvironment(radixComponent v1.RadixCommonComponent, environmen
 		}
 	}
 
+	if len(finalRuntime.Architecture) > 0 && finalRuntime.NodeType != nil && len(*finalRuntime.NodeType) > 0 {
+		finalRuntime.Architecture = ""
+	}
+
 	if reflect.ValueOf(finalRuntime).IsZero() {
 		return nil
 	}
