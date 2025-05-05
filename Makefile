@@ -181,6 +181,10 @@ verify-generate: bootstrap tidy generate
 apply-ra: bootstrap
 	kubectl apply -f ./charts/radix-operator/templates/radixapplication.yaml
 
+.PHONY: apply-rb
+apply-rb: bootstrap
+	kubectl apply -f ./charts/radix-operator/templates/radixbatch.yaml
+
 .PHONY: apply-rd
 apply-rd: bootstrap
 	kubectl apply -f ./charts/radix-operator/templates/radixdeployment.yaml
