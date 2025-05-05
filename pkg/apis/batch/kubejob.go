@@ -3,7 +3,6 @@ package batch
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/numbers"
@@ -12,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"

@@ -52,6 +52,7 @@ func GetAffinityForOAuthAuxComponent() *corev1.Affinity {
 	}
 }
 
+// GetAffinityForJobAPIAuxComponent Gets job API pod specific affinity
 func GetAffinityForJobAPIAuxComponent() *corev1.Affinity {
 	return &corev1.Affinity{
 		NodeAffinity: &corev1.NodeAffinity{

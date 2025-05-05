@@ -22,10 +22,13 @@ type NodeType struct {
 }
 
 const (
-	NodeTypeAffinityKey   = "radix-nodetype"
+	// NodeTypeAffinityKey is the label key for the custom node type
+	NodeTypeAffinityKey = "radix-nodetype"
+	// NodeTypeTolerationKey is the taint key for the custom node type
 	NodeTypeTolerationKey = "radix-nodetype"
 )
 
+// Node types and their attributes supported by Radix
 var nodeTypes = map[string]NodeType{
 	"memory-optimized-v1": {Architecture: radixv1.RuntimeArchitectureAmd64},
 	"memory-optimized-v2": {Architecture: radixv1.RuntimeArchitectureAmd64},
