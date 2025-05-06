@@ -121,14 +121,12 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	if batchJob.Node != nil { // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 		node = batchJob.Node // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	}
-	nodeType := jobComponent.GetRuntime().GetNodeType()
-	if batchNodeType := batchJob.Runtime.GetNodeType(); batchNodeType != nil {
-		nodeType = batchNodeType
+	jobRuntime := jobComponent.GetRuntime()
+	if batchJob.Runtime != nil {
+		jobRuntime = batchJob.Runtime
 	}
-	nodeArch := runtime.GetArchitectureFromRuntimeOrDefault(jobComponent.GetRuntime())
-	if batchNodeArch, ok := runtime.GetArchitectureFromRuntime(batchJob.Runtime); ok {
-		nodeArch = batchNodeArch
-	}
+	nodeType := jobRuntime.GetNodeType()
+	nodeArch := runtime.GetArchitectureFromRuntimeOrDefault(jobRuntime)
 
 	backoffLimit := jobComponent.BackoffLimit
 	if batchJob.BackoffLimit != nil {
