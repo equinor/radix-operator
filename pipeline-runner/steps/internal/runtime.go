@@ -1,8 +1,6 @@
 package internal
 
 import (
-	"reflect"
-
 	commonutils "github.com/equinor/radix-common/utils"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -10,30 +8,11 @@ import (
 // GetRuntimeForEnvironment Returns Runtime configuration by combining Runtime from the
 // specified environment with Runtime configuration on the component level.
 func GetRuntimeForEnvironment(radixComponent v1.RadixCommonComponent, environment string) *v1.Runtime {
-	var finalRuntime v1.Runtime
-
-	if rt := radixComponent.GetRuntime(); rt != nil {
-		finalRuntime.Architecture = rt.Architecture
-		finalRuntime.NodeType = rt.NodeType
-	}
-
 	environmentSpecificConfig := radixComponent.GetEnvironmentConfigByName(environment)
-
-	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetRuntime() != nil {
-		if arch := environmentSpecificConfig.GetRuntime().Architecture; len(arch) > 0 {
-			finalRuntime.Architecture = arch
-		}
-		if nodeType := environmentSpecificConfig.GetRuntime().GetNodeType(); nodeType != nil {
-			finalRuntime.NodeType = nodeType
+	if !commonutils.IsNil(environmentSpecificConfig) {
+		if runtime := environmentSpecificConfig.GetRuntime(); runtime != nil {
+			return runtime
 		}
 	}
-
-	if len(finalRuntime.Architecture) > 0 && finalRuntime.NodeType != nil && len(*finalRuntime.NodeType) > 0 {
-		finalRuntime.Architecture = ""
-	}
-
-	if reflect.ValueOf(finalRuntime).IsZero() {
-		return nil
-	}
-	return &finalRuntime
+	return radixComponent.GetRuntime()
 }

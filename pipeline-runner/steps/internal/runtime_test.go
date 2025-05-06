@@ -26,7 +26,7 @@ func Test_GetRuntimeForEnvironment(t *testing.T) {
 			runtime:  &v1.Runtime{Architecture: ""},
 			env:      nil,
 			getEnv:   "dev",
-			expected: nil,
+			expected: &v1.Runtime{},
 		},
 		"common set, env nil": {
 			runtime:  &v1.Runtime{Architecture: "commonarch"},
@@ -34,11 +34,11 @@ func Test_GetRuntimeForEnvironment(t *testing.T) {
 			getEnv:   "dev",
 			expected: &v1.Runtime{Architecture: "commonarch"},
 		},
-		"common set, env empty": {
+		"common set, env empty - clears architecture": {
 			runtime:  &v1.Runtime{Architecture: "commonarch"},
 			env:      []v1.RadixEnvironmentConfig{{Environment: "dev", Runtime: &v1.Runtime{Architecture: ""}}},
 			getEnv:   "dev",
-			expected: &v1.Runtime{Architecture: "commonarch"},
+			expected: &v1.Runtime{Architecture: ""},
 		},
 		"common nil, env set": {
 			runtime:  nil,
@@ -63,14 +63,6 @@ func Test_GetRuntimeForEnvironment(t *testing.T) {
 			env:      []v1.RadixEnvironmentConfig{{Environment: "other", Runtime: &v1.Runtime{Architecture: "devarch"}}},
 			getEnv:   "dev",
 			expected: &v1.Runtime{Architecture: "commonarch"},
-		},
-		"fills missing Architecture and NodeType": {
-			runtime: &v1.Runtime{Architecture: v1.RuntimeArchitectureAmd64},
-			env:     []v1.RadixEnvironmentConfig{{Environment: "dev", Runtime: &v1.Runtime{}}},
-			getEnv:  "dev",
-			expected: &v1.Runtime{
-				Architecture: v1.RuntimeArchitectureAmd64,
-			},
 		},
 		"preserves existing NodeType": {
 			runtime: &v1.Runtime{
@@ -148,6 +140,34 @@ func Test_GetRuntimeForEnvironment(t *testing.T) {
 				NodeType: pointers.Ptr("edge-nodes"),
 				// Architecture must be cleared
 			},
+		},
+		"overrides nodeType with architecture from environmentConfig": {
+			runtime: &v1.Runtime{
+				NodeType: pointers.Ptr("edge-nodes"),
+			},
+			env: []v1.RadixEnvironmentConfig{{Environment: "dev", Runtime: &v1.Runtime{
+				Architecture: v1.RuntimeArchitectureArm64,
+			}}},
+			getEnv: "dev",
+			expected: &v1.Runtime{
+				Architecture: v1.RuntimeArchitectureArm64,
+			},
+		},
+		"removed nodeType when environmentConfig has empty Runtime": {
+			runtime: &v1.Runtime{
+				NodeType: pointers.Ptr("edge-nodes"),
+			},
+			env:      []v1.RadixEnvironmentConfig{{Environment: "dev", Runtime: &v1.Runtime{}}},
+			getEnv:   "dev",
+			expected: &v1.Runtime{},
+		},
+		"removed architecture when environmentConfig has empty Runtime": {
+			runtime: &v1.Runtime{
+				Architecture: v1.RuntimeArchitectureArm64,
+			},
+			env:      []v1.RadixEnvironmentConfig{{Environment: "dev", Runtime: &v1.Runtime{}}},
+			getEnv:   "dev",
+			expected: &v1.Runtime{},
 		},
 	}
 
