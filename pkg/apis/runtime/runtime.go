@@ -43,7 +43,7 @@ var nodeTypes = map[string]NodeType{
 }
 
 // GetArchitectureFromRuntime returns architecture from Runtime.
-// If Runtime is nil or Runtime.Architecture is empty then defaults.DefaultNodeSelectorArchitecture is returned
+// If Runtime is nil or Runtime.Architecture is empty then defaults.DefaultNodeSelectorArchitecture is returned with false flag
 func GetArchitectureFromRuntime(runtime *radixv1.Runtime) (string, bool) {
 	if nodeType := runtime.GetNodeType(); nodeType != nil {
 		if attrs, ok := nodeTypes[*nodeType]; ok {
@@ -54,4 +54,11 @@ func GetArchitectureFromRuntime(runtime *radixv1.Runtime) (string, bool) {
 		return string(runtime.Architecture), true
 	}
 	return defaults.DefaultNodeSelectorArchitecture, false
+
+}
+
+// GetArchitectureFromRuntimeOrDefault returns architecture from Runtime.
+func GetArchitectureFromRuntimeOrDefault(runtime *radixv1.Runtime) string {
+	architecture, _ := GetArchitectureFromRuntime(runtime)
+	return architecture
 }

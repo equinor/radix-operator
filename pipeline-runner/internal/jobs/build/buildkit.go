@@ -107,7 +107,7 @@ func (c *buildKitKubeJobProps) PodTolerations() []corev1.Toleration {
 }
 
 func (c *buildKitKubeJobProps) PodAffinity() *corev1.Affinity {
-	nodeArch, _ := runtime.GetArchitectureFromRuntime(c.componentImage.Runtime)
+	nodeArch := runtime.GetArchitectureFromRuntimeOrDefault(c.componentImage.Runtime)
 	return getCommonPodAffinity(nodeArch)
 }
 

@@ -125,7 +125,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	if batchNodeType := batchJob.Runtime.GetNodeType(); batchNodeType != nil {
 		nodeType = batchNodeType
 	}
-	nodeArch, _ := runtime.GetArchitectureFromRuntime(jobComponent.GetRuntime())
+	nodeArch := runtime.GetArchitectureFromRuntimeOrDefault(jobComponent.GetRuntime())
 	if batchNodeArch, ok := runtime.GetArchitectureFromRuntime(batchJob.Runtime); ok {
 		nodeArch = batchNodeArch
 	}

@@ -88,7 +88,7 @@ func getNodeAffinityForDeployComponent(ctx context.Context, component radixv1.Ra
 }
 
 func getRuntimeAffinityNodeSelectorRequirement(component radixv1.RadixCommonDeployComponent) []corev1.NodeSelectorRequirement {
-	nodeArch, _ := runtime.GetArchitectureFromRuntime(component.GetRuntime())
+	nodeArch := runtime.GetArchitectureFromRuntimeOrDefault(component.GetRuntime())
 	return getNodeSelectorRequirementsForRuntimeEnvironment(nodeArch)
 }
 
