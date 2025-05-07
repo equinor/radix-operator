@@ -143,6 +143,10 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 			assert.Equal(t, ci.ContainerName, c.Name)
 			assert.Equal(t, fmt.Sprintf("%s/%s", args.ContainerRegistry, args.ImageBuilder), c.Image)
 			assert.Equal(t, corev1.PullAlways, c.ImagePullPolicy)
+			assert.Equal(t, resource.MustParse("500m"), *c.Resources.Limits.Cpu())
+			assert.Equal(t, resource.MustParse("50m"), *c.Resources.Requests.Cpu())
+			assert.Equal(t, resource.MustParse("500M"), *c.Resources.Limits.Memory())
+			assert.Equal(t, resource.MustParse("100M"), *c.Resources.Requests.Memory())
 			expectedSecurityCtx := securitycontext.Container(
 				securitycontext.WithContainerDropAllCapabilities(),
 				securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),

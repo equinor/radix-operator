@@ -215,6 +215,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY=1000Mi",
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU=100m",
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY=2000Mi",
+				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU=200m",
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 				fmt.Sprintf("--RADIX_IMAGE_BUILDER=%s", s.config.builderImage),
 				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER=%s", s.config.buildkitImage),
@@ -251,6 +252,16 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 					ReadOnly:  false,
 				},
 			},
+			Resources: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("500m"),
+					corev1.ResourceMemory: resource.MustParse("1000Mi"),
+				},
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("250Mi"),
+				},
+			},
 			SecurityContext: &corev1.SecurityContext{
 				Privileged:               pointers.Ptr(false),
 				AllowPrivilegeEscalation: pointers.Ptr(false),
@@ -284,7 +295,11 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(10, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(50, resource.Mega),
 				},
 			},
 		},
@@ -309,6 +324,16 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 					Name:      "builder-home",
 					MountPath: "/home/clone",
 					ReadOnly:  false,
+				},
+			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(100, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(250, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(1000, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(2000, resource.Mega),
 				},
 			},
 			SecurityContext: &corev1.SecurityContext{
@@ -340,6 +365,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
 					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(50, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(100, resource.Mega),
 				},
 			},
 			SecurityContext: &corev1.SecurityContext{
@@ -373,10 +402,18 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		ServiceAccountName: "radix-pipeline",
 		SecurityContext:    expectedSecurityCtx,
 		Containers:         expectedContainers,
-		InitContainers:     expectedInitContainers,
 		Volumes:            expectedVolumes,
 	}
+
+	actualInitContainers := podTemplate.Spec.InitContainers
+	podTemplate.Spec.InitContainers = nil
+
 	s.Equal(expectedPodSpec, podTemplate.Spec)
+	s.Require().Equal(len(expectedInitContainers), len(actualInitContainers))
+	for i := range expectedInitContainers {
+		s.Equal(expectedInitContainers[i], actualInitContainers[i], "init container %s not equal", expectedInitContainers[i].Name)
+	}
+
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_GitCloneArguments() {
@@ -1388,6 +1425,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		expectedAppBuilderResourcesRequestsCPU    string
 		expectedAppBuilderResourcesRequestsMemory string
 		expectedAppBuilderResourcesLimitsMemory   string
+		expectedAppBuilderResourcesLimitsCPU      string
 		expectedError                             string
 	}{
 		{
@@ -1397,6 +1435,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 				PipelineJobConfig: &pipelinejob.Config{
 					PipelineJobsHistoryLimit:          3,
 					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
+					AppBuilderResourcesLimitsCPU:      pointers.Ptr(resource.MustParse("456m")),
 					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
 					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
 					GitCloneConfig: &git.CloneConfig{
@@ -1411,6 +1450,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 			expectedAppBuilderResourcesRequestsCPU:    "123m",
 			expectedAppBuilderResourcesRequestsMemory: "1234Mi",
 			expectedAppBuilderResourcesLimitsMemory:   "2345Mi",
+			expectedAppBuilderResourcesLimitsCPU:      "456m",
 		},
 		{
 			name: "Missing config for ResourcesRequestsCPU",
@@ -1487,6 +1527,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		assert.Equal(s.T(), scenario.expectedAppBuilderResourcesRequestsCPU, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable), "Invalid or missing AppBuilderResourcesRequestsCPU")
 		assert.Equal(s.T(), scenario.expectedAppBuilderResourcesRequestsMemory, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable), "Invalid or missing AppBuilderResourcesRequestsMemory")
 		assert.Equal(s.T(), scenario.expectedAppBuilderResourcesLimitsMemory, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable), "Invalid or missing AppBuilderResourcesLimitsMemory")
+		assert.Equal(s.T(), scenario.expectedAppBuilderResourcesLimitsCPU, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesLimitsCPUEnvironmentVariable), "Invalid or missing AppBuilderResourcesLimitsCPU")
 	}
 }
 
@@ -1510,6 +1551,7 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:          historyLimit,
 			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
+			AppBuilderResourcesLimitsCPU:      pointers.Ptr(resource.MustParse("200m")),
 			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
 			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
 			GitCloneConfig: &git.CloneConfig{

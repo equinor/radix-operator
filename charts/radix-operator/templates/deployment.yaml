@@ -60,6 +60,8 @@ spec:
             # For configuring limit ranges on app namespaces
             - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY
               value: {{ .Values.app.builder.resources.limits.memory | quote }}
+            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU
+                value: {{ .Values.app.builder.resources.limits.cpu | quote }}
             - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY
               value: {{ .Values.app.builder.resources.requests.memory | quote }}
             - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU

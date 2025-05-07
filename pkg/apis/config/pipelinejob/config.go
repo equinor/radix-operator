@@ -12,6 +12,7 @@ type Config struct {
 	PipelineJobsHistoryLimit              int
 	PipelineJobsHistoryPeriodLimit        time.Duration
 	DeploymentsHistoryLimitPerEnvironment int
+	AppBuilderResourcesLimitsCPU          *resource.Quantity
 	AppBuilderResourcesLimitsMemory       *resource.Quantity
 	AppBuilderResourcesRequestsCPU        *resource.Quantity
 	AppBuilderResourcesRequestsMemory     *resource.Quantity
