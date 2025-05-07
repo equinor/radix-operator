@@ -31,15 +31,7 @@ const (
 // Node types and their attributes supported by Radix
 var nodeTypes = map[string]NodeType{
 	"memory-optimized-v1": {Architecture: radixv1.RuntimeArchitectureAmd64},
-	"memory-optimized-v2": {Architecture: radixv1.RuntimeArchitectureAmd64},
-	"gpu-a100-v1": {
-		Architecture: radixv1.RuntimeArchitectureAmd64,
-		Deprecated: &NodeTypeDeprecation{
-			Message:    "gpu-a100-v1 is deprecated and will be removed in a future release",
-			ReplacedBy: "gpu-a100-8-v1",
-		}},
-	"gpu-a100-2": {Architecture: radixv1.RuntimeArchitectureAmd64},
-	"gpu-a100-4": {Architecture: radixv1.RuntimeArchitectureAmd64},
+	"nvidia-v100-v1":      {Architecture: radixv1.RuntimeArchitectureAmd64},
 }
 
 // GetArchitectureFromRuntime returns architecture from Runtime.
