@@ -1495,6 +1495,11 @@ func (in *RadixBuildSpec) DeepCopyInto(out *RadixBuildSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.RefreshBuildCache != nil {
+		in, out := &in.RefreshBuildCache, &out.RefreshBuildCache
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

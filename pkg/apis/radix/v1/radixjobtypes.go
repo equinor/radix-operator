@@ -118,6 +118,11 @@ type RadixBuildSpec struct {
 	//
 	// +optional
 	OverrideUseBuildCache *bool `json:"overrideUseBuildCache,omitempty"`
+
+	// RefreshBuildCache forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
+	//
+	// +optional
+	RefreshBuildCache *bool `json:"refreshBuildCache,omitempty"`
 }
 
 // RadixPromoteSpec is the spec for a promote job
