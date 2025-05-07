@@ -135,6 +135,7 @@ func (c *acrKubeJobProps) getPodContainer(componentImage pipeline.BuildComponent
 		Env:             c.getPodContainerEnvVars(componentImage),
 		VolumeMounts:    c.getPodContainerVolumeMounts(componentImage),
 		SecurityContext: c.getPodContainerSecurityContext(),
+		Resources:       c.getPodContainerResources(),
 	}
 }
 
@@ -146,6 +147,19 @@ func (*acrKubeJobProps) getPodContainerSecurityContext() *corev1.SecurityContext
 		securitycontext.WithContainerRunAsGroup(1000),
 		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
 	)
+}
+
+func (c *acrKubeJobProps) getPodContainerResources() corev1.ResourceRequirements {
+	return corev1.ResourceRequirements{
+		Requests: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceCPU:    resource.MustParse("50m"),
+			corev1.ResourceMemory: resource.MustParse("100M"),
+		},
+		Limits: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceCPU:    resource.MustParse("500m"),
+			corev1.ResourceMemory: resource.MustParse("500M"),
+		},
+	}
 }
 
 func (c *acrKubeJobProps) getPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage) []corev1.VolumeMount {

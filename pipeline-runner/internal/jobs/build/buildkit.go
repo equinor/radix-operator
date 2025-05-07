@@ -257,6 +257,7 @@ func (c *buildKitKubeJobProps) getPodContainerResources() corev1.ResourceRequire
 			corev1.ResourceMemory: resource.MustParse(c.pipelineArgs.Builder.ResourcesRequestsMemory),
 		},
 		Limits: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceCPU:    resource.MustParse(c.pipelineArgs.Builder.ResourcesLimitsCPU),
 			corev1.ResourceMemory: resource.MustParse(c.pipelineArgs.Builder.ResourcesLimitsMemory),
 		},
 	}
