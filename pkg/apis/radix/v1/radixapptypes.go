@@ -691,7 +691,7 @@ type RadixJobComponent struct {
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
-	// Deprecated: use nodeType instead.
+	// Deprecated: use Runtime.NodeType instead.
 	// Defines GPU requirements for the job.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
