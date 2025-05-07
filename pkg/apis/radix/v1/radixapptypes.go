@@ -861,7 +861,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
-	// Deprecated: use nodeType instead.
+	// Deprecated: use Runtime.NodeType instead.
 	// Environment specific GPU requirements for the job.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
