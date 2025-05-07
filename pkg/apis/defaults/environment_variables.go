@@ -125,8 +125,11 @@ const (
 	// RadixPushImageEnvironmentVariable Push an image for the built component to an ACR
 	RadixPushImageEnvironmentVariable = "PUSH_IMAGE"
 
-	// RadixOverrideUseBuildCacheVariable override default or configured build cache option
-	RadixOverrideUseBuildCacheVariable = "OVERRIDE_USE_BUILD_CACHE"
+	// RadixOverrideUseBuildCacheEnvironmentVariable override default or configured build cache option
+	RadixOverrideUseBuildCacheEnvironmentVariable = "OVERRIDE_USE_BUILD_CACHE"
+
+	// RadixRefreshBuildCacheEnvironmentVariable forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
+	RadixRefreshBuildCacheEnvironmentVariable = "REFRESH_BUILD_CACHE"
 
 	// RadixPipelineJobEnvironmentVariable Radix pipeline job name
 	RadixPipelineJobEnvironmentVariable = "JOB_NAME"

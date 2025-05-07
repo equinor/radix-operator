@@ -67,6 +67,7 @@ type PipelineArguments struct {
 	ImageTag string
 	// OverrideUseBuildCache override default or configured build cache option
 	OverrideUseBuildCache *bool
+	RefreshBuildCache     *bool
 	PushImage             bool
 	DeploymentName        string
 	FromEnvironment       string
@@ -194,6 +195,16 @@ func (p *PipelineInfo) IsUsingBuildCache() bool {
 	}
 
 	return useBuildCache
+}
+
+func (p *PipelineInfo) IsRefreshingBuildCache() bool {
+	if !p.IsUsingBuildCache() {
+		return false
+	}
+	if p.PipelineArguments.RefreshBuildCache != nil {
+		return *p.PipelineArguments.RefreshBuildCache
+	}
+	return false
 }
 
 // GetRadixConfigBranch Get config branch
