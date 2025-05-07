@@ -65,8 +65,11 @@ func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo 
 	if err := cli.setBuildSecret(pipelineInfo); err != nil {
 		return err
 	}
-	if err := cli.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
-		return err
+
+	if slice.Any([]radixv1.RadixPipelineType{radixv1.Build, radixv1.BuildDeploy, radixv1.Deploy}, pipelineInfo.IsPipelineType) {
+		if err := cli.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
+			return err
+		}
 	}
 
 	if err := cli.validatePipelineInfo(pipelineInfo); err != nil {
@@ -95,11 +98,6 @@ func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.Pip
 }
 
 func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	skipForPipelineTypes := []radixv1.RadixPipelineType{radixv1.Promote, radixv1.ApplyConfig}
-	if slice.Any(skipForPipelineTypes, pipelineInfo.IsPipelineType) {
-		return nil
-	}
-
 	componentImageSourceMap, err := cli.getEnvironmentComponentImageSource(ctx, pipelineInfo)
 	if err != nil {
 		return err
