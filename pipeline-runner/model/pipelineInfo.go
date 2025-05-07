@@ -67,14 +67,15 @@ type PipelineArguments struct {
 	ImageTag string
 	// OverrideUseBuildCache override default or configured build cache option
 	OverrideUseBuildCache *bool
-	RefreshBuildCache     *bool
-	PushImage             bool
-	DeploymentName        string
-	FromEnvironment       string
-	ToEnvironment         string
-	ComponentsToDeploy    []string
-	TriggeredFromWebhook  bool
-	RadixConfigFile       string
+	// RefreshBuildCache forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
+	RefreshBuildCache    *bool
+	PushImage            bool
+	DeploymentName       string
+	FromEnvironment      string
+	ToEnvironment        string
+	ComponentsToDeploy   []string
+	TriggeredFromWebhook bool
+	RadixConfigFile      string
 
 	// ImageBuilder Points to the image builder (repository and tag only)
 	ImageBuilder string
