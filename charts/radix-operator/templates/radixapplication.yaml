@@ -1234,7 +1234,7 @@ spec:
                             type: object
                           node:
                             description: |-
-                              Deprecated: use nodeType instead.
+                              Deprecated: use Runtime.NodeType instead.
                               Environment specific GPU requirements for the component.
                               More info: https://www.radix.equinor.com/radix-config#node
                             properties:
@@ -3423,7 +3423,7 @@ spec:
                             type: boolean
                           node:
                             description: |-
-                              Deprecated: use nodeType instead.
+                              Deprecated: use Runtime.NodeType instead.
                               Environment specific GPU requirements for the job.
                               More info: https://www.radix.equinor.com/radix-config#node
                             properties:
@@ -4003,7 +4003,7 @@ spec:
                       type: string
                     node:
                       description: |-
-                        Deprecated: use nodeType instead.
+                        Deprecated: use Runtime.NodeType instead.
                         Defines GPU requirements for the job.
                         More info: https://www.radix.equinor.com/radix-config#node
                       properties:

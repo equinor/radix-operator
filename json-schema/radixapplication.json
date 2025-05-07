@@ -1200,7 +1200,7 @@
                       "type": "object"
                     },
                     "node": {
-                      "description": "Deprecated: use nodeType instead.\nEnvironment specific GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                      "description": "Deprecated: use Runtime.NodeType instead.\nEnvironment specific GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
                       "properties": {
                         "gpu": {
                           "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -3450,7 +3450,7 @@
                       "type": "boolean"
                     },
                     "node": {
-                      "description": "Deprecated: use nodeType instead.\nEnvironment specific GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                      "description": "Deprecated: use Runtime.NodeType instead.\nEnvironment specific GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
                       "properties": {
                         "gpu": {
                           "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -4026,7 +4026,7 @@
                 "type": "string"
               },
               "node": {
-                "description": "Deprecated: use nodeType instead.\nDefines GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                "description": "Deprecated: use Runtime.NodeType instead.\nDefines GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
                 "properties": {
                   "gpu": {
                     "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",

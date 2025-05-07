@@ -1012,7 +1012,7 @@ spec:
                       type: object
                     node:
                       description: |-
-                        Deprecated: use nodeType instead.
+                        Deprecated: use Runtime.NodeType instead.
                         Defines GPU requirements for the component.
                         More info: https://www.radix.equinor.com/radix-config#node
                       properties:
