@@ -63,7 +63,7 @@ type RadixBatchJob struct {
 	// +optional
 	Resources *ResourceRequirements `json:"resources,omitempty"`
 
-	// Deprecated: use nodeType instead.
+	// Deprecated: use Runtime.NodeType instead.
 	// Specifies node attributes, where container should be scheduled.
 	// Overrides node configuration defined for job component in RadixDeployment.
 	// +optional
