@@ -95,6 +95,11 @@ func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.Pip
 }
 
 func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	skipForPipelineTypes := []radixv1.RadixPipelineType{radixv1.Promote, radixv1.ApplyConfig}
+	if slice.Any(skipForPipelineTypes, pipelineInfo.IsPipelineType) {
+		return nil
+	}
+
 	componentImageSourceMap, err := cli.getEnvironmentComponentImageSource(ctx, pipelineInfo)
 	if err != nil {
 		return err
@@ -108,7 +113,6 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Co
 }
 
 func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
-
 	if err := validateBuildComponents(pipelineInfo); err != nil {
 		return err
 	}
@@ -116,7 +120,8 @@ func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *mod
 	if err := validateDeployComponents(pipelineInfo); err != nil {
 		return err
 	}
-	return validateDeployComponentImages(pipelineInfo.DeployEnvironmentComponentImages, pipelineInfo.RadixApplication)
+
+	return validateDeployComponentImages(pipelineInfo)
 }
 
 func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
@@ -463,17 +468,17 @@ func printPrepareBuildContext(ctx context.Context, buildContext *model.BuildCont
 	}
 }
 
-func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironmentComponentImages, ra *radixv1.RadixApplication) error {
+func validateDeployComponentImages(pipelineInfo *model.PipelineInfo) error {
 	var errs []error
 
-	for envName, components := range deployComponentImages {
+	for envName, components := range pipelineInfo.DeployEnvironmentComponentImages {
 		for componentName, imageInfo := range components {
 			if strings.HasSuffix(imageInfo.ImagePath, radixv1.DynamicTagNameInEnvironmentConfig) {
 				if len(imageInfo.ImageTagName) > 0 {
 					continue
 				}
 
-				component := ra.GetCommonComponentByName(componentName)
+				component := pipelineInfo.RadixApplication.GetCommonComponentByName(componentName)
 				env := component.GetEnvironmentConfigByName(envName)
 				if len(component.GetImageTagName()) > 0 || (!commonutils.IsNil(env) && len(env.GetImageTagName()) > 0) {
 					continue
