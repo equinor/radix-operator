@@ -3,9 +3,9 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -13,57 +13,42 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/rs/zerolog/log"
-	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func tlsSecretDefaultData() map[string][]byte {
-	return map[string][]byte{
-		v1.TLSCertKey:       nil,
-		v1.TLSPrivateKeyKey: nil,
-	}
-}
-
-func (deploy *Deployment) createOrUpdateSecrets(ctx context.Context) error {
+func (deploy *Deployment) syncSecrets(ctx context.Context) error {
 	log.Ctx(ctx).Debug().Msg("Apply empty secrets based on radix deployment obj")
 	for _, comp := range deploy.radixDeployment.Spec.Components {
-		err := deploy.createOrUpdateSecretsForComponent(ctx, &comp)
+		err := deploy.syncComponentSecrets(ctx, &comp)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to sync secrets for component %s: %w", comp.GetName(), err)
 		}
 	}
 	for _, comp := range deploy.radixDeployment.Spec.Jobs {
-		err := deploy.createOrUpdateSecretsForComponent(ctx, &comp)
+		err := deploy.syncComponentSecrets(ctx, &comp)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to sync secrets for job %s: %w", comp.GetName(), err)
 		}
 	}
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) syncComponentSecrets(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	secretsToManage := make([]string, 0)
 
 	if len(component.GetSecrets()) > 0 {
 		secretName := utils.GetComponentSecretName(component.GetName())
-		if !deploy.kubeutil.SecretExists(ctx, namespace, secretName) {
-			err := deploy.createOrUpdateComponentSecret(ctx, namespace, deploy.registration.Name, component.GetName(), secretName)
-			if err != nil {
-				return err
-			}
-		} else {
-			err := deploy.removeOrphanedSecrets(ctx, namespace, secretName, component.GetSecrets())
-			if err != nil {
-				return err
-			}
+		err := deploy.createOrUpdateComponentRuntimeSecret(ctx, component, secretName)
+		if err != nil {
+			return err
 		}
-
 		secretsToManage = append(secretsToManage, secretName)
 	}
 
-	volumeMountSecretsToManage, err := volumemount.CreateOrUpdateVolumeMountSecrets(ctx, deploy.kubeutil, deploy.registration.Name, namespace, component.GetName(), component.GetVolumeMounts())
+	volumeMountSecretsToManage, err := volumemount.CreateOrUpdateVolumeMountSecrets(ctx, deploy.kubeutil, deploy.registration.Name, namespace, component)
 	if err != nil {
 		return err
 	}
@@ -76,10 +61,8 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(ctx context.Context,
 
 	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
 	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && ingress.IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
-		if !deploy.kubeutil.SecretExists(ctx, namespace, clientCertificateSecretName) {
-			if err := deploy.createClientCertificateSecret(ctx, namespace, deploy.registration.Name, component.GetName(), clientCertificateSecretName); err != nil {
-				return err
-			}
+		if err := deploy.createOrUpdateClientCertificateSecret(ctx, component.GetName(), clientCertificateSecretName); err != nil {
+			return err
 		}
 		secretsToManage = append(secretsToManage, clientCertificateSecretName)
 	} else if deploy.kubeutil.SecretExists(ctx, namespace, clientCertificateSecretName) {
@@ -122,7 +105,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec(ctx context.Contex
 		}
 
 		if deploy.isEligibleForGarbageCollectSecretsForComponent(existingSecret, componentName) {
-			if err := deploy.kubeutil.DeleteSecret(ctx, deploy.radixDeployment.GetNamespace(), existingSecret.Name); err != nil && !errors.IsNotFound(err) {
+			if err := deploy.kubeutil.DeleteSecret(ctx, deploy.radixDeployment.GetNamespace(), existingSecret.Name); err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
 		}
@@ -131,7 +114,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec(ctx context.Contex
 	return nil
 }
 
-func (deploy *Deployment) isEligibleForGarbageCollectSecretsForComponent(existingSecret *v1.Secret, componentName RadixComponentName) bool {
+func (deploy *Deployment) isEligibleForGarbageCollectSecretsForComponent(existingSecret *corev1.Secret, componentName RadixComponentName) bool {
 	// Garbage collect if secret is labelled radix-job-type=job-scheduler and not defined in RD jobs
 	if jobType, ok := NewRadixJobTypeFromObjectLabels(existingSecret); ok && jobType.IsJobScheduler() {
 		return !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
@@ -158,7 +141,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(ctx co
 		}
 
 		log.Ctx(ctx).Debug().Msgf("Delete secret %s no longer in spec for component %s", secret.Name, component.GetName())
-		if err = deploy.kubeutil.DeleteSecret(ctx, deploy.radixDeployment.GetNamespace(), secret.Name); err != nil && !errors.IsNotFound(err) {
+		if err = deploy.kubeutil.DeleteSecret(ctx, deploy.radixDeployment.GetNamespace(), secret.Name); err != nil && !kubeerrors.IsNotFound(err) {
 			return err
 		}
 	}
@@ -166,11 +149,11 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(ctx co
 	return nil
 }
 
-func (deploy *Deployment) listSecretsForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
+func (deploy *Deployment) listSecretsForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) ([]*corev1.Secret, error) {
 	return listSecrets(ctx, deploy.kubeutil, deploy.radixDeployment.GetNamespace(), getLabelSelectorForComponent(component))
 }
 
-func listSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, labelSelector string) ([]*v1.Secret, error) {
+func listSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, labelSelector string) ([]*corev1.Secret, error) {
 	secrets, err := kubeUtil.ListSecretsWithSelector(ctx, namespace, labelSelector)
 
 	if err != nil {
@@ -180,38 +163,56 @@ func listSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace, labelSelec
 	return secrets, err
 }
 
-func (deploy *Deployment) createOrUpdateComponentSecret(ctx context.Context, ns, app, component, secretName string) error {
-
-	secret := v1.Secret{
-		Type: v1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:           app,
-				kube.RadixComponentLabel:     component,
-				kube.RadixExternalAliasLabel: "false",
-			},
-		},
-	}
-
-	existingSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
-	if err == nil {
-		secret.Data = existingSecret.Data
-	} else if !errors.IsNotFound(err) {
-		return err
-	}
-
-	_, err = deploy.kubeutil.ApplySecret(ctx, ns, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
+func (deploy *Deployment) createOrUpdateComponentRuntimeSecret(ctx context.Context, component radixv1.RadixCommonDeployComponent, secretName string) error {
+	ns := deploy.radixDeployment.Namespace
+	var currentSecret, desiredSecret *corev1.Secret
+	currentSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
-		return err
+		if !kubeerrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get current secret: %w", err)
+		}
+		desiredSecret = &corev1.Secret{
+			Type: corev1.SecretTypeOpaque,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: ns,
+			},
+		}
+		currentSecret = nil
+	} else {
+		desiredSecret = currentSecret.DeepCopy()
+	}
+
+	desiredSecret.Labels = map[string]string{
+		kube.RadixAppLabel:           deploy.registration.Name,
+		kube.RadixComponentLabel:     component.GetName(),
+		kube.RadixExternalAliasLabel: "false",
+	}
+
+	// Remove orphaned secret keys
+	for secretKey := range desiredSecret.Data {
+		if !slices.Contains(component.GetSecrets(), secretKey) {
+			delete(desiredSecret.Data, secretKey)
+		}
+	}
+
+	if currentSecret == nil {
+		if _, err := deploy.kubeutil.CreateSecret(ctx, ns, desiredSecret); err != nil {
+			return fmt.Errorf("failed to create secret: %w", err)
+		}
+		return nil
+	}
+
+	if _, err := deploy.kubeutil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
+		return fmt.Errorf("failed to update secret: %w", err)
 	}
 
 	return nil
 }
 
-func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azKeyVaultName string) *v1.Secret {
-	secretType := v1.SecretTypeOpaque
-	secret := v1.Secret{
+func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azKeyVaultName string) *corev1.Secret {
+	secretType := corev1.SecretTypeOpaque
+	secret := corev1.Secret{
 		Type: secretType,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
@@ -234,49 +235,43 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 	return &secret
 }
 
-func (deploy *Deployment) createClientCertificateSecret(ctx context.Context, ns, app, component, secretName string) error {
-	secret := v1.Secret{
-		Type: v1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:       app,
-				kube.RadixComponentLabel: component,
-			},
-		},
-	}
-
-	defaultValue := []byte(defaults.SecretDefaultData)
-
-	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
-	data := make(map[string][]byte)
-	data["ca.crt"] = defaultValue
-	secret.Data = data
-
-	_, err := deploy.kubeutil.ApplySecret(ctx, ns, &secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
-	return err
-}
-
-func (deploy *Deployment) removeOrphanedSecrets(ctx context.Context, ns, secretName string, secrets []string) error {
-	secret, err := deploy.kubeutil.GetSecret(ctx, ns, secretName)
+func (deploy *Deployment) createOrUpdateClientCertificateSecret(ctx context.Context, componentName, secretName string) error {
+	ns := deploy.radixDeployment.Namespace
+	var currentSecret, desiredSecret *corev1.Secret
+	currentSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
-		return err
+		if !kubeerrors.IsNotFound(err) {
+			return fmt.Errorf("failed to get current client certificate secret: %w", err)
+		}
+		desiredSecret = &corev1.Secret{
+			Type: corev1.SecretTypeOpaque,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: ns,
+			},
+			Data: map[string][]byte{
+				"ca.crt": nil,
+			},
+		}
+		currentSecret = nil
+	} else {
+		desiredSecret = currentSecret.DeepCopy()
 	}
 
-	orphanRemoved := false
-	for secretName := range secret.Data {
-
-		if !slice.Any(secrets, func(s string) bool { return s == secretName }) {
-			delete(secret.Data, secretName)
-			orphanRemoved = true
-		}
+	desiredSecret.Labels = map[string]string{
+		kube.RadixAppLabel:       deploy.registration.Name,
+		kube.RadixComponentLabel: componentName,
 	}
 
-	if orphanRemoved {
-		_, err = deploy.kubeutil.ApplySecret(ctx, ns, secret) //nolint:staticcheck // must be updated to use UpdateSecret or CreateSecret
-		if err != nil {
-			return err
+	if currentSecret == nil {
+		if _, err := deploy.kubeutil.CreateSecret(ctx, ns, desiredSecret); err != nil {
+			return fmt.Errorf("failed to create volume mount secret: %w", err)
 		}
+		return nil
+	}
+
+	if _, err := deploy.kubeutil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
+		return fmt.Errorf("failed to update volume mount DNS secret: %w", err)
 	}
 
 	return nil

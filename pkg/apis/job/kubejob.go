@@ -21,6 +21,7 @@ import (
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -117,6 +118,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 								securitycontext.WithContainerRunAsGroup(runAsGroup),
 								securitycontext.WithContainerRunAsUser(runAsUser),
 								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true))),
+							Resources: getPipelineRunnerResources(),
 						},
 					},
 					Volumes:       git.GetJobVolumes(),
@@ -129,6 +131,19 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 	}
 
 	return &jobCfg, nil
+}
+
+func getPipelineRunnerResources() corev1.ResourceRequirements {
+	return corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("500m"),
+			corev1.ResourceMemory: resource.MustParse("1000Mi"),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("100m"),
+			corev1.ResourceMemory: resource.MustParse("250Mi"),
+		},
+	}
 }
 
 func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) (string, error) {
@@ -169,7 +184,8 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 
 	if job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.IsZero() ||
 		job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.IsZero() ||
-		job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.IsZero() {
+		job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.IsZero() ||
+		job.config.PipelineJobConfig.AppBuilderResourcesLimitsCPU == nil || job.config.PipelineJobConfig.AppBuilderResourcesLimitsCPU.IsZero() {
 		return nil, fmt.Errorf("invalid or missing app builder resources")
 	}
 
@@ -181,6 +197,7 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.String()),
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.String()),
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.String()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsCPUEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesLimitsCPU.String()),
 		fmt.Sprintf("--%s=%s", defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, job.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images

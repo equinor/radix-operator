@@ -95,6 +95,7 @@ func NewConfig() *apiconfig.Config {
 			PipelineJobsHistoryPeriodLimit:        getPipelineJobsHistoryPeriodLimit(),
 			DeploymentsHistoryLimitPerEnvironment: getDeploymentsHistoryLimitPerEnvironment(),
 			AppBuilderResourcesLimitsMemory:       defaults.GetResourcesLimitsMemoryForAppBuilderNamespace(),
+			AppBuilderResourcesLimitsCPU:          defaults.GetResourcesLimitsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
 			PipelineImageTag:                      viper.GetString(defaults.RadixPipelineImageTagEnvironmentVariable),

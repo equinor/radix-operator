@@ -48,6 +48,7 @@ type PipelineInfo struct {
 // Builder Holds info about the builder arguments
 type Builder struct {
 	ResourcesLimitsMemory   string
+	ResourcesLimitsCPU      string
 	ResourcesRequestsCPU    string
 	ResourcesRequestsMemory string
 }
