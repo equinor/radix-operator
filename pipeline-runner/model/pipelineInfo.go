@@ -181,10 +181,12 @@ func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bo
 	return p.GetRadixPipelineType() == pipelineType
 }
 
+// IsUsingBuildKit Check if buildkit should be used
 func (p *PipelineInfo) IsUsingBuildKit() bool {
 	return p.RadixApplication.Spec.Build != nil && p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
 }
 
+// IsUsingBuildCache Check if build cache should be used
 func (p *PipelineInfo) IsUsingBuildCache() bool {
 	if !p.IsUsingBuildKit() {
 		return false
@@ -198,14 +200,12 @@ func (p *PipelineInfo) IsUsingBuildCache() bool {
 	return useBuildCache
 }
 
+// IsRefreshingBuildCache Check if build cache should be refreshed
 func (p *PipelineInfo) IsRefreshingBuildCache() bool {
-	if !p.IsUsingBuildCache() {
+	if !p.IsUsingBuildKit() || p.PipelineArguments.RefreshBuildCache == nil {
 		return false
 	}
-	if p.PipelineArguments.RefreshBuildCache != nil {
-		return *p.PipelineArguments.RefreshBuildCache
-	}
-	return false
+	return *p.PipelineArguments.RefreshBuildCache
 }
 
 // GetRadixConfigBranch Get config branch
