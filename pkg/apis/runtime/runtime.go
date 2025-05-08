@@ -30,7 +30,7 @@ const (
 
 // Node types and their attributes supported by Radix
 var nodeTypes = map[string]NodeType{
-	"memory-optimized-v1": {Architecture: radixv1.RuntimeArchitectureAmd64},
+	"memory-optimized-2-v1": {Architecture: radixv1.RuntimeArchitectureAmd64},
 	"gpu-nvidia-1-v1":      {Architecture: radixv1.RuntimeArchitectureAmd64},
 }
 
