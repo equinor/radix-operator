@@ -149,3 +149,5 @@ retract (
 	v1.90.4 //dev version
 	v1.90.3 //dev version
 )
+
+replace github.com/prometheus/prometheus => github.com/prometheus/prometheus v0.54.0
