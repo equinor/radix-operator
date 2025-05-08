@@ -142,6 +142,7 @@ spec:
                       type: string
                     node:
                       description: |-
+                        Deprecated: use Runtime.NodeType instead.
                         Specifies node attributes, where container should be scheduled.
                         Overrides node configuration defined for job component in RadixDeployment.
                       properties:
@@ -199,6 +200,27 @@ spec:
                         - the job is running - the job is stopped and started again.
                         This timestamp set to the job's status.restart.
                       type: string
+                    runtime:
+                      description: Runtime defines the target runtime requirements
+                        for the batch job
+                      properties:
+                        architecture:
+                          description: CPU architecture target for the component or
+                            job. When Architecture and NodeType are not defined, the
+                            Architecture defaults to amd64.
+                          enum:
+                          - amd64
+                          - arm64
+                          - ""
+                          type: string
+                        nodeType:
+                          description: |-
+                            Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.
+                            More info: https://www.radix.equinor.com/radix-config#nodetype
+                          maxLength: 120
+                          pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+                          type: string
+                      type: object
                     stop:
                       description: |-
                         Controls if a job should be stopped.

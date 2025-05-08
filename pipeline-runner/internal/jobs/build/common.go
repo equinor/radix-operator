@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -52,8 +51,8 @@ func getCommonPodAnnotations() map[string]string {
 	return radixannotations.ForClusterAutoscalerSafeToEvict(false)
 }
 
-func getCommonPodAffinity(runtime *radixv1.Runtime) *corev1.Affinity {
-	return utils.GetAffinityForPipelineJob(runtime)
+func getCommonPodAffinity(nodeArch string) *corev1.Affinity {
+	return utils.GetAffinityForPipelineJob(nodeArch)
 }
 
 func getCommonPodTolerations() []corev1.Toleration {

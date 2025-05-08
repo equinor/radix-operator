@@ -134,12 +134,15 @@ type RadixDeployComponent struct {
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
 	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy"`
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty"`
-	Node                    RadixNode               `json:"node,omitempty"`
-	Authentication          *Authentication         `json:"authentication,omitempty"`
-	Identity                *Identity               `json:"identity,omitempty"`
-	ReadOnlyFileSystem      *bool                   `json:"readOnlyFileSystem,omitempty"`
-	Runtime                 *Runtime                `json:"runtime,omitempty"`
-	Network                 *Network                `json:"network,omitempty"`
+	// Deprecated: use Runtime.NodeType instead.
+	// Defines GPU requirements for the component.
+	// More info: https://www.radix.equinor.com/radix-config#node
+	Node               RadixNode       `json:"node,omitempty"`
+	Authentication     *Authentication `json:"authentication,omitempty"`
+	Identity           *Identity       `json:"identity,omitempty"`
+	ReadOnlyFileSystem *bool           `json:"readOnlyFileSystem,omitempty"`
+	Runtime            *Runtime        `json:"runtime,omitempty"`
+	Network            *Network        `json:"network,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetHealthChecks() *RadixHealthChecks {
@@ -426,13 +429,14 @@ type RadixDeployJobComponent struct {
 	SchedulerPort           *int32                    `json:"schedulerPort,omitempty"`
 	Payload                 *RadixJobComponentPayload `json:"payload,omitempty"`
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy"`
-	Node                    RadixNode                 `json:"node,omitempty"`
-	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty"`
-	BackoffLimit            *int32                    `json:"backoffLimit,omitempty"`
-	Identity                *Identity                 `json:"identity,omitempty"`
-	Notifications           *Notifications            `json:"notifications,omitempty"`
-	ReadOnlyFileSystem      *bool                     `json:"readOnlyFileSystem,omitempty"`
-	Runtime                 *Runtime                  `json:"runtime,omitempty"`
+	// Deprecated: use Runtime.NodeType instead.
+	Node               RadixNode      `json:"node,omitempty"`
+	TimeLimitSeconds   *int64         `json:"timeLimitSeconds,omitempty"`
+	BackoffLimit       *int32         `json:"backoffLimit,omitempty"`
+	Identity           *Identity      `json:"identity,omitempty"`
+	Notifications      *Notifications `json:"notifications,omitempty"`
+	ReadOnlyFileSystem *bool          `json:"readOnlyFileSystem,omitempty"`
+	Runtime            *Runtime       `json:"runtime,omitempty"`
 	// BatchStatusRules Rules define how a batch status is set corresponding to batch job statuses
 	// +optional
 	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`

@@ -14,6 +14,7 @@ type RadixCommonEnvironmentConfig interface {
 	GetVariables() EnvVarsMap
 	GetSecretRefs() RadixSecretRefs
 	GetResources() ResourceRequirements
+	// Deprecated: use GetRuntime().GetNodeType() instead.
 	GetNode() RadixNode
 	GetImageTagName() string
 	GetHorizontalScaling() *RadixHorizontalScaling

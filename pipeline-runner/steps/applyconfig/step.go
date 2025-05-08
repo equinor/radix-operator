@@ -16,6 +16,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/rs/zerolog/log"
@@ -136,7 +137,8 @@ func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
 }
 
 func hasNonDefaultRuntimeArchitecture(c pipeline.BuildComponentImage) bool {
-	return operatorutils.GetArchitectureFromRuntime(c.Runtime) != defaults.DefaultNodeSelectorArchitecture
+	arch := runtime.GetArchitectureFromRuntimeOrDefault(c.Runtime)
+	return arch != defaults.DefaultNodeSelectorArchitecture
 }
 
 func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
@@ -185,7 +187,12 @@ func printEnvironmentComponentImageSources(ctx context.Context, imageSourceMap e
 			continue
 		}
 		for _, componentSource := range componentImageSources {
-			log.Ctx(ctx).Info().Msgf("    - %s (arch: %s) from %s", componentSource.ComponentName, operatorutils.GetArchitectureFromRuntime(componentSource.Runtime), getImageSourceDescription(componentSource.ImageSource))
+			nodeArch := runtime.GetArchitectureFromRuntimeOrDefault(componentSource.Runtime)
+			attrs := fmt.Sprintf("arch: %s", nodeArch)
+			if nodeType := componentSource.Runtime.GetNodeType(); nodeType != nil {
+				attrs = fmt.Sprintf("%s, Node type: %s", attrs, *nodeType)
+			}
+			log.Ctx(ctx).Info().Msgf("    - %s (%s) from %s", componentSource.ComponentName, attrs, getImageSourceDescription(componentSource.ImageSource))
 		}
 	}
 }
