@@ -448,6 +448,7 @@ type RadixComponent struct {
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
+	// Deprecated: use Runtime.NodeType instead.
 	// Defines GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
@@ -555,6 +556,7 @@ type RadixEnvironmentConfig struct {
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
+	// Deprecated: use Runtime.NodeType instead.
 	// Environment specific GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
@@ -689,6 +691,7 @@ type RadixJobComponent struct {
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
+	// Deprecated: use Runtime.NodeType instead.
 	// Defines GPU requirements for the job.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
@@ -858,6 +861,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
+	// Deprecated: use Runtime.NodeType instead.
 	// Environment specific GPU requirements for the job.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
@@ -1608,11 +1612,17 @@ const (
 
 // Runtime defines the component or job's target runtime requirements
 type Runtime struct {
-	// CPU architecture target for the component or job. Defaults to amd64.
-	// +kubebuilder:validation:Enum=amd64;arm64
-	// +kubebuilder:default:=amd64
+	// CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.
+	// +kubebuilder:validation:Enum=amd64;arm64;""
 	// +optional
 	Architecture RuntimeArchitecture `json:"architecture,omitempty"`
+
+	// Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.
+	// More info: https://www.radix.equinor.com/radix-config#nodetype
+	// +kubebuilder:validation:MaxLength=120
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +optional
+	NodeType *string `json:"nodeType,omitempty"`
 }
 
 // BatchStatusRule Rule how to set a batch status by job statuses
@@ -2150,4 +2160,12 @@ func (azureIdentity *AzureIdentity) GetClientId() string {
 		return ""
 	}
 	return azureIdentity.ClientId
+}
+
+// GetNodeType returns node type from Runtime.
+func (runtime *Runtime) GetNodeType() *string {
+	if runtime == nil {
+		return nil
+	}
+	return runtime.NodeType
 }

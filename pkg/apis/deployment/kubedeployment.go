@@ -288,7 +288,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = spec.AutomountServiceAccountToken()
 	desiredDeployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
-	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent.GetNode())
+	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent)
 
 	existingVolumes, err := deploy.getDeployComponentExistingVolumes(ctx, deployComponent, desiredDeployment)
 	if err != nil {

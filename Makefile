@@ -97,6 +97,10 @@ mocks: bootstrap
 	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/radix_config_reader.go -destination ./pipeline-runner/steps/preparepipeline/internal/radix_config_reader_mock.go -package internal
 	mockgen -source ./pipeline-runner/steps/internal/ownerreferences/owner_references.go -destination ./pipeline-runner/steps/internal/ownerreferences/owner_references_mock.go -package ownerreferences
 
+.PHONY: tidy
+tidy:
+	go mod tidy
+
 .PHONY: build-pipeline
 build-pipeline:
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) --platform linux/arm64,linux/amd64 -f pipeline.Dockerfile .
@@ -170,12 +174,16 @@ lint: bootstrap
 generate: bootstrap code-gen crds mocks
 
 .PHONY: verify-generate
-verify-generate: bootstrap generate
+verify-generate: bootstrap tidy generate
 	git diff --exit-code
 
 .PHONY: apply-ra
 apply-ra: bootstrap
 	kubectl apply -f ./charts/radix-operator/templates/radixapplication.yaml
+
+.PHONY: apply-rb
+apply-rb: bootstrap
+	kubectl apply -f ./charts/radix-operator/templates/radixbatch.yaml
 
 .PHONY: apply-rd
 apply-rd: bootstrap
