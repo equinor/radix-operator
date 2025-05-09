@@ -114,10 +114,25 @@ type RadixBuildSpec struct {
 	// +optional
 	PushImage bool `json:"pushImage,omitempty"`
 
+	// Enables BuildKit when building Dockerfile.
+	//
+	// +optional
+	UseBuildKit *bool `json:"useBuildKit,omitempty"`
+
+	// Defaults to true and requires useBuildKit to have an effect.
+	//
+	// +optional
+	UseBuildCache *bool `json:"useBuildCache,omitempty"`
+
 	// OverrideUseBuildCache override default or configured build cache option
 	//
 	// +optional
 	OverrideUseBuildCache *bool `json:"overrideUseBuildCache,omitempty"`
+
+	// RefreshBuildCache forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
+	//
+	// +optional
+	RefreshBuildCache *bool `json:"refreshBuildCache,omitempty"`
 }
 
 // RadixPromoteSpec is the spec for a promote job

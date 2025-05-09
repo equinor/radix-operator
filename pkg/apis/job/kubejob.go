@@ -232,7 +232,10 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
 		if jobSpec.Build.OverrideUseBuildCache != nil {
-			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixOverrideUseBuildCacheVariable, *jobSpec.Build.OverrideUseBuildCache))
+			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixOverrideUseBuildCacheEnvironmentVariable, *jobSpec.Build.OverrideUseBuildCache))
+		}
+		if jobSpec.Build.RefreshBuildCache != nil {
+			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixRefreshBuildCacheEnvironmentVariable, *jobSpec.Build.RefreshBuildCache))
 		}
 	case radixv1.Promote:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))

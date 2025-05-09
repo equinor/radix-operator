@@ -127,6 +127,7 @@ func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineIn
 	return step.buildJobFactory(pipelineInfo.IsUsingBuildKit()).
 		BuildJobs(
 			pipelineInfo.IsUsingBuildCache(),
+			pipelineInfo.IsRefreshingBuildCache(),
 			pipelineInfo.PipelineArguments,
 			rr.Spec.CloneURL,
 			pipelineInfo.GitCommitHash,

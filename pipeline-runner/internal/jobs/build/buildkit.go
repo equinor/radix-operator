@@ -38,26 +38,27 @@ func NewBuildKit() JobsBuilder {
 
 type buildKit struct{}
 
-func (c *buildKit) BuildJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
+func (c *buildKit) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
 	var jobs []batchv1.Job
 
 	for _, componentImage := range componentImages {
-		job := c.buildJob(componentImage, useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets)
+		job := c.buildJob(componentImage, useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets)
 		jobs = append(jobs, job)
 	}
 
 	return jobs
 }
 
-func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
+func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
 	props := &buildKitKubeJobProps{
-		pipelineArgs:   pipelineArgs,
-		componentImage: componentImage,
-		cloneURL:       cloneURL,
-		gitCommitHash:  gitCommitHash,
-		gitTags:        gitTags,
-		buildSecrets:   buildSecrets,
-		useBuildCache:  useBuildCache,
+		pipelineArgs:      pipelineArgs,
+		componentImage:    componentImage,
+		cloneURL:          cloneURL,
+		gitCommitHash:     gitCommitHash,
+		gitTags:           gitTags,
+		buildSecrets:      buildSecrets,
+		useBuildCache:     useBuildCache,
+		refreshBuildCache: refreshBuildCache,
 	}
 
 	return internal.BuildKubeJob(props)
@@ -66,13 +67,14 @@ func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuil
 var _ internal.KubeJobProps = &buildKitKubeJobProps{}
 
 type buildKitKubeJobProps struct {
-	pipelineArgs   model.PipelineArguments
-	componentImage pipeline.BuildComponentImage
-	cloneURL       string
-	gitCommitHash  string
-	gitTags        string
-	buildSecrets   []string
-	useBuildCache  bool
+	pipelineArgs      model.PipelineArguments
+	componentImage    pipeline.BuildComponentImage
+	cloneURL          string
+	gitCommitHash     string
+	gitTags           string
+	buildSecrets      []string
+	useBuildCache     bool
+	refreshBuildCache bool
 }
 
 func (c *buildKitKubeJobProps) JobName() string {
@@ -228,6 +230,10 @@ func (c *buildKitKubeJobProps) getPodContainerArgs() []string {
 
 	if c.useBuildCache {
 		args = append(args, "--use-cache")
+	}
+
+	if c.refreshBuildCache {
+		args = append(args, "--refresh-cache")
 	}
 
 	if c.pipelineArgs.PushImage {

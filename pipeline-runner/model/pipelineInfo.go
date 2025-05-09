@@ -67,13 +67,15 @@ type PipelineArguments struct {
 	ImageTag string
 	// OverrideUseBuildCache override default or configured build cache option
 	OverrideUseBuildCache *bool
-	PushImage             bool
-	DeploymentName        string
-	FromEnvironment       string
-	ToEnvironment         string
-	ComponentsToDeploy    []string
-	TriggeredFromWebhook  bool
-	RadixConfigFile       string
+	// RefreshBuildCache forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
+	RefreshBuildCache    *bool
+	PushImage            bool
+	DeploymentName       string
+	FromEnvironment      string
+	ToEnvironment        string
+	ComponentsToDeploy   []string
+	TriggeredFromWebhook bool
+	RadixConfigFile      string
 
 	// ImageBuilder Points to the image builder (repository and tag only)
 	ImageBuilder string
@@ -179,10 +181,13 @@ func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bo
 	return p.GetRadixPipelineType() == pipelineType
 }
 
+// IsUsingBuildKit Check if buildkit should be used
 func (p *PipelineInfo) IsUsingBuildKit() bool {
-	return p.RadixApplication.Spec.Build != nil && p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
+	return p.RadixApplication != nil && p.RadixApplication.Spec.Build != nil &&
+		p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
 }
 
+// IsUsingBuildCache Check if build cache should be used
 func (p *PipelineInfo) IsUsingBuildCache() bool {
 	if !p.IsUsingBuildKit() {
 		return false
@@ -194,6 +199,14 @@ func (p *PipelineInfo) IsUsingBuildCache() bool {
 	}
 
 	return useBuildCache
+}
+
+// IsRefreshingBuildCache Check if build cache should be refreshed
+func (p *PipelineInfo) IsRefreshingBuildCache() bool {
+	if !p.IsUsingBuildKit() || p.PipelineArguments.RefreshBuildCache == nil {
+		return false
+	}
+	return *p.PipelineArguments.RefreshBuildCache
 }
 
 // GetRadixConfigBranch Get config branch
