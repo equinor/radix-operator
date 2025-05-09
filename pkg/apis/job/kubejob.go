@@ -158,7 +158,7 @@ func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) (strin
 }
 
 func (job *Job) getInitContainersForRadixConfig(rr *radixv1.RadixRegistration, workspace string) []corev1.Container {
-	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, git.CloneConfigContainerName, *job.config.PipelineJobConfig.GitCloneConfig, false, workspace)
+	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, *job.config.PipelineJobConfig.GitCloneConfig)
 }
 
 func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
