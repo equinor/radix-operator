@@ -123,7 +123,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsMemory, defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, "500M", "Image builder resource requests memory")
 	cmd.Flags().StringVar(&pipelineArgs.ExternalContainerRegistryDefaultAuthSecret, defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, "", "Name of secret of type `kubernetes.io/dockerconfigjson` containign default credentials for external container registries")
 	cmd.Flags().Var(&overrideUseBuildCache, defaults.RadixOverrideUseBuildCacheEnvironmentVariable, "Optional. Overrides configured or default useBuildCache option. It is applicable when the useBuildKit option is set as true.")
-	cmd.Flags().Var(&refreshBuildCache, defaults.RadixRefreshBuildCacheEnvironmentVariable, "Optional. Forces to rebuild cache when useBuildKit and useBuildCache are true or overrideUseBuildCache is true.")
+	cmd.Flags().Var(&refreshBuildCache, defaults.RadixRefreshBuildCacheEnvironmentVariable, "Optional. Forces to rebuild cache when useBuildKit and useBuildCache or overrideUseBuildCache are true.")
 	var pushImage string
 	cmd.Flags().StringVar(&pushImage, defaults.RadixPushImageEnvironmentVariable, "0", "Push docker image to a repository")
 	var debug string

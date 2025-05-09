@@ -26,15 +26,17 @@ import (
 )
 
 func Test_BuildKit_JobSpec(t *testing.T) {
-	t.Run("nocache-nopush", func(t *testing.T) { assertBuildKitJobSpec(t, false, false, nil, "") })
-	t.Run("cache-nopush", func(t *testing.T) { assertBuildKitJobSpec(t, true, false, nil, "") })
-	t.Run("nocache-push", func(t *testing.T) { assertBuildKitJobSpec(t, false, true, nil, "") })
-	t.Run("cache-push", func(t *testing.T) { assertBuildKitJobSpec(t, true, true, nil, "") })
-	t.Run("with buildsecrets", func(t *testing.T) { assertBuildKitJobSpec(t, true, true, []string{"secret1", "secret2"}, "") })
-	t.Run("with buildsecrets", func(t *testing.T) { assertBuildKitJobSpec(t, true, true, nil, "anyexternalregsecret") })
+	t.Run("nocache-nopush", func(t *testing.T) { assertBuildKitJobSpec(t, false, false, false, nil, "") })
+	t.Run("cache-nopush", func(t *testing.T) { assertBuildKitJobSpec(t, true, false, false, nil, "") })
+	t.Run("nocache-push", func(t *testing.T) { assertBuildKitJobSpec(t, false, false, true, nil, "") })
+	t.Run("cache-push", func(t *testing.T) { assertBuildKitJobSpec(t, true, false, true, nil, "") })
+	t.Run("cache-refresh-build-cache", func(t *testing.T) { assertBuildKitJobSpec(t, true, true, true, nil, "") })
+	t.Run("no-cache-refresh-build-cache", func(t *testing.T) { assertBuildKitJobSpec(t, false, true, true, nil, "") })
+	t.Run("with buildsecrets", func(t *testing.T) { assertBuildKitJobSpec(t, true, false, true, []string{"secret1", "secret2"}, "") })
+	t.Run("with buildsecrets", func(t *testing.T) { assertBuildKitJobSpec(t, true, false, true, nil, "anyexternalregsecret") })
 }
 
-func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets []string, externalRegistrySecret string) {
+func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushImage bool, buildSecrets []string, externalRegistrySecret string) {
 	const (
 		cloneURL      = "anycloneurl"
 		gitCommitHash = "anygitcommithash"
@@ -71,7 +73,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 	}
 
 	sut := build.NewBuildKit()
-	jobs := sut.BuildJobs(useCache, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
+	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
 	require.Len(t, jobs, len(componentImages))
 
 	for _, ci := range componentImages {
@@ -263,8 +265,11 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 				"--git-tags", gitTags,
 				"--target-environments", ci.EnvName,
 			}
-			if useCache {
+			if useBuildCache {
 				expectedArgs = append(expectedArgs, "--use-cache")
+			}
+			if refreshBuildCache {
+				expectedArgs = append(expectedArgs, "--refresh-cache")
 			}
 			if args.PushImage {
 				expectedArgs = append(expectedArgs, "--push")

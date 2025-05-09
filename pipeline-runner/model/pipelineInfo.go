@@ -183,7 +183,8 @@ func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bo
 
 // IsUsingBuildKit Check if buildkit should be used
 func (p *PipelineInfo) IsUsingBuildKit() bool {
-	return p.RadixApplication.Spec.Build != nil && p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
+	return p.RadixApplication != nil && p.RadixApplication.Spec.Build != nil &&
+		p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
 }
 
 // IsUsingBuildCache Check if build cache should be used
