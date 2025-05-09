@@ -3337,9 +3337,9 @@ func TestUseGpuNode(t *testing.T) {
 	jobComponentName := "jobComponentName"
 
 	// Test
-	nodeGpu1 := "nvidia-v100"
-	nodeGpu2 := "nvidia-v100, nvidia-p100"
-	nodeGpu3 := "nvidia-v100, nvidia-p100, -nvidia-k80"
+	nodeGpu1 := "gpu-nvidia-1-v1"
+	nodeGpu2 := "gpu-nvidia-1-v1, nvidia-p100"
+	nodeGpu3 := "gpu-nvidia-1-v1, nvidia-p100, -nvidia-k80"
 	nodeGpu4 := "nvidia-p100, -nvidia-k80"
 	rd, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
@@ -3415,7 +3415,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	jobComponentName := "jobComponentName"
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	// Test
-	gpuNvidiaV100 := "nvidia-v100"
+	gpuNvidiaV100 := "gpu-nvidia-1-v1"
 	gpuNvidiaP100 := "nvidia-p100"
 	gpuNvidiaK80 := "nvidia-k80"
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -3444,7 +3444,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 				WithNodeGpu(fmt.Sprintf("%s, -%s", gpuNvidiaP100, gpuNvidiaK80))))
 	require.NoError(t, err)
 
-	t.Run("has node with nvidia-v100", func(t *testing.T) {
+	t.Run("has node with gpu-nvidia-1-v1", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName1, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
@@ -3462,7 +3462,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		assert.Len(t, tolerations, 1)
 		assert.Equal(t, corev1.Toleration{Key: kube.RadixGpuCountLabel, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
 	})
-	t.Run("has node with nvidia-v100, nvidia-p100", func(t *testing.T) {
+	t.Run("has node with gpu-nvidia-1-v1, nvidia-p100", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName2, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
@@ -3480,7 +3480,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		assert.Len(t, tolerations, 1)
 		assert.Equal(t, corev1.Toleration{Key: kube.RadixGpuCountLabel, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
 	})
-	t.Run("has node with nvidia-v100, nvidia-p100, not nvidia-k80", func(t *testing.T) {
+	t.Run("has node with gpu-nvidia-1-v1, nvidia-p100, not nvidia-k80", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName3, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
@@ -3629,7 +3629,7 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Test
-	gpuNvidiaV100 := "nvidia-v100"
+	gpuNvidiaV100 := "gpu-nvidia-1-v1"
 	nodeGpuCount1 := "1"
 	nodeGpuCount10 := "10"
 	nodeGpuCount0 := "0"
@@ -3758,7 +3758,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Test
-	gpuNvidiaV100 := "nvidia-v100"
+	gpuNvidiaV100 := "gpu-nvidia-1-v1"
 	gpuNvidiaP100 := "nvidia-p100"
 	gpuNvidiaK80 := "nvidia-k80"
 	nodeGpuCount10 := "10"

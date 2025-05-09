@@ -1727,7 +1727,9 @@ func validateRuntime(runtime *radixv1.Runtime) error {
 	if !slices.Contains([]radixv1.RuntimeArchitecture{radixv1.RuntimeArchitectureAmd64, radixv1.RuntimeArchitectureArm64, ""}, runtime.Architecture) {
 		return ErrInvalidRuntimeArchitecture
 	}
-
+	if runtime.Architecture != "" && runtime.NodeType != nil {
+		return ErrInvalidRuntimeArchitectureWithNodeType
+	}
 	return nil
 }
 

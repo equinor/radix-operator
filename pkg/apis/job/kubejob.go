@@ -123,7 +123,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 					},
 					Volumes:       git.GetJobVolumes(),
 					RestartPolicy: "Never",
-					Affinity:      utils.GetAffinityForPipelineJob(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+					Affinity:      utils.GetAffinityForPipelineJob(string(radixv1.RuntimeArchitectureArm64)),
 					Tolerations:   utils.GetPipelineJobPodSpecTolerations(),
 				},
 			},

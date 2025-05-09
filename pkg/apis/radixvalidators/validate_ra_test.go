@@ -701,11 +701,27 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid runtime architecture for component environment config", radixvalidators.ErrInvalidRuntimeArchitecture, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Runtime.Architecture = "anyarch"
 		}},
+		{"invalid runtime architecture with nodeType for component config", radixvalidators.ErrInvalidRuntimeArchitectureWithNodeType, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Runtime.Architecture = radixv1.RuntimeArchitectureAmd64
+			ra.Spec.Components[0].Runtime.NodeType = pointers.Ptr("some-node-type")
+		}},
+		{"invalid runtime architecture with nodeType for component environment config", radixvalidators.ErrInvalidRuntimeArchitectureWithNodeType, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Runtime.Architecture = radixv1.RuntimeArchitectureAmd64
+			ra.Spec.Components[0].EnvironmentConfig[0].Runtime.NodeType = pointers.Ptr("some-node-type")
+		}},
 		{"invalid runtime architecture for job", radixvalidators.ErrInvalidRuntimeArchitecture, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Runtime.Architecture = "anyarch"
 		}},
 		{"invalid runtime architecture for job environment config", radixvalidators.ErrInvalidRuntimeArchitecture, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Runtime.Architecture = "anyarch"
+		}},
+		{"invalid runtime architecture with nodeType for job config", radixvalidators.ErrInvalidRuntimeArchitectureWithNodeType, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].Runtime.Architecture = radixv1.RuntimeArchitectureAmd64
+			ra.Spec.Jobs[0].Runtime.NodeType = pointers.Ptr("some-node-type")
+		}},
+		{"invalid runtime architecture with nodeType for job environment config", radixvalidators.ErrInvalidRuntimeArchitectureWithNodeType, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Runtime.Architecture = radixv1.RuntimeArchitectureAmd64
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Runtime.NodeType = pointers.Ptr("some-node-type")
 		}},
 		{"invalid CIDR in network.ingress.public.allow for component", radixvalidators.ErrInvalidIPv4OrCIDR, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("143.10.0.0/33")}}}}

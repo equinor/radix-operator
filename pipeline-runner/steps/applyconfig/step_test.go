@@ -572,59 +572,81 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 	expectedBuildComponentImages := pipeline.EnvironmentBuildComponentImages{
 		"dev": []pipeline.BuildComponentImage{
 			buildComponentImageFunc("comp1-build", nil),
-			buildComponentImageFunc("comp2-build", nil),
+			buildComponentImageFunc("comp2-build", &radixv1.Runtime{}),
 			buildComponentImageFunc("comp3-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 			buildComponentImageFunc("comp4-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
-			buildComponentImageFunc("comp5-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+			buildComponentImageFunc("comp5-build", &radixv1.Runtime{}),
 			buildComponentImageFunc("comp6-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 			buildComponentImageFunc("comp7-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
 			buildComponentImageFunc("job1-build", nil),
-			buildComponentImageFunc("job2-build", nil),
+			buildComponentImageFunc("job2-build", &radixv1.Runtime{}),
 			buildComponentImageFunc("job3-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 			buildComponentImageFunc("job4-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
-			buildComponentImageFunc("job5-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+			buildComponentImageFunc("job5-build", &radixv1.Runtime{}),
 			buildComponentImageFunc("job6-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 			buildComponentImageFunc("job7-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
 		},
 	}
-	s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages))
+	s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages), "BuildComponentImages keys should match")
 	for env, images := range expectedBuildComponentImages {
-		s.ElementsMatch(images, pipelineInfo.BuildComponentImages[env])
+		for i, image := range images {
+			s.Equal(image, pipelineInfo.BuildComponentImages[env][i], "Not matched BuildComponentImage for component %s", image.ComponentName)
+		}
 	}
 
 	expectedDeployEnvironmentComponentImages := pipeline.DeployEnvironmentComponentImages{
 		"dev": pipeline.DeployComponentImages{
 			"comp1-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp1-build"), ImageTagName: "", Runtime: nil, Build: true},
-			"comp2-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp2-build"), ImageTagName: "", Runtime: nil, Build: true},
+			"comp2-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp2-build"), ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: true},
 			"comp3-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp3-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: true},
 			"comp4-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp4-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
-			"comp5-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp5-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
+			"comp5-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp5-build"), ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: true},
 			"comp6-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp6-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: true},
 			"comp7-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp7-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
 			"comp1-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: nil, Build: false},
-			"comp2-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: nil, Build: false},
+			"comp2-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: false},
 			"comp3-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: false},
 			"comp4-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
-			"comp5-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
+			"comp5-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: false},
 			"comp6-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: false},
 			"comp7-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
 			"job1-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job1-build"), ImageTagName: "", Runtime: nil, Build: true},
-			"job2-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job2-build"), ImageTagName: "", Runtime: nil, Build: true},
+			"job2-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job2-build"), ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: true},
 			"job3-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job3-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: true},
 			"job4-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job4-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
-			"job5-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job5-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
+			"job5-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job5-build"), ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: true},
 			"job6-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job6-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: true},
 			"job7-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job7-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
 			"job1-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: nil, Build: false},
-			"job2-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: nil, Build: false},
+			"job2-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: false},
 			"job3-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: false},
 			"job4-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
-			"job5-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
+			"job5-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: false},
 			"job6-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: false},
 			"job7-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
 		},
 	}
-	s.Equal(expectedDeployEnvironmentComponentImages, pipelineInfo.DeployEnvironmentComponentImages)
+	if !s.Len(pipelineInfo.DeployEnvironmentComponentImages, len(expectedDeployEnvironmentComponentImages), "DeployEnvironmentComponentImages length should match") {
+		return
+	}
+	for env, expectedComponentImages := range expectedDeployEnvironmentComponentImages {
+		deployEnvironmentComponentImages, ok := pipelineInfo.DeployEnvironmentComponentImages[env]
+		if !s.True(ok, "DeployEnvironmentComponentImages should contain environment %s", env) {
+			continue
+		}
+		if !s.Len(deployEnvironmentComponentImages, len(expectedComponentImages), "DeployComponentImages length should match for environment %s", env) {
+			continue
+		}
+		for componentName, expectedComponentImage := range expectedComponentImages {
+			deployComponentImage, ok := deployEnvironmentComponentImages[componentName]
+			if !s.True(ok, "DeployComponentImages should contain component %s in environment %s", componentName, env) {
+				continue
+			}
+			if !s.Equal(expectedComponentImage, deployComponentImage, "Not matched DeployComponentImage for component %s in environment %s", componentName, env) {
+				continue
+			}
+		}
+	}
 }
 
 func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled() {

@@ -61,11 +61,12 @@ type deployComponentBuilder struct {
 	secretRefs              v1.RadixSecretRefs
 	dnsAppAlias             bool
 	// Deprecated: For backwards compatibility externalAppAlias is still supported, new code should use externalDNS instead
-	externalAppAlias   []string
-	externalDNS        []v1.RadixDeployExternalDNS
-	resources          v1.ResourceRequirements
-	horizontalScaling  *v1.RadixHorizontalScaling
-	volumeMounts       []v1.RadixVolumeMount
+	externalAppAlias  []string
+	externalDNS       []v1.RadixDeployExternalDNS
+	resources         v1.ResourceRequirements
+	horizontalScaling *v1.RadixHorizontalScaling
+	volumeMounts      []v1.RadixVolumeMount
+	// Deprecated: use runtime.NodeType instead.
 	node               v1.RadixNode
 	authentication     *v1.Authentication
 	identity           *v1.Identity
