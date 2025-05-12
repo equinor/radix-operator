@@ -69,13 +69,12 @@ func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 		return err
 	}
 	if slice.Any([]radixv1.RadixPipelineType{radixv1.Build, radixv1.BuildDeploy, radixv1.Deploy}, pipelineInfo.IsPipelineType) {
-		if err := cli.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
+		if err := step.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
 			return err
 		}
 	}
 	return step.applyRadixApplication(ctx, pipelineInfo)
 }
-
 
 func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	ra := pipelineInfo.RadixApplication
@@ -164,7 +163,7 @@ func (step *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *mo
 	if err := validateDeployComponents(pipelineInfo); err != nil {
 		return err
 	}
-	return validateDeployComponentImages(pipelineInfo.DeployEnvironmentComponentImages, pipelineInfo.RadixApplication)
+	return validateDeployComponentImages(pipelineInfo)
 }
 
 func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
