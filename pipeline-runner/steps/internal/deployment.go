@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -25,32 +26,25 @@ type PreservingDeployComponents struct {
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
 func ConstructForTargetEnvironment(ctx context.Context, pipelineInfo *model.PipelineInfo, activeRadixDeployment *radixv1.RadixDeployment, commitID, gitTags, envName, radixConfigHash, buildSecretHash string) (*radixv1.RadixDeployment, error) {
-	config := pipelineInfo.RadixApplication
-	jobName := pipelineInfo.PipelineArguments.JobName
-	imageTag := pipelineInfo.PipelineArguments.ImageTag
-	branch := pipelineInfo.PipelineArguments.Branch
-	buildContext := pipelineInfo.BuildContext
-	componentsToDeploy := pipelineInfo.PipelineArguments.ComponentsToDeploy
-	componentImages := pipelineInfo.DeployEnvironmentComponentImages[envName]
-
-	preservingDeployComponents := getPreservingDeployComponents(ctx, activeRadixDeployment, envName, buildContext, componentsToDeploy)
+	preservingDeployComponents := getPreservingDeployComponents(ctx, activeRadixDeployment, envName, pipelineInfo.BuildContext, pipelineInfo.PipelineArguments.ComponentsToDeploy)
 
 	defaultEnvVars := radixv1.EnvVarsMap{
 		defaults.RadixCommitHashEnvironmentVariable: commitID,
 		defaults.RadixGitTagsEnvironmentVariable:    gitTags,
 	}
+	componentImages := pipelineInfo.DeployEnvironmentComponentImages[envName]
 
-	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, config, activeRadixDeployment, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
+	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, pipelineInfo.RadixApplication, activeRadixDeployment, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
 	if err != nil {
 		return nil, err
 	}
 
-	jobs, err := deployment.NewJobComponentsBuilder(config, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployJobComponents).JobComponents(ctx)
+	jobs, err := deployment.NewJobComponentsBuilder(pipelineInfo.RadixApplication, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployJobComponents).JobComponents(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	radixDeployment := constructRadixDeployment(config, envName, jobName, imageTag, branch, commitID, gitTags, deployComponents, jobs, radixConfigHash, buildSecretHash)
+	radixDeployment := constructRadixDeployment(pipelineInfo, envName, commitID, gitTags, deployComponents, jobs, radixConfigHash, buildSecretHash)
 	return radixDeployment, nil
 }
 
@@ -64,10 +58,14 @@ func GetGitCommitHashFromDeployment(radixDeployment *radixv1.RadixDeployment) st
 	return ""
 }
 
-func constructRadixDeployment(radixApplication *radixv1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []radixv1.RadixDeployComponent, jobs []radixv1.RadixDeployJobComponent, radixConfigHash, buildSecretHash string) *radixv1.RadixDeployment {
+func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, gitTags string, components []radixv1.RadixDeployComponent, jobs []radixv1.RadixDeployJobComponent, radixConfigHash, buildSecretHash string) *radixv1.RadixDeployment {
+	radixApplication := pipelineInfo.RadixApplication
 	appName := radixApplication.GetName()
+	jobName := pipelineInfo.PipelineArguments.JobName
+	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	deployName := utils.GetDeploymentName(env, imageTag)
-	imagePullSecrets := []corev1.LocalObjectReference{}
+	branch := pipelineInfo.PipelineArguments.Branch
+	imagePullSecrets := make([]corev1.LocalObjectReference, 0)
 	if len(radixApplication.Spec.PrivateImageHubs) > 0 {
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})
 	}
@@ -77,6 +75,9 @@ func constructRadixDeployment(radixApplication *radixv1.RadixApplication, env, j
 		kube.RadixCommitAnnotation:  commitID,
 		kube.RadixBuildSecretHash:   buildSecretHash,
 		kube.RadixConfigHash:        radixConfigHash,
+		kube.RadixUseBuildKit:       strconv.FormatBool(pipelineInfo.IsUsingBuildKit()),
+		kube.RadixUseBuildCache:     strconv.FormatBool(pipelineInfo.IsUsingBuildCache()),
+		kube.RadixRefreshBuildCache: strconv.FormatBool(pipelineInfo.IsRefreshingBuildCache()),
 	}
 
 	radixDeployment := &radixv1.RadixDeployment{
