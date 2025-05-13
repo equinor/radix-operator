@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
@@ -25,7 +24,15 @@ type PreservingDeployComponents struct {
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(ctx context.Context, config *radixv1.RadixApplication, activeRadixDeployment *radixv1.RadixDeployment, jobName, imageTag, branch, commitID, gitTags string, componentImages pipeline.DeployComponentImages, envName string, radixConfigHash, buildSecretHash string, buildContext *model.BuildContext, componentsToDeploy []string) (*radixv1.RadixDeployment, error) {
+func ConstructForTargetEnvironment(ctx context.Context, pipelineInfo *model.PipelineInfo, activeRadixDeployment *radixv1.RadixDeployment, commitID, gitTags, envName, radixConfigHash, buildSecretHash string) (*radixv1.RadixDeployment, error) {
+	config := pipelineInfo.RadixApplication
+	jobName := pipelineInfo.PipelineArguments.JobName
+	imageTag := pipelineInfo.PipelineArguments.ImageTag
+	branch := pipelineInfo.PipelineArguments.Branch
+	buildContext := pipelineInfo.BuildContext
+	componentsToDeploy := pipelineInfo.PipelineArguments.ComponentsToDeploy
+	componentImages := pipelineInfo.DeployEnvironmentComponentImages[envName]
+
 	preservingDeployComponents := getPreservingDeployComponents(ctx, activeRadixDeployment, envName, buildContext, componentsToDeploy)
 
 	defaultEnvVars := radixv1.EnvVarsMap{
