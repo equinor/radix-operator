@@ -703,6 +703,9 @@ func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []
 				kube.RadixBranchAnnotation:  "",
 				kube.RadixBuildSecretHash:   buildSecretHash,
 				kube.RadixConfigHash:        radixConfigHash,
+				kube.RadixUseBuildKit:       "false",
+				kube.RadixUseBuildCache:     "false",
+				kube.RadixRefreshBuildCache: "false",
 			})
 		for _, component := range ra.Spec.Components {
 			componentBuilder := utils.NewDeployComponentBuilder().WithName(component.Name)

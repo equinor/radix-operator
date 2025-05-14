@@ -90,21 +90,7 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName, e
 	if err != nil {
 		return err
 	}
-	radixDeployment, err := internal.ConstructForTargetEnvironment(
-		ctx,
-		pipelineInfo.RadixApplication,
-		activeRd,
-		pipelineInfo.PipelineArguments.JobName,
-		pipelineInfo.PipelineArguments.ImageTag,
-		pipelineInfo.PipelineArguments.Branch,
-		commitID,
-		gitTags,
-		pipelineInfo.DeployEnvironmentComponentImages[envName],
-		envName,
-		radixApplicationHash,
-		buildSecretHash,
-		pipelineInfo.BuildContext,
-		pipelineInfo.PipelineArguments.ComponentsToDeploy)
+	radixDeployment, err := internal.ConstructForTargetEnvironment(ctx, pipelineInfo, activeRd, commitID, gitTags, envName, radixApplicationHash, buildSecretHash)
 
 	if err != nil {
 		return fmt.Errorf("failed to create Radix deployment in environment %s. %w", envName, err)

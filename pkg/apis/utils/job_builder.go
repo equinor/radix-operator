@@ -29,6 +29,7 @@ type JobBuilder interface {
 	WithStatus(JobStatusBuilder) JobBuilder
 	WithCreated(time.Time) JobBuilder
 	WithOverrideUseBuildCache(value *bool) JobBuilder
+	WithRefreshBuildCache(value *bool) JobBuilder
 	GetApplicationBuilder() ApplicationBuilder
 	BuildRJ() *v1.RadixJob
 }
@@ -53,6 +54,7 @@ type JobBuilderStruct struct {
 	toEnvironment         string
 	fromEnvironment       string
 	overrideUseBuildCache *bool
+	refreshBuildCache     *bool
 }
 
 // WithRadixApplication Links to RA builder
@@ -167,6 +169,12 @@ func (jb *JobBuilderStruct) WithOverrideUseBuildCache(value *bool) JobBuilder {
 	return jb
 }
 
+// WithRefreshBuildCache Sets an optional WithRefreshBuildCache
+func (jb *JobBuilderStruct) WithRefreshBuildCache(value *bool) JobBuilder {
+	jb.refreshBuildCache = value
+	return jb
+}
+
 // GetApplicationBuilder Obtains the builder for the corresponding RA, if exists (used for testing)
 func (jb *JobBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 	if jb.applicationBuilder != nil {
@@ -207,6 +215,7 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 				CommitID:              jb.commitID,
 				PushImage:             jb.pushImage,
 				OverrideUseBuildCache: jb.overrideUseBuildCache,
+				RefreshBuildCache:     jb.refreshBuildCache,
 			},
 			Promote: v1.RadixPromoteSpec{
 				DeploymentName: jb.deploymentName,

@@ -218,7 +218,7 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretExist() {
 	s.Equal(secret, pipelineInfo.BuildSecret)
 }
 
-func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFail() {
+func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPipelineShouldFail() {
 	appName := "anyapp"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -246,7 +246,7 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFa
 	s.ErrorIs(err, applyconfig.ErrDeployOnlyPipelineDoesNotSupportBuild)
 }
 
-func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
+func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPipelineShouldFail() {
 	appName := "anyapp"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})

@@ -11,7 +11,6 @@ import (
 	commonslice "github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
-	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -29,10 +28,7 @@ import (
 
 const (
 	anyAppName  = "any-app"
-	anyJobName  = "any-job-name"
-	anyImageTag = "anytag"
 	anyCommitID = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
-	anyGitTags  = "some tags go here"
 )
 
 func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTest.Utils) {
@@ -326,8 +322,10 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.RadixApplication = ra
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
@@ -448,8 +446,10 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.RadixApplication = ra
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
@@ -539,8 +539,10 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.RadixApplication = ra
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
@@ -653,8 +655,10 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.RadixApplication = ra
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
@@ -711,8 +715,10 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.RadixApplication = ra
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
@@ -827,8 +833,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 				},
 			}
 
-			applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
-			pipelineInfo.SetApplicationConfig(applicationConfig)
+			pipelineInfo.RadixApplication = ra
 			err = cli.Run(context.Background(), pipelineInfo)
 			require.NoError(t, err)
 
@@ -889,8 +894,10 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 		},
 	}
 
-	applicationConfig := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra, nil)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.RadixApplication = ra
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
