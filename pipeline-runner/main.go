@@ -22,7 +22,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var overrideUseBuildCache model.BoolPtr
+var overrideUseBuildCache, refreshBuildCache model.BoolPtr
 
 // Requirements to run, pipeline must have:
 // - access to create Jobs in "app" namespace it runs under
@@ -122,7 +122,8 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsCPU, defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, "200m", "Image builder resource requests CPU")
 	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsMemory, defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, "500M", "Image builder resource requests memory")
 	cmd.Flags().StringVar(&pipelineArgs.ExternalContainerRegistryDefaultAuthSecret, defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, "", "Name of secret of type `kubernetes.io/dockerconfigjson` containign default credentials for external container registries")
-	cmd.Flags().Var(&overrideUseBuildCache, defaults.RadixOverrideUseBuildCacheVariable, "Optional. Overrides configured or default useBuildCache option. It is applicable when the useBuildKit option is set as true.")
+	cmd.Flags().Var(&overrideUseBuildCache, defaults.RadixOverrideUseBuildCacheEnvironmentVariable, "Optional. Overrides configured or default useBuildCache option. It is applicable when the useBuildKit option is set as true.")
+	cmd.Flags().Var(&refreshBuildCache, defaults.RadixRefreshBuildCacheEnvironmentVariable, "Optional. Forces to rebuild cache when useBuildKit and useBuildCache or overrideUseBuildCache are true.")
 	var pushImage string
 	cmd.Flags().StringVar(&pushImage, defaults.RadixPushImageEnvironmentVariable, "0", "Push docker image to a repository")
 	var debug string
@@ -152,6 +153,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)
 	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(radixv1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push
 	pipelineArgs.OverrideUseBuildCache = overrideUseBuildCache.Get()
+	pipelineArgs.RefreshBuildCache = refreshBuildCache.Get()
 	pipelineArgs.Debug, _ = strconv.ParseBool(debug)
 	if len(pipelineArgs.ImageTagNames) > 0 {
 		log.Info().Msg("Image tag names provided:")

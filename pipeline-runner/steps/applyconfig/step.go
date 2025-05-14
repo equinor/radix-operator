@@ -5,17 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
-	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
@@ -39,53 +40,85 @@ func NewApplyConfigStep() model.Step {
 }
 
 // ImplementationForType Override of default step method
-func (cli *ApplyConfigStepImplementation) ImplementationForType() pipeline.StepType {
-	return cli.stepType
+func (step *ApplyConfigStepImplementation) ImplementationForType() pipeline.StepType {
+	return step.stepType
 }
 
 // SucceededMsg Override of default step method
-func (cli *ApplyConfigStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Applied config for application %s", cli.GetAppName())
+func (step *ApplyConfigStepImplementation) SucceededMsg() string {
+	return fmt.Sprintf("Applied config for application %s", step.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed to apply config for application %s. Error: %v", cli.GetAppName(), err)
+func (step *ApplyConfigStepImplementation) ErrorMsg(err error) string {
+	return fmt.Sprintf("Failed to apply config for application %s. Error: %v", step.GetAppName(), err)
 }
 
 // Run Override of default step method
-func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	printPrepareBuildContext(ctx, pipelineInfo.BuildContext)
 
-	applicationConfig := application.NewApplicationConfig(cli.GetKubeClient(), cli.GetKubeUtil(),
-		cli.GetRadixClient(), cli.GetRegistration(), pipelineInfo.RadixApplication,
-		pipelineInfo.PipelineArguments.DNSConfig)
-
-	pipelineInfo.SetApplicationConfig(applicationConfig)
-
-	if err := cli.setBuildSecret(pipelineInfo); err != nil {
+	if err := step.setBuildSecret(pipelineInfo); err != nil {
 		return err
 	}
-
+	if err := step.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
+		return err
+	}
+	if err := step.validatePipelineInfo(pipelineInfo); err != nil {
+		return err
+	}
 	if slice.Any([]radixv1.RadixPipelineType{radixv1.Build, radixv1.BuildDeploy, radixv1.Deploy}, pipelineInfo.IsPipelineType) {
-		if err := cli.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
+		if err := step.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
 			return err
 		}
 	}
+	return step.applyRadixApplication(ctx, pipelineInfo)
+}
 
-	if err := cli.validatePipelineInfo(pipelineInfo); err != nil {
+func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	ra := pipelineInfo.RadixApplication
+	namespace := operatorutils.GetAppNamespace(ra.GetName())
+	dnsAliasConfig := pipelineInfo.PipelineArguments.DNSConfig
+
+	if err := radixvalidators.CanRadixApplicationBeInserted(ctx, step.GetRadixClient(), ra, dnsAliasConfig); err != nil {
 		return err
 	}
 
-	return applicationConfig.ApplyConfigToApplicationNamespace(ctx)
+	existingRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Get(ctx, ra.Name, metav1.GetOptions{})
+	if err != nil {
+		if kubeerrors.IsNotFound(err) {
+			if _, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Create(ctx, ra, metav1.CreateOptions{}); err != nil {
+				return fmt.Errorf("failed to create radix application. %v", err)
+			}
+			log.Ctx(ctx).Info().Msgf("RadixApplication %s created", ra.Name)
+			return nil
+		}
+		return fmt.Errorf("failed to get radix application. %v", err)
+	}
+
+	log.Ctx(ctx).Debug().Msgf("RadixApplication %s exists in namespace %s", ra.Name, namespace)
+	if reflect.DeepEqual(ra.Spec, existingRA.Spec) {
+		log.Ctx(ctx).Info().Msgf("No changes to RadixApplication %s in namespace %s", ra.Name, namespace)
+		return nil
+	}
+
+	// Update RA if different
+	log.Ctx(ctx).Debug().Msgf("RadixApplication %s in namespace %s has changed, updating now", ra.Name, namespace)
+	// For an update, ResourceVersion of the new object must be the same with the old object
+	ra.SetResourceVersion(existingRA.GetResourceVersion())
+	if _, err = step.GetRadixClient().RadixV1().RadixApplications(namespace).Update(ctx, ra, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("failed to update existing radix application: %w", err)
+	}
+	log.Ctx(ctx).Info().Msgf("RadixApplication %s updated in namespace %s", ra.Name, namespace)
+	return nil
 }
 
-func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
+func (step *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.RadixApplication.Spec.Build == nil || len(pipelineInfo.RadixApplication.Spec.Build.Secrets) == 0 {
 		return nil
 	}
 
-	secret, err := cli.GetKubeClient().CoreV1().Secrets(operatorutils.GetAppNamespace(cli.GetAppName())).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
+	secret, err := step.GetKubeClient().CoreV1().Secrets(operatorutils.GetAppNamespace(step.GetAppName())).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
 	if err != nil {
 		// For new applications, or when buildsecrets is first added to radixconfig, the secret
 		// or role bindings may not be synced yet by radix-operator
@@ -98,8 +131,8 @@ func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.Pip
 	return nil
 }
 
-func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	componentImageSourceMap, err := cli.getEnvironmentComponentImageSource(ctx, pipelineInfo)
+func (step *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	componentImageSourceMap, err := step.getEnvironmentComponentImageSource(ctx, pipelineInfo)
 	if err != nil {
 		return err
 	}
@@ -111,7 +144,8 @@ func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Co
 	return nil
 }
 
-func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
+func (step *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
+
 	if err := validateBuildComponents(pipelineInfo); err != nil {
 		return err
 	}
@@ -119,7 +153,6 @@ func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *mod
 	if err := validateDeployComponents(pipelineInfo); err != nil {
 		return err
 	}
-
 	return validateDeployComponentImages(pipelineInfo)
 }
 
@@ -231,13 +264,13 @@ const (
 	fromDeployment
 )
 
-func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx context.Context, pipelineInfo *model.PipelineInfo) (environmentComponentImageSourceMap, error) {
+func (step *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx context.Context, pipelineInfo *model.PipelineInfo) (environmentComponentImageSourceMap, error) {
 	ra := pipelineInfo.RadixApplication
 	appComponents := getCommonComponents(ra)
 	environmentComponentImageSources := make(environmentComponentImageSourceMap)
 	for _, envName := range pipelineInfo.TargetEnvironments {
 		envNamespace := operatorutils.GetEnvironmentNamespace(ra.GetName(), envName)
-		activeRadixDeployment, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeUtil(), envNamespace)
+		activeRadixDeployment, err := internal.GetActiveRadixDeployment(ctx, step.GetKubeUtil(), envNamespace)
 		if err != nil {
 			return nil, err
 		}
@@ -246,7 +279,7 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx
 		if err != nil {
 			return nil, err
 		}
-		if componentImageSources, err := cli.getComponentSources(appComponents, envName, activeRadixDeployment, mustBuildComponent); err != nil {
+		if componentImageSources, err := step.getComponentSources(appComponents, envName, activeRadixDeployment, mustBuildComponent); err != nil {
 			return nil, err
 		} else if len(componentImageSources) > 0 {
 			environmentComponentImageSources[envName] = componentImageSources
@@ -255,7 +288,7 @@ func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx
 	return environmentComponentImageSources, nil
 }
 
-func (cli *ApplyConfigStepImplementation) getComponentSources(appComponents []radixv1.RadixCommonComponent, envName string,
+func (step *ApplyConfigStepImplementation) getComponentSources(appComponents []radixv1.RadixCommonComponent, envName string,
 	activeRadixDeployment *radixv1.RadixDeployment, mustBuildComponent func(comp radixv1.RadixCommonComponent) bool) ([]componentImageSource, error) {
 
 	componentSource := make([]componentImageSource, 0)
