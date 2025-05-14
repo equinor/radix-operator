@@ -45,11 +45,6 @@ func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, 
 	}
 }
 
-// GetRadixApplicationConfig returns the provided config
-func (app *ApplicationConfig) GetRadixApplicationConfig() *radixv1.RadixApplication {
-	return app.config
-}
-
 // GetRadixRegistration returns the provided radix registration
 func (app *ApplicationConfig) GetRadixRegistration() *radixv1.RadixRegistration {
 	return app.registration

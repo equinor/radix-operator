@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -162,12 +161,6 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 	}
 
 	return nil
-}
-
-// SetApplicationConfig Set radixconfig to be used later by other steps, as well
-// as deriving info from the config
-func (p *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
-	p.RadixApplication = applicationConfig.GetRadixApplicationConfig()
 }
 
 // SetGitAttributes Set git attributes to be used later by other steps

@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -81,10 +80,18 @@ func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Con
 	namespace := operatorutils.GetAppNamespace(ra.GetName())
 	dnsAliasConfig := pipelineInfo.PipelineArguments.DNSConfig
 
+	if err := radixvalidators.CanRadixApplicationBeInserted(ctx, step.GetRadixClient(), ra, dnsAliasConfig); err != nil {
+		return err
+	}
+
 	existingRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Get(ctx, ra.Name, metav1.GetOptions{})
 	if err != nil {
 		if kubeerrors.IsNotFound(err) {
-			return step.createRadixApplication(ctx, namespace, ra, dnsAliasConfig)
+			if _, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Create(ctx, ra, metav1.CreateOptions{}); err != nil {
+				return fmt.Errorf("failed to create radix application. %v", err)
+			}
+			log.Ctx(ctx).Info().Msgf("RadixApplication %s created", ra.Name)
+			return nil
 		}
 		return fmt.Errorf("failed to get radix application. %v", err)
 	}
@@ -95,10 +102,6 @@ func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Con
 		return nil
 	}
 
-	if err = radixvalidators.CanRadixApplicationBeInserted(ctx, step.GetRadixClient(), ra, dnsAliasConfig); err != nil {
-		return err
-	}
-
 	// Update RA if different
 	log.Ctx(ctx).Debug().Msgf("RadixApplication %s in namespace %s has changed, updating now", ra.Name, namespace)
 	// For an update, ResourceVersion of the new object must be the same with the old object
@@ -107,19 +110,6 @@ func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Con
 		return fmt.Errorf("failed to update existing radix application: %w", err)
 	}
 	log.Ctx(ctx).Info().Msgf("RadixApplication %s updated in namespace %s", ra.Name, namespace)
-	return nil
-}
-
-func (step *ApplyConfigStepImplementation) createRadixApplication(ctx context.Context, namespace string, ra *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig) error {
-	log.Ctx(ctx).Debug().Msgf("RadixApplication %s doesn't exist in namespace %s, creating now", ra.Name, namespace)
-
-	if err := radixvalidators.CanRadixApplicationBeInserted(ctx, step.GetRadixClient(), ra, dnsAliasConfig); err != nil {
-		return err
-	}
-	if _, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Create(ctx, ra, metav1.CreateOptions{}); err != nil {
-		return fmt.Errorf("failed to create radix application. %v", err)
-	}
-	log.Ctx(ctx).Info().Msgf("RadixApplication %s saved to ns %s", ra.Name, namespace)
 	return nil
 }
 
