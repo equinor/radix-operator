@@ -177,8 +177,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		WithPushImage(true).
 		WithImageTag(imageTag).
 		WithDeploymentName(deploymentName).
-		WithPipelineType(radixv1.BuildDeploy).
-		WithPipelineImageTag(pipelineTag), config)
+		WithPipelineType(radixv1.BuildDeploy), config)
 	s.Require().NoError(err)
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
