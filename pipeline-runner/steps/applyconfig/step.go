@@ -56,7 +56,7 @@ func (step *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 }
 
 // Run Override of default step method
-func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	printPrepareBuildContext(log.Ctx(ctx), pipelineInfo.BuildContext)
 	printSubPiplinesToRun(log.Ctx(ctx), pipelineInfo.EnvironmentSubPipelinesToRun)
 
