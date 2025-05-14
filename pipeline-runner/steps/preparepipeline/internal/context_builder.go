@@ -2,19 +2,15 @@ package internal
 
 import (
 	"fmt"
-	"github.com/rs/zerolog/log"
-	"k8s.io/client-go/kubernetes"
 	"path"
-	"regexp"
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/applicationconfig"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"k8s.io/client-go/kubernetes"
 )
 
 type ContextBuilder interface {
@@ -71,49 +67,20 @@ func cleanPathAndSurroundBySlashes(dir string) string {
 
 // GetBuildContext Prepare build context
 func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo) (*model.BuildContext, error) {
-	gitHash, err := getGitHash(pipelineInfo)
-	if err != nil {
-		return nil, err
-	}
-	if err = git.ResetGitHead(pipelineInfo.GetGitWorkspace(), gitHash); err != nil {
-		return nil, err
-	}
-
-	pipelineType := pipelineInfo.GetRadixPipelineType()
 	buildContext := model.BuildContext{}
-
-	if pipelineType == v1.BuildDeploy || pipelineType == v1.Build {
-		pipelineTargetCommitHash, commitTags, err := getGitAttributes(pipelineInfo)
+	if len(pipelineInfo.PipelineArguments.CommitID) > 0 {
+		radixConfigWasChanged, environmentsToBuild, err := cb.analyseSourceRepositoryChanges(pipelineInfo)
 		if err != nil {
 			return nil, err
 		}
-		pipelineInfo.SetGitAttributes(pipelineTargetCommitHash, commitTags)
+		buildContext.ChangedRadixConfig = radixConfigWasChanged
+		buildContext.EnvironmentsToBuild = environmentsToBuild
+	} // when commit hash is not provided, build all
 
-		if len(pipelineInfo.PipelineArguments.CommitID) > 0 {
-			radixConfigWasChanged, environmentsToBuild, err := cb.analyseSourceRepositoryChanges(pipelineInfo, pipelineTargetCommitHash)
-			if err != nil {
-				return nil, err
-			}
-			buildContext.ChangedRadixConfig = radixConfigWasChanged
-			buildContext.EnvironmentsToBuild = environmentsToBuild
-		} // when commit hash is not provided, build all
-	}
 	return &buildContext, nil
 }
 
-func getGitAttributes(pipelineInfo *model.PipelineInfo) (string, string, error) {
-	pipelineArgs := pipelineInfo.PipelineArguments
-	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
-	if err != nil {
-		return "", "", err
-	}
-	if err = radixvalidators.GitTagsContainIllegalChars(commitTags); err != nil {
-		return "", "", err
-	}
-	return pipelineTargetCommitHash, commitTags, nil
-}
-
-func (cb *contextBuilder) analyseSourceRepositoryChanges(pipelineInfo *model.PipelineInfo, pipelineTargetCommitHash string) (bool, []model.EnvironmentToBuild, error) {
+func (cb *contextBuilder) analyseSourceRepositoryChanges(pipelineInfo *model.PipelineInfo) (bool, []model.EnvironmentToBuild, error) {
 	radixDeploymentCommitHashProvider := commithash.NewProvider(cb.kubeClient, cb.radixClient, pipelineInfo.GetAppName(), pipelineInfo.TargetEnvironments)
 	lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
 	if err != nil {
@@ -123,7 +90,7 @@ func (cb *contextBuilder) analyseSourceRepositoryChanges(pipelineInfo *model.Pip
 	changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(pipelineInfo.GetGitWorkspace(),
 		pipelineInfo.GetRadixConfigBranch(),
 		pipelineInfo.GetRadixConfigFileInWorkspace(),
-		pipelineTargetCommitHash,
+		pipelineInfo.GitCommitHash,
 		lastCommitHashesForEnvs)
 	if err != nil {
 		return false, nil, err
@@ -153,72 +120,4 @@ func (cb *contextBuilder) getEnvironmentsToBuild(pipelineInfo *model.PipelineInf
 		})
 	}
 	return environmentsToBuild
-}
-
-func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
-	// getGitHash return git commit to which the user repository should be reset before parsing sub-pipelines.
-	pipelineArgs := pipelineInfo.PipelineArguments
-	pipelineType := pipelineInfo.GetRadixPipelineType()
-	if pipelineType == v1.ApplyConfig {
-		return "", nil
-	}
-
-	if pipelineType == v1.Promote {
-		sourceRdHashFromAnnotation := pipelineInfo.SourceDeploymentGitCommitHash
-		sourceDeploymentGitBranch := pipelineInfo.SourceDeploymentGitBranch
-		if sourceRdHashFromAnnotation != "" {
-			return sourceRdHashFromAnnotation, nil
-		}
-		if sourceDeploymentGitBranch == "" {
-			log.Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
-			return "", nil
-		}
-		sourceRdHashFromBranchHead, err := git.GetCommitHashFromHead(pipelineInfo.GetGitWorkspace(), sourceDeploymentGitBranch)
-		if err != nil {
-			return "", nil
-		}
-		return sourceRdHashFromBranchHead, nil
-	}
-
-	if pipelineType == v1.Deploy {
-		pipelineJobBranch := ""
-		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineInfo.GetRadixApplication(), pipelineArgs.ToEnvironment)
-		if re != nil {
-			pipelineJobBranch = re.Build.From
-		}
-		if pipelineJobBranch == "" {
-			log.Info().Msg("Deploy job with no build branch, skipping sub-pipelines.")
-			return "", nil
-		}
-		if containsRegex(pipelineJobBranch) {
-			log.Info().Msg("Deploy job with build branch having regex pattern, skipping sub-pipelines.")
-			return "", nil
-		}
-		gitHash, err := git.GetCommitHashFromHead(pipelineArgs.GitWorkspace, pipelineJobBranch)
-		if err != nil {
-			return "", err
-		}
-		return gitHash, nil
-	}
-
-	if pipelineType == v1.BuildDeploy || pipelineType == v1.Build {
-		gitHash, err := git.GetCommitHash(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
-		if err != nil {
-			return "", err
-		}
-		return gitHash, nil
-	}
-	return "", fmt.Errorf("unknown pipeline type %s", pipelineType)
-}
-
-func containsRegex(value string) bool {
-	if simpleSentence := regexp.MustCompile(`^[a-zA-Z0-9\s\.\-/]+$`); simpleSentence.MatchString(value) {
-		return false
-	}
-	// Regex value that looks for typical regex special characters
-	if specialRegexChars := regexp.MustCompile(`[\[\](){}.*+?^$\\|]`); specialRegexChars.FindStringIndex(value) != nil {
-		_, err := regexp.Compile(value)
-		return err == nil
-	}
-	return false
 }

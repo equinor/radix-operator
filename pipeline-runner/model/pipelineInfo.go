@@ -36,13 +36,19 @@ type PipelineInfo struct {
 	DeployEnvironmentComponentImages pipeline.DeployEnvironmentComponentImages
 
 	// Pipeline job build context
-	BuildContext        *BuildContext
-	StopPipeline        bool
-	StopPipelineMessage string
+	BuildContext *BuildContext
+	// EnvironmentSubPipelinesToRun Sub-pipeline pipeline file named, if they are configured to be run
+	EnvironmentSubPipelinesToRun []EnvironmentSubPipelineToRun
+	StopPipeline                 bool
+	StopPipelineMessage          string
+}
 
-	// Promotion job git info
-	SourceDeploymentGitCommitHash string
-	SourceDeploymentGitBranch     string
+// EnvironmentSubPipelineToRun An application environment sub-pipeline to be run
+type EnvironmentSubPipelineToRun struct {
+	// Environment name
+	Environment string
+	// PipelineFile Name of a sub-pipeline file, which need to be run
+	PipelineFile string
 }
 
 // Builder Holds info about the builder arguments
@@ -168,12 +174,6 @@ func (p *PipelineInfo) SetApplicationConfig(applicationConfig *application.Appli
 	p.RadixApplication = applicationConfig.GetRadixApplicationConfig()
 }
 
-// SetGitAttributes Set git attributes to be used later by other steps
-func (p *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
-	p.GitCommitHash = gitCommitHash
-	p.GitTags = gitTags
-}
-
 // IsPipelineType Check pipeline type
 func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bool {
 	return p.GetRadixPipelineType() == pipelineType
@@ -264,10 +264,4 @@ func (p *PipelineInfo) GetRadixPromoteDeployment() string {
 // GetRadixPromoteFromEnvironment Get radix promote from environment
 func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
 	return p.PipelineArguments.FromEnvironment
-}
-
-// SetBuildContext Set build context
-func (p *PipelineInfo) SetBuildContext(context *BuildContext) *PipelineInfo {
-	p.BuildContext = context
-	return p
 }

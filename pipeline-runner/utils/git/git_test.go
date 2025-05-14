@@ -83,16 +83,16 @@ func getTestGitDir(testDataDir string) string {
 	return gitDirPath
 }
 
-func TestGetGitCommitHashFromHead_DummyRepo(t *testing.T) {
-	gitDirPath := setupGitTest("test_data.zip", "test_data")
+// func TestGetGitCommitHashFromHead_DummyRepo(t *testing.T) {
+// 	gitDirPath := setupGitTest("test_data.zip", "test_data")
 
-	releaseBranchHeadCommitHash := "43332ef8f8a8c3830a235a5af7ac9098142e3af8"
-	commitHash, err := GetCommitHashFromHead(gitDirPath, "release")
-	assert.NoError(t, err)
-	assert.Equal(t, commitHash, releaseBranchHeadCommitHash)
+// 	releaseBranchHeadCommitHash := "43332ef8f8a8c3830a235a5af7ac9098142e3af8"
+// 	commitHash, err := GetCommitHashFromHead(gitDirPath, "release")
+// 	assert.NoError(t, err)
+// 	assert.Equal(t, commitHash, releaseBranchHeadCommitHash)
 
-	tearDownGitTest()
-}
+// 	tearDownGitTest()
+// }
 
 func setupGitTest(testDataArchive, unzippedDir string) string {
 	err := unzip(testDataArchive)
@@ -109,38 +109,38 @@ func tearDownGitTest() {
 	}
 }
 
-func TestGetGitCommitHashFromHead_DummyRepo2(t *testing.T) {
-	setupLog()
-	gitDirPath := setupGitTest("test_data2.zip", "test_data2")
+// func TestGetGitCommitHashFromHead_DummyRepo2(t *testing.T) {
+// 	setupLog()
+// 	gitDirPath := setupGitTest("test_data2.zip", "test_data2")
 
-	releaseBranchHeadCommitHash := "a1ee44808de2a42d291b59fefb5c66b8ff6bf898"
-	commitHash, err := GetCommitHashFromHead(gitDirPath, "this-branch-is-only-remote")
-	assert.NoError(t, err)
-	assert.Equal(t, commitHash, releaseBranchHeadCommitHash)
+// 	releaseBranchHeadCommitHash := "a1ee44808de2a42d291b59fefb5c66b8ff6bf898"
+// 	commitHash, err := GetCommitHashFromHead(gitDirPath, "this-branch-is-only-remote")
+// 	assert.NoError(t, err)
+// 	assert.Equal(t, commitHash, releaseBranchHeadCommitHash)
 
-	tearDownGitTest()
-}
+// 	tearDownGitTest()
+// }
 
-func TestGetGitCommitTags(t *testing.T) {
-	setupLog()
-	gitDirPath := setupGitTest("test_data.zip", "test_data")
+// func TestGetGitCommitTags(t *testing.T) {
+// 	setupLog()
+// 	gitDirPath := setupGitTest("test_data.zip", "test_data")
 
-	branchName := "branch-with-tags"
-	tag0 := "special&%¤tag"
-	tag1 := "tag-contains@at-sign"
-	tag2 := "v1.12"
+// 	branchName := "branch-with-tags"
+// 	tag0 := "special&%¤tag"
+// 	tag1 := "tag-contains@at-sign"
+// 	tag2 := "v1.12"
 
-	commitHash, err := GetCommitHashFromHead(gitDirPath, branchName)
-	assert.NoError(t, err)
-	tagsString, err := getGitCommitTags(gitDirPath, commitHash)
-	assert.NoError(t, err)
-	tags := strings.Split(tagsString, " ")
-	assert.Equal(t, tag0, tags[0])
-	assert.Equal(t, tag1, tags[1])
-	assert.Equal(t, tag2, tags[2])
+// 	commitHash, err := GetCommitHashFromHead(gitDirPath, branchName)
+// 	assert.NoError(t, err)
+// 	tagsString, err := getGitCommitTags(gitDirPath, commitHash)
+// 	assert.NoError(t, err)
+// 	tags := strings.Split(tagsString, " ")
+// 	assert.Equal(t, tag0, tags[0])
+// 	assert.Equal(t, tag1, tags[1])
+// 	assert.Equal(t, tag2, tags[2])
 
-	tearDownGitTest()
-}
+// 	tearDownGitTest()
+// }
 
 func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 	setupLog()

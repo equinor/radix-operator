@@ -8,7 +8,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
-	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -119,8 +118,7 @@ func (c *acrKubeJobProps) PodVolumes() []corev1.Volume {
 }
 
 func (c *acrKubeJobProps) PodInitContainers() []corev1.Container {
-	cloneCfg := internalgit.CloneConfigFromPipelineArgs(c.pipelineArgs)
-	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GitWorkspace, c.pipelineArgs.Branch, c.pipelineArgs.CommitID, cloneCfg)
+	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs)
 }
 
 func (c *acrKubeJobProps) PodContainers() []corev1.Container {

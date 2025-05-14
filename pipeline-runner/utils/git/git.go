@@ -2,7 +2,6 @@ package git
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
@@ -21,69 +19,122 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ResetGitHead alters HEAD of the git repository on file system to point to commitHashString
-func ResetGitHead(gitWorkspace, commitHashString string) error {
-	r, err := git.PlainOpen(gitWorkspace)
-	if err != nil {
-		return err
-	}
-	log.Debug().Msgf("opened repositoryPath %s", gitWorkspace)
-
-	worktree, err := r.Worktree()
-	if err != nil {
-		return err
-	}
-
-	commitHash := plumbing.NewHash(commitHashString)
-	if err = worktree.Reset(&git.ResetOptions{
-		Commit: commitHash,
-		Mode:   git.HardReset,
-	}); err != nil {
-		if errors.Is(err, plumbing.ErrObjectNotFound) {
-			return fmt.Errorf("commit %s not found", commitHashString)
-		}
-		return fmt.Errorf("unable to reset git head %s: %w", commitHashString, err)
-	}
-	log.Debug().Msgf("reset HEAD to %s", commitHashString)
-	return nil
+type Repository interface {
+	CheckoutBranch(branch string) error
+	CheckoutCommit(commit string) error
+	GetLatestCommitForBranch(branch string) (string, error)
+	IsAncestor(ancestor, other string) (bool, error)
+	ResolveTagsForCommit(commit string) ([]string, error)
 }
 
-// GetCommitHashAndTags gets target commit hash and tags from GitHub repository
-func GetCommitHashAndTags(gitWorkspace, commitId, branchName string) (string, string, error) {
-	targetCommitHash, err := GetCommitHash(gitWorkspace, commitId, branchName)
+func Open(path string) (Repository, error) {
+	r, err := git.PlainOpen(path)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
-	gitTags, err := getGitCommitTags(gitWorkspace, targetCommitHash)
-	if err != nil {
-		return "", "", err
+	return &repository{repo: r}, nil
+}
+
+type repository struct {
+	repo *git.Repository
+}
+
+func (r *repository) CheckoutBranch(branch string) error {
+	return r.checkoutBranchOrCommit(branch, "")
+}
+
+func (r *repository) CheckoutCommit(commit string) error {
+	return r.checkoutBranchOrCommit("", commit)
+}
+
+func (r *repository) GetLatestCommitForBranch(branch string) (string, error) {
+	if _, err := r.repo.Branch(branch); err != nil {
+		return "", err
 	}
-	return targetCommitHash, gitTags, nil
+
+	commitHash, err := r.repo.ResolveRevision(plumbing.Revision(branch))
+	if err != nil {
+		return "", err
+	}
+	return commitHash.String(), nil
+}
+
+func (r *repository) IsAncestor(ancestor, other string) (bool, error) {
+	ancestorHash, err := r.repo.ResolveRevision(plumbing.Revision(ancestor))
+	if err != nil {
+		return false, err
+	}
+
+	otherHash, err := r.repo.ResolveRevision(plumbing.Revision(other))
+	if err != nil {
+		return false, err
+	}
+
+	ancestorCommit, err := r.repo.CommitObject(*ancestorHash)
+	if err != nil {
+		return false, err
+	}
+
+	otherCommit, err := r.repo.CommitObject(*otherHash)
+	if err != nil {
+		return false, err
+	}
+
+	return ancestorCommit.IsAncestor(otherCommit)
+}
+
+func (r *repository) ResolveTagsForCommit(commit string) ([]string, error) {
+	commitHash := plumbing.NewHash(commit)
+
+	tags, err := r.repo.Tags()
+	if err != nil {
+		return nil, err
+	}
+	var tagNames []string
+
+	// List all tags, both lightweight tags and annotated tags and see if any tags point to HEAD reference.
+	err = tags.ForEach(func(t *plumbing.Reference) error {
+		// using workaround to circumvent tag resolution bug documented at https://github.com/go-git/go-git/issues/204
+		tagName := strings.TrimPrefix(string(t.Name()), "refs/tags/")
+		tagRef, err := r.repo.Tag(tagName)
+		if err != nil {
+			return err
+		}
+		revHash, err := r.repo.ResolveRevision(plumbing.Revision(tagRef.Hash().String()))
+		if err != nil {
+			return err
+		}
+		if *revHash == commitHash {
+			tagNames = append(tagNames, tagName)
+		}
+		return nil
+	})
+
+	return tagNames, err
+}
+
+// Performs git checkout of a branch or commit.
+// branch and commit are mutually exclusive
+func (r *repository) checkoutBranchOrCommit(branch, commit string) error {
+	if len(branch) > 0 && len(commit) > 0 {
+		return errors.New("branch and commit are mutually exclusive")
+	}
+
+	worktree, err := r.repo.Worktree()
+	if err != nil {
+		return err
+	}
+
+	if len(commit) > 0 {
+		return worktree.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(commit)})
+	}
+
+	return worktree.Checkout(&git.CheckoutOptions{Branch: plumbing.NewBranchReferenceName(branch)})
 }
 
 func getGitDir(gitWorkspace string) string {
 	return gitWorkspace + "/.git"
-}
-
-// GetCommitHashFromHead returns the commit hash for the HEAD of branchName in gitDir
-func GetCommitHashFromHead(gitWorkspace string, branchName string) (string, error) {
-	gitDir := getGitDir(gitWorkspace)
-	r, err := git.PlainOpen(gitDir)
-	if err != nil {
-		return "", err
-	}
-	log.Debug().Msgf("opened gitDir %s", gitDir)
-
-	// Get branchName hash
-	commitHash, err := getBranchCommitHash(r, branchName)
-	if err != nil {
-		return "", err
-	}
-	log.Debug().Msgf("resolved branch %s", branchName)
-
-	hashBytesString := hex.EncodeToString(commitHash[:])
-	return hashBytesString, nil
 }
 
 // getGitAffectedResourcesBetweenCommits returns the list of folders, where files were affected after beforeCommitHash (not included) till targetCommitHash commit (included)
@@ -228,84 +279,6 @@ func findCommit(commitHash string, repository *git.Repository) (*object.Commit, 
 	}
 
 	return repository.CommitObject(hash)
-}
-
-func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, error) {
-	// first, we try to resolve a local revision. If possible, this is best. This succeeds if code branch and config
-	// branch are the same
-	commitHash, err := r.ResolveRevision(plumbing.Revision(branchName))
-	if err != nil {
-		// on second try, we try to resolve the remote branch. This introduces a chance that the remote has been altered
-		// with new hash after initial clone
-		commitHash, err = r.ResolveRevision(plumbing.Revision(fmt.Sprintf("refs/remotes/origin/%s", branchName)))
-		if err != nil {
-			if strings.EqualFold(err.Error(), "reference not found") {
-				return nil, fmt.Errorf("there is no branch %s or access to the repository", branchName)
-			}
-			return nil, err
-		}
-	}
-	return commitHash, nil
-}
-
-// getGitCommitTags returns any git tags which point to commitHash
-func getGitCommitTags(gitWorkspace string, commitHashString string) (string, error) {
-	gitDir := getGitDir(gitWorkspace)
-	r, err := git.PlainOpen(gitDir)
-	if err != nil {
-		return "", err
-	}
-
-	commitHash := plumbing.NewHash(commitHashString)
-
-	log.Debug().Msgf("getting all tags for repository")
-	tags, err := r.Tags()
-	if err != nil {
-		return "", err
-	}
-	var tagNames []string
-
-	// List all tags, both lightweight tags and annotated tags and see if any tags point to HEAD reference.
-	err = tags.ForEach(func(t *plumbing.Reference) error {
-		log.Debug().Msgf("resolving commit hash of tag %s", t.Name())
-		// using workaround to circumvent tag resolution bug documented at https://github.com/go-git/go-git/issues/204
-		tagName := strings.TrimPrefix(string(t.Name()), "refs/tags/")
-		tagRef, err := r.Tag(tagName)
-		if err != nil {
-			log.Warn().Msgf("could not resolve commit hash of tag %s: %v", t.Name(), err)
-			return nil
-		}
-		revHash, err := r.ResolveRevision(plumbing.Revision(tagRef.Hash().String()))
-		if err != nil {
-			log.Warn().Msgf("could not resolve commit hash of tag %s: %v", t.Name(), err)
-			return nil
-		}
-		if *revHash == commitHash {
-			tagNames = append(tagNames, tagName)
-		}
-		return nil
-	})
-	if err != nil {
-		log.Warn().Msgf("could not resolve tags: %v", err)
-		return "", nil
-	}
-
-	tagNamesString := strings.Join(tagNames, " ")
-
-	return tagNamesString, nil
-}
-
-// GetCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
-// build branch
-func GetCommitHash(gitWorkspace, commitId, branchName string) (string, error) {
-	if commitId != "" {
-		log.Debug().Msgf("got git commit hash %s from env var %s", commitId, defaults.RadixCommitIdEnvironmentVariable)
-		return commitId, nil
-	}
-	log.Debug().Msgf("determining git commit hash of HEAD of branch %s", branchName)
-	gitCommitHash, err := GetCommitHashFromHead(gitWorkspace, branchName)
-	log.Debug().Msgf("got git commit hash %s from HEAD of branch %s", gitCommitHash, branchName)
-	return gitCommitHash, err
 }
 
 // GetChangesFromGitRepository Get changed folders in environments and if radixconfig.yaml was changed

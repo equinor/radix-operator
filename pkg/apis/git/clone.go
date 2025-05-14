@@ -7,7 +7,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -39,7 +38,10 @@ func CloneInitContainersWithSourceCode(sshURL, branch, commitID, directory strin
 
 // CloneInitContainersWithContainerName The sidecars for cloning a git repo. Lfs is to support large files in cloned source code, it is not needed for Radix config ot SubPipeline
 func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory string, useLfs, skipBlobs bool, cloneContainerName string, config CloneConfig) []corev1.Container {
-	gitConfigCommand := fmt.Sprintf("git config --global --add safe.directory %s", directory)
+	commands := []string{
+		fmt.Sprintf("git config --global --add safe.directory %s", directory),
+	}
+
 	cloneArgs := []string{
 		fmt.Sprintf("-b %s", branch),
 		"--verbose",
@@ -48,14 +50,18 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 	if skipBlobs {
 		cloneArgs = append(cloneArgs, "--filter=blob:none")
 	}
-	gitCloneCommand := fmt.Sprintf("git clone %s %s %s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")", sshURL, strings.Join(cloneArgs, " "), directory)
-	gitCheckoutCommitCommand := fmt.Sprintf("cd %[1]s && echo \"Checking out commit %[2]s\" && git merge-base --is-ancestor %[2]s HEAD && git checkout -q %[2]s && cd -", directory, commitID)
-	getLfsFilesCommands := fmt.Sprintf("cd %s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", directory)
-	gitCloneCmd := []string{"sh", "-c", fmt.Sprintf("%s && %s %s %s",
-		gitConfigCommand,
-		gitCloneCommand,
-		utils.TernaryString(len(commitID) > 0, fmt.Sprintf("&& %s", gitCheckoutCommitCommand), ""),
-		utils.TernaryString(useLfs, fmt.Sprintf("&& %s", getLfsFilesCommands), ""))}
+	commands = append(commands, fmt.Sprintf("git clone %s %s %s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")", sshURL, strings.Join(cloneArgs, " "), directory))
+
+	if len(commitID) > 0 {
+		commands = append(commands, fmt.Sprintf("cd %[1]s && echo \"Checking out commit %[2]s\" && git merge-base --is-ancestor %[2]s HEAD && git checkout -q %[2]s && cd -", directory, commitID))
+	}
+
+	if useLfs {
+		commands = append(commands, fmt.Sprintf("cd %s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", directory))
+	}
+
+	gitCloneCmd := []string{"sh", "-c", strings.Join(commands, " && ")}
+
 	containers := []corev1.Container{
 		{
 			Name:    fmt.Sprintf("%snslookup", InternalContainerPrefix),

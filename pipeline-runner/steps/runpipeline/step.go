@@ -14,7 +14,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/applicationconfig"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -27,7 +26,7 @@ import (
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -78,7 +77,7 @@ func (step *RunPipelinesStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	if pipelineInfo.BuildContext != nil && len(pipelineInfo.BuildContext.EnvironmentSubPipelinesToRun) == 0 {
+	if len(pipelineInfo.EnvironmentSubPipelinesToRun) == 0 {
 		log.Ctx(ctx).Info().Msg("There are no configured sub-pipelines. Skip the step.")
 		return nil
 	}
@@ -175,9 +174,8 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 
 	tektonPipelineBranch := pipelineInfo.GetBranch()
 	if pipelineInfo.GetRadixPipelineType() == radixv1.Deploy {
-		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineInfo.GetRadixApplication(), pipelineInfo.GetRadixDeployToEnvironment())
-		if re != nil && len(re.Build.From) > 0 {
-			tektonPipelineBranch = re.Build.From
+		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineInfo.GetRadixDeployToEnvironment()); ok && len(env.Build.From) > 0 {
+			tektonPipelineBranch = env.Build.From
 		} else {
 			tektonPipelineBranch = pipelineInfo.GetRadixConfigBranch() // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
 		}

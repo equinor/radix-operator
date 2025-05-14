@@ -19,6 +19,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -55,7 +56,8 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	printPrepareBuildContext(ctx, pipelineInfo.BuildContext)
+	printPrepareBuildContext(log.Ctx(ctx), pipelineInfo.BuildContext)
+	printSubPiplinesToRun(log.Ctx(ctx), pipelineInfo.EnvironmentSubPipelinesToRun)
 
 	applicationConfig := application.NewApplicationConfig(cli.GetKubeClient(), cli.GetKubeUtil(),
 		cli.GetRadixClient(), cli.GetRegistration(), pipelineInfo.RadixApplication,
@@ -443,29 +445,32 @@ func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComp
 	return commonComponents
 }
 
-func printPrepareBuildContext(ctx context.Context, buildContext *model.BuildContext) {
+func printPrepareBuildContext(logger *zerolog.Logger, buildContext *model.BuildContext) {
 	if buildContext == nil {
 		return
 	}
 	if buildContext.ChangedRadixConfig {
-		log.Ctx(ctx).Info().Msg("Radix config file was changed in the repository")
+		logger.Info().Msg("Radix config file was changed in the repository")
 	}
 	if len(buildContext.EnvironmentsToBuild) > 0 {
-		log.Ctx(ctx).Info().Msg("Components with changed source code in environments:")
+		logger.Info().Msg("Components with changed source code in environments:")
 		for _, environmentToBuild := range buildContext.EnvironmentsToBuild {
 			if len(environmentToBuild.Components) == 0 {
-				log.Ctx(ctx).Info().Msgf(" - %s: no components or jobs with changed source code", environmentToBuild.Environment)
+				logger.Info().Msgf(" - %s: no components or jobs with changed source code", environmentToBuild.Environment)
 			} else {
-				log.Ctx(ctx).Info().Msgf(" - %s: %s", environmentToBuild.Environment, strings.Join(environmentToBuild.Components, ","))
+				logger.Info().Msgf(" - %s: %s", environmentToBuild.Environment, strings.Join(environmentToBuild.Components, ","))
 			}
 		}
 	}
-	if len(buildContext.EnvironmentSubPipelinesToRun) == 0 {
-		log.Ctx(ctx).Info().Msg("No sub-pipelines to run")
+}
+
+func printSubPiplinesToRun(logger *zerolog.Logger, subPipelines []model.EnvironmentSubPipelineToRun) {
+	if len(subPipelines) == 0 {
+		logger.Info().Msg("No sub-pipelines to run")
 	} else {
-		log.Ctx(ctx).Info().Msg("Sub-pipelines to run")
-		for _, envSubPipeline := range buildContext.EnvironmentSubPipelinesToRun {
-			log.Ctx(ctx).Info().Msgf(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
+		logger.Info().Msg("Sub-pipelines to run")
+		for _, envSubPipeline := range subPipelines {
+			logger.Info().Msgf(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
 		}
 	}
 }

@@ -2,12 +2,14 @@ package preparepipeline_test
 
 import (
 	"context"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
-	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	"github.com/golang/mock/gomock"
 	"strings"
 	"testing"
+
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
+	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/golang/mock/gomock"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
@@ -19,7 +21,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -52,6 +54,7 @@ type stepTestSuite struct {
 	promClient  *prometheusfake.Clientset
 	kubeUtil    *kube.Kube
 	tknClient   tektonclient.Interface
+	ctrl        *gomock.Controller
 }
 
 func (s *stepTestSuite) SetupTest() {
@@ -61,6 +64,7 @@ func (s *stepTestSuite) SetupTest() {
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.tknClient = tektonfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
+	s.ctrl = gomock.NewController(s.T())
 }
 
 func (s *stepTestSuite) SetupSubTest() {
@@ -89,18 +93,14 @@ type args struct {
 	timestamp string
 }
 
-type testScenario struct {
-	name           string
-	fields         fields
-	args           args
-	wantErr        func(t *testing.T, err error)
-	assertScenario func(t *testing.T, step model.Step, pipelineName string)
-}
-
 func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
-	scenarios := []testScenario{
-		{
-			name: "one default task",
+	scenarios := map[string]struct {
+		fields         fields
+		args           args
+		wantErr        func(t *testing.T, err error)
+		assertScenario func(t *testing.T, step model.Step, pipelineName string)
+	}{
+		"one default task": {
 			fields: fields{
 				targetEnvironments: []string{envDev},
 				hash:               hash,
@@ -141,8 +141,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 				assert.Equal(t, appName, pipeline.ObjectMeta.OwnerReferences[0].Name)
 			},
 		},
-		{
-			name: "set SecurityContexts in task step",
+		"set SecurityContexts in task step": {
 			fields: fields{
 				targetEnvironments: []string{envDev},
 			},
@@ -196,8 +195,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 				assert.Equal(t, []corev1.Capability{"ALL"}, taskStep.SecurityContext.Capabilities.Drop)
 			},
 		},
-		{
-			name: "set SecurityContexts in task sidecar",
+		"set SecurityContexts in task sidecar": {
 			fields: fields{
 				targetEnvironments: []string{envDev},
 			},
@@ -255,8 +253,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 				assert.Equal(t, []corev1.Capability{"ALL"}, sidecar.SecurityContext.Capabilities.Drop)
 			},
 		},
-		{
-			name: "set SecurityContexts in task stepTemplate",
+		"set SecurityContexts in task stepTemplate": {
 			fields: fields{
 				targetEnvironments: []string{envDev},
 			},
@@ -310,8 +307,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 				assert.Equal(t, []corev1.Capability{"ALL"}, stepTemplate.SecurityContext.Capabilities.Drop)
 			},
 		},
-		{
-			name: "allow in the SecurityContext in task step non-root RunAsUser and RunAsGroup",
+		"allow in the SecurityContext in task step non-root RunAsUser and RunAsGroup": {
 			fields: fields{
 				targetEnvironments: []string{envDev},
 			},
@@ -352,8 +348,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 				assert.Equal(t, int64(20), *taskStep.SecurityContext.RunAsGroup)
 			},
 		},
-		{
-			name: "allow set SecurityContexts in task sidecar non-root RunAsUser and RunAsGroup",
+		"allow set SecurityContexts in task sidecar non-root RunAsUser and RunAsGroup": {
 			fields: fields{
 				targetEnvironments: []string{envDev},
 			},
@@ -395,8 +390,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 				assert.Equal(t, int64(20), *sidecar.SecurityContext.RunAsGroup)
 			},
 		},
-		{
-			name: "allow set SecurityContexts in task stepTemplate non-root RunAsUser and RunAsGroup",
+		"allow set SecurityContexts in task stepTemplate non-root RunAsUser and RunAsGroup": {
 			fields: fields{
 				targetEnvironments: []string{envDev},
 			},
@@ -433,8 +427,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 				assert.Equal(t, int64(20), *stepTemplate.SecurityContext.RunAsGroup)
 			},
 		},
-		{
-			name: "Test sanitizeAzureSkipContainersAnnotation in task stepTemplate",
+		"Test sanitizeAzureSkipContainersAnnotation in task stepTemplate": {
 			args: args{
 				envName: envDev,
 				pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) {
@@ -469,8 +462,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 				assert.Contains(t, skipContainers, "prepare")
 			},
 		},
-		{
-			name: "Test unknown steps is not allowed in sanitizeAzureSkipContainersAnnotation",
+		"Test unknown steps is not allowed in sanitizeAzureSkipContainersAnnotation": {
 			args: args{
 				envName: envDev,
 				pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) {
@@ -493,8 +485,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			},
 			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {},
 		},
-		{
-			name: "Test illegal azure WI label value in task",
+		"Test illegal azure WI label value in task": {
 			args: args{
 				envName: envDev,
 				pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) {
@@ -515,19 +506,18 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {},
 		},
 	}
-	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
-			s.SetupTest()
+	for testName, ts := range scenarios {
+		s.Run(testName, func() {
 			applicationBuilder := ts.fields.radixApplicationBuilder
 			if applicationBuilder == nil {
 				applicationBuilder = getRadixApplicationBuilder(appName, envDev, branchMain)
 			}
 			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
-			require.NoError(t, err, "Failed to create radix registration. Error %v", err)
+			s.NoError(err, "Failed to create radix registration. Error %v", err)
 			radixPipelineType := v1.Deploy
 			pipelineType, err := pipeline.GetPipelineFromName(string(radixPipelineType))
-			require.NoError(t, err, "Failed to get pipeline type. Error %v", err)
+			s.Require().NoError(err, "Failed to get pipeline type. Error %v", err)
 			pipelineInfo := &model.PipelineInfo{
 				Definition: pipelineType,
 				PipelineArguments: model.PipelineArguments{
@@ -542,45 +532,45 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 					GitWorkspace:    sampleAppWorkspace,
 				},
 				RadixRegistration: rr,
-				RadixApplication:  applicationBuilder.BuildRA(),
 			}
 			buildContext := &model.BuildContext{}
-			ctrl := gomock.NewController(s.T())
-			defer ctrl.Finish()
-			mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
+			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(applicationBuilder.BuildRA(), nil).Times(1)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
 			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo).Return(buildContext, nil).AnyTimes()
-			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(ctrl)
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
 			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, internalTest.Env1).Return(true, "tekton/pipeline.yaml", ts.args.pipeline, ts.args.tasks, nil).AnyTimes()
-			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(ctrl)
+			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
 			mockOwnerReferenceFactory.EXPECT().Create().Return(&metav1.OwnerReference{Kind: "RadixApplication", Name: appName}).AnyTimes()
+			mockGitRepo := git.NewMockRepository(s.ctrl)
+			mockGitRepo.EXPECT().CheckoutBranch(gomock.Any()).AnyTimes().Return(nil)
+			mockGitRepo.EXPECT().CheckoutCommit(gomock.Any()).AnyTimes().Return(nil)
+			mockGitRepo.EXPECT().GetLatestCommitForBranch(gomock.Any()).AnyTimes().Return("anycommitid", nil)
+			mockGitRepo.EXPECT().IsAncestor(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return(nil, nil)
 			step := preparepipeline.NewPreparePipelinesStep(
-				func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.SetSubPipelineReader(mockSubPipelineReader)
-				}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.SetContextBuilder(mockContextBuilder)
-				}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.SetOwnerReferenceFactory(mockOwnerReferenceFactory)
-				})
+				preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+				preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+				preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+				preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+			)
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 			err = step.Run(ctx, pipelineInfo)
-			ts.wantErr(t, err)
-			ts.assertScenario(t, step, ts.args.pipeline.ObjectMeta.Name)
+			ts.wantErr(s.T(), err)
+			ts.assertScenario(s.T(), step, ts.args.pipeline.ObjectMeta.Name)
 		})
 	}
 }
 
-type webhookEnabledScenario struct {
-	name                 string
-	raEnvs               []v1.Environment
-	triggeredFromWebhook bool
-	expectedTargetEnvs   []string
-}
-
 func (s *stepTestSuite) Test_prepare_webhookEnabled() {
-	scenarios := []webhookEnabledScenario{
-		{
-			name: "one env, WebhookEnabled nil, not triggered from webhook",
+	scenarios := map[string]struct {
+		raEnvs               []v1.Environment
+		triggeredFromWebhook bool
+		expectedTargetEnvs   []string
+	}{
+		"one env, WebhookEnabled nil, not triggered from webhook": {
 			raEnvs: []v1.Environment{{
 				Name: internalTest.Env1,
 				Build: v1.EnvBuild{
@@ -591,8 +581,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 			triggeredFromWebhook: false,
 			expectedTargetEnvs:   []string{internalTest.Env1},
 		},
-		{
-			name: "one env, WebhookEnabled true, not triggered from webhook",
+		"one env, WebhookEnabled true, not triggered from webhook": {
 			raEnvs: []v1.Environment{{
 				Name: internalTest.Env1,
 				Build: v1.EnvBuild{
@@ -603,8 +592,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 			triggeredFromWebhook: false,
 			expectedTargetEnvs:   []string{internalTest.Env1},
 		},
-		{
-			name: "one env, WebhookEnabled false, not triggered from webhook",
+		"one env, WebhookEnabled false, not triggered from webhook": {
 			raEnvs: []v1.Environment{{
 				Name: internalTest.Env1,
 				Build: v1.EnvBuild{
@@ -616,8 +604,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 			triggeredFromWebhook: false,
 			expectedTargetEnvs:   []string{internalTest.Env1},
 		},
-		{
-			name: "one env, WebhookEnabled false, triggered from webhook",
+		"one env, WebhookEnabled false, triggered from webhook": {
 			raEnvs: []v1.Environment{{
 				Name: internalTest.Env1,
 				Build: v1.EnvBuild{
@@ -629,8 +616,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 			triggeredFromWebhook: true,
 			expectedTargetEnvs:   nil,
 		},
-		{
-			name: "multiple envs, WebhookEnabled nil, not triggered from webhook",
+		"multiple envs, WebhookEnabled nil, not triggered from webhook": {
 			raEnvs: []v1.Environment{{
 				Name: internalTest.Env1,
 				Build: v1.EnvBuild{
@@ -648,8 +634,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 			triggeredFromWebhook: false,
 			expectedTargetEnvs:   []string{internalTest.Env1, internalTest.Env2},
 		},
-		{
-			name: "multiple envs, WebhookEnabled true, not triggered from webhook",
+		"multiple envs, WebhookEnabled true, not triggered from webhook": {
 			raEnvs: []v1.Environment{{
 				Name: internalTest.Env1,
 				Build: v1.EnvBuild{
@@ -667,8 +652,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 			triggeredFromWebhook: false,
 			expectedTargetEnvs:   []string{internalTest.Env1, internalTest.Env2},
 		},
-		{
-			name: "multiple envs, WebhookEnabled false, not triggered from webhook",
+		"multiple envs, WebhookEnabled false, not triggered from webhook": {
 			raEnvs: []v1.Environment{{
 				Name: internalTest.Env1,
 				Build: v1.EnvBuild{
@@ -687,8 +671,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 			triggeredFromWebhook: false,
 			expectedTargetEnvs:   []string{internalTest.Env1, internalTest.Env2},
 		},
-		{
-			name: "multiple envs, WebhookEnabled false, triggered from webhook",
+		"multiple envs, WebhookEnabled false, triggered from webhook": {
 			raEnvs: []v1.Environment{{
 				Name: internalTest.Env1,
 				Build: v1.EnvBuild{
@@ -708,12 +691,12 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 			expectedTargetEnvs:   []string{internalTest.Env2},
 		},
 	}
-	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
-			s.T().Logf("Test case: %s", ts.name)
-			s.SetupTest()
-
-			rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
+	for testName, ts := range scenarios {
+		s.Run(testName, func() {
+			const (
+				configBranch = "anycfgbranch"
+			)
+			rrBuilder := utils.NewRegistrationBuilder().WithConfigBranch(configBranch).WithName(appName)
 			rr := rrBuilder.BuildRR()
 			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
 			s.Require().NoError(err, "Failed to create radix registration. Error %v", err)
@@ -751,32 +734,33 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 				RadixApplication:  ra,
 			}
 			buildContext := &model.BuildContext{}
-			ctrl := gomock.NewController(s.T())
-			defer ctrl.Finish()
-			mockContextBuilder := prepareInternal.NewMockContextBuilder(ctrl)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
 			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo).Return(buildContext, nil).AnyTimes()
-			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(ctrl)
+			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
 			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(ra, nil).AnyTimes()
-			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(ctrl)
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+			mockGitRepo := git.NewMockRepository(s.ctrl)
+			mockGitRepo.EXPECT().CheckoutBranch(gomock.Any()).AnyTimes().Return(nil)
+			mockGitRepo.EXPECT().CheckoutCommit(gomock.Any()).AnyTimes().Return(nil)
+			mockGitRepo.EXPECT().GetLatestCommitForBranch(gomock.Any()).AnyTimes().Return("anycommitid", nil)
+			mockGitRepo.EXPECT().IsAncestor(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return(nil, nil)
 			for _, env := range ts.expectedTargetEnvs {
 				mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, env).Return(false, "", nil, nil, nil).Times(1)
 			}
-			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(ctrl)
+			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
 			mockOwnerReferenceFactory.EXPECT().Create().Return(&metav1.OwnerReference{Kind: "RadixApplication", Name: appName}).AnyTimes()
 			step := preparepipeline.NewPreparePipelinesStep(
-				func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.SetContextBuilder(mockContextBuilder)
-				}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.SetSubPipelineReader(mockSubPipelineReader)
-				}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.SetRadixConfigReader(mockRadixConfigReader)
-				}, func(step *preparepipeline.PreparePipelinesStepImplementation) {
-					step.SetOwnerReferenceFactory(mockOwnerReferenceFactory)
-				})
+				preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+				preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+				preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+				preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+			)
 			ctx := context.Background()
 			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 			err = step.Run(ctx, pipelineInfo)
-			require.NoError(t, err, "Failed to run step. Error %v", err)
+			s.Require().NoError(err)
 		})
 	}
 }
