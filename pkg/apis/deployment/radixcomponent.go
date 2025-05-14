@@ -66,7 +66,7 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		if err != nil {
 			return nil, err
 		}
-		deployComponent.Node = getRadixCommonComponentNode(ctx, &radixComponent, environmentSpecificConfig)
+		deployComponent.Node = getRadixCommonComponentNode(ctx, &radixComponent, environmentSpecificConfig) // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 		deployComponent.Resources = getRadixCommonComponentResources(&radixComponent, environmentSpecificConfig)
 		deployComponent.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig, defaultEnvVars)
 		deployComponent.AlwaysPullImageOnDeploy = getRadixComponentAlwaysPullImageOnDeployFlag(&radixComponent, environmentSpecificConfig)

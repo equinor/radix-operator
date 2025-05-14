@@ -12,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -106,7 +107,8 @@ func (c *buildKitKubeJobProps) PodTolerations() []corev1.Toleration {
 }
 
 func (c *buildKitKubeJobProps) PodAffinity() *corev1.Affinity {
-	return getCommonPodAffinity(c.componentImage.Runtime)
+	nodeArch := runtime.GetArchitectureFromRuntimeOrDefault(c.componentImage.Runtime)
+	return getCommonPodAffinity(nodeArch)
 }
 
 func (*buildKitKubeJobProps) PodSecurityContext() *corev1.PodSecurityContext {

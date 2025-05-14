@@ -1200,7 +1200,7 @@
                       "type": "object"
                     },
                     "node": {
-                      "description": "Environment specific GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                      "description": "Deprecated: use Runtime.NodeType instead.\nEnvironment specific GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
                       "properties": {
                         "gpu": {
                           "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -1246,12 +1246,18 @@
                       "description": "Runtime defines environment specific target runtime requirements for the component",
                       "properties": {
                         "architecture": {
-                          "default": "amd64",
-                          "description": "CPU architecture target for the component or job. Defaults to amd64.",
+                          "description": "CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.",
                           "enum": [
                             "amd64",
-                            "arm64"
+                            "arm64",
+                            ""
                           ],
+                          "type": "string"
+                        },
+                        "nodeType": {
+                          "description": "Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                          "maxLength": 120,
+                          "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                           "type": "string"
                         }
                       },
@@ -2435,7 +2441,7 @@
                 "type": "object"
               },
               "node": {
-                "description": "Defines GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                "description": "Deprecated: use Runtime.NodeType instead.\nDefines GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
                 "properties": {
                   "gpu": {
                     "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -2523,12 +2529,18 @@
                 "description": "Runtime defines the target runtime requirements for the component",
                 "properties": {
                   "architecture": {
-                    "default": "amd64",
-                    "description": "CPU architecture target for the component or job. Defaults to amd64.",
+                    "description": "CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.",
                     "enum": [
                       "amd64",
-                      "arm64"
+                      "arm64",
+                      ""
                     ],
+                    "type": "string"
+                  },
+                  "nodeType": {
+                    "description": "Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                    "maxLength": 120,
+                    "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
                 },
@@ -3438,7 +3450,7 @@
                       "type": "boolean"
                     },
                     "node": {
-                      "description": "Environment specific GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                      "description": "Deprecated: use Runtime.NodeType instead.\nEnvironment specific GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
                       "properties": {
                         "gpu": {
                           "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -3491,12 +3503,18 @@
                       "description": "Runtime defines environment specific target runtime requirements for the job",
                       "properties": {
                         "architecture": {
-                          "default": "amd64",
-                          "description": "CPU architecture target for the component or job. Defaults to amd64.",
+                          "description": "CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.",
                           "enum": [
                             "amd64",
-                            "arm64"
+                            "arm64",
+                            ""
                           ],
+                          "type": "string"
+                        },
+                        "nodeType": {
+                          "description": "Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                          "maxLength": 120,
+                          "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                           "type": "string"
                         }
                       },
@@ -4008,7 +4026,7 @@
                 "type": "string"
               },
               "node": {
-                "description": "Defines GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                "description": "Deprecated: use Runtime.NodeType instead.\nDefines GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
                 "properties": {
                   "gpu": {
                     "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -4107,12 +4125,18 @@
                 "description": "Runtime defines target runtime requirements for the job",
                 "properties": {
                   "architecture": {
-                    "default": "amd64",
-                    "description": "CPU architecture target for the component or job. Defaults to amd64.",
+                    "description": "CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.",
                     "enum": [
                       "amd64",
-                      "arm64"
+                      "arm64",
+                      ""
                     ],
+                    "type": "string"
+                  },
+                  "nodeType": {
+                    "description": "Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                    "maxLength": 120,
+                    "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
                 },

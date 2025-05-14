@@ -1,3 +1,4 @@
+// nolint:staticcheck // SA1019: Ignore linting deprecated fields
 package deployment
 
 import (

@@ -109,6 +109,7 @@ var (
 	ErrInvalidUseOfPublicPortInWebhookUrl                                  = errors.New("invalid use of public port in webhook")
 	ErrMissingAzureIdentity                                                = errors.New("missing identity")
 	ErrInvalidRuntimeArchitecture                                          = errors.New("invalid runtime architecture")
+	ErrInvalidRuntimeArchitectureWithNodeType                              = errors.New("runtime architecture and nodeType cannot be defined at the same time")
 	ErrInvalidIPv4OrCIDR                                                   = errors.New("invalid IPv4 or CIDR")
 	ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator                = errors.New("value 0 cannot be used for the In operator")
 	ErrInvalidBlobFuse2BlockCachePrefetchCount                             = errors.New("prefetchCount must be 0 or greater than 10")
