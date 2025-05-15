@@ -693,10 +693,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 	}
 	for testName, ts := range scenarios {
 		s.Run(testName, func() {
-			const (
-				configBranch = "anycfgbranch"
-			)
-			rrBuilder := utils.NewRegistrationBuilder().WithConfigBranch(configBranch).WithName(appName)
+			rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
 			rr := rrBuilder.BuildRR()
 			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
 			s.Require().NoError(err, "Failed to create radix registration. Error %v", err)
