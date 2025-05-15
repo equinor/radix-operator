@@ -416,6 +416,211 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 
 }
 
+func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
+	const appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag = "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	argUseBuildCacheTrue := fmt.Sprintf("--%s=true", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
+	argUseBuildCacheFalse := fmt.Sprintf("--%s=false", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
+	argRefreshBuildCacheTrue := fmt.Sprintf("--%s=true", defaults.RadixRefreshBuildCacheEnvironmentVariable)
+	argRefreshBuildCacheFalse := fmt.Sprintf("--%s=false", defaults.RadixRefreshBuildCacheEnvironmentVariable)
+
+	scenarios := map[string]struct {
+		build                            *radixv1.BuildSpec
+		overrideUseBuildCache            *bool
+		refreshBuildCache                *bool
+		expectedArgOverrideUseBuildCache string
+		expectedArgRefreshBuildCache     string
+	}{
+		"Build empty": {
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build empty, overrideUseBuildCache true": {
+			overrideUseBuildCache:            pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build empty, overrideUseBuildCache false": {
+			overrideUseBuildCache:            pointers.Ptr(false),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build empty, overrideUseBuildCache true, refreshBuildCache false": {
+			overrideUseBuildCache:            pointers.Ptr(true),
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build empty, overrideUseBuildCache false, refreshBuildCache true": {
+			overrideUseBuildCache:            pointers.Ptr(false),
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build empty, refreshBuildCache false": {
+			overrideUseBuildCache:            pointers.Ptr(true),
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build empty, refreshBuildCache true": {
+			overrideUseBuildCache:            pointers.Ptr(false),
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build not empty": {
+			build:                            &radixv1.BuildSpec{},
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build not empty, overrideUseBuildCache true": {
+			build:                            &radixv1.BuildSpec{},
+			overrideUseBuildCache:            pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build not empty, overrideUseBuildCache false": {
+			build:                            &radixv1.BuildSpec{},
+			overrideUseBuildCache:            pointers.Ptr(false),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build not empty, overrideUseBuildCache true, refreshBuildCache false": {
+			build:                            &radixv1.BuildSpec{},
+			overrideUseBuildCache:            pointers.Ptr(true),
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build not empty, overrideUseBuildCache false, refreshBuildCache true": {
+			build:                            &radixv1.BuildSpec{},
+			overrideUseBuildCache:            pointers.Ptr(false),
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build not empty, refreshBuildCache false": {
+			build:                            &radixv1.BuildSpec{},
+			overrideUseBuildCache:            pointers.Ptr(true),
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"Build not empty, refreshBuildCache true": {
+			build:                            &radixv1.BuildSpec{},
+			overrideUseBuildCache:            pointers.Ptr(false),
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"UseBuildKit": {
+			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"UseBuildKit, overrideUseBuildCache true": {
+			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
+			overrideUseBuildCache:            pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: argUseBuildCacheTrue,
+			expectedArgRefreshBuildCache:     "",
+		},
+		"UseBuildKit, overrideUseBuildCache false": {
+			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
+			overrideUseBuildCache:            pointers.Ptr(false),
+			expectedArgOverrideUseBuildCache: argUseBuildCacheFalse,
+			expectedArgRefreshBuildCache:     "",
+		},
+		"UseBuildKit, overrideUseBuildCache true, refreshBuildCache true": {
+			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
+			overrideUseBuildCache:            pointers.Ptr(true),
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: argUseBuildCacheTrue,
+			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
+		},
+		"UseBuildKit, overrideUseBuildCache false, refreshBuildCache true": {
+			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
+			overrideUseBuildCache:            pointers.Ptr(false),
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: argUseBuildCacheFalse,
+			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
+		},
+		"UseBuildKit, implicit UseBuildCache": {
+			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"UseBuildKit, explicite UseBuildCache, explicite refreshBuildCache": {
+			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(true)},
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     "",
+		},
+		"UseBuildKit, implicit UseBuildCache, explicite no refreshBuildCache": {
+			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(false)},
+			refreshBuildCache:                pointers.Ptr(false),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     argRefreshBuildCacheFalse,
+		},
+		"UseBuildKit, explicite UseBuildCache, explicite refreshBuildCache, refreshBuildCache": {
+			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(true)},
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
+		},
+		"UseBuildKit, explicite no UseBuildCache, explicite refreshBuildCache": {
+			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(false)},
+			refreshBuildCache:                pointers.Ptr(true),
+			expectedArgOverrideUseBuildCache: "",
+			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
+		},
+	}
+
+	for name, scenario := range scenarios {
+		s.T().Run(name, func(t *testing.T) {
+			s.T().Log(name)
+			s.SetupTest()
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName(appName).WithRadixConfigFullName("some-radixconfig.yaml").BuildRR(), metav1.CreateOptions{})
+			s.Require().NoError(err)
+			applicationBuilder := utils.ARadixApplication()
+			if scenario.build != nil {
+				applicationBuilder = applicationBuilder.WithBuildKit(scenario.build.UseBuildKit).WithBuildCache(scenario.build.UseBuildCache)
+			}
+			_, err = s.applyJobWithSync(utils.NewJobBuilder().
+				WithJobName(jobName).
+				WithRadixApplication(applicationBuilder).
+				WithAppName(appName).
+				WithBranch(branch).
+				WithToEnvironment(envName).
+				WithCommitID(commitID).
+				WithPushImage(true).
+				WithImageTag(imageTag).
+				WithDeploymentName(deploymentName).
+				WithPipelineType(radixv1.BuildDeploy).
+				WithOverrideUseBuildCache(scenario.overrideUseBuildCache).
+				WithRefreshBuildCache(scenario.refreshBuildCache).
+				WithPipelineImageTag(pipelineTag), getConfigWithPipelineJobsHistoryLimit(3))
+			s.Require().NoError(err)
+			jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
+			s.Require().Len(jobs.Items, 1)
+			job := jobs.Items[0]
+
+			if len(scenario.expectedArgOverrideUseBuildCache) > 0 {
+				s.Contains(job.Spec.Template.Spec.Containers[0].Args, scenario.expectedArgOverrideUseBuildCache, "expected argument for UseBuildCache %s not found in job args", scenario.expectedArgOverrideUseBuildCache)
+			} else {
+				arg := fmt.Sprintf("--%s=", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
+				s.NotContains(job.Spec.Template.Spec.Containers[0].Args, arg, "unexpected expected argument for UseBuildCache %s not found in job args", arg)
+			}
+
+			if len(scenario.expectedArgRefreshBuildCache) > 0 {
+				s.Contains(job.Spec.Template.Spec.Containers[0].Args, scenario.expectedArgRefreshBuildCache, "expected argument for RefreshBuildCache %s not found in job args", scenario.expectedArgRefreshBuildCache)
+			} else {
+				arg := fmt.Sprintf("--%s=", defaults.RadixRefreshBuildCacheEnvironmentVariable)
+				s.NotContains(job.Spec.Template.Spec.Containers[0].Args, arg, "unexpected expected argument for RefreshBuildCache %s not found in job args", arg)
+			}
+
+		})
+	}
+}
+
 func (s *RadixJobTestSuite) TestObjectSynced_GitCloneArguments() {
 	var (
 		appName     = "anyapp"

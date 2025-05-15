@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -67,13 +66,15 @@ type PipelineArguments struct {
 	ImageTag string
 	// OverrideUseBuildCache override default or configured build cache option
 	OverrideUseBuildCache *bool
-	PushImage             bool
-	DeploymentName        string
-	FromEnvironment       string
-	ToEnvironment         string
-	ComponentsToDeploy    []string
-	TriggeredFromWebhook  bool
-	RadixConfigFile       string
+	// RefreshBuildCache forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
+	RefreshBuildCache    *bool
+	PushImage            bool
+	DeploymentName       string
+	FromEnvironment      string
+	ToEnvironment        string
+	ComponentsToDeploy   []string
+	TriggeredFromWebhook bool
+	RadixConfigFile      string
 
 	// ImageBuilder Points to the image builder (repository and tag only)
 	ImageBuilder string
@@ -162,12 +163,6 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 	return nil
 }
 
-// SetApplicationConfig Set radixconfig to be used later by other steps, as well
-// as deriving info from the config
-func (p *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
-	p.RadixApplication = applicationConfig.GetRadixApplicationConfig()
-}
-
 // SetGitAttributes Set git attributes to be used later by other steps
 func (p *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
 	p.GitCommitHash = gitCommitHash
@@ -179,21 +174,29 @@ func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bo
 	return p.GetRadixPipelineType() == pipelineType
 }
 
+// IsUsingBuildKit Check if buildkit should be used
 func (p *PipelineInfo) IsUsingBuildKit() bool {
-	return p.RadixApplication.Spec.Build != nil && p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
+	return p.RadixApplication != nil && p.RadixApplication.Spec.Build != nil &&
+		p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
 }
 
+// IsUsingBuildCache Check if build cache should be used
 func (p *PipelineInfo) IsUsingBuildCache() bool {
 	if !p.IsUsingBuildKit() {
 		return false
 	}
-
-	useBuildCache := p.RadixApplication.Spec.Build == nil || p.RadixApplication.Spec.Build.UseBuildCache == nil || *p.RadixApplication.Spec.Build.UseBuildCache
 	if p.PipelineArguments.OverrideUseBuildCache != nil {
-		useBuildCache = *p.PipelineArguments.OverrideUseBuildCache
+		return *p.PipelineArguments.OverrideUseBuildCache
 	}
+	return p.RadixApplication.Spec.Build != nil && (p.RadixApplication.Spec.Build.UseBuildCache == nil || *p.RadixApplication.Spec.Build.UseBuildCache)
+}
 
-	return useBuildCache
+// IsRefreshingBuildCache Check if build cache should be refreshed
+func (p *PipelineInfo) IsRefreshingBuildCache() bool {
+	if !p.IsUsingBuildKit() || p.PipelineArguments.RefreshBuildCache == nil {
+		return false
+	}
+	return *p.PipelineArguments.RefreshBuildCache
 }
 
 // GetRadixConfigBranch Get config branch
