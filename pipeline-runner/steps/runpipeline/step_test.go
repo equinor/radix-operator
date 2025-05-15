@@ -269,7 +269,6 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyEnvVars() {
 			ra := utils.NewRadixApplicationBuilder().
 				WithRadixRegistration(rrBuilder).
 				WithAppName(internalTest.AppName).
-				WithEnvironment(internalTest.Env1, internalTest.BranchMain).
 				WithBuildVariables(ts.buildVariables).
 				WithSubPipeline(ts.buildSubPipeline).
 				WithApplicationEnvironmentBuilders(ts.appEnvBuilder...).BuildRA()

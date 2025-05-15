@@ -11,6 +11,7 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
+	internalsubpipeline "github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
@@ -120,7 +121,7 @@ func (step *PreparePipelinesStepImplementation) SucceededMsg() string {
 
 // ErrorMsg Override of default step method
 func (step *PreparePipelinesStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed prepare pipelines for the application %s. Error: %v", step.GetAppName(), err)
+	return fmt.Sprintf("Failed prepare pipelines for application %s. Error: %v", step.GetAppName(), err)
 }
 
 // Run Override of default step method
@@ -154,7 +155,7 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 		return nil
 	}
 
-	if err = step.setEnvironmentSubPipelinesToRun(ctx, pipelineInfo); err != nil {
+	if err = step.setSubPipelinesToRun(ctx, pipelineInfo); err != nil {
 		return err
 	}
 
@@ -171,16 +172,16 @@ func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo 
 	if len(commit) == 0 {
 		commit, err = repo.GetLatestCommitForBranch(pipelineInfo.PipelineArguments.Branch)
 		if err != nil {
-			return "", "", fmt.Errorf("failed to get latest commit for branch %q: %w", pipelineInfo.PipelineArguments.Branch, err)
+			return "", "", fmt.Errorf("failed to get latest commit for branch %s: %w", pipelineInfo.PipelineArguments.Branch, err)
 		}
 	}
 
 	isAncestor, err := repo.IsAncestor(commit, pipelineInfo.PipelineArguments.Branch)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to verify is commit %q is ancestor of branch %q: %w", commit, pipelineInfo.PipelineArguments.Branch, err)
+		return "", "", fmt.Errorf("failed to verify is commit %s is ancestor of branch %s: %w", commit, pipelineInfo.PipelineArguments.Branch, err)
 	}
 	if !isAncestor {
-		return "", "", fmt.Errorf("commit %q is not ancestor of branch %q", commit, pipelineInfo.PipelineArguments.Branch)
+		return "", "", fmt.Errorf("commit %s is not ancestor of branch %s", commit, pipelineInfo.PipelineArguments.Branch)
 	}
 
 	tags, err := repo.ResolveTagsForCommit(commit)
@@ -221,7 +222,7 @@ func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *mod
 
 	err = repo.CheckoutBranch(pipelineInfo.GetRadixConfigBranch())
 	if err != nil {
-		return fmt.Errorf("failed to checkout config branch %q: %w", pipelineInfo.GetRadixConfigBranch(), err)
+		return fmt.Errorf("failed to checkout config branch %s: %w", pipelineInfo.GetRadixConfigBranch(), err)
 	}
 
 	radixConfig, err := step.radixConfigReader.Read(pipelineInfo)
@@ -233,7 +234,7 @@ func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *mod
 	return nil
 }
 
-func (step *PreparePipelinesStepImplementation) setEnvironmentSubPipelinesToRun(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	repo, err := step.openGitRepo(pipelineInfo.GetGitWorkspace())
 	if err != nil {
 		return fmt.Errorf("failed to open git repository: %w", err)
@@ -251,15 +252,30 @@ func (step *PreparePipelinesStepImplementation) setEnvironmentSubPipelinesToRun(
 
 	err = repo.CheckoutCommit(gitCommit)
 	if err != nil {
-		return fmt.Errorf("failed to checkout commit %q: %w", gitCommit, err)
+		return fmt.Errorf("failed to checkout commit %s: %w", gitCommit, err)
 	}
 
-	subPipelines, err := step.getEnvironmentSubPipelinesToRun(pipelineInfo)
-	if err != nil {
-		return err
+	var errs []error
+	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
+	timestamp := time.Now().Format("20060102150405")
+
+	for _, targetEnv := range pipelineInfo.TargetEnvironments {
+		log.Ctx(ctx).Debug().Msgf("Create sub-pipeline for environment %s", targetEnv)
+		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForEnvironment(pipelineInfo, targetEnv, timestamp)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to prepare sub-pipeline for environment %s: %w", targetEnv, err))
+		}
+
+		if runSubPipeline {
+			environmentSubPipelinesToRun = append(environmentSubPipelinesToRun, model.EnvironmentSubPipelineToRun{
+				Environment:  targetEnv,
+				PipelineFile: pipelineFilePath,
+			})
+		}
 	}
-	pipelineInfo.EnvironmentSubPipelinesToRun = subPipelines
-	return nil
+
+	pipelineInfo.EnvironmentSubPipelinesToRun = environmentSubPipelinesToRun
+	return errors.Join(errs...)
 }
 
 func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipelines(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) (string, error) {
@@ -280,7 +296,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipeline
 			return sourceRdHashFromAnnotation, nil
 		}
 		if sourceDeploymentGitBranch == "" {
-			log.Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
+			log.Ctx(ctx).Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
 			return "", nil
 		}
 		sourceRdHashFromBranchHead, err := repo.GetLatestCommitForBranch(sourceDeploymentGitBranch)
@@ -298,7 +314,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipeline
 		}
 
 		if containsRegex(pipelineJobBranch) {
-			log.Info().Msg("Deploy job with build branch having regex pattern, skipping sub-pipelines.")
+			log.Ctx(ctx).Info().Msg("Deploy job with build branch having regex pattern, skipping sub-pipelines.")
 			return "", nil
 		}
 
@@ -339,39 +355,6 @@ func containsRegex(value string) bool {
 	return false
 }
 
-func (step *PreparePipelinesStepImplementation) getEnvironmentSubPipelinesToRun(pipelineInfo *model.PipelineInfo) ([]model.EnvironmentSubPipelineToRun, error) {
-	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
-
-	var errs []error
-	timestamp := time.Now().Format("20060102150405")
-	for _, targetEnv := range pipelineInfo.TargetEnvironments {
-		log.Debug().Msgf("Create sub-pipeline for environment %s", targetEnv)
-		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForTargetEnv(pipelineInfo, targetEnv, timestamp)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if runSubPipeline {
-			environmentSubPipelinesToRun = append(environmentSubPipelinesToRun, model.EnvironmentSubPipelineToRun{
-				Environment:  targetEnv,
-				PipelineFile: pipelineFilePath,
-			})
-		}
-	}
-	if err := errors.Join(errs...); err != nil {
-		return nil, err
-	}
-
-	return environmentSubPipelinesToRun, nil
-}
-
-// GetEnvVars Gets build env vars
-func (step *PreparePipelinesStepImplementation) GetEnvVars(ra *radixv1.RadixApplication, envName string) radixv1.EnvVarsMap {
-	envVarsMap := make(radixv1.EnvVarsMap)
-	step.setPipelineRunParamsFromBuild(ra, envVarsMap)
-	step.setPipelineRunParamsFromEnvironmentBuilds(ra, envName, envVarsMap)
-	return envVarsMap
-}
-
 func getPipelineShouldBeStopped(ctx context.Context, pipelineInfo *model.PipelineInfo) (bool, string) {
 	if pipelineInfo.BuildContext == nil || pipelineInfo.BuildContext.ChangedRadixConfig ||
 		len(pipelineInfo.BuildContext.EnvironmentsToBuild) == 0 ||
@@ -390,17 +373,17 @@ func getPipelineShouldBeStopped(ctx context.Context, pipelineInfo *model.Pipelin
 
 func logPipelineInfo(ctx context.Context, pipelineType radixv1.RadixPipelineType, appName, branch, commitID string) {
 	stringBuilder := strings.Builder{}
-	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for the app %s", pipelineType, appName))
+	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for app %s", pipelineType, appName))
 	if len(branch) > 0 {
-		stringBuilder.WriteString(fmt.Sprintf(", the branch %s", branch))
+		stringBuilder.WriteString(fmt.Sprintf(", branch %s", branch))
 	}
-	if len(branch) > 0 {
-		stringBuilder.WriteString(fmt.Sprintf(", the commit %s", commitID))
+	if len(commitID) > 0 {
+		stringBuilder.WriteString(fmt.Sprintf(", commit %s", commitID))
 	}
 	log.Ctx(ctx).Info().Msg(stringBuilder.String())
 }
 
-func (step *PreparePipelinesStepImplementation) prepareSubPipelineForTargetEnv(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, error) {
+func (step *PreparePipelinesStepImplementation) prepareSubPipelineForEnvironment(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, error) {
 	subPipelineExists, pipelineFilePath, pl, tasks, err := step.subPipelineReader.ReadPipelineAndTasks(pipelineInfo, envName)
 	if err != nil {
 		return false, "", err
@@ -408,16 +391,17 @@ func (step *PreparePipelinesStepImplementation) prepareSubPipelineForTargetEnv(p
 	if !subPipelineExists {
 		return false, "", nil
 	}
-	if err = step.createPipeline(envName, pl, tasks, timestamp, pipelineInfo); err != nil {
+	if err = step.createSubPipelineAndTasks(envName, pl, tasks, timestamp, pipelineInfo); err != nil {
 		return false, "", err
 	}
 	return true, pipelineFilePath, nil
 }
 
-func (step *PreparePipelinesStepImplementation) buildTasks(envName string, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) (map[string]v1.Task, error) {
+func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName string, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) (map[string]v1.Task, error) {
 	var errs []error
 	taskMap := make(map[string]v1.Task)
 	hash := internal.GetJobNameHash(pipelineInfo)
+
 	for _, task := range tasks {
 		originalTaskName := task.Name
 		task.ObjectMeta.Name = fmt.Sprintf("radix-task-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalTaskName), timestamp, hash)
@@ -444,13 +428,13 @@ func (step *PreparePipelinesStepImplementation) buildTasks(envName string, tasks
 		}
 
 		task.ObjectMeta.Annotations[defaults.PipelineTaskNameAnnotation] = originalTaskName
+
 		if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 		}
 
 		ensureCorrectSecureContext(&task)
 		taskMap[originalTaskName] = task
-		log.Debug().Msgf("created the task %s", task.Name)
 	}
 	return taskMap, errors.Join(errs...)
 }
@@ -524,15 +508,15 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	securityContext.Capabilities.Drop = []corev1.Capability{"ALL"}
 }
 
-func (step *PreparePipelinesStepImplementation) createPipeline(envName string, pipeline *v1.Pipeline, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) error {
+func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envName string, pipeline *v1.Pipeline, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) error {
 	originalPipelineName := pipeline.Name
 	var errs []error
-	taskMap, err := step.buildTasks(envName, tasks, timestamp, pipelineInfo)
+	taskMap, err := step.buildSubPipelineTasks(envName, tasks, timestamp, pipelineInfo)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %w", originalPipelineName, err))
 	}
 
-	_, azureClientIdPipelineParamExist := step.GetEnvVars(pipelineInfo.RadixApplication, envName)[pipelineDefaults.AzureClientIdEnvironmentVariable]
+	_, azureClientIdPipelineParamExist := internalsubpipeline.GetEnvVars(pipelineInfo.GetRadixApplication(), envName)[pipelineDefaults.AzureClientIdEnvironmentVariable]
 	if azureClientIdPipelineParamExist {
 		ensureAzureClientIdParamExistInPipelineParams(pipeline)
 	}
@@ -631,54 +615,6 @@ func pipelineTaskHasAzureIdentityClientIdParam(pipeline *v1.Pipeline, taskIndex 
 	})
 }
 
-func (step *PreparePipelinesStepImplementation) setPipelineRunParamsFromBuild(ra *radixv1.RadixApplication, envVarsMap radixv1.EnvVarsMap) {
-	if ra.Spec.Build == nil {
-		return
-	}
-	setBuildIdentity(envVarsMap, ra.Spec.Build.SubPipeline)
-	setBuildVariables(envVarsMap, ra.Spec.Build.SubPipeline, ra.Spec.Build.Variables)
-}
-
-func setBuildVariables(envVarsMap radixv1.EnvVarsMap, subPipeline *radixv1.SubPipeline, variables radixv1.EnvVarsMap) {
-	if subPipeline != nil {
-		setVariablesToEnvVarsMap(envVarsMap, subPipeline.Variables) // sub-pipeline variables have higher priority over build variables
-		return
-	}
-	setVariablesToEnvVarsMap(envVarsMap, variables) // keep for backward compatibility
-}
-
-func setVariablesToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, variables radixv1.EnvVarsMap) {
-	for name, envVar := range variables {
-		envVarsMap[name] = envVar
-	}
-}
-
-func setBuildIdentity(envVarsMap radixv1.EnvVarsMap, subPipeline *radixv1.SubPipeline) {
-	if subPipeline != nil {
-		setIdentityToEnvVarsMap(envVarsMap, subPipeline.Identity)
-	}
-}
-
-func setIdentityToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, identity *radixv1.Identity) {
-	if identity == nil || identity.Azure == nil {
-		return
-	}
-	if len(identity.Azure.ClientId) > 0 {
-		envVarsMap[pipelineDefaults.AzureClientIdEnvironmentVariable] = identity.Azure.ClientId // if build env-var or build environment env-var have this variable explicitly set, it will override this identity set env-var
-	} else {
-		delete(envVarsMap, pipelineDefaults.AzureClientIdEnvironmentVariable)
-	}
-}
-
-func (step *PreparePipelinesStepImplementation) setPipelineRunParamsFromEnvironmentBuilds(ra *radixv1.RadixApplication, targetEnv string, envVarsMap radixv1.EnvVarsMap) {
-	for _, buildEnv := range ra.Spec.Environments {
-		if strings.EqualFold(buildEnv.Name, targetEnv) {
-			setBuildIdentity(envVarsMap, buildEnv.SubPipeline)
-			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
-		}
-	}
-}
-
 func setTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	log.Ctx(ctx).Debug().Msg("Set target environments")
 	targetEnvironments, environmentsToIgnore, err := getTargetEnvironments(ctx, pipelineInfo)
@@ -687,9 +623,9 @@ func setTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo
 	}
 	pipelineInfo.TargetEnvironments = targetEnvironments
 	if len(pipelineInfo.TargetEnvironments) > 0 {
-		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to the branch %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetBranch())
+		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to branch %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetBranch())
 	} else {
-		log.Ctx(ctx).Info().Msgf("No environments are mapped to the branch %s.", pipelineInfo.GetBranch())
+		log.Ctx(ctx).Info().Msgf("No environments are mapped to branch %s.", pipelineInfo.GetBranch())
 	}
 	if len(environmentsToIgnore) > 0 {
 		log.Ctx(ctx).Info().Msgf("The following environment(s) are configured to be ignored when triggered from GitHub webhook: %s", strings.Join(environmentsToIgnore, ", "))

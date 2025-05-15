@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	internalsubpipeline "github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
@@ -41,6 +42,7 @@ type RunPipelinesStepImplementation struct {
 // NewRunPipelinesStep Constructor.
 // jobWaiter is optional and will be set by Init(...) function if nil.
 func NewRunPipelinesStep(options ...RunPipelinesStepImplementationOption) model.Step {
+
 	step := &RunPipelinesStepImplementation{
 		stepType: pipeline.RunPipelinesStep,
 	}
@@ -86,62 +88,6 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 	appName := step.GetAppName()
 	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 	return step.RunPipelinesJob(pipelineInfo)
-}
-
-func (step *RunPipelinesStepImplementation) getEnvVars(pipelineInfo *model.PipelineInfo, envName string) radixv1.EnvVarsMap {
-	envVarsMap := make(radixv1.EnvVarsMap)
-	step.setPipelineRunParamsFromBuild(pipelineInfo, envVarsMap)
-	step.setPipelineRunParamsFromEnvironmentBuilds(pipelineInfo, envName, envVarsMap)
-	return envVarsMap
-}
-
-func (step *RunPipelinesStepImplementation) setPipelineRunParamsFromBuild(pipelineInfo *model.PipelineInfo, envVarsMap radixv1.EnvVarsMap) {
-	ra := pipelineInfo.GetRadixApplication()
-	if ra.Spec.Build == nil {
-		return
-	}
-	setBuildIdentity(envVarsMap, ra.Spec.Build.SubPipeline)
-	setBuildVariables(envVarsMap, ra.Spec.Build.SubPipeline, ra.Spec.Build.Variables)
-}
-
-func setBuildVariables(envVarsMap radixv1.EnvVarsMap, subPipeline *radixv1.SubPipeline, variables radixv1.EnvVarsMap) {
-	if subPipeline != nil {
-		setVariablesToEnvVarsMap(envVarsMap, subPipeline.Variables) // sub-pipeline variables have higher priority over build variables
-		return
-	}
-	setVariablesToEnvVarsMap(envVarsMap, variables) // keep for backward compatibility
-}
-
-func setVariablesToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, variables radixv1.EnvVarsMap) {
-	for name, envVar := range variables {
-		envVarsMap[name] = envVar
-	}
-}
-
-func setBuildIdentity(envVarsMap radixv1.EnvVarsMap, subPipeline *radixv1.SubPipeline) {
-	if subPipeline != nil {
-		setIdentityToEnvVarsMap(envVarsMap, subPipeline.Identity)
-	}
-}
-
-func setIdentityToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, identity *radixv1.Identity) {
-	if identity == nil || identity.Azure == nil {
-		return
-	}
-	if len(identity.Azure.ClientId) > 0 {
-		envVarsMap[defaults.AzureClientIdEnvironmentVariable] = identity.Azure.ClientId // if build env-var or build environment env-var have this variable explicitly set, it will override this identity set env-var
-	} else {
-		delete(envVarsMap, defaults.AzureClientIdEnvironmentVariable)
-	}
-}
-
-func (step *RunPipelinesStepImplementation) setPipelineRunParamsFromEnvironmentBuilds(pipelineInfo *model.PipelineInfo, targetEnv string, envVarsMap radixv1.EnvVarsMap) {
-	for _, buildEnv := range pipelineInfo.GetRadixApplication().Spec.Environments {
-		if strings.EqualFold(buildEnv.Name, targetEnv) {
-			setBuildIdentity(envVarsMap, buildEnv.SubPipeline)
-			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
-		}
-	}
 }
 
 type RunPipelinesStepImplementationOption func(step *RunPipelinesStepImplementation)
@@ -277,7 +223,7 @@ func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipeline
 }
 
 func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipelinev1.Pipeline, targetEnv string, pipelineInfo *model.PipelineInfo) []pipelinev1.Param {
-	envVars := step.getEnvVars(pipelineInfo, targetEnv)
+	envVars := internalsubpipeline.GetEnvVars(pipelineInfo.GetRadixApplication(), targetEnv)
 	pipelineParamsMap := getPipelineParamSpecsMap(pipeline)
 	var pipelineParams []pipelinev1.Param
 	for envVarName, envVarValue := range envVars {
