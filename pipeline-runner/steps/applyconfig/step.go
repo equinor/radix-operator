@@ -138,11 +138,14 @@ func (step *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.C
 	if err != nil {
 		return err
 	}
+
 	setPipelineBuildComponentImages(pipelineInfo, componentImageSourceMap)
 	setPipelineDeployEnvironmentComponentImages(pipelineInfo, componentImageSourceMap)
+
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
 		printEnvironmentComponentImageSources(ctx, componentImageSourceMap)
 	}
+
 	return nil
 }
 
@@ -436,7 +439,7 @@ func mustBuildComponentForEnvironment(ctx context.Context, environmentName strin
 		return true
 	}
 
-	if buildContext == nil || currentRd == nil {
+	if currentRd == nil {
 		return alwaysBuild, nil
 	}
 

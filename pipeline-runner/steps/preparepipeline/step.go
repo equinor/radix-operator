@@ -95,7 +95,7 @@ func NewPreparePipelinesStep(opt ...Option) model.Step {
 func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 	if step.contextBuilder == nil {
-		step.contextBuilder = prepareInternal.NewContextBuilder(kubeClient, radixClient)
+		step.contextBuilder = prepareInternal.NewContextBuilder(kubeUtil)
 	}
 	if step.subPipelineReader == nil {
 		step.subPipelineReader = prepareInternal.NewSubPipelineReader()
@@ -147,16 +147,12 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 		}
 	}
 
-	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
-		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(ctx, pipelineInfo)
-	}
-
-	if pipelineInfo.StopPipeline {
-		return nil
-	}
-
 	if err = step.setSubPipelinesToRun(ctx, pipelineInfo); err != nil {
 		return err
+	}
+
+	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
+		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo)
 	}
 
 	return nil
@@ -174,6 +170,10 @@ func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo 
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get latest commit for branch %s: %w", pipelineInfo.PipelineArguments.Branch, err)
 		}
+	}
+
+	if err := repo.CheckoutBranch(pipelineInfo.PipelineArguments.Branch); err != nil {
+		return "", "", fmt.Errorf("failed to checkout branch %s: %w", pipelineInfo.PipelineArguments.Branch, err)
 	}
 
 	isAncestor, err := repo.IsAncestor(commit, pipelineInfo.PipelineArguments.Branch)
@@ -355,20 +355,20 @@ func containsRegex(value string) bool {
 	return false
 }
 
-func getPipelineShouldBeStopped(ctx context.Context, pipelineInfo *model.PipelineInfo) (bool, string) {
+func getPipelineShouldBeStopped(pipelineInfo *model.PipelineInfo) (bool, string) {
 	if pipelineInfo.BuildContext == nil || pipelineInfo.BuildContext.ChangedRadixConfig ||
 		len(pipelineInfo.BuildContext.EnvironmentsToBuild) == 0 ||
 		len(pipelineInfo.EnvironmentSubPipelinesToRun) > 0 {
 		return false, ""
 	}
+
 	for _, environmentToBuild := range pipelineInfo.BuildContext.EnvironmentsToBuild {
 		if len(environmentToBuild.Components) > 0 {
 			return false, ""
 		}
 	}
-	message := "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
-	log.Ctx(ctx).Info().Msg(message)
-	return true, message
+
+	return true, "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
 }
 
 func logPipelineInfo(ctx context.Context, pipelineType radixv1.RadixPipelineType, appName, branch, commitID string) {
@@ -546,7 +546,7 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 	if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
 		pipeline.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 	}
-	err = step.createTasks(taskMap)
+	err = step.createSubPipelineTasks(taskMap)
 	if err != nil {
 		return fmt.Errorf("tasks have not been created. Error: %w", err)
 	}
@@ -560,7 +560,7 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 	return nil
 }
 
-func (step *PreparePipelinesStepImplementation) createTasks(taskMap map[string]v1.Task) error {
+func (step *PreparePipelinesStepImplementation) createSubPipelineTasks(taskMap map[string]v1.Task) error {
 	namespace := utils.GetAppNamespace(step.GetAppName())
 	var errs []error
 	for _, task := range taskMap {

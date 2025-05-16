@@ -223,7 +223,7 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			beforeCommitExclusive: "",
 			configFile:            "radixconfig.yaml",
 			configBranch:          "main",
-			expectedError:         "invalid targetCommit",
+			expectedError:         "reference not found",
 		},
 		{
 			name:                  "invalid empty target commit",

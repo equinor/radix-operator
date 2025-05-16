@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strings"
@@ -8,9 +9,8 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"k8s.io/client-go/kubernetes"
 )
 
 type ContextBuilder interface {
@@ -18,14 +18,12 @@ type ContextBuilder interface {
 }
 
 type contextBuilder struct {
-	kubeClient  kubernetes.Interface
-	radixClient radixclient.Interface
+	kubeUtil *kube.Kube
 }
 
-func NewContextBuilder(kubeClient kubernetes.Interface, radixClient radixclient.Interface) ContextBuilder {
+func NewContextBuilder(kubeUtil *kube.Kube) ContextBuilder {
 	return &contextBuilder{
-		kubeClient:  kubeClient,
-		radixClient: radixClient,
+		kubeUtil: kubeUtil,
 	}
 }
 
@@ -67,37 +65,45 @@ func cleanPathAndSurroundBySlashes(dir string) string {
 
 // GetBuildContext Prepare build context
 func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo) (*model.BuildContext, error) {
-	buildContext := model.BuildContext{}
-	if len(pipelineInfo.PipelineArguments.CommitID) > 0 {
-		radixConfigWasChanged, environmentsToBuild, err := cb.analyseSourceRepositoryChanges(pipelineInfo)
-		if err != nil {
-			return nil, err
-		}
-		buildContext.ChangedRadixConfig = radixConfigWasChanged
-		buildContext.EnvironmentsToBuild = environmentsToBuild
-	} // when commit hash is not provided, build all
+	if len(pipelineInfo.PipelineArguments.CommitID) == 0 {
+		return nil, nil
+	}
+
+	radixConfigWasChanged, environmentsToBuild, err := cb.analyseSourceRepositoryChanges(pipelineInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	buildContext := model.BuildContext{
+		ChangedRadixConfig:  radixConfigWasChanged,
+		EnvironmentsToBuild: environmentsToBuild,
+	}
 
 	return &buildContext, nil
 }
 
 func (cb *contextBuilder) analyseSourceRepositoryChanges(pipelineInfo *model.PipelineInfo) (bool, []model.EnvironmentToBuild, error) {
-	radixDeploymentCommitHashProvider := commithash.NewProvider(cb.kubeClient, cb.radixClient, pipelineInfo.GetAppName(), pipelineInfo.TargetEnvironments)
-	lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
-	if err != nil {
-		return false, nil, err
+	radixDeploymentCommitHashProvider := commithash.NewProvider(cb.kubeUtil) //cb.kubeClient, cb.radixClient, pipelineInfo.GetAppName(), pipelineInfo.TargetEnvironments
+
+	var changedRadixConfig bool
+	envChangedDirs := make(map[string][]string)
+	for _, envName := range pipelineInfo.TargetEnvironments {
+		envCommitInfo, err := radixDeploymentCommitHashProvider.GetLastCommitHashForEnvironment(context.Background(), pipelineInfo.GetAppName(), envName)
+		if err != nil {
+			return false, nil, err
+		}
+
+		changedPaths, envChangedRadixConfig, err := git.GetChangesFromGitRepository(pipelineInfo.GetGitWorkspace(), pipelineInfo.GetRadixConfigBranch(), pipelineInfo.GetRadixConfigFileInWorkspace(), pipelineInfo.GitCommitHash, envCommitInfo.CommitHash)
+		if err != nil {
+			return false, nil, err
+		}
+
+		changedRadixConfig = changedRadixConfig || envChangedRadixConfig
+		envChangedDirs[envName] = changedPaths
 	}
 
-	changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(pipelineInfo.GetGitWorkspace(),
-		pipelineInfo.GetRadixConfigBranch(),
-		pipelineInfo.GetRadixConfigFileInWorkspace(),
-		pipelineInfo.GitCommitHash,
-		lastCommitHashesForEnvs)
-	if err != nil {
-		return false, nil, err
-	}
-
-	environmentsToBuild := cb.getEnvironmentsToBuild(pipelineInfo, changesFromGitRepository)
-	return radixConfigWasChanged, environmentsToBuild, nil
+	environmentsToBuild := cb.getEnvironmentsToBuild(pipelineInfo, envChangedDirs)
+	return changedRadixConfig, environmentsToBuild, nil
 }
 
 func (cb *contextBuilder) getEnvironmentsToBuild(pipelineInfo *model.PipelineInfo, changesFromGitRepository map[string][]string) []model.EnvironmentToBuild {

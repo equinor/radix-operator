@@ -4,19 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/maps"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	origin = "origin"
 )
 
 type Repository interface {
@@ -49,6 +51,8 @@ func (r *repository) CheckoutCommit(commit string) error {
 }
 
 func (r *repository) GetLatestCommitForBranch(branch string) (string, error) {
+	// TODO: enusre that we try to setup a branch with remote tracking if it doesn't exist
+
 	if _, err := r.repo.Branch(branch); err != nil {
 		return "", err
 	}
@@ -130,7 +134,50 @@ func (r *repository) checkoutBranchOrCommit(branch, commit string) error {
 		return worktree.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(commit)})
 	}
 
-	return worktree.Checkout(&git.CheckoutOptions{Branch: plumbing.NewBranchReferenceName(branch)})
+	if _, err := r.repo.Branch(branch); err != nil {
+		if !errors.Is(err, git.ErrBranchNotFound) {
+			return err
+		}
+
+		if err := r.trySetupRemoteBranchTracking(branch); err != nil {
+			return nil
+		}
+	}
+
+	return worktree.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(branch),
+	})
+}
+
+func (r *repository) trySetupRemoteBranchTracking(branch string) error {
+	if _, err := r.repo.Remote(origin); err != nil {
+		if errors.Is(err, git.ErrRemoteNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	remoteRefName := plumbing.NewRemoteReferenceName(origin, branch)
+	if _, err := r.repo.Reference(remoteRefName, true); err != nil {
+		if errors.Is(err, plumbing.ErrReferenceNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	localRefName := plumbing.NewBranchReferenceName(branch)
+
+	err := r.repo.CreateBranch(&config.Branch{
+		Name:   branch,
+		Remote: origin,
+		Merge:  localRefName,
+	})
+	if err != nil {
+		return err
+	}
+
+	newRef := plumbing.NewSymbolicReference(localRefName, remoteRefName)
+	return r.repo.Storer.SetReference(newRef)
 }
 
 func getGitDir(gitWorkspace string) string {
@@ -158,9 +205,12 @@ func getGitAffectedResourcesBetweenCommits(gitWorkspace, configBranch, configFil
 		return nil, false, errors.New("invalid targetCommit")
 	}
 
-	beforeCommit, err := findCommit(beforeCommitString, repository)
-	if err != nil {
-		return nil, false, err
+	var beforeCommit *object.Commit
+	if len(beforeCommitString) > 0 {
+		beforeCommit, err = findCommit(beforeCommitString, repository)
+		if err != nil {
+			return nil, false, err
+		}
 	}
 
 	return getChangedFoldersFromTargetCommitTillExclusiveBeforeCommit(targetCommit, beforeCommit, configBranch, currentBranch, configFile)
@@ -254,69 +304,72 @@ func appendFolderToMap(changedFolderNamesMap map[string]bool, changedConfigFile 
 
 // findCommit will return a Hash if found, or nil if not found.
 func findCommit(commitHash string, repository *git.Repository) (*object.Commit, error) {
-	logIter, err := repository.Log(&git.LogOptions{
-		Order: git.LogOrderBSF, // sorted from latest down to oldest
-	})
+	otherHash, err := repository.ResolveRevision(plumbing.Revision(commitHash))
 	if err != nil {
 		return nil, err
 	}
 
-	var hash plumbing.Hash
-	err = logIter.ForEach(func(c *object.Commit) error {
-		if c.Hash.String() == commitHash {
-			hash = c.Hash
-			return io.EOF
-		}
-		return nil // continue iteration loop
-	})
+	return repository.CommitObject(*otherHash)
 
-	if err != io.EOF {
-		return nil, err
-	}
+	// logIter, err := repository.Log(&git.LogOptions{
+	// 	Order: git.LogOrderBSF, // sorted from latest down to oldest
+	// })
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	if hash.IsZero() {
-		return nil, nil
-	}
+	// var hash plumbing.Hash
+	// err = logIter.ForEach(func(c *object.Commit) error {
+	// 	if c.Hash.String() == commitHash {
+	// 		hash = c.Hash
+	// 		return io.EOF
+	// 	}
+	// 	return nil // continue iteration loop
+	// })
 
-	return repository.CommitObject(hash)
+	// if err != io.EOF {
+	// 	return nil, err
+	// }
+
+	// if hash.IsZero() {
+	// 	return nil, nil
+	// }
+
+	// return repository.CommitObject(hash)
 }
 
 // GetChangesFromGitRepository Get changed folders in environments and if radixconfig.yaml was changed
-func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash string, lastCommitHashesForEnvs commithash.EnvCommitHashMap) (map[string][]string, bool, error) {
-	radixConfigWasChanged := false
-	envChanges := make(map[string][]string)
-	if len(lastCommitHashesForEnvs) == 0 {
-		log.Info().Msgf("No changes in GitHub repository")
-		return nil, false, nil
-	}
+func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash, beforeCommitHash string) ([]string, bool, error) {
+	// radixConfigWasChanged := false
+	// var envChanges []string
+
 	if strings.HasPrefix(radixConfigFileName, gitWorkspace) {
 		radixConfigFileName = strings.TrimPrefix(strings.TrimPrefix(radixConfigFileName, gitWorkspace), "/")
 	}
 	log.Info().Msgf("Changes in GitHub repository:")
-	for envName, radixDeploymentCommit := range lastCommitHashesForEnvs {
-		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash, radixDeploymentCommit.CommitHash)
-		envChanges[envName] = changedFolders
-		if err != nil {
-			return nil, false, err
-		}
-		radixConfigWasChanged = radixConfigWasChanged || radixConfigWasChangedInEnv
-		printEnvironmentChangedFolders(envName, radixDeploymentCommit, targetCommitHash, changedFolders)
-	}
-	if radixConfigWasChanged {
-		log.Info().Msgf("Radix config file was changed %s", radixConfigFileName)
-	}
-	return envChanges, radixConfigWasChanged, nil
+
+	return getGitAffectedResourcesBetweenCommits(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash, beforeCommitHash)
+	// if err != nil {
+	// 	return nil, false, err
+	// }
+	// radixConfigWasChanged = radixConfigWasChanged || radixConfigWasChangedInEnv
+	// printEnvironmentChangedFolders(envName, radixDeploymentCommit, targetCommitHash, changedFolders)
+
+	// if radixConfigWasChanged {
+	// 	log.Info().Msgf("Radix config file was changed %s", radixConfigFileName)
+	// }
+	// return changedFolders, radixConfigWasChanged, nil
 }
 
-func printEnvironmentChangedFolders(envName string, radixDeploymentCommit commithash.RadixDeploymentCommit, targetCommitHash string, changedFolders []string) {
-	log.Info().Msgf("- for the environment %s", envName)
-	if len(radixDeploymentCommit.RadixDeploymentName) == 0 {
-		log.Info().Msgf(" from initial commit to commit %s:", targetCommitHash)
-	} else {
-		log.Info().Msgf(" after the commit %s (of the deployment %s) to the commit %s:", radixDeploymentCommit.CommitHash, radixDeploymentCommit.RadixDeploymentName, targetCommitHash)
-	}
-	sort.Strings(changedFolders)
-	for _, folder := range changedFolders {
-		log.Info().Msgf("  - %s", folder)
-	}
-}
+// func printEnvironmentChangedFolders(envName string, radixDeploymentCommit commithash.RadixDeploymentCommit, targetCommitHash string, changedFolders []string) {
+// 	log.Info().Msgf("- for the environment %s", envName)
+// 	if len(radixDeploymentCommit.RadixDeploymentName) == 0 {
+// 		log.Info().Msgf(" from initial commit to commit %s:", targetCommitHash)
+// 	} else {
+// 		log.Info().Msgf(" after the commit %s (of the deployment %s) to the commit %s:", radixDeploymentCommit.CommitHash, radixDeploymentCommit.RadixDeploymentName, targetCommitHash)
+// 	}
+// 	sort.Strings(changedFolders)
+// 	for _, folder := range changedFolders {
+// 		log.Info().Msgf("  - %s", folder)
+// 	}
+// }
