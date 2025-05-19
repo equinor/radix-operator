@@ -10,6 +10,8 @@
       "env": {},
       "args": [
         "--RADIX_APP=oauth-demo",
+        "--BRANCH=feature2",
+        "--COMMIT_ID=2f41a3cced188a3889a2da8ec0dac68cde0981bd",
         "--JOB_NAME=radix-pipeline-20231113133209-r",
         "--PIPELINE_TYPE=build-deploy",
         "--DEBUG=true",
@@ -27,8 +29,6 @@
         "--RADIX_APP_CONTAINER_REGISTRY=radixdevapp.azurecr.io",
         "--AZURE_SUBSCRIPTION_ID=16ede44b-1f74-40a5-b428-46cca9a5741b",
         "--IMAGE_TAG=abcdg",
-        "--BRANCH=main",
-        "--COMMIT_ID=bd9e3db225a4467a4589274dd8da74160635ea63",
         "--PUSH_IMAGE=true",
         "--RADIX_FILE_NAME=radixconfig.yaml",
         // "--TO_ENVIRONMENT=dev",
@@ -37,7 +37,7 @@
         "--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
         "--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
         "--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=radix-external-registry-default-auth",
-        "--RADIX_GITHUB_WORKSPACE=/workspace"
+        "--RADIX_GITHUB_WORKSPACE=/home/nst/go/src/github.com/nilsgstrabo/aspnet-webapp"
       ]
     },
     {
