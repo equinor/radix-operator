@@ -45,6 +45,17 @@ const (
 	JobStoppedNoChanges RadixJobCondition = "StoppedNoChanges"
 )
 
+// GitEventRefsType Holds the type of git event refs
+// Read more about Git refs https://git-scm.com/book/en/v2/Git-Internals-Git-References
+type GitEventRefsType string
+
+const (
+	// GitEventRefBranch event sent when a commit is made to a branch
+	GitEventRefBranch GitEventRefsType = "branch"
+	// GitEventRefTag event sent when a tag is created
+	GitEventRefTag GitEventRefsType = "tag"
+)
+
 // RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
 	// AppName Name of the Radix application
@@ -68,6 +79,9 @@ type RadixJobSpec struct {
 	Stop bool `json:"stop"`
 	// TriggeredFromWebhook If true, the job was triggered from a webhook
 	TriggeredFromWebhook bool `json:"triggeredFromWebhook"`
+	// GitEventRefsType Holds a type of the git event refs when the pipeline job is triggered by a GitHub event via the Radix GitHUb webhook, otherwise it is nil
+	// Read more about Git refs https://git-scm.com/book/en/v2/Git-Internals-Git-References
+	GitEventRefsType *GitEventRefsType `json:"gitEventRefsType, omitempty"`
 	// TriggeredBy Name of the user or UID oa a system principal which triggered the job
 	TriggeredBy string `json:"triggeredBy"`
 	// Deprecated: radix-api will be responsible for setting the RadixConfigFullName, it is taken from the RadixRegistration by the radix-operator
