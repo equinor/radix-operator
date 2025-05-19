@@ -79,9 +79,6 @@ type RadixJobSpec struct {
 	Stop bool `json:"stop"`
 	// TriggeredFromWebhook If true, the job was triggered from a webhook
 	TriggeredFromWebhook bool `json:"triggeredFromWebhook"`
-	// GitEventRefsType Holds a type of the git event refs when the pipeline job is triggered by a GitHub event via the Radix GitHUb webhook, otherwise it is nil
-	// Read more about Git refs https://git-scm.com/book/en/v2/Git-Internals-Git-References
-	GitEventRefsType *GitEventRefsType `json:"gitEventRefsType, omitempty"`
 	// TriggeredBy Name of the user or UID oa a system principal which triggered the job
 	TriggeredBy string `json:"triggeredBy"`
 	// Deprecated: radix-api will be responsible for setting the RadixConfigFullName, it is taken from the RadixRegistration by the radix-operator
@@ -147,6 +144,13 @@ type RadixBuildSpec struct {
 	//
 	// +optional
 	RefreshBuildCache *bool `json:"refreshBuildCache,omitempty"`
+
+	// GitEventRefsType A target of the git event when the pipeline job is triggered by a GitHub event
+	// via the Radix GitHUb webhook: branch or tag (for refs/heads) or tag (for refs/tags), otherwise it is empty
+	//
+	// +kubebuilder:validation:Enum=branch;tag;""
+	// +optional
+	GitEventRefsType GitEventRefsType `json:"gitEventRefsType,omitempty"`
 }
 
 // RadixPromoteSpec is the spec for a promote job

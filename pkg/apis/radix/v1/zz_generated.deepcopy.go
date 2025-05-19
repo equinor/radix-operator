@@ -2941,11 +2941,6 @@ func (in *RadixJobSpec) DeepCopyInto(out *RadixJobSpec) {
 	out.Promote = in.Promote
 	in.Deploy.DeepCopyInto(&out.Deploy)
 	out.ApplyConfig = in.ApplyConfig
-	if in.GitEventRefsType != nil {
-		in, out := &in.GitEventRefsType, &out.GitEventRefsType
-		*out = new(GitEventRefsType)
-		**out = **in
-	}
 	return
 }
 
