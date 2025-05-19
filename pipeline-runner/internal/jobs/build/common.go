@@ -35,11 +35,12 @@ func getCommonJobLabels(appName, pipelineJobName, imageTag string) map[string]st
 	}
 }
 
-func getCommonJobAnnotations(branch string, componentImages ...pipeline.BuildComponentImage) map[string]string {
+func getCommonJobAnnotations(branch, gitEventRefsType string, componentImages ...pipeline.BuildComponentImage) map[string]string {
 	componentImagesAnnotation, _ := json.Marshal(componentImages)
 	return map[string]string{
-		kube.RadixBranchAnnotation:          branch,
-		kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
+		kube.RadixBranchAnnotation:           branch,
+		kube.RadixGitEventRefsTypeAnnotation: gitEventRefsType,
+		kube.RadixBuildComponentsAnnotation:  string(componentImagesAnnotation),
 	}
 }
 

@@ -154,9 +154,9 @@ func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineI
 	case v1.ApplyConfig:
 		log.Ctx(ctx).Info().Msgf("Apply radixconfig for application %s", appName)
 	case v1.BuildDeploy:
-		log.Ctx(ctx).Info().Msgf("Build and deploy application %s from branch %s", appName, branch)
+		log.Ctx(ctx).Info().Msgf("Build and deploy application %s from %s %s", appName, pipelineInfo.GetGitEventRefsType(), branch)
 	case v1.Build:
-		log.Ctx(ctx).Info().Msgf("Build application %s from branch %s", appName, branch)
+		log.Ctx(ctx).Info().Msgf("Build application %s from %s %s", appName, pipelineInfo.GetGitEventRefsType(), branch)
 	case v1.Deploy:
 		log.Ctx(ctx).Info().Msgf("Deploy application %s to environment %s", appName, pipelineInfo.GetRadixDeployToEnvironment())
 	case v1.Promote:

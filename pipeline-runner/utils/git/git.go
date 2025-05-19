@@ -49,8 +49,8 @@ func ResetGitHead(gitWorkspace, commitHashString string) error {
 }
 
 // GetCommitHashAndTags gets target commit hash and tags from GitHub repository
-func GetCommitHashAndTags(gitWorkspace, commitId, branchName string) (string, string, error) {
-	targetCommitHash, err := GetCommitHash(gitWorkspace, commitId, branchName)
+func GetCommitHashAndTags(gitWorkspace, commitId, branchName, gitEventRefsType string) (string, string, error) {
+	targetCommitHash, err := GetCommitHash(gitWorkspace, commitId, branchName, gitEventRefsType)
 	if err != nil {
 		return "", "", err
 	}
@@ -67,7 +67,7 @@ func getGitDir(gitWorkspace string) string {
 }
 
 // GetCommitHashFromHead returns the commit hash for the HEAD of branchName in gitDir
-func GetCommitHashFromHead(gitWorkspace string, branchName string) (string, error) {
+func GetCommitHashFromHead(gitWorkspace string, branchName string, gitEventRefsType string) (string, error) {
 	gitDir := getGitDir(gitWorkspace)
 	r, err := git.PlainOpen(gitDir)
 	if err != nil {
@@ -76,11 +76,11 @@ func GetCommitHashFromHead(gitWorkspace string, branchName string) (string, erro
 	log.Debug().Msgf("opened gitDir %s", gitDir)
 
 	// Get branchName hash
-	commitHash, err := getBranchCommitHash(r, branchName)
+	commitHash, err := getBranchCommitHash(r, branchName, gitEventRefsType)
 	if err != nil {
 		return "", err
 	}
-	log.Debug().Msgf("resolved branch %s", branchName)
+	log.Debug().Msgf("resolved s% %s", gitEventRefsType, branchName)
 
 	hashBytesString := hex.EncodeToString(commitHash[:])
 	return hashBytesString, nil
@@ -230,7 +230,7 @@ func findCommit(commitHash string, repository *git.Repository) (*object.Commit, 
 	return repository.CommitObject(hash)
 }
 
-func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, error) {
+func getBranchCommitHash(r *git.Repository, branchName, gitEventRefsType string) (*plumbing.Hash, error) {
 	// first, we try to resolve a local revision. If possible, this is best. This succeeds if code branch and config
 	// branch are the same
 	commitHash, err := r.ResolveRevision(plumbing.Revision(branchName))
@@ -240,7 +240,7 @@ func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, 
 		commitHash, err = r.ResolveRevision(plumbing.Revision(fmt.Sprintf("refs/remotes/origin/%s", branchName)))
 		if err != nil {
 			if strings.EqualFold(err.Error(), "reference not found") {
-				return nil, fmt.Errorf("there is no branch %s or access to the repository", branchName)
+				return nil, fmt.Errorf("there is no s% %s or access to the repository", gitEventRefsType, branchName)
 			}
 			return nil, err
 		}
@@ -297,14 +297,14 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 
 // GetCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
 // build branch
-func GetCommitHash(gitWorkspace, commitId, branchName string) (string, error) {
+func GetCommitHash(gitWorkspace, commitId, branchName, gitEventRefsType string) (string, error) {
 	if commitId != "" {
 		log.Debug().Msgf("got git commit hash %s from env var %s", commitId, defaults.RadixCommitIdEnvironmentVariable)
 		return commitId, nil
 	}
-	log.Debug().Msgf("determining git commit hash of HEAD of branch %s", branchName)
-	gitCommitHash, err := GetCommitHashFromHead(gitWorkspace, branchName)
-	log.Debug().Msgf("got git commit hash %s from HEAD of branch %s", gitCommitHash, branchName)
+	log.Debug().Msgf("determining git commit hash of HEAD of s% %s", gitEventRefsType, branchName)
+	gitCommitHash, err := GetCommitHashFromHead(gitWorkspace, branchName, gitEventRefsType)
+	log.Debug().Msgf("got git commit hash %s from HEAD of s% %s", gitCommitHash, gitEventRefsType, branchName)
 	return gitCommitHash, err
 }
 

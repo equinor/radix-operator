@@ -103,7 +103,7 @@ func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo) (*mo
 
 func getGitAttributes(pipelineInfo *model.PipelineInfo) (string, string, error) {
 	pipelineArgs := pipelineInfo.PipelineArguments
-	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
+	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch, pipelineInfo.GetGitEventRefsType())
 	if err != nil {
 		return "", "", err
 	}
@@ -173,7 +173,7 @@ func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
 			log.Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
 			return "", nil
 		}
-		sourceRdHashFromBranchHead, err := git.GetCommitHashFromHead(pipelineInfo.GetGitWorkspace(), sourceDeploymentGitBranch)
+		sourceRdHashFromBranchHead, err := git.GetCommitHashFromHead(pipelineInfo.GetGitWorkspace(), sourceDeploymentGitBranch, "branch")
 		if err != nil {
 			return "", nil
 		}
@@ -187,14 +187,14 @@ func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
 			pipelineJobBranch = re.Build.From
 		}
 		if pipelineJobBranch == "" {
-			log.Info().Msg("Deploy job with no build branch, skipping sub-pipelines.")
+			log.Info().Msgf("Deploy job with no build s%, skipping sub-pipelines.", pipelineInfo.GetGitEventRefsType())
 			return "", nil
 		}
 		if containsRegex(pipelineJobBranch) {
-			log.Info().Msg("Deploy job with build branch having regex pattern, skipping sub-pipelines.")
+			log.Info().Msgf("Deploy job with build %s having regex pattern, skipping sub-pipelines.", pipelineInfo.GetGitEventRefsType())
 			return "", nil
 		}
-		gitHash, err := git.GetCommitHashFromHead(pipelineArgs.GitWorkspace, pipelineJobBranch)
+		gitHash, err := git.GetCommitHashFromHead(pipelineArgs.GitWorkspace, pipelineJobBranch, "branch")
 		if err != nil {
 			return "", err
 		}
@@ -202,7 +202,7 @@ func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
 	}
 
 	if pipelineType == v1.BuildDeploy || pipelineType == v1.Build {
-		gitHash, err := git.GetCommitHash(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch)
+		gitHash, err := git.GetCommitHash(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch, pipelineInfo.GetGitEventRefsType())
 		if err != nil {
 			return "", err
 		}

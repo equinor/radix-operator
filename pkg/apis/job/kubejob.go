@@ -228,6 +228,7 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 	case radixv1.BuildDeploy, radixv1.Build:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitEventRefsTypeEnvironmentVariable, jobSpec.Build.GitEventRefsType))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, jobSpec.Build.ToEnvironment))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
