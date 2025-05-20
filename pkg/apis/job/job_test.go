@@ -164,7 +164,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
-	appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	appName, jobName, branch, gitRefsType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "tag", "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName(appName).WithRadixConfigFullName("some-radixconfig.yaml").BuildRR(), metav1.CreateOptions{})
 	s.Require().NoError(err)
 	config := getConfigWithPipelineJobsHistoryLimit(3)
@@ -172,6 +172,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		WithJobName(jobName).
 		WithAppName(appName).
 		WithBranch(branch).
+		WithGitRefsType(gitRefsType).
 		WithToEnvironment(envName).
 		WithCommitID(commitID).
 		WithPushImage(true).
@@ -186,7 +187,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	s.Equal(GetOwnerReference(rj), job.OwnerReferences)
 	expectedJobLabels := map[string]string{kube.RadixJobNameLabel: jobName, "radix-pipeline": string(radixv1.BuildDeploy), kube.RadixJobTypeLabel: kube.RadixJobTypeJob, kube.RadixAppLabel: appName, kube.RadixCommitLabel: commitID, kube.RadixImageTagLabel: imageTag}
 	s.Equal(expectedJobLabels, job.Labels)
-	expectedJobAnnotations := map[string]string{kube.RadixBranchAnnotation: branch}
+	expectedJobAnnotations := map[string]string{kube.RadixBranchAnnotation: branch, kube.RadixGitTagsAnnotation: gitRefsType}
 	s.Equal(expectedJobAnnotations, job.Annotations)
 	podTemplate := job.Spec.Template
 	s.Equal(annotations.ForClusterAutoscalerSafeToEvict(false), podTemplate.Annotations)
@@ -236,6 +237,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE=%s", s.config.bashImage),
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				fmt.Sprintf("--BRANCH=%s", branch),
+				fmt.Sprintf("--GIT_REFS_TYPE=%s", gitRefsType),
 				fmt.Sprintf("--TO_ENVIRONMENT=%s", envName),
 				fmt.Sprintf("--COMMIT_ID=%s", commitID),
 				"--PUSH_IMAGE=1",

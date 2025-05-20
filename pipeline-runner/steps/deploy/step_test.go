@@ -68,7 +68,7 @@ func (s *deployTestSuite) Test_EmptyTargetEnvironments_SkipDeployment() {
 }
 
 func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists() {
-	appName, envName, branch, jobName, imageTag, commitId, gitTags, gitEventRefsType := "anyapp", "dev", "master", "anyjobname", "anyimagetag", "anycommit", "gittags", "tag"
+	appName, envName, branch, jobName, imageTag, commitId, gitTags, gitRefsType := "anyapp", "dev", "master", "anyjobname", "anyimagetag", "anycommit", "gittags", "tag"
 	rr := utils.ARadixRegistration().
 		WithName(appName).
 		BuildRR()
@@ -149,10 +149,10 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:          jobName,
-			ImageTag:         imageTag,
-			Branch:           branch,
-			GitEventRefsType: gitEventRefsType,
+			JobName:     jobName,
+			ImageTag:    imageTag,
+			Branch:      branch,
+			GitRefsType: gitRefsType,
 		},
 		RadixApplication:   ra,
 		TargetEnvironments: []string{envName},
@@ -181,11 +181,11 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 		s.Equal(commitId, rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
 		s.Equal(gitTags, rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 		s.NotEmpty(rdDev.Annotations[kube.RadixBranchAnnotation])
-		s.NotEmpty(rdDev.Annotations[kube.RadixGitEventRefsTypeAnnotation])
+		s.NotEmpty(rdDev.Annotations[kube.RadixGitRefsTypeAnnotation])
 		s.NotEmpty(rdDev.Labels[kube.RadixCommitLabel])
 		s.NotEmpty(rdDev.Labels["radix-job-name"])
 		s.Equal(branch, rdDev.Annotations[kube.RadixBranchAnnotation])
-		s.Equal(gitEventRefsType, rdDev.Annotations[kube.RadixGitEventRefsTypeAnnotation])
+		s.Equal(gitRefsType, rdDev.Annotations[kube.RadixGitRefsTypeAnnotation])
 		s.Equal(commitId, rdDev.Labels[kube.RadixCommitLabel])
 		s.Equal(jobName, rdDev.Labels["radix-job-name"])
 	})

@@ -85,7 +85,7 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 	appName := step.GetAppName()
-	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for s% %s and commit %s", appName, pipelineInfo.GetGitEventRefsType(), branch, commitID)
+	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for %s %s and commit %s", appName, pipelineInfo.GetGitRefsType(), branch, commitID)
 	return step.RunPipelinesJob(pipelineInfo)
 }
 
@@ -182,7 +182,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 			tektonPipelineBranch = pipelineInfo.GetRadixConfigBranch() // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
 		}
 	}
-	log.Info().Msgf("Run tekton pipelines for the %s %s", pipelineInfo.GetGitEventRefsType(), tektonPipelineBranch)
+	log.Info().Msgf("Run tekton pipelines for the %s %s", pipelineInfo.GetGitRefsType(), tektonPipelineBranch)
 
 	pipelineRunMap, err := step.runPipelines(pipelineList.Items, namespace, pipelineInfo)
 
@@ -235,6 +235,7 @@ func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev
 			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv),
 			Annotations: map[string]string{
 				kube.RadixBranchAnnotation:              pipelineInfo.PipelineArguments.Branch,
+				kube.RadixGitTagsAnnotation:             pipelineInfo.PipelineArguments.GitRefsType,
 				operatorDefaults.PipelineNameAnnotation: originalPipelineName,
 			},
 		},

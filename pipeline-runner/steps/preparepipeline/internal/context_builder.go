@@ -103,7 +103,7 @@ func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo) (*mo
 
 func getGitAttributes(pipelineInfo *model.PipelineInfo) (string, string, error) {
 	pipelineArgs := pipelineInfo.PipelineArguments
-	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch, pipelineInfo.GetGitEventRefsType())
+	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch, pipelineInfo.GetGitRefsType())
 	if err != nil {
 		return "", "", err
 	}
@@ -187,11 +187,11 @@ func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
 			pipelineJobBranch = re.Build.From
 		}
 		if pipelineJobBranch == "" {
-			log.Info().Msgf("Deploy job with no build s%, skipping sub-pipelines.", pipelineInfo.GetGitEventRefsType())
+			log.Info().Msgf("Deploy job with no build %s, skipping sub-pipelines.", pipelineInfo.GetGitRefsType())
 			return "", nil
 		}
 		if containsRegex(pipelineJobBranch) {
-			log.Info().Msgf("Deploy job with build %s having regex pattern, skipping sub-pipelines.", pipelineInfo.GetGitEventRefsType())
+			log.Info().Msgf("Deploy job with build %s having regex pattern, skipping sub-pipelines.", pipelineInfo.GetGitRefsType())
 			return "", nil
 		}
 		gitHash, err := git.GetCommitHashFromHead(pipelineArgs.GitWorkspace, pipelineJobBranch, "branch")
@@ -202,7 +202,7 @@ func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
 	}
 
 	if pipelineType == v1.BuildDeploy || pipelineType == v1.Build {
-		gitHash, err := git.GetCommitHash(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch, pipelineInfo.GetGitEventRefsType())
+		gitHash, err := git.GetCommitHash(pipelineArgs.GitWorkspace, pipelineArgs.CommitID, pipelineArgs.Branch, pipelineInfo.GetGitRefsType())
 		if err != nil {
 			return "", err
 		}

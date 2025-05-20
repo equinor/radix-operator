@@ -96,9 +96,9 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			assert.Equal(t, expectedJobLabels, job.Labels)
 			componentImagesAnnotation, _ := json.Marshal([]pipeline.BuildComponentImage{ci})
 			expectedJobAnnotations := map[string]string{
-				kube.RadixBranchAnnotation:           args.Branch,
-				kube.RadixGitEventRefsTypeAnnotation: args.GitEventRefsType,
-				kube.RadixBuildComponentsAnnotation:  string(componentImagesAnnotation),
+				kube.RadixBranchAnnotation:          args.Branch,
+				kube.RadixGitRefsTypeAnnotation:     args.GitRefsType,
+				kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
 			}
 			assert.Equal(t, expectedJobAnnotations, job.Annotations)
 			assert.Equal(t, pointers.Ptr[int32](0), job.Spec.BackoffLimit)

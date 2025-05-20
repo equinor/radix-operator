@@ -97,7 +97,7 @@ func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 	commitID := pipelineInfo.GitCommitHash
 
 	if len(pipelineInfo.TargetEnvironments) == 0 {
-		log.Ctx(ctx).Info().Msgf("Skip build step as %s %s is not mapped to any environment", pipelineInfo.GetGitEventRefsType(), pipelineInfo.PipelineArguments.Branch)
+		log.Ctx(ctx).Info().Msgf("Skip build step as %s %s is not mapped to any environment", pipelineInfo.GetGitRefsType(), pipelineInfo.PipelineArguments.Branch)
 		return nil
 	}
 
@@ -106,7 +106,7 @@ func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 		return nil
 	}
 
-	log.Ctx(ctx).Info().Msgf("Building app %s for %s %s and commit %s", step.GetAppName(), pipelineInfo.GetGitEventRefsType(), branch, commitID)
+	log.Ctx(ctx).Info().Msgf("Building app %s for %s %s and commit %s", step.GetAppName(), pipelineInfo.GetGitRefsType(), branch, commitID)
 
 	if err := step.validateBuildSecrets(pipelineInfo); err != nil {
 		return err

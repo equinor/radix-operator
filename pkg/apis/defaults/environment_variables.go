@@ -137,8 +137,8 @@ const (
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
 
-	// RadixGitEventRefsTypeEnvironmentVariable A target of the git event when the pipeline job is triggered by a GitHub event
-	RadixGitEventRefsTypeEnvironmentVariable = "GIT_EVENT_REFS_TYPE"
+	// RadixGitRefsTypeEnvironmentVariable A target of the git event when the pipeline job is triggered by a GitHub event
+	RadixGitRefsTypeEnvironmentVariable = "GIT_REFS_TYPE"
 
 	// RadixConfigBranchEnvironmentVariable Branch of the Radix application config
 	RadixConfigBranchEnvironmentVariable = "RADIX_CONFIG_BRANCH"

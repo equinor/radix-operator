@@ -17,6 +17,7 @@ type JobBuilder interface {
 	WithPipelineImageTag(string) JobBuilder
 	WithPipelineType(v1.RadixPipelineType) JobBuilder
 	WithBranch(branch string) JobBuilder
+	WithGitRefsType(gitRefsType string) JobBuilder
 	WithFromEnvironment(envName string) JobBuilder
 	WithToEnvironment(envName string) JobBuilder
 	WithCommitID(string) JobBuilder
@@ -44,6 +45,7 @@ type JobBuilderStruct struct {
 	emptyStatus           bool
 	status                v1.RadixJobStatus
 	branch                string
+	gitRefsType           string
 	deploymentName        string
 	commitID              string
 	imageTag              string
@@ -99,6 +101,12 @@ func (jb *JobBuilderStruct) WithTektonImageTag(imageTag string) JobBuilder {
 // WithBranch Sets branch
 func (jb *JobBuilderStruct) WithBranch(branch string) JobBuilder {
 	jb.branch = branch
+	return jb
+}
+
+// WithGitRefsType Sets gitRefsType
+func (jb *JobBuilderStruct) WithGitRefsType(gitRefsType string) JobBuilder {
+	jb.gitRefsType = gitRefsType
 	return jb
 }
 
@@ -198,8 +206,9 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 				kube.RadixAppLabel: jb.appName,
 			},
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:    jb.branch,
-				kube.RestoredStatusAnnotation: jb.restoredStatus,
+				kube.RadixBranchAnnotation:      jb.branch,
+				kube.RadixGitRefsTypeAnnotation: jb.gitRefsType,
+				kube.RestoredStatusAnnotation:   jb.restoredStatus,
 			},
 			CreationTimestamp: metav1.Time{Time: jb.created},
 		},
@@ -210,6 +219,7 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 			TektonImage:   jb.tektonImageTag,
 			Build: v1.RadixBuildSpec{
 				Branch:                jb.branch,
+				GitRefsType:           v1.GitRefsType(jb.gitRefsType),
 				ToEnvironment:         jb.toEnvironment,
 				ImageTag:              jb.imageTag,
 				CommitID:              jb.commitID,

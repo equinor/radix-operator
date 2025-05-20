@@ -61,9 +61,9 @@ type PipelineArguments struct {
 	PipelineType string
 	JobName      string
 	Branch       string
-	// GitEventRefsType A target of the git event when the pipeline job is triggered by a GitHub event
-	// via the Radix GitHUb webhook: branch or tag (for refs/heads) or tag (for refs/tags), otherwise it is empty
-	GitEventRefsType string
+	// GitRefsType A target of the git event when the pipeline job is triggered by a GitHub event
+	// via the Radix GitHUb webhook: branch (for refs/heads) or tag (for refs/tags), otherwise it is empty
+	GitRefsType string
 	// CommitID is sent from GitHub webhook. not to be confused with PipelineInfo.GitCommitHash
 	CommitID string
 	ImageTag string
@@ -278,10 +278,10 @@ func (p *PipelineInfo) SetBuildContext(context *BuildContext) *PipelineInfo {
 	return p
 }
 
-// GetGitEventRefsType Get git event refs type or "branch" by default
-func (p *PipelineInfo) GetGitEventRefsType() string {
-	if p.PipelineArguments.GitEventRefsType == "" {
+// GetGitRefsType Get git event refs type or "branch" by default
+func (p *PipelineInfo) GetGitRefsType() string {
+	if p.PipelineArguments.GitRefsType == "" {
 		return "branch"
 	}
-	return p.PipelineArguments.GitEventRefsType
+	return p.PipelineArguments.GitRefsType
 }

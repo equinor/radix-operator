@@ -231,7 +231,7 @@ func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Cont
 	stringBuilder := strings.Builder{}
 	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for the app %s", pipelineInfo.Definition.Type, step.GetAppName()))
 	if len(pipelineInfo.PipelineArguments.Branch) > 0 {
-		stringBuilder.WriteString(fmt.Sprintf(", the %s %s", pipelineInfo.GetGitEventRefsType(), pipelineInfo.PipelineArguments.Branch))
+		stringBuilder.WriteString(fmt.Sprintf(", the %s %s", pipelineInfo.GetGitRefsType(), pipelineInfo.PipelineArguments.Branch))
 	}
 	if len(pipelineInfo.PipelineArguments.Branch) > 0 {
 		stringBuilder.WriteString(fmt.Sprintf(", the commit %s", pipelineInfo.PipelineArguments.CommitID))
@@ -407,9 +407,9 @@ func (step *PreparePipelinesStepImplementation) createPipeline(envName string, p
 	pipeline.ObjectMeta.Name = pipelineName
 	pipeline.ObjectMeta.Labels = labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{
-		kube.RadixBranchAnnotation:           pipelineInfo.PipelineArguments.Branch,
-		kube.RadixGitEventRefsTypeAnnotation: pipelineInfo.PipelineArguments.GitEventRefsType,
-		defaults.PipelineNameAnnotation:      originalPipelineName,
+		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch,
+		kube.RadixGitRefsTypeAnnotation: pipelineInfo.PipelineArguments.GitRefsType,
+		defaults.PipelineNameAnnotation: originalPipelineName,
 	}
 	if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
 		pipeline.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
@@ -539,9 +539,9 @@ func setPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.Pipe
 	}
 	pipelineInfo.TargetEnvironments = targetEnvironments
 	if len(pipelineInfo.TargetEnvironments) > 0 {
-		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to the %s %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetGitEventRefsType(), pipelineInfo.GetBranch())
+		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to the %s %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetGitRefsType(), pipelineInfo.GetBranch())
 	} else {
-		log.Ctx(ctx).Info().Msgf("No environments are mapped to the s% %s.", pipelineInfo.GetGitEventRefsType(), pipelineInfo.GetBranch())
+		log.Ctx(ctx).Info().Msgf("No environments are mapped to the %s %s.", pipelineInfo.GetGitRefsType(), pipelineInfo.GetBranch())
 	}
 	if len(environmentsToIgnore) > 0 {
 		log.Ctx(ctx).Info().Msgf("The following environment(s) are configured to be ignored when triggered from GitHub webhook: %s", strings.Join(environmentsToIgnore, ", "))

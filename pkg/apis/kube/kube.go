@@ -19,7 +19,7 @@ import (
 // Radix Annotations
 const (
 	RadixBranchAnnotation                            = "radix-branch"
-	RadixGitEventRefsTypeAnnotation                  = "radix.equinor.com/git-event-refs-type"
+	RadixGitRefsTypeAnnotation                       = "radix.equinor.com/git-refs-type"
 	RadixGitTagsAnnotation                           = "radix.equinor.com/radix-git-tags"
 	RadixCommitAnnotation                            = "radix.equinor.com/radix-commit"
 	RadixConfigHash                                  = "radix.equinor.com/radix-config-hash"

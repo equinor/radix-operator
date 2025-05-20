@@ -45,15 +45,15 @@ const (
 	JobStoppedNoChanges RadixJobCondition = "StoppedNoChanges"
 )
 
-// GitEventRefsType Holds the type of git event refs
+// GitRefsType Holds the type of git event refs
 // Read more about Git refs https://git-scm.com/book/en/v2/Git-Internals-Git-References
-type GitEventRefsType string
+type GitRefsType string
 
 const (
-	// GitEventRefBranch event sent when a commit is made to a branch
-	GitEventRefBranch GitEventRefsType = "branch"
-	// GitEventRefTag event sent when a tag is created
-	GitEventRefTag GitEventRefsType = "tag"
+	// GitRefBranch event sent when a commit is made to a branch
+	GitRefBranch GitRefsType = "branch"
+	// GitRefTag event sent when a tag is created
+	GitRefTag GitRefsType = "tag"
 )
 
 // RadixJobSpec is the spec for a job
@@ -145,12 +145,15 @@ type RadixBuildSpec struct {
 	// +optional
 	RefreshBuildCache *bool `json:"refreshBuildCache,omitempty"`
 
-	// GitEventRefsType A target of the git event when the pipeline job is triggered by a GitHub event
-	// via the Radix GitHUb webhook: branch or tag (for refs/heads) or tag (for refs/tags), otherwise it is empty
+	// GitRefsType When the pipeline job is triggered by a GitHub event via the Radix GitHub webhook FromType can specify
+	// which Git references are applicable for this environment:
+	// - branch - only events on branches (for refs/heads)
+	// - tag - only events on tags (for refs/tags)
+	// - <empty> - events on both branches and tags
 	//
 	// +kubebuilder:validation:Enum=branch;tag;""
 	// +optional
-	GitEventRefsType GitEventRefsType `json:"gitEventRefsType,omitempty"`
+	GitRefsType GitRefsType `json:"gitRefsType,omitempty"`
 }
 
 // RadixPromoteSpec is the spec for a promote job
