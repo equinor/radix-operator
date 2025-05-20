@@ -164,7 +164,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
-	appName, jobName, branch, gitRefsType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "tag", "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	appName, jobName, branch, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anybranch", "anytag", "tag", "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName(appName).WithRadixConfigFullName("some-radixconfig.yaml").BuildRR(), metav1.CreateOptions{})
 	s.Require().NoError(err)
 	config := getConfigWithPipelineJobsHistoryLimit(3)
@@ -172,7 +172,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		WithJobName(jobName).
 		WithAppName(appName).
 		WithBranch(branch).
-		WithGitRefsType(gitRefsType).
+		WithGitRef(gitRef).
+		WithGitRefType(gitRefType).
 		WithToEnvironment(envName).
 		WithCommitID(commitID).
 		WithPushImage(true).
@@ -187,7 +188,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	s.Equal(GetOwnerReference(rj), job.OwnerReferences)
 	expectedJobLabels := map[string]string{kube.RadixJobNameLabel: jobName, "radix-pipeline": string(radixv1.BuildDeploy), kube.RadixJobTypeLabel: kube.RadixJobTypeJob, kube.RadixAppLabel: appName, kube.RadixCommitLabel: commitID, kube.RadixImageTagLabel: imageTag}
 	s.Equal(expectedJobLabels, job.Labels)
-	expectedJobAnnotations := map[string]string{kube.RadixBranchAnnotation: branch, kube.RadixGitTagsAnnotation: gitRefsType}
+	expectedJobAnnotations := map[string]string{kube.RadixBranchAnnotation: branch, kube.RadixGitRefAnnotation: gitRef, kube.RadixGitRefTypeAnnotation: gitRefType}
 	s.Equal(expectedJobAnnotations, job.Annotations)
 	podTemplate := job.Spec.Template
 	s.Equal(annotations.ForClusterAutoscalerSafeToEvict(false), podTemplate.Annotations)
@@ -237,7 +238,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE=%s", s.config.bashImage),
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				fmt.Sprintf("--BRANCH=%s", branch),
-				fmt.Sprintf("--GIT_REFS_TYPE=%s", gitRefsType),
+				fmt.Sprintf("--GIT_REF=%s", gitRef),
+				fmt.Sprintf("--GIT_REF_TYPE=%s", gitRefType),
 				fmt.Sprintf("--TO_ENVIRONMENT=%s", envName),
 				fmt.Sprintf("--COMMIT_ID=%s", commitID),
 				"--PUSH_IMAGE=1",
@@ -1584,7 +1586,7 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentIsSetWhenRadixApplicationExist(
 	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("test").WithBranch("master"), config)
 	s.Require().NoError(err)
 	// Master maps to Test env
-	s.Equal(job.Spec.Build.Branch, "master")
+	s.Equal(job.Spec.Build.GetGitRefOrDefault(), "master")
 	s.Equal(expectedEnvs, job.Status.TargetEnvs)
 }
 
@@ -1596,7 +1598,7 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithRadixApplication(nil).WithJobName("test").WithBranch("master"), config)
 	s.Require().NoError(err)
 	// Master maps to Test env
-	s.Equal(job.Spec.Build.Branch, "master")
+	s.Equal(job.Spec.Build.GetGitRefOrDefault(), "master")
 	s.Empty(job.Status.TargetEnvs)
 }
 

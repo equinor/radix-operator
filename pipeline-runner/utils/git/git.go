@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"io"
 	"path/filepath"
 	"sort"
@@ -49,13 +50,13 @@ func ResetGitHead(gitWorkspace, commitHashString string) error {
 }
 
 // GetCommitHashAndTags gets target commit hash and tags from GitHub repository
-func GetCommitHashAndTags(gitWorkspace, commitId, gitRefs, gitRefsType string) (string, string, error) {
-	targetCommitHash, err := GetCommitHash(gitWorkspace, commitId, gitRefs, gitRefsType)
+func GetCommitHashAndTags(pipelineInfo *model.PipelineInfo) (string, string, error) {
+	targetCommitHash, err := GetCommitHash(pipelineInfo)
 	if err != nil {
 		return "", "", err
 	}
 
-	gitTags, err := getGitCommitTags(gitWorkspace, targetCommitHash)
+	gitTags, err := getGitCommitTags(pipelineInfo.PipelineArguments.GitWorkspace, targetCommitHash)
 	if err != nil {
 		return "", "", err
 	}
@@ -67,7 +68,7 @@ func getGitDir(gitWorkspace string) string {
 }
 
 // GetCommitHashFromHead returns the commit hash for the HEAD of branchName in gitDir
-func GetCommitHashFromHead(gitWorkspace string, gitRefs string, gitRefsType string) (string, error) {
+func GetCommitHashFromHead(gitWorkspace, gitRef, gitRefType string) (string, error) {
 	gitDir := getGitDir(gitWorkspace)
 	r, err := git.PlainOpen(gitDir)
 	if err != nil {
@@ -75,12 +76,12 @@ func GetCommitHashFromHead(gitWorkspace string, gitRefs string, gitRefsType stri
 	}
 	log.Debug().Msgf("opened gitDir %s", gitDir)
 
-	// Get gitRefs hash
-	commitHash, err := getBranchCommitHash(r, gitRefs, gitRefsType)
+	// Get gitRef hash
+	commitHash, err := getBranchCommitHash(r, gitRef, gitRefType)
 	if err != nil {
 		return "", err
 	}
-	log.Debug().Msgf("resolved %s %s", gitRefsType, gitRefs)
+	log.Debug().Msgf("resolved %s %s", gitRefType, gitRef)
 
 	hashBytesString := hex.EncodeToString(commitHash[:])
 	return hashBytesString, nil
@@ -297,14 +298,15 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 
 // GetCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
 // build branch
-func GetCommitHash(gitWorkspace, commitId, gitRefs, gitRefsType string) (string, error) {
+func GetCommitHash(pipelineInfo *model.PipelineInfo) (string, error) {
+	commitId := pipelineInfo.PipelineArguments.CommitID
 	if commitId != "" {
 		log.Debug().Msgf("got git commit hash %s from env var %s", commitId, defaults.RadixCommitIdEnvironmentVariable)
 		return commitId, nil
 	}
-	log.Debug().Msgf("determining git commit hash of HEAD of %s %s", gitRefsType, gitRefs)
-	gitCommitHash, err := GetCommitHashFromHead(gitWorkspace, gitRefs, gitRefsType)
-	log.Debug().Msgf("got git commit hash %s from HEAD of %s %s", gitCommitHash, gitRefsType, gitRefs)
+	log.Debug().Msgf("determining git commit hash of HEAD of %s %s", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault())
+	gitCommitHash, err := GetCommitHashFromHead(pipelineInfo.PipelineArguments.GitWorkspace, pipelineInfo.GetGitRef(), pipelineInfo.GetGitRefType())
+	log.Debug().Msgf("got git commit hash %s from HEAD of %s %s", gitCommitHash, pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault())
 	return gitCommitHash, err
 }
 

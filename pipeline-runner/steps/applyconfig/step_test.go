@@ -1638,7 +1638,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 			case radixv1.Deploy:
 				pipeline.PipelineArguments.ToEnvironment = "dev"
 			case radixv1.BuildDeploy:
-				pipeline.PipelineArguments.Branch = "main"
+				pipeline.PipelineArguments.Branch = "main" //nolint:staticcheck
 			case radixv1.Promote:
 				pipeline.PipelineArguments.FromEnvironment = "dev"
 				pipeline.PipelineArguments.ToEnvironment = "dev"

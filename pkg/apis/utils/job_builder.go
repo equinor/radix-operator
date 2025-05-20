@@ -17,7 +17,8 @@ type JobBuilder interface {
 	WithPipelineImageTag(string) JobBuilder
 	WithPipelineType(v1.RadixPipelineType) JobBuilder
 	WithBranch(branch string) JobBuilder
-	WithGitRefsType(gitRefsType string) JobBuilder
+	WithGitRef(gitRef string) JobBuilder
+	WithGitRefType(gitRefType string) JobBuilder
 	WithFromEnvironment(envName string) JobBuilder
 	WithToEnvironment(envName string) JobBuilder
 	WithCommitID(string) JobBuilder
@@ -45,7 +46,8 @@ type JobBuilderStruct struct {
 	emptyStatus           bool
 	status                v1.RadixJobStatus
 	branch                string
-	gitRefsType           string
+	gitRef                string
+	gitRefType            string
 	deploymentName        string
 	commitID              string
 	imageTag              string
@@ -104,9 +106,15 @@ func (jb *JobBuilderStruct) WithBranch(branch string) JobBuilder {
 	return jb
 }
 
-// WithGitRefsType Sets gitRefsType
-func (jb *JobBuilderStruct) WithGitRefsType(gitRefsType string) JobBuilder {
-	jb.gitRefsType = gitRefsType
+// WithGitRef Sets gitRef
+func (jb *JobBuilderStruct) WithGitRef(gitRef string) JobBuilder {
+	jb.gitRef = gitRef
+	return jb
+}
+
+// WithGitRefType Sets gitRefType
+func (jb *JobBuilderStruct) WithGitRefType(gitRefType string) JobBuilder {
+	jb.gitRefType = gitRefType
 	return jb
 }
 
@@ -206,9 +214,10 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 				kube.RadixAppLabel: jb.appName,
 			},
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:      jb.branch,
-				kube.RadixGitRefsTypeAnnotation: jb.gitRefsType,
-				kube.RestoredStatusAnnotation:   jb.restoredStatus,
+				kube.RadixBranchAnnotation:     jb.branch,
+				kube.RadixGitRefAnnotation:     jb.gitRef,
+				kube.RadixGitRefTypeAnnotation: jb.gitRefType,
+				kube.RestoredStatusAnnotation:  jb.restoredStatus,
 			},
 			CreationTimestamp: metav1.Time{Time: jb.created},
 		},
@@ -219,7 +228,8 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 			TektonImage:   jb.tektonImageTag,
 			Build: v1.RadixBuildSpec{
 				Branch:                jb.branch,
-				GitRefsType:           v1.GitRefsType(jb.gitRefsType),
+				GitRef:                jb.gitRef,
+				GitRefType:            v1.GitRefType(jb.gitRefType),
 				ToEnvironment:         jb.toEnvironment,
 				ImageTag:              jb.imageTag,
 				CommitID:              jb.commitID,

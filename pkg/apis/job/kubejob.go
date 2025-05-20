@@ -88,8 +88,9 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 			Name:   jobName,
 			Labels: getPipelineJobLabels(appName, jobName, job.radixJob.Spec, pipeline),
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:  job.radixJob.Spec.Build.Branch,
-				kube.RadixGitTagsAnnotation: string(job.radixJob.Spec.Build.GitRefsType),
+				kube.RadixBranchAnnotation:     job.radixJob.Spec.Build.Branch,
+				kube.RadixGitRefAnnotation:     job.radixJob.Spec.Build.GitRef,
+				kube.RadixGitRefTypeAnnotation: string(job.radixJob.Spec.Build.GitRefType),
 			},
 			OwnerReferences: GetOwnerReference(job.radixJob),
 		},
@@ -229,7 +230,8 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 	case radixv1.BuildDeploy, radixv1.Build:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitRefsTypeEnvironmentVariable, jobSpec.Build.GitRefsType))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitRefEnvironmentVariable, jobSpec.Build.GitRef))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitRefTypeEnvironmentVariable, jobSpec.Build.GitRefType))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, jobSpec.Build.ToEnvironment))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))

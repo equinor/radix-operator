@@ -230,8 +230,9 @@ func getPipelineShouldBeStopped(ctx context.Context, buildContext *model.BuildCo
 func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Context, pipelineInfo *model.PipelineInfo) {
 	stringBuilder := strings.Builder{}
 	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for the app %s", pipelineInfo.Definition.Type, step.GetAppName()))
-	if len(pipelineInfo.PipelineArguments.Branch) > 0 {
-		stringBuilder.WriteString(fmt.Sprintf(", the %s %s", pipelineInfo.GetGitRefsType(), pipelineInfo.PipelineArguments.Branch))
+	gitRef := pipelineInfo.GetGitRefOrDefault()
+	if len(gitRef) > 0 {
+		stringBuilder.WriteString(fmt.Sprintf(", the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault()))
 	}
 	if len(pipelineInfo.PipelineArguments.Branch) > 0 {
 		stringBuilder.WriteString(fmt.Sprintf(", the commit %s", pipelineInfo.PipelineArguments.CommitID))
@@ -408,7 +409,8 @@ func (step *PreparePipelinesStepImplementation) createPipeline(envName string, p
 	pipeline.ObjectMeta.Labels = labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{
 		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch,
-		kube.RadixGitRefsTypeAnnotation: pipelineInfo.PipelineArguments.GitRefsType,
+		kube.RadixGitRefAnnotation:      pipelineInfo.PipelineArguments.GitRef,
+		kube.RadixGitRefTypeAnnotation:  pipelineInfo.PipelineArguments.GitRefType,
 		defaults.PipelineNameAnnotation: originalPipelineName,
 	}
 	if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
@@ -539,9 +541,9 @@ func setPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.Pipe
 	}
 	pipelineInfo.TargetEnvironments = targetEnvironments
 	if len(pipelineInfo.TargetEnvironments) > 0 {
-		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to the %s %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetGitRefsType(), pipelineInfo.GetGitRefs())
+		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to the %s %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRef())
 	} else {
-		log.Ctx(ctx).Info().Msgf("No environments are mapped to the %s %s.", pipelineInfo.GetGitRefsType(), pipelineInfo.GetGitRefs())
+		log.Ctx(ctx).Info().Msgf("No environments are mapped to the %s %s.", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRef())
 	}
 	if len(ignoredForWebhookEnvs) > 0 || len(ignoredForGitRefsType) > 0 {
 		log.Ctx(ctx).Info().Msg("The following environment(s) are configured to be ignored when triggered from GitHub webhook:")
@@ -549,7 +551,7 @@ func setPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.Pipe
 			log.Ctx(ctx).Info().Msgf(" - %s", strings.Join(ignoredForWebhookEnvs, ", "))
 		}
 		if len(ignoredForGitRefsType) > 0 {
-			log.Ctx(ctx).Info().Msgf(" - for %s: %s", pipelineInfo.GetGitRefsType(), strings.Join(ignoredForWebhookEnvs, ", "))
+			log.Ctx(ctx).Info().Msgf(" - for %s: %s", pipelineInfo.GetGitRefTypeOrDefault(), strings.Join(ignoredForWebhookEnvs, ", "))
 		}
 	}
 	return nil
@@ -568,7 +570,7 @@ func getPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.Pipe
 	}
 
 	deployToEnvironment := pipelineInfo.GetRadixDeployToEnvironment()
-	targetEnvironments, ignoredForWebhookEnvs, ignoredForGitRefsType := applicationconfig.GetTargetEnvironments(pipelineInfo.GetGitRefs(), pipelineInfo.GetGitRefsType(), pipelineInfo.GetRadixApplication(), pipelineInfo.PipelineArguments.TriggeredFromWebhook)
+	targetEnvironments, ignoredForWebhookEnvs, ignoredForGitRefsType := applicationconfig.GetTargetEnvironments(pipelineInfo.GetGitRefOrDefault(), pipelineInfo.GetGitRefType(), pipelineInfo.GetRadixApplication(), pipelineInfo.PipelineArguments.TriggeredFromWebhook)
 	applicableTargetEnvironments := slice.FindAll(targetEnvironments, func(envName string) bool { return len(deployToEnvironment) == 0 || deployToEnvironment == envName })
 	return applicableTargetEnvironments, ignoredForWebhookEnvs, ignoredForGitRefsType, nil
 }

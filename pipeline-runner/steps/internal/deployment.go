@@ -69,15 +69,16 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})
 	}
 	annotations := map[string]string{
-		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch,
-		kube.RadixGitRefsTypeAnnotation: pipelineInfo.PipelineArguments.GitRefsType,
-		kube.RadixGitTagsAnnotation:     gitTags,
-		kube.RadixCommitAnnotation:      commitID,
-		kube.RadixBuildSecretHash:       buildSecretHash,
-		kube.RadixConfigHash:            radixConfigHash,
-		kube.RadixUseBuildKit:           strconv.FormatBool(pipelineInfo.IsUsingBuildKit()),
-		kube.RadixUseBuildCache:         strconv.FormatBool(pipelineInfo.IsUsingBuildCache()),
-		kube.RadixRefreshBuildCache:     strconv.FormatBool(pipelineInfo.IsRefreshingBuildCache()),
+		kube.RadixBranchAnnotation:     pipelineInfo.PipelineArguments.Branch, //nolint:staticcheck
+		kube.RadixGitRefAnnotation:     pipelineInfo.PipelineArguments.GitRef,
+		kube.RadixGitRefTypeAnnotation: pipelineInfo.PipelineArguments.GitRefType,
+		kube.RadixGitTagsAnnotation:    gitTags,
+		kube.RadixCommitAnnotation:     commitID,
+		kube.RadixBuildSecretHash:      buildSecretHash,
+		kube.RadixConfigHash:           radixConfigHash,
+		kube.RadixUseBuildKit:          strconv.FormatBool(pipelineInfo.IsUsingBuildKit()),
+		kube.RadixUseBuildCache:        strconv.FormatBool(pipelineInfo.IsUsingBuildCache()),
+		kube.RadixRefreshBuildCache:    strconv.FormatBool(pipelineInfo.IsRefreshingBuildCache()),
 	}
 
 	radixDeployment := &radixv1.RadixDeployment{

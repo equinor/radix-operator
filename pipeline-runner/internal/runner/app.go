@@ -149,14 +149,13 @@ func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
 
 func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineInfo) {
 	appName := pipelineInfo.GetAppName()
-	branch := pipelineInfo.GetGitRefs()
 	switch pipelineInfo.GetRadixPipelineType() {
 	case v1.ApplyConfig:
 		log.Ctx(ctx).Info().Msgf("Apply radixconfig for application %s", appName)
 	case v1.BuildDeploy:
-		log.Ctx(ctx).Info().Msgf("Build and deploy application %s from %s %s", appName, pipelineInfo.GetGitRefsType(), branch)
+		log.Ctx(ctx).Info().Msgf("Build and deploy application %s from %s %s", appName, pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault())
 	case v1.Build:
-		log.Ctx(ctx).Info().Msgf("Build application %s from %s %s", appName, pipelineInfo.GetGitRefsType(), branch)
+		log.Ctx(ctx).Info().Msgf("Build application %s from %s %s", appName, pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault())
 	case v1.Deploy:
 		log.Ctx(ctx).Info().Msgf("Deploy application %s to environment %s", appName, pipelineInfo.GetRadixDeployToEnvironment())
 	case v1.Promote:

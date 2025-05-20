@@ -68,7 +68,7 @@ func (c *acrKubeJobProps) JobLabels() map[string]string {
 }
 
 func (c *acrKubeJobProps) JobAnnotations() map[string]string {
-	return getCommonJobAnnotations(c.pipelineArgs.Branch, c.pipelineArgs.GitRefsType, c.componentImages...)
+	return getCommonJobAnnotations(c.pipelineArgs.Branch, c.pipelineArgs.GitRef, c.pipelineArgs.GitRefType, c.componentImages...)
 }
 
 func (c *acrKubeJobProps) PodLabels() map[string]string {
@@ -194,8 +194,12 @@ func (c *acrKubeJobProps) getPodContainerEnvVars(componentImage pipeline.BuildCo
 			Value: c.pipelineArgs.Branch,
 		},
 		{
-			Name:  defaults.RadixGitRefsTypeEnvironmentVariable,
-			Value: c.pipelineArgs.GitRefsType,
+			Name:  defaults.RadixGitRefEnvironmentVariable,
+			Value: c.pipelineArgs.GitRef,
+		},
+		{
+			Name:  defaults.RadixGitRefTypeEnvironmentVariable,
+			Value: c.pipelineArgs.GitRefType,
 		},
 		{
 			Name:  defaults.RadixPipelineTargetEnvironmentsVariable,

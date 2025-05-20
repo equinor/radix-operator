@@ -40,7 +40,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 		PipelineType:          "anypipelinetype",
 		JobName:               "anyjobname",
 		Branch:                "anybranch",
-		GitRefsType:           "anygitrefstype",
+		GitRefType:            "anygitreftype",
 		CommitID:              "anycommitid",
 		ImageTag:              "anyimagetag",
 		PushImage:             pushImage,
@@ -77,8 +77,9 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	assert.Equal(t, expectedJobLabels, job.Labels)
 	componentImagesAnnotation, _ := json.Marshal(componentImages)
 	expectedJobAnnotations := map[string]string{
-		kube.RadixBranchAnnotation:          args.Branch,
-		kube.RadixGitRefsTypeAnnotation:     args.GitRefsType,
+		kube.RadixBranchAnnotation:          args.Branch, //nolint:staticcheck
+		kube.RadixGitRefAnnotation:          args.GitRef,
+		kube.RadixGitRefTypeAnnotation:      args.GitRefType,
 		kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
 	}
 	assert.Equal(t, expectedJobAnnotations, job.Annotations)
@@ -169,7 +170,8 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 				{Name: "CLUSTERNAME_IMAGE", Value: ci.ClusterNameImagePath},
 				{Name: "RADIX_ZONE", Value: args.RadixZone},
 				{Name: "BRANCH", Value: args.Branch},
-				{Name: "GIT_REFS_TYPE", Value: args.GitRefsType},
+				{Name: "GIT_REF", Value: args.GitRef},
+				{Name: "GIT_REF_TYPE", Value: args.GitRefType},
 				{Name: "TARGET_ENVIRONMENTS", Value: ci.EnvName},
 				{Name: "RADIX_GIT_COMMIT_HASH", Value: gitCommitHash},
 				{Name: "RADIX_GIT_TAGS", Value: gitTags},

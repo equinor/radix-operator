@@ -96,8 +96,9 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			assert.Equal(t, expectedJobLabels, job.Labels)
 			componentImagesAnnotation, _ := json.Marshal([]pipeline.BuildComponentImage{ci})
 			expectedJobAnnotations := map[string]string{
-				kube.RadixBranchAnnotation:          args.Branch,
-				kube.RadixGitRefsTypeAnnotation:     args.GitRefsType,
+				kube.RadixBranchAnnotation:          args.Branch, //nolint:staticcheck
+				kube.RadixGitRefAnnotation:          args.GitRef,
+				kube.RadixGitRefTypeAnnotation:      args.GitRefType,
 				kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
 			}
 			assert.Equal(t, expectedJobAnnotations, job.Annotations)
@@ -261,7 +262,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 				"--secrets-path", "/build-secrets",
 				"--dockerfile", ci.Dockerfile,
 				"--context", ci.Context,
-				"--branch", args.Branch,
+				"--branch", args.Branch, //nolint:staticcheck
 				"--git-commit-hash", gitCommitHash,
 				"--git-tags", gitTags,
 				"--target-environments", ci.EnvName,

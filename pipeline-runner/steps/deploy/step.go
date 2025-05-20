@@ -58,7 +58,7 @@ func (cli *DeployStepImplementation) deploy(ctx context.Context, pipelineInfo *m
 	log.Ctx(ctx).Info().Msgf("Deploying app %s", appName)
 
 	if len(pipelineInfo.TargetEnvironments) == 0 {
-		log.Ctx(ctx).Info().Msgf("skip deploy step as %s %s is not mapped to any environment", pipelineInfo.GetGitRefsType(), pipelineInfo.PipelineArguments.Branch)
+		log.Ctx(ctx).Info().Msgf("skip deploy step as %s %s is not mapped to any environment", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault())
 		return nil
 	}
 
