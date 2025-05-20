@@ -533,38 +533,44 @@ func (step *PreparePipelinesStepImplementation) setPipelineRunParamsFromEnvironm
 
 func setPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	log.Ctx(ctx).Debug().Msg("Set target environments")
-	targetEnvironments, environmentsToIgnore, err := getPipelineTargetEnvironments(ctx, pipelineInfo)
+	targetEnvironments, ignoredForWebhookEnvs, ignoredForGitRefsType, err := getPipelineTargetEnvironments(ctx, pipelineInfo)
 	if err != nil {
 		return err
 	}
 	pipelineInfo.TargetEnvironments = targetEnvironments
 	if len(pipelineInfo.TargetEnvironments) > 0 {
-		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to the %s %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetGitRefsType(), pipelineInfo.GetBranch())
+		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to the %s %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetGitRefsType(), pipelineInfo.GetGitRefs())
 	} else {
-		log.Ctx(ctx).Info().Msgf("No environments are mapped to the %s %s.", pipelineInfo.GetGitRefsType(), pipelineInfo.GetBranch())
+		log.Ctx(ctx).Info().Msgf("No environments are mapped to the %s %s.", pipelineInfo.GetGitRefsType(), pipelineInfo.GetGitRefs())
 	}
-	if len(environmentsToIgnore) > 0 {
-		log.Ctx(ctx).Info().Msgf("The following environment(s) are configured to be ignored when triggered from GitHub webhook: %s", strings.Join(environmentsToIgnore, ", "))
+	if len(ignoredForWebhookEnvs) > 0 || len(ignoredForGitRefsType) > 0 {
+		log.Ctx(ctx).Info().Msg("The following environment(s) are configured to be ignored when triggered from GitHub webhook:")
+		if len(ignoredForWebhookEnvs) > 0 {
+			log.Ctx(ctx).Info().Msgf(" - %s", strings.Join(ignoredForWebhookEnvs, ", "))
+		}
+		if len(ignoredForGitRefsType) > 0 {
+			log.Ctx(ctx).Info().Msgf(" - for %s: %s", pipelineInfo.GetGitRefsType(), strings.Join(ignoredForWebhookEnvs, ", "))
+		}
 	}
 	return nil
 }
 
-func getPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, []string, error) {
+func getPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, []string, []string, error) {
 	switch pipelineInfo.GetRadixPipelineType() {
 	case radixv1.ApplyConfig:
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	case radixv1.Promote:
 		environmentsForPromote, err := getTargetEnvironmentsForPromote(pipelineInfo)
-		return environmentsForPromote, nil, err
+		return environmentsForPromote, nil, nil, err
 	case radixv1.Deploy:
 		environmentsForDeploy, err := getTargetEnvironmentsForDeploy(ctx, pipelineInfo)
-		return environmentsForDeploy, nil, err
+		return environmentsForDeploy, nil, nil, err
 	}
 
 	deployToEnvironment := pipelineInfo.GetRadixDeployToEnvironment()
-	targetEnvironments, ignoredForWebhookEnvs := applicationconfig.GetTargetEnvironments(pipelineInfo.GetBranch(), pipelineInfo.GetRadixApplication(), pipelineInfo.PipelineArguments.TriggeredFromWebhook)
+	targetEnvironments, ignoredForWebhookEnvs, ignoredForGitRefsType := applicationconfig.GetTargetEnvironments(pipelineInfo.GetGitRefs(), pipelineInfo.GetGitRefsType(), pipelineInfo.GetRadixApplication(), pipelineInfo.PipelineArguments.TriggeredFromWebhook)
 	applicableTargetEnvironments := slice.FindAll(targetEnvironments, func(envName string) bool { return len(deployToEnvironment) == 0 || deployToEnvironment == envName })
-	return applicableTargetEnvironments, ignoredForWebhookEnvs, nil
+	return applicableTargetEnvironments, ignoredForWebhookEnvs, ignoredForGitRefsType, nil
 }
 
 func getTargetEnvironmentsForPromote(pipelineInfo *model.PipelineInfo) ([]string, error) {

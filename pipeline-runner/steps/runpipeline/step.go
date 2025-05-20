@@ -173,7 +173,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 		return nil
 	}
 
-	tektonPipelineBranch := pipelineInfo.GetBranch()
+	tektonPipelineBranch := pipelineInfo.GetGitRefs()
 	if pipelineInfo.GetRadixPipelineType() == radixv1.Deploy {
 		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineInfo.GetRadixApplication(), pipelineInfo.GetRadixDeployToEnvironment())
 		if re != nil && len(re.Build.From) > 0 {

@@ -181,7 +181,7 @@ func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, 
 		switch existingRadixJob.Spec.PipeLineType {
 		case v1.BuildDeploy, v1.Build:
 			if len(jobTargetEnvironments) > 0 {
-				existingJobTargetEnvironments := applicationconfig.GetAllTargetEnvironments(existingRadixJob.Spec.Build.Branch, ra)
+				existingJobTargetEnvironments := applicationconfig.GetAllTargetEnvironments(existingRadixJob.Spec.Build.Branch, string(existingRadixJob.Spec.Build.GitRefsType), ra)
 				for _, existingJobTargetEnvironment := range existingJobTargetEnvironments {
 					if _, ok := jobTargetEnvironments[existingJobTargetEnvironment]; ok {
 						return true
@@ -216,7 +216,7 @@ func (job *Job) getTargetEnvironments(ra *v1.RadixApplication) map[string]struct
 		if ra == nil {
 			return targetEnvs
 		}
-		environments, _ := applicationconfig.GetTargetEnvironments(job.radixJob.Spec.Build.Branch, ra, job.radixJob.Spec.TriggeredFromWebhook)
+		environments, _, _ := applicationconfig.GetTargetEnvironments(job.radixJob.Spec.Build.Branch, string(job.radixJob.Spec.Build.GitRefsType), ra, job.radixJob.Spec.TriggeredFromWebhook)
 		return slice.Reduce(environments,
 			targetEnvs, func(acc map[string]struct{}, envName string) map[string]struct{} {
 				if len(job.radixJob.Spec.Build.ToEnvironment) == 0 || envName == job.radixJob.Spec.Build.ToEnvironment {

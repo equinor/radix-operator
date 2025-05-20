@@ -232,8 +232,8 @@ func (p *PipelineInfo) GetRadixApplication() *radixv1.RadixApplication {
 	return p.RadixApplication
 }
 
-// GetBranch Get branch
-func (p *PipelineInfo) GetBranch() string {
+// GetGitRefs Get branch or tag
+func (p *PipelineInfo) GetGitRefs() string {
 	return p.PipelineArguments.Branch
 }
 
