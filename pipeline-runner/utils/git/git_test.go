@@ -6,16 +6,174 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const unzipDestination = "7c55c884-7a3e-4b1d-bb03-e7f8ce235d50"
+
+func Test_X(t *testing.T) {
+	repo, err := git.PlainOpen("/home/nilsstrabo/src/github.com/nilsgstrabo/aspnet-webapp")
+	require.NoError(t, err)
+
+	// c_iter, err := repo.CommitObjects()
+	// require.NoError(t, err)
+	// fmt.Println("CommitObjects:")
+	// c_iter.ForEach(func(c *object.Commit) error {
+	// 	fmt.Printf("%s: %s\n", c.ID().String(), strings.TrimSpace(c.Message))
+	// 	return nil
+	// })
+
+	// fmt.Println("")
+
+	b_iter, err := repo.Branches()
+	require.NoError(t, err)
+	fmt.Println("Branches:")
+	b_iter.ForEach(func(r *plumbing.Reference) error {
+		fmt.Printf("%s (%s): type=%s, target=%s\n", r.Name(), r.Hash().String(), r.Type().String(), r.Target().Short())
+		return nil
+	})
+
+	fmt.Println("")
+
+	t_iter, err := repo.Tags()
+	require.NoError(t, err)
+	fmt.Println("Tags:")
+	t_iter.ForEach(func(r *plumbing.Reference) error {
+		fmt.Printf("%s (%s): type=%s, target=%s\n", r.Name(), r.Hash().String(), r.Type().String(), r.Target().Short())
+		return nil
+	})
+
+	fmt.Println("")
+
+	to_iter, err := repo.TagObjects()
+	require.NoError(t, err)
+	fmt.Println("TagObjects:")
+
+	to_iter.ForEach(func(t *object.Tag) error {
+		fmt.Printf("%s (%s): type=%s, target=%s\n", t.String(), t.ID().String(), t.Type().String(), t.Target.String())
+		return nil
+	})
+
+	fmt.Println("")
+
+	r_iter, err := repo.References()
+	require.NoError(t, err)
+	fmt.Println("References:")
+	r_iter.ForEach(func(r *plumbing.Reference) error {
+		fmt.Printf("%s (%s): type=%s, target=%s\n", r.Name(), r.Hash().String(), r.Type().String(), r.Target().Short())
+		return nil
+	})
+
+	fmt.Println("")
+
+	var beforeCommit, afterCommit *object.Commit
+	beforeCommit, err = repo.CommitObject(plumbing.NewHash("d83810270b71e05f47a118ae39458aa66c3b08a5"))
+	require.NoError(t, err)
+	afterCommit, err = repo.CommitObject(plumbing.NewHash("c4cdd87180af0c9c6c7c680f7488ec8449f8857d"))
+	require.NoError(t, err)
+
+	var beforeTree, afterTree *object.Tree
+	if beforeCommit != nil {
+		beforeTree, err = beforeCommit.Tree()
+		require.NoError(t, err)
+	}
+	if afterCommit != nil {
+		afterTree, err = afterCommit.Tree()
+		require.NoError(t, err)
+	}
+	changes, err := object.DiffTree(beforeTree, afterTree)
+	require.NoError(t, err)
+
+	for _, change := range changes {
+		var c, te string
+		a, err := change.Action()
+		require.NoError(t, err)
+		switch a {
+		case merkletrie.Insert, merkletrie.Modify:
+			te = change.To.TreeEntry.Name
+			c = change.To.Name
+		default:
+			te = change.From.TreeEntry.Name
+			c = change.From.Name
+		}
+		fmt.Printf("%s: %s\n", c, te)
+	}
+	// tree_iter, err := repo.TreeObjects()
+	// require.NoError(t, err)
+	// fmt.Println("TreeObjects:")
+	// tree_iter.ForEach(func(t *object.Tree) error {
+	// 	fmt.Printf("%s\n", t.Hash.String())
+	// 	return nil
+	// })
+
+	// fmt.Println("")
+
+	// o_iter, err := repo.Objects()
+	// require.NoError(t, err)
+	// fmt.Println("Objects:")
+	// o_iter.ForEach(func(o object.Object) error {
+	// 	fmt.Printf("%s: %s\n", o.ID(), o.Type().String())
+	// 	return nil
+	// })
+}
+
+func Test_Z(t *testing.T) {
+	repo, err := Open("/home/nilsstrabo/src/github.com/nilsgstrabo/gogit-test")
+	require.NoError(t, err)
+
+	refs := []string{"v1.0.0", "v0.9.0", "v0.8.0", "main", "feature", "feature2"}
+	commits := []string{"c926c7e93d00d7619ae4af1222b0d120ecc8aa9f", "edc04239cd8a81366f24b79069e7b1b13e2b47f5"}
+
+	for _, ref := range slices.Concat(refs, commits) {
+		err := repo.Checkout(ref)
+		require.NoError(t, err)
+	}
+
+	err = repo.Checkout("nonexisting")
+	require.ErrorIs(t, err, ErrReferenceNotFound)
+
+	for _, ref := range refs {
+		commit, err := repo.GetCommitForReference(ref)
+		require.NoError(t, err)
+		fmt.Printf("%s: %s\n", ref, commit)
+	}
+
+	for _, ref := range commits {
+		_, err := repo.GetCommitForReference(ref)
+		require.ErrorIs(t, err, ErrReferenceNotFound)
+	}
+
+	_, err = repo.GetCommitForReference("nonexisting")
+	require.ErrorIs(t, err, ErrReferenceNotFound)
+
+	for _, other := range refs {
+		isAncestor, err := repo.IsAncestor("c926c7e93d00d7619ae4af1222b0d120ecc8aa9f", other)
+		require.NoError(t, err)
+		assert.True(t, isAncestor)
+	}
+
+	isAncestor, err := repo.IsAncestor("edc04239cd8a81366f24b79069e7b1b13e2b47f5", "main")
+	require.NoError(t, err)
+	assert.True(t, isAncestor)
+	isAncestor, err = repo.IsAncestor("9428a8126b1624efbf6255e40acca5b9302eae1b", "main")
+	require.NoError(t, err)
+	assert.True(t, isAncestor)
+
+	tags, err := repo.ResolveTagsForCommit("dd600552b26349dc7b19efa00f1ac0efcbac2dc0")
+	require.NoError(t, err)
+	fmt.Println(tags)
+}
 
 func unzip(archivePath string) error {
 	archive, err := zip.OpenReader(archivePath)

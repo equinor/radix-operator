@@ -166,19 +166,15 @@ func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo 
 
 	commit := pipelineInfo.PipelineArguments.CommitID
 	if len(commit) == 0 {
-		commit, err = repo.GetLatestCommitForBranch(pipelineInfo.PipelineArguments.Branch)
+		commit, err = repo.GetCommitForReference(pipelineInfo.PipelineArguments.Branch)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get latest commit for branch %s: %w", pipelineInfo.PipelineArguments.Branch, err)
 		}
 	}
 
-	if err := repo.CheckoutBranch(pipelineInfo.PipelineArguments.Branch); err != nil {
-		return "", "", fmt.Errorf("failed to checkout branch %s: %w", pipelineInfo.PipelineArguments.Branch, err)
-	}
-
 	isAncestor, err := repo.IsAncestor(commit, pipelineInfo.PipelineArguments.Branch)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to verify is commit %s is ancestor of branch %s: %w", commit, pipelineInfo.PipelineArguments.Branch, err)
+		return "", "", fmt.Errorf("failed to verify if commit %s is ancestor of branch %s: %w", commit, pipelineInfo.PipelineArguments.Branch, err)
 	}
 	if !isAncestor {
 		return "", "", fmt.Errorf("commit %s is not ancestor of branch %s", commit, pipelineInfo.PipelineArguments.Branch)
@@ -220,7 +216,7 @@ func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *mod
 		return fmt.Errorf("failed to open git repository: %w", err)
 	}
 
-	err = repo.CheckoutBranch(pipelineInfo.GetRadixConfigBranch())
+	err = repo.Checkout(pipelineInfo.GetRadixConfigBranch())
 	if err != nil {
 		return fmt.Errorf("failed to checkout config branch %s: %w", pipelineInfo.GetRadixConfigBranch(), err)
 	}
@@ -250,7 +246,7 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 		return nil
 	}
 
-	err = repo.CheckoutCommit(gitCommit)
+	err = repo.Checkout(gitCommit)
 	if err != nil {
 		return fmt.Errorf("failed to checkout commit %s: %w", gitCommit, err)
 	}
@@ -299,7 +295,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipeline
 			log.Ctx(ctx).Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
 			return "", nil
 		}
-		sourceRdHashFromBranchHead, err := repo.GetLatestCommitForBranch(sourceDeploymentGitBranch)
+		sourceRdHashFromBranchHead, err := repo.GetCommitForReference(sourceDeploymentGitBranch)
 		if err != nil {
 			return "", nil
 		}
@@ -318,7 +314,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipeline
 			return "", nil
 		}
 
-		gitHash, err := repo.GetLatestCommitForBranch(pipelineJobBranch)
+		gitHash, err := repo.GetCommitForReference(pipelineJobBranch)
 		if err != nil {
 			return "", err
 		}

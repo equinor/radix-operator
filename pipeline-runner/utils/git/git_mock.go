@@ -33,47 +33,33 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 	return m.recorder
 }
 
-// CheckoutBranch mocks base method.
-func (m *MockRepository) CheckoutBranch(branch string) error {
+// Checkout mocks base method.
+func (m *MockRepository) Checkout(reference string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckoutBranch", branch)
+	ret := m.ctrl.Call(m, "Checkout", reference)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// CheckoutBranch indicates an expected call of CheckoutBranch.
-func (mr *MockRepositoryMockRecorder) CheckoutBranch(branch interface{}) *gomock.Call {
+// Checkout indicates an expected call of Checkout.
+func (mr *MockRepositoryMockRecorder) Checkout(reference interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckoutBranch", reflect.TypeOf((*MockRepository)(nil).CheckoutBranch), branch)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Checkout", reflect.TypeOf((*MockRepository)(nil).Checkout), reference)
 }
 
-// CheckoutCommit mocks base method.
-func (m *MockRepository) CheckoutCommit(commit string) error {
+// GetCommitForReference mocks base method.
+func (m *MockRepository) GetCommitForReference(reference string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckoutCommit", commit)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// CheckoutCommit indicates an expected call of CheckoutCommit.
-func (mr *MockRepositoryMockRecorder) CheckoutCommit(commit interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckoutCommit", reflect.TypeOf((*MockRepository)(nil).CheckoutCommit), commit)
-}
-
-// GetLatestCommitForBranch mocks base method.
-func (m *MockRepository) GetLatestCommitForBranch(branch string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLatestCommitForBranch", branch)
+	ret := m.ctrl.Call(m, "GetCommitForReference", reference)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLatestCommitForBranch indicates an expected call of GetLatestCommitForBranch.
-func (mr *MockRepositoryMockRecorder) GetLatestCommitForBranch(branch interface{}) *gomock.Call {
+// GetCommitForReference indicates an expected call of GetCommitForReference.
+func (mr *MockRepositoryMockRecorder) GetCommitForReference(reference interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestCommitForBranch", reflect.TypeOf((*MockRepository)(nil).GetLatestCommitForBranch), branch)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommitForReference", reflect.TypeOf((*MockRepository)(nil).GetCommitForReference), reference)
 }
 
 // IsAncestor mocks base method.

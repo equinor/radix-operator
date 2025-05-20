@@ -9,7 +9,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -18,14 +17,21 @@ import (
 )
 
 const (
-	origin = "origin"
+	remote = "origin"
+)
+
+var (
+	ErrReferenceNotFound = errors.New("reference not found")
 )
 
 type Repository interface {
-	CheckoutBranch(branch string) error
-	CheckoutCommit(commit string) error
-	GetLatestCommitForBranch(branch string) (string, error)
+	// Checkout a specific commit, or the commit of a branch or tag name
+	Checkout(reference string) error
+	// Get the current commit for a branch or tag name
+	GetCommitForReference(reference string) (string, error)
+	// Checks if a commit, branch or tag is ancestor of other commit, branch or tag
 	IsAncestor(ancestor, other string) (bool, error)
+	// Returns tags for a specific commit
 	ResolveTagsForCommit(commit string) ([]string, error)
 }
 
@@ -42,45 +48,82 @@ type repository struct {
 	repo *git.Repository
 }
 
-func (r *repository) CheckoutBranch(branch string) error {
-	return r.checkoutBranchOrCommit(branch, "")
-}
-
-func (r *repository) CheckoutCommit(commit string) error {
-	return r.checkoutBranchOrCommit("", commit)
-}
-
-func (r *repository) GetLatestCommitForBranch(branch string) (string, error) {
-	// TODO: enusre that we try to setup a branch with remote tracking if it doesn't exist
-
-	if _, err := r.repo.Branch(branch); err != nil {
-		return "", err
-	}
-
-	commitHash, err := r.repo.ResolveRevision(plumbing.Revision(branch))
+func (r *repository) Checkout(reference string) error {
+	hash, found, err := r.resolveHashForReference(reference)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return commitHash.String(), nil
+	if !found {
+		hash = plumbing.NewHash(reference)
+	}
+
+	wt, err := r.repo.Worktree()
+	if err != nil {
+		return err
+	}
+
+	if err := wt.Checkout(&git.CheckoutOptions{Hash: hash}); err != nil {
+		if errors.Is(err, plumbing.ErrReferenceNotFound) {
+			return ErrReferenceNotFound
+		}
+		return fmt.Errorf("failed to checkout: %w", err)
+	}
+
+	return nil
+}
+
+func (r *repository) resolveHashForReference(reference string) (plumbing.Hash, bool, error) {
+	tryRefs := []plumbing.ReferenceName{
+		plumbing.NewTagReferenceName(reference),
+		plumbing.NewBranchReferenceName(reference),
+		plumbing.NewRemoteReferenceName(remote, reference),
+	}
+
+	for _, ref := range tryRefs {
+		if hash, err := r.repo.ResolveRevision(plumbing.Revision(ref)); err == nil {
+			return *hash, true, nil
+		} else if !errors.Is(err, plumbing.ErrReferenceNotFound) {
+			return plumbing.Hash{}, false, err
+		}
+	}
+
+	return plumbing.Hash{}, false, nil
+}
+
+func (r *repository) GetCommitForReference(reference string) (string, error) {
+	hash, found, err := r.resolveHashForReference(reference)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve reference: %w", err)
+	}
+	if !found {
+		return "", ErrReferenceNotFound
+	}
+	return hash.String(), nil
 }
 
 func (r *repository) IsAncestor(ancestor, other string) (bool, error) {
-	ancestorHash, err := r.repo.ResolveRevision(plumbing.Revision(ancestor))
+	ancestorHash, found, err := r.resolveHashForReference(ancestor)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve ancestor: %w", err)
+	}
+	if !found {
+		ancestorHash = plumbing.NewHash(ancestor)
+	}
+
+	otherHash, found, err := r.resolveHashForReference(other)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve other: %w", err)
+	}
+	if !found {
+		otherHash = plumbing.NewHash(ancestor)
+	}
+
+	ancestorCommit, err := r.repo.CommitObject(ancestorHash)
 	if err != nil {
 		return false, err
 	}
 
-	otherHash, err := r.repo.ResolveRevision(plumbing.Revision(other))
-	if err != nil {
-		return false, err
-	}
-
-	ancestorCommit, err := r.repo.CommitObject(*ancestorHash)
-	if err != nil {
-		return false, err
-	}
-
-	otherCommit, err := r.repo.CommitObject(*otherHash)
+	otherCommit, err := r.repo.CommitObject(otherHash)
 	if err != nil {
 		return false, err
 	}
@@ -116,68 +159,6 @@ func (r *repository) ResolveTagsForCommit(commit string) ([]string, error) {
 	})
 
 	return tagNames, err
-}
-
-// Performs git checkout of a branch or commit.
-// branch and commit are mutually exclusive
-func (r *repository) checkoutBranchOrCommit(branch, commit string) error {
-	if len(branch) > 0 && len(commit) > 0 {
-		return errors.New("branch and commit are mutually exclusive")
-	}
-
-	worktree, err := r.repo.Worktree()
-	if err != nil {
-		return err
-	}
-
-	if len(commit) > 0 {
-		return worktree.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(commit)})
-	}
-
-	if _, err := r.repo.Branch(branch); err != nil {
-		if !errors.Is(err, git.ErrBranchNotFound) {
-			return err
-		}
-
-		if err := r.trySetupRemoteBranchTracking(branch); err != nil {
-			return nil
-		}
-	}
-
-	return worktree.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(branch),
-	})
-}
-
-func (r *repository) trySetupRemoteBranchTracking(branch string) error {
-	if _, err := r.repo.Remote(origin); err != nil {
-		if errors.Is(err, git.ErrRemoteNotFound) {
-			return nil
-		}
-		return err
-	}
-
-	remoteRefName := plumbing.NewRemoteReferenceName(origin, branch)
-	if _, err := r.repo.Reference(remoteRefName, true); err != nil {
-		if errors.Is(err, plumbing.ErrReferenceNotFound) {
-			return nil
-		}
-		return err
-	}
-
-	localRefName := plumbing.NewBranchReferenceName(branch)
-
-	err := r.repo.CreateBranch(&config.Branch{
-		Name:   branch,
-		Remote: origin,
-		Merge:  localRefName,
-	})
-	if err != nil {
-		return err
-	}
-
-	newRef := plumbing.NewSymbolicReference(localRefName, remoteRefName)
-	return r.repo.Storer.SetReference(newRef)
 }
 
 func getGitDir(gitWorkspace string) string {
