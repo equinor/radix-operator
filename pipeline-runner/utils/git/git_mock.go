@@ -47,6 +47,21 @@ func (mr *MockRepositoryMockRecorder) Checkout(reference interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Checkout", reflect.TypeOf((*MockRepository)(nil).Checkout), reference)
 }
 
+// DiffCommits mocks base method.
+func (m *MockRepository) DiffCommits(beforeCommitHash, afterCommitHash string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DiffCommits", beforeCommitHash, afterCommitHash)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DiffCommits indicates an expected call of DiffCommits.
+func (mr *MockRepositoryMockRecorder) DiffCommits(beforeCommitHash, afterCommitHash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DiffCommits", reflect.TypeOf((*MockRepository)(nil).DiffCommits), beforeCommitHash, afterCommitHash)
+}
+
 // GetCommitForReference mocks base method.
 func (m *MockRepository) GetCommitForReference(reference string) (string, error) {
 	m.ctrl.T.Helper()
@@ -78,16 +93,16 @@ func (mr *MockRepositoryMockRecorder) IsAncestor(ancestor, other interface{}) *g
 }
 
 // ResolveTagsForCommit mocks base method.
-func (m *MockRepository) ResolveTagsForCommit(commit string) ([]string, error) {
+func (m *MockRepository) ResolveTagsForCommit(commitHash string) ([]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveTagsForCommit", commit)
+	ret := m.ctrl.Call(m, "ResolveTagsForCommit", commitHash)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ResolveTagsForCommit indicates an expected call of ResolveTagsForCommit.
-func (mr *MockRepositoryMockRecorder) ResolveTagsForCommit(commit interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) ResolveTagsForCommit(commitHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveTagsForCommit", reflect.TypeOf((*MockRepository)(nil).ResolveTagsForCommit), commit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveTagsForCommit", reflect.TypeOf((*MockRepository)(nil).ResolveTagsForCommit), commitHash)
 }

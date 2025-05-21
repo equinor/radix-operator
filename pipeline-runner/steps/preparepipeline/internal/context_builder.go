@@ -14,7 +14,7 @@ import (
 )
 
 type ContextBuilder interface {
-	GetBuildContext(pipelineInfo *model.PipelineInfo) (*model.BuildContext, error)
+	GetBuildContext(pipelineInfo *model.PipelineInfo, repo git.Repository) (*model.BuildContext, error)
 }
 
 type contextBuilder struct {
@@ -64,12 +64,12 @@ func cleanPathAndSurroundBySlashes(dir string) string {
 }
 
 // GetBuildContext Prepare build context
-func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo) (*model.BuildContext, error) {
-	if len(pipelineInfo.PipelineArguments.CommitID) == 0 {
-		return nil, nil
+func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo git.Repository) (*model.BuildContext, error) {
+	if len(pipelineInfo.GitCommitHash) == 0 {
+		return nil, fmt.Errorf("missing target git commit hash")
 	}
 
-	radixConfigWasChanged, environmentsToBuild, err := cb.analyseSourceRepositoryChanges(pipelineInfo)
+	radixConfigWasChanged, environmentsToBuild, err := cb.analyseSourceRepositoryChanges(pipelineInfo, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo) (*mo
 	return &buildContext, nil
 }
 
-func (cb *contextBuilder) analyseSourceRepositoryChanges(pipelineInfo *model.PipelineInfo) (bool, []model.EnvironmentToBuild, error) {
+func (cb *contextBuilder) analyseSourceRepositoryChanges(pipelineInfo *model.PipelineInfo, repo git.Repository) (bool, []model.EnvironmentToBuild, error) {
 	radixDeploymentCommitHashProvider := commithash.NewProvider(cb.kubeUtil) //cb.kubeClient, cb.radixClient, pipelineInfo.GetAppName(), pipelineInfo.TargetEnvironments
 
 	var changedRadixConfig bool
@@ -92,6 +92,11 @@ func (cb *contextBuilder) analyseSourceRepositoryChanges(pipelineInfo *model.Pip
 		if err != nil {
 			return false, nil, err
 		}
+		changedFiles, err := repo.DiffCommits(envCommitInfo.CommitHash, pipelineInfo.GitCommitHash)
+		if err != nil {
+			return false, nil, err
+		}
+		fmt.Println(changedFiles)
 
 		changedPaths, envChangedRadixConfig, err := git.GetChangesFromGitRepository(pipelineInfo.GetGitWorkspace(), pipelineInfo.GetRadixConfigBranch(), pipelineInfo.GetRadixConfigFileInWorkspace(), pipelineInfo.GitCommitHash, envCommitInfo.CommitHash)
 		if err != nil {

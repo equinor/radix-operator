@@ -10,8 +10,8 @@
       "env": {},
       "args": [
         "--RADIX_APP=oauth-demo",
-        "--BRANCH=feature2",
-        "--COMMIT_ID=2f41a3cced188a3889a2da8ec0dac68cde0981bd",
+        "--BRANCH=feature",
+        "--COMMIT_ID=d39dd89bfd8a394628a296008ee896b26fb0a9dc",
         "--JOB_NAME=radix-pipeline-20231113133209-r",
         "--PIPELINE_TYPE=build-deploy",
         "--DEBUG=true",

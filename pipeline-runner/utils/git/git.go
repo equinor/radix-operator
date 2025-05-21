@@ -25,14 +25,17 @@ var (
 )
 
 type Repository interface {
-	// Checkout a specific commit, or the commit of a branch or tag name
+	// Checkout a specific commit, or the commit of a branch or tag name.
 	Checkout(reference string) error
-	// Get the current commit for a branch or tag name
+	// Get the current commit for a branch or tag name.
 	GetCommitForReference(reference string) (string, error)
-	// Checks if a commit, branch or tag is ancestor of other commit, branch or tag
+	// Checks if a commit, branch or tag is ancestor of other commit, branch or tag.
 	IsAncestor(ancestor, other string) (bool, error)
-	// Returns tags for a specific commit
-	ResolveTagsForCommit(commit string) ([]string, error)
+	// Returns tags for a specific commit.
+	ResolveTagsForCommit(commitHash string) ([]string, error)
+	// Returns list of files changes between commits.
+	// If beforeCommitHash is empty, all changes up till targetCommit is returned.
+	DiffCommits(beforeCommitHash, afterCommitHash string) ([]string, error)
 }
 
 func Open(path string) (Repository, error) {
@@ -131,8 +134,8 @@ func (r *repository) IsAncestor(ancestor, other string) (bool, error) {
 	return ancestorCommit.IsAncestor(otherCommit)
 }
 
-func (r *repository) ResolveTagsForCommit(commit string) ([]string, error) {
-	commitHash := plumbing.NewHash(commit)
+func (r *repository) ResolveTagsForCommit(commitHash string) ([]string, error) {
+	hash := plumbing.NewHash(commitHash)
 
 	tags, err := r.repo.Tags()
 	if err != nil {
@@ -152,13 +155,61 @@ func (r *repository) ResolveTagsForCommit(commit string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if *revHash == commitHash {
+		if *revHash == hash {
 			tagNames = append(tagNames, tagName)
 		}
 		return nil
 	})
 
 	return tagNames, err
+}
+
+func (r *repository) DiffCommits(beforeCommitHash, afterCommitHash string) ([]string, error) {
+	var (
+		beforeCommit, afterCommit *object.Commit
+		beforeTree, afterTree     *object.Tree
+		err                       error
+	)
+
+	if afterCommit, err = r.repo.CommitObject(plumbing.NewHash(afterCommitHash)); err != nil {
+		return nil, err
+	}
+
+	if afterTree, err = afterCommit.Tree(); err != nil {
+		return nil, err
+	}
+
+	if len(beforeCommitHash) > 0 {
+		if beforeCommit, err = r.repo.CommitObject(plumbing.NewHash(beforeCommitHash)); err != nil {
+			return nil, err
+		}
+
+		if beforeTree, err = beforeCommit.Tree(); err != nil {
+			return nil, err
+		}
+	}
+
+	changes, err := object.DiffTree(beforeTree, afterTree)
+	if err != nil {
+		return nil, err
+	}
+
+	changedFiles := make([]string, 0, len(changes))
+	for _, change := range changes {
+		action, err := change.Action()
+		if err != nil {
+			return nil, err
+		}
+
+		switch action {
+		case merkletrie.Insert, merkletrie.Modify:
+			changedFiles = append(changedFiles, change.To.Name)
+		default:
+			changedFiles = append(changedFiles, change.From.Name)
+		}
+	}
+
+	return changedFiles, nil
 }
 
 func getGitDir(gitWorkspace string) string {

@@ -534,19 +534,19 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 				RadixRegistration: rr,
 			}
 			buildContext := &model.BuildContext{}
-			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
-			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(applicationBuilder.BuildRA(), nil).Times(1)
-			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
-			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo).Return(buildContext, nil).AnyTimes()
-			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
-			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, internalTest.Env1).Return(true, "tekton/pipeline.yaml", ts.args.pipeline, ts.args.tasks, nil).AnyTimes()
-			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
-			mockOwnerReferenceFactory.EXPECT().Create().Return(&metav1.OwnerReference{Kind: "RadixApplication", Name: appName}).AnyTimes()
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
 			mockGitRepo.EXPECT().GetCommitForReference(gomock.Any()).AnyTimes().Return("anycommitid", nil)
 			mockGitRepo.EXPECT().IsAncestor(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)
 			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return(nil, nil)
+			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(applicationBuilder.BuildRA(), nil).Times(1)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, mockGitRepo).Return(buildContext, nil).AnyTimes()
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, internalTest.Env1).Return(true, "tekton/pipeline.yaml", ts.args.pipeline, ts.args.tasks, nil).AnyTimes()
+			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+			mockOwnerReferenceFactory.EXPECT().Create().Return(&metav1.OwnerReference{Kind: "RadixApplication", Name: appName}).AnyTimes()
 			step := preparepipeline.NewPreparePipelinesStep(
 				preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
 				preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
@@ -730,16 +730,16 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 				RadixApplication:  ra,
 			}
 			buildContext := &model.BuildContext{}
-			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
-			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo).Return(buildContext, nil).AnyTimes()
-			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
-			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(ra, nil).AnyTimes()
-			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
 			mockGitRepo.EXPECT().GetCommitForReference(gomock.Any()).AnyTimes().Return("anycommitid", nil)
 			mockGitRepo.EXPECT().IsAncestor(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)
 			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return(nil, nil)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+			mockContextBuilder.EXPECT().GetBuildContext(pipelineInfo, mockGitRepo).Return(buildContext, nil).AnyTimes()
+			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(ra, nil).AnyTimes()
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
 			for _, env := range ts.expectedTargetEnvs {
 				mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, env).Return(false, "", nil, nil, nil).Times(1)
 			}

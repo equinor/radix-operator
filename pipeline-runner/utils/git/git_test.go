@@ -78,7 +78,7 @@ func Test_X(t *testing.T) {
 	fmt.Println("")
 
 	var beforeCommit, afterCommit *object.Commit
-	beforeCommit, err = repo.CommitObject(plumbing.NewHash("d83810270b71e05f47a118ae39458aa66c3b08a5"))
+	beforeCommit, err = repo.CommitObject(plumbing.NewHash("99458cb6d625c5c210193b0a8caf7a9f1dd58032"))
 	require.NoError(t, err)
 	afterCommit, err = repo.CommitObject(plumbing.NewHash("c4cdd87180af0c9c6c7c680f7488ec8449f8857d"))
 	require.NoError(t, err)
@@ -96,18 +96,16 @@ func Test_X(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, change := range changes {
-		var c, te string
+		var c string
 		a, err := change.Action()
 		require.NoError(t, err)
 		switch a {
 		case merkletrie.Insert, merkletrie.Modify:
-			te = change.To.TreeEntry.Name
 			c = change.To.Name
 		default:
-			te = change.From.TreeEntry.Name
 			c = change.From.Name
 		}
-		fmt.Printf("%s: %s\n", c, te)
+		fmt.Printf("%s\n", c)
 	}
 	// tree_iter, err := repo.TreeObjects()
 	// require.NoError(t, err)

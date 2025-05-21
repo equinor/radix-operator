@@ -133,7 +133,12 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 
 	logPipelineInfo(ctx, pipelineInfo.Definition.Type, appName, branch, commitID)
 
-	if err := step.setRadixConfig(pipelineInfo); err != nil {
+	repo, err := step.openGitRepo(pipelineInfo.GetGitWorkspace())
+	if err != nil {
+		return fmt.Errorf("failed to open git repository: %w", err)
+	}
+
+	if err := step.setRadixConfig(pipelineInfo, repo); err != nil {
 		return err
 	}
 
@@ -142,12 +147,12 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 	}
 
 	if slice.Any([]radixv1.RadixPipelineType{radixv1.Build, radixv1.BuildDeploy}, pipelineInfo.IsPipelineType) {
-		if err = step.setBuildInfo(pipelineInfo); err != nil {
+		if err = step.setBuildInfo(pipelineInfo, repo); err != nil {
 			return err
 		}
 	}
 
-	if err = step.setSubPipelinesToRun(ctx, pipelineInfo); err != nil {
+	if err = step.setSubPipelinesToRun(ctx, pipelineInfo, repo); err != nil {
 		return err
 	}
 
@@ -158,11 +163,8 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 	return nil
 }
 
-func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo *model.PipelineInfo) (string, string, error) {
-	repo, err := step.openGitRepo(pipelineInfo.GetGitWorkspace())
-	if err != nil {
-		return "", "", fmt.Errorf("failed to open git repository: %w", err)
-	}
+func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo *model.PipelineInfo, repo git.Repository) (string, string, error) {
+	var err error
 
 	commit := pipelineInfo.PipelineArguments.CommitID
 	if len(commit) == 0 {
@@ -193,15 +195,19 @@ func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo 
 	return commit, tagsConcat, nil
 }
 
-func (step *PreparePipelinesStepImplementation) setBuildInfo(pipelineInfo *model.PipelineInfo) error {
-	commit, tags, err := step.getGitInfoForBuild(pipelineInfo)
+func (step *PreparePipelinesStepImplementation) setBuildInfo(pipelineInfo *model.PipelineInfo, repo git.Repository) error {
+	commit, tags, err := step.getGitInfoForBuild(pipelineInfo, repo)
 	if err != nil {
 		return err
 	}
 	pipelineInfo.GitCommitHash = commit
 	pipelineInfo.GitTags = tags
 
-	buildContext, err := step.contextBuilder.GetBuildContext(pipelineInfo)
+	if len(pipelineInfo.PipelineArguments.CommitID) == 0 {
+		return nil
+	}
+
+	buildContext, err := step.contextBuilder.GetBuildContext(pipelineInfo, repo)
 	if err != nil {
 		return err
 	}
@@ -210,13 +216,8 @@ func (step *PreparePipelinesStepImplementation) setBuildInfo(pipelineInfo *model
 	return err
 }
 
-func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *model.PipelineInfo) error {
-	repo, err := step.openGitRepo(pipelineInfo.GetGitWorkspace())
-	if err != nil {
-		return fmt.Errorf("failed to open git repository: %w", err)
-	}
-
-	err = repo.Checkout(pipelineInfo.GetRadixConfigBranch())
+func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *model.PipelineInfo, repo git.Repository) error {
+	err := repo.Checkout(pipelineInfo.GetRadixConfigBranch())
 	if err != nil {
 		return fmt.Errorf("failed to checkout config branch %s: %w", pipelineInfo.GetRadixConfigBranch(), err)
 	}
@@ -230,12 +231,7 @@ func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *mod
 	return nil
 }
 
-func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	repo, err := step.openGitRepo(pipelineInfo.GetGitWorkspace())
-	if err != nil {
-		return fmt.Errorf("failed to open git repository: %w", err)
-	}
-
+func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) error {
 	gitCommit, err := step.getTargetGitCommitForSubPipelines(ctx, pipelineInfo, repo)
 	if err != nil {
 		return err
