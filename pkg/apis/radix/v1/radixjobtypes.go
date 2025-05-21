@@ -63,18 +63,12 @@ type RadixJobSpec struct {
 	// Deprecated: radix-api will be responsible for setting the CloneURL, it is taken from the RadixRegistration by the radix-operator
 	// CloneURL GitHub repository URL
 	CloneURL string `json:"cloneURL"`
-	// Deprecated: this repository is merged to radix-operator
-	// TektonImage Image of the radix-tekton
-	TektonImage string `json:"tektonImage"`
 	// PipeLineType Type of the pipeline
-	PipeLineType RadixPipelineType `json:"pipeLineType"`
-	// Deprecated: radix-api will be responsible for setting the PipelineImage, it is taken from the radix-operator configuration
-	// PipelineImage Image tag of the radix-pipeline
-	PipelineImage string               `json:"pipelineImage"`
-	Build         RadixBuildSpec       `json:"build"`
-	Promote       RadixPromoteSpec     `json:"promote"`
-	Deploy        RadixDeploySpec      `json:"deploy"`
-	ApplyConfig   RadixApplyConfigSpec `json:"applyConfig"`
+	PipeLineType RadixPipelineType    `json:"pipeLineType"`
+	Build        RadixBuildSpec       `json:"build"`
+	Promote      RadixPromoteSpec     `json:"promote"`
+	Deploy       RadixDeploySpec      `json:"deploy"`
+	ApplyConfig  RadixApplyConfigSpec `json:"applyConfig"`
 	// Stop If true, the job will be stopped
 	Stop bool `json:"stop"`
 	// TriggeredFromWebhook If true, the job was triggered from a webhook

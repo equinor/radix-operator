@@ -14,7 +14,6 @@ type JobBuilder interface {
 	WithRadixApplication(ApplicationBuilder) JobBuilder
 	WithJobName(string) JobBuilder
 	WithAppName(string) JobBuilder
-	WithPipelineImageTag(string) JobBuilder
 	WithPipelineType(v1.RadixPipelineType) JobBuilder
 	WithBranch(branch string) JobBuilder
 	WithGitRef(gitRef string) JobBuilder
@@ -23,7 +22,6 @@ type JobBuilder interface {
 	WithToEnvironment(envName string) JobBuilder
 	WithCommitID(string) JobBuilder
 	WithPushImage(bool) JobBuilder
-	WithTektonImageTag(string) JobBuilder
 	WithImageTag(string) JobBuilder
 	WithDeploymentName(string) JobBuilder
 	WithStatusOnAnnotation(JobStatusBuilder) JobBuilder
@@ -52,9 +50,7 @@ type JobBuilderStruct struct {
 	commitID              string
 	imageTag              string
 	created               time.Time
-	pipelineImageTag      string
 	pushImage             bool
-	tektonImageTag        string
 	toEnvironment         string
 	fromEnvironment       string
 	overrideUseBuildCache *bool
@@ -87,16 +83,6 @@ func (jb *JobBuilderStruct) WithAppName(name string) JobBuilder {
 // WithPipelineType Sets pipeline
 func (jb *JobBuilderStruct) WithPipelineType(pipeline v1.RadixPipelineType) JobBuilder {
 	jb.pipeline = pipeline
-	return jb
-}
-
-// WithPipelineImageTag Sets the pipeline image tag
-func (jb *JobBuilderStruct) WithPipelineImageTag(imageTag string) JobBuilder {
-	jb.pipelineImageTag = imageTag
-	return jb
-}
-func (jb *JobBuilderStruct) WithTektonImageTag(imageTag string) JobBuilder {
-	jb.tektonImageTag = imageTag
 	return jb
 }
 
@@ -222,10 +208,8 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 			CreationTimestamp: metav1.Time{Time: jb.created},
 		},
 		Spec: v1.RadixJobSpec{
-			AppName:       jb.appName,
-			PipeLineType:  jb.pipeline,
-			PipelineImage: jb.pipelineImageTag,
-			TektonImage:   jb.tektonImageTag,
+			AppName:      jb.appName,
+			PipeLineType: jb.pipeline,
 			Build: v1.RadixBuildSpec{
 				Branch:                jb.branch,
 				GitRef:                jb.gitRef,
