@@ -1375,54 +1375,111 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 
 func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 	appName := "anyapp"
-	type scenario struct {
-		name                 string
-		componentTagName     string
-		hasEnvironmentConfig bool
-		environmentTagName   string
-		expectedError        error
+	scenarios := map[string]struct {
+		componentTagName           string
+		hasEnvironmentConfig       bool
+		environmentTagName         string
+		pipelineTypeExpectedErrors map[radixv1.RadixPipelineType]error
+	}{
+		"deploy: imageTagName not set on component, missing environmentConfig": {
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.BuildDeploy: applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.Deploy:      applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
+		"deploy: imageTagName set on component, missing environmentConfig": {
+			componentTagName: "some-component-tag",
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       nil,
+				radixv1.BuildDeploy: nil,
+				radixv1.Deploy:      nil,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
+		"deploy: imageTagName not set on component, not set in environmentConfig": {
+			hasEnvironmentConfig: true,
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.BuildDeploy: applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.Deploy:      applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
+		"deploy: imageTagName not set on component, set in environmentConfig": {
+			hasEnvironmentConfig: true,
+			environmentTagName:   "some-env-tag",
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       nil,
+				radixv1.BuildDeploy: nil,
+				radixv1.Deploy:      nil,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
+		"deploy: imageTagName set on component, not set in environmentConfig": {
+			componentTagName:     "some-component-tag",
+			hasEnvironmentConfig: true,
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       nil,
+				radixv1.BuildDeploy: nil,
+				radixv1.Deploy:      nil,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
+		"deploy: imageTagName set on component, set in environmentConfig": {
+			componentTagName:     "some-component-tag",
+			hasEnvironmentConfig: true,
+			environmentTagName:   "some-env-tag",
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       nil,
+				radixv1.BuildDeploy: nil,
+				radixv1.Deploy:      nil,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
 	}
-	scenarios := []scenario{
-		{name: "no imageTagName in a component or an environment", expectedError: applyconfig.ErrMissingRequiredImageTagName},
-		{name: "imageTagName is in a component", componentTagName: "some-component-tag"},
-		{name: "imageTagName is not set in an environment", hasEnvironmentConfig: true, expectedError: applyconfig.ErrMissingRequiredImageTagName},
-		{name: "imageTagName is in an environment", hasEnvironmentConfig: true, environmentTagName: "some-env-tag"},
-		{name: "imageTagName is in a component, not in an environment", componentTagName: "some-component-tag", hasEnvironmentConfig: true},
-		{name: "imageTagName is in a component and in an environment", componentTagName: "some-component-tag", hasEnvironmentConfig: true, environmentTagName: "some-env-tag"},
-	}
-	for _, ts := range scenarios {
-		s.Run(ts.name, func() {
+	for scenarioName, scenario := range scenarios {
+		s.Run(scenarioName, func() {
 			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 
-			componentBuilder := utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("deploycomp").WithImage("any:{imageTagName}").WithImageTagName(ts.componentTagName)
-			if ts.hasEnvironmentConfig || ts.environmentTagName != "" {
-				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment("dev").WithImageTagName(ts.environmentTagName))
+			componentBuilder := utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("deploycomp").WithImage("any:{imageTagName}").WithImageTagName(scenario.componentTagName)
+			if scenario.hasEnvironmentConfig || scenario.environmentTagName != "" {
+				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment("dev").WithImageTagName(scenario.environmentTagName))
 			}
 			ra := utils.NewRadixApplicationBuilder().
 				WithAppName(appName).
 				WithEnvironment("dev", "anybranch").
 				WithComponents(componentBuilder).BuildRA()
-			//TODO ?
 
-			pipelineInfo := model.PipelineInfo{
-				PipelineArguments: model.PipelineArguments{
-					PipelineType:  string(radixv1.Deploy),
-					ToEnvironment: "dev",
-					GitWorkspace:  "/some-workspace",
-				},
-				RadixApplication:   ra,
-				TargetEnvironments: []string{"dev"},
+			for pipelineType, expectedError := range scenario.pipelineTypeExpectedErrors {
+				pipelineInfo := model.PipelineInfo{
+					PipelineArguments: model.PipelineArguments{
+						PipelineType:  string(pipelineType),
+						ToEnvironment: "dev",
+						GitWorkspace:  "/some-workspace",
+					},
+					RadixApplication:   ra,
+					TargetEnvironments: []string{"dev"},
+				}
+
+				applyStep := applyconfig.NewApplyConfigStep()
+				applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+				err := applyStep.Run(context.Background(), &pipelineInfo)
+				if expectedError == nil {
+					s.NoError(err, "pipeline type %s", pipelineType)
+				} else {
+					s.ErrorIs(err, applyconfig.ErrMissingRequiredImageTagName, "pipeline type %s", pipelineType)
+				}
 			}
 
-			applyStep := applyconfig.NewApplyConfigStep()
-			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-			err := applyStep.Run(context.Background(), &pipelineInfo)
-			if ts.expectedError == nil {
-				s.NoError(err)
-			} else {
-				s.ErrorIs(err, applyconfig.ErrMissingRequiredImageTagName)
-			}
 		})
 	}
 }
