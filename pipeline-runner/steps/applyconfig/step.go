@@ -61,17 +61,17 @@ func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 	if err := step.setBuildSecret(pipelineInfo); err != nil {
 		return err
 	}
-	if err := step.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
-		return err
-	}
-	if err := step.validatePipelineInfo(pipelineInfo); err != nil {
-		return err
-	}
+
 	if slice.Any([]radixv1.RadixPipelineType{radixv1.Build, radixv1.BuildDeploy, radixv1.Deploy}, pipelineInfo.IsPipelineType) {
 		if err := step.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
 			return err
 		}
 	}
+
+	if err := step.validatePipelineInfo(pipelineInfo); err != nil {
+		return err
+	}
+
 	return step.applyRadixApplication(ctx, pipelineInfo)
 }
 
