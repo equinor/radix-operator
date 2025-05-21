@@ -1,19 +1,18 @@
 package git
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
+	"path"
+	"slices"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/utils/merkletrie"
-	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -22,6 +21,7 @@ const (
 
 var (
 	ErrReferenceNotFound = errors.New("reference not found")
+	ErrCommitNotFound    = errors.New("commit not found")
 )
 
 type Repository interface {
@@ -33,9 +33,28 @@ type Repository interface {
 	IsAncestor(ancestor, other string) (bool, error)
 	// Returns tags for a specific commit.
 	ResolveTagsForCommit(commitHash string) ([]string, error)
-	// Returns list of files changes between commits.
+	// Returns list of changes between commits.
 	// If beforeCommitHash is empty, all changes up till targetCommit is returned.
-	DiffCommits(beforeCommitHash, afterCommitHash string) ([]string, error)
+	DiffCommits(beforeCommitHash, afterCommitHash string) (DiffEntries, error)
+}
+
+type DiffEntry struct {
+	Name  string
+	IsDir bool
+}
+
+type DiffEntries []DiffEntry
+
+// Returns list of distinct directories
+func (s DiffEntries) Dirs() []string {
+	allDirs := slice.Map(s, func(e DiffEntry) string {
+		if e.IsDir {
+			return e.Name
+		}
+		return path.Dir(e.Name)
+	})
+	slices.Sort(allDirs)
+	return slices.Compact(allDirs)
 }
 
 func Open(path string) (Repository, error) {
@@ -164,7 +183,7 @@ func (r *repository) ResolveTagsForCommit(commitHash string) ([]string, error) {
 	return tagNames, err
 }
 
-func (r *repository) DiffCommits(beforeCommitHash, afterCommitHash string) ([]string, error) {
+func (r *repository) DiffCommits(beforeCommitHash, afterCommitHash string) (DiffEntries, error) {
 	var (
 		beforeCommit, afterCommit *object.Commit
 		beforeTree, afterTree     *object.Tree
@@ -194,7 +213,7 @@ func (r *repository) DiffCommits(beforeCommitHash, afterCommitHash string) ([]st
 		return nil, err
 	}
 
-	changedFiles := make([]string, 0, len(changes))
+	changedFiles := make(DiffEntries, 0, len(changes))
 	for _, change := range changes {
 		action, err := change.Action()
 		if err != nil {
@@ -203,205 +222,18 @@ func (r *repository) DiffCommits(beforeCommitHash, afterCommitHash string) ([]st
 
 		switch action {
 		case merkletrie.Insert, merkletrie.Modify:
-			changedFiles = append(changedFiles, change.To.Name)
+			changedFiles = append(changedFiles, newDiffEntry(change.To))
 		default:
-			changedFiles = append(changedFiles, change.From.Name)
+			changedFiles = append(changedFiles, newDiffEntry(change.From))
 		}
 	}
 
 	return changedFiles, nil
 }
 
-func getGitDir(gitWorkspace string) string {
-	return gitWorkspace + "/.git"
-}
-
-// getGitAffectedResourcesBetweenCommits returns the list of folders, where files were affected after beforeCommitHash (not included) till targetCommitHash commit (included)
-func getGitAffectedResourcesBetweenCommits(gitWorkspace, configBranch, configFile, targetCommitString, beforeCommitString string) ([]string, bool, error) {
-	if len(targetCommitString) == 0 {
-		return nil, false, fmt.Errorf("invalid empty targetCommit")
-	}
-	if strings.EqualFold(targetCommitString, beforeCommitString) { // same commit, no source changes
-		return nil, false, nil
-	}
-	gitDir := getGitDir(gitWorkspace)
-	repository, currentBranch, err := getRepository(gitDir)
-	if err != nil {
-		return nil, false, err
-	}
-	targetCommit, err := findCommit(targetCommitString, repository)
-	if err != nil {
-		return nil, false, err
-	}
-	if targetCommit == nil {
-		return nil, false, errors.New("invalid targetCommit")
-	}
-
-	var beforeCommit *object.Commit
-	if len(beforeCommitString) > 0 {
-		beforeCommit, err = findCommit(beforeCommitString, repository)
-		if err != nil {
-			return nil, false, err
-		}
-	}
-
-	return getChangedFoldersFromTargetCommitTillExclusiveBeforeCommit(targetCommit, beforeCommit, configBranch, currentBranch, configFile)
-}
-
-func getChangedFoldersFromTargetCommitTillExclusiveBeforeCommit(targetCommit *object.Commit, beforeCommit *object.Commit, configBranch string, currentBranch string, configFile string) ([]string, bool, error) {
-	if targetCommit == nil {
-		return nil, false, errors.New("targetCommit must be set")
-	}
-
-	targetTree, err := targetCommit.Tree()
-	if err != nil {
-		return nil, false, err
-	}
-
-	var beforeTree *object.Tree
-	if beforeCommit != nil {
-		beforeTree, err = beforeCommit.Tree()
-		if err != nil {
-			return nil, false, err
-		}
-	}
-	changes, err := object.DiffTreeContext(context.TODO(), beforeTree, targetTree)
-	if err != nil {
-		return nil, false, err
-	}
-
-	changedFolderNamesMap := make(map[string]bool)
-	changedConfigFile := false
-	for _, change := range changes {
-		action, err := change.Action()
-		if err != nil {
-			return nil, false, err
-		}
-		fileName := change.To.Name
-		if action == merkletrie.Delete {
-			fileName = change.From.Name
-		} else if action == merkletrie.Modify && change.To.Name != change.From.Name {
-			appendFolderToMap(changedFolderNamesMap, &changedConfigFile, configBranch, currentBranch, configFile, change.From.Name, change.From.TreeEntry.Mode)
-		}
-		appendFolderToMap(changedFolderNamesMap, &changedConfigFile, configBranch, currentBranch, configFile, fileName, change.To.TreeEntry.Mode)
-	}
-	return maps.GetKeysFromMap(changedFolderNamesMap), changedConfigFile, nil
-}
-
-func getRepository(gitDir string) (*git.Repository, string, error) {
-	log.Debug().Msgf("opened gitDir %s", gitDir)
-	repository, err := git.PlainOpen(gitDir)
-	if err != nil {
-		return nil, "", err
-	}
-	currentBranch, err := getCurrentBranch(repository)
-	if err != nil {
-		return nil, "", err
-	}
-	return repository, currentBranch, nil
-}
-
-func getCurrentBranch(repository *git.Repository) (string, error) {
-	head, err := repository.Head()
-	if err != nil {
-		return "", err
-	}
-	branchHeadNamePrefix := "refs/heads/"
-	branchHeadName := head.Name().String()
-	if head.Name() == "HEAD" || !strings.HasPrefix(branchHeadName, branchHeadNamePrefix) {
-		return "", errors.New("unexpected current git revision")
-	}
-	currentBranch := strings.TrimPrefix(branchHeadName, branchHeadNamePrefix)
-	return currentBranch, nil
-}
-
-func appendFolderToMap(changedFolderNamesMap map[string]bool, changedConfigFile *bool, configBranch string, currentBranch string, configFile string, filePath string, fileMode filemode.FileMode) {
-	if filePath == "" {
-		return
-	}
-	folderName := ""
-	if fileMode == filemode.Dir {
-		folderName = filePath
-	} else {
-		folderName = filepath.Dir(filePath)
-		if !*changedConfigFile && strings.EqualFold(configBranch, currentBranch) && strings.EqualFold(configFile, filePath) {
-			*changedConfigFile = true
-		}
-		log.Debug().Msgf("- file: %s", filePath)
-	}
-	if _, ok := changedFolderNamesMap[folderName]; !ok {
-		changedFolderNamesMap[folderName] = true
+func newDiffEntry(c object.ChangeEntry) DiffEntry {
+	return DiffEntry{
+		Name:  c.Name,
+		IsDir: c.TreeEntry.Mode == filemode.Dir,
 	}
 }
-
-// findCommit will return a Hash if found, or nil if not found.
-func findCommit(commitHash string, repository *git.Repository) (*object.Commit, error) {
-	otherHash, err := repository.ResolveRevision(plumbing.Revision(commitHash))
-	if err != nil {
-		return nil, err
-	}
-
-	return repository.CommitObject(*otherHash)
-
-	// logIter, err := repository.Log(&git.LogOptions{
-	// 	Order: git.LogOrderBSF, // sorted from latest down to oldest
-	// })
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// var hash plumbing.Hash
-	// err = logIter.ForEach(func(c *object.Commit) error {
-	// 	if c.Hash.String() == commitHash {
-	// 		hash = c.Hash
-	// 		return io.EOF
-	// 	}
-	// 	return nil // continue iteration loop
-	// })
-
-	// if err != io.EOF {
-	// 	return nil, err
-	// }
-
-	// if hash.IsZero() {
-	// 	return nil, nil
-	// }
-
-	// return repository.CommitObject(hash)
-}
-
-// GetChangesFromGitRepository Get changed folders in environments and if radixconfig.yaml was changed
-func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash, beforeCommitHash string) ([]string, bool, error) {
-	// radixConfigWasChanged := false
-	// var envChanges []string
-
-	if strings.HasPrefix(radixConfigFileName, gitWorkspace) {
-		radixConfigFileName = strings.TrimPrefix(strings.TrimPrefix(radixConfigFileName, gitWorkspace), "/")
-	}
-	log.Info().Msgf("Changes in GitHub repository:")
-
-	return getGitAffectedResourcesBetweenCommits(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash, beforeCommitHash)
-	// if err != nil {
-	// 	return nil, false, err
-	// }
-	// radixConfigWasChanged = radixConfigWasChanged || radixConfigWasChangedInEnv
-	// printEnvironmentChangedFolders(envName, radixDeploymentCommit, targetCommitHash, changedFolders)
-
-	// if radixConfigWasChanged {
-	// 	log.Info().Msgf("Radix config file was changed %s", radixConfigFileName)
-	// }
-	// return changedFolders, radixConfigWasChanged, nil
-}
-
-// func printEnvironmentChangedFolders(envName string, radixDeploymentCommit commithash.RadixDeploymentCommit, targetCommitHash string, changedFolders []string) {
-// 	log.Info().Msgf("- for the environment %s", envName)
-// 	if len(radixDeploymentCommit.RadixDeploymentName) == 0 {
-// 		log.Info().Msgf(" from initial commit to commit %s:", targetCommitHash)
-// 	} else {
-// 		log.Info().Msgf(" after the commit %s (of the deployment %s) to the commit %s:", radixDeploymentCommit.CommitHash, radixDeploymentCommit.RadixDeploymentName, targetCommitHash)
-// 	}
-// 	sort.Strings(changedFolders)
-// 	for _, folder := range changedFolders {
-// 		log.Info().Msgf("  - %s", folder)
-// 	}
-// }

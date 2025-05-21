@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -11,6 +12,10 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+)
+
+var (
+	ErrMissingGitCommitHash = errors.New("missing target git commit hash")
 )
 
 type ContextBuilder interface {
@@ -27,108 +32,92 @@ func NewContextBuilder(kubeUtil *kube.Kube) ContextBuilder {
 	}
 }
 
-// ComponentHasChangedSource checks if the component has changed source
-func ComponentHasChangedSource(envName string, component v1.RadixCommonComponent, changedFolders []string) bool {
-	image := component.GetImageForEnvironment(envName)
-	if len(image) > 0 {
-		return false
-	}
-	environmentConfig := component.GetEnvironmentConfigByName(envName)
-	if !component.GetEnabledForEnvironmentConfig(environmentConfig) {
-		return false
-	}
-
-	componentSource := component.GetSourceForEnvironment(envName)
-	sourceFolder := cleanPathAndSurroundBySlashes(componentSource.Folder)
-	if path.Dir(sourceFolder) == path.Dir("/") && len(changedFolders) > 0 {
-		return true // for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
-	}
-
-	for _, folder := range changedFolders {
-		if strings.HasPrefix(cleanPathAndSurroundBySlashes(folder), sourceFolder) {
-			return true
-		}
-	}
-	return false
-}
-
-func cleanPathAndSurroundBySlashes(dir string) string {
-	if !strings.HasSuffix(dir, "/") {
-		dir = fmt.Sprintf("%s/", dir)
-	}
-	dir = fmt.Sprintf("%s/", path.Dir(dir))
-	if !strings.HasPrefix(dir, "/") {
-		return fmt.Sprintf("/%s", dir)
-	}
-	return dir
-}
-
 // GetBuildContext Prepare build context
 func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo git.Repository) (*model.BuildContext, error) {
 	if len(pipelineInfo.GitCommitHash) == 0 {
-		return nil, fmt.Errorf("missing target git commit hash")
+		return nil, ErrMissingGitCommitHash
 	}
 
-	radixConfigWasChanged, environmentsToBuild, err := cb.analyseSourceRepositoryChanges(pipelineInfo, repo)
-	if err != nil {
-		return nil, err
+	if len(pipelineInfo.TargetEnvironments) == 0 {
+		return nil, nil
+	}
+
+	radixDeploymentCommitHashProvider := commithash.NewProvider(cb.kubeUtil) //cb.kubeClient, cb.radixClient, pipelineInfo.GetAppName(), pipelineInfo.TargetEnvironments
+	var environmentsToBuild []model.EnvironmentToBuild
+
+	for _, envName := range pipelineInfo.TargetEnvironments {
+		// TODO: replace with GetActiveRadixDeployment in steps/internal package
+		envCommitInfo, err := radixDeploymentCommitHashProvider.GetLastCommitHashForEnvironment(context.Background(), pipelineInfo.GetAppName(), envName)
+		if err != nil {
+			return nil, err
+		}
+
+		changedFiles, err := repo.DiffCommits(envCommitInfo.CommitHash, pipelineInfo.GitCommitHash)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get changes in git: %w", err)
+		}
+
+		environmentsToBuild = append(environmentsToBuild, model.EnvironmentToBuild{
+			Environment: envName,
+			Components:  getComponentsToBuild(pipelineInfo.GetRadixApplication(), envName, changedFiles.Dirs()),
+		})
 	}
 
 	buildContext := model.BuildContext{
-		ChangedRadixConfig:  radixConfigWasChanged,
+		ChangedRadixConfig:  false,
 		EnvironmentsToBuild: environmentsToBuild,
 	}
 
 	return &buildContext, nil
 }
 
-func (cb *contextBuilder) analyseSourceRepositoryChanges(pipelineInfo *model.PipelineInfo, repo git.Repository) (bool, []model.EnvironmentToBuild, error) {
-	radixDeploymentCommitHashProvider := commithash.NewProvider(cb.kubeUtil) //cb.kubeClient, cb.radixClient, pipelineInfo.GetAppName(), pipelineInfo.TargetEnvironments
+func getComponentsToBuild(ra *v1.RadixApplication, envName string, changedDirs []string) []string {
+	var componentsWithChangedSource []string
 
-	var changedRadixConfig bool
-	envChangedDirs := make(map[string][]string)
-	for _, envName := range pipelineInfo.TargetEnvironments {
-		envCommitInfo, err := radixDeploymentCommitHashProvider.GetLastCommitHashForEnvironment(context.Background(), pipelineInfo.GetAppName(), envName)
-		if err != nil {
-			return false, nil, err
+	for _, radixComponent := range ra.Spec.Components {
+		if componentHasChangedSource(envName, &radixComponent, changedDirs) {
+			componentsWithChangedSource = append(componentsWithChangedSource, radixComponent.GetName())
 		}
-		changedFiles, err := repo.DiffCommits(envCommitInfo.CommitHash, pipelineInfo.GitCommitHash)
-		if err != nil {
-			return false, nil, err
-		}
-		fmt.Println(changedFiles)
-
-		changedPaths, envChangedRadixConfig, err := git.GetChangesFromGitRepository(pipelineInfo.GetGitWorkspace(), pipelineInfo.GetRadixConfigBranch(), pipelineInfo.GetRadixConfigFileInWorkspace(), pipelineInfo.GitCommitHash, envCommitInfo.CommitHash)
-		if err != nil {
-			return false, nil, err
-		}
-
-		changedRadixConfig = changedRadixConfig || envChangedRadixConfig
-		envChangedDirs[envName] = changedPaths
 	}
-
-	environmentsToBuild := cb.getEnvironmentsToBuild(pipelineInfo, envChangedDirs)
-	return changedRadixConfig, environmentsToBuild, nil
+	for _, radixJobComponent := range ra.Spec.Jobs {
+		if componentHasChangedSource(envName, &radixJobComponent, changedDirs) {
+			componentsWithChangedSource = append(componentsWithChangedSource, radixJobComponent.GetName())
+		}
+	}
+	return componentsWithChangedSource
 }
 
-func (cb *contextBuilder) getEnvironmentsToBuild(pipelineInfo *model.PipelineInfo, changesFromGitRepository map[string][]string) []model.EnvironmentToBuild {
-	var environmentsToBuild []model.EnvironmentToBuild
-	for envName, changedFolders := range changesFromGitRepository {
-		var componentsWithChangedSource []string
-		for _, radixComponent := range pipelineInfo.GetRadixApplication().Spec.Components {
-			if ComponentHasChangedSource(envName, &radixComponent, changedFolders) {
-				componentsWithChangedSource = append(componentsWithChangedSource, radixComponent.GetName())
-			}
-		}
-		for _, radixJobComponent := range pipelineInfo.GetRadixApplication().Spec.Jobs {
-			if ComponentHasChangedSource(envName, &radixJobComponent, changedFolders) {
-				componentsWithChangedSource = append(componentsWithChangedSource, radixJobComponent.GetName())
-			}
-		}
-		environmentsToBuild = append(environmentsToBuild, model.EnvironmentToBuild{
-			Environment: envName,
-			Components:  componentsWithChangedSource,
-		})
+// componentHasChangedSource checks if the component has changed source
+func componentHasChangedSource(envName string, component v1.RadixCommonComponent, changedFolders []string) bool {
+	if len(changedFolders) == 0 {
+		return false
 	}
-	return environmentsToBuild
+
+	if len(component.GetImageForEnvironment(envName)) > 0 {
+		return false
+	}
+
+	if !component.GetEnabledForEnvironmentConfig(component.GetEnvironmentConfigByName(envName)) {
+		return false
+	}
+
+	cleanedSourceFolder := cleanPathForPrefixComparison(component.GetSourceForEnvironment(envName).Folder)
+	if cleanedSourceFolder == "/" {
+		return true // for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
+	}
+
+	for _, folder := range changedFolders {
+		if strings.HasPrefix(cleanPathForPrefixComparison(folder), cleanedSourceFolder) {
+			return true
+		}
+	}
+	return false
+}
+
+func cleanPathForPrefixComparison(dir string) string {
+	outDir := path.Join("/", dir)
+	if !strings.HasSuffix(outDir, "/") {
+		outDir = outDir + "/"
+	}
+	return outDir
 }

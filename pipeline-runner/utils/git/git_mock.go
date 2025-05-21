@@ -48,10 +48,10 @@ func (mr *MockRepositoryMockRecorder) Checkout(reference interface{}) *gomock.Ca
 }
 
 // DiffCommits mocks base method.
-func (m *MockRepository) DiffCommits(beforeCommitHash, afterCommitHash string) ([]string, error) {
+func (m *MockRepository) DiffCommits(beforeCommitHash, afterCommitHash string) (DiffEntries, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DiffCommits", beforeCommitHash, afterCommitHash)
-	ret0, _ := ret[0].([]string)
+	ret0, _ := ret[0].(DiffEntries)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
