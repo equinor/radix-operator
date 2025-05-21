@@ -234,7 +234,7 @@ func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Cont
 	if len(gitRef) > 0 {
 		stringBuilder.WriteString(fmt.Sprintf(", the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault()))
 	}
-	if len(pipelineInfo.PipelineArguments.Branch) > 0 {
+	if len(pipelineInfo.PipelineArguments.CommitID) > 0 {
 		stringBuilder.WriteString(fmt.Sprintf(", the commit %s", pipelineInfo.PipelineArguments.CommitID))
 	}
 	log.Ctx(ctx).Info().Msg(stringBuilder.String())
@@ -408,7 +408,7 @@ func (step *PreparePipelinesStepImplementation) createPipeline(envName string, p
 	pipeline.ObjectMeta.Name = pipelineName
 	pipeline.ObjectMeta.Labels = labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{
-		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch,
+		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch, //nolint:staticcheck
 		kube.RadixGitRefAnnotation:      pipelineInfo.PipelineArguments.GitRef,
 		kube.RadixGitRefTypeAnnotation:  pipelineInfo.PipelineArguments.GitRefType,
 		defaults.PipelineNameAnnotation: originalPipelineName,

@@ -100,7 +100,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.AppName, defaults.RadixAppEnvironmentVariable, "", "Radix application name")
 	cmd.Flags().StringVar(&pipelineArgs.JobName, defaults.RadixPipelineJobEnvironmentVariable, "", "Pipeline job name")
 	cmd.Flags().StringVar(&pipelineArgs.PipelineType, defaults.RadixPipelineTypeEnvironmentVariable, "", "Pipeline type")
-	cmd.Flags().StringVar(&pipelineArgs.Branch, defaults.RadixBranchEnvironmentVariable, "", "Branch to deploy to")
+	cmd.Flags().StringVar(&pipelineArgs.Branch, defaults.RadixBranchEnvironmentVariable, "", "Branch to deploy to") //nolint:staticcheck
 	cmd.Flags().StringVar(&pipelineArgs.GitRef, defaults.RadixGitRefEnvironmentVariable, "", "Git ref")
 	cmd.Flags().StringVar(&pipelineArgs.GitRefType, defaults.RadixGitRefTypeEnvironmentVariable, "", "Git ref type")
 	cmd.Flags().StringVar(&pipelineArgs.CommitID, defaults.RadixCommitIdEnvironmentVariable, "", "Commit ID to build from")

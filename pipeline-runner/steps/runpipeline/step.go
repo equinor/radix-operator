@@ -233,7 +233,7 @@ func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev
 			Name:   pipelineRunName,
 			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv),
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:              pipelineInfo.PipelineArguments.Branch,
+				kube.RadixBranchAnnotation:              pipelineInfo.PipelineArguments.Branch, //nolint:staticcheck
 				kube.RadixGitRefAnnotation:              pipelineInfo.PipelineArguments.GitRef,
 				kube.RadixGitRefTypeAnnotation:          pipelineInfo.PipelineArguments.GitRefType,
 				operatorDefaults.PipelineNameAnnotation: originalPipelineName,

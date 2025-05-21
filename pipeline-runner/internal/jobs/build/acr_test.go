@@ -169,7 +169,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 				{Name: "CLUSTERTYPE_IMAGE", Value: ci.ClusterTypeImagePath},
 				{Name: "CLUSTERNAME_IMAGE", Value: ci.ClusterNameImagePath},
 				{Name: "RADIX_ZONE", Value: args.RadixZone},
-				{Name: "BRANCH", Value: args.Branch},
+				{Name: "BRANCH", Value: args.Branch}, //nolint:staticcheck
 				{Name: "GIT_REF", Value: args.GitRef},
 				{Name: "GIT_REF_TYPE", Value: args.GitRefType},
 				{Name: "TARGET_ENVIRONMENTS", Value: ci.EnvName},

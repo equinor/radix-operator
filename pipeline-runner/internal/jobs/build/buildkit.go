@@ -91,7 +91,8 @@ func (c *buildKitKubeJobProps) JobLabels() map[string]string {
 }
 
 func (c *buildKitKubeJobProps) JobAnnotations() map[string]string {
-	return getCommonJobAnnotations(c.pipelineArgs.Branch, c.pipelineArgs.GitRef, c.pipelineArgs.GitRefType, c.componentImage)
+	branch := c.pipelineArgs.Branch //nolint:staticcheck
+	return getCommonJobAnnotations(branch, c.pipelineArgs.GitRef, c.pipelineArgs.GitRefType, c.componentImage)
 }
 
 func (c *buildKitKubeJobProps) PodLabels() map[string]string {

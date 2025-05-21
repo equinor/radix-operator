@@ -68,7 +68,8 @@ func (c *acrKubeJobProps) JobLabels() map[string]string {
 }
 
 func (c *acrKubeJobProps) JobAnnotations() map[string]string {
-	return getCommonJobAnnotations(c.pipelineArgs.Branch, c.pipelineArgs.GitRef, c.pipelineArgs.GitRefType, c.componentImages...)
+	branch := c.pipelineArgs.Branch //nolint:staticcheck
+	return getCommonJobAnnotations(branch, c.pipelineArgs.GitRef, c.pipelineArgs.GitRefType, c.componentImages...)
 }
 
 func (c *acrKubeJobProps) PodLabels() map[string]string {
@@ -120,7 +121,8 @@ func (c *acrKubeJobProps) PodVolumes() []corev1.Volume {
 
 func (c *acrKubeJobProps) PodInitContainers() []corev1.Container {
 	cloneCfg := internalgit.CloneConfigFromPipelineArgs(c.pipelineArgs)
-	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GitWorkspace, c.pipelineArgs.Branch, cloneCfg)
+	branch := c.pipelineArgs.Branch //nolint:staticcheck
+	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GitWorkspace, branch, cloneCfg)
 }
 
 func (c *acrKubeJobProps) PodContainers() []corev1.Container {
@@ -191,7 +193,7 @@ func (c *acrKubeJobProps) getPodContainerEnvVars(componentImage pipeline.BuildCo
 	envVars := []corev1.EnvVar{
 		{
 			Name:  defaults.RadixBranchEnvironmentVariable,
-			Value: c.pipelineArgs.Branch,
+			Value: c.pipelineArgs.Branch, //nolint:staticcheck
 		},
 		{
 			Name:  defaults.RadixGitRefEnvironmentVariable,
