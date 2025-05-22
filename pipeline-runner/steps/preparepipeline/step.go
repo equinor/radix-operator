@@ -168,7 +168,7 @@ func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo 
 
 	commit := pipelineInfo.PipelineArguments.CommitID
 	if len(commit) == 0 {
-		commit, err = repo.GetCommitForReference(pipelineInfo.PipelineArguments.Branch)
+		commit, err = repo.ResolveCommitForReference(pipelineInfo.PipelineArguments.Branch)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get latest commit for branch %s: %w", pipelineInfo.PipelineArguments.Branch, err)
 		}
@@ -291,7 +291,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipeline
 			log.Ctx(ctx).Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
 			return "", nil
 		}
-		sourceRdHashFromBranchHead, err := repo.GetCommitForReference(sourceDeploymentGitBranch)
+		sourceRdHashFromBranchHead, err := repo.ResolveCommitForReference(sourceDeploymentGitBranch)
 		if err != nil {
 			return "", nil
 		}
@@ -310,7 +310,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipeline
 			return "", nil
 		}
 
-		gitHash, err := repo.GetCommitForReference(pipelineJobBranch)
+		gitHash, err := repo.ResolveCommitForReference(pipelineJobBranch)
 		if err != nil {
 			return "", err
 		}

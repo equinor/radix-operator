@@ -11,31 +11,31 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
+	"github.com/go-git/go-git/v5/plumbing/format/gitattributes"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/utils/merkletrie"
-)
-
-const (
-	remote = "origin"
+	"golang.org/x/exp/maps"
 )
 
 var (
 	ErrReferenceNotFound = errors.New("reference not found")
 	ErrCommitNotFound    = errors.New("commit not found")
+	ErrEmptyCommitHash   = errors.New("empty commit hash")
+	ErrUnstagedChanges   = errors.New("worktree contains unstaged changes")
 )
 
 type Repository interface {
 	// Checkout a specific commit, or the commit of a branch or tag name.
 	Checkout(reference string) error
 	// Get the current commit for a branch or tag name.
-	GetCommitForReference(reference string) (string, error)
+	ResolveCommitForReference(reference string) (string, error)
 	// Checks if a commit, branch or tag is ancestor of other commit, branch or tag.
 	IsAncestor(ancestor, other string) (bool, error)
 	// Returns tags for a specific commit.
 	ResolveTagsForCommit(commitHash string) ([]string, error)
 	// Returns list of changes between commits.
 	// If beforeCommitHash is empty, all changes up till targetCommit is returned.
-	DiffCommits(beforeCommitHash, afterCommitHash string) (DiffEntries, error)
+	DiffCommits(beforeCommitHash, targetCommitHash string) (DiffEntries, error)
 }
 
 type DiffEntry struct {
@@ -63,11 +63,18 @@ func Open(path string) (Repository, error) {
 		return nil, err
 	}
 
-	return &repository{repo: r}, nil
+	remoteObjs, err := r.Remotes()
+	if err != nil {
+		return nil, err
+	}
+	remotes := slice.Map(remoteObjs, func(o *git.Remote) string { return o.Config().Name })
+
+	return &repository{repo: r, remotes: remotes}, nil
 }
 
 type repository struct {
-	repo *git.Repository
+	repo    *git.Repository
+	remotes []string
 }
 
 func (r *repository) Checkout(reference string) error {
@@ -84,35 +91,44 @@ func (r *repository) Checkout(reference string) error {
 		return err
 	}
 
-	if err := wt.Checkout(&git.CheckoutOptions{Hash: hash}); err != nil {
-		if errors.Is(err, plumbing.ErrReferenceNotFound) {
-			return ErrReferenceNotFound
+	status, err := wt.Status()
+	if err != nil {
+		return nil
+	}
+
+	if !status.IsClean() {
+		lfsFiles, err := r.lfsFiles(wt)
+		if err != nil {
+			return nil
 		}
-		return fmt.Errorf("failed to checkout: %w", err)
+
+		dirtyFiles := maps.Keys(status)
+		safeToHardReset := slice.All(dirtyFiles, func(f string) bool {
+			return slices.Contains(lfsFiles, f)
+		})
+
+		if safeToHardReset {
+			if err := wt.Reset(&git.ResetOptions{Mode: git.HardReset}); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := wt.Checkout(&git.CheckoutOptions{Hash: hash}); err != nil {
+		switch {
+		case errors.Is(err, plumbing.ErrReferenceNotFound):
+			return ErrReferenceNotFound
+		case errors.Is(err, git.ErrUnstagedChanges):
+			return ErrUnstagedChanges
+		default:
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (r *repository) resolveHashForReference(reference string) (plumbing.Hash, bool, error) {
-	tryRefs := []plumbing.ReferenceName{
-		plumbing.NewTagReferenceName(reference),
-		plumbing.NewBranchReferenceName(reference),
-		plumbing.NewRemoteReferenceName(remote, reference),
-	}
-
-	for _, ref := range tryRefs {
-		if hash, err := r.repo.ResolveRevision(plumbing.Revision(ref)); err == nil {
-			return *hash, true, nil
-		} else if !errors.Is(err, plumbing.ErrReferenceNotFound) {
-			return plumbing.Hash{}, false, err
-		}
-	}
-
-	return plumbing.Hash{}, false, nil
-}
-
-func (r *repository) GetCommitForReference(reference string) (string, error) {
+func (r *repository) ResolveCommitForReference(reference string) (string, error) {
 	hash, found, err := r.resolveHashForReference(reference)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve reference: %w", err)
@@ -126,28 +142,26 @@ func (r *repository) GetCommitForReference(reference string) (string, error) {
 func (r *repository) IsAncestor(ancestor, other string) (bool, error) {
 	ancestorHash, found, err := r.resolveHashForReference(ancestor)
 	if err != nil {
-		return false, fmt.Errorf("failed to resolve ancestor: %w", err)
-	}
-	if !found {
-		ancestorHash = plumbing.NewHash(ancestor)
+		return false, fmt.Errorf("failed to resolve ancestor reference: %w", err)
+	} else if found {
+		ancestor = ancestorHash.String()
 	}
 
 	otherHash, found, err := r.resolveHashForReference(other)
 	if err != nil {
-		return false, fmt.Errorf("failed to resolve other: %w", err)
-	}
-	if !found {
-		otherHash = plumbing.NewHash(ancestor)
-	}
-
-	ancestorCommit, err := r.repo.CommitObject(ancestorHash)
-	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to resolve other reference: %w", err)
+	} else if found {
+		other = otherHash.String()
 	}
 
-	otherCommit, err := r.repo.CommitObject(otherHash)
+	ancestorCommit, err := r.resolveCommitFromHash(ancestor)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to resolve ancestor hash: %w", err)
+	}
+
+	otherCommit, err := r.resolveCommitFromHash(other)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve other hash: %w", err)
 	}
 
 	return ancestorCommit.IsAncestor(otherCommit)
@@ -183,28 +197,19 @@ func (r *repository) ResolveTagsForCommit(commitHash string) ([]string, error) {
 	return tagNames, err
 }
 
-func (r *repository) DiffCommits(beforeCommitHash, afterCommitHash string) (DiffEntries, error) {
+func (r *repository) DiffCommits(beforeCommitHash, targetCommitHash string) (DiffEntries, error) {
 	var (
-		beforeCommit, afterCommit *object.Commit
-		beforeTree, afterTree     *object.Tree
-		err                       error
+		beforeTree, afterTree *object.Tree
+		err                   error
 	)
 
-	if afterCommit, err = r.repo.CommitObject(plumbing.NewHash(afterCommitHash)); err != nil {
-		return nil, err
-	}
-
-	if afterTree, err = afterCommit.Tree(); err != nil {
-		return nil, err
+	if afterTree, err = r.resolveTreeFromCommitHash(targetCommitHash); err != nil {
+		return nil, fmt.Errorf("failed to resolve target commit: %w", err)
 	}
 
 	if len(beforeCommitHash) > 0 {
-		if beforeCommit, err = r.repo.CommitObject(plumbing.NewHash(beforeCommitHash)); err != nil {
-			return nil, err
-		}
-
-		if beforeTree, err = beforeCommit.Tree(); err != nil {
-			return nil, err
+		if beforeTree, err = r.resolveTreeFromCommitHash(beforeCommitHash); err != nil {
+			return nil, fmt.Errorf("failed to resolve before commit: %w", err)
 		}
 	}
 
@@ -229,6 +234,61 @@ func (r *repository) DiffCommits(beforeCommitHash, afterCommitHash string) (Diff
 	}
 
 	return changedFiles, nil
+}
+
+func (r *repository) lfsFiles(wt *git.Worktree) ([]string, error) {
+	attrs, err := gitattributes.ReadPatterns(wt.Filesystem, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	lfsAttrs := slice.FindAll(attrs, func(ma gitattributes.MatchAttribute) bool {
+		return slice.Any(ma.Attributes, func(a gitattributes.Attribute) bool { return a.Value() == "lfs" })
+	})
+
+	return slice.Map(lfsAttrs, func(ma gitattributes.MatchAttribute) string { return ma.Name }), nil
+}
+
+func (r *repository) resolveHashForReference(reference string) (plumbing.Hash, bool, error) {
+	tryRefs := []plumbing.ReferenceName{
+		plumbing.NewTagReferenceName(reference),
+		plumbing.NewBranchReferenceName(reference),
+	}
+
+	for _, remote := range r.remotes {
+		tryRefs = append(tryRefs, plumbing.NewRemoteReferenceName(remote, reference))
+	}
+
+	for _, ref := range tryRefs {
+		if hash, err := r.repo.ResolveRevision(plumbing.Revision(ref)); err == nil {
+			return *hash, true, nil
+		} else if !errors.Is(err, plumbing.ErrReferenceNotFound) {
+			return plumbing.Hash{}, false, err
+		}
+	}
+
+	return plumbing.Hash{}, false, nil
+}
+
+func (r *repository) resolveTreeFromCommitHash(commitHash string) (*object.Tree, error) {
+	if len(commitHash) == 0 {
+		return nil, ErrEmptyCommitHash
+	}
+
+	commit, err := r.resolveCommitFromHash(commitHash)
+	if err != nil {
+		return nil, err
+	}
+
+	return commit.Tree()
+}
+
+func (r *repository) resolveCommitFromHash(commitHash string) (*object.Commit, error) {
+	commit, err := r.repo.CommitObject(plumbing.NewHash(commitHash))
+	if errors.Is(err, plumbing.ErrObjectNotFound) {
+		return nil, ErrCommitNotFound
+	}
+	return commit, err
 }
 
 func newDiffEntry(c object.ChangeEntry) DiffEntry {

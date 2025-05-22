@@ -1,21 +1,37 @@
-package git
+package git_test
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
-	"github.com/rs/zerolog"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-const unzipDestination = "7c55c884-7a3e-4b1d-bb03-e7f8ce235d50"
+var (
+	tempGitWorkDir string
+)
+
+func init() {
+	for i := 0; i < 10; i++ {
+		tmpDir := path.Join("/", os.TempDir(), uuid.New().String())
+		_, err := os.Stat(tmpDir)
+		if err != nil {
+			tempGitWorkDir = tmpDir
+			return
+		}
+	}
+	panic(errors.New("failed to create temporary workdir for git unzip tests"))
+}
 
 func unzip(archivePath string) error {
 	archive, err := zip.OpenReader(archivePath)
@@ -23,18 +39,12 @@ func unzip(archivePath string) error {
 		panic(err)
 	}
 	defer archive.Close()
-	_, err = os.Stat(unzipDestination)
-	if err == nil {
-		err := os.RemoveAll(unzipDestination)
-		if err != nil {
-			return err
-		}
-	}
+
 	for _, f := range archive.File {
-		filePath := filepath.Join(unzipDestination, f.Name)
+		filePath := filepath.Join(tempGitWorkDir, f.Name)
 		fmt.Println("unzipping file ", filePath)
 
-		if !strings.HasPrefix(filePath, filepath.Clean(unzipDestination)+string(os.PathSeparator)) {
+		if !strings.HasPrefix(filePath, filepath.Clean(tempGitWorkDir)+string(os.PathSeparator)) {
 			return fmt.Errorf("invalid file path")
 		}
 		if f.FileInfo().IsDir() {
@@ -71,13 +81,8 @@ func unzip(archivePath string) error {
 }
 
 func getTestGitDir(testDataDir string) string {
-	workingDir, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	gitDirPath := fmt.Sprintf("%s/%s/%s", workingDir, unzipDestination, testDataDir)
-	_, err = os.Stat(gitDirPath)
-	if err != nil {
+	gitDirPath := path.Join(tempGitWorkDir, testDataDir)
+	if _, err := os.Stat(gitDirPath); err != nil {
 		panic(err)
 	}
 	return gitDirPath
@@ -92,14 +97,13 @@ func setupGitTest(testDataArchive, unzippedDir string) string {
 }
 
 func tearDownGitTest() {
-	err := os.RemoveAll(unzipDestination)
+	err := os.RemoveAll(tempGitWorkDir)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
-	setupLog()
+func Test_DiffCommits(t *testing.T) {
 	scenarios := map[string]struct {
 		beforeCommitExclusive  string
 		targetCommit           string
@@ -144,12 +148,12 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 		"invalid target commit": {
 			targetCommit:          "invalid-commit",
 			beforeCommitExclusive: "",
-			expectedError:         fmt.Errorf("object not found"),
+			expectedError:         git.ErrCommitNotFound,
 		},
 		"invalid empty target commit": {
 			targetCommit:          "",
 			beforeCommitExclusive: "",
-			expectedError:         fmt.Errorf("invalid empty targetCommit"),
+			expectedError:         git.ErrEmptyCommitHash,
 		},
 		"Added folder app2 with files": {
 			targetCommit:           "157014b59d6b24205b4fbf57165f0029c49d7963",
@@ -265,33 +269,155 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 
 	for zipFile, folder := range zips {
 		gitWorkspacePath := setupGitTest(zipFile, folder)
+		defer tearDownGitTest()
+
 		for scenarioName, scenario := range scenarios {
 			t.Run(fmt.Sprintf("%s (zip: %s, folder: %s)", scenarioName, zipFile, folder), func(t *testing.T) {
-				repo, err := Open(gitWorkspacePath)
+				repo, err := git.Open(gitWorkspacePath)
 				require.NoError(t, err)
 				diffs, err := repo.DiffCommits(scenario.beforeCommitExclusive, scenario.targetCommit)
 				if scenario.expectedError == nil {
 					assert.NoError(t, err)
+					assert.ElementsMatch(t, scenario.expectedChangedFolders, diffs.Dirs())
 				} else {
 					assert.ErrorIs(t, err, scenario.expectedError)
-					assert.ElementsMatch(t, scenario.expectedChangedFolders, diffs.Dirs())
 				}
-
-				// var changedFolderList, changedConfigFile, err = getGitAffectedResourcesBetweenCommits(gitWorkspacePath, scenario.configBranch, scenario.configFile, scenario.targetCommit, scenario.beforeCommitExclusive)
-				// if scenario.expectedError == "" {
-				// 	require.NoError(t, err)
-				// } else {
-				// 	require.Error(t, err)
-				// 	require.Equal(t, scenario.expectedError, err.Error())
-				// }
-				// assert.ElementsMatch(t, scenario.expectedChangedFolders, changedFolderList, "Unexpected changed folder list")
-				// assert.Equal(t, scenario.expectedChangedConfigFile, changedConfigFile, "Unexpected changed config file")
 			})
 		}
-		tearDownGitTest()
 	}
 }
 
-func setupLog() {
-	logger.InitLogger(zerolog.DebugLevel.String())
+func Test_Checkout(t *testing.T) {
+	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
+	defer tearDownGitTest()
+
+	var (
+		zipFile     string = path.Join(gitWorkspacePath, "/app1/data/level2/test-data-git-commits-blobless.zip")
+		dockerFile  string = path.Join(gitWorkspacePath, "app1/Dockerfile")
+		featureFile string = path.Join(gitWorkspacePath, "feature.MD")
+	)
+
+	repo, err := git.Open(gitWorkspacePath)
+	require.NoError(t, err)
+
+	err = repo.Checkout("0b9ee1f93639fff492c05b8d5e662301f508debe")
+	assert.NoError(t, err)
+	_, err = os.Stat(zipFile)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+	_, err = os.Stat(featureFile)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+	fstat, err := os.Stat(dockerFile)
+	require.NoError(t, err)
+	assert.Equal(t, int64(84), fstat.Size())
+
+	err = repo.Checkout("dev")
+	assert.NoError(t, err)
+	_, err = os.Stat(zipFile)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+	_, err = os.Stat(featureFile)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+	fstat, err = os.Stat(dockerFile)
+	require.NoError(t, err)
+	assert.Equal(t, int64(88), fstat.Size())
+
+	err = repo.Checkout("main")
+	assert.NoError(t, err)
+	_, err = os.Stat(zipFile)
+	assert.NoError(t, err)
+	_, err = os.Stat(featureFile)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+	fstat, err = os.Stat(dockerFile)
+	require.NoError(t, err)
+	assert.Equal(t, int64(88), fstat.Size())
+
+	err = repo.Checkout("feature")
+	assert.NoError(t, err)
+	_, err = os.Stat(zipFile)
+	assert.NoError(t, err)
+	_, err = os.Stat(featureFile)
+	assert.NoError(t, err)
+	fstat, err = os.Stat(dockerFile)
+	require.NoError(t, err)
+	assert.Equal(t, int64(88), fstat.Size())
+
+	err = repo.Checkout("non-existing")
+	assert.Error(t, err)
+}
+
+func Test_ResolveCommitForReference(t *testing.T) {
+	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
+	defer tearDownGitTest()
+
+	repo, err := git.Open(gitWorkspacePath)
+	require.NoError(t, err)
+
+	commit, err := repo.ResolveCommitForReference("main")
+	require.NoError(t, err)
+	assert.Equal(t, "cd65c2fcab588953c72f0af5350282c282051286", commit)
+
+	commit, err = repo.ResolveCommitForReference("dev")
+	require.NoError(t, err)
+	assert.Equal(t, "b6804f12dc53029cfca29a4850d56ef7cda069e9", commit)
+
+	commit, err = repo.ResolveCommitForReference("feature")
+	require.NoError(t, err)
+	assert.Equal(t, "9e94330651540210772aaf4819c77ca7e1102b64", commit)
+
+	commit, err = repo.ResolveCommitForReference("v1")
+	require.NoError(t, err)
+	assert.Equal(t, "b9d516dcccd38776a2c6a6cbadee9b876237e6a5", commit)
+
+	commit, err = repo.ResolveCommitForReference("v2")
+	require.NoError(t, err)
+	assert.Equal(t, "512f70aaef2e35c8b2f7b3aed92e524b5890cd4d", commit)
+}
+
+func Test_ResolveTagsForCommit(t *testing.T) {
+	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
+	defer tearDownGitTest()
+
+	repo, err := git.Open(gitWorkspacePath)
+	require.NoError(t, err)
+
+	commit, err := repo.ResolveTagsForCommit("b9d516dcccd38776a2c6a6cbadee9b876237e6a5") // not annotated
+	require.NoError(t, err)
+	assert.ElementsMatch(t, commit, []string{"v1"})
+
+	commit, err = repo.ResolveTagsForCommit("512f70aaef2e35c8b2f7b3aed92e524b5890cd4d") // annotated
+	require.NoError(t, err)
+	assert.ElementsMatch(t, commit, []string{"v2"})
+
+	commit, err = repo.ResolveTagsForCommit("24baed7787ea319a10e387da1290242b91e34744") // multipe tags
+	require.NoError(t, err)
+	assert.ElementsMatch(t, commit, []string{"v3", "v4"})
+}
+
+func Test_IsAncestor(t *testing.T) {
+	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
+	defer tearDownGitTest()
+
+	repo, err := git.Open(gitWorkspacePath)
+	require.NoError(t, err)
+
+	isAncestor, err := repo.IsAncestor("main", "main")
+	require.NoError(t, err)
+	assert.True(t, isAncestor)
+
+	isAncestor, err = repo.IsAncestor("v1", "v1")
+	require.NoError(t, err)
+	assert.True(t, isAncestor)
+
+	isAncestor, err = repo.IsAncestor("feature", "feature")
+	require.NoError(t, err)
+	assert.True(t, isAncestor)
+
+	isAncestor, err = repo.IsAncestor("dc35b641712d46b79371a9d531349e107b4f391e", "dc35b641712d46b79371a9d531349e107b4f391e")
+	require.NoError(t, err)
+	assert.True(t, isAncestor)
+
+	_, err = repo.IsAncestor("non-existing", "main")
+	require.ErrorIs(t, err, git.ErrCommitNotFound)
+
+	_, err = repo.IsAncestor("main", "non-existing")
+	require.ErrorIs(t, err, git.ErrCommitNotFound)
 }

@@ -536,7 +536,7 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 			buildContext := &model.BuildContext{}
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
-			mockGitRepo.EXPECT().GetCommitForReference(gomock.Any()).AnyTimes().Return("anycommitid", nil)
+			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("anycommitid", nil)
 			mockGitRepo.EXPECT().IsAncestor(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)
 			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return(nil, nil)
 			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
@@ -732,7 +732,7 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 			buildContext := &model.BuildContext{}
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
-			mockGitRepo.EXPECT().GetCommitForReference(gomock.Any()).AnyTimes().Return("anycommitid", nil)
+			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("anycommitid", nil)
 			mockGitRepo.EXPECT().IsAncestor(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)
 			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return(nil, nil)
 			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)

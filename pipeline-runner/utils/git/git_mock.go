@@ -48,33 +48,18 @@ func (mr *MockRepositoryMockRecorder) Checkout(reference interface{}) *gomock.Ca
 }
 
 // DiffCommits mocks base method.
-func (m *MockRepository) DiffCommits(beforeCommitHash, afterCommitHash string) (DiffEntries, error) {
+func (m *MockRepository) DiffCommits(beforeCommitHash, targetCommitHash string) (DiffEntries, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DiffCommits", beforeCommitHash, afterCommitHash)
+	ret := m.ctrl.Call(m, "DiffCommits", beforeCommitHash, targetCommitHash)
 	ret0, _ := ret[0].(DiffEntries)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // DiffCommits indicates an expected call of DiffCommits.
-func (mr *MockRepositoryMockRecorder) DiffCommits(beforeCommitHash, afterCommitHash interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) DiffCommits(beforeCommitHash, targetCommitHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DiffCommits", reflect.TypeOf((*MockRepository)(nil).DiffCommits), beforeCommitHash, afterCommitHash)
-}
-
-// GetCommitForReference mocks base method.
-func (m *MockRepository) GetCommitForReference(reference string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCommitForReference", reference)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetCommitForReference indicates an expected call of GetCommitForReference.
-func (mr *MockRepositoryMockRecorder) GetCommitForReference(reference interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommitForReference", reflect.TypeOf((*MockRepository)(nil).GetCommitForReference), reference)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DiffCommits", reflect.TypeOf((*MockRepository)(nil).DiffCommits), beforeCommitHash, targetCommitHash)
 }
 
 // IsAncestor mocks base method.
@@ -90,6 +75,21 @@ func (m *MockRepository) IsAncestor(ancestor, other string) (bool, error) {
 func (mr *MockRepositoryMockRecorder) IsAncestor(ancestor, other interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAncestor", reflect.TypeOf((*MockRepository)(nil).IsAncestor), ancestor, other)
+}
+
+// ResolveCommitForReference mocks base method.
+func (m *MockRepository) ResolveCommitForReference(reference string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveCommitForReference", reference)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveCommitForReference indicates an expected call of ResolveCommitForReference.
+func (mr *MockRepositoryMockRecorder) ResolveCommitForReference(reference interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveCommitForReference", reflect.TypeOf((*MockRepository)(nil).ResolveCommitForReference), reference)
 }
 
 // ResolveTagsForCommit mocks base method.
