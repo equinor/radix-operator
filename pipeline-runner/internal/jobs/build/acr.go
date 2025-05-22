@@ -121,8 +121,7 @@ func (c *acrKubeJobProps) PodVolumes() []corev1.Volume {
 
 func (c *acrKubeJobProps) PodInitContainers() []corev1.Container {
 	cloneCfg := internalgit.CloneConfigFromPipelineArgs(c.pipelineArgs)
-	branch := c.pipelineArgs.Branch //nolint:staticcheck
-	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GitWorkspace, branch, cloneCfg)
+	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GitWorkspace, c.pipelineArgs.GetGitRefOrDefault(), cloneCfg)
 }
 
 func (c *acrKubeJobProps) PodContainers() []corev1.Container {

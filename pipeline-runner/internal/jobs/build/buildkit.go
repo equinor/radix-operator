@@ -190,7 +190,7 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 
 func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
 	cloneCfg := internalgit.CloneConfigFromPipelineArgs(c.pipelineArgs)
-	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GitWorkspace, c.pipelineArgs.Branch, cloneCfg) //nolint:staticcheck
+	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GitWorkspace, c.pipelineArgs.GetGitRefOrDefault(), cloneCfg) //nolint:staticcheck
 }
 
 func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {
@@ -223,7 +223,7 @@ func (c *buildKitKubeJobProps) getPodContainerArgs() []string {
 		"--secrets-path", buildKitBuildSecretsPath,
 		"--dockerfile", c.componentImage.Dockerfile,
 		"--context", c.componentImage.Context,
-		"--branch", c.pipelineArgs.Branch, //nolint:staticcheck
+		"--branch", c.pipelineArgs.GetGitRefOrDefault(),
 		"--git-commit-hash", c.gitCommitHash,
 		"--git-tags", c.gitTags,
 		"--target-environments", c.componentImage.EnvName,

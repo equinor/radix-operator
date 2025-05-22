@@ -246,7 +246,7 @@ func (p *PipelineInfo) GetRadixApplication() *radixv1.RadixApplication {
 
 // GetGitRef Get branch or tag
 func (p *PipelineInfo) GetGitRef() string {
-	return p.PipelineArguments.Branch
+	return p.PipelineArguments.GetGitRefOrDefault()
 }
 
 // GetAppNamespace Get app namespace
@@ -304,9 +304,14 @@ func (p *PipelineInfo) GetGitRefTypeOrDefault() string {
 }
 
 // GetGitRefOrDefault Get git event ref or "branch" by default
-func (p *PipelineInfo) GetGitRefOrDefault() string {
-	if p.PipelineArguments.GitRef == "" {
-		return p.PipelineArguments.Branch
+func (args *PipelineArguments) GetGitRefOrDefault() string {
+	if args.GitRef == "" {
+		return args.Branch
 	}
-	return p.PipelineArguments.GitRef
+	return args.GitRef
+}
+
+// GetGitRefOrDefault Get git event ref or "branch" by default
+func (p *PipelineInfo) GetGitRefOrDefault() string {
+	return p.PipelineArguments.GetGitRefOrDefault()
 }

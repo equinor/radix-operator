@@ -262,7 +262,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 				"--secrets-path", "/build-secrets",
 				"--dockerfile", ci.Dockerfile,
 				"--context", ci.Context,
-				"--branch", args.Branch, //nolint:staticcheck
+				"--branch", args.GetGitRefOrDefault(),
 				"--git-commit-hash", gitCommitHash,
 				"--git-tags", gitTags,
 				"--target-environments", ci.EnvName,
