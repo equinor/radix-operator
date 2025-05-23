@@ -39,7 +39,8 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 		AppName:               "anyappname",
 		PipelineType:          "anypipelinetype",
 		JobName:               "anyjobname",
-		Branch:                "anybranch",
+		GitRef:                "anygitref",
+		GitRefType:            "tag",
 		CommitID:              "anycommitid",
 		ImageTag:              "anyimagetag",
 		PushImage:             pushImage,
@@ -76,7 +77,9 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	assert.Equal(t, expectedJobLabels, job.Labels)
 	componentImagesAnnotation, _ := json.Marshal(componentImages)
 	expectedJobAnnotations := map[string]string{
-		kube.RadixBranchAnnotation:          args.Branch,
+		kube.RadixBranchAnnotation:          args.Branch, //nolint:staticcheck
+		kube.RadixGitRefAnnotation:          args.GitRef,
+		kube.RadixGitRefTypeAnnotation:      args.GitRefType,
 		kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
 	}
 	assert.Equal(t, expectedJobAnnotations, job.Annotations)
@@ -121,7 +124,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	assert.ElementsMatch(t, []string{"internal-nslookup", "clone", "internal-chmod"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 	cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
 	assert.Equal(t, args.GitCloneGitImage, cloneContainer.Image)
-	assert.Equal(t, []string{"sh", "-c", "git config --global --add safe.directory /some-workspace && git clone anycloneurl -b anybranch --verbose --progress /some-workspace && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd /some-workspace && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -"}, cloneContainer.Command)
+	assert.Equal(t, []string{"sh", "-c", "git config --global --add safe.directory /some-workspace && git clone anycloneurl -b anygitref --verbose --progress /some-workspace && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd /some-workspace && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -"}, cloneContainer.Command)
 	assert.Empty(t, cloneContainer.Args)
 	expectedCloneVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: "/some-workspace"},
@@ -166,7 +169,9 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 				{Name: "CLUSTERTYPE_IMAGE", Value: ci.ClusterTypeImagePath},
 				{Name: "CLUSTERNAME_IMAGE", Value: ci.ClusterNameImagePath},
 				{Name: "RADIX_ZONE", Value: args.RadixZone},
-				{Name: "BRANCH", Value: args.Branch},
+				{Name: "BRANCH", Value: args.Branch}, //nolint:staticcheck
+				{Name: "GIT_REF", Value: args.GitRef},
+				{Name: "GIT_REF_TYPE", Value: args.GitRefType},
 				{Name: "TARGET_ENVIRONMENTS", Value: ci.EnvName},
 				{Name: "RADIX_GIT_COMMIT_HASH", Value: gitCommitHash},
 				{Name: "RADIX_GIT_TAGS", Value: gitTags},

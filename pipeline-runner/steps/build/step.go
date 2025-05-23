@@ -93,11 +93,8 @@ func (step *BuildStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	branch := pipelineInfo.PipelineArguments.Branch
-	commitID := pipelineInfo.GitCommitHash
-
 	if len(pipelineInfo.TargetEnvironments) == 0 {
-		log.Ctx(ctx).Info().Msgf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		log.Ctx(ctx).Info().Msgf("Skip build step as %s %s is not mapped to any environment", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault())
 		return nil
 	}
 
@@ -106,7 +103,7 @@ func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 		return nil
 	}
 
-	log.Ctx(ctx).Info().Msgf("Building app %s for branch %s and commit %s", step.GetAppName(), branch, commitID)
+	log.Ctx(ctx).Info().Msgf("Building app %s for %s %s and commit %s", step.GetAppName(), pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault(), pipelineInfo.GitCommitHash)
 
 	if err := step.validateBuildSecrets(pipelineInfo); err != nil {
 		return err

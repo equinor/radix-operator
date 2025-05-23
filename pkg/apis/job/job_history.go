@@ -197,7 +197,7 @@ func getRadixJobEnvs(rj radixv1.RadixJob, envsMap map[string][]string) []string 
 		if len(rj.Spec.Build.ToEnvironment) > 0 {
 			return []string{rj.Spec.Build.ToEnvironment}
 		}
-		return envsMap[rj.Spec.Build.Branch]
+		return envsMap[rj.Spec.Build.GetGitRefOrDefault()]
 	case radixv1.Deploy:
 		return []string{rj.Spec.Deploy.ToEnvironment}
 	case radixv1.Promote:

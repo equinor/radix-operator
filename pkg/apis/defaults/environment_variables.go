@@ -137,6 +137,12 @@ const (
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
 
+	// RadixGitRefEnvironmentVariable When the pipeline job should be built from branch or tag specified here
+	RadixGitRefEnvironmentVariable = "GIT_REF"
+
+	// RadixGitRefTypeEnvironmentVariable When the pipeline job should be built from branch, tag or any specified in GIT_REF: tag, branch or empty
+	RadixGitRefTypeEnvironmentVariable = "GIT_REF_TYPE"
+
 	// RadixConfigBranchEnvironmentVariable Branch of the Radix application config
 	RadixConfigBranchEnvironmentVariable = "RADIX_CONFIG_BRANCH"
 

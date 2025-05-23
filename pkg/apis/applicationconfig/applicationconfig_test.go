@@ -140,8 +140,94 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T)
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.ElementsMatch(t, []string{"prod", "qa"}, targetEnvs)
+}
+
+func TestIsThereAnythingToDeploy_FromType(t *testing.T) {
+	const (
+		branch1 = "branch1"
+		branch2 = "branch2"
+		tag1    = "v1.0.0"
+		env1    = "env1"
+		env2    = "env2"
+		env3    = "env3"
+	)
+	scenarios := map[string]struct {
+		branch, gitRef, gitRefType string
+		raBuilder                  func() utils.ApplicationBuilder
+		expectedTargetEnvs         []string
+	}{
+		"matching branch, empty FromType": {
+			gitRef:     branch1,
+			gitRefType: string(radixv1.GitRefBranch),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1})
+			},
+			expectedTargetEnvs: []string{env1},
+		},
+		"not matching branch, empty FromType": {
+			gitRef:     branch1,
+			gitRefType: string(radixv1.GitRefBranch),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch2})
+			},
+			expectedTargetEnvs: nil,
+		},
+		"matching branch, FromType branch": {
+			gitRef:     branch1,
+			gitRefType: string(radixv1.GitRefBranch),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, FromType: string(radixv1.GitRefBranch)})
+			},
+			expectedTargetEnvs: []string{env1, env2},
+		},
+		"matching regex branch, FromType branch": {
+			gitRef:     "feature-1.0.0",
+			gitRefType: string(radixv1.GitRefBranch),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: "feature.*"}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: "feature.*", FromType: string(radixv1.GitRefBranch)}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: "feature.*", FromType: string(radixv1.GitRefTag)})
+			},
+			expectedTargetEnvs: []string{env1, env2},
+		},
+		"matching tag, FromType tag": {
+			gitRef:     tag1,
+			gitRefType: string(radixv1.GitRefTag),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: tag1}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: tag1, FromType: string(radixv1.GitRefBranch)}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: tag1, FromType: string(radixv1.GitRefTag)})
+			},
+			expectedTargetEnvs: []string{env1, env3},
+		},
+		"matching regex tag, FromType tag": {
+			gitRef:     "v1.0.0",
+			gitRefType: string(radixv1.GitRefTag),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: "v1.*"}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: "v1.*", FromType: string(radixv1.GitRefBranch)}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: "v1.*", FromType: string(radixv1.GitRefTag)})
+			},
+			expectedTargetEnvs: []string{env1, env3},
+		},
+	}
+
+	for name, ts := range scenarios {
+		t.Run(name, func(t *testing.T) {
+			ra := ts.raBuilder().BuildRA()
+			targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(ts.gitRef, ts.gitRefType, ra, false)
+			assert.ElementsMatch(t, ts.expectedTargetEnvs, targetEnvs, "mismatched target environments")
+		})
+	}
 }
 
 func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_ListsBothButNoneIsBuilding(t *testing.T) {
@@ -152,7 +238,7 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_Lis
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -164,7 +250,7 @@ func TestIsThereAnythingToDeploy_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBu
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
@@ -176,7 +262,7 @@ func TestIsThereAnythingToDeploy_twoEnvNoBranch(t *testing.T) {
 		WithEnvironmentNoBranch("prod").
 		BuildRA()
 
-	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -186,8 +272,126 @@ func TestIsThereAnythingToDeploy_NoEnv(t *testing.T) {
 	ra := utils.NewRadixApplicationBuilder().
 		BuildRA()
 
-	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.Equal(t, 0, len(targetEnvs))
+}
+
+func Test_TargetEnvironmentsForGitRefs(t *testing.T) {
+	const (
+		env1          = "env1"
+		env2          = "env2"
+		env3          = "env3"
+		branch1       = "branch1"
+		branch2       = "branch2"
+		tag1          = "tag1"
+		refTypeBranch = "branch"
+		refTypeTag    = "tag"
+	)
+	scenarios := map[string]struct {
+		gitRef, gitRefType            string
+		triggeredFromWebhook          bool
+		raBuilder                     func() utils.ApplicationBuilder
+		expectedTargetEnvironments    []string
+		expectedIgnoredForWebhookEnvs []string
+		expectedIgnoredForGitRefType  []string
+	}{
+		"one env for one branch": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironment(env1, branch1).
+					WithEnvironment(env2, branch2)
+			},
+			gitRef:                     branch1,
+			gitRefType:                 refTypeBranch,
+			triggeredFromWebhook:       true,
+			expectedTargetEnvironments: []string{env1},
+		},
+		"two envs for one branch": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironment(env1, branch1).
+					WithEnvironment(env2, branch1)
+			},
+			gitRef:                     branch1,
+			gitRefType:                 refTypeBranch,
+			triggeredFromWebhook:       true,
+			expectedTargetEnvironments: []string{env1, env2},
+		},
+		"disable webhook for one env": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, WebhookEnabled: pointers.Ptr(true)}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: branch1, WebhookEnabled: pointers.Ptr(false)})
+			},
+			gitRef:                        branch1,
+			triggeredFromWebhook:          true,
+			expectedTargetEnvironments:    []string{env1, env2},
+			expectedIgnoredForWebhookEnvs: []string{env3},
+		},
+		"triggeredFromWebhook for branch gitRefType": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1, FromType: ""}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, FromType: refTypeBranch}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: branch1, FromType: refTypeTag})
+			},
+			gitRef:                       branch1,
+			gitRefType:                   refTypeBranch,
+			triggeredFromWebhook:         true,
+			expectedTargetEnvironments:   []string{env1, env2},
+			expectedIgnoredForGitRefType: []string{env3},
+		},
+		"triggeredFromWebhook for tag gitRefType": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: tag1, FromType: ""}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: tag1, FromType: refTypeBranch}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: tag1, FromType: refTypeTag})
+			},
+			gitRef:                       tag1,
+			gitRefType:                   refTypeTag,
+			triggeredFromWebhook:         true,
+			expectedTargetEnvironments:   []string{env1, env3},
+			expectedIgnoredForGitRefType: []string{env2},
+		},
+		"not triggeredFromWebhook for branch gitRefType": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1, FromType: ""}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, FromType: refTypeBranch}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: branch1, FromType: refTypeTag})
+			},
+			gitRef:                       branch1,
+			gitRefType:                   refTypeBranch,
+			triggeredFromWebhook:         false,
+			expectedTargetEnvironments:   []string{env1, env2},
+			expectedIgnoredForGitRefType: []string{env3},
+		},
+		"not triggeredFromWebhook for tag gitRefType": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: tag1, FromType: ""}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: tag1, FromType: refTypeBranch}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: tag1, FromType: refTypeTag})
+			},
+			gitRef:                       tag1,
+			gitRefType:                   refTypeTag,
+			triggeredFromWebhook:         false,
+			expectedTargetEnvironments:   []string{env1, env3},
+			expectedIgnoredForGitRefType: []string{env2},
+		},
+	}
+
+	for name, ts := range scenarios {
+		t.Run(name, func(t *testing.T) {
+			ra := ts.raBuilder().BuildRA()
+			targetEnvs, ignoredForWebhookEnvs, ignoredForGitRefsType := applicationconfig.GetTargetEnvironments(ts.gitRef, ts.gitRefType, ra, ts.triggeredFromWebhook)
+			assert.ElementsMatch(t, ts.expectedTargetEnvironments, targetEnvs, "mismatched target environments")
+			assert.ElementsMatch(t, ts.expectedIgnoredForWebhookEnvs, ignoredForWebhookEnvs, "mismatched ignored for webhook environments")
+			assert.ElementsMatch(t, ts.expectedIgnoredForGitRefType, ignoredForGitRefsType, "mismatched ignored for git refs type environments")
+		})
+	}
 }
 
 func TestIsThereAnythingToDeploy_promotionScheme_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
@@ -198,7 +402,7 @@ func TestIsThereAnythingToDeploy_promotionScheme_ListsBothButOnlyOneShouldBeBuil
 		WithEnvironment("prod", "").
 		BuildRA()
 
-	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
@@ -210,7 +414,7 @@ func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs, _ := applicationconfig.GetTargetEnvironments(branch, ra, false)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.ElementsMatch(t, []string{"feature"}, targetEnvs)
 }
 

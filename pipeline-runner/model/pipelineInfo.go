@@ -60,7 +60,22 @@ type ApplyConfigOptions struct {
 type PipelineArguments struct {
 	PipelineType string
 	JobName      string
-	Branch       string
+	// Deprecated: use GitRef instead
+	Branch string
+	// GitRef Branch or tag to build from
+	//
+	// required: false
+	// example: master
+	GitRef string `json:"gitRef,omitempty"`
+	// GitRefType When the pipeline job should be built from branch or tag specified in GitRef:
+	// - branch
+	// - tag
+	// - <empty> - either branch or tag
+	//
+	// required false
+	// enum: branch,tag,""
+	// example: "branch"
+	GitRefType string `json:"gitRefType,omitempty"`
 	// CommitID is sent from GitHub webhook. not to be confused with PipelineInfo.GitCommitHash
 	CommitID string
 	ImageTag string
@@ -229,9 +244,9 @@ func (p *PipelineInfo) GetRadixApplication() *radixv1.RadixApplication {
 	return p.RadixApplication
 }
 
-// GetBranch Get branch
-func (p *PipelineInfo) GetBranch() string {
-	return p.PipelineArguments.Branch
+// GetGitRef Get branch or tag
+func (p *PipelineInfo) GetGitRef() string {
+	return p.PipelineArguments.GetGitRefOrDefault()
 }
 
 // GetAppNamespace Get app namespace
@@ -273,4 +288,30 @@ func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
 func (p *PipelineInfo) SetBuildContext(context *BuildContext) *PipelineInfo {
 	p.BuildContext = context
 	return p
+}
+
+// GetGitRefType Get git event ref type
+func (p *PipelineInfo) GetGitRefType() string {
+	return p.PipelineArguments.GitRefType
+}
+
+// GetGitRefTypeOrDefault Get git event ref type or "branch" by default
+func (p *PipelineInfo) GetGitRefTypeOrDefault() string {
+	if p.PipelineArguments.GitRefType == "" {
+		return string(radixv1.GitRefBranch)
+	}
+	return p.PipelineArguments.GitRefType
+}
+
+// GetGitRefOrDefault Get git event ref or "branch" by default
+func (args *PipelineArguments) GetGitRefOrDefault() string {
+	if args.GitRef == "" {
+		return args.Branch
+	}
+	return args.GitRef
+}
+
+// GetGitRefOrDefault Get git event ref or "branch" by default
+func (p *PipelineInfo) GetGitRefOrDefault() string {
+	return p.PipelineArguments.GetGitRefOrDefault()
 }
