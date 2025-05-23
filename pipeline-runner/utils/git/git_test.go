@@ -345,79 +345,208 @@ func Test_Checkout(t *testing.T) {
 }
 
 func Test_ResolveCommitForReference(t *testing.T) {
+	tests := map[string]struct {
+		reference      string
+		expectedCommit string
+		expectedError  error
+	}{
+		"get commit for branch main": {
+			reference:      "main",
+			expectedCommit: "cd65c2fcab588953c72f0af5350282c282051286",
+		},
+		"get commit for branch dev": {
+			reference:      "dev",
+			expectedCommit: "b6804f12dc53029cfca29a4850d56ef7cda069e9",
+		},
+		"get commit for branch feature": {
+			reference:      "feature",
+			expectedCommit: "9e94330651540210772aaf4819c77ca7e1102b64",
+		},
+		"get commit for lightweight tag v1": {
+			reference:      "v1",
+			expectedCommit: "b9d516dcccd38776a2c6a6cbadee9b876237e6a5",
+		},
+		"get commit for annotated tag v2": {
+			reference:      "v2",
+			expectedCommit: "512f70aaef2e35c8b2f7b3aed92e524b5890cd4d",
+		},
+		"get commit for non existing reference": {
+			reference:     "non-existing",
+			expectedError: git.ErrReferenceNotFound,
+		},
+	}
+
 	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
 	defer tearDownGitTest()
-
 	repo, err := git.Open(gitWorkspacePath)
 	require.NoError(t, err)
 
-	commit, err := repo.ResolveCommitForReference("main")
-	require.NoError(t, err)
-	assert.Equal(t, "cd65c2fcab588953c72f0af5350282c282051286", commit)
-
-	commit, err = repo.ResolveCommitForReference("dev")
-	require.NoError(t, err)
-	assert.Equal(t, "b6804f12dc53029cfca29a4850d56ef7cda069e9", commit)
-
-	commit, err = repo.ResolveCommitForReference("feature")
-	require.NoError(t, err)
-	assert.Equal(t, "9e94330651540210772aaf4819c77ca7e1102b64", commit)
-
-	commit, err = repo.ResolveCommitForReference("v1")
-	require.NoError(t, err)
-	assert.Equal(t, "b9d516dcccd38776a2c6a6cbadee9b876237e6a5", commit)
-
-	commit, err = repo.ResolveCommitForReference("v2")
-	require.NoError(t, err)
-	assert.Equal(t, "512f70aaef2e35c8b2f7b3aed92e524b5890cd4d", commit)
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			commit, err := repo.ResolveCommitForReference(testSpec.reference)
+			assert.ErrorIs(t, err, testSpec.expectedError)
+			assert.Equal(t, testSpec.expectedCommit, commit)
+		})
+	}
 }
 
 func Test_ResolveTagsForCommit(t *testing.T) {
+	tests := map[string]struct {
+		commitHash   string
+		expectedTags []string
+	}{
+		"commit with single lightweight tag": {
+			commitHash:   "b9d516dcccd38776a2c6a6cbadee9b876237e6a5",
+			expectedTags: []string{"v1"},
+		},
+		"commit with single annotated tag": {
+			commitHash:   "512f70aaef2e35c8b2f7b3aed92e524b5890cd4d",
+			expectedTags: []string{"v2"},
+		},
+		"commit with multiple lightweight tags": {
+			commitHash:   "24baed7787ea319a10e387da1290242b91e34744",
+			expectedTags: []string{"v3", "v4"},
+		},
+	}
+
 	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
 	defer tearDownGitTest()
-
 	repo, err := git.Open(gitWorkspacePath)
 	require.NoError(t, err)
 
-	commit, err := repo.ResolveTagsForCommit("b9d516dcccd38776a2c6a6cbadee9b876237e6a5") // not annotated
-	require.NoError(t, err)
-	assert.ElementsMatch(t, commit, []string{"v1"})
-
-	commit, err = repo.ResolveTagsForCommit("512f70aaef2e35c8b2f7b3aed92e524b5890cd4d") // annotated
-	require.NoError(t, err)
-	assert.ElementsMatch(t, commit, []string{"v2"})
-
-	commit, err = repo.ResolveTagsForCommit("24baed7787ea319a10e387da1290242b91e34744") // multipe tags
-	require.NoError(t, err)
-	assert.ElementsMatch(t, commit, []string{"v3", "v4"})
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			actualTags, err := repo.ResolveTagsForCommit(testSpec.commitHash) // not annotated
+			require.NoError(t, err)
+			assert.ElementsMatch(t, actualTags, testSpec.expectedTags)
+		})
+	}
 }
 
 func Test_IsAncestor(t *testing.T) {
 	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
 	defer tearDownGitTest()
-
 	repo, err := git.Open(gitWorkspacePath)
 	require.NoError(t, err)
 
-	isAncestor, err := repo.IsAncestor("main", "main")
-	require.NoError(t, err)
-	assert.True(t, isAncestor)
+	tests := map[string]struct {
+		ancestor           string
+		other              string
+		expectedIsAncestor bool
+		expectedError      error
+	}{
+		"a commit reachable as parent for main branch: commit is ancestor of main branch": {
+			ancestor:           "dd81c903e402b4120cbf2431393ced321b243b45",
+			other:              "main",
+			expectedIsAncestor: true,
+		},
+		"a commit reachable as parent for main branch: main branch is not ancestor of commit": {
+			ancestor:           "main",
+			other:              "dd81c903e402b4120cbf2431393ced321b243b45",
+			expectedIsAncestor: false,
+		},
+		"a commit only reachable as parent feature branch: commit is not ancestor of main branch": {
+			ancestor:           "9e94330651540210772aaf4819c77ca7e1102b64",
+			other:              "main",
+			expectedIsAncestor: false,
+		},
+		"a commit only reachable as parent feature branch: commit is ancestor of feature branch": {
+			ancestor:           "9e94330651540210772aaf4819c77ca7e1102b64",
+			other:              "feature",
+			expectedIsAncestor: true,
+		},
+		"a tag for a commit reachable as parent for main branch: tag is ancestor of main branch": {
+			ancestor:           "v1",
+			other:              "main",
+			expectedIsAncestor: true,
+		},
+		"a tag for a commit reachable as parent for main branch: main branch is not ancestor of tag": {
+			ancestor:           "main",
+			other:              "v1",
+			expectedIsAncestor: false,
+		},
+		"a tag for a commit not reachable as parent for dev branch: tag is not ancestor of dev branch": {
+			ancestor:           "v1",
+			other:              "dev",
+			expectedIsAncestor: false,
+		},
+		"a tag for a commit reachable as parent for feature branch: tag is ancestor of feature branch": {
+			ancestor:           "v1",
+			other:              "feature",
+			expectedIsAncestor: true,
+		},
+		"a tag for a commit reachable as parent as tag for other commit: tag is ancestor of other tag": {
+			ancestor:           "v1",
+			other:              "v2",
+			expectedIsAncestor: true,
+		},
+		"a tag for a commit not reachable as parent as tag for other commit: tag is not ancestor of other tag": {
+			ancestor:           "v2",
+			other:              "v1",
+			expectedIsAncestor: false,
+		},
+		"a commit reachable as parent for v1 tag: commit is ancestor of v1 tag": {
+			ancestor:           "085fc1ff420561f36464dea2445fc280fab66bca",
+			other:              "v1",
+			expectedIsAncestor: true,
+		},
+		"a commit not reachable (newer) as parent for v1 tag: commit is not ancestor of v1 tag": {
+			ancestor:           "a23d865f9a06e6129b655937eb633ff6223d4867",
+			other:              "v1",
+			expectedIsAncestor: false,
+		},
+		"a commit reachable as parent for other commit: commit is ancestor of other commit": {
+			ancestor:           "9a509b392ef5089246fd11efc0e66f8f4b931f88",
+			other:              "dc35b641712d46b79371a9d531349e107b4f391e",
+			expectedIsAncestor: true,
+		},
+		"a commit not reachable (newer) as parent for other commit: commit is not ancestor of other commit": {
+			ancestor:           "dc35b641712d46b79371a9d531349e107b4f391e",
+			other:              "9a509b392ef5089246fd11efc0e66f8f4b931f88",
+			expectedIsAncestor: false,
+		},
+		"a branch is ancestor of itself": {
+			ancestor:           "dev",
+			other:              "dev",
+			expectedIsAncestor: true,
+		},
+		"a tag is ancestor of itself": {
+			ancestor:           "v2",
+			other:              "v2",
+			expectedIsAncestor: true,
+		},
+		"a commit is ancestor of itself": {
+			ancestor:           "cfe04e403e57ce1d803519b826135d64d1c066d0",
+			other:              "cfe04e403e57ce1d803519b826135d64d1c066d0",
+			expectedIsAncestor: true,
+		},
+		"the head commit of a branch is ancestor to the branch": {
+			ancestor:           "9e94330651540210772aaf4819c77ca7e1102b64",
+			other:              "feature",
+			expectedIsAncestor: true,
+		},
+		"the commit of a tag is ancestor to the tag": {
+			ancestor:           "24baed7787ea319a10e387da1290242b91e34744",
+			other:              "v3",
+			expectedIsAncestor: true,
+		},
+		"non-existing ancestor returns error": {
+			ancestor:      "non-existing",
+			other:         "main",
+			expectedError: git.ErrCommitNotFound,
+		},
+		"non-existing other returns error": {
+			ancestor:      "main",
+			other:         "non-existing",
+			expectedError: git.ErrCommitNotFound,
+		},
+	}
 
-	isAncestor, err = repo.IsAncestor("v1", "v1")
-	require.NoError(t, err)
-	assert.True(t, isAncestor)
-
-	isAncestor, err = repo.IsAncestor("feature", "feature")
-	require.NoError(t, err)
-	assert.True(t, isAncestor)
-
-	isAncestor, err = repo.IsAncestor("dc35b641712d46b79371a9d531349e107b4f391e", "dc35b641712d46b79371a9d531349e107b4f391e")
-	require.NoError(t, err)
-	assert.True(t, isAncestor)
-
-	_, err = repo.IsAncestor("non-existing", "main")
-	require.ErrorIs(t, err, git.ErrCommitNotFound)
-
-	_, err = repo.IsAncestor("main", "non-existing")
-	require.ErrorIs(t, err, git.ErrCommitNotFound)
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			isAncestor, err := repo.IsAncestor(testSpec.ancestor, testSpec.other)
+			assert.ErrorIs(t, err, testSpec.expectedError)
+			assert.Equal(t, testSpec.expectedIsAncestor, isAncestor)
+		})
+	}
 }

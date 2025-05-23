@@ -91,12 +91,12 @@ func (r *repository) Checkout(reference string) error {
 		return err
 	}
 
-	status, err := wt.Status()
-	if err != nil {
+	// HACK: go-git does not support lfs files. If the repo has lfs files, go-git will report them as non clean, and fail when calling Checkout.
+	// We will thereforce perform a hard reset if all files reported as changed are in the lisrt of lfs files in .gitattributes
+	// TODO: Check if these steps are neccessary when go-git v6 is released.
+	if status, err := wt.Status(); err != nil {
 		return nil
-	}
-
-	if !status.IsClean() {
+	} else if !status.IsClean() {
 		lfsFiles, err := r.lfsFiles(wt)
 		if err != nil {
 			return nil
