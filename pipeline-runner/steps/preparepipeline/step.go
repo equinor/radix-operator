@@ -550,7 +550,7 @@ func setPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.Pipe
 			log.Ctx(ctx).Info().Msgf(" - %s", strings.Join(ignoredForWebhookEnvs, ", "))
 		}
 		if len(ignoredForGitRefsType) > 0 {
-			log.Ctx(ctx).Info().Msgf(" - for %s: %s", pipelineInfo.GetGitRefTypeOrDefault(), strings.Join(ignoredForWebhookEnvs, ", "))
+			log.Ctx(ctx).Info().Msgf(" - for %s: %s", pipelineInfo.GetGitRefTypeOrDefault(), strings.Join(ignoredForGitRefsType, ", "))
 		}
 	}
 	return nil
