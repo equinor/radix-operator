@@ -280,39 +280,6 @@ func Test_Checkout(t *testing.T) {
 			}
 		})
 	}
-
-	// err = repo.Checkout("dev")
-	// assert.NoError(t, err)
-	// _, err = os.Stat(zipFile)
-	// assert.ErrorIs(t, err, os.ErrNotExist)
-	// _, err = os.Stat(featureFile)
-	// assert.ErrorIs(t, err, os.ErrNotExist)
-	// fstat, err = os.Stat(gitIgnoreFile)
-	// require.NoError(t, err)
-	// assert.Equal(t, int64(88), fstat.Size())
-
-	// err = repo.Checkout("main")
-	// assert.NoError(t, err)
-	// _, err = os.Stat(zipFile)
-	// assert.NoError(t, err)
-	// _, err = os.Stat(featureFile)
-	// assert.ErrorIs(t, err, os.ErrNotExist)
-	// fstat, err = os.Stat(gitIgnoreFile)
-	// require.NoError(t, err)
-	// assert.Equal(t, int64(88), fstat.Size())
-
-	// err = repo.Checkout("feature")
-	// assert.NoError(t, err)
-	// _, err = os.Stat(zipFile)
-	// assert.NoError(t, err)
-	// _, err = os.Stat(featureFile)
-	// assert.NoError(t, err)
-	// fstat, err = os.Stat(gitIgnoreFile)
-	// require.NoError(t, err)
-	// assert.Equal(t, int64(88), fstat.Size())
-
-	// err = repo.Checkout("non-existing")
-	// assert.Error(t, err)
 }
 
 func Test_ResolveCommitForReference(t *testing.T) {
