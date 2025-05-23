@@ -172,7 +172,7 @@ func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
 			log.Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
 			return "", nil
 		}
-		sourceRdHashFromBranchHead, err := git.GetCommitHashFromHead(pipelineInfo.GetGitWorkspace(), sourceDeploymentGitBranch, "branch")
+		sourceRdHashFromBranchHead, err := git.GetCommitHashFromHead(pipelineInfo.GetGitWorkspace(), sourceDeploymentGitBranch, pipelineArgs.GetGitRefOrDefault())
 		if err != nil {
 			return "", nil
 		}
@@ -193,7 +193,7 @@ func getGitHash(pipelineInfo *model.PipelineInfo) (string, error) {
 			log.Info().Msgf("Deploy job with build %s having regex pattern, skipping sub-pipelines.", pipelineInfo.GetGitRefTypeOrDefault())
 			return "", nil
 		}
-		gitHash, err := git.GetCommitHashFromHead(pipelineArgs.GitWorkspace, pipelineJobBranch, "branch")
+		gitHash, err := git.GetCommitHashFromHead(pipelineArgs.GitWorkspace, pipelineJobBranch, pipelineInfo.GetGitRefTypeOrDefault())
 		if err != nil {
 			return "", err
 		}

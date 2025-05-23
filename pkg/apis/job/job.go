@@ -189,7 +189,8 @@ func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, 
 				}
 				continue
 			}
-			if job.radixJob.Spec.Build.GetGitRefOrDefault() == existingRadixJob.Spec.Build.GetGitRefOrDefault() {
+			if job.radixJob.Spec.Build.GetGitRefOrDefault() == existingRadixJob.Spec.Build.GetGitRefOrDefault() &&
+				job.radixJob.Spec.Build.GetGitRefTypeOrDefault() == existingRadixJob.Spec.Build.GetGitRefTypeOrDefault() {
 				if len(job.radixJob.Spec.Build.ToEnvironment) == 0 {
 					return true
 				}

@@ -522,7 +522,8 @@ func createRadixJob(appName, jobName string, created time.Time, statusCondition 
 	}
 	switch pipelineType {
 	case radixv1.Build, radixv1.BuildDeploy:
-		radixJob.Spec.Build.Branch = targetBranch //nolint:staticcheck
+		radixJob.Spec.Build.GitRef = targetBranch
+		radixJob.Spec.Build.GitRefType = radixv1.GitRefBranch
 	case radixv1.Deploy:
 		radixJob.Spec.Deploy.ToEnvironment = targetEnv
 	case radixv1.Promote:

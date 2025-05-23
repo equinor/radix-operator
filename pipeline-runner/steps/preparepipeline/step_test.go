@@ -2,10 +2,6 @@ package preparepipeline_test
 
 import (
 	"context"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
-	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	"github.com/golang/mock/gomock"
 	"strings"
 	"testing"
 
@@ -13,15 +9,19 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
+	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/golang/mock/gomock"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -534,7 +534,8 @@ func (s *stepTestSuite) Test_pipelineContext_createPipeline() {
 					AppName:         appName,
 					ImageTag:        radixImageTag,
 					JobName:         radixPipelineJobName,
-					Branch:          branchMain,
+					GitRef:          branchMain,
+					GitRefType:      string(v1.GitRefBranch),
 					PipelineType:    string(radixPipelineType),
 					ToEnvironment:   internalTest.Env1,
 					DNSConfig:       &dnsalias.DNSConfig{},
@@ -740,7 +741,8 @@ func (s *stepTestSuite) Test_prepare_webhookEnabled() {
 					AppName:              appName,
 					ImageTag:             radixImageTag,
 					JobName:              radixPipelineJobName,
-					Branch:               branchMain,
+					GitRef:               branchMain,
+					GitRefType:           string(v1.GitRefBranch),
 					PipelineType:         string(radixPipelineType),
 					DNSConfig:            &dnsalias.DNSConfig{},
 					RadixConfigFile:      sampleAppRadixConfigFileName,

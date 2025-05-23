@@ -230,8 +230,7 @@ func getPipelineShouldBeStopped(ctx context.Context, buildContext *model.BuildCo
 func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Context, pipelineInfo *model.PipelineInfo) {
 	stringBuilder := strings.Builder{}
 	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for the app %s", pipelineInfo.Definition.Type, step.GetAppName()))
-	gitRef := pipelineInfo.GetGitRefOrDefault()
-	if len(gitRef) > 0 {
+	if len(pipelineInfo.GetGitRefOrDefault()) > 0 {
 		stringBuilder.WriteString(fmt.Sprintf(", the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault()))
 	}
 	if len(pipelineInfo.PipelineArguments.CommitID) > 0 {
