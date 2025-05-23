@@ -256,7 +256,7 @@ func (buildSpec *RadixBuildSpec) GetGitRefOrDefault() string {
 // GetGitRefTypeOrDefault Get git event ref type or "branch" by default
 func (buildSpec *RadixBuildSpec) GetGitRefTypeOrDefault() string {
 	if buildSpec.GitRefType == "" {
-		return "branch"
+		return string(GitRefBranch)
 	}
 	return string(buildSpec.GitRefType)
 }

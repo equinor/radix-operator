@@ -298,7 +298,7 @@ func (p *PipelineInfo) GetGitRefType() string {
 // GetGitRefTypeOrDefault Get git event ref type or "branch" by default
 func (p *PipelineInfo) GetGitRefTypeOrDefault() string {
 	if p.PipelineArguments.GitRefType == "" {
-		return "branch"
+		return string(radixv1.GitRefBranch)
 	}
 	return p.PipelineArguments.GitRefType
 }
