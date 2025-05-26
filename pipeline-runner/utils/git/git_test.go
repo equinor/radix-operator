@@ -3,6 +3,7 @@ package git
 import (
 	"archive/zip"
 	"fmt"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"io"
 	"os"
 	"path/filepath"
@@ -87,7 +88,7 @@ func TestGetGitCommitHashFromHead_DummyRepo(t *testing.T) {
 	gitDirPath := setupGitTest("test_data.zip", "test_data")
 
 	releaseBranchHeadCommitHash := "43332ef8f8a8c3830a235a5af7ac9098142e3af8"
-	commitHash, err := GetCommitHashFromHead(gitDirPath, "release", "branch")
+	commitHash, err := GetCommitHashFromHead(gitDirPath, "release", string(radixv1.GitRefBranch))
 	assert.NoError(t, err)
 	assert.Equal(t, commitHash, releaseBranchHeadCommitHash)
 
@@ -114,7 +115,7 @@ func TestGetGitCommitHashFromHead_DummyRepo2(t *testing.T) {
 	gitDirPath := setupGitTest("test_data2.zip", "test_data2")
 
 	releaseBranchHeadCommitHash := "a1ee44808de2a42d291b59fefb5c66b8ff6bf898"
-	commitHash, err := GetCommitHashFromHead(gitDirPath, "this-branch-is-only-remote", "branch")
+	commitHash, err := GetCommitHashFromHead(gitDirPath, "this-branch-is-only-remote", string(radixv1.GitRefBranch))
 	assert.NoError(t, err)
 	assert.Equal(t, releaseBranchHeadCommitHash, commitHash)
 
@@ -130,7 +131,7 @@ func TestGetGitCommitTags(t *testing.T) {
 	tag1 := "tag-contains@at-sign"
 	tag2 := "v1.12"
 
-	commitHash, err := GetCommitHashFromHead(gitDirPath, branchName, "branch")
+	commitHash, err := GetCommitHashFromHead(gitDirPath, branchName, string(radixv1.GitRefBranch))
 	assert.NoError(t, err)
 	tagsString, err := getGitCommitTags(gitDirPath, commitHash)
 	assert.NoError(t, err)
@@ -138,6 +139,19 @@ func TestGetGitCommitTags(t *testing.T) {
 	assert.Equal(t, tag0, tags[0])
 	assert.Equal(t, tag1, tags[1])
 	assert.Equal(t, tag2, tags[2])
+
+	tearDownGitTest()
+}
+
+func Test_GetGitCommitForBranchWithAtChar(t *testing.T) {
+	setupLog()
+	gitDirPath := setupGitTest("test_data3.zip", "test_data3")
+
+	branchName := "feature/@branch-with-at"
+
+	commitHash, err := GetCommitHashFromHead(gitDirPath, branchName, string(radixv1.GitRefBranch))
+	assert.NoError(t, err)
+	assert.Equal(t, "aa54340d928331aae0c2566ed0377faab3948f39", commitHash)
 
 	tearDownGitTest()
 }
