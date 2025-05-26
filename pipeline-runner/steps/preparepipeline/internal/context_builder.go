@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
@@ -59,7 +61,7 @@ func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo
 
 		environmentsToBuild = append(environmentsToBuild, model.EnvironmentToBuild{
 			Environment: envName,
-			Components:  getComponentsToBuild(pipelineInfo.GetRadixApplication(), envName, changedFiles.Dirs()),
+			Components:  getComponentsToBuild(pipelineInfo.GetRadixApplication(), envName, distinctDirs(changedFiles)),
 		})
 	}
 
@@ -120,4 +122,16 @@ func cleanPathForPrefixComparison(dir string) string {
 		outDir = outDir + "/"
 	}
 	return outDir
+}
+
+// Returns list of distinct directories
+func distinctDirs(s git.DiffEntries) []string {
+	allDirs := slice.Map(s, func(e git.DiffEntry) string {
+		if e.IsDir {
+			return e.Name
+		}
+		return path.Dir(e.Name)
+	})
+	slices.Sort(allDirs)
+	return slices.Compact(allDirs)
 }

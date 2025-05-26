@@ -3,7 +3,6 @@ package git
 import (
 	"errors"
 	"fmt"
-	"path"
 	"slices"
 	"strings"
 
@@ -44,18 +43,6 @@ type DiffEntry struct {
 }
 
 type DiffEntries []DiffEntry
-
-// Returns list of distinct directories
-func (s DiffEntries) Dirs() []string {
-	allDirs := slice.Map(s, func(e DiffEntry) string {
-		if e.IsDir {
-			return e.Name
-		}
-		return path.Dir(e.Name)
-	})
-	slices.Sort(allDirs)
-	return slices.Compact(allDirs)
-}
 
 func Open(path string) (Repository, error) {
 	r, err := git.PlainOpen(path)

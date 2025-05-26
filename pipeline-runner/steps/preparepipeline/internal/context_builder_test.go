@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	gomock "github.com/golang/mock/gomock"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -85,301 +86,253 @@ func (s *stepTestSuite) Test_DiffCommitsCalledOncePerTargetEnvirononment() {
 		TargetEnvironments: []string{"env1", "env2", "env3"},
 		RadixApplication:   &v1.RadixApplication{},
 	}
-	_, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	actualBuildContext, err := sut.GetBuildContext(pipelineInfo, gitRepo)
 	s.Require().NoError(err)
+	s.ElementsMatch(actualBuildContext.EnvironmentsToBuild, []model.EnvironmentToBuild{{Environment: "env1"}, {Environment: "env2"}, {Environment: "env3"}})
 }
 
-// func (s *stepTestSuite) Test_ComponentHasChangedSource() {
-// 	const (
-// 		envDev1 = "dev1"
-// 		envDev2 = "dev2"
-// 	)
+func (s *stepTestSuite) Test_DetectComponentsWithChangedSource() {
+	const (
+		envName = "anyenv"
+	)
 
-// 	testScenarios := map[string]struct {
-// 		changedFolders       []string
-// 		sourceFolder         string
-// 		checkChangesEnvName  string
-// 		envName1SourceFolder *string
-// 		envName1Enabled      *bool
-// 		envName1Image        string
-// 		expectedResult       bool
-// 	}{
-// 		"sourceFolder is dot": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        ".",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"several dots and slashes": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "././",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"no changes in the sourceFolder folder with trailing slash": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "nonexistingdir/",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      false,
-// 		},
-// 		"no changes in the sourceFolder folder without slashes": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "nonexistingdir",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      false,
-// 		},
-// 		"real source dir with trailing slash": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "src/",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"sourceFolder has surrounding slashes and leading dot": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "./src/",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"real source dir without trailing slash": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "./src",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"changes in the sourceFolder folder subfolder": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "src",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"changes in the sourceFolder multiple element path subfolder": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "src/subdir",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"changes in the sourceFolder multiple element path subfolder with trailing slash": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "src/subdir/",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"no changes in the sourceFolder multiple element path subfolder": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "src/subdir/water",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      false,
-// 		},
-// 		"changes in the sourceFolder multiple element path subfolder with trailing slash, no match": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "src/subdir/water/",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      false,
-// 		},
-// 		"sourceFolder has name of changed folder": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "notebooks",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"empty sourceFolder is affected by any changes": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        "",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"sourceFolder sub-folder in the root": {
-// 			changedFolders:      []string{".", "app1"},
-// 			sourceFolder:        "./app1",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      true,
-// 		},
-// 		"sourceFolder sub-folder in the root, no changed folders": {
-// 			changedFolders:      []string{},
-// 			sourceFolder:        ".",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      false,
-// 		},
-// 		"sourceFolder sub-folder in empty, no changed folders": {
-// 			changedFolders:      []string{},
-// 			sourceFolder:        "",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      false,
-// 		},
-// 		"sourceFolder sub-folder in slash, no changed folders": {
-// 			changedFolders:      []string{},
-// 			sourceFolder:        "/",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      false,
-// 		},
-// 		"sourceFolder sub-folder in slash with dot, no changed folders": {
-// 			changedFolders:      []string{},
-// 			sourceFolder:        "/.",
-// 			checkChangesEnvName: envDev1,
-// 			expectedResult:      false,
-// 		},
-// 		"sourceFolder is dot, env sourceFolder is empty": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         ".",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr(""),
-// 			expectedResult:       true,
-// 		},
-// 		"sourceFolder is dot, env sourceFolder has image": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        ".",
-// 			checkChangesEnvName: envDev1,
-// 			envName1Image:       "some-image",
-// 			expectedResult:      false,
-// 		},
-// 		"sourceFolder is dot, disabled env sourceFolder has image": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        ".",
-// 			checkChangesEnvName: envDev1,
-// 			envName1Enabled:     pointers.Ptr(false),
-// 			envName1Image:       "some-image",
-// 			expectedResult:      false,
-// 		},
-// 		"sourceFolder is dot, enabled env sourceFolder has image": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        ".",
-// 			checkChangesEnvName: envDev1,
-// 			envName1Enabled:     pointers.Ptr(true),
-// 			envName1Image:       "some-image",
-// 			expectedResult:      false,
-// 		},
-// 		"sourceFolder is dot, env sourceFolder has no image": {
-// 			changedFolders:      []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:        ".",
-// 			checkChangesEnvName: envDev2,
-// 			envName1Image:       "some-image",
-// 			expectedResult:      true,
-// 		},
-// 		"sourceFolder is not changed, env sourceFolder is changed": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         "noneexistingdir",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr("src"),
-// 			expectedResult:       true,
-// 		},
-// 		"sourceFolder is not changed, enabled env sourceFolder is changed": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         "noneexistingdir",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr("src"),
-// 			envName1Enabled:      pointers.Ptr(true),
-// 			expectedResult:       true,
-// 		},
-// 		"sourceFolder is not changed, disabled env sourceFolder is changed": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         "noneexistingdir",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr("src"),
-// 			envName1Enabled:      pointers.Ptr(false),
-// 			expectedResult:       false,
-// 		},
-// 		"sourceFolder is not changed, disabled env sourceFolder is changed, checking another env": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         "noneexistingdir",
-// 			checkChangesEnvName:  envDev2,
-// 			envName1SourceFolder: pointers.Ptr("src"),
-// 			envName1Enabled:      pointers.Ptr(false),
-// 			expectedResult:       false,
-// 		},
-// 		"sourceFolder is src, env sourceFolder is dot": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         "src/",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr("."),
-// 			expectedResult:       true,
-// 		},
-// 		"sourceFolder is dot, env sourceFolder is src": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         ".",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr("src/"),
-// 			expectedResult:       true,
-// 		},
-// 		"sourceFolder is dot, no env sourceFolder": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         ".",
-// 			checkChangesEnvName:  envDev2,
-// 			envName1SourceFolder: pointers.Ptr("src/"),
-// 			expectedResult:       true,
-// 		},
-// 		"no changes in the sourceFolder folder, env sourceFolder is empty": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         "nonexistingdir",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr(""),
-// 			expectedResult:       false,
-// 		},
-// 		"changes in the sourceFolder folder, env sourceFolder changed": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         ".",
-// 			checkChangesEnvName:  envDev2,
-// 			envName1SourceFolder: pointers.Ptr("nonexistingdir"),
-// 			expectedResult:       true,
-// 		},
-// 		"changes in the sourceFolder folder, disabled env sourceFolder not changed": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         ".",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr("nonexistingdir"),
-// 			envName1Enabled:      pointers.Ptr(false),
-// 			expectedResult:       false,
-// 		},
-// 		"no changes in the sourceFolder folder, env sourceFolder is changed": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         "nonexistingdir",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr("src"),
-// 			expectedResult:       true,
-// 		},
-// 		"no changes in the sourceFolder folder, env sourceFolder is not changed": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         "nonexistingdir",
-// 			checkChangesEnvName:  envDev2,
-// 			envName1SourceFolder: pointers.Ptr("src"),
-// 			expectedResult:       false,
-// 		},
-// 		"changes in the sourceFolder folder subfolder, env sourceFolder is same folder": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         "src",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr("src"),
-// 			expectedResult:       true,
-// 		},
-// 		"sourceFolder is dot, env sourceFolder is disabled": {
-// 			changedFolders:       []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-// 			sourceFolder:         ".",
-// 			checkChangesEnvName:  envDev1,
-// 			envName1SourceFolder: pointers.Ptr(""),
-// 			expectedResult:       true,
-// 		},
-// 	}
+	tests := map[string]struct {
+		diffs              git.DiffEntries
+		components         []utils.RadixApplicationComponentBuilder
+		jobs               []utils.RadixApplicationJobComponentBuilder
+		expectedComponents []string
+	}{
+		"changed root file matches all components with root folder": {
+			diffs: git.DiffEntries{{Name: "anyfile.txt"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/"),
+				utils.NewApplicationComponentBuilder().WithName("comp3").WithSourceFolder("."),
+				utils.NewApplicationComponentBuilder().WithName("comp4").WithSourceFolder(""),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub2"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/"),
+				utils.NewApplicationJobComponentBuilder().WithName("job3").WithSourceFolder("."),
+				utils.NewApplicationJobComponentBuilder().WithName("job4").WithSourceFolder(""),
+			},
+			expectedComponents: []string{"comp2", "comp3", "comp4", "job2", "job3", "job4"},
+		},
+		"changed root folder matches all components with root folder": {
+			diffs: git.DiffEntries{{Name: ".", IsDir: true}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/"),
+				utils.NewApplicationComponentBuilder().WithName("comp3").WithSourceFolder("."),
+				utils.NewApplicationComponentBuilder().WithName("comp4").WithSourceFolder(""),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub2"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/"),
+				utils.NewApplicationJobComponentBuilder().WithName("job3").WithSourceFolder("."),
+				utils.NewApplicationJobComponentBuilder().WithName("job4").WithSourceFolder(""),
+			},
+			expectedComponents: []string{"comp2", "comp3", "comp4", "job2", "job3", "job4"},
+		},
+		"changed file in subfolder matches all components with root folder": {
+			diffs: git.DiffEntries{{Name: "othersub/anyfile.txt"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/"),
+				utils.NewApplicationComponentBuilder().WithName("comp3").WithSourceFolder("."),
+				utils.NewApplicationComponentBuilder().WithName("comp4").WithSourceFolder(""),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub2"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/"),
+				utils.NewApplicationJobComponentBuilder().WithName("job3").WithSourceFolder("."),
+				utils.NewApplicationJobComponentBuilder().WithName("job4").WithSourceFolder(""),
+			},
+			expectedComponents: []string{"comp2", "comp3", "comp4", "job2", "job3", "job4"},
+		},
+		"changed subfolder matches all components with root folder": {
+			diffs: git.DiffEntries{{Name: "othersub", IsDir: true}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/"),
+				utils.NewApplicationComponentBuilder().WithName("comp3").WithSourceFolder("."),
+				utils.NewApplicationComponentBuilder().WithName("comp4").WithSourceFolder(""),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub2"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/"),
+				utils.NewApplicationJobComponentBuilder().WithName("job3").WithSourceFolder("."),
+				utils.NewApplicationJobComponentBuilder().WithName("job4").WithSourceFolder(""),
+			},
+			expectedComponents: []string{"comp2", "comp3", "comp4", "job2", "job3", "job4"},
+		},
+		"changed file in component subfolder hierarchy": {
+			diffs: git.DiffEntries{{Name: "sub1/sub2/anyfile.txt"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"changed folder in component subfolder hierarchy": {
+			diffs: git.DiffEntries{{Name: "sub1/sub_a", IsDir: true}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"compopnent/job source folders are cleaned": {
+			diffs: git.DiffEntries{{Name: "sub1/sub2/anyfile.txt"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub_a/sub_b/../../sub1/sub_c/.."), // equals /sub1
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub_a/sub_b/../../sub1/sub_c/.."), // equals /sub1
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"diff entries are cleaned": {
+			diffs: git.DiffEntries{{Name: "sub_a/sub_b/../../sub1/anyfile.txt"}}, // equals /sub1
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"all diff entries are checked": {
+			diffs: git.DiffEntries{{Name: "sub1/file.txt"}, {Name: "sub3/file.txt"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2"),
+				utils.NewApplicationComponentBuilder().WithName("comp3").WithSourceFolder("/sub3"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2"),
+				utils.NewApplicationJobComponentBuilder().WithName("job3").WithSourceFolder("/sub3"),
+			},
+			expectedComponents: []string{"comp1", "comp3", "job1", "job3"},
+		},
+		"skip components/jobs with image": {
+			diffs: git.DiffEntries{{Name: "."}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder(""),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("").WithImage("anyimage"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder(""),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("").WithImage("anyimage"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"skip disabled components/jobs": {
+			diffs: git.DiffEntries{{Name: "."}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder(""),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("").WithEnabled(false),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder(""),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("").WithEnabled(false),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"matching environment config: use source": {
+			diffs: git.DiffEntries{{Name: "sub1/file.txt"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithSourceFolder("/sub2")),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2").WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithSourceFolder("/sub1")),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithSourceFolder("/sub2")),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2").WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithSourceFolder("/sub1")),
+			},
+			expectedComponents: []string{"comp2", "job2"},
+		},
+		"non-matching environment config: use source from common config": {
+			diffs: git.DiffEntries{{Name: "sub1/file.txt"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment("otherenv").WithSourceFolder("/sub2")),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2").WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment("otherenv").WithSourceFolder("/sub1")),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("otherenv").WithSourceFolder("/sub2")),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2").WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("otherenv").WithSourceFolder("/sub1")),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"matching environment config: skip components/jobs with image set": {
+			diffs: git.DiffEntries{{Name: "sub1/file.txt"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithImage("anyimage")),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub1"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImage("anyimage")),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub1"),
+			},
+			expectedComponents: []string{"comp2", "job2"},
+		},
+		"matching environment config: skip disabled components/jobs": {
+			diffs: git.DiffEntries{{Name: "sub1/file.txt"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub1"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub1"),
+			},
+			expectedComponents: []string{"comp2", "job2"},
+		},
+		"matching environment config: include enabled components/jobs": {
+			diffs: git.DiffEntries{{Name: "sub1/file.txt"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithEnabled(false).WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub1").WithEnabled(false),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithEnabled(false).WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub1").WithEnabled(false),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+	}
 
-// 	var applicationComponent v1.RadixComponent
+	for testName, testSpec := range tests {
+		s.Run(testName, func() {
+			sut := internal.NewContextBuilder(s.kubeUtil)
+			gitRepo := git.NewMockRepository(s.ctrl)
+			gitRepo.EXPECT().DiffCommits(gomock.Any(), gomock.Any()).Times(1).Return(testSpec.diffs, nil)
+			ra := utils.NewRadixApplicationBuilder().WithAppName("anyname").
+				WithComponents(testSpec.components...).
+				WithJobComponents(testSpec.jobs...)
 
-// 	for testName, testScenario := range testScenarios {
-// 		s.Run(testName, func() {
-// 			environmentConfigBuilder := utils.AnEnvironmentConfig().WithEnvironment(envDev1).WithImage(testScenario.envName1Image)
-// 			if testScenario.envName1SourceFolder != nil {
-// 				environmentConfigBuilder.WithSourceFolder(*testScenario.envName1SourceFolder)
-// 			}
-// 			if testScenario.envName1Enabled != nil {
-// 				environmentConfigBuilder.WithEnabled(*testScenario.envName1Enabled)
-// 			}
-// 			applicationComponent =
-// 				utils.AnApplicationComponent().
-// 					WithName("client-component-1").
-// 					WithEnvironmentConfigs(
-// 						environmentConfigBuilder,
-// 					).
-// 					WithSourceFolder(testScenario.sourceFolder).
-// 					BuildComponent()
-// 			sourceHasChanged := prepareInternal.ComponentHasChangedSource(testScenario.checkChangesEnvName, &applicationComponent, testScenario.changedFolders)
-// 			assert.Equal(t, testScenario.expectedResult, sourceHasChanged)
-// 		})
-// 	}
-// }
+			pipelineInfo := &model.PipelineInfo{
+				GitCommitHash:      "anyhash",
+				TargetEnvironments: []string{envName},
+				RadixApplication:   ra.BuildRA(),
+			}
+			actualBuildContext, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+			s.Require().NoError(err)
+			s.Require().Len(actualBuildContext.EnvironmentsToBuild, 1)
+			s.Require().Equal(envName, actualBuildContext.EnvironmentsToBuild[0].Environment)
+			s.ElementsMatch(actualBuildContext.EnvironmentsToBuild[0].Components, testSpec.expectedComponents)
+		})
+	}
+}
