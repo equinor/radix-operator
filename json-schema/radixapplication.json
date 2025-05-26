@@ -3054,6 +3054,15 @@
                     "minLength": 1,
                     "type": "string"
                   },
+                  "fromType": {
+                    "description": "FromType When the pipeline job is triggered by a GitHub event via the Radix GitHub webhook FromType can specify\nwhich Git references are applicable for this environment:\n- branch - only events on branches (for refs/heads)\n- tag - only events on tags (for refs/tags)\n- <empty> - events on both branches and tags",
+                    "enum": [
+                      "branch",
+                      "tag",
+                      ""
+                    ],
+                    "type": "string"
+                  },
                   "variables": {
                     "additionalProperties": {
                       "type": "string"
