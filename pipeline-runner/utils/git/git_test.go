@@ -116,7 +116,7 @@ func TestGetGitCommitHashFromHead_DummyRepo2(t *testing.T) {
 	releaseBranchHeadCommitHash := "a1ee44808de2a42d291b59fefb5c66b8ff6bf898"
 	commitHash, err := GetCommitHashFromHead(gitDirPath, "this-branch-is-only-remote")
 	assert.NoError(t, err)
-	assert.Equal(t, commitHash, releaseBranchHeadCommitHash)
+	assert.Equal(t, releaseBranchHeadCommitHash, commitHash)
 
 	tearDownGitTest()
 }

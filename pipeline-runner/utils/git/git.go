@@ -233,19 +233,28 @@ func findCommit(commitHash string, repository *git.Repository) (*object.Commit, 
 func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, error) {
 	// first, we try to resolve a local revision. If possible, this is best. This succeeds if code branch and config
 	// branch are the same
-	commitHash, err := r.ResolveRevision(plumbing.Revision(branchName))
+	refName := plumbing.NewBranchReferenceName(branchName)
+	ref, err := r.Reference(refName, true)
 	if err != nil {
+		if !errors.Is(err, plumbing.ErrReferenceNotFound) {
+			return nil, fmt.Errorf("failed to resolve branch %s: %w", branchName, err)
+		}
 		// on second try, we try to resolve the remote branch. This introduces a chance that the remote has been altered
 		// with new hash after initial clone
-		commitHash, err = r.ResolveRevision(plumbing.Revision(fmt.Sprintf("refs/remotes/origin/%s", branchName)))
-		if err != nil {
-			if strings.EqualFold(err.Error(), "reference not found") {
+		refName = plumbing.NewRemoteReferenceName("origin", branchName)
+		if ref, err = r.Reference(refName, true); err != nil {
+			if !errors.Is(err, plumbing.ErrReferenceNotFound) {
 				return nil, fmt.Errorf("there is no branch %s or access to the repository", branchName)
 			}
-			return nil, err
+			return nil, fmt.Errorf("failed to resolve branch %s: %w", branchName, err)
 		}
 	}
-	return commitHash, nil
+
+	commitHash, err := r.CommitObject(ref.Hash())
+	if err != nil {
+		return nil, err
+	}
+	return &commitHash.Hash, nil
 }
 
 // getGitCommitTags returns any git tags which point to commitHash
