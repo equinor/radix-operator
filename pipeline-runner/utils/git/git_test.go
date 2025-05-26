@@ -3,7 +3,6 @@ package git
 import (
 	"archive/zip"
 	"fmt"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
