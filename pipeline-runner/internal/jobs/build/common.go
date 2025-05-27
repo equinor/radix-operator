@@ -36,10 +36,12 @@ func getCommonJobLabels(appName, pipelineJobName, imageTag string) map[string]st
 	}
 }
 
-func getCommonJobAnnotations(branch string, componentImages ...pipeline.BuildComponentImage) map[string]string {
+func getCommonJobAnnotations(branch, gitRef, gitRefType string, componentImages ...pipeline.BuildComponentImage) map[string]string {
 	componentImagesAnnotation, _ := json.Marshal(componentImages)
 	return map[string]string{
 		kube.RadixBranchAnnotation:          branch,
+		kube.RadixGitRefAnnotation:          gitRef,
+		kube.RadixGitRefTypeAnnotation:      gitRefType,
 		kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
 	}
 }
@@ -66,7 +68,7 @@ func getCommonPodInitContainers(cloneURL string, pipelineArgs model.PipelineArgu
 		GitImage:      pipelineArgs.GitCloneGitImage,
 		BashImage:     pipelineArgs.GitCloneBashImage,
 	}
-	return git.CloneInitContainersWithSourceCode(cloneURL, pipelineArgs.Branch, pipelineArgs.CommitID, pipelineArgs.GitWorkspace, cloneConfig)
+	return git.CloneInitContainersWithSourceCode(cloneURL, pipelineArgs.GetGitRefOrDefault(), pipelineArgs.CommitID, pipelineArgs.GitWorkspace, cloneConfig)
 }
 
 func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {

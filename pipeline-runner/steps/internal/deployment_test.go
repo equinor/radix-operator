@@ -640,3 +640,29 @@ func Test_ConstructForTargetEnvironment_BuildKitAnnotations(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetGitCommitHashFromDeployment(t *testing.T) {
+	assert.Equal(t, "", GetGitCommitHashFromDeployment(nil))
+
+	rd := utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixCommitAnnotation: "annotation_hash"}).WithLabel(kube.RadixCommitLabel, "label_hash").BuildRD()
+	assert.Equal(t, "annotation_hash", GetGitCommitHashFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().WithLabel(kube.RadixCommitLabel, "label_hash").BuildRD()
+	assert.Equal(t, "label_hash", GetGitCommitHashFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().BuildRD()
+	assert.Equal(t, "", GetGitCommitHashFromDeployment(rd))
+}
+
+func Test_GetGitRefNameFromDeployment(t *testing.T) {
+	assert.Equal(t, "", GetGitRefNameFromDeployment(nil))
+
+	rd := utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixGitRefAnnotation: "git_ref", kube.RadixBranchAnnotation: "git_branch"}).BuildRD()
+	assert.Equal(t, "git_ref", GetGitRefNameFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixBranchAnnotation: "git_branch"}).BuildRD()
+	assert.Equal(t, "git_branch", GetGitRefNameFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().BuildRD()
+	assert.Equal(t, "", GetGitRefNameFromDeployment(rd))
+}

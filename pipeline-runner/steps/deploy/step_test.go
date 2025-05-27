@@ -68,7 +68,7 @@ func (s *deployTestSuite) Test_EmptyTargetEnvironments_SkipDeployment() {
 }
 
 func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists() {
-	appName, envName, branch, jobName, imageTag, commitId, gitTags := "anyapp", "dev", "master", "anyjobname", "anyimagetag", "anycommit", "gittags"
+	appName, envName, branch, jobName, imageTag, commitId, gitTags, gitRef, gitRefType := "anyapp", "dev", "master", "anyjobname", "anyimagetag", "anycommit", "gittags", "anytag", "tag"
 	rr := utils.ARadixRegistration().
 		WithName(appName).
 		BuildRR()
@@ -149,9 +149,10 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  jobName,
-			ImageTag: imageTag,
-			Branch:   branch,
+			JobName:    jobName,
+			ImageTag:   imageTag,
+			GitRef:     gitRef,
+			GitRefType: gitRefType,
 		},
 		RadixApplication:   ra,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
@@ -179,10 +180,14 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 		s.Equal("1234", rdDev.Spec.Components[1].EnvironmentVariables["DB_PORT"])
 		s.Equal(commitId, rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
 		s.Equal(gitTags, rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
-		s.NotEmpty(rdDev.Annotations[kube.RadixBranchAnnotation])
+		s.Empty(rdDev.Annotations[kube.RadixBranchAnnotation])
+		s.NotEmpty(rdDev.Annotations[kube.RadixGitRefAnnotation])
+		s.NotEmpty(rdDev.Annotations[kube.RadixGitRefTypeAnnotation])
 		s.NotEmpty(rdDev.Labels[kube.RadixCommitLabel])
 		s.NotEmpty(rdDev.Labels["radix-job-name"])
-		s.Equal(branch, rdDev.Annotations[kube.RadixBranchAnnotation])
+		s.Empty(rdDev.Annotations[kube.RadixBranchAnnotation])
+		s.Equal(gitRef, rdDev.Annotations[kube.RadixGitRefAnnotation])
+		s.Equal(gitRefType, rdDev.Annotations[kube.RadixGitRefTypeAnnotation])
 		s.Equal(commitId, rdDev.Labels[kube.RadixCommitLabel])
 		s.Equal(jobName, rdDev.Labels["radix-job-name"])
 	})

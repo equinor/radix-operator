@@ -106,7 +106,6 @@ func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeCl
 	if step.radixConfigReader == nil {
 		step.radixConfigReader = prepareInternal.NewRadixConfigReader(radixClient)
 	}
-
 }
 
 // ImplementationForType Override of default step method
@@ -127,11 +126,7 @@ func (step *PreparePipelinesStepImplementation) ErrorMsg(err error) string {
 // Run Override of default step method
 func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	var err error
-	branch := pipelineInfo.PipelineArguments.Branch
-	commitID := pipelineInfo.PipelineArguments.CommitID
-	appName := step.GetAppName()
-
-	logPipelineInfo(ctx, pipelineInfo.Definition.Type, appName, branch, commitID)
+	step.logPipelineInfo(ctx, pipelineInfo)
 
 	repo, err := step.openGitRepo(pipelineInfo.GetGitWorkspace())
 	if err != nil {
@@ -165,21 +160,22 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 
 func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo *model.PipelineInfo, repo git.Repository) (string, string, error) {
 	var err error
+	refName := pipelineInfo.PipelineArguments.GetGitRefOrDefault()
 
 	commit := pipelineInfo.PipelineArguments.CommitID
 	if len(commit) == 0 {
-		commit, err = repo.ResolveCommitForReference(pipelineInfo.PipelineArguments.Branch)
+		commit, err = repo.ResolveCommitForReference(refName)
 		if err != nil {
-			return "", "", fmt.Errorf("failed to get latest commit for branch %s: %w", pipelineInfo.PipelineArguments.Branch, err)
+			return "", "", fmt.Errorf("failed to get latest commit for branch %s: %w", refName, err)
 		}
 	}
 
-	isAncestor, err := repo.IsAncestor(commit, pipelineInfo.PipelineArguments.Branch)
+	isAncestor, err := repo.IsAncestor(commit, refName)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to verify if commit %s is ancestor of branch %s: %w", commit, pipelineInfo.PipelineArguments.Branch, err)
+		return "", "", fmt.Errorf("failed to verify if commit %s is ancestor of branch %s: %w", commit, refName, err)
 	}
 	if !isAncestor {
-		return "", "", fmt.Errorf("commit %s is not ancestor of branch %s", commit, pipelineInfo.PipelineArguments.Branch)
+		return "", "", fmt.Errorf("commit %s is not ancestor of branch %s", commit, refName)
 	}
 
 	tags, err := repo.ResolveTagsForCommit(commit)
@@ -331,7 +327,7 @@ func (step *PreparePipelinesStepImplementation) getPromoteSourceDeploymentGitInf
 		return "", "", err
 	}
 	gitHash := internal.GetGitCommitHashFromDeployment(rd)
-	gitBranch := rd.Annotations[kube.RadixBranchAnnotation]
+	gitBranch := internal.GetGitRefNameFromDeployment(rd)
 	return gitHash, gitBranch, err
 }
 
@@ -371,14 +367,14 @@ func getBuildDeployPipelineShouldBeStopped(pipelineInfo *model.PipelineInfo) (bo
 	return true, "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
 }
 
-func logPipelineInfo(ctx context.Context, pipelineType radixv1.RadixPipelineType, appName, branch, commitID string) {
+func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Context, pipelineInfo *model.PipelineInfo) {
 	stringBuilder := strings.Builder{}
-	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for app %s", pipelineType, appName))
-	if len(branch) > 0 {
-		stringBuilder.WriteString(fmt.Sprintf(", branch %s", branch))
+	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for the app %s", pipelineInfo.Definition.Type, step.GetAppName()))
+	if len(pipelineInfo.GetGitRefOrDefault()) > 0 {
+		stringBuilder.WriteString(fmt.Sprintf(", the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault()))
 	}
-	if len(commitID) > 0 {
-		stringBuilder.WriteString(fmt.Sprintf(", commit %s", commitID))
+	if len(pipelineInfo.PipelineArguments.CommitID) > 0 {
+		stringBuilder.WriteString(fmt.Sprintf(", the commit %s", pipelineInfo.PipelineArguments.CommitID))
 	}
 	log.Ctx(ctx).Info().Msg(stringBuilder.String())
 }
@@ -540,7 +536,9 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 	pipeline.ObjectMeta.Name = pipelineName
 	pipeline.ObjectMeta.Labels = labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{
-		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch,
+		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch, // nolint:staticcheck
+		kube.RadixGitRefAnnotation:      pipelineInfo.PipelineArguments.GitRef,
+		kube.RadixGitRefTypeAnnotation:  pipelineInfo.PipelineArguments.GitRefType,
 		defaults.PipelineNameAnnotation: originalPipelineName,
 	}
 	if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
@@ -617,7 +615,7 @@ func pipelineTaskHasAzureIdentityClientIdParam(pipeline *v1.Pipeline, taskIndex 
 
 func (step *PreparePipelinesStepImplementation) setTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	log.Ctx(ctx).Debug().Msg("Set target environments")
-	targetEnvironmentNames, environmentsToIgnore, err := getTargetEnvironmentNames(ctx, pipelineInfo)
+	targetEnvironmentNames, ignoredForWebhookEnvs, ignoredForGitRefsType, err := getTargetEnvironmentNames(ctx, pipelineInfo)
 	if err != nil {
 		return err
 	}
@@ -633,32 +631,38 @@ func (step *PreparePipelinesStepImplementation) setTargetEnvironments(ctx contex
 	pipelineInfo.TargetEnvironments = targetEnvironments
 
 	if len(pipelineInfo.TargetEnvironments) > 0 {
-		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to branch %s.", strings.Join(targetEnvironmentNames, ", "), pipelineInfo.GetBranch())
+		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to %s %s.", strings.Join(targetEnvironmentNames, ", "), pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRef())
 	} else {
-		log.Ctx(ctx).Info().Msgf("No environments are mapped to branch %s.", pipelineInfo.GetBranch())
+		log.Ctx(ctx).Info().Msgf("No environments are mapped to %s %s.", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRef())
 	}
-	if len(environmentsToIgnore) > 0 {
-		log.Ctx(ctx).Info().Msgf("The following environment(s) are configured to be ignored when triggered from GitHub webhook: %s", strings.Join(environmentsToIgnore, ", "))
+	if len(ignoredForWebhookEnvs) > 0 || len(ignoredForGitRefsType) > 0 {
+		log.Ctx(ctx).Info().Msg("The following environment(s) are configured to be ignored when triggered from GitHub webhook:")
+		if len(ignoredForWebhookEnvs) > 0 {
+			log.Ctx(ctx).Info().Msgf(" - %s", strings.Join(ignoredForWebhookEnvs, ", "))
+		}
+		if len(ignoredForGitRefsType) > 0 {
+			log.Ctx(ctx).Info().Msgf(" - for %s: %s", pipelineInfo.GetGitRefTypeOrDefault(), strings.Join(ignoredForGitRefsType, ", "))
+		}
 	}
 	return nil
 }
 
-func getTargetEnvironmentNames(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, []string, error) {
+func getTargetEnvironmentNames(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, []string, []string, error) {
 	switch pipelineInfo.GetRadixPipelineType() {
 	case radixv1.ApplyConfig:
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	case radixv1.Promote:
 		environmentsForPromote, err := getTargetEnvironmentsForPromote(pipelineInfo)
-		return environmentsForPromote, nil, err
+		return environmentsForPromote, nil, nil, err
 	case radixv1.Deploy:
 		environmentsForDeploy, err := getTargetEnvironmentsForDeploy(ctx, pipelineInfo)
-		return environmentsForDeploy, nil, err
+		return environmentsForDeploy, nil, nil, err
 	}
 
 	deployToEnvironment := pipelineInfo.GetRadixDeployToEnvironment()
-	targetEnvironments, ignoredForWebhookEnvs := applicationconfig.GetTargetEnvironments(pipelineInfo.GetBranch(), pipelineInfo.GetRadixApplication(), pipelineInfo.PipelineArguments.TriggeredFromWebhook)
+	targetEnvironments, ignoredForWebhookEnvs, ignoredForGitRefsType := applicationconfig.GetTargetEnvironments(pipelineInfo.GetGitRefOrDefault(), pipelineInfo.GetGitRefType(), pipelineInfo.GetRadixApplication(), pipelineInfo.PipelineArguments.TriggeredFromWebhook)
 	applicableTargetEnvironments := slice.FindAll(targetEnvironments, func(envName string) bool { return len(deployToEnvironment) == 0 || deployToEnvironment == envName })
-	return applicableTargetEnvironments, ignoredForWebhookEnvs, nil
+	return applicableTargetEnvironments, ignoredForWebhookEnvs, ignoredForGitRefsType, nil
 }
 
 func getTargetEnvironmentsForPromote(pipelineInfo *model.PipelineInfo) ([]string, error) {

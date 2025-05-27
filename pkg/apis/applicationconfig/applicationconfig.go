@@ -61,24 +61,29 @@ func IsConfigBranch(branch string, rr *radixv1.RadixRegistration) bool {
 }
 
 // GetTargetEnvironments Gets applicable target environments to be built for a given branch
-func GetTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication, triggeredFromWebhook bool) ([]string, []string) {
+func GetTargetEnvironments(gitRef, gitRefType string, ra *radixv1.RadixApplication, triggeredFromWebhook bool) ([]string, []string, []string) {
 	var targetEnvs []string
-	var ignoredForWebhookEnvs []string
+	var ignoredForWebhookEnvs, ignoredForGitRefType []string
 	for _, env := range ra.Spec.Environments {
-		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
-			if triggeredFromWebhook && env.Build.WebhookEnabled != nil && !*env.Build.WebhookEnabled {
-				ignoredForWebhookEnvs = append(ignoredForWebhookEnvs, env.Name)
-			} else {
-				targetEnvs = append(targetEnvs, env.Name)
-			}
+		if env.Build.From == "" || !branch.MatchesPattern(env.Build.From, gitRef) {
+			continue
 		}
+		if triggeredFromWebhook && env.Build.WebhookEnabled != nil && !*env.Build.WebhookEnabled {
+			ignoredForWebhookEnvs = append(ignoredForWebhookEnvs, env.Name)
+			continue
+		}
+		if len(env.Build.FromType) > 0 && len(gitRefType) > 0 && env.Build.FromType != gitRefType {
+			ignoredForGitRefType = append(ignoredForGitRefType, env.Name)
+			continue
+		}
+		targetEnvs = append(targetEnvs, env.Name)
 	}
-	return targetEnvs, ignoredForWebhookEnvs
+	return targetEnvs, ignoredForWebhookEnvs, ignoredForGitRefType
 }
 
 // GetAllTargetEnvironments Gets all target environments for a given branch
-func GetAllTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication) []string {
-	environments, _ := GetTargetEnvironments(branchToBuild, ra, false)
+func GetAllTargetEnvironments(gitRef, gitRefType string, ra *radixv1.RadixApplication) []string {
+	environments, _, _ := GetTargetEnvironments(gitRef, gitRefType, ra, false)
 	return environments
 }
 

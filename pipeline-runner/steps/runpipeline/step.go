@@ -83,10 +83,9 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 		log.Ctx(ctx).Info().Msg("There are no configured sub-pipelines. Skip the step.")
 		return nil
 	}
-	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 	appName := step.GetAppName()
-	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
+	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for %s %s and commit %s", appName, pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault(), commitID)
 	return step.RunPipelinesJob(pipelineInfo)
 }
 
@@ -118,7 +117,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 		return nil
 	}
 
-	tektonPipelineBranch := pipelineInfo.GetBranch()
+	tektonPipelineBranch := pipelineInfo.GetGitRefOrDefault()
 	if pipelineInfo.GetRadixPipelineType() == radixv1.Deploy {
 		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineInfo.GetRadixDeployToEnvironment()); ok && len(env.Build.From) > 0 {
 			tektonPipelineBranch = env.Build.From
@@ -126,7 +125,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 			tektonPipelineBranch = step.GetRegistration().Spec.ConfigBranch // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
 		}
 	}
-	log.Info().Msgf("Run tekton pipelines for the branch %s", tektonPipelineBranch)
+	log.Info().Msgf("Run tekton pipelines for the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), tektonPipelineBranch)
 
 	pipelineRunMap, err := step.runPipelines(pipelineList.Items, namespace, pipelineInfo)
 
@@ -175,7 +174,9 @@ func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev
 			Name:   pipelineRunName,
 			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv),
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:              pipelineInfo.PipelineArguments.Branch,
+				kube.RadixBranchAnnotation:              pipelineInfo.PipelineArguments.Branch, //nolint:staticcheck
+				kube.RadixGitRefAnnotation:              pipelineInfo.PipelineArguments.GitRef,
+				kube.RadixGitRefTypeAnnotation:          pipelineInfo.PipelineArguments.GitRefType,
 				operatorDefaults.PipelineNameAnnotation: originalPipelineName,
 			},
 		},

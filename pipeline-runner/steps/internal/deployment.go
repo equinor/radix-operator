@@ -61,26 +61,39 @@ func GetGitCommitHashFromDeployment(radixDeployment *radixv1.RadixDeployment) st
 	return ""
 }
 
+func GetGitRefNameFromDeployment(rd *radixv1.RadixDeployment) string {
+	if rd == nil {
+		return ""
+	}
+
+	if refName, ok := rd.Annotations[kube.RadixGitRefAnnotation]; ok && len(refName) > 0 {
+		return refName
+	}
+
+	return rd.Annotations[kube.RadixBranchAnnotation]
+}
+
 func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, gitTags string, components []radixv1.RadixDeployComponent, jobs []radixv1.RadixDeployJobComponent, radixConfigHash, buildSecretHash string) *radixv1.RadixDeployment {
 	radixApplication := pipelineInfo.RadixApplication
 	appName := radixApplication.GetName()
 	jobName := pipelineInfo.PipelineArguments.JobName
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	deployName := utils.GetDeploymentName(env, imageTag)
-	branch := pipelineInfo.PipelineArguments.Branch
 	imagePullSecrets := make([]corev1.LocalObjectReference, 0)
 	if len(radixApplication.Spec.PrivateImageHubs) > 0 {
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})
 	}
 	annotations := map[string]string{
-		kube.RadixBranchAnnotation:  branch,
-		kube.RadixGitTagsAnnotation: gitTags,
-		kube.RadixCommitAnnotation:  commitID,
-		kube.RadixBuildSecretHash:   buildSecretHash,
-		kube.RadixConfigHash:        radixConfigHash,
-		kube.RadixUseBuildKit:       strconv.FormatBool(pipelineInfo.IsUsingBuildKit()),
-		kube.RadixUseBuildCache:     strconv.FormatBool(pipelineInfo.IsUsingBuildCache()),
-		kube.RadixRefreshBuildCache: strconv.FormatBool(pipelineInfo.IsRefreshingBuildCache()),
+		kube.RadixBranchAnnotation:     pipelineInfo.PipelineArguments.Branch, //nolint:staticcheck
+		kube.RadixGitRefAnnotation:     pipelineInfo.PipelineArguments.GitRef,
+		kube.RadixGitRefTypeAnnotation: pipelineInfo.PipelineArguments.GitRefType,
+		kube.RadixGitTagsAnnotation:    gitTags,
+		kube.RadixCommitAnnotation:     commitID,
+		kube.RadixBuildSecretHash:      buildSecretHash,
+		kube.RadixConfigHash:           radixConfigHash,
+		kube.RadixUseBuildKit:          strconv.FormatBool(pipelineInfo.IsUsingBuildKit()),
+		kube.RadixUseBuildCache:        strconv.FormatBool(pipelineInfo.IsUsingBuildCache()),
+		kube.RadixRefreshBuildCache:    strconv.FormatBool(pipelineInfo.IsRefreshingBuildCache()),
 	}
 
 	radixDeployment := &radixv1.RadixDeployment{

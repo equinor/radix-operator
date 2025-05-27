@@ -45,6 +45,17 @@ const (
 	JobStoppedNoChanges RadixJobCondition = "StoppedNoChanges"
 )
 
+// GitRefType Holds the type of git event refs
+// Read more about Git refs https://git-scm.com/book/en/v2/Git-Internals-Git-References
+type GitRefType string
+
+const (
+	// GitRefBranch event sent when a commit is made to a branch
+	GitRefBranch GitRefType = "branch"
+	// GitRefTag event sent when a tag is created
+	GitRefTag GitRefType = "tag"
+)
+
 // RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
 	// AppName Name of the Radix application
@@ -88,6 +99,7 @@ type RadixBuildSpec struct {
 	// +required
 	ImageTag string `json:"imageTag"`
 
+	// Deprecated: use GitRef instead
 	// Branch, from which the image to be built
 	//
 	// +required
@@ -127,6 +139,22 @@ type RadixBuildSpec struct {
 	//
 	// +optional
 	RefreshBuildCache *bool `json:"refreshBuildCache,omitempty"`
+
+	// GitRef Branch or tag to build from
+	//
+	// required: false
+	// example: master
+	GitRef string `json:"gitRef,omitempty"`
+
+	// GitRefType When the pipeline job should be built from branch or tag specified in GitRef:
+	// - branch
+	// - tag
+	// - <empty> - either branch or tag
+	//
+	// required false
+	// enum: branch,tag,""
+	// example: "branch"
+	GitRefType GitRefType `json:"gitRefType,omitempty"`
 }
 
 // RadixPromoteSpec is the spec for a promote job
@@ -215,4 +243,20 @@ const (
 type RadixJobResult struct {
 	Result  RadixJobResultType `json:"result"`
 	Message string             `json:"message"`
+}
+
+// GetGitRefOrDefault Get git event ref or "branch" by default
+func (buildSpec *RadixBuildSpec) GetGitRefOrDefault() string {
+	if buildSpec.GitRef == "" {
+		return buildSpec.Branch
+	}
+	return buildSpec.GitRef
+}
+
+// GetGitRefTypeOrDefault Get git event ref type or "branch" by default
+func (buildSpec *RadixBuildSpec) GetGitRefTypeOrDefault() string {
+	if buildSpec.GitRefType == "" {
+		return string(GitRefBranch)
+	}
+	return string(buildSpec.GitRefType)
 }

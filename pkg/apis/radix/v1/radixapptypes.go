@@ -208,6 +208,16 @@ type EnvBuild struct {
 	// +kubebuilder:default:=true
 	// +optional
 	WebhookEnabled *bool `json:"webhookEnabled,omitempty"`
+
+	// FromType When the pipeline job is triggered by a GitHub event via the Radix GitHub webhook FromType can specify
+	// which Git references are applicable for this environment:
+	// - branch - only events on branches (for refs/heads)
+	// - tag - only events on tags (for refs/tags)
+	// - <empty> - events on both branches and tags
+	//
+	// +kubebuilder:validation:Enum=branch;tag;""
+	// +optional
+	FromType string `json:"fromType,omitempty"`
 }
 
 // EgressConfig contains egress configuration.

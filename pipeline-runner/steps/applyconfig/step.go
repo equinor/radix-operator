@@ -398,21 +398,6 @@ func setPipelineDeployEnvironmentComponentImages(pipelineInfo *model.PipelineInf
 	}
 }
 
-func isRadixConfigNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.RadixDeployment, ra *radixv1.RadixApplication) (bool, error) {
-	if rd == nil {
-		return true, nil
-	}
-	currentRdConfigHash := rd.GetAnnotations()[kube.RadixConfigHash]
-	if len(currentRdConfigHash) == 0 {
-		return true, nil
-	}
-	hashEqual, err := hash.CompareRadixApplicationHash(currentRdConfigHash, ra)
-	if !hashEqual && err == nil {
-		log.Ctx(ctx).Info().Msgf("RadixApplication updated since last deployment to environment %s", rd.Spec.Environment)
-	}
-	return !hashEqual, err
-}
-
 func isBuildSecretNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.RadixDeployment, buildSecret *corev1.Secret) (bool, error) {
 	if rd == nil {
 		return true, nil

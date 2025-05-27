@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
-	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/golang/mock/gomock"
@@ -20,6 +19,7 @@ import (
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
+	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -1023,7 +1023,8 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 					AppName:         appName,
 					ImageTag:        "anytag",
 					JobName:         "anyjobname",
-					Branch:          branchName,
+					GitRef:          branchName,
+					GitRefType:      string(radixv1.GitRefBranch),
 					PipelineType:    string(radixPipelineType),
 					ToEnvironment:   internalTest.Env1,
 					DNSConfig:       &dnsalias.DNSConfig{},
@@ -1307,7 +1308,8 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 					AppName:              appName,
 					ImageTag:             "anytag",
 					JobName:              "anyjobname",
-					Branch:               branchName,
+					GitRef:               branchName,
+					GitRefType:           string(radixv1.GitRefBranch),
 					PipelineType:         string(radixPipelineType),
 					DNSConfig:            &dnsalias.DNSConfig{},
 					RadixConfigFile:      sampleAppRadixConfigFileName,
