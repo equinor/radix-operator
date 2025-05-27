@@ -109,6 +109,10 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 func getPreservingDeployComponents(ctx context.Context, pipelineInfo *model.PipelineInfo, targetEnv model.TargetEnvironment) PreservingDeployComponents {
 	preservingDeployComponents := PreservingDeployComponents{}
 
+	if isEqual, err := targetEnv.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication); err != nil || !isEqual {
+		return preservingDeployComponents
+	}
+
 	buildContext := pipelineInfo.BuildContext
 	existEnvironmentComponentsToBuild := buildContext != nil && slice.Any(buildContext.EnvironmentsToBuild, func(environmentToBuild model.EnvironmentToBuild) bool {
 		return len(environmentToBuild.Components) > 0

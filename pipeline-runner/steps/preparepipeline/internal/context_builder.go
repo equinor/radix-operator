@@ -54,7 +54,6 @@ func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo
 	}
 
 	buildContext := model.BuildContext{
-		ChangedRadixConfig:  false,
 		EnvironmentsToBuild: environmentsToBuild,
 	}
 

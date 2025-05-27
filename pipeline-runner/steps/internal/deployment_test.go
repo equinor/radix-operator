@@ -13,6 +13,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -300,8 +301,10 @@ func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
 		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job2").WithImage("job2-image:tag1").WithSchedulerPort(schedulerPort).
 			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
 			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1))
-	activeRadixDeployment := rdBuilder.BuildRD()
 	ra := rdBuilder.GetApplicationBuilder().BuildRA()
+	raHash, err := hash.CreateRadixApplicationHash(ra)
+	require.NoError(t, err)
+	activeRadixDeployment := rdBuilder.WithAnnotations(map[string]string{kube.RadixConfigHash: raHash}).BuildRD()
 
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["comp1"] = pipeline.DeployComponentImage{ImagePath: "comp1-image:tag2"}

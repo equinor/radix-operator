@@ -12,6 +12,4 @@ type EnvironmentToBuild struct {
 type BuildContext struct {
 	// EnvironmentsToBuild List of environments with component names, which need to be built
 	EnvironmentsToBuild []EnvironmentToBuild
-	// ChangedRadixConfig Radix Config file was changed
-	ChangedRadixConfig bool
 }

@@ -437,9 +437,9 @@ func mustBuildComponentForEnvironment(ctx context.Context, targetEnvironment mod
 		return alwaysBuild, nil
 	}
 
-	if isUnchanged, err := targetEnvironment.CompareApplicationWithDeploymentHash(ra); err != nil {
+	if isEqual, err := targetEnvironment.CompareApplicationWithDeploymentHash(ra); err != nil {
 		return nil, err
-	} else if !isUnchanged {
+	} else if !isEqual {
 		return alwaysBuild, nil
 	}
 

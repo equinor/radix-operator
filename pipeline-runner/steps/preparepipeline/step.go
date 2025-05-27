@@ -349,11 +349,11 @@ func containsRegex(value string) bool {
 
 func getBuildDeployPipelineShouldBeStopped(pipelineInfo *model.PipelineInfo) (bool, string) {
 	isRadixConfigChangedForAnyEnvironments := slice.Any(pipelineInfo.TargetEnvironments, func(t model.TargetEnvironment) bool {
-		isUnchanged, err := t.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication)
+		isEqual, err := t.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication)
 		if err != nil {
 			return true
 		}
-		return !isUnchanged
+		return !isEqual
 	})
 
 	if pipelineInfo.BuildContext == nil || isRadixConfigChangedForAnyEnvironments ||

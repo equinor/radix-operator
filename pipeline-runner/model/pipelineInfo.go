@@ -51,7 +51,7 @@ type TargetEnvironment struct {
 // CompareApplicationWithDeploymentHash generates a hash for ra and compares it
 // with the values stored in annotation radix.equinor.com/radix-config-hash of the ActiveRadixDeployment.
 // Returns true if the two hashes match, and false if they do not match, or ActiveRadixDeployment is nil or the annotation does not exist or has an empty value
-func (t *TargetEnvironment) CompareApplicationWithDeploymentHash(ra *radixv1.RadixApplication) (bool, error) {
+func (t TargetEnvironment) CompareApplicationWithDeploymentHash(ra *radixv1.RadixApplication) (bool, error) {
 	if t.ActiveRadixDeployment == nil {
 		return false, nil
 	}
