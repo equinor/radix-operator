@@ -181,7 +181,7 @@ func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, 
 		switch existingRadixJob.Spec.PipeLineType {
 		case v1.BuildDeploy, v1.Build:
 			if len(jobTargetEnvironments) > 0 {
-				existingJobTargetEnvironments := applicationconfig.GetAllTargetEnvironments(existingRadixJob.Spec.Build.Branch, ra)
+				existingJobTargetEnvironments := applicationconfig.GetAllTargetEnvironments(existingRadixJob.Spec.Build.GetGitRefOrDefault(), string(existingRadixJob.Spec.Build.GitRefType), ra)
 				for _, existingJobTargetEnvironment := range existingJobTargetEnvironments {
 					if _, ok := jobTargetEnvironments[existingJobTargetEnvironment]; ok {
 						return true
@@ -189,7 +189,8 @@ func (job *Job) isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, 
 				}
 				continue
 			}
-			if job.radixJob.Spec.Build.Branch == existingRadixJob.Spec.Build.Branch {
+			if job.radixJob.Spec.Build.GetGitRefOrDefault() == existingRadixJob.Spec.Build.GetGitRefOrDefault() &&
+				job.radixJob.Spec.Build.GetGitRefTypeOrDefault() == existingRadixJob.Spec.Build.GetGitRefTypeOrDefault() {
 				if len(job.radixJob.Spec.Build.ToEnvironment) == 0 {
 					return true
 				}
@@ -216,7 +217,7 @@ func (job *Job) getTargetEnvironments(ra *v1.RadixApplication) map[string]struct
 		if ra == nil {
 			return targetEnvs
 		}
-		environments, _ := applicationconfig.GetTargetEnvironments(job.radixJob.Spec.Build.Branch, ra, job.radixJob.Spec.TriggeredFromWebhook)
+		environments, _, _ := applicationconfig.GetTargetEnvironments(job.radixJob.Spec.Build.GetGitRefOrDefault(), string(job.radixJob.Spec.Build.GitRefType), ra, job.radixJob.Spec.TriggeredFromWebhook)
 		return slice.Reduce(environments,
 			targetEnvs, func(acc map[string]struct{}, envName string) map[string]struct{} {
 				if len(job.radixJob.Spec.Build.ToEnvironment) == 0 || envName == job.radixJob.Spec.Build.ToEnvironment {
@@ -256,12 +257,12 @@ func (job *Job) syncTargetEnvironments(ctx context.Context, ra *v1.RadixApplicat
 }
 
 func (job *Job) getTargetEnv(ra *v1.RadixApplication, rj *v1.RadixJob) (targetEnvs []string) {
-	if rj.Spec.PipeLineType != v1.BuildDeploy || len(rj.Spec.Build.Branch) == 0 || ra == nil {
+	if rj.Spec.PipeLineType != v1.BuildDeploy || len(rj.Spec.Build.GetGitRefOrDefault()) == 0 || ra == nil {
 		return
 	}
 
 	for _, env := range ra.Spec.Environments {
-		if len(env.Build.From) > 0 && branch.MatchesPattern(env.Build.From, rj.Spec.Build.Branch) {
+		if len(env.Build.From) > 0 && branch.MatchesPattern(env.Build.From, rj.Spec.Build.GetGitRefOrDefault()) {
 			if len(rj.Spec.Build.ToEnvironment) == 0 || env.Name == rj.Spec.Build.ToEnvironment {
 				targetEnvs = append(targetEnvs, env.Name)
 			}

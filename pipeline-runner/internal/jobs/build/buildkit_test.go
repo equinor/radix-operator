@@ -47,7 +47,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 		AppName:                "anyappname",
 		PipelineType:           "anypipelinetype",
 		JobName:                "anyjobname",
-		Branch:                 "anybranch",
+		GitRef:                 "anygitref",
+		GitRefType:             "tag",
 		CommitID:               "anycommitid",
 		ImageTag:               "anyimagetag",
 		PushImage:              pushImage,
@@ -96,7 +97,9 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			assert.Equal(t, expectedJobLabels, job.Labels)
 			componentImagesAnnotation, _ := json.Marshal([]pipeline.BuildComponentImage{ci})
 			expectedJobAnnotations := map[string]string{
-				kube.RadixBranchAnnotation:          args.Branch,
+				kube.RadixBranchAnnotation:          args.Branch, //nolint:staticcheck
+				kube.RadixGitRefAnnotation:          args.GitRef,
+				kube.RadixGitRefTypeAnnotation:      args.GitRefType,
 				kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
 			}
 			assert.Equal(t, expectedJobAnnotations, job.Annotations)
@@ -154,7 +157,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			assert.ElementsMatch(t, []string{"internal-nslookup", "clone", "internal-chmod"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 			cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
 			assert.Equal(t, args.GitCloneGitImage, cloneContainer.Image)
-			assert.Equal(t, []string{"sh", "-c", "git config --global --add safe.directory /some-workspace && git clone anycloneurl -b anybranch --verbose --progress /some-workspace && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd /some-workspace && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -"}, cloneContainer.Command)
+			assert.Equal(t, []string{"sh", "-c", "git config --global --add safe.directory /some-workspace && git clone anycloneurl -b anygitref --verbose --progress /some-workspace && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd /some-workspace && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -"}, cloneContainer.Command)
 			assert.Empty(t, cloneContainer.Args)
 			expectedCloneVolumeMounts := []corev1.VolumeMount{
 				{Name: git.BuildContextVolumeName, MountPath: "/some-workspace"},
@@ -260,7 +263,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 				"--secrets-path", "/build-secrets",
 				"--dockerfile", ci.Dockerfile,
 				"--context", ci.Context,
-				"--branch", args.Branch,
+				"--branch", args.GetGitRefOrDefault(),
 				"--git-commit-hash", gitCommitHash,
 				"--git-tags", gitTags,
 				"--target-environments", ci.EnvName,
