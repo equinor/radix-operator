@@ -237,17 +237,17 @@ func (r *repository) lfsFiles(wt *git.Worktree) ([]string, error) {
 }
 
 func (r *repository) resolveHashForReference(reference string) (plumbing.Hash, bool, error) {
-	tryRefs := []plumbing.ReferenceName{
+	tryRefNamess := []plumbing.ReferenceName{
 		plumbing.NewTagReferenceName(reference),
 		plumbing.NewBranchReferenceName(reference),
 	}
 
 	for _, remote := range r.remotes {
-		tryRefs = append(tryRefs, plumbing.NewRemoteReferenceName(remote, reference))
+		tryRefNamess = append(tryRefNamess, plumbing.NewRemoteReferenceName(remote, reference))
 	}
 
-	for _, ref := range tryRefs {
-		if hash, err := r.repo.ResolveRevision(plumbing.Revision(ref)); err == nil {
+	for _, refName := range tryRefNamess {
+		if hash, err := r.repo.ResolveRevision(plumbing.Revision(refName)); err == nil {
 			return *hash, true, nil
 		} else if !errors.Is(err, plumbing.ErrReferenceNotFound) {
 			return plumbing.Hash{}, false, err

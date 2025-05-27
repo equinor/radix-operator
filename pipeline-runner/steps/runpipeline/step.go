@@ -123,7 +123,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineInfo.GetRadixDeployToEnvironment()); ok && len(env.Build.From) > 0 {
 			tektonPipelineBranch = env.Build.From
 		} else {
-			tektonPipelineBranch = pipelineInfo.GetRadixConfigBranch() // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
+			tektonPipelineBranch = step.GetRegistration().Spec.ConfigBranch // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
 		}
 	}
 	log.Info().Msgf("Run tekton pipelines for the branch %s", tektonPipelineBranch)
@@ -135,10 +135,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 	}
 
 	if err = step.waiter.Wait(pipelineRunMap, pipelineInfo); err != nil {
-		return fmt.Errorf("failed tekton pipelines for the application %s, for environment(s) %s. %w",
-			pipelineInfo.GetAppName(),
-			strings.Join(pipelineInfo.TargetEnvironments, ","),
-			err)
+		return fmt.Errorf("failed tekton pipelines for application %s: %w", pipelineInfo.GetAppName(), err)
 	}
 	return nil
 }

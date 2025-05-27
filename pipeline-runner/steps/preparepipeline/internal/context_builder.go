@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"path"
@@ -10,10 +9,9 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 var (
@@ -25,13 +23,10 @@ type ContextBuilder interface {
 }
 
 type contextBuilder struct {
-	kubeUtil *kube.Kube
 }
 
-func NewContextBuilder(kubeUtil *kube.Kube) ContextBuilder {
-	return &contextBuilder{
-		kubeUtil: kubeUtil,
-	}
+func NewContextBuilder() ContextBuilder {
+	return &contextBuilder{}
 }
 
 // GetBuildContext Prepare build context
@@ -44,24 +39,17 @@ func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo
 		return nil, nil
 	}
 
-	radixDeploymentCommitHashProvider := commithash.NewProvider(cb.kubeUtil) //cb.kubeClient, cb.radixClient, pipelineInfo.GetAppName(), pipelineInfo.TargetEnvironments
 	var environmentsToBuild []model.EnvironmentToBuild
-
-	for _, envName := range pipelineInfo.TargetEnvironments {
-		// TODO: replace with GetActiveRadixDeployment in steps/internal package
-		envCommitInfo, err := radixDeploymentCommitHashProvider.GetLastCommitHashForEnvironment(context.Background(), pipelineInfo.GetAppName(), envName)
-		if err != nil {
-			return nil, err
-		}
-
-		changedFiles, err := repo.DiffCommits(envCommitInfo.CommitHash, pipelineInfo.GitCommitHash)
+	for _, targetEnv := range pipelineInfo.TargetEnvironments {
+		envCommitHash := internal.GetGitCommitHashFromDeployment(targetEnv.ActiveRadixDeployment)
+		changedFiles, err := repo.DiffCommits(envCommitHash, pipelineInfo.GitCommitHash)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get changes in git: %w", err)
 		}
 
 		environmentsToBuild = append(environmentsToBuild, model.EnvironmentToBuild{
-			Environment: envName,
-			Components:  getComponentsToBuild(pipelineInfo.GetRadixApplication(), envName, distinctDirs(changedFiles)),
+			Environment: targetEnv.Environment,
+			Components:  getComponentsToBuild(pipelineInfo.GetRadixApplication(), targetEnv.Environment, distinctDirs(changedFiles)),
 		})
 	}
 
@@ -73,7 +61,7 @@ func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo
 	return &buildContext, nil
 }
 
-func getComponentsToBuild(ra *v1.RadixApplication, envName string, changedDirs []string) []string {
+func getComponentsToBuild(ra *radixv1.RadixApplication, envName string, changedDirs []string) []string {
 	var componentsWithChangedSource []string
 
 	for _, radixComponent := range ra.Spec.Components {
@@ -90,7 +78,7 @@ func getComponentsToBuild(ra *v1.RadixApplication, envName string, changedDirs [
 }
 
 // componentHasChangedSource checks if the component has changed source
-func componentHasChangedSource(envName string, component v1.RadixCommonComponent, changedFolders []string) bool {
+func componentHasChangedSource(envName string, component radixv1.RadixCommonComponent, changedFolders []string) bool {
 	if len(changedFolders) == 0 {
 		return false
 	}

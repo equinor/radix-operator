@@ -74,7 +74,6 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 			PipelineType:  string(radixv1.BuildDeploy),
 			ToEnvironment: internalTest.Env1,
 			DNSConfig:     &dnsalias.DNSConfig{}},
-		RadixRegistration:            rr,
 		RadixApplication:             raBuilder.BuildRA(),
 		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
 	}
@@ -285,9 +284,8 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyEnvVars() {
 					ToEnvironment: internalTest.Env1,
 					DNSConfig:     &dnsalias.DNSConfig{},
 				},
-				RadixRegistration:            rr,
 				RadixApplication:             ra,
-				TargetEnvironments:           []string{internalTest.Env1},
+				TargetEnvironments:           []model.TargetEnvironment{{Environment: internalTest.Env1}},
 				EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
 			}
 			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
@@ -437,9 +435,8 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyIdentity() {
 					ToEnvironment: internalTest.Env1,
 					DNSConfig:     &dnsalias.DNSConfig{},
 				},
-				RadixRegistration:            rr,
 				RadixApplication:             raBuilder.BuildRA(),
-				TargetEnvironments:           []string{internalTest.Env1},
+				TargetEnvironments:           []model.TargetEnvironment{{Environment: internalTest.Env1}},
 				EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
 			}
 			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))

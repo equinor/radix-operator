@@ -55,7 +55,7 @@ func (s *deployTestSuite) Test_EmptyTargetEnvironments_SkipDeployment() {
 	appName := "anyappname"
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
 	pipelineInfo := &model.PipelineInfo{
-		TargetEnvironments: []string{},
+		TargetEnvironments: []model.TargetEnvironment{},
 	}
 	namespaceWatcher := watcher.NewMockNamespaceWatcher(s.ctrl)
 	namespaceWatcher.EXPECT().WaitFor(gomock.Any(), gomock.Any()).Times(0)
@@ -154,7 +154,7 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 			Branch:   branch,
 		},
 		RadixApplication:   ra,
-		TargetEnvironments: []string{envName},
+		TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
 		GitCommitHash:      commitId,
 		GitTags:            gitTags,
 	}
@@ -243,7 +243,7 @@ func (s *deployTestSuite) Test_RadixConfigHashAnnotation() {
 
 	pipelineInfo := &model.PipelineInfo{
 		RadixApplication:   ra,
-		TargetEnvironments: []string{"dev"},
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	err := cli.Run(context.Background(), pipelineInfo)
@@ -279,7 +279,7 @@ func (s *deployTestSuite) Test_RadixBuildSecretHashAnnotation_BuildSecretSet() {
 	pipelineInfo := &model.PipelineInfo{
 		RadixApplication:   ra,
 		BuildSecret:        secret,
-		TargetEnvironments: []string{"dev"},
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	err := cli.Run(context.Background(), pipelineInfo)
@@ -312,7 +312,7 @@ func (s *deployTestSuite) Test_RadixBuildSecretHashAnnotation_BuildSecretNot() {
 
 	pipelineInfo := &model.PipelineInfo{
 		RadixApplication:   ra,
-		TargetEnvironments: []string{"dev"},
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	err := cli.Run(context.Background(), pipelineInfo)
@@ -354,7 +354,7 @@ func (s *deployTestSuite) TestDeploy_RadixCommitLabel_FromGitCommitHashIfSet() {
 			CommitID: "anycommitid",
 		},
 		RadixApplication:   ra,
-		TargetEnvironments: []string{"dev"},
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 		GitCommitHash:      commitID,
 		GitTags:            "",
 	}
@@ -397,7 +397,7 @@ func (s *deployTestSuite) TestDeploy_RadixCommitLabel_FromCommtIdIfGitCommitHash
 			CommitID: commitID,
 		},
 		RadixApplication:   ra,
-		TargetEnvironments: []string{"dev"},
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 		GitCommitHash:      "",
 		GitTags:            "",
 	}
@@ -450,7 +450,7 @@ func (s *deployTestSuite) TestDeploy_WaitActiveDeployment() {
 					ImageTag: anyImageTag,
 					Branch:   "master",
 				},
-				TargetEnvironments: []string{envName},
+				TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
 				RadixApplication:   ra,
 			}
 

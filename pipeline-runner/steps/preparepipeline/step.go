@@ -95,7 +95,7 @@ func NewPreparePipelinesStep(opt ...Option) model.Step {
 func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 	if step.contextBuilder == nil {
-		step.contextBuilder = prepareInternal.NewContextBuilder(kubeUtil)
+		step.contextBuilder = prepareInternal.NewContextBuilder()
 	}
 	if step.subPipelineReader == nil {
 		step.subPipelineReader = prepareInternal.NewSubPipelineReader()
@@ -142,7 +142,7 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 		return err
 	}
 
-	if err = setTargetEnvironments(ctx, pipelineInfo); err != nil {
+	if err = step.setTargetEnvironments(ctx, pipelineInfo); err != nil {
 		return err
 	}
 
@@ -157,7 +157,7 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 	}
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
-		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo)
+		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getBuildDeployPipelineShouldBeStopped(pipelineInfo)
 	}
 
 	return nil
@@ -217,9 +217,10 @@ func (step *PreparePipelinesStepImplementation) setBuildInfo(pipelineInfo *model
 }
 
 func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *model.PipelineInfo, repo git.Repository) error {
-	err := repo.Checkout(pipelineInfo.GetRadixConfigBranch())
+	configBranch := step.GetRegistration().Spec.ConfigBranch
+	err := repo.Checkout(configBranch)
 	if err != nil {
-		return fmt.Errorf("failed to checkout config branch %s: %w", pipelineInfo.GetRadixConfigBranch(), err)
+		return fmt.Errorf("failed to checkout config branch %s: %w", configBranch, err)
 	}
 
 	radixConfig, err := step.radixConfigReader.Read(pipelineInfo)
@@ -235,7 +236,6 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 	gitCommit, err := step.getTargetGitCommitForSubPipelines(ctx, pipelineInfo, repo)
 	if err != nil {
 		return err
-
 	}
 
 	if len(gitCommit) == 0 {
@@ -252,15 +252,15 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 	timestamp := time.Now().Format("20060102150405")
 
 	for _, targetEnv := range pipelineInfo.TargetEnvironments {
-		log.Ctx(ctx).Debug().Msgf("Create sub-pipeline for environment %s", targetEnv)
-		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForEnvironment(pipelineInfo, targetEnv, timestamp)
+		log.Ctx(ctx).Debug().Msgf("Create sub-pipeline for environment %s", targetEnv.Environment)
+		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForEnvironment(pipelineInfo, targetEnv.Environment, timestamp)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to prepare sub-pipeline for environment %s: %w", targetEnv, err))
+			errs = append(errs, fmt.Errorf("failed to prepare sub-pipeline for environment %s: %w", targetEnv.Environment, err))
 		}
 
 		if runSubPipeline {
 			environmentSubPipelinesToRun = append(environmentSubPipelinesToRun, model.EnvironmentSubPipelineToRun{
-				Environment:  targetEnv,
+				Environment:  targetEnv.Environment,
 				PipelineFile: pipelineFilePath,
 			})
 		}
@@ -299,7 +299,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipeline
 	}
 
 	if pipelineType == radixv1.Deploy {
-		pipelineJobBranch := pipelineInfo.GetRadixConfigBranch()
+		pipelineJobBranch := step.GetRegistration().Spec.ConfigBranch
 
 		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineArgs.ToEnvironment); ok && len(env.Build.From) > 0 {
 			pipelineJobBranch = env.Build.From
@@ -347,8 +347,16 @@ func containsRegex(value string) bool {
 	return false
 }
 
-func getPipelineShouldBeStopped(pipelineInfo *model.PipelineInfo) (bool, string) {
-	if pipelineInfo.BuildContext == nil || pipelineInfo.BuildContext.ChangedRadixConfig ||
+func getBuildDeployPipelineShouldBeStopped(pipelineInfo *model.PipelineInfo) (bool, string) {
+	isRadixConfigChangedForAnyEnvironments := slice.Any(pipelineInfo.TargetEnvironments, func(t model.TargetEnvironment) bool {
+		isUnchanged, err := t.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication)
+		if err != nil {
+			return true
+		}
+		return !isUnchanged
+	})
+
+	if pipelineInfo.BuildContext == nil || isRadixConfigChangedForAnyEnvironments ||
 		len(pipelineInfo.BuildContext.EnvironmentsToBuild) == 0 ||
 		len(pipelineInfo.EnvironmentSubPipelinesToRun) > 0 {
 		return false, ""
@@ -607,15 +615,25 @@ func pipelineTaskHasAzureIdentityClientIdParam(pipeline *v1.Pipeline, taskIndex 
 	})
 }
 
-func setTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+func (step *PreparePipelinesStepImplementation) setTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	log.Ctx(ctx).Debug().Msg("Set target environments")
-	targetEnvironments, environmentsToIgnore, err := getTargetEnvironments(ctx, pipelineInfo)
+	targetEnvironmentNames, environmentsToIgnore, err := getTargetEnvironmentNames(ctx, pipelineInfo)
 	if err != nil {
 		return err
 	}
+
+	targetEnvironments := make([]model.TargetEnvironment, 0, len(targetEnvironmentNames))
+	for _, targetEnvName := range targetEnvironmentNames {
+		activeRD, err := internal.GetActiveRadixDeployment(ctx, step.GetKubeUtil(), utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), targetEnvName))
+		if err != nil {
+			return fmt.Errorf("failed to get active depoyment for environment %s: %w", targetEnvName, err)
+		}
+		targetEnvironments = append(targetEnvironments, model.TargetEnvironment{Environment: targetEnvName, ActiveRadixDeployment: activeRD})
+	}
 	pipelineInfo.TargetEnvironments = targetEnvironments
+
 	if len(pipelineInfo.TargetEnvironments) > 0 {
-		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to branch %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetBranch())
+		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to branch %s.", strings.Join(targetEnvironmentNames, ", "), pipelineInfo.GetBranch())
 	} else {
 		log.Ctx(ctx).Info().Msgf("No environments are mapped to branch %s.", pipelineInfo.GetBranch())
 	}
@@ -625,7 +643,7 @@ func setTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo
 	return nil
 }
 
-func getTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, []string, error) {
+func getTargetEnvironmentNames(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, []string, error) {
 	switch pipelineInfo.GetRadixPipelineType() {
 	case radixv1.ApplyConfig:
 		return nil, nil, nil
