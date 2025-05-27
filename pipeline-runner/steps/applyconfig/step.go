@@ -418,6 +418,10 @@ func mustBuildComponentForEnvironment(ctx context.Context, targetEnvironment mod
 		return true
 	}
 
+	if buildContext == nil {
+		return alwaysBuild, nil
+	}
+
 	if targetEnvironment.ActiveRadixDeployment == nil {
 		return alwaysBuild, nil
 	}

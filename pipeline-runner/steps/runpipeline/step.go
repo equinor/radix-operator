@@ -125,7 +125,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 			tektonPipelineBranch = step.GetRegistration().Spec.ConfigBranch // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
 		}
 	}
-	log.Info().Msgf("Run tekton pipelines for the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), tektonPipelineBranch)
+	log.Info().Msgf("Run tekton pipelines for %s %s", pipelineInfo.GetGitRefTypeOrDefault(), tektonPipelineBranch)
 
 	pipelineRunMap, err := step.runPipelines(pipelineList.Items, namespace, pipelineInfo)
 
