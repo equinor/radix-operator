@@ -64,6 +64,7 @@ func (ra *RadixApplication) GetCommonComponentByName(name string) RadixCommonCom
 	return ra.GetJobComponentByName(name)
 }
 
+// GetEnvironmentByName returns the environment matching the name parameter, and a bool flag indicating if an environment was found or not
 func (ra *RadixApplication) GetEnvironmentByName(name string) (Environment, bool) {
 	if ra == nil {
 		return Environment{}, false

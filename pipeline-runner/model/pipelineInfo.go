@@ -21,7 +21,8 @@ type PipelineInfo struct {
 	PipelineArguments PipelineArguments
 	Steps             []Step
 
-	// Temporary data
+	// TargetEnvironments holds information about which environments to build and deploy.
+	// It is populated by the prepare-pipeline step by inspecting PipelineArguments
 	TargetEnvironments []TargetEnvironment
 
 	// GitCommitHash is derived by inspecting HEAD commit after cloning user repository in prepare-pipelines step.

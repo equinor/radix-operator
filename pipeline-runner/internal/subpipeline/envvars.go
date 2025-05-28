@@ -7,6 +7,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
+// GetEnvVars returns environment variables to be used as params for sub-pipelines
 func GetEnvVars(ra *radixv1.RadixApplication, envName string) radixv1.EnvVarsMap {
 	vars := make(radixv1.EnvVarsMap)
 	maps.Insert(vars, maps.All(getPipelineRunParamsFromBuild(ra)))

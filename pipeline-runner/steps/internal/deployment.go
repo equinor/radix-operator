@@ -48,6 +48,8 @@ func ConstructForTargetEnvironment(ctx context.Context, pipelineInfo *model.Pipe
 	return radixDeployment, nil
 }
 
+// GetGitCommitHashFromDeployment returns the commit hash used to build the RadixDeployment by inspecting known annotations and label keys.
+// Annotations take precendence over labels. It returns an empty string if the value is not found.
 func GetGitCommitHashFromDeployment(radixDeployment *radixv1.RadixDeployment) string {
 	if radixDeployment == nil {
 		return ""
@@ -61,6 +63,7 @@ func GetGitCommitHashFromDeployment(radixDeployment *radixv1.RadixDeployment) st
 	return ""
 }
 
+// GetGitCommitHashFromDeployment returns the git reference name used to build the RadixDeployment by inspecting annotations.
 func GetGitRefNameFromDeployment(rd *radixv1.RadixDeployment) string {
 	if rd == nil {
 		return ""
