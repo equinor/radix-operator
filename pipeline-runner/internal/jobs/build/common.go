@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -62,13 +61,8 @@ func getCommonPodTolerations() []corev1.Toleration {
 	return utils.GetPipelineJobPodSpecTolerations()
 }
 
-func getCommonPodInitContainers(cloneURL string, pipelineArgs model.PipelineArguments) []corev1.Container {
-	cloneConfig := git.CloneConfig{
-		NSlookupImage: pipelineArgs.GitCloneNsLookupImage,
-		GitImage:      pipelineArgs.GitCloneGitImage,
-		BashImage:     pipelineArgs.GitCloneBashImage,
-	}
-	return git.CloneInitContainersWithSourceCode(cloneURL, pipelineArgs.GetGitRefOrDefault(), pipelineArgs.CommitID, pipelineArgs.GitWorkspace, cloneConfig)
+func getCommonPodInitContainers(cloneURL, gitRefName, gitCommitID, workspace string, cloneConfig git.CloneConfig) []corev1.Container {
+	return git.CloneInitContainersWithSourceCode(cloneURL, gitRefName, gitCommitID, workspace, cloneConfig)
 }
 
 func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {
