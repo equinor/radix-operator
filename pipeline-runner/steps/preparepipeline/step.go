@@ -283,6 +283,8 @@ func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipeline
 		if sourceRdHashFromAnnotation != "" {
 			return sourceRdHashFromAnnotation, nil
 		}
+
+		// TODO: Should we fail if sourcecommithash is empty instead of trying to resolve commit from source RD branch?
 		if sourceDeploymentGitBranch == "" {
 			log.Ctx(ctx).Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
 			return "", nil
