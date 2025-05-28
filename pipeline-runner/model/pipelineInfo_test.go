@@ -4,8 +4,11 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +26,7 @@ var (
 
 func Test_DefaultPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName("")
-	p, _ := model.InitPipeline(pipelineType, getPipelineArguments(), prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 5, len(p.Steps))
@@ -36,7 +39,7 @@ func Test_DefaultPipeType(t *testing.T) {
 
 func Test_BuildDeployPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	p, _ := model.InitPipeline(pipelineType, getPipelineArguments(), prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 5, len(p.Steps))
@@ -50,7 +53,7 @@ func Test_BuildDeployPipeType(t *testing.T) {
 func Test_BuildAndDefaultNoPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
-	p, _ := model.InitPipeline(pipelineType, getPipelineArguments(), prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 4, len(p.Steps))
@@ -64,7 +67,7 @@ func Test_ApplyConfigPipeline(t *testing.T) {
 	pipelineType, err := pipeline.GetPipelineFromName(string(v1.ApplyConfig))
 	require.NoError(t, err, "Failed to get pipeline type. Error %v", err)
 
-	p, err := model.InitPipeline(pipelineType, getPipelineArguments(), prepareTektonPipelineStep, applyConfigStep, deployConfigStep)
+	p, err := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, deployConfigStep)
 	require.NoError(t, err, "Failed to create pipeline. Error %v", err)
 	assert.Equal(t, v1.ApplyConfig, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
@@ -194,6 +197,41 @@ func Test_NonExistingPipelineType(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func getPipelineArguments() *model.PipelineArguments {
-	return &model.PipelineArguments{}
+func Test_CompareApplicationWithDeploymentHash(t *testing.T) {
+	ra := utils.NewRadixApplicationBuilder().WithAppName("anyname").WithEnvironmentNoBranch("env1").BuildRA()
+	testHash, err := hash.CreateRadixApplicationHash(ra)
+	require.NoError(t, err)
+	otherRa := utils.NewRadixApplicationBuilder().WithAppName("anyname").WithEnvironmentNoBranch("env2").BuildRA()
+	otherTestHash, err := hash.CreateRadixApplicationHash(otherRa)
+	require.NoError(t, err)
+
+	// Missing ActiveRadixDeployment
+	targetEnv := model.TargetEnvironment{}
+	isEqual, err := targetEnv.CompareApplicationWithDeploymentHash(ra)
+	require.NoError(t, err)
+	assert.False(t, isEqual)
+
+	// ActiveRadixDeployment without annotation
+	targetEnv = model.TargetEnvironment{ActiveRadixDeployment: utils.NewDeploymentBuilder().BuildRD()}
+	isEqual, err = targetEnv.CompareApplicationWithDeploymentHash(ra)
+	require.NoError(t, err)
+	assert.False(t, isEqual)
+
+	// ActiveRadixDeployment with empty hash in annotation
+	targetEnv = model.TargetEnvironment{ActiveRadixDeployment: utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixConfigHash: ""}).BuildRD()}
+	isEqual, err = targetEnv.CompareApplicationWithDeploymentHash(ra)
+	require.NoError(t, err)
+	assert.False(t, isEqual)
+
+	// ActiveRadixDeployment with different hash in annotation
+	targetEnv = model.TargetEnvironment{ActiveRadixDeployment: utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixConfigHash: otherTestHash}).BuildRD()}
+	isEqual, err = targetEnv.CompareApplicationWithDeploymentHash(ra)
+	require.NoError(t, err)
+	assert.False(t, isEqual)
+
+	// ActiveRadixDeployment with matching hash in annotation
+	targetEnv = model.TargetEnvironment{ActiveRadixDeployment: utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixConfigHash: testHash}).BuildRD()}
+	isEqual, err = targetEnv.CompareApplicationWithDeploymentHash(ra)
+	require.NoError(t, err)
+	assert.True(t, isEqual)
 }

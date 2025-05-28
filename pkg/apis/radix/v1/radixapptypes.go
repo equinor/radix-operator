@@ -2,6 +2,7 @@ package v1
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
@@ -61,6 +62,19 @@ func (ra *RadixApplication) GetCommonComponentByName(name string) RadixCommonCom
 		return comp
 	}
 	return ra.GetJobComponentByName(name)
+}
+
+// GetEnvironmentByName returns the environment matching the name parameter, and a bool flag indicating if an environment was found or not
+func (ra *RadixApplication) GetEnvironmentByName(name string) (Environment, bool) {
+	if ra == nil {
+		return Environment{}, false
+	}
+
+	if i := slices.IndexFunc(ra.Spec.Environments, func(e Environment) bool { return e.Name == name }); i == -1 {
+		return Environment{}, false
+	} else {
+		return ra.Spec.Environments[i], true
+	}
 }
 
 // RadixApplicationSpec is the specification for an application.

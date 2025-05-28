@@ -96,6 +96,7 @@ mocks: bootstrap
 	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/subpipeline_reader.go -destination ./pipeline-runner/steps/preparepipeline/internal/subpipeline_reader_mock.go -package internal
 	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/radix_config_reader.go -destination ./pipeline-runner/steps/preparepipeline/internal/radix_config_reader_mock.go -package internal
 	mockgen -source ./pipeline-runner/steps/internal/ownerreferences/owner_references.go -destination ./pipeline-runner/steps/internal/ownerreferences/owner_references_mock.go -package ownerreferences
+	mockgen -source ./pipeline-runner/utils/git/git.go -destination ./pipeline-runner/utils/git/git_mock.go -package git
 
 .PHONY: tidy
 tidy:

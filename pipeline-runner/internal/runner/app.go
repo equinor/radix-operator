@@ -72,7 +72,7 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 	if err != nil {
 		return err
 	}
-	cli.pipelineInfo.RadixRegistration = radixRegistration
+
 	return err
 }
 

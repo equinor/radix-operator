@@ -75,8 +75,8 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 			PipelineType:  string(radixv1.BuildDeploy),
 			ToEnvironment: internalTest.Env1,
 			DNSConfig:     &dnsalias.DNSConfig{}},
-		RadixRegistration: rr,
-		RadixApplication:  raBuilder.BuildRA(),
+		RadixApplication:             raBuilder.BuildRA(),
+		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
 	}
 	ctx := context.Background()
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
@@ -269,7 +269,6 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyEnvVars() {
 			ra := utils.NewRadixApplicationBuilder().
 				WithRadixRegistration(rrBuilder).
 				WithAppName(internalTest.AppName).
-				WithEnvironment(internalTest.Env1, internalTest.BranchMain).
 				WithBuildVariables(ts.buildVariables).
 				WithSubPipeline(ts.buildSubPipeline).
 				WithApplicationEnvironmentBuilders(ts.appEnvBuilder...).BuildRA()
@@ -287,23 +286,22 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyEnvVars() {
 					ToEnvironment: internalTest.Env1,
 					DNSConfig:     &dnsalias.DNSConfig{},
 				},
-				RadixRegistration:  rr,
-				RadixApplication:   ra,
-				TargetEnvironments: []string{internalTest.Env1},
+				RadixApplication:             ra,
+				TargetEnvironments:           []model.TargetEnvironment{{Environment: internalTest.Env1}},
+				EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
 			}
 			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
 			step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
 
-			ctx := context.TODO()
-			_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+			_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1)},
 				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
-			err = step.Run(ctx, pipelineInfo)
+			err = step.Run(context.TODO(), pipelineInfo)
 			s.Require().NoError(err)
 
-			pipelineRunList, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
+			pipelineRunList, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
 			s.Require().NoError(err)
 			assert.Len(t, pipelineRunList.Items, 1)
 			pr := pipelineRunList.Items[0]
@@ -440,9 +438,9 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyIdentity() {
 					ToEnvironment: internalTest.Env1,
 					DNSConfig:     &dnsalias.DNSConfig{},
 				},
-				RadixRegistration:  rr,
-				RadixApplication:   raBuilder.BuildRA(),
-				TargetEnvironments: []string{internalTest.Env1},
+				RadixApplication:             raBuilder.BuildRA(),
+				TargetEnvironments:           []model.TargetEnvironment{{Environment: internalTest.Env1}},
+				EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
 			}
 			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
 			step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)

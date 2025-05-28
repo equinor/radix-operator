@@ -322,10 +322,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 		},
 	}
 
-	gitCommitHash := pipelineInfo.GitCommitHash
-	gitTags := pipelineInfo.GitTags
 	pipelineInfo.RadixApplication = ra
-	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
@@ -446,10 +443,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 		},
 	}
 
-	gitCommitHash := pipelineInfo.GitCommitHash
-	gitTags := pipelineInfo.GitTags
 	pipelineInfo.RadixApplication = ra
-	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
@@ -539,10 +533,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 		},
 	}
 
-	gitCommitHash := pipelineInfo.GitCommitHash
-	gitTags := pipelineInfo.GitTags
 	pipelineInfo.RadixApplication = ra
-	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
@@ -655,10 +646,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 		},
 	}
 
-	gitCommitHash := pipelineInfo.GitCommitHash
-	gitTags := pipelineInfo.GitTags
 	pipelineInfo.RadixApplication = ra
-	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
@@ -715,10 +703,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 		},
 	}
 
-	gitCommitHash := pipelineInfo.GitCommitHash
-	gitTags := pipelineInfo.GitTags
 	pipelineInfo.RadixApplication = ra
-	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 
@@ -894,10 +879,7 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 		},
 	}
 
-	gitCommitHash := pipelineInfo.GitCommitHash
-	gitTags := pipelineInfo.GitTags
 	pipelineInfo.RadixApplication = ra
-	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err = cli.Run(context.Background(), pipelineInfo)
 	require.NoError(t, err)
 

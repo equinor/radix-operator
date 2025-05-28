@@ -14,8 +14,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// CreateRadixApplication Create RadixApplication from radixconfig.yaml content
-func CreateRadixApplication(ctx context.Context, radixClient radixclient.Interface, appName string, dnsConfig *dnsalias.DNSConfig, configFileContent string) (*radixv1.RadixApplication, error) {
+// UnmarshalRadixApplication Unmarshal RadixApplication from radixconfig.yaml content
+func UnmarshalRadixApplication(ctx context.Context, radixClient radixclient.Interface, appName string, dnsConfig *dnsalias.DNSConfig, configFileContent string) (*radixv1.RadixApplication, error) {
 	ra := &radixv1.RadixApplication{}
 
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.

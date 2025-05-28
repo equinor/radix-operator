@@ -61,8 +61,8 @@ func getCommonPodTolerations() []corev1.Toleration {
 	return utils.GetPipelineJobPodSpecTolerations()
 }
 
-func getCommonPodInitContainers(cloneURL, workspace, branch string, cloneConfig git.CloneConfig) []corev1.Container {
-	return git.CloneInitContainersWithSourceCode(cloneURL, branch, cloneConfig, workspace)
+func getCommonPodInitContainers(cloneURL, gitRefName, gitCommitID, workspace string, cloneConfig git.CloneConfig) []corev1.Container {
+	return git.CloneInitContainersWithSourceCode(cloneURL, gitRefName, gitCommitID, workspace, cloneConfig)
 }
 
 func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {
