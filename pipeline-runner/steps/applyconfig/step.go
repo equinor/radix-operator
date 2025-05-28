@@ -57,7 +57,8 @@ func (step *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	printPrepareBuildContext(log.Ctx(ctx), pipelineInfo.BuildContext)
+	printRadixConfigUpdatedSinceLastDeployment(log.Ctx(ctx), pipelineInfo)
+	printBuildContext(log.Ctx(ctx), pipelineInfo.BuildContext)
 	printSubPipelinesToRun(log.Ctx(ctx), pipelineInfo.EnvironmentSubPipelinesToRun)
 
 	if err := step.setBuildSecret(pipelineInfo); err != nil {
@@ -467,7 +468,7 @@ func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComp
 	return commonComponents
 }
 
-func printPrepareBuildContext(logger *zerolog.Logger, buildContext *model.BuildContext) {
+func printBuildContext(logger *zerolog.Logger, buildContext *model.BuildContext) {
 	if buildContext == nil {
 		return
 	}
@@ -491,6 +492,17 @@ func printSubPipelinesToRun(logger *zerolog.Logger, subPipelines []model.Environ
 		logger.Info().Msg("Sub-pipelines to run")
 		for _, envSubPipeline := range subPipelines {
 			logger.Info().Msgf(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
+		}
+	}
+}
+
+func printRadixConfigUpdatedSinceLastDeployment(logger *zerolog.Logger, pipelineInfo *model.PipelineInfo) {
+	for _, targetEnv := range pipelineInfo.TargetEnvironments {
+		if targetEnv.ActiveRadixDeployment == nil {
+			continue
+		}
+		if isEqual, err := targetEnv.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication); err != nil || !isEqual {
+			logger.Info().Msgf("RadixApplication updated since last deployment to environment %s", targetEnv.Environment)
 		}
 	}
 }
