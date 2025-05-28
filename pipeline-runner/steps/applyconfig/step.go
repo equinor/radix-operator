@@ -58,7 +58,7 @@ func (step *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 // Run Override of default step method
 func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	printPrepareBuildContext(log.Ctx(ctx), pipelineInfo.BuildContext)
-	printSubPiplinesToRun(log.Ctx(ctx), pipelineInfo.EnvironmentSubPipelinesToRun)
+	printSubPipelinesToRun(log.Ctx(ctx), pipelineInfo.EnvironmentSubPipelinesToRun)
 
 	if err := step.setBuildSecret(pipelineInfo); err != nil {
 		return err
@@ -484,7 +484,7 @@ func printPrepareBuildContext(logger *zerolog.Logger, buildContext *model.BuildC
 	}
 }
 
-func printSubPiplinesToRun(logger *zerolog.Logger, subPipelines []model.EnvironmentSubPipelineToRun) {
+func printSubPipelinesToRun(logger *zerolog.Logger, subPipelines []model.EnvironmentSubPipelineToRun) {
 	if len(subPipelines) == 0 {
 		logger.Info().Msg("No sub-pipelines to run")
 	} else {
