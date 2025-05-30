@@ -110,6 +110,20 @@ spec:
                         Forces check/pull of images using static tags, e.g. myimage:latest, when deploying using deploy-only.
                         More info: https://www.radix.equinor.com/radix-config#alwayspullimageondeploy
                       type: boolean
+                    args:
+                      description: |-
+                        Arguments to the entrypoint.
+                        The container image's CMD is used if this is not provided.
+                        Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+                        cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+                        to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+                        produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+                        of whether the variable exists or not. Cannot be updated.
+                        More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
                     authentication:
                       description: |-
                         Configuration for TLS client certificate or OAuth2 authentication.
@@ -262,6 +276,20 @@ spec:
                               type: array
                           type: object
                       type: object
+                    command:
+                      description: |-
+                        Entrypoint array. Not executed within a shell.
+                        The container image's ENTRYPOINT is used if this is not provided.
+                        Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+                        cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+                        to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+                        produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+                        of whether the variable exists or not. Cannot be updated.
+                        More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
                     dockerfileName:
                       description: |-
                         Name of the Dockerfile that builds the component.
@@ -284,6 +312,20 @@ spec:
                             description: Forces check/pull of images using static
                               tags, e.g. myimage:latest, when deploying using deploy-only.
                             type: boolean
+                          args:
+                            description: |-
+                              Arguments to the entrypoint.
+                              The container image's CMD is used if this is not provided.
+                              Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+                              cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+                              to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+                              produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+                              of whether the variable exists or not. Cannot be updated.
+                              More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: atomic
                           authentication:
                             description: |-
                               Environment specific configuration for TLS client certificate or OAuth2 authentication.
@@ -438,6 +480,20 @@ spec:
                                     type: array
                                 type: object
                             type: object
+                          command:
+                            description: |-
+                              Entrypoint array. Not executed within a shell.
+                              The container image's ENTRYPOINT is used if this is not provided.
+                              Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+                              cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+                              to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+                              produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+                              of whether the variable exists or not. Cannot be updated.
+                              More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: atomic
                           dockerfileName:
                             description: |-
                               Name of the Dockerfile that builds the component.
@@ -3175,6 +3231,20 @@ spec:
                     RadixJobComponent defines a single job component within a RadixApplication
                     The job component is used by the radix-job-scheduler to create Kubernetes Job objects
                   properties:
+                    args:
+                      description: |-
+                        Arguments to the entrypoint.
+                        The container image's CMD is used if this is not provided.
+                        Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+                        cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+                        to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+                        produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+                        of whether the variable exists or not. Cannot be updated.
+                        More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
                     backoffLimit:
                       description: |-
                         Specifies the number of retries before marking this job failed.
@@ -3236,6 +3306,20 @@ spec:
                         - operator
                         type: object
                       type: array
+                    command:
+                      description: |-
+                        Entrypoint array. Not executed within a shell.
+                        The container image's ENTRYPOINT is used if this is not provided.
+                        Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+                        cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+                        to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+                        produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+                        of whether the variable exists or not. Cannot be updated.
+                        More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
                     dockerfileName:
                       description: |-
                         Name of the Dockerfile that builds the job.
@@ -3253,6 +3337,20 @@ spec:
                           RadixJobComponentEnvironmentConfig defines environment specific settings
                           for a single job component within a RadixApplication
                         properties:
+                          args:
+                            description: |-
+                              Arguments to the entrypoint.
+                              The container image's CMD is used if this is not provided.
+                              Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+                              cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+                              to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+                              produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+                              of whether the variable exists or not. Cannot be updated.
+                              More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: atomic
                           backoffLimit:
                             description: |-
                               Environment specific value for the number of retries before marking this job failed.
@@ -3315,6 +3413,20 @@ spec:
                               - operator
                               type: object
                             type: array
+                          command:
+                            description: |-
+                              Entrypoint array. Not executed within a shell.
+                              The container image's ENTRYPOINT is used if this is not provided.
+                              Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+                              cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+                              to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+                              produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+                              of whether the variable exists or not. Cannot be updated.
+                              More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: atomic
                           dockerfileName:
                             description: |-
                               Name of the Dockerfile that builds the component.
