@@ -2342,7 +2342,7 @@ func getCommandForEnvironment(commonComponent RadixCommonComponent, environment 
 		return commonComponent.GetCommand()
 	}
 	envConfig, ok := environmentConfigsMap[environment]
-	if !ok || commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil || !*envConfig.getEnabled() {
+	if !ok || commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
 		return commonComponent.GetCommand()
 	}
 	if command := envConfig.GetCommand(); command != nil {
@@ -2357,17 +2357,17 @@ func getArgsForEnvironment(commonComponent RadixCommonComponent, environment str
 		return commonComponent.GetArgs()
 	}
 	envConfig, ok := environmentConfigsMap[environment]
-	if !ok || commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil || !*envConfig.getEnabled() {
+	if !ok || commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
 		return commonComponent.GetArgs()
 	}
-	if command := envConfig.GetArgs(); command != nil {
+	if args := envConfig.GetArgs(); args != nil {
 		return *envConfig.GetArgs()
 	}
 	return commonComponent.GetArgs()
 }
 
 func getCommandForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
-	if commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil || !*envConfig.getEnabled() {
+	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
 		return commonComponent.GetCommand()
 	}
 	if command := envConfig.GetCommand(); command != nil {
@@ -2377,10 +2377,10 @@ func getCommandForEnvironmentConfig(commonComponent RadixCommonComponent, envCon
 }
 
 func getArgsForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
-	if commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil || !*envConfig.getEnabled() {
+	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
 		return commonComponent.GetArgs()
 	}
-	if command := envConfig.GetArgs(); command != nil {
+	if args := envConfig.GetArgs(); args != nil {
 		return *envConfig.GetArgs()
 	}
 	return commonComponent.GetArgs()
