@@ -143,6 +143,10 @@ type RadixDeployComponent struct {
 	ReadOnlyFileSystem *bool           `json:"readOnlyFileSystem,omitempty"`
 	Runtime            *Runtime        `json:"runtime,omitempty"`
 	Network            *Network        `json:"network,omitempty"`
+	// GetCommand Entrypoint array. Not executed within a shell.
+	Command []string `json:"command,omitempty"`
+	// GetArgs Arguments to the entrypoint.
+	Args []string `json:"args,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetHealthChecks() *RadixHealthChecks {
@@ -229,9 +233,10 @@ func (deployComponent *RadixDeployComponent) GetExternalDNS() []RadixDeployExter
 	if len(deployComponent.ExternalDNS) > 0 {
 		return deployComponent.ExternalDNS
 	}
-	return slice.Map(deployComponent.DNSExternalAlias, func(alias string) RadixDeployExternalDNS {
-		return RadixDeployExternalDNS{FQDN: alias, UseCertificateAutomation: false}
-	})
+	return slice.Map(deployComponent.DNSExternalAlias, //nolint:staticcheck
+		func(alias string) RadixDeployExternalDNS {
+			return RadixDeployExternalDNS{FQDN: alias, UseCertificateAutomation: false}
+		})
 }
 
 func (deployComponent *RadixDeployComponent) IsDNSAppAlias() bool {
@@ -243,7 +248,7 @@ func (deployComponent *RadixDeployComponent) GetIngressConfiguration() []string 
 }
 
 func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
-	return &deployComponent.Node
+	return &deployComponent.Node //nolint:staticcheck
 }
 
 func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication {
@@ -276,6 +281,14 @@ func (deployComponent *RadixDeployComponent) SetVolumeMounts(mounts []RadixVolum
 
 func (deployComponent *RadixDeployComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
 	deployComponent.EnvironmentVariables = envVars
+}
+
+func (deployComponent *RadixDeployComponent) GetCommand() []string {
+	return deployComponent.Command
+}
+
+func (deployComponent *RadixDeployComponent) GetArgs() []string {
+	return deployComponent.Args
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
@@ -362,7 +375,7 @@ func (deployJobComponent *RadixDeployJobComponent) GetIngressConfiguration() []s
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
-	return &deployJobComponent.Node
+	return &deployJobComponent.Node //nolint:staticcheck
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authentication {
@@ -399,6 +412,14 @@ func (deployJobComponent *RadixDeployJobComponent) SetVolumeMounts(mounts []Radi
 
 func (deployJobComponent *RadixDeployJobComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
 	deployJobComponent.EnvironmentVariables = envVars
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetCommand() []string {
+	return deployJobComponent.Command
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetArgs() []string {
+	return deployJobComponent.Args
 }
 
 // GetNrOfReplicas gets number of replicas component will run
@@ -444,6 +465,10 @@ type RadixDeployJobComponent struct {
 	// FailurePolicy specifies the policy of handling failed job replicas
 	// +optional
 	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
+	// GetCommand Entrypoint array. Not executed within a shell.
+	Command []string `json:"command,omitempty"`
+	// GetArgs Arguments to the entrypoint.
+	Args []string `json:"args,omitempty"`
 }
 
 func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {
@@ -489,6 +514,10 @@ type RadixCommonDeployComponent interface {
 	GetRuntime() *Runtime
 	GetNetwork() *Network
 	GetHealthChecks() *RadixHealthChecks
+	// GetCommand Entrypoint array. Not executed within a shell.
+	GetCommand() []string
+	// GetArgs Arguments to the entrypoint.
+	GetArgs() []string
 }
 
 // IsActive The RadixDeployment is active

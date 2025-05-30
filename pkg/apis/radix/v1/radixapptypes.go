@@ -1899,6 +1899,10 @@ type RadixCommonComponent interface {
 	GetCommandForEnvironment(environment string) []string
 	// GetArgsForEnvironment Arguments to the entrypoint for the environment.
 	GetArgsForEnvironment(environment string) []string
+	// GetCommandForEnvironmentConfig Entrypoint array for the environment config
+	GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
+	// GetArgsForEnvironmentConfig Arguments to the entrypoint for the environment config
+	GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
 }
 
 func (component *RadixComponent) GetName() string {
@@ -2037,6 +2041,14 @@ func (component *RadixComponent) GetCommandForEnvironment(environment string) []
 
 func (component *RadixComponent) GetArgsForEnvironment(environment string) []string {
 	return getArgsForEnvironment(component, environment)
+}
+
+func (component *RadixComponent) GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+	return getCommandForEnvironmentConfig(component, envConfig)
+}
+
+func (component *RadixComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+	return getArgsForEnvironmentConfig(component, envConfig)
 }
 
 func (component *RadixJobComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
@@ -2193,6 +2205,14 @@ func (component *RadixJobComponent) GetArgsForEnvironment(environment string) []
 	return getArgsForEnvironment(component, environment)
 }
 
+func (component *RadixJobComponent) GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+	return getCommandForEnvironmentConfig(component, envConfig)
+}
+
+func (component *RadixJobComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+	return getArgsForEnvironmentConfig(component, envConfig)
+}
+
 // GetOAuth2 Returns OAuth2 if exist
 func (authentication *Authentication) GetOAuth2() *OAuth2 {
 	if authentication == nil {
@@ -2338,6 +2358,26 @@ func getArgsForEnvironment(commonComponent RadixCommonComponent, environment str
 	}
 	envConfig, ok := environmentConfigsMap[environment]
 	if !ok || commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil || !*envConfig.getEnabled() {
+		return commonComponent.GetArgs()
+	}
+	if command := envConfig.GetArgs(); command != nil {
+		return *envConfig.GetArgs()
+	}
+	return commonComponent.GetArgs()
+}
+
+func getCommandForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
+	if commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil || !*envConfig.getEnabled() {
+		return commonComponent.GetCommand()
+	}
+	if command := envConfig.GetCommand(); command != nil {
+		return *envConfig.GetCommand()
+	}
+	return commonComponent.GetCommand()
+}
+
+func getArgsForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
+	if commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil || !*envConfig.getEnabled() {
 		return commonComponent.GetArgs()
 	}
 	if command := envConfig.GetArgs(); command != nil {
