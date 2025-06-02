@@ -25,13 +25,13 @@ var (
 type Repository interface {
 	// Checkout a specific commit, or the commit of a branch or tag name.
 	Checkout(reference string) error
-	// Get the current commit for a branch or tag name.
+	// ResolveCommitForReference gets the current commit for a branch or tag name.
 	ResolveCommitForReference(reference string) (string, error)
-	// Checks if a commit, branch or tag is ancestor of other commit, branch or tag.
+	// IsAncestor checks if a commit, branch or tag is ancestor of other commit, branch or tag.
 	IsAncestor(ancestor, other string) (bool, error)
-	// Returns tags for a specific commit.
+	//  ResolveTagsForCommit returns tags for a specific commit.
 	ResolveTagsForCommit(commitHash string) ([]string, error)
-	// Returns list of changes between commits.
+	// DiffCommits returns list of changes between two commits.
 	// If beforeCommitHash is empty, all changes up till targetCommit is returned.
 	DiffCommits(beforeCommitHash, targetCommitHash string) (DiffEntries, error)
 }
