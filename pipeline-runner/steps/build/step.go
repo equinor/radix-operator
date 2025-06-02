@@ -143,7 +143,7 @@ func (step *BuildStepImplementation) applyBuildJobs(ctx context.Context, pipelin
 	g := errgroup.Group{}
 	for _, job := range jobs {
 		g.Go(func() error {
-			logger := log.Ctx(ctx).With().Str("job", job.Name).Logger()
+			logger := log.Ctx(ctx)
 			job.OwnerReferences = ownerReference
 			jobDescription := step.getJobDescription(&job)
 			logger.Info().Msgf("Apply %s", jobDescription)
@@ -172,14 +172,14 @@ func (step *BuildStepImplementation) getJobOwnerReferences(ctx context.Context, 
 
 func (step *BuildStepImplementation) getJobDescription(job *batchv1.Job) string {
 	builder := strings.Builder{}
-	builder.WriteString(fmt.Sprintf("the job %s to build", job.Name))
+	builder.WriteString(fmt.Sprintf("job %s to build", job.Name))
 	if componentName, ok := job.GetLabels()[kube.RadixComponentLabel]; ok {
-		builder.WriteString(fmt.Sprintf(" the component %s", componentName))
+		builder.WriteString(fmt.Sprintf(" component %s", componentName))
 	} else {
 		builder.WriteString(" components")
 	}
 	if envName, ok := job.GetLabels()[kube.RadixEnvLabel]; ok {
-		builder.WriteString(fmt.Sprintf(" in the environment %s", envName))
+		builder.WriteString(fmt.Sprintf(" in environment %s", envName))
 	}
 	return builder.String()
 }

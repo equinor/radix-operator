@@ -13,6 +13,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -97,7 +98,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 					Branch:   "anybranch",
 				},
 			}
-			rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, nil, testcase.expectedGitCommitHash, testcase.expectedGitTags, testcase.environment, "anyhash", "anybuildsecrethash")
+			rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: testcase.environment}, testcase.expectedGitCommitHash, testcase.expectedGitTags, "anyhash", "anybuildsecrethash")
 			require.NoError(t, err)
 
 			assert.Equal(t, testcase.expectedReplicas, *rd.Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
@@ -164,11 +165,11 @@ func TestConstructForTargetEnvironments_PicksTheCorrectReplicas(t *testing.T) {
 					Branch:   "anybranch",
 				},
 			}
-			rdEnv1, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, nil, "anycommit", "anytag", envName1, "anyhash", "anybuildsecrethash")
+			rdEnv1, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: envName1}, "anycommit", "anytag", "anyhash", "anybuildsecrethash")
 			require.NoError(t, err)
 			assert.Equal(t, ts.expectedEnvironment1Replicas, rdEnv1.Spec.Components[0].Replicas, "Environment 1 Number of replicas wasn't as expected")
 
-			rdEnv2, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, nil, "anycommit", "anytag", envName2, "anyhash", "anybuildsecrethash")
+			rdEnv2, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: envName2}, "anycommit", "anytag", "anyhash", "anybuildsecrethash")
 			require.NoError(t, err)
 			assert.Equal(t, ts.expectedEnvironment2Replicas, rdEnv2.Spec.Components[0].Replicas, "Environment 2 Number of replicas wasn't as expected")
 		})
@@ -224,7 +225,7 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 			Branch:   "anybranch",
 		},
 	}
-	rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, nil, "anycommit", "anytag", "dev", "anyhash", "anybuildsecrethash")
+	rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: "dev"}, "anycommit", "anytag", "anyhash", "anybuildsecrethash")
 	require.NoError(t, err)
 
 	t.Log(rd.Spec.Components[0].Name)
@@ -234,7 +235,7 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	t.Log(rd.Spec.Components[2].Name)
 	assert.False(t, rd.Spec.Components[2].AlwaysPullImageOnDeploy)
 
-	rd, err = ConstructForTargetEnvironment(context.Background(), pipelineInfo, nil, "anycommit", "anytag", "prod", "anyhash", "anybuildsecrethash")
+	rd, err = ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: "prod"}, "anycommit", "anytag", "anyhash", "anybuildsecrethash")
 	require.NoError(t, err)
 
 	t.Log(rd.Spec.Components[0].Name)
@@ -261,7 +262,7 @@ func TestConstructForTargetEnvironment_GetCommitID(t *testing.T) {
 			Branch:   "anybranch",
 		},
 	}
-	rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, nil, "commit-abc", "anytags", "dev", "anyhash", "anybuildsecrethash")
+	rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: "dev"}, "commit-abc", "anytags", "anyhash", "anybuildsecrethash")
 	require.NoError(t, err)
 
 	assert.Equal(t, "commit-abc", rd.ObjectMeta.Labels[kube.RadixCommitLabel])
@@ -300,8 +301,10 @@ func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
 		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job2").WithImage("job2-image:tag1").WithSchedulerPort(schedulerPort).
 			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
 			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1))
-	activeRadixDeployment := rdBuilder.BuildRD()
 	ra := rdBuilder.GetApplicationBuilder().BuildRA()
+	raHash, err := hash.CreateRadixApplicationHash(ra)
+	require.NoError(t, err)
+	activeRadixDeployment := rdBuilder.WithAnnotations(map[string]string{kube.RadixConfigHash: raHash}).BuildRD()
 
 	componentImages := make(pipeline.DeployComponentImages)
 	componentImages["comp1"] = pipeline.DeployComponentImage{ImagePath: "comp1-image:tag2"}
@@ -320,7 +323,7 @@ func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
 				ComponentsToDeploy: []string{"comp1", "job1"},
 			},
 		}
-		rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, activeRadixDeployment, commit2, gitTag2, "dev", "anyhash", "anybuildsecrethash")
+		rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: "dev", ActiveRadixDeployment: activeRadixDeployment}, commit2, gitTag2, "anyhash", "anybuildsecrethash")
 		require.NoError(t, err)
 
 		comp1, ok := slice.FindFirst(rd.Spec.Components, func(component radixv1.RadixDeployComponent) bool { return component.GetName() == "comp1" })
@@ -358,7 +361,7 @@ func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
 				Branch:   "anybranch",
 			},
 		}
-		rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, activeRadixDeployment, commit2, gitTag2, "dev", "anyhash", "anybuildsecrethash")
+		rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: "dev", ActiveRadixDeployment: activeRadixDeployment}, commit2, gitTag2, "anyhash", "anybuildsecrethash")
 		require.NoError(t, err)
 
 		comp1, ok := slice.FindFirst(rd.Spec.Components, func(component radixv1.RadixDeployComponent) bool { return component.GetName() == "comp1" })
@@ -431,7 +434,7 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 			},
 		}
 
-		rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, nil, "anycommit", "anytags", envName, "anyhash", "anybuildsecrethash")
+		rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: envName}, "anycommit", "anytags", "anyhash", "anybuildsecrethash")
 		require.NoError(t, err)
 		assert.Equal(t, scenario.expected, rd.Spec.Components[0].Identity)
 	}
@@ -453,7 +456,7 @@ func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 				Branch:   "anybranch",
 			},
 		}
-		rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, nil, "anycommit", "anytags", envName, "anyhash", "anybuildsecrethash")
+		rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: envName}, "anycommit", "anytags", "anyhash", "anybuildsecrethash")
 		require.NoError(t, err)
 		assert.Equal(t, scenario.expected, rd.Spec.Jobs[0].Identity)
 	}
@@ -629,11 +632,37 @@ func Test_ConstructForTargetEnvironment_BuildKitAnnotations(t *testing.T) {
 				},
 			}
 
-			rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, nil, "anycommit", "anytags", envName, "anyhash", "anybuildsecrethash")
+			rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: envName}, "anycommit", "anytags", "anyhash", "anybuildsecrethash")
 			require.NoError(t, err)
 			assert.Equal(t, scenario.expectedAnnotationUseBuildKit, rd.Annotations[kube.RadixUseBuildKit], "UseBuildKit annotation not as expected")
 			assert.Equal(t, scenario.expectedAnnotationUseBuildCache, rd.Annotations[kube.RadixUseBuildCache], "UseBuildCache annotation not as expected")
 			assert.Equal(t, scenario.expectedAnnotationRefreshBuildCache, rd.Annotations[kube.RadixRefreshBuildCache], "RefreshBuildCache annotation not as expected")
 		})
 	}
+}
+
+func Test_GetGitCommitHashFromDeployment(t *testing.T) {
+	assert.Equal(t, "", GetGitCommitHashFromDeployment(nil))
+
+	rd := utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixCommitAnnotation: "annotation_hash"}).WithLabel(kube.RadixCommitLabel, "label_hash").BuildRD()
+	assert.Equal(t, "annotation_hash", GetGitCommitHashFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().WithLabel(kube.RadixCommitLabel, "label_hash").BuildRD()
+	assert.Equal(t, "label_hash", GetGitCommitHashFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().BuildRD()
+	assert.Equal(t, "", GetGitCommitHashFromDeployment(rd))
+}
+
+func Test_GetGitRefNameFromDeployment(t *testing.T) {
+	assert.Equal(t, "", GetGitRefNameFromDeployment(nil))
+
+	rd := utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixGitRefAnnotation: "git_ref", kube.RadixBranchAnnotation: "git_branch"}).BuildRD()
+	assert.Equal(t, "git_ref", GetGitRefNameFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixBranchAnnotation: "git_branch"}).BuildRD()
+	assert.Equal(t, "git_branch", GetGitRefNameFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().BuildRD()
+	assert.Equal(t, "", GetGitRefNameFromDeployment(rd))
 }

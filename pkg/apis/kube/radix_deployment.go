@@ -57,7 +57,7 @@ func (kubeutil *Kube) GetActiveDeployment(ctx context.Context, namespace string)
 		return nil, err
 	}
 	for _, rd := range radixDeployments.Items {
-		if rd.Status.ActiveTo.IsZero() {
+		if rd.Status.Condition == v1.DeploymentActive {
 			return &rd, err
 		}
 	}

@@ -81,4 +81,6 @@ func TestMatchesPattern(t *testing.T) {
 	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+\\.*", "v1.2.20-asdf"))
 	assert.True(t, MatchesPattern("(test)|(main)/*", "test/t"))
 	assert.True(t, MatchesPattern("(test)|(main)/*", "main/t"))
+	assert.True(t, MatchesPattern("*", "test/test@test"))
+	assert.True(t, MatchesPattern("*", "test/@test"))
 }

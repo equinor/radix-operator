@@ -141,10 +141,9 @@ func (h *deployHandler) buildDeploymentsForEnvironments(ctx context.Context, env
 func (h *deployHandler) buildDeployment(ctx context.Context, envInfo envInfo) (*radixv1.RadixDeployment, error) {
 	sourceRd, err := internal.ConstructForTargetEnvironment(ctx,
 		h.pipelineInfo,
-		&envInfo.activeRd,
+		model.TargetEnvironment{Environment: envInfo.envName, ActiveRadixDeployment: &envInfo.activeRd},
 		envInfo.activeRd.Annotations[kube.RadixCommitAnnotation],
 		envInfo.activeRd.Annotations[kube.RadixGitTagsAnnotation],
-		envInfo.envName,
 		envInfo.activeRd.Annotations[kube.RadixConfigHash],
 		envInfo.activeRd.Annotations[kube.RadixBuildSecretHash])
 	if err != nil {

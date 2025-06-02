@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
+	internalsubpipeline "github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
@@ -18,16 +20,18 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
+	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
-	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
+	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,13 +46,45 @@ type PreparePipelinesStepImplementation struct {
 	subPipelineReader     prepareInternal.SubPipelineReader
 	ownerReferenceFactory ownerreferences.OwnerReferenceFactory
 	radixConfigReader     prepareInternal.RadixConfigReader
+	openGitRepo           func(path string) (git.Repository, error)
 }
 type Option func(step *PreparePipelinesStepImplementation)
+
+func WithBuildContextBuilder(v prepareInternal.ContextBuilder) Option {
+	return func(step *PreparePipelinesStepImplementation) {
+		step.contextBuilder = v
+	}
+}
+
+func WithSubPipelineReader(v prepareInternal.SubPipelineReader) Option {
+	return func(step *PreparePipelinesStepImplementation) {
+		step.subPipelineReader = v
+	}
+}
+
+func WithOwnerReferenceFactory(v ownerreferences.OwnerReferenceFactory) Option {
+	return func(step *PreparePipelinesStepImplementation) {
+		step.ownerReferenceFactory = v
+	}
+}
+
+func WithRadixConfigReader(v prepareInternal.RadixConfigReader) Option {
+	return func(step *PreparePipelinesStepImplementation) {
+		step.radixConfigReader = v
+	}
+}
+
+func WithOpenGitRepoFunc(v func(path string) (git.Repository, error)) Option {
+	return func(step *PreparePipelinesStepImplementation) {
+		step.openGitRepo = v
+	}
+}
 
 // NewPreparePipelinesStep Constructor.
 func NewPreparePipelinesStep(opt ...Option) model.Step {
 	implementation := PreparePipelinesStepImplementation{
-		stepType: pipeline.PreparePipelinesStep,
+		stepType:    pipeline.PreparePipelinesStep,
+		openGitRepo: git.Open,
 	}
 	for _, option := range opt {
 		option(&implementation)
@@ -56,31 +92,10 @@ func NewPreparePipelinesStep(opt ...Option) model.Step {
 	return &implementation
 }
 
-// WithContextBuilder is used to set the context builder for the step
-func (step *PreparePipelinesStepImplementation) WithContextBuilder(builder prepareInternal.ContextBuilder) Option {
-	return func(step *PreparePipelinesStepImplementation) {
-		step.contextBuilder = builder
-	}
-}
-
-// WithSubPipelineReader is used to set the sub-pipeline reader for the step
-func (step *PreparePipelinesStepImplementation) WithSubPipelineReader(reader prepareInternal.SubPipelineReader) Option {
-	return func(step *PreparePipelinesStepImplementation) {
-		step.subPipelineReader = reader
-	}
-}
-
-// WithOwnerReferenceFactory is used to set the owner reference factory for the step
-func (step *PreparePipelinesStepImplementation) WithOwnerReferenceFactory(factory ownerreferences.OwnerReferenceFactory) Option {
-	return func(step *PreparePipelinesStepImplementation) {
-		step.ownerReferenceFactory = factory
-	}
-}
-
 func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 	if step.contextBuilder == nil {
-		step.contextBuilder = prepareInternal.NewContextBuilder(kubeClient, radixClient)
+		step.contextBuilder = prepareInternal.NewContextBuilder()
 	}
 	if step.subPipelineReader == nil {
 		step.subPipelineReader = prepareInternal.NewSubPipelineReader()
@@ -105,126 +120,253 @@ func (step *PreparePipelinesStepImplementation) SucceededMsg() string {
 
 // ErrorMsg Override of default step method
 func (step *PreparePipelinesStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed prepare pipelines for the application %s. Error: %v", step.GetAppName(), err)
+	return fmt.Sprintf("Failed prepare pipelines for application %s. Error: %v", step.GetAppName(), err)
 }
 
 // Run Override of default step method
 func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	var err error
 	step.logPipelineInfo(ctx, pipelineInfo)
 
-	if pipelineInfo.IsPipelineType(radixv1.Promote) {
-		sourceDeploymentGitCommitHash, sourceDeploymentGitBranch, err := step.getSourceDeploymentGitInfo(ctx, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
-		if err != nil {
+	repo, err := step.openGitRepo(pipelineInfo.GetGitWorkspace())
+	if err != nil {
+		return fmt.Errorf("failed to open git repository: %w", err)
+	}
+
+	if err := step.setRadixConfig(pipelineInfo, repo); err != nil {
+		return err
+	}
+
+	if err = step.setTargetEnvironments(ctx, pipelineInfo); err != nil {
+		return err
+	}
+
+	if slice.Any([]radixv1.RadixPipelineType{radixv1.Build, radixv1.BuildDeploy}, pipelineInfo.IsPipelineType) {
+		if err = step.setBuildInfo(pipelineInfo, repo); err != nil {
 			return err
 		}
-		pipelineInfo.SourceDeploymentGitCommitHash = sourceDeploymentGitCommitHash
-		pipelineInfo.SourceDeploymentGitBranch = sourceDeploymentGitBranch
 	}
 
-	radixApplication, err := step.radixConfigReader.Read(pipelineInfo)
-	if err != nil {
+	if err = step.setSubPipelinesToRun(ctx, pipelineInfo, repo); err != nil {
 		return err
 	}
-	pipelineInfo.RadixApplication = radixApplication
-
-	if err = setPipelineTargetEnvironments(ctx, pipelineInfo); err != nil {
-		return err
-	}
-
-	buildContext, err := step.contextBuilder.GetBuildContext(pipelineInfo)
-	if err != nil {
-		return err
-	}
-	pipelineInfo.SetBuildContext(buildContext)
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
-		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(ctx, pipelineInfo.BuildContext)
+		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getBuildDeployPipelineShouldBeStopped(pipelineInfo)
 	}
 
-	buildContext.EnvironmentSubPipelinesToRun, err = step.getEnvironmentSubPipelinesToRun(pipelineInfo)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
-func (step *PreparePipelinesStepImplementation) getEnvironmentSubPipelinesToRun(pipelineInfo *model.PipelineInfo) ([]model.EnvironmentSubPipelineToRun, error) {
-	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
-	if pipelineInfo.StopPipeline {
-		log.Info().Msg("Pipeline is stopped, skip sub-pipelines")
-		return nil, nil
-	}
-	var errs []error
-	timestamp := time.Now().Format("20060102150405")
-	for _, targetEnv := range pipelineInfo.TargetEnvironments {
-		log.Debug().Msgf("Create sub-pipeline for environment %s", targetEnv)
-		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForTargetEnv(pipelineInfo, targetEnv, timestamp)
+func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo *model.PipelineInfo, repo git.Repository) (string, string, error) {
+	var err error
+	refName := pipelineInfo.PipelineArguments.GetGitRefOrDefault()
+
+	commit := pipelineInfo.PipelineArguments.CommitID
+	if len(commit) == 0 {
+		commit, err = repo.ResolveCommitForReference(refName)
 		if err != nil {
-			errs = append(errs, err)
+			return "", "", fmt.Errorf("failed to get latest commit for branch %s: %w", refName, err)
 		}
+	}
+
+	isAncestor, err := repo.IsAncestor(commit, refName)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to verify if commit %s is ancestor of branch %s: %w", commit, refName, err)
+	}
+	if !isAncestor {
+		return "", "", fmt.Errorf("commit %s is not ancestor of branch %s", commit, refName)
+	}
+
+	tags, err := repo.ResolveTagsForCommit(commit)
+	if err != nil {
+		return "", "", err
+	}
+	tagsConcat := strings.Join(tags, " ")
+
+	if err = radixvalidators.GitTagsContainIllegalChars(tagsConcat); err != nil {
+		return "", "", err
+	}
+
+	return commit, tagsConcat, nil
+}
+
+func (step *PreparePipelinesStepImplementation) setBuildInfo(pipelineInfo *model.PipelineInfo, repo git.Repository) error {
+	commit, tags, err := step.getGitInfoForBuild(pipelineInfo, repo)
+	if err != nil {
+		return err
+	}
+	pipelineInfo.GitCommitHash = commit
+	pipelineInfo.GitTags = tags
+
+	if len(pipelineInfo.PipelineArguments.CommitID) == 0 {
+		return nil
+	}
+
+	buildContext, err := step.contextBuilder.GetBuildContext(pipelineInfo, repo)
+	if err != nil {
+		return err
+	}
+
+	pipelineInfo.BuildContext = buildContext
+	return err
+}
+
+func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *model.PipelineInfo, repo git.Repository) error {
+	configBranch := step.GetRegistration().Spec.ConfigBranch
+	err := repo.Checkout(configBranch)
+	if err != nil {
+		return fmt.Errorf("failed to checkout config branch %s: %w", configBranch, err)
+	}
+
+	radixConfig, err := step.radixConfigReader.Read(pipelineInfo)
+	if err != nil {
+		return err
+	}
+
+	pipelineInfo.RadixApplication = radixConfig
+	return nil
+}
+
+func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) error {
+	gitCommit, err := step.getTargetGitCommitForSubPipelines(ctx, pipelineInfo, repo)
+	if err != nil {
+		return err
+	}
+
+	if len(gitCommit) == 0 {
+		return nil
+	}
+
+	err = repo.Checkout(gitCommit)
+	if err != nil {
+		return fmt.Errorf("failed to checkout commit %s: %w", gitCommit, err)
+	}
+
+	var errs []error
+	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
+	timestamp := time.Now().Format("20060102150405")
+
+	for _, targetEnv := range pipelineInfo.TargetEnvironments {
+		log.Ctx(ctx).Debug().Msgf("Create sub-pipeline for environment %s", targetEnv.Environment)
+		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForEnvironment(pipelineInfo, targetEnv.Environment, timestamp)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to prepare sub-pipeline for environment %s: %w", targetEnv.Environment, err))
+		}
+
 		if runSubPipeline {
 			environmentSubPipelinesToRun = append(environmentSubPipelinesToRun, model.EnvironmentSubPipelineToRun{
-				Environment:  targetEnv,
+				Environment:  targetEnv.Environment,
 				PipelineFile: pipelineFilePath,
 			})
 		}
 	}
-	if err := errors.Join(errs...); err != nil {
-		return nil, err
+
+	pipelineInfo.EnvironmentSubPipelinesToRun = environmentSubPipelinesToRun
+	return errors.Join(errs...)
+}
+
+func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipelines(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) (string, error) {
+	pipelineArgs := pipelineInfo.PipelineArguments
+	pipelineType := pipelineInfo.GetRadixPipelineType()
+
+	if pipelineType == radixv1.ApplyConfig {
+		return "", nil
 	}
-	if len(environmentSubPipelinesToRun) > 0 {
-		log.Info().Msg("Run sub-pipelines:")
-		for _, subPipelineToRun := range environmentSubPipelinesToRun {
-			log.Info().Msgf("- environment %s, pipeline file %s", subPipelineToRun.Environment, subPipelineToRun.PipelineFile)
+
+	if pipelineType == radixv1.Promote {
+		sourceRdHashFromAnnotation, sourceDeploymentGitBranch, err := step.getPromoteSourceDeploymentGitInfo(ctx, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
+		if err != nil {
+			return "", err
 		}
-		return environmentSubPipelinesToRun, nil
+
+		if sourceRdHashFromAnnotation != "" {
+			return sourceRdHashFromAnnotation, nil
+		}
+
+		// TODO: Should we fail if sourcecommithash is empty instead of trying to resolve commit from source RD branch?
+		if sourceDeploymentGitBranch == "" {
+			log.Ctx(ctx).Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
+			return "", nil
+		}
+		sourceRdHashFromBranchHead, err := repo.ResolveCommitForReference(sourceDeploymentGitBranch)
+		if err != nil {
+			return "", nil
+		}
+		return sourceRdHashFromBranchHead, nil
 	}
-	log.Info().Msg("No sub-pipelines to run")
-	return nil, nil
+
+	if pipelineType == radixv1.Deploy {
+		pipelineJobBranch := step.GetRegistration().Spec.ConfigBranch
+
+		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineArgs.ToEnvironment); ok && len(env.Build.From) > 0 {
+			pipelineJobBranch = env.Build.From
+		}
+
+		if containsRegex(pipelineJobBranch) {
+			log.Ctx(ctx).Info().Msg("Deploy job with build branch having regex pattern, skipping sub-pipelines.")
+			return "", nil
+		}
+
+		gitHash, err := repo.ResolveCommitForReference(pipelineJobBranch)
+		if err != nil {
+			return "", err
+		}
+		return gitHash, nil
+	}
+
+	if pipelineType == radixv1.BuildDeploy || pipelineType == radixv1.Build {
+		return pipelineInfo.GitCommitHash, nil
+	}
+
+	return "", fmt.Errorf("unknown pipeline type %s", pipelineType)
 }
 
-// GetEnvVars Gets build env vars
-func (step *PreparePipelinesStepImplementation) GetEnvVars(ra *radixv1.RadixApplication, envName string) radixv1.EnvVarsMap {
-	envVarsMap := make(radixv1.EnvVarsMap)
-	step.setPipelineRunParamsFromBuild(ra, envVarsMap)
-	step.setPipelineRunParamsFromEnvironmentBuilds(ra, envName, envVarsMap)
-	return envVarsMap
+func (step *PreparePipelinesStepImplementation) getPromoteSourceDeploymentGitInfo(ctx context.Context, sourceEnvName, sourceDeploymentName string) (string, string, error) {
+	ns := utils.GetEnvironmentNamespace(step.GetAppName(), sourceEnvName)
+	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(ns).Get(ctx, sourceDeploymentName, metav1.GetOptions{}) //step.GetKubeUtil().GetRadixDeployment(ctx, ns, sourceDeploymentName)
+	if err != nil {
+		return "", "", err
+	}
+	gitHash := internal.GetGitCommitHashFromDeployment(rd)
+	gitBranch := internal.GetGitRefNameFromDeployment(rd)
+	return gitHash, gitBranch, err
 }
 
-// SetContextBuilder is used to set the context builder for the step
-func (step *PreparePipelinesStepImplementation) SetContextBuilder(builder prepareInternal.ContextBuilder) {
-	step.contextBuilder = builder
+func containsRegex(value string) bool {
+	if simpleSentence := regexp.MustCompile(`^[a-zA-Z0-9\s\.\-/]+$`); simpleSentence.MatchString(value) {
+		return false
+	}
+	// Regex value that looks for typical regex special characters
+	if specialRegexChars := regexp.MustCompile(`[\[\](){}.*+?^$\\|]`); specialRegexChars.FindStringIndex(value) != nil {
+		_, err := regexp.Compile(value)
+		return err == nil
+	}
+	return false
 }
 
-// SetSubPipelineReader is used to set the sub-pipeline reader for the step
-func (step *PreparePipelinesStepImplementation) SetSubPipelineReader(reader prepareInternal.SubPipelineReader) {
-	step.subPipelineReader = reader
-}
+func getBuildDeployPipelineShouldBeStopped(pipelineInfo *model.PipelineInfo) (bool, string) {
+	isRadixConfigChangedForAnyEnvironments := slice.Any(pipelineInfo.TargetEnvironments, func(t model.TargetEnvironment) bool {
+		isEqual, err := t.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication)
+		if err != nil {
+			return true
+		}
+		return !isEqual
+	})
 
-// SetOwnerReferenceFactory is used to set the owner reference factory for the step
-func (step *PreparePipelinesStepImplementation) SetOwnerReferenceFactory(factory ownerreferences.OwnerReferenceFactory) {
-	step.ownerReferenceFactory = factory
-}
-
-// SetRadixConfigReader is used to set the radix config reader for the step
-func (step *PreparePipelinesStepImplementation) SetRadixConfigReader(reader prepareInternal.RadixConfigReader) {
-	step.radixConfigReader = reader
-}
-
-func getPipelineShouldBeStopped(ctx context.Context, buildContext *model.BuildContext) (bool, string) {
-	if buildContext == nil || buildContext.ChangedRadixConfig ||
-		len(buildContext.EnvironmentsToBuild) == 0 ||
-		len(buildContext.EnvironmentSubPipelinesToRun) > 0 {
+	if pipelineInfo.BuildContext == nil || isRadixConfigChangedForAnyEnvironments ||
+		len(pipelineInfo.BuildContext.EnvironmentsToBuild) == 0 ||
+		len(pipelineInfo.EnvironmentSubPipelinesToRun) > 0 {
 		return false, ""
 	}
-	for _, environmentToBuild := range buildContext.EnvironmentsToBuild {
+
+	for _, environmentToBuild := range pipelineInfo.BuildContext.EnvironmentsToBuild {
 		if len(environmentToBuild.Components) > 0 {
 			return false, ""
 		}
 	}
-	message := "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
-	log.Ctx(ctx).Info().Msg(message)
-	return true, message
+
+	return true, "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
 }
 
 func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Context, pipelineInfo *model.PipelineInfo) {
@@ -239,19 +381,7 @@ func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Cont
 	log.Ctx(ctx).Info().Msg(stringBuilder.String())
 }
 
-func (step *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(ctx context.Context, sourceEnvName, sourceDeploymentName string) (string, string, error) {
-	appName := step.GetAppName()
-	ns := utils.GetEnvironmentNamespace(appName, sourceEnvName)
-	rd, err := step.GetKubeUtil().GetRadixDeployment(ctx, ns, sourceDeploymentName)
-	if err != nil {
-		return "", "", err
-	}
-	gitHash := internal.GetGitCommitHashFromDeployment(rd)
-	gitBranch := rd.Annotations[kube.RadixBranchAnnotation]
-	return gitHash, gitBranch, err
-}
-
-func (step *PreparePipelinesStepImplementation) prepareSubPipelineForTargetEnv(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, error) {
+func (step *PreparePipelinesStepImplementation) prepareSubPipelineForEnvironment(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, error) {
 	subPipelineExists, pipelineFilePath, pl, tasks, err := step.subPipelineReader.ReadPipelineAndTasks(pipelineInfo, envName)
 	if err != nil {
 		return false, "", err
@@ -259,16 +389,17 @@ func (step *PreparePipelinesStepImplementation) prepareSubPipelineForTargetEnv(p
 	if !subPipelineExists {
 		return false, "", nil
 	}
-	if err = step.createPipeline(envName, pl, tasks, timestamp, pipelineInfo); err != nil {
+	if err = step.createSubPipelineAndTasks(envName, pl, tasks, timestamp, pipelineInfo); err != nil {
 		return false, "", err
 	}
 	return true, pipelineFilePath, nil
 }
 
-func (step *PreparePipelinesStepImplementation) buildTasks(envName string, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) (map[string]v1.Task, error) {
+func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName string, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) (map[string]v1.Task, error) {
 	var errs []error
 	taskMap := make(map[string]v1.Task)
 	hash := internal.GetJobNameHash(pipelineInfo)
+
 	for _, task := range tasks {
 		originalTaskName := task.Name
 		task.ObjectMeta.Name = fmt.Sprintf("radix-task-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalTaskName), timestamp, hash)
@@ -295,13 +426,13 @@ func (step *PreparePipelinesStepImplementation) buildTasks(envName string, tasks
 		}
 
 		task.ObjectMeta.Annotations[defaults.PipelineTaskNameAnnotation] = originalTaskName
+
 		if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 		}
 
 		ensureCorrectSecureContext(&task)
 		taskMap[originalTaskName] = task
-		log.Debug().Msgf("created the task %s", task.Name)
 	}
 	return taskMap, errors.Join(errs...)
 }
@@ -375,15 +506,15 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	securityContext.Capabilities.Drop = []corev1.Capability{"ALL"}
 }
 
-func (step *PreparePipelinesStepImplementation) createPipeline(envName string, pipeline *v1.Pipeline, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) error {
+func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envName string, pipeline *v1.Pipeline, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) error {
 	originalPipelineName := pipeline.Name
 	var errs []error
-	taskMap, err := step.buildTasks(envName, tasks, timestamp, pipelineInfo)
+	taskMap, err := step.buildSubPipelineTasks(envName, tasks, timestamp, pipelineInfo)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %w", originalPipelineName, err))
 	}
 
-	_, azureClientIdPipelineParamExist := step.GetEnvVars(pipelineInfo.RadixApplication, envName)[pipelineDefaults.AzureClientIdEnvironmentVariable]
+	_, azureClientIdPipelineParamExist := internalsubpipeline.GetEnvVars(pipelineInfo.GetRadixApplication(), envName)[pipelineDefaults.AzureClientIdEnvironmentVariable]
 	if azureClientIdPipelineParamExist {
 		ensureAzureClientIdParamExistInPipelineParams(pipeline)
 	}
@@ -407,7 +538,7 @@ func (step *PreparePipelinesStepImplementation) createPipeline(envName string, p
 	pipeline.ObjectMeta.Name = pipelineName
 	pipeline.ObjectMeta.Labels = labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{
-		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch, //nolint:staticcheck
+		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch, // nolint:staticcheck
 		kube.RadixGitRefAnnotation:      pipelineInfo.PipelineArguments.GitRef,
 		kube.RadixGitRefTypeAnnotation:  pipelineInfo.PipelineArguments.GitRefType,
 		defaults.PipelineNameAnnotation: originalPipelineName,
@@ -415,7 +546,7 @@ func (step *PreparePipelinesStepImplementation) createPipeline(envName string, p
 	if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
 		pipeline.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 	}
-	err = step.createTasks(taskMap)
+	err = step.createSubPipelineTasks(taskMap)
 	if err != nil {
 		return fmt.Errorf("tasks have not been created. Error: %w", err)
 	}
@@ -429,7 +560,7 @@ func (step *PreparePipelinesStepImplementation) createPipeline(envName string, p
 	return nil
 }
 
-func (step *PreparePipelinesStepImplementation) createTasks(taskMap map[string]v1.Task) error {
+func (step *PreparePipelinesStepImplementation) createSubPipelineTasks(taskMap map[string]v1.Task) error {
 	namespace := utils.GetAppNamespace(step.GetAppName())
 	var errs []error
 	for _, task := range taskMap {
@@ -484,65 +615,27 @@ func pipelineTaskHasAzureIdentityClientIdParam(pipeline *v1.Pipeline, taskIndex 
 	})
 }
 
-func (step *PreparePipelinesStepImplementation) setPipelineRunParamsFromBuild(ra *radixv1.RadixApplication, envVarsMap radixv1.EnvVarsMap) {
-	if ra.Spec.Build == nil {
-		return
-	}
-	setBuildIdentity(envVarsMap, ra.Spec.Build.SubPipeline)
-	setBuildVariables(envVarsMap, ra.Spec.Build.SubPipeline, ra.Spec.Build.Variables)
-}
-
-func setBuildVariables(envVarsMap radixv1.EnvVarsMap, subPipeline *radixv1.SubPipeline, variables radixv1.EnvVarsMap) {
-	if subPipeline != nil {
-		setVariablesToEnvVarsMap(envVarsMap, subPipeline.Variables) // sub-pipeline variables have higher priority over build variables
-		return
-	}
-	setVariablesToEnvVarsMap(envVarsMap, variables) // keep for backward compatibility
-}
-
-func setVariablesToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, variables radixv1.EnvVarsMap) {
-	for name, envVar := range variables {
-		envVarsMap[name] = envVar
-	}
-}
-
-func setBuildIdentity(envVarsMap radixv1.EnvVarsMap, subPipeline *radixv1.SubPipeline) {
-	if subPipeline != nil {
-		setIdentityToEnvVarsMap(envVarsMap, subPipeline.Identity)
-	}
-}
-
-func setIdentityToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, identity *radixv1.Identity) {
-	if identity == nil || identity.Azure == nil {
-		return
-	}
-	if len(identity.Azure.ClientId) > 0 {
-		envVarsMap[pipelineDefaults.AzureClientIdEnvironmentVariable] = identity.Azure.ClientId // if build env-var or build environment env-var have this variable explicitly set, it will override this identity set env-var
-	} else {
-		delete(envVarsMap, pipelineDefaults.AzureClientIdEnvironmentVariable)
-	}
-}
-
-func (step *PreparePipelinesStepImplementation) setPipelineRunParamsFromEnvironmentBuilds(ra *radixv1.RadixApplication, targetEnv string, envVarsMap radixv1.EnvVarsMap) {
-	for _, buildEnv := range ra.Spec.Environments {
-		if strings.EqualFold(buildEnv.Name, targetEnv) {
-			setBuildIdentity(envVarsMap, buildEnv.SubPipeline)
-			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
-		}
-	}
-}
-
-func setPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+func (step *PreparePipelinesStepImplementation) setTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	log.Ctx(ctx).Debug().Msg("Set target environments")
-	targetEnvironments, ignoredForWebhookEnvs, ignoredForGitRefsType, err := getPipelineTargetEnvironments(ctx, pipelineInfo)
+	targetEnvironmentNames, ignoredForWebhookEnvs, ignoredForGitRefsType, err := getTargetEnvironmentNames(ctx, pipelineInfo)
 	if err != nil {
 		return err
 	}
+
+	targetEnvironments := make([]model.TargetEnvironment, 0, len(targetEnvironmentNames))
+	for _, targetEnvName := range targetEnvironmentNames {
+		activeRD, err := internal.GetActiveRadixDeployment(ctx, step.GetKubeUtil(), utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), targetEnvName))
+		if err != nil {
+			return fmt.Errorf("failed to get active depoyment for environment %s: %w", targetEnvName, err)
+		}
+		targetEnvironments = append(targetEnvironments, model.TargetEnvironment{Environment: targetEnvName, ActiveRadixDeployment: activeRD})
+	}
 	pipelineInfo.TargetEnvironments = targetEnvironments
+
 	if len(pipelineInfo.TargetEnvironments) > 0 {
-		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to the %s %s.", strings.Join(pipelineInfo.TargetEnvironments, ", "), pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRef())
+		log.Ctx(ctx).Info().Msgf("Environment(s) %v are mapped to %s %s.", strings.Join(targetEnvironmentNames, ", "), pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRef())
 	} else {
-		log.Ctx(ctx).Info().Msgf("No environments are mapped to the %s %s.", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRef())
+		log.Ctx(ctx).Info().Msgf("No environments are mapped to %s %s.", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRef())
 	}
 	if len(ignoredForWebhookEnvs) > 0 || len(ignoredForGitRefsType) > 0 {
 		log.Ctx(ctx).Info().Msg("The following environment(s) are configured to be ignored when triggered from GitHub webhook:")
@@ -556,7 +649,7 @@ func setPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.Pipe
 	return nil
 }
 
-func getPipelineTargetEnvironments(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, []string, []string, error) {
+func getTargetEnvironmentNames(ctx context.Context, pipelineInfo *model.PipelineInfo) ([]string, []string, []string, error) {
 	switch pipelineInfo.GetRadixPipelineType() {
 	case radixv1.ApplyConfig:
 		return nil, nil, nil, nil
