@@ -63,7 +63,7 @@ func GetGitCommitHashFromDeployment(radixDeployment *radixv1.RadixDeployment) st
 	return ""
 }
 
-// GetGitCommitHashFromDeployment returns the git reference name used to build the RadixDeployment by inspecting annotations.
+// GetGitRefNameFromDeployment returns the git reference name used to build the RadixDeployment by inspecting annotations.
 func GetGitRefNameFromDeployment(rd *radixv1.RadixDeployment) string {
 	if rd == nil {
 		return ""
@@ -125,7 +125,15 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 func getPreservingDeployComponents(ctx context.Context, pipelineInfo *model.PipelineInfo, targetEnv model.TargetEnvironment) PreservingDeployComponents {
 	preservingDeployComponents := PreservingDeployComponents{}
 
-	if isEqual, err := targetEnv.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication); err != nil || !isEqual {
+	if targetEnv.ActiveRadixDeployment == nil {
+		return preservingDeployComponents
+	}
+
+	isEqual, err := targetEnv.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication)
+	if err != nil {
+		log.Ctx(ctx).Info().Msgf("failed to compare hash of RadixApplication with active deployment in environment %s: %s", targetEnv.Environment, err.Error())
+		return preservingDeployComponents
+	} else if !isEqual {
 		return preservingDeployComponents
 	}
 
@@ -135,7 +143,7 @@ func getPreservingDeployComponents(ctx context.Context, pipelineInfo *model.Pipe
 	})
 
 	componentsToDeploy := pipelineInfo.PipelineArguments.ComponentsToDeploy
-	if targetEnv.ActiveRadixDeployment == nil || (len(componentsToDeploy) == 0 && !existEnvironmentComponentsToBuild) {
+	if len(componentsToDeploy) == 0 && !existEnvironmentComponentsToBuild {
 		return preservingDeployComponents
 	}
 

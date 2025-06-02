@@ -31,12 +31,12 @@ func NewContextBuilder() ContextBuilder {
 
 // GetBuildContext Prepare build context
 func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo git.Repository) (*model.BuildContext, error) {
-	if len(pipelineInfo.GitCommitHash) == 0 {
-		return nil, ErrMissingGitCommitHash
-	}
-
 	if len(pipelineInfo.TargetEnvironments) == 0 {
 		return nil, nil
+	}
+
+	if len(pipelineInfo.GitCommitHash) == 0 {
+		return nil, ErrMissingGitCommitHash
 	}
 
 	var environmentsToBuild []model.EnvironmentToBuild

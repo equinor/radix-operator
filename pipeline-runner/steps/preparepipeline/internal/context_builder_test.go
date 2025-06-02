@@ -52,14 +52,21 @@ func (s *stepTestSuite) SetupSubTest() {
 func (s *stepTestSuite) Test_GitCommitHashNoSet() {
 	sut := internal.NewContextBuilder()
 	gitRepo := git.NewMockRepository(s.ctrl)
-	_, err := sut.GetBuildContext(&model.PipelineInfo{}, gitRepo)
+	pipelineInfo := &model.PipelineInfo{
+		GitCommitHash:      "",
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "anyenv"}},
+	}
+	_, err := sut.GetBuildContext(pipelineInfo, gitRepo)
 	s.ErrorIs(err, internal.ErrMissingGitCommitHash)
 }
 
 func (s *stepTestSuite) Test_EmptyTargetEnvironment() {
 	sut := internal.NewContextBuilder()
 	gitRepo := git.NewMockRepository(s.ctrl)
-	actual, err := sut.GetBuildContext(&model.PipelineInfo{GitCommitHash: "anyhash"}, gitRepo)
+	pipelineInfo := &model.PipelineInfo{
+		TargetEnvironments: []model.TargetEnvironment{},
+	}
+	actual, err := sut.GetBuildContext(pipelineInfo, gitRepo)
 	s.NoError(err)
 	s.Empty(actual)
 }

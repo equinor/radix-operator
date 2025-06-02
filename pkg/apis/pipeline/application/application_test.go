@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func Test_CreateRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing.T) {
+func Test_ParseRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing.T) {
 	const (
 		sampleApp = "./testdata/radixconfig.yaml"
 	)
@@ -27,7 +27,7 @@ func Test_CreateRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing
 	require.NoError(t, err)
 	configFileContent, err := os.ReadFile(sampleApp)
 	require.NoError(t, err)
-	ra, err := application.UnmarshalRadixApplication(context.Background(), radixClient, appName, &dnsalias.DNSConfig{}, string(configFileContent))
+	ra, err := application.ParseRadixApplication(context.Background(), radixClient, appName, &dnsalias.DNSConfig{}, configFileContent)
 	require.NoError(t, err)
 	assert.Equal(t, "100Mi", ra.Spec.Components[0].Resources.Requests["memory"], "server1 invalid resource requests memory")
 	assert.Equal(t, "100Mi", ra.Spec.Components[0].Resources.Limits["memory"], "server1 invalid resource limits memory")
@@ -42,7 +42,7 @@ func Test_CreateRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing
 	assert.NoError(t, err)
 }
 
-func Test_CreateRadixApplication_MismatchAppName(t *testing.T) {
+func Test_ParseRadixApplication_MismatchAppName(t *testing.T) {
 	const (
 		sampleApp = "./testdata/radixconfig.yaml"
 	)
@@ -57,11 +57,11 @@ func Test_CreateRadixApplication_MismatchAppName(t *testing.T) {
 	require.NoError(t, err)
 	configFileContent, err := os.ReadFile(sampleApp)
 	require.NoError(t, err)
-	_, err = application.UnmarshalRadixApplication(context.Background(), radixClient, registeredAppName, &dnsalias.DNSConfig{}, string(configFileContent))
+	_, err = application.ParseRadixApplication(context.Background(), radixClient, registeredAppName, &dnsalias.DNSConfig{}, configFileContent)
 	require.EqualError(t, err, "the application name testapp in the radixconfig file does not match the registered application name mismatching-app-name")
 }
 
-func Test_CreateRadixApplication_MatchAppName(t *testing.T) {
+func Test_ParseRadixApplication_MatchAppName(t *testing.T) {
 	const (
 		sampleApp = "./testdata/radixconfig.yaml"
 	)
@@ -75,7 +75,7 @@ func Test_CreateRadixApplication_MatchAppName(t *testing.T) {
 	require.NoError(t, err)
 	configFileContent, err := os.ReadFile(sampleApp)
 	require.NoError(t, err)
-	ra, err := application.UnmarshalRadixApplication(context.Background(), radixClient, radixconfigAppName, &dnsalias.DNSConfig{}, string(configFileContent))
+	ra, err := application.ParseRadixApplication(context.Background(), radixClient, radixconfigAppName, &dnsalias.DNSConfig{}, configFileContent)
 	require.NoError(t, err)
 	require.Equal(t, radixconfigAppName, ra.GetName(), "Application name should be the same as in the radixconfig file")
 }
