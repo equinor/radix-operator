@@ -517,7 +517,76 @@ func (s *deployTestSuite) TestDeploy_CommandAndArgs() {
 			expectedCommand: nil,
 			expectedArgs:    []string{"--verbose", "--output=json"},
 		},
-		//TODO: env config
+		"single command is set to env-config": {
+			envConfigCommand: &[]string{"bash"},
+			envConfigArgs:    nil,
+			expectedCommand:  []string{"bash"},
+			expectedArgs:     nil,
+		},
+		"command with arguments is set to env-config": {
+			envConfigCommand: &[]string{"sh", "-c", "echo hello"},
+			envConfigArgs:    nil,
+			expectedCommand:  []string{"sh", "-c", "echo hello"},
+			expectedArgs:     nil,
+		},
+		"command is set and args are set to env-config": {
+			envConfigCommand: &[]string{"sh", "-c"},
+			envConfigArgs:    &[]string{"echo hello"},
+			expectedCommand:  []string{"sh", "-c"},
+			expectedArgs:     []string{"echo hello"},
+		},
+		"only args are set to env-config": {
+			envConfigCommand: nil,
+			envConfigArgs:    &[]string{"--verbose", "--output=json"},
+			expectedCommand:  nil,
+			expectedArgs:     []string{"--verbose", "--output=json"},
+		},
+		"override by single command is set to env-config": {
+			command:          []string{"sh"},
+			envConfigCommand: &[]string{"bash"},
+			envConfigArgs:    nil,
+			expectedCommand:  []string{"bash"},
+			expectedArgs:     nil,
+		},
+		"override by command with arguments is set to env-config": {
+			command:          []string{"ls", "-ls", "/"},
+			envConfigCommand: &[]string{"sh", "-c", "echo hello"},
+			envConfigArgs:    nil,
+			expectedCommand:  []string{"sh", "-c", "echo hello"},
+			expectedArgs:     nil,
+		},
+		"override by command is set and args are set to env-config": {
+			command:          []string{"ls", "-ls"},
+			args:             []string{"/"},
+			envConfigCommand: &[]string{"sh", "-c"},
+			envConfigArgs:    &[]string{"echo hello"},
+			expectedCommand:  []string{"sh", "-c"},
+			expectedArgs:     []string{"echo hello"},
+		},
+		"override by only args are set to env-config": {
+			command:          nil,
+			args:             []string{"--format", "yaml"},
+			envConfigCommand: nil,
+			envConfigArgs:    &[]string{"--verbose", "--output=json"},
+			expectedCommand:  nil,
+			expectedArgs:     []string{"--verbose", "--output=json"},
+		},
+		"combine args and set command in env-config": {
+			command:          nil,
+			args:             []string{"echo hello"},
+			envConfigCommand: &[]string{"sh", "-c"},
+			envConfigArgs:    nil,
+			expectedCommand:  []string{"sh", "-c"},
+			expectedArgs:     []string{"echo hello"},
+		},
+		"combine command and set args in env-config": {
+			command:          []string{"sh", "-c"},
+			args:             nil,
+			envConfigCommand: nil,
+			envConfigArgs:    &[]string{"echo hello"},
+			expectedCommand:  []string{"sh", "-c"},
+			expectedArgs:     []string{"echo hello"},
+		},
 	}
 
 	for name, ts := range scenarios {
@@ -526,9 +595,10 @@ func (s *deployTestSuite) TestDeploy_CommandAndArgs() {
 			rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
 
 			comp1Builder := utils.AnApplicationComponent().WithName("comp1").WithCommand(ts.command).WithArgs(ts.args)
+			job1Builder := utils.AnApplicationJobComponent().WithName("job1").WithCommand(ts.command).WithArgs(ts.args)
 			if ts.envConfigCommand != nil || ts.envConfigArgs != nil {
-				component1EnvBuilder := utils.NewComponentEnvironmentBuilder()
-				job1EnvBuilder := utils.NewJobComponentEnvironmentBuilder()
+				component1EnvBuilder := utils.NewComponentEnvironmentBuilder().WithEnvironment(env1)
+				job1EnvBuilder := utils.NewJobComponentEnvironmentBuilder().WithEnvironment(env1)
 				if ts.envConfigCommand != nil {
 					component1EnvBuilder = component1EnvBuilder.WithCommand(*ts.envConfigCommand)
 					job1EnvBuilder = job1EnvBuilder.WithCommand(*ts.envConfigCommand)
@@ -538,16 +608,6 @@ func (s *deployTestSuite) TestDeploy_CommandAndArgs() {
 					job1EnvBuilder = job1EnvBuilder.WithArgs(*ts.envConfigArgs)
 				}
 				comp1Builder = comp1Builder.WithEnvironmentConfigs(component1EnvBuilder)
-			}
-			job1Builder := utils.AnApplicationJobComponent().WithName("job1").WithCommand(ts.command).WithArgs(ts.args)
-			if ts.envConfigCommand != nil || ts.envConfigArgs != nil {
-				job1EnvBuilder := utils.NewJobComponentEnvironmentBuilder()
-				if ts.envConfigCommand != nil {
-					job1EnvBuilder = job1EnvBuilder.WithCommand(*ts.envConfigCommand)
-				}
-				if ts.envConfigArgs != nil {
-					job1EnvBuilder = job1EnvBuilder.WithArgs(*ts.envConfigArgs)
-				}
 				job1Builder = job1Builder.WithEnvironmentConfigs(job1EnvBuilder)
 			}
 			ra := utils.NewRadixApplicationBuilder().WithAppName(anyAppName).
