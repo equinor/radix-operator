@@ -354,10 +354,11 @@ func (s *deployTestSuite) TestDeploy_RadixCommitLabel_FromGitCommitHashIfSet() {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  anyJobName,
-			ImageTag: anyImageTag,
-			Branch:   "master",
-			CommitID: "anycommitid",
+			JobName:    anyJobName,
+			ImageTag:   anyImageTag,
+			GitRef:     "master",
+			GitRefType: string(radixv1.GitRefBranch),
+			CommitID:   "anycommitid",
 		},
 		RadixApplication:   ra,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
@@ -397,10 +398,11 @@ func (s *deployTestSuite) TestDeploy_RadixCommitLabel_FromCommtIdIfGitCommitHash
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  anyJobName,
-			ImageTag: anyImageTag,
-			Branch:   "master",
-			CommitID: commitID,
+			JobName:    anyJobName,
+			ImageTag:   anyImageTag,
+			GitRef:     "master",
+			GitRefType: string(radixv1.GitRefBranch),
+			CommitID:   commitID,
 		},
 		RadixApplication:   ra,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
@@ -452,9 +454,10 @@ func (s *deployTestSuite) TestDeploy_WaitActiveDeployment() {
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					JobName:  anyJobName,
-					ImageTag: anyImageTag,
-					Branch:   "master",
+					JobName:    anyJobName,
+					ImageTag:   anyImageTag,
+					GitRef:     "master",
+					GitRefType: string(radixv1.GitRefBranch),
 				},
 				TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
 				RadixApplication:   ra,
@@ -631,12 +634,13 @@ func (s *deployTestSuite) TestDeploy_CommandAndArgs() {
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					JobName:  "any-job-name",
-					ImageTag: "any-image-tag",
-					Branch:   "master", //nolint:staticcheck
+					JobName:    "any-job-name",
+					ImageTag:   "any-image-tag",
+					GitRef:     "master",
+					GitRefType: string(radixv1.GitRefBranch),
 				},
 				RadixApplication:   ra,
-				TargetEnvironments: []string{env1},
+				TargetEnvironments: []model.TargetEnvironment{{Environment: env1}},
 			}
 
 			err := cli.Run(context.Background(), pipelineInfo)
