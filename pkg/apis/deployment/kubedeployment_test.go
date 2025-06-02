@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -73,7 +74,7 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 	livenessProbe := createProbe(v1.RadixProbeHandler{TCPSocket: &v1.RadixProbeTCPSocketAction{
 		Port: 5000,
 	}}, 20)
-	startuProbe := createProbe(v1.RadixProbeHandler{Exec: &v1.RadixProbeExecAction{
+	startupProbe := createProbe(v1.RadixProbeHandler{Exec: &v1.RadixProbeExecAction{
 		Command: []string{"echo", "hello"},
 	}}, 30)
 
@@ -81,7 +82,7 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 		utils.ARadixDeployment().
 			WithComponents(utils.NewDeployComponentBuilder().
 				WithName("comp1").
-				WithHealthChecks(startuProbe, readynessProbe, livenessProbe)).
+				WithHealthChecks(startupProbe, readynessProbe, livenessProbe)).
 			WithAppName("any-app").
 			WithEnvironment("test").
 			WithDeploymentName("deployment1"))
@@ -91,7 +92,7 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 	require.NotNil(t, component.HealthChecks)
 	assert.Equal(t, readynessProbe, component.HealthChecks.ReadinessProbe)
 	assert.Equal(t, livenessProbe, component.HealthChecks.LivenessProbe)
-	assert.Equal(t, startuProbe, component.HealthChecks.StartupProbe)
+	assert.Equal(t, startupProbe, component.HealthChecks.StartupProbe)
 	deployment, err := kubeClient.AppsV1().Deployments("any-app-test").Get(context.Background(), "comp1", metav1.GetOptions{})
 	require.NoError(t, err, "failed to get deployment")
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe, "readiness probe should be set")
@@ -99,7 +100,7 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].StartupProbe, "startup probe should be set")
 	assert.Equal(t, readynessProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid readiness probe initial delay")
 	assert.Equal(t, livenessProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].LivenessProbe.InitialDelaySeconds, "invalid liveness probe initial delay")
-	assert.Equal(t, startuProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].StartupProbe.InitialDelaySeconds, "invalid startup probe initial delay")
+	assert.Equal(t, startupProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].StartupProbe.InitialDelaySeconds, "invalid startup probe initial delay")
 
 	rd, err = ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
 		utils.ARadixDeployment().
@@ -269,6 +270,77 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		assert.Equal(t, parseQuantity(expectedLimits["cpu"]), desiredRes.Limits["cpu"])
 		assert.Equal(t, parseQuantity(expectedLimits["memory"]), desiredRes.Limits["memory"])
 	})
+}
+
+func Test_CommandAndArgs(t *testing.T) {
+	type testScenario struct {
+		command []string
+		args    []string
+	}
+	testScenarios := map[string]testScenario{
+		"command and args are not set": {
+			command: nil,
+			args:    nil,
+		},
+		"single command is set": {
+			command: []string{"bash"},
+			args:    nil,
+		},
+		"command with arguments is set": {
+			command: []string{"sh", "-c", "echo hello"},
+			args:    nil,
+		},
+		"command is set and args are set": {
+			command: []string{"sh", "-c"},
+			args:    []string{"echo hello"},
+		},
+		"only args are set": {
+			command: nil,
+			args:    []string{"--verbose", "--output=json"},
+		},
+	}
+
+	for testScenarioName, ts := range testScenarios {
+		builderScenarios := []struct {
+			name         string
+			builder      utils.DeploymentBuilder
+			getComponent func(rd *v1.RadixDeployment, name string) v1.RadixCommonDeployComponent
+		}{
+			{
+				name: "component",
+				builder: utils.ARadixDeployment().WithAppName("any-app").WithEnvironment("test").
+					WithComponents(utils.NewDeployComponentBuilder().WithName("any-name-123").WithCommand(ts.command).WithArgs(ts.args)),
+				getComponent: func(rd *v1.RadixDeployment, name string) v1.RadixCommonDeployComponent {
+					return rd.GetComponentByName(name)
+				},
+			},
+			{
+				name: "job component",
+				builder: utils.ARadixDeployment().WithAppName("any-app").WithEnvironment("test").
+					WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("any-name-123").WithCommand(ts.command).WithArgs(ts.args)),
+				getComponent: func(rd *v1.RadixDeployment, name string) v1.RadixCommonDeployComponent {
+					return rd.GetJobComponentByName(name)
+				},
+			},
+		}
+		for _, builderScenario := range builderScenarios {
+
+			t.Run(fmt.Sprintf("%s: %s", builderScenario.name, testScenarioName), func(t *testing.T) {
+				tu, client, kubeUtil, radixclient, kedaClient, prometheusClient, _, certClient := SetupTest(t)
+				rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusClient, certClient, builderScenario.builder)
+				deployment := Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd}
+				component := builderScenario.getComponent(rd, "any-name-123")
+				assert.Equal(t, ts.command, component.GetCommand(), "command should match in RadixDeployment")
+				assert.Equal(t, ts.args, component.GetArgs(), "args should match in RadixDeployment")
+
+				desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), component)
+				container := desiredDeployment.Spec.Template.Spec.Containers[0]
+
+				assert.Equal(t, ts.command, container.Command, "command in desired Kubernetes deployment should match in RadixDeployment")
+				assert.Equal(t, ts.args, container.Args, "args in desired Kubernetes deployment should match in RadixDeployment")
+			})
+		}
+	}
 }
 
 func applyDeploymentWithSyncWithComponentResources(t *testing.T, origRequests, origLimits map[string]string) Deployment {
