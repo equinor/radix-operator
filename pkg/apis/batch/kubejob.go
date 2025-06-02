@@ -229,6 +229,8 @@ func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment,
 		VolumeMounts:    volumeMounts,
 		SecurityContext: securityContext,
 		Resources:       resources,
+		Command:         jobComponent.Command,
+		Args:            jobComponent.Args,
 	}
 
 	return []corev1.Container{container}, nil
