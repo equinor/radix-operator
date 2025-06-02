@@ -3,12 +3,13 @@ package internal_test
 import (
 	"context"
 	"errors"
-	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"testing"
 
+	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
+
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/test"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -42,7 +43,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			_, rxClient, _ := test.Setup()
+			rxClient := radixclientfake.NewSimpleClientset()
 			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{Name: appName},
 			}, metav1.CreateOptions{})

@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	internalsubpipeline "github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/applicationconfig"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -27,7 +27,7 @@ import (
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -42,6 +42,7 @@ type RunPipelinesStepImplementation struct {
 // NewRunPipelinesStep Constructor.
 // jobWaiter is optional and will be set by Init(...) function if nil.
 func NewRunPipelinesStep(options ...RunPipelinesStepImplementationOption) model.Step {
+
 	step := &RunPipelinesStepImplementation{
 		stepType: pipeline.RunPipelinesStep,
 	}
@@ -78,7 +79,7 @@ func (step *RunPipelinesStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	if pipelineInfo.BuildContext != nil && len(pipelineInfo.BuildContext.EnvironmentSubPipelinesToRun) == 0 {
+	if len(pipelineInfo.EnvironmentSubPipelinesToRun) == 0 {
 		log.Ctx(ctx).Info().Msg("There are no configured sub-pipelines. Skip the step.")
 		return nil
 	}
@@ -86,62 +87,6 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 	appName := step.GetAppName()
 	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for %s %s and commit %s", appName, pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault(), commitID)
 	return step.RunPipelinesJob(pipelineInfo)
-}
-
-func (step *RunPipelinesStepImplementation) getEnvVars(pipelineInfo *model.PipelineInfo, envName string) radixv1.EnvVarsMap {
-	envVarsMap := make(radixv1.EnvVarsMap)
-	step.setPipelineRunParamsFromBuild(pipelineInfo, envVarsMap)
-	step.setPipelineRunParamsFromEnvironmentBuilds(pipelineInfo, envName, envVarsMap)
-	return envVarsMap
-}
-
-func (step *RunPipelinesStepImplementation) setPipelineRunParamsFromBuild(pipelineInfo *model.PipelineInfo, envVarsMap radixv1.EnvVarsMap) {
-	ra := pipelineInfo.GetRadixApplication()
-	if ra.Spec.Build == nil {
-		return
-	}
-	setBuildIdentity(envVarsMap, ra.Spec.Build.SubPipeline)
-	setBuildVariables(envVarsMap, ra.Spec.Build.SubPipeline, ra.Spec.Build.Variables)
-}
-
-func setBuildVariables(envVarsMap radixv1.EnvVarsMap, subPipeline *radixv1.SubPipeline, variables radixv1.EnvVarsMap) {
-	if subPipeline != nil {
-		setVariablesToEnvVarsMap(envVarsMap, subPipeline.Variables) // sub-pipeline variables have higher priority over build variables
-		return
-	}
-	setVariablesToEnvVarsMap(envVarsMap, variables) // keep for backward compatibility
-}
-
-func setVariablesToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, variables radixv1.EnvVarsMap) {
-	for name, envVar := range variables {
-		envVarsMap[name] = envVar
-	}
-}
-
-func setBuildIdentity(envVarsMap radixv1.EnvVarsMap, subPipeline *radixv1.SubPipeline) {
-	if subPipeline != nil {
-		setIdentityToEnvVarsMap(envVarsMap, subPipeline.Identity)
-	}
-}
-
-func setIdentityToEnvVarsMap(envVarsMap radixv1.EnvVarsMap, identity *radixv1.Identity) {
-	if identity == nil || identity.Azure == nil {
-		return
-	}
-	if len(identity.Azure.ClientId) > 0 {
-		envVarsMap[defaults.AzureClientIdEnvironmentVariable] = identity.Azure.ClientId // if build env-var or build environment env-var have this variable explicitly set, it will override this identity set env-var
-	} else {
-		delete(envVarsMap, defaults.AzureClientIdEnvironmentVariable)
-	}
-}
-
-func (step *RunPipelinesStepImplementation) setPipelineRunParamsFromEnvironmentBuilds(pipelineInfo *model.PipelineInfo, targetEnv string, envVarsMap radixv1.EnvVarsMap) {
-	for _, buildEnv := range pipelineInfo.GetRadixApplication().Spec.Environments {
-		if strings.EqualFold(buildEnv.Name, targetEnv) {
-			setBuildIdentity(envVarsMap, buildEnv.SubPipeline)
-			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
-		}
-	}
 }
 
 type RunPipelinesStepImplementationOption func(step *RunPipelinesStepImplementation)
@@ -172,16 +117,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 		return nil
 	}
 
-	tektonPipelineBranch := pipelineInfo.GetGitRefOrDefault()
-	if pipelineInfo.GetRadixPipelineType() == radixv1.Deploy {
-		re := applicationconfig.GetEnvironmentFromRadixApplication(pipelineInfo.GetRadixApplication(), pipelineInfo.GetRadixDeployToEnvironment())
-		if re != nil && len(re.Build.From) > 0 {
-			tektonPipelineBranch = re.Build.From
-		} else {
-			tektonPipelineBranch = pipelineInfo.GetRadixConfigBranch() // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
-		}
-	}
-	log.Info().Msgf("Run tekton pipelines for the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), tektonPipelineBranch)
+	log.Info().Msg("Run sub-pipelines.")
 
 	pipelineRunMap, err := step.runPipelines(pipelineList.Items, namespace, pipelineInfo)
 
@@ -190,10 +126,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 	}
 
 	if err = step.waiter.Wait(pipelineRunMap, pipelineInfo); err != nil {
-		return fmt.Errorf("failed tekton pipelines for the application %s, for environment(s) %s. %w",
-			pipelineInfo.GetAppName(),
-			strings.Join(pipelineInfo.TargetEnvironments, ","),
-			err)
+		return fmt.Errorf("failed tekton pipelines for application %s: %w", pipelineInfo.GetAppName(), err)
 	}
 	return nil
 }
@@ -280,7 +213,7 @@ func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipeline
 }
 
 func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipelinev1.Pipeline, targetEnv string, pipelineInfo *model.PipelineInfo) []pipelinev1.Param {
-	envVars := step.getEnvVars(pipelineInfo, targetEnv)
+	envVars := internalsubpipeline.GetEnvVars(pipelineInfo.GetRadixApplication(), targetEnv)
 	pipelineParamsMap := getPipelineParamSpecsMap(pipeline)
 	var pipelineParams []pipelinev1.Param
 	for envVarName, envVarValue := range envVars {

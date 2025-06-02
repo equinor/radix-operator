@@ -33,11 +33,11 @@ func (r *radixConfigReader) Read(pipelineInfo *model.PipelineInfo) (*radixv1.Rad
 	radixConfigFileFullName := pipelineInfo.GetRadixConfigFileInWorkspace()
 	configFileContent, err := os.ReadFile(radixConfigFileFullName)
 	if err != nil {
-		return nil, fmt.Errorf("error reading the Radix config file %s: %v", radixConfigFileFullName, err)
+		return nil, fmt.Errorf("failed to read file %s: %w", radixConfigFileFullName, err)
 	}
 	log.Debug().Msgf("Radix config file %s has been loaded", radixConfigFileFullName)
 
-	radixApplication, err := application.CreateRadixApplication(context.Background(), r.radixClient, pipelineInfo.GetAppName(), pipelineInfo.GetDNSConfig(), string(configFileContent))
+	radixApplication, err := application.ParseRadixApplication(context.Background(), r.radixClient, pipelineInfo.GetAppName(), pipelineInfo.GetDNSConfig(), configFileContent)
 	if err != nil {
 		return nil, err
 	}

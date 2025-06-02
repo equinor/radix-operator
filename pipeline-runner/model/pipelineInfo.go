@@ -5,23 +5,25 @@ import (
 	"path/filepath"
 
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
 	Definition        *pipeline.Definition
-	RadixRegistration *radixv1.RadixRegistration
 	RadixApplication  *radixv1.RadixApplication
 	BuildSecret       *corev1.Secret
 	PipelineArguments PipelineArguments
 	Steps             []Step
 
-	// Temporary data
-	TargetEnvironments []string
+	// TargetEnvironments holds information about which environments to build and deploy.
+	// It is populated by the prepare-pipeline step by inspecting PipelineArguments
+	TargetEnvironments []TargetEnvironment
 
 	// GitCommitHash is derived by inspecting HEAD commit after cloning user repository in prepare-pipelines step.
 	// not to be confused with PipelineInfo.PipelineArguments.CommitID
@@ -35,13 +37,38 @@ type PipelineInfo struct {
 	DeployEnvironmentComponentImages pipeline.DeployEnvironmentComponentImages
 
 	// Pipeline job build context
-	BuildContext        *BuildContext
-	StopPipeline        bool
-	StopPipelineMessage string
+	BuildContext *BuildContext
+	// EnvironmentSubPipelinesToRun Sub-pipeline pipeline file named, if they are configured to be run
+	EnvironmentSubPipelinesToRun []EnvironmentSubPipelineToRun
+	StopPipeline                 bool
+	StopPipelineMessage          string
+}
 
-	// Promotion job git info
-	SourceDeploymentGitCommitHash string
-	SourceDeploymentGitBranch     string
+type TargetEnvironment struct {
+	Environment           string
+	ActiveRadixDeployment *radixv1.RadixDeployment
+}
+
+// CompareApplicationWithDeploymentHash generates a hash for ra and compares it
+// with the values stored in annotation radix.equinor.com/radix-config-hash of the ActiveRadixDeployment.
+// Returns true if the two hashes match, and false if they do not match, or ActiveRadixDeployment is nil or the annotation does not exist or has an empty value
+func (t TargetEnvironment) CompareApplicationWithDeploymentHash(ra *radixv1.RadixApplication) (bool, error) {
+	if t.ActiveRadixDeployment == nil {
+		return false, nil
+	}
+	currentRdConfigHash := t.ActiveRadixDeployment.GetAnnotations()[kube.RadixConfigHash]
+	if len(currentRdConfigHash) == 0 {
+		return false, nil
+	}
+	return hash.CompareRadixApplicationHash(currentRdConfigHash, ra)
+}
+
+// EnvironmentSubPipelineToRun An application environment sub-pipeline to be run
+type EnvironmentSubPipelineToRun struct {
+	// Environment name
+	Environment string
+	// PipelineFile Name of a sub-pipeline file, which need to be run
+	PipelineFile string
 }
 
 // Builder Holds info about the builder arguments
@@ -214,11 +241,6 @@ func (p *PipelineInfo) IsRefreshingBuildCache() bool {
 	return *p.PipelineArguments.RefreshBuildCache
 }
 
-// GetRadixConfigBranch Get config branch
-func (p *PipelineInfo) GetRadixConfigBranch() string {
-	return p.RadixRegistration.Spec.ConfigBranch
-}
-
 // GetRadixConfigFileInWorkspace Get radix config file
 func (p *PipelineInfo) GetRadixConfigFileInWorkspace() string {
 	return filepath.Join(p.PipelineArguments.GitWorkspace, p.PipelineArguments.RadixConfigFile)
@@ -282,12 +304,6 @@ func (p *PipelineInfo) GetRadixPromoteDeployment() string {
 // GetRadixPromoteFromEnvironment Get radix promote from environment
 func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
 	return p.PipelineArguments.FromEnvironment
-}
-
-// SetBuildContext Set build context
-func (p *PipelineInfo) SetBuildContext(context *BuildContext) *PipelineInfo {
-	p.BuildContext = context
-	return p
 }
 
 // GetGitRefType Get git event ref type
