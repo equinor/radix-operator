@@ -117,15 +117,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 		return nil
 	}
 
-	tektonPipelineBranch := pipelineInfo.GetGitRefOrDefault()
-	if pipelineInfo.GetRadixPipelineType() == radixv1.Deploy {
-		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineInfo.GetRadixDeployToEnvironment()); ok && len(env.Build.From) > 0 {
-			tektonPipelineBranch = env.Build.From
-		} else {
-			tektonPipelineBranch = step.GetRegistration().Spec.ConfigBranch // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
-		}
-	}
-	log.Info().Msgf("Run tekton pipelines for %s %s", pipelineInfo.GetGitRefTypeOrDefault(), tektonPipelineBranch)
+	log.Info().Msg("Run sub-pipelines.")
 
 	pipelineRunMap, err := step.runPipelines(pipelineList.Items, namespace, pipelineInfo)
 
