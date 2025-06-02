@@ -260,6 +260,15 @@ func Test_Checkout(t *testing.T) {
 				{path: pngFile, exist: false},
 			},
 		},
+		"branch with @(at) character in name": {
+			checkoutRef: "feature3/@branch-with-at",
+			fileChecks: []fileCheck{
+				{path: zipFile, exist: true, size: 131}, // Due to lfs
+				{path: gitIgnoreFile, exist: true, size: 41},
+				{path: featureFile, exist: false},
+				{path: pngFile, exist: true, size: 129}, // Due to lfs
+			},
+		},
 		"non existing ref": {
 			checkoutRef:   "non-existing",
 			expectedError: git.ErrReferenceNotFound,
@@ -315,6 +324,10 @@ func Test_ResolveCommitForReference(t *testing.T) {
 		"get commit for branch feature": {
 			reference:      "feature",
 			expectedCommit: "9e94330651540210772aaf4819c77ca7e1102b64",
+		},
+		"get commit for branch with @(at) character in name": {
+			reference:      "feature3/@branch-with-at",
+			expectedCommit: "88c4e14349eb98678abc9dc485c3fd6aecb1609b",
 		},
 		"get commit for lightweight tag v1": {
 			reference:      "v1",
@@ -482,6 +495,11 @@ func Test_IsAncestor(t *testing.T) {
 		"the commit of a tag is ancestor to the tag": {
 			ancestor:           "24baed7787ea319a10e387da1290242b91e34744",
 			other:              "v3",
+			expectedIsAncestor: true,
+		},
+		"allow branch with @(at) character in name": {
+			ancestor:           "feature3/@branch-with-at",
+			other:              "feature3/@branch-with-at",
 			expectedIsAncestor: true,
 		},
 		"non-existing ancestor returns error": {

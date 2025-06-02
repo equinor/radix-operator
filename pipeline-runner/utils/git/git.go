@@ -81,7 +81,7 @@ func (r *repository) Checkout(reference string) error {
 	// We will thereforce perform a hard reset if all files reported as changed are in the lisrt of lfs files in .gitattributes
 	// TODO: Check if these steps are neccessary when go-git v6 is released.
 	if status, err := wt.Status(); err != nil {
-		return nil
+		return err
 	} else if !status.IsClean() {
 		lfsFiles, err := r.lfsMatchAttributes(wt)
 		if err != nil {
@@ -238,18 +238,24 @@ func (r *repository) lfsMatchAttributes(wt *git.Worktree) ([]gitattributes.Match
 }
 
 func (r *repository) resolveHashForReference(reference string) (plumbing.Hash, bool, error) {
-	tryRefNamess := []plumbing.ReferenceName{
+	tryRefNames := []plumbing.ReferenceName{
 		plumbing.NewTagReferenceName(reference),
 		plumbing.NewBranchReferenceName(reference),
 	}
 
 	for _, remote := range r.remotes {
-		tryRefNamess = append(tryRefNamess, plumbing.NewRemoteReferenceName(remote, reference))
+		tryRefNames = append(tryRefNames, plumbing.NewRemoteReferenceName(remote, reference))
 	}
 
-	for _, refName := range tryRefNamess {
-		if hash, err := r.repo.ResolveRevision(plumbing.Revision(refName)); err == nil {
-			return *hash, true, nil
+	for _, refName := range tryRefNames {
+		ref, err := r.repo.Reference(refName, true)
+		if err == nil {
+			// If ref is an annotated tag, we must return the tag's target hash, not the hash of the tag itself
+			if tagObj, err := r.repo.TagObject(ref.Hash()); err == nil {
+				return tagObj.Target, true, err
+			}
+
+			return ref.Hash(), true, nil
 		} else if !errors.Is(err, plumbing.ErrReferenceNotFound) {
 			return plumbing.Hash{}, false, err
 		}
