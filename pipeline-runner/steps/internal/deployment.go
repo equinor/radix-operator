@@ -129,11 +129,10 @@ func getPreservingDeployComponents(ctx context.Context, pipelineInfo *model.Pipe
 		return preservingDeployComponents
 	}
 
-	isEqual, err := targetEnv.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication)
-	if err != nil {
-		log.Ctx(ctx).Info().Msgf("failed to compare hash of RadixApplication with active deployment in environment %s: %s", targetEnv.Environment, err.Error())
-		return preservingDeployComponents
-	} else if !isEqual {
+	if isEqual, err := targetEnv.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication); err != nil || !isEqual {
+		if err != nil {
+			log.Ctx(ctx).Info().Msgf("failed to compare hash of RadixApplication with active deployment in environment %s: %s", targetEnv.Environment, err.Error())
+		}
 		return preservingDeployComponents
 	}
 
