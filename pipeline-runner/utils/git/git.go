@@ -3,7 +3,6 @@ package git
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -84,14 +83,16 @@ func (r *repository) Checkout(reference string) error {
 	if status, err := wt.Status(); err != nil {
 		return nil
 	} else if !status.IsClean() {
-		lfsFiles, err := r.lfsFiles(wt)
+		lfsFiles, err := r.lfsMatchAttributes(wt)
 		if err != nil {
 			return nil
 		}
 
 		dirtyFiles := maps.Keys(status)
 		safeToHardReset := slice.All(dirtyFiles, func(f string) bool {
-			return slices.Contains(lfsFiles, f)
+			return slice.Any(lfsFiles, func(a gitattributes.MatchAttribute) bool {
+				return a.Pattern.Match(strings.Split(f, "/"))
+			})
 		})
 
 		if safeToHardReset {
@@ -223,7 +224,7 @@ func (r *repository) DiffCommits(beforeCommitHash, targetCommitHash string) (Dif
 	return changedFiles, nil
 }
 
-func (r *repository) lfsFiles(wt *git.Worktree) ([]string, error) {
+func (r *repository) lfsMatchAttributes(wt *git.Worktree) ([]gitattributes.MatchAttribute, error) {
 	attrs, err := gitattributes.ReadPatterns(wt.Filesystem, nil)
 	if err != nil {
 		return nil, err
@@ -233,7 +234,7 @@ func (r *repository) lfsFiles(wt *git.Worktree) ([]string, error) {
 		return slice.Any(ma.Attributes, func(a gitattributes.Attribute) bool { return a.Value() == "lfs" })
 	})
 
-	return slice.Map(lfsAttrs, func(ma gitattributes.MatchAttribute) string { return ma.Name }), nil
+	return lfsAttrs, nil
 }
 
 func (r *repository) resolveHashForReference(reference string) (plumbing.Hash, bool, error) {

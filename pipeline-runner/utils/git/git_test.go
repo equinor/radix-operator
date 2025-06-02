@@ -210,6 +210,7 @@ func Test_Checkout(t *testing.T) {
 		zipFile       = "/app1/data/level2/test-data-git-commits-blobless.zip"
 		gitIgnoreFile = ".gitignore"
 		featureFile   = "feature.MD"
+		pngFile       = "/app1/data/level2/img1.png" // lfs file defined via glob in /app1/data/.gitattributes
 	)
 
 	type fileCheck struct {
@@ -229,6 +230,7 @@ func Test_Checkout(t *testing.T) {
 				{path: zipFile, exist: false},
 				{path: gitIgnoreFile, exist: true, size: 5},
 				{path: featureFile, exist: false},
+				{path: pngFile, exist: false},
 			},
 		},
 		"dev branch": {
@@ -237,6 +239,7 @@ func Test_Checkout(t *testing.T) {
 				{path: zipFile, exist: false},
 				{path: gitIgnoreFile, exist: true, size: 21},
 				{path: featureFile, exist: false},
+				{path: pngFile, exist: false},
 			},
 		},
 		"main branch": {
@@ -245,6 +248,7 @@ func Test_Checkout(t *testing.T) {
 				{path: zipFile, exist: true, size: 131}, // Due to lfs
 				{path: gitIgnoreFile, exist: true, size: 41},
 				{path: featureFile, exist: false},
+				{path: pngFile, exist: true, size: 129}, // Due to lfs
 			},
 		},
 		"feature branch": {
@@ -253,6 +257,7 @@ func Test_Checkout(t *testing.T) {
 				{path: zipFile, exist: true, size: 131}, // Due to lfs
 				{path: gitIgnoreFile, exist: true, size: 41},
 				{path: featureFile, exist: true, size: 27},
+				{path: pngFile, exist: false},
 			},
 		},
 		"non existing ref": {
@@ -282,6 +287,17 @@ func Test_Checkout(t *testing.T) {
 	}
 }
 
+func Test_Checkout_FailsIfDirty(t *testing.T) {
+	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
+	defer tearDownGitTest()
+	repo, err := git.Open(gitWorkspacePath)
+	require.NoError(t, err)
+	err = os.WriteFile(path.Join(gitWorkspacePath, "radixconfig.yaml"), []byte("newdata"), 0664)
+	require.NoError(t, err)
+	err = repo.Checkout("feature")
+	assert.ErrorIs(t, err, git.ErrUnstagedChanges)
+}
+
 func Test_ResolveCommitForReference(t *testing.T) {
 	tests := map[string]struct {
 		reference      string
@@ -290,7 +306,7 @@ func Test_ResolveCommitForReference(t *testing.T) {
 	}{
 		"get commit for branch main": {
 			reference:      "main",
-			expectedCommit: "cd65c2fcab588953c72f0af5350282c282051286",
+			expectedCommit: "3c572f685d2148b2f5a9776804a7d4b85f80f46c",
 		},
 		"get commit for branch dev": {
 			reference:      "dev",
