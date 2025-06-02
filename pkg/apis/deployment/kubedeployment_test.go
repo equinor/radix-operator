@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -273,11 +272,11 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 }
 
 func Test_CommandAndArgs(t *testing.T) {
-	type testScenario struct {
+	type scenario struct {
 		command []string
 		args    []string
 	}
-	testScenarios := map[string]testScenario{
+	scenarios := map[string]scenario{
 		"command and args are not set": {
 			command: nil,
 			args:    nil,
@@ -300,46 +299,53 @@ func Test_CommandAndArgs(t *testing.T) {
 		},
 	}
 
-	for testScenarioName, ts := range testScenarios {
-		builderScenarios := []struct {
-			name         string
-			builder      utils.DeploymentBuilder
-			getComponent func(rd *v1.RadixDeployment, name string) v1.RadixCommonDeployComponent
-		}{
-			{
-				name: "component",
-				builder: utils.ARadixDeployment().WithAppName("any-app").WithEnvironment("test").
-					WithComponents(utils.NewDeployComponentBuilder().WithName("any-name-123").WithCommand(ts.command).WithArgs(ts.args)),
-				getComponent: func(rd *v1.RadixDeployment, name string) v1.RadixCommonDeployComponent {
-					return rd.GetComponentByName(name)
-				},
-			},
-			{
-				name: "job component",
-				builder: utils.ARadixDeployment().WithAppName("any-app").WithEnvironment("test").
-					WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("any-name-123").WithCommand(ts.command).WithArgs(ts.args)),
-				getComponent: func(rd *v1.RadixDeployment, name string) v1.RadixCommonDeployComponent {
-					return rd.GetJobComponentByName(name)
-				},
-			},
-		}
-		for _, builderScenario := range builderScenarios {
+	for name, ts := range scenarios {
+		t.Run(name, func(t *testing.T) {
+			tu, client, kubeUtil, radixclient, kedaClient, prometheusClient, _, certClient := SetupTest(t)
+			builder := utils.ARadixDeployment().WithAppName("any-app").WithEnvironment("test").
+				WithComponents(
+					utils.NewDeployComponentBuilder().WithName("comp1").WithCommand(ts.command).WithArgs(ts.args),
+					utils.NewDeployComponentBuilder().WithName("comp2"),
+				).
+				WithJobComponents(
+					utils.NewDeployJobComponentBuilder().WithName("job1").WithCommand(ts.command).WithArgs(ts.args),
+					utils.NewDeployJobComponentBuilder().WithName("job2"),
+				)
+			rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusClient, certClient, builder)
+			deployment := Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd}
 
-			t.Run(fmt.Sprintf("%s: %s", builderScenario.name, testScenarioName), func(t *testing.T) {
-				tu, client, kubeUtil, radixclient, kedaClient, prometheusClient, _, certClient := SetupTest(t)
-				rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusClient, certClient, builderScenario.builder)
-				deployment := Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd}
-				component := builderScenario.getComponent(rd, "any-name-123")
-				assert.Equal(t, ts.command, component.GetCommand(), "command should match in RadixDeployment")
-				assert.Equal(t, ts.args, component.GetArgs(), "args should match in RadixDeployment")
+			component1 := rd.GetComponentByName("comp1")
+			assert.Equal(t, ts.command, component1.GetCommand(), "command in component1 should match in RadixDeployment")
+			assert.Equal(t, ts.args, component1.GetArgs(), "args in component1 should match in RadixDeployment")
 
-				desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), component)
-				container := desiredDeployment.Spec.Template.Spec.Containers[0]
+			component2 := rd.GetComponentByName("comp2")
+			assert.Empty(t, component2.GetCommand(), "command in component2 should be empty")
+			assert.Empty(t, component2.GetArgs(), "args in component2 should be empty")
 
-				assert.Equal(t, ts.command, container.Command, "command in desired Kubernetes deployment should match in RadixDeployment")
-				assert.Equal(t, ts.args, container.Args, "args in desired Kubernetes deployment should match in RadixDeployment")
-			})
-		}
+			job1 := rd.GetJobComponentByName("job1")
+			assert.Equal(t, ts.command, job1.GetCommand(), "command in job 1 should match in RadixDeployment")
+			assert.Equal(t, ts.args, job1.GetArgs(), "args in job 1 should match in RadixDeployment")
+
+			job2 := rd.GetJobComponentByName("job2")
+			assert.Empty(t, job2.GetCommand(), "command in job 2 should be empty")
+			assert.Empty(t, job2.GetArgs(), "args in job 2 should be empty")
+
+			desiredDeploymentComp1, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), component1)
+			assert.Equal(t, ts.command, desiredDeploymentComp1.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for component1 should match in RadixDeployment")
+			assert.Equal(t, ts.args, desiredDeploymentComp1.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment for component1 should match in RadixDeployment")
+
+			desiredDeploymentComp2, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), component2)
+			assert.Empty(t, desiredDeploymentComp2.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for component2 should be empty")
+			assert.Empty(t, desiredDeploymentComp2.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment should for component2 should be empty")
+
+			desiredDeploymentJob1, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), job1)
+			assert.Equal(t, ts.command, desiredDeploymentJob1.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for job1 should match in RadixDeployment")
+			assert.Equal(t, ts.args, desiredDeploymentJob1.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment for job1 should match in RadixDeployment")
+
+			desiredDeploymentJob2, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), job2)
+			assert.Empty(t, desiredDeploymentJob2.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for job2 should be empty")
+			assert.Empty(t, desiredDeploymentJob2.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment should for job2 should be empty")
+		})
 	}
 }
 

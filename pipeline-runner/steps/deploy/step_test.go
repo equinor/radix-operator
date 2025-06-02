@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
 
@@ -468,6 +469,98 @@ func (s *deployTestSuite) TestDeploy_WaitActiveDeployment() {
 			rdList, err := s.radixClient.RadixV1().RadixDeployments(namespace).List(context.Background(), metav1.ListOptions{})
 			s.Require().NoError(err)
 			s.Len(rdList.Items, ts.expectedRadixDeployments, "Invalid expected RadixDeployment-s count")
+		})
+	}
+}
+
+func (s *deployTestSuite) TestDeploy_CommandAndArgs() {
+	const (
+		anyAppName = "anyapp"
+		env1       = "env1"
+	)
+	type scenario struct {
+		command []string
+		args    []string
+	}
+	scenarios := map[string]scenario{
+		"command and args are not set": {
+			command: nil,
+			args:    nil,
+		},
+		"single command is set": {
+			command: []string{"bash"},
+			args:    nil,
+		},
+		"command with arguments is set": {
+			command: []string{"sh", "-c", "echo hello"},
+			args:    nil,
+		},
+		"command is set and args are set": {
+			command: []string{"sh", "-c"},
+			args:    []string{"echo hello"},
+		},
+		"only args are set": {
+			command: nil,
+			args:    []string{"--verbose", "--output=json"},
+		},
+	}
+
+	for name, ts := range scenarios {
+		s.T().Run(name, func(t *testing.T) {
+			s.SetupTest()
+			rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
+
+			ra := utils.NewRadixApplicationBuilder().WithAppName(anyAppName).
+				WithEnvironment(env1, "master").
+				WithComponents(
+					utils.AnApplicationComponent().WithName("comp1").WithCommand(ts.command).WithArgs(ts.args),
+					utils.AnApplicationComponent().WithName("comp2"),
+				).
+				WithJobComponents(
+					utils.AnApplicationJobComponent().WithName("job1").WithCommand(ts.command).WithArgs(ts.args),
+					utils.AnApplicationJobComponent().WithName("job2"),
+				).
+				BuildRA()
+
+			namespaceWatcher := watcher.NewMockNamespaceWatcher(s.ctrl)
+			namespaceWatcher.EXPECT().WaitFor(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
+			radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+			cli := deploy.NewDeployStep(namespaceWatcher, radixDeploymentWatcher)
+			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, &monitoring.Clientset{}, nil, rr)
+
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					JobName:  "any-job-name",
+					ImageTag: "any-image-tag",
+					Branch:   "master",
+				},
+				RadixApplication:   ra,
+				TargetEnvironments: []string{env1},
+			}
+
+			err := cli.Run(context.Background(), pipelineInfo)
+			s.Require().NoError(err)
+			rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyAppName, env1)).List(context.Background(), metav1.ListOptions{})
+			s.Require().Len(rds.Items, 1)
+
+			rd := rds.Items[0]
+
+			component1 := rd.GetComponentByName("comp1")
+			assert.Equal(t, ts.command, component1.GetCommand(), "command in component1 should match in RadixDeployment")
+			assert.Equal(t, ts.args, component1.GetArgs(), "args in component1 should match in RadixDeployment")
+
+			component2 := rd.GetComponentByName("comp2")
+			assert.Empty(t, component2.GetCommand(), "command in component2 should be empty")
+			assert.Empty(t, component2.GetArgs(), "args in component2 should be empty")
+
+			job1 := rd.GetJobComponentByName("job1")
+			assert.Equal(t, ts.command, job1.GetCommand(), "command in job 1 should match in RadixDeployment")
+			assert.Equal(t, ts.args, job1.GetArgs(), "args in job 1 should match in RadixDeployment")
+
+			job2 := rd.GetJobComponentByName("job2")
+			assert.Empty(t, job2.GetCommand(), "command in job 2 should be empty")
+			assert.Empty(t, job2.GetArgs(), "args in job 2 should be empty")
 		})
 	}
 }
