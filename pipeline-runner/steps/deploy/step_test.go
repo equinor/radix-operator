@@ -479,30 +479,45 @@ func (s *deployTestSuite) TestDeploy_CommandAndArgs() {
 		env1       = "env1"
 	)
 	type scenario struct {
-		command []string
-		args    []string
+		command          []string
+		args             []string
+		envConfigCommand *[]string
+		envConfigArgs    *[]string
+		expectedCommand  []string
+		expectedArgs     []string
 	}
 	scenarios := map[string]scenario{
 		"command and args are not set": {
-			command: nil,
-			args:    nil,
+			command:         nil,
+			args:            nil,
+			expectedCommand: nil,
+			expectedArgs:    nil,
 		},
 		"single command is set": {
-			command: []string{"bash"},
-			args:    nil,
+			command:         []string{"bash"},
+			args:            nil,
+			expectedCommand: []string{"bash"},
+			expectedArgs:    nil,
 		},
 		"command with arguments is set": {
-			command: []string{"sh", "-c", "echo hello"},
-			args:    nil,
+			command:         []string{"sh", "-c", "echo hello"},
+			args:            nil,
+			expectedCommand: []string{"sh", "-c", "echo hello"},
+			expectedArgs:    nil,
 		},
 		"command is set and args are set": {
-			command: []string{"sh", "-c"},
-			args:    []string{"echo hello"},
+			command:         []string{"sh", "-c"},
+			args:            []string{"echo hello"},
+			expectedCommand: []string{"sh", "-c"},
+			expectedArgs:    []string{"echo hello"},
 		},
 		"only args are set": {
-			command: nil,
-			args:    []string{"--verbose", "--output=json"},
+			command:         nil,
+			args:            []string{"--verbose", "--output=json"},
+			expectedCommand: nil,
+			expectedArgs:    []string{"--verbose", "--output=json"},
 		},
+		//TODO: env config
 	}
 
 	for name, ts := range scenarios {
@@ -510,14 +525,39 @@ func (s *deployTestSuite) TestDeploy_CommandAndArgs() {
 			s.SetupTest()
 			rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
 
+			comp1Builder := utils.AnApplicationComponent().WithName("comp1").WithCommand(ts.command).WithArgs(ts.args)
+			if ts.envConfigCommand != nil || ts.envConfigArgs != nil {
+				component1EnvBuilder := utils.NewComponentEnvironmentBuilder()
+				job1EnvBuilder := utils.NewJobComponentEnvironmentBuilder()
+				if ts.envConfigCommand != nil {
+					component1EnvBuilder = component1EnvBuilder.WithCommand(*ts.envConfigCommand)
+					job1EnvBuilder = job1EnvBuilder.WithCommand(*ts.envConfigCommand)
+				}
+				if ts.envConfigArgs != nil {
+					component1EnvBuilder = component1EnvBuilder.WithArgs(*ts.envConfigArgs)
+					job1EnvBuilder = job1EnvBuilder.WithArgs(*ts.envConfigArgs)
+				}
+				comp1Builder = comp1Builder.WithEnvironmentConfigs(component1EnvBuilder)
+			}
+			job1Builder := utils.AnApplicationJobComponent().WithName("job1").WithCommand(ts.command).WithArgs(ts.args)
+			if ts.envConfigCommand != nil || ts.envConfigArgs != nil {
+				job1EnvBuilder := utils.NewJobComponentEnvironmentBuilder()
+				if ts.envConfigCommand != nil {
+					job1EnvBuilder = job1EnvBuilder.WithCommand(*ts.envConfigCommand)
+				}
+				if ts.envConfigArgs != nil {
+					job1EnvBuilder = job1EnvBuilder.WithArgs(*ts.envConfigArgs)
+				}
+				job1Builder = job1Builder.WithEnvironmentConfigs(job1EnvBuilder)
+			}
 			ra := utils.NewRadixApplicationBuilder().WithAppName(anyAppName).
 				WithEnvironment(env1, "master").
 				WithComponents(
-					utils.AnApplicationComponent().WithName("comp1").WithCommand(ts.command).WithArgs(ts.args),
+					comp1Builder,
 					utils.AnApplicationComponent().WithName("comp2"),
 				).
 				WithJobComponents(
-					utils.AnApplicationJobComponent().WithName("job1").WithCommand(ts.command).WithArgs(ts.args),
+					job1Builder,
 					utils.AnApplicationJobComponent().WithName("job2"),
 				).
 				BuildRA()
@@ -533,7 +573,7 @@ func (s *deployTestSuite) TestDeploy_CommandAndArgs() {
 				PipelineArguments: model.PipelineArguments{
 					JobName:  "any-job-name",
 					ImageTag: "any-image-tag",
-					Branch:   "master",
+					Branch:   "master", //nolint:staticcheck
 				},
 				RadixApplication:   ra,
 				TargetEnvironments: []string{env1},
@@ -547,16 +587,16 @@ func (s *deployTestSuite) TestDeploy_CommandAndArgs() {
 			rd := rds.Items[0]
 
 			component1 := rd.GetComponentByName("comp1")
-			assert.Equal(t, ts.command, component1.GetCommand(), "command in component1 should match in RadixDeployment")
-			assert.Equal(t, ts.args, component1.GetArgs(), "args in component1 should match in RadixDeployment")
+			assert.Equal(t, ts.expectedCommand, component1.GetCommand(), "command in component1 should match in RadixDeployment")
+			assert.Equal(t, ts.expectedArgs, component1.GetArgs(), "args in component1 should match in RadixDeployment")
 
 			component2 := rd.GetComponentByName("comp2")
 			assert.Empty(t, component2.GetCommand(), "command in component2 should be empty")
 			assert.Empty(t, component2.GetArgs(), "args in component2 should be empty")
 
 			job1 := rd.GetJobComponentByName("job1")
-			assert.Equal(t, ts.command, job1.GetCommand(), "command in job 1 should match in RadixDeployment")
-			assert.Equal(t, ts.args, job1.GetArgs(), "args in job 1 should match in RadixDeployment")
+			assert.Equal(t, ts.expectedCommand, job1.GetCommand(), "command in job 1 should match in RadixDeployment")
+			assert.Equal(t, ts.expectedArgs, job1.GetArgs(), "args in job 1 should match in RadixDeployment")
 
 			job2 := rd.GetJobComponentByName("job2")
 			assert.Empty(t, job2.GetCommand(), "command in job 2 should be empty")
