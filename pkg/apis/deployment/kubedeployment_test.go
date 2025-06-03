@@ -6,12 +6,14 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -301,7 +303,7 @@ func Test_CommandAndArgs(t *testing.T) {
 
 	for name, ts := range scenarios {
 		t.Run(name, func(t *testing.T) {
-			tu, client, kubeUtil, radixclient, kedaClient, prometheusClient, _, certClient := SetupTest(t)
+			tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusClient, _, certClient := SetupTest(t)
 			builder := utils.ARadixDeployment().WithAppName("any-app").WithEnvironment("test").
 				WithComponents(
 					utils.NewDeployComponentBuilder().WithName("comp1").WithCommand(ts.command).WithArgs(ts.args),
@@ -311,8 +313,7 @@ func Test_CommandAndArgs(t *testing.T) {
 					utils.NewDeployJobComponentBuilder().WithName("job1").WithCommand(ts.command).WithArgs(ts.args),
 					utils.NewDeployJobComponentBuilder().WithName("job2"),
 				)
-			rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusClient, certClient, builder)
-			deployment := Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd}
+			rd, _ := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusClient, certClient, builder)
 
 			component1 := rd.GetComponentByName("comp1")
 			assert.Equal(t, ts.command, component1.GetCommand(), "command in component1 should match in RadixDeployment")
@@ -330,21 +331,36 @@ func Test_CommandAndArgs(t *testing.T) {
 			assert.Empty(t, job2.GetCommand(), "command in job 2 should be empty")
 			assert.Empty(t, job2.GetArgs(), "args in job 2 should be empty")
 
-			desiredDeploymentComp1, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), component1)
-			assert.Equal(t, ts.command, desiredDeploymentComp1.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for component1 should match in RadixDeployment")
-			assert.Equal(t, ts.args, desiredDeploymentComp1.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment for component1 should match in RadixDeployment")
+			deploymentList, err := kubeClient.AppsV1().Deployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).List(context.Background(), metav1.ListOptions{})
+			require.NoError(t, err, "failed to list deployments")
+			deployments := slice.Reduce(deploymentList.Items, make(map[string]*appsv1.Deployment, len(deploymentList.Items)), func(acc map[string]*appsv1.Deployment, depl appsv1.Deployment) map[string]*appsv1.Deployment {
+				acc[depl.Name] = &depl
+				return acc
+			})
 
-			desiredDeploymentComp2, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), component2)
-			assert.Empty(t, desiredDeploymentComp2.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for component2 should be empty")
-			assert.Empty(t, desiredDeploymentComp2.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment should for component2 should be empty")
+			desiredDeploymentComp1, ok := deployments[component1.Name]
+			if assert.True(t, ok, "deployment component1 should exist") {
+				assert.Equal(t, ts.command, desiredDeploymentComp1.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for component1 should match in RadixDeployment")
+				assert.Equal(t, ts.args, desiredDeploymentComp1.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment for component1 should match in RadixDeployment")
+			}
 
-			desiredDeploymentJob1, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), job1)
-			assert.Equal(t, ts.command, desiredDeploymentJob1.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for job1 should match in RadixDeployment")
-			assert.Equal(t, ts.args, desiredDeploymentJob1.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment for job1 should match in RadixDeployment")
+			desiredDeploymentComp2, ok := deployments[component2.Name]
+			if assert.True(t, ok, "deployment component2 should exist") {
+				assert.Empty(t, desiredDeploymentComp2.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for component2 should be empty")
+				assert.Empty(t, desiredDeploymentComp2.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment should for component2 should be empty")
+			}
 
-			desiredDeploymentJob2, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), job2)
-			assert.Empty(t, desiredDeploymentJob2.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for job2 should be empty")
-			assert.Empty(t, desiredDeploymentJob2.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment should for job2 should be empty")
+			desiredDeploymentJob1, ok := deployments[job1.Name]
+			if assert.True(t, ok, "deployment job1 should exist") {
+				assert.Empty(t, desiredDeploymentJob1.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for job1 should match in RadixDeployment")
+				assert.Empty(t, desiredDeploymentJob1.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment for job1 should match in RadixDeployment")
+			}
+
+			desiredDeploymentJob2, ok := deployments[job2.Name]
+			if assert.True(t, ok, "deployment job2 should exist") {
+				assert.Empty(t, desiredDeploymentJob2.Spec.Template.Spec.Containers[0].Command, "command in desired Kubernetes deployment for job2 should be empty")
+				assert.Empty(t, desiredDeploymentJob2.Spec.Template.Spec.Containers[0].Args, "args in desired Kubernetes deployment should for job2 should be empty")
+			}
 		})
 	}
 }
