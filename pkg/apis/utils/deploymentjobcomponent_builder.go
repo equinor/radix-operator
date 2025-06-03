@@ -30,6 +30,8 @@ type DeployJobComponentBuilder interface {
 	WithRuntime(*v1.Runtime) DeployJobComponentBuilder
 	WithBatchStatusRules(batchStatusRules ...v1.BatchStatusRule) DeployJobComponentBuilder
 	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) DeployJobComponentBuilder
+	WithCommand(command []string) DeployJobComponentBuilder
+	WithArgs(args []string) DeployJobComponentBuilder
 	BuildJobComponent() v1.RadixDeployJobComponent
 }
 
@@ -54,6 +56,8 @@ type deployJobComponentBuilder struct {
 	runtime                 *v1.Runtime
 	batchStatusRules        []v1.BatchStatusRule
 	failurePolicy           *v1.RadixJobComponentFailurePolicy
+	command                 []string
+	args                    []string
 }
 
 func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployJobComponentBuilder {
@@ -191,6 +195,16 @@ func (dcb *deployJobComponentBuilder) WithFailurePolicy(failurePolicy *v1.RadixJ
 	return dcb
 }
 
+func (dcb *deployJobComponentBuilder) WithCommand(command []string) DeployJobComponentBuilder {
+	dcb.command = command
+	return dcb
+}
+
+func (dcb *deployJobComponentBuilder) WithArgs(args []string) DeployJobComponentBuilder {
+	dcb.args = args
+	return dcb
+}
+
 func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobComponent {
 	var payload *v1.RadixJobComponentPayload
 	if dcb.payloadPath != nil {
@@ -218,6 +232,8 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		Runtime:                 dcb.runtime,
 		BatchStatusRules:        dcb.batchStatusRules,
 		FailurePolicy:           dcb.failurePolicy,
+		Command:                 dcb.command,
+		Args:                    dcb.args,
 	}
 }
 

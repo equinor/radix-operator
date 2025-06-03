@@ -309,6 +309,8 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	if err != nil {
 		return err
 	}
+	desiredDeployment.Spec.Template.Spec.Containers[0].Command = deployComponent.GetCommand()
+	desiredDeployment.Spec.Template.Spec.Containers[0].Args = deployComponent.GetArgs()
 
 	volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {

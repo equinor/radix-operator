@@ -33,6 +33,14 @@ func (js *JobSchedulerComponent) GetImage() string {
 	return radixJobSchedulerImageUrl
 }
 
+func (js *JobSchedulerComponent) GetCommand() []string {
+	return nil
+}
+
+func (js *JobSchedulerComponent) GetArgs() []string {
+	return nil
+}
+
 func (js *JobSchedulerComponent) GetPorts() []radixv1.ComponentPort {
 	if js.RadixDeployJobComponent.SchedulerPort == nil {
 		return nil

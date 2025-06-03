@@ -26,6 +26,8 @@ import (
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -2464,4 +2466,100 @@ func (s *syncerTestSuite) Test_FailurePolicy() {
 	s.Require().True(found)
 	expectedPodFailurePolicy = utils.GetPodFailurePolicy(batch.Spec.Jobs[1].FailurePolicy)
 	s.Equal(expectedPodFailurePolicy, job2.Spec.PodFailurePolicy)
+}
+
+func (s *syncerTestSuite) Test_CommandAndArgs() {
+	const (
+		appName, batchName, jobComponentName, jobName1, env1 = "any-app", "any-batch", "job1", "any-job1", "env1"
+	)
+	namespace := utils.GetEnvironmentNamespace(appName, env1)
+	type scenario struct {
+		command []string
+		args    []string
+	}
+	scenarios := map[string]scenario{
+		"command and args are not set": {
+			command: nil,
+			args:    nil,
+		},
+		"single command is set": {
+			command: []string{"bash"},
+			args:    nil,
+		},
+		"command with arguments is set": {
+			command: []string{"sh", "-c", "echo hello"},
+			args:    nil,
+		},
+		"command is set and args are set": {
+			command: []string{"sh", "-c"},
+			args:    []string{"echo hello"},
+		},
+		"only args are set": {
+			command: nil,
+			args:    []string{"--verbose", "--output=json"},
+		},
+	}
+
+	for name, ts := range scenarios {
+		s.T().Run(name, func(t *testing.T) {
+			s.SetupTest()
+
+			job1Builder := utils.AnApplicationJobComponent().WithName(jobComponentName).
+				WithImage("radixdev.azurecr.io/job:imagetag").WithSchedulerPort(numbers.Int32Ptr(8080)).
+				WithCommand(ts.command).WithArgs(ts.args)
+			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
+				WithEnvironment(env1, "master").WithJobComponents(job1Builder)
+
+			rd := utils.NewDeploymentBuilder().
+				WithRadixApplication(raBuilder).
+				WithAppName(appName).
+				WithImageTag("imagetag").
+				WithEnvironment(env1).
+				WithJobComponent(utils.NewDeployJobComponentBuilder().
+					WithName(jobComponentName).
+					WithImage("radixdev.azurecr.io/job:imagetag").
+					WithSchedulerPort(numbers.Int32Ptr(8080)).
+					WithCommand(ts.command).WithArgs(ts.args)).
+				BuildRD()
+
+			batch := &radixv1.RadixBatch{
+				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Spec: radixv1.RadixBatchSpec{
+					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+						LocalObjectReference: radixv1.LocalObjectReference{Name: rd.GetName()},
+						Job:                  jobComponentName,
+					},
+					Jobs: []radixv1.RadixBatchJob{
+						{Name: jobName1},
+					},
+				},
+			}
+			_, err := s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
+			sut := s.createSyncer(batch, nil)
+			s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, "dev")
+			s.T().Setenv(defaults.RadixClusterTypeEnvironmentVariable, "development")
+			s.T().Setenv(defaults.ContainerRegistryEnvironmentVariable, "dev-acr")
+			s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler:main-latest")
+
+			s.Require().NoError(sut.OnSync(context.Background()))
+
+			s.T().Cleanup(func() {})
+
+			jobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+			require.NoError(t, err, "failed to list jobs")
+			if !s.Assert().Len(jobs.Items, 1, "expected one job to be created") {
+				return
+			}
+			kubeJobList, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+			require.NoError(t, err, "failed to list jobs")
+
+			kubeJobContainer := kubeJobList.Items[0].Spec.Template.Spec.Containers[0]
+			assert.Equal(t, ts.command, kubeJobContainer.Command, "command in job should match in RadixDeployment")
+			assert.Equal(t, ts.args, kubeJobContainer.Args, "args in job should match in RadixDeployment")
+		})
+	}
 }
