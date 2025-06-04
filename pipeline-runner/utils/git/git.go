@@ -9,10 +9,8 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
-	"github.com/go-git/go-git/v5/plumbing/format/gitattributes"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/utils/merkletrie"
-	"golang.org/x/exp/maps"
 )
 
 var (
@@ -77,32 +75,9 @@ func (r *repository) Checkout(reference string) error {
 		return err
 	}
 
-	// HACK: go-git does not support lfs files. If the repo has lfs files, go-git will report them as non clean, and fail when calling Checkout.
-	// We will thereforce perform a hard reset if all files reported as changed are in the lisrt of lfs files in .gitattributes
-	// TODO: Check if these steps are neccessary when go-git v6 is released.
-	if status, err := wt.Status(); err != nil {
-		return err
-	} else if !status.IsClean() {
-		lfsFiles, err := r.lfsMatchAttributes(wt)
-		if err != nil {
-			return nil
-		}
-
-		dirtyFiles := maps.Keys(status)
-		safeToHardReset := slice.All(dirtyFiles, func(f string) bool {
-			return slice.Any(lfsFiles, func(a gitattributes.MatchAttribute) bool {
-				return a.Pattern.Match(strings.Split(f, "/"))
-			})
-		})
-
-		if safeToHardReset {
-			if err := wt.Reset(&git.ResetOptions{Mode: git.HardReset}); err != nil {
-				return err
-			}
-		}
-	}
-
-	if err := wt.Checkout(&git.CheckoutOptions{Hash: hash}); err != nil {
+	// Use "Force: true" to discard local changes
+	// If the repo contains files defined in .gitattributes, go-git will report them as non clean, and fail when calling Checkout.
+	if err := wt.Checkout(&git.CheckoutOptions{Hash: hash, Force: true}); err != nil {
 		switch {
 		case errors.Is(err, plumbing.ErrReferenceNotFound):
 			return ErrReferenceNotFound
@@ -222,19 +197,6 @@ func (r *repository) DiffCommits(beforeCommitHash, targetCommitHash string) (Dif
 	}
 
 	return changedFiles, nil
-}
-
-func (r *repository) lfsMatchAttributes(wt *git.Worktree) ([]gitattributes.MatchAttribute, error) {
-	attrs, err := gitattributes.ReadPatterns(wt.Filesystem, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	lfsAttrs := slice.FindAll(attrs, func(ma gitattributes.MatchAttribute) bool {
-		return slice.Any(ma.Attributes, func(a gitattributes.Attribute) bool { return a.Value() == "lfs" })
-	})
-
-	return lfsAttrs, nil
 }
 
 func (r *repository) resolveHashForReference(reference string) (plumbing.Hash, bool, error) {

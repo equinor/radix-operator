@@ -296,17 +296,6 @@ func Test_Checkout(t *testing.T) {
 	}
 }
 
-func Test_Checkout_FailsIfDirty(t *testing.T) {
-	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
-	defer tearDownGitTest()
-	repo, err := git.Open(gitWorkspacePath)
-	require.NoError(t, err)
-	err = os.WriteFile(path.Join(gitWorkspacePath, "radixconfig.yaml"), []byte("newdata"), 0664)
-	require.NoError(t, err)
-	err = repo.Checkout("feature")
-	assert.ErrorIs(t, err, git.ErrUnstagedChanges)
-}
-
 func Test_ResolveCommitForReference(t *testing.T) {
 	tests := map[string]struct {
 		reference      string
