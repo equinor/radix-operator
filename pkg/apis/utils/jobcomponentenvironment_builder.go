@@ -25,6 +25,8 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithNotifications(*v1.Notifications) RadixJobComponentEnvironmentConfigBuilder
 	WithReadOnlyFileSystem(*bool) RadixJobComponentEnvironmentConfigBuilder
 	WithRuntime(*v1.Runtime) RadixJobComponentEnvironmentConfigBuilder
+	WithCommand(strings []string) RadixJobComponentEnvironmentConfigBuilder
+	WithArgs(strings []string) RadixJobComponentEnvironmentConfigBuilder
 	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
@@ -50,6 +52,8 @@ type radixJobComponentEnvironmentConfigBuilder struct {
 	readOnlyFileSystem *bool
 	runtime            *v1.Runtime
 	failurePolicy      *v1.RadixJobComponentFailurePolicy
+	command            *[]string
+	args               *[]string
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
@@ -153,6 +157,16 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithRuntime(runtime *v1.Ru
 	return ceb
 }
 
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithCommand(command []string) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.command = &command
+	return ceb
+}
+
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithArgs(args []string) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.args = &args
+	return ceb
+}
+
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithFailurePolicy(failurePolicy *v1.RadixJobComponentFailurePolicy) RadixJobComponentEnvironmentConfigBuilder {
 	ceb.failurePolicy = failurePolicy
 	return ceb
@@ -179,6 +193,8 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		ReadOnlyFileSystem: ceb.readOnlyFileSystem,
 		Runtime:            ceb.runtime,
 		FailurePolicy:      ceb.failurePolicy,
+		Command:            ceb.command,
+		Args:               ceb.args,
 	}
 }
 

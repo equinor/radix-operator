@@ -25,30 +25,35 @@ type PreservingDeployComponents struct {
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(ctx context.Context, pipelineInfo *model.PipelineInfo, activeRadixDeployment *radixv1.RadixDeployment, commitID, gitTags, envName, radixConfigHash, buildSecretHash string) (*radixv1.RadixDeployment, error) {
-	preservingDeployComponents := getPreservingDeployComponents(ctx, activeRadixDeployment, envName, pipelineInfo.BuildContext, pipelineInfo.PipelineArguments.ComponentsToDeploy)
+func ConstructForTargetEnvironment(ctx context.Context, pipelineInfo *model.PipelineInfo, targetEnv model.TargetEnvironment, commitID, gitTags, radixConfigHash, buildSecretHash string) (*radixv1.RadixDeployment, error) {
+	preservingDeployComponents := getPreservingDeployComponents(ctx, pipelineInfo, targetEnv)
 
 	defaultEnvVars := radixv1.EnvVarsMap{
 		defaults.RadixCommitHashEnvironmentVariable: commitID,
 		defaults.RadixGitTagsEnvironmentVariable:    gitTags,
 	}
-	componentImages := pipelineInfo.DeployEnvironmentComponentImages[envName]
+	componentImages := pipelineInfo.DeployEnvironmentComponentImages[targetEnv.Environment]
 
-	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, pipelineInfo.RadixApplication, activeRadixDeployment, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
+	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, pipelineInfo.RadixApplication, targetEnv.ActiveRadixDeployment, targetEnv.Environment, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
 	if err != nil {
 		return nil, err
 	}
 
-	jobs, err := deployment.NewJobComponentsBuilder(pipelineInfo.RadixApplication, envName, componentImages, defaultEnvVars, preservingDeployComponents.DeployJobComponents).JobComponents(ctx)
+	jobs, err := deployment.NewJobComponentsBuilder(pipelineInfo.RadixApplication, targetEnv.Environment, componentImages, defaultEnvVars, preservingDeployComponents.DeployJobComponents).JobComponents(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	radixDeployment := constructRadixDeployment(pipelineInfo, envName, commitID, gitTags, deployComponents, jobs, radixConfigHash, buildSecretHash)
+	radixDeployment := constructRadixDeployment(pipelineInfo, targetEnv.Environment, commitID, gitTags, deployComponents, jobs, radixConfigHash, buildSecretHash)
 	return radixDeployment, nil
 }
 
+// GetGitCommitHashFromDeployment returns the commit hash used to build the RadixDeployment by inspecting known annotations and label keys.
+// Annotations take precendence over labels. It returns an empty string if the value is not found.
 func GetGitCommitHashFromDeployment(radixDeployment *radixv1.RadixDeployment) string {
+	if radixDeployment == nil {
+		return ""
+	}
 	if gitCommitHash, ok := radixDeployment.Annotations[kube.RadixCommitAnnotation]; ok {
 		return gitCommitHash
 	}
@@ -56,6 +61,19 @@ func GetGitCommitHashFromDeployment(radixDeployment *radixv1.RadixDeployment) st
 		return gitCommitHash
 	}
 	return ""
+}
+
+// GetGitRefNameFromDeployment returns the git reference name used to build the RadixDeployment by inspecting annotations.
+func GetGitRefNameFromDeployment(rd *radixv1.RadixDeployment) string {
+	if rd == nil {
+		return ""
+	}
+
+	if refName, ok := rd.Annotations[kube.RadixGitRefAnnotation]; ok && len(refName) > 0 {
+		return refName
+	}
+
+	return rd.Annotations[kube.RadixBranchAnnotation]
 }
 
 func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, gitTags string, components []radixv1.RadixDeployComponent, jobs []radixv1.RadixDeployJobComponent, radixConfigHash, buildSecretHash string) *radixv1.RadixDeployment {
@@ -104,17 +122,33 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 	return radixDeployment
 }
 
-func getPreservingDeployComponents(ctx context.Context, activeRadixDeployment *radixv1.RadixDeployment, envName string, buildContext *model.BuildContext, componentsToDeploy []string) PreservingDeployComponents {
+func getPreservingDeployComponents(ctx context.Context, pipelineInfo *model.PipelineInfo, targetEnv model.TargetEnvironment) PreservingDeployComponents {
 	preservingDeployComponents := PreservingDeployComponents{}
-	existEnvironmentComponentsToBuild := buildContext != nil && !buildContext.ChangedRadixConfig && slice.Any(buildContext.EnvironmentsToBuild, func(environmentToBuild model.EnvironmentToBuild) bool {
-		return len(environmentToBuild.Components) > 0
-	})
-	if activeRadixDeployment == nil || (len(componentsToDeploy) == 0 && !existEnvironmentComponentsToBuild) {
+
+	if targetEnv.ActiveRadixDeployment == nil {
 		return preservingDeployComponents
 	}
+
+	if isEqual, err := targetEnv.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication); err != nil || !isEqual {
+		if err != nil {
+			log.Ctx(ctx).Info().Msgf("failed to compare hash of RadixApplication with active deployment in environment %s: %s", targetEnv.Environment, err.Error())
+		}
+		return preservingDeployComponents
+	}
+
+	buildContext := pipelineInfo.BuildContext
+	existEnvironmentComponentsToBuild := buildContext != nil && slice.Any(buildContext.EnvironmentsToBuild, func(environmentToBuild model.EnvironmentToBuild) bool {
+		return len(environmentToBuild.Components) > 0
+	})
+
+	componentsToDeploy := pipelineInfo.PipelineArguments.ComponentsToDeploy
+	if len(componentsToDeploy) == 0 && !existEnvironmentComponentsToBuild {
+		return preservingDeployComponents
+	}
+
 	if len(componentsToDeploy) == 0 && existEnvironmentComponentsToBuild {
 		componentsToDeploy = slice.Reduce(buildContext.EnvironmentsToBuild, make([]string, 0), func(acc []string, envComponentsToBuild model.EnvironmentToBuild) []string {
-			if envName == envComponentsToBuild.Environment && len(envComponentsToBuild.Components) > 0 {
+			if targetEnv.Environment == envComponentsToBuild.Environment && len(envComponentsToBuild.Components) > 0 {
 				return append(acc, envComponentsToBuild.Components...)
 			}
 			return acc
@@ -129,10 +163,10 @@ func getPreservingDeployComponents(ctx context.Context, activeRadixDeployment *r
 		}
 		return acc
 	})
-	preservingDeployComponents.DeployComponents = slice.FindAll(activeRadixDeployment.Spec.Components, func(component radixv1.RadixDeployComponent) bool {
+	preservingDeployComponents.DeployComponents = slice.FindAll(targetEnv.ActiveRadixDeployment.Spec.Components, func(component radixv1.RadixDeployComponent) bool {
 		return !componentNames[component.GetName()]
 	})
-	preservingDeployComponents.DeployJobComponents = slice.FindAll(activeRadixDeployment.Spec.Jobs, func(component radixv1.RadixDeployJobComponent) bool {
+	preservingDeployComponents.DeployJobComponents = slice.FindAll(targetEnv.ActiveRadixDeployment.Spec.Jobs, func(component radixv1.RadixDeployJobComponent) bool {
 		return !componentNames[component.GetName()]
 	})
 	return preservingDeployComponents

@@ -39,6 +39,8 @@ type DeployComponentBuilder interface {
 	WithIdentity(*v1.Identity) DeployComponentBuilder
 	WithReadOnlyFileSystem(*bool) DeployComponentBuilder
 	WithRuntime(*v1.Runtime) DeployComponentBuilder
+	WithCommand(command []string) DeployComponentBuilder
+	WithArgs(args []string) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
 }
 
@@ -72,7 +74,9 @@ type deployComponentBuilder struct {
 	identity           *v1.Identity
 	readOnlyFileSystem *bool
 	runtime            *v1.Runtime
-	healtChecks        *v1.RadixHealthChecks
+	healthChecks       *v1.RadixHealthChecks
+	command            []string
+	args               []string
 }
 
 func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployComponentBuilder {
@@ -81,7 +85,7 @@ func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolu
 }
 
 func (dcb *deployComponentBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *v1.RadixProbe) DeployComponentBuilder {
-	dcb.healtChecks = &v1.RadixHealthChecks{
+	dcb.healthChecks = &v1.RadixHealthChecks{
 		LivenessProbe:  livenessProbe,
 		ReadinessProbe: readynessProbe,
 		StartupProbe:   startupProbe,
@@ -250,6 +254,16 @@ func (dcb *deployComponentBuilder) WithRuntime(runtime *v1.Runtime) DeployCompon
 	return dcb
 }
 
+func (dcb *deployComponentBuilder) WithCommand(command []string) DeployComponentBuilder {
+	dcb.command = command
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithArgs(args []string) DeployComponentBuilder {
+	dcb.args = args
+	return dcb
+}
+
 func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 	return v1.RadixDeployComponent{
 		Image:                   dcb.image,
@@ -269,7 +283,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		DNSExternalAlias:        dcb.externalAppAlias,
 		ExternalDNS:             dcb.externalDNS,
 		Resources:               dcb.resources,
-		HealthChecks:            dcb.healtChecks,
+		HealthChecks:            dcb.healthChecks,
 		HorizontalScaling:       dcb.horizontalScaling,
 		VolumeMounts:            dcb.volumeMounts,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
@@ -278,6 +292,8 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Identity:                dcb.identity,
 		ReadOnlyFileSystem:      dcb.readOnlyFileSystem,
 		Runtime:                 dcb.runtime,
+		Command:                 dcb.command,
+		Args:                    dcb.args,
 	}
 }
 

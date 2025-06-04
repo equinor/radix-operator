@@ -28,6 +28,8 @@ type RadixEnvironmentConfigBuilder interface {
 	WithReadOnlyFileSystem(*bool) RadixEnvironmentConfigBuilder
 	WithRuntime(*radixv1.Runtime) RadixEnvironmentConfigBuilder
 	WithNetwork(*radixv1.Network) RadixEnvironmentConfigBuilder
+	WithCommand(strings []string) RadixEnvironmentConfigBuilder
+	WithArgs(strings []string) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
@@ -51,7 +53,9 @@ type radixEnvironmentConfigBuilder struct {
 	readOnlyFileSystem      *bool
 	runtime                 *radixv1.Runtime
 	network                 *radixv1.Network
-	healtChecks             *radixv1.RadixHealthChecks
+	healthChecks            *radixv1.RadixHealthChecks
+	command                 *[]string
+	args                    *[]string
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithHorizontalScaling(scaling *radixv1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder {
@@ -68,7 +72,7 @@ func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithHealthChecks(startupProbe, readynessProbe, livenessProbe *radixv1.RadixProbe) RadixEnvironmentConfigBuilder {
-	ceb.healtChecks = &radixv1.RadixHealthChecks{
+	ceb.healthChecks = &radixv1.RadixHealthChecks{
 		LivenessProbe:  livenessProbe,
 		ReadinessProbe: readynessProbe,
 		StartupProbe:   startupProbe,
@@ -165,6 +169,16 @@ func (ceb *radixEnvironmentConfigBuilder) WithRuntime(runtime *radixv1.Runtime) 
 	return ceb
 }
 
+func (ceb *radixEnvironmentConfigBuilder) WithCommand(command []string) RadixEnvironmentConfigBuilder {
+	ceb.command = &command
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithArgs(args []string) RadixEnvironmentConfigBuilder {
+	ceb.args = &args
+	return ceb
+}
+
 func (ceb *radixEnvironmentConfigBuilder) WithNetwork(network *radixv1.Network) RadixEnvironmentConfigBuilder {
 	ceb.network = network
 	return ceb
@@ -175,7 +189,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() radixv1.Radix
 		Environment:             ceb.environment,
 		SourceFolder:            ceb.sourceFolder,
 		DockerfileName:          ceb.dockerfileName,
-		HealthChecks:            ceb.healtChecks,
+		HealthChecks:            ceb.healthChecks,
 		Image:                   ceb.image,
 		Variables:               ceb.variables,
 		Replicas:                ceb.replicas,
@@ -193,6 +207,8 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() radixv1.Radix
 		ReadOnlyFileSystem:      ceb.readOnlyFileSystem,
 		Runtime:                 ceb.runtime,
 		Network:                 ceb.network,
+		Command:                 ceb.command,
+		Args:                    ceb.args,
 	}
 }
 

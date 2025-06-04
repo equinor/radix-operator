@@ -37,6 +37,8 @@ type RadixApplicationComponentBuilder interface {
 	WithRuntime(runtime *radixv1.Runtime) RadixApplicationComponentBuilder
 	WithNetwork(network *radixv1.Network) RadixApplicationComponentBuilder
 	WithReplicas(replicas *int) RadixApplicationComponentBuilder
+	WithCommand(command []string) RadixApplicationComponentBuilder
+	WithArgs(args []string) RadixApplicationComponentBuilder
 	BuildComponent() radixv1.RadixComponent
 }
 
@@ -70,6 +72,8 @@ type radixApplicationComponentBuilder struct {
 	network              *radixv1.Network
 	healthChecks         *radixv1.RadixHealthChecks
 	replicas             *int
+	command              []string
+	args                 []string
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -240,6 +244,16 @@ func (rcb *radixApplicationComponentBuilder) WithReplicas(replicas *int) RadixAp
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithCommand(command []string) RadixApplicationComponentBuilder {
+	rcb.command = command
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithArgs(args []string) RadixApplicationComponentBuilder {
+	rcb.args = args
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixComponent {
 	var environmentConfig = make([]radixv1.RadixEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -256,14 +270,14 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixCompo
 		Secrets:                 rcb.secrets,
 		SecretRefs:              rcb.secretRefs,
 		IngressConfiguration:    rcb.ingressConfiguration,
-		Public:                  rcb.public,
+		Public:                  rcb.public, //nolint:staticcheck
 		PublicPort:              rcb.publicPort,
 		MonitoringConfig:        rcb.monitoringConfig,
 		EnvironmentConfig:       environmentConfig,
 		Variables:               rcb.variables,
 		Resources:               rcb.resources,
 		AlwaysPullImageOnDeploy: rcb.alwaysPullImageOnDeploy,
-		Node:                    rcb.node,
+		Node:                    rcb.node, //nolint:staticcheck
 		Authentication:          rcb.authentication,
 		Enabled:                 rcb.enabled,
 		Identity:                rcb.identity,
@@ -275,6 +289,8 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixCompo
 		Runtime:                 rcb.runtime,
 		Network:                 rcb.network,
 		Replicas:                rcb.replicas,
+		Command:                 rcb.command,
+		Args:                    rcb.args,
 	}
 }
 

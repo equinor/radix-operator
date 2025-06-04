@@ -29,6 +29,8 @@ type RadixApplicationJobComponentBuilder interface {
 	WithNotifications(*v1.Notifications) RadixApplicationJobComponentBuilder
 	WithReadOnlyFileSystem(*bool) RadixApplicationJobComponentBuilder
 	WithRuntime(*v1.Runtime) RadixApplicationJobComponentBuilder
+	WithCommand(command []string) RadixApplicationJobComponentBuilder
+	WithArgs(args []string) RadixApplicationJobComponentBuilder
 	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
@@ -59,6 +61,8 @@ type radixApplicationJobComponentBuilder struct {
 	imageTagName       string
 	runtime            *v1.Runtime
 	failurePolicy      *v1.RadixJobComponentFailurePolicy
+	command            []string
+	args               []string
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -199,6 +203,16 @@ func (rcb *radixApplicationJobComponentBuilder) WithReadOnlyFileSystem(readOnlyF
 	return rcb
 }
 
+func (rcb *radixApplicationJobComponentBuilder) WithCommand(command []string) RadixApplicationJobComponentBuilder {
+	rcb.command = command
+	return rcb
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithArgs(args []string) RadixApplicationJobComponentBuilder {
+	rcb.args = args
+	return rcb
+}
+
 func (rcb *radixApplicationJobComponentBuilder) WithRuntime(runtime *v1.Runtime) RadixApplicationJobComponentBuilder {
 	rcb.runtime = runtime
 	return rcb
@@ -234,7 +248,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Resources:          rcb.resources,
 		SchedulerPort:      rcb.schedulerPort,
 		Payload:            payload,
-		Node:               rcb.node,
+		Node:               rcb.node, //nolint:staticcheck
 		TimeLimitSeconds:   rcb.timeLimitSeconds,
 		BackoffLimit:       rcb.backoffLimit,
 		Enabled:            rcb.enabled,
@@ -246,6 +260,8 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		VolumeMounts:       rcb.volumes,
 		Runtime:            rcb.runtime,
 		FailurePolicy:      rcb.failurePolicy,
+		Command:            rcb.command,
+		Args:               rcb.args,
 	}
 }
 

@@ -1,351 +1,293 @@
 package git
 
 import (
-	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
-	"path/filepath"
-	"sort"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/maps"
-	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/utils/radix/deployment/commithash"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
+	"github.com/go-git/go-git/v5/plumbing/format/gitattributes"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/utils/merkletrie"
-	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/maps"
 )
 
-// ResetGitHead alters HEAD of the git repository on file system to point to commitHashString
-func ResetGitHead(gitWorkspace, commitHashString string) error {
-	r, err := git.PlainOpen(gitWorkspace)
+var (
+	ErrReferenceNotFound = errors.New("reference not found")
+	ErrCommitNotFound    = errors.New("commit not found")
+	ErrEmptyCommitHash   = errors.New("empty commit hash")
+	ErrUnstagedChanges   = errors.New("worktree contains unstaged changes")
+)
+
+type Repository interface {
+	// Checkout a specific commit, or the commit of a branch or tag name.
+	Checkout(reference string) error
+	// ResolveCommitForReference gets the current commit for a branch or tag name.
+	ResolveCommitForReference(reference string) (string, error)
+	// IsAncestor checks if a commit, branch or tag is ancestor of other commit, branch or tag.
+	IsAncestor(ancestor, other string) (bool, error)
+	//  ResolveTagsForCommit returns tags for a specific commit.
+	ResolveTagsForCommit(commitHash string) ([]string, error)
+	// DiffCommits returns list of changes between two commits.
+	// If beforeCommitHash is empty, all changes up till targetCommit is returned.
+	DiffCommits(beforeCommitHash, targetCommitHash string) (DiffEntries, error)
+}
+
+type DiffEntry struct {
+	Name  string
+	IsDir bool
+}
+
+type DiffEntries []DiffEntry
+
+func Open(path string) (Repository, error) {
+	r, err := git.PlainOpen(path)
+	if err != nil {
+		return nil, err
+	}
+
+	remoteObjs, err := r.Remotes()
+	if err != nil {
+		return nil, err
+	}
+	remotes := slice.Map(remoteObjs, func(o *git.Remote) string { return o.Config().Name })
+
+	return &repository{repo: r, remotes: remotes}, nil
+}
+
+type repository struct {
+	repo    *git.Repository
+	remotes []string
+}
+
+func (r *repository) Checkout(reference string) error {
+	hash, found, err := r.resolveHashForReference(reference)
 	if err != nil {
 		return err
 	}
-	log.Debug().Msgf("opened repositoryPath %s", gitWorkspace)
+	if !found {
+		hash = plumbing.NewHash(reference)
+	}
 
-	worktree, err := r.Worktree()
+	wt, err := r.repo.Worktree()
 	if err != nil {
 		return err
 	}
 
-	commitHash := plumbing.NewHash(commitHashString)
-	if err = worktree.Reset(&git.ResetOptions{
-		Commit: commitHash,
-		Mode:   git.HardReset,
-	}); err != nil {
-		if errors.Is(err, plumbing.ErrObjectNotFound) {
-			return fmt.Errorf("commit %s not found", commitHashString)
+	// HACK: go-git does not support lfs files. If the repo has lfs files, go-git will report them as non clean, and fail when calling Checkout.
+	// We will thereforce perform a hard reset if all files reported as changed are in the lisrt of lfs files in .gitattributes
+	// TODO: Check if these steps are neccessary when go-git v6 is released.
+	if status, err := wt.Status(); err != nil {
+		return err
+	} else if !status.IsClean() {
+		lfsFiles, err := r.lfsMatchAttributes(wt)
+		if err != nil {
+			return nil
 		}
-		return fmt.Errorf("unable to reset git head %s: %w", commitHashString, err)
+
+		dirtyFiles := maps.Keys(status)
+		safeToHardReset := slice.All(dirtyFiles, func(f string) bool {
+			return slice.Any(lfsFiles, func(a gitattributes.MatchAttribute) bool {
+				return a.Pattern.Match(strings.Split(f, "/"))
+			})
+		})
+
+		if safeToHardReset {
+			if err := wt.Reset(&git.ResetOptions{Mode: git.HardReset}); err != nil {
+				return err
+			}
+		}
 	}
-	log.Debug().Msgf("reset HEAD to %s", commitHashString)
+
+	if err := wt.Checkout(&git.CheckoutOptions{Hash: hash}); err != nil {
+		switch {
+		case errors.Is(err, plumbing.ErrReferenceNotFound):
+			return ErrReferenceNotFound
+		case errors.Is(err, git.ErrUnstagedChanges):
+			return ErrUnstagedChanges
+		default:
+			return err
+		}
+	}
+
 	return nil
 }
 
-// GetCommitHashAndTags gets target commit hash and tags from GitHub repository
-func GetCommitHashAndTags(pipelineInfo *model.PipelineInfo) (string, string, error) {
-	targetCommitHash, err := GetCommitHash(pipelineInfo)
+func (r *repository) ResolveCommitForReference(reference string) (string, error) {
+	hash, found, err := r.resolveHashForReference(reference)
 	if err != nil {
-		return "", "", err
+		return "", fmt.Errorf("failed to resolve reference: %w", err)
 	}
-
-	gitTags, err := getGitCommitTags(pipelineInfo.PipelineArguments.GitWorkspace, targetCommitHash)
-	if err != nil {
-		return "", "", err
+	if !found {
+		return "", ErrReferenceNotFound
 	}
-	return targetCommitHash, gitTags, nil
+	return hash.String(), nil
 }
 
-func getGitDir(gitWorkspace string) string {
-	return gitWorkspace + "/.git"
+func (r *repository) IsAncestor(ancestor, other string) (bool, error) {
+	ancestorHash, found, err := r.resolveHashForReference(ancestor)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve ancestor reference: %w", err)
+	} else if found {
+		ancestor = ancestorHash.String()
+	}
+
+	otherHash, found, err := r.resolveHashForReference(other)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve other reference: %w", err)
+	} else if found {
+		other = otherHash.String()
+	}
+
+	ancestorCommit, err := r.resolveCommitFromHash(ancestor)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve ancestor hash: %w", err)
+	}
+
+	otherCommit, err := r.resolveCommitFromHash(other)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve other hash: %w", err)
+	}
+
+	return ancestorCommit.IsAncestor(otherCommit)
 }
 
-// GetCommitHashFromHead returns the commit hash for the HEAD of branchName in gitDir
-func GetCommitHashFromHead(gitWorkspace, gitRef, gitRefType string) (string, error) {
-	gitDir := getGitDir(gitWorkspace)
-	r, err := git.PlainOpen(gitDir)
-	if err != nil {
-		return "", err
-	}
-	log.Debug().Msgf("opened gitDir %s", gitDir)
+func (r *repository) ResolveTagsForCommit(commitHash string) ([]string, error) {
+	hash := plumbing.NewHash(commitHash)
 
-	// Get gitRef hash
-	commitHash, err := getBranchCommitHash(r, gitRef, gitRefType)
-	if err != nil {
-		return "", err
-	}
-	log.Debug().Msgf("resolved %s %s", gitRefType, gitRef)
-
-	hashBytesString := hex.EncodeToString(commitHash[:])
-	return hashBytesString, nil
-}
-
-// getGitAffectedResourcesBetweenCommits returns the list of folders, where files were affected after beforeCommitHash (not included) till targetCommitHash commit (included)
-func getGitAffectedResourcesBetweenCommits(gitWorkspace, configBranch, configFile, targetCommitString, beforeCommitString string) ([]string, bool, error) {
-	if len(targetCommitString) == 0 {
-		return nil, false, fmt.Errorf("invalid empty targetCommit")
-	}
-	if strings.EqualFold(targetCommitString, beforeCommitString) { // same commit, no source changes
-		return nil, false, nil
-	}
-	gitDir := getGitDir(gitWorkspace)
-	repository, currentBranch, err := getRepository(gitDir)
-	if err != nil {
-		return nil, false, err
-	}
-	targetCommit, err := findCommit(targetCommitString, repository)
-	if err != nil {
-		return nil, false, err
-	}
-	if targetCommit == nil {
-		return nil, false, errors.New("invalid targetCommit")
-	}
-
-	beforeCommit, err := findCommit(beforeCommitString, repository)
-	if err != nil {
-		return nil, false, err
-	}
-
-	return getChangedFoldersFromTargetCommitTillExclusiveBeforeCommit(targetCommit, beforeCommit, configBranch, currentBranch, configFile)
-}
-
-func getChangedFoldersFromTargetCommitTillExclusiveBeforeCommit(targetCommit *object.Commit, beforeCommit *object.Commit, configBranch string, currentBranch string, configFile string) ([]string, bool, error) {
-	if targetCommit == nil {
-		return nil, false, errors.New("targetCommit must be set")
-	}
-
-	targetTree, err := targetCommit.Tree()
-	if err != nil {
-		return nil, false, err
-	}
-
-	var beforeTree *object.Tree
-	if beforeCommit != nil {
-		beforeTree, err = beforeCommit.Tree()
-		if err != nil {
-			return nil, false, err
-		}
-	}
-	changes, err := object.DiffTreeContext(context.TODO(), beforeTree, targetTree)
-	if err != nil {
-		return nil, false, err
-	}
-
-	changedFolderNamesMap := make(map[string]bool)
-	changedConfigFile := false
-	for _, change := range changes {
-		action, err := change.Action()
-		if err != nil {
-			return nil, false, err
-		}
-		fileName := change.To.Name
-		if action == merkletrie.Delete {
-			fileName = change.From.Name
-		} else if action == merkletrie.Modify && change.To.Name != change.From.Name {
-			appendFolderToMap(changedFolderNamesMap, &changedConfigFile, configBranch, currentBranch, configFile, change.From.Name, change.From.TreeEntry.Mode)
-		}
-		appendFolderToMap(changedFolderNamesMap, &changedConfigFile, configBranch, currentBranch, configFile, fileName, change.To.TreeEntry.Mode)
-	}
-	return maps.GetKeysFromMap(changedFolderNamesMap), changedConfigFile, nil
-}
-
-func getRepository(gitDir string) (*git.Repository, string, error) {
-	log.Debug().Msgf("opened gitDir %s", gitDir)
-	repository, err := git.PlainOpen(gitDir)
-	if err != nil {
-		return nil, "", err
-	}
-	currentBranch, err := getCurrentBranch(repository)
-	if err != nil {
-		return nil, "", err
-	}
-	return repository, currentBranch, nil
-}
-
-func getCurrentBranch(repository *git.Repository) (string, error) {
-	head, err := repository.Head()
-	if err != nil {
-		return "", err
-	}
-	branchHeadNamePrefix := "refs/heads/"
-	branchHeadName := head.Name().String()
-	if head.Name() == "HEAD" || !strings.HasPrefix(branchHeadName, branchHeadNamePrefix) {
-		return "", errors.New("unexpected current git revision")
-	}
-	currentBranch := strings.TrimPrefix(branchHeadName, branchHeadNamePrefix)
-	return currentBranch, nil
-}
-
-func appendFolderToMap(changedFolderNamesMap map[string]bool, changedConfigFile *bool, configBranch string, currentBranch string, configFile string, filePath string, fileMode filemode.FileMode) {
-	if filePath == "" {
-		return
-	}
-	folderName := ""
-	if fileMode == filemode.Dir {
-		folderName = filePath
-	} else {
-		folderName = filepath.Dir(filePath)
-		if !*changedConfigFile && strings.EqualFold(configBranch, currentBranch) && strings.EqualFold(configFile, filePath) {
-			*changedConfigFile = true
-		}
-		log.Debug().Msgf("- file: %s", filePath)
-	}
-	if _, ok := changedFolderNamesMap[folderName]; !ok {
-		changedFolderNamesMap[folderName] = true
-	}
-}
-
-// findCommit will return a Hash if found, or nil if not found.
-func findCommit(commitHash string, repository *git.Repository) (*object.Commit, error) {
-	logIter, err := repository.Log(&git.LogOptions{
-		Order: git.LogOrderBSF, // sorted from latest down to oldest
-	})
+	tags, err := r.repo.Tags()
 	if err != nil {
 		return nil, err
-	}
-
-	var hash plumbing.Hash
-	err = logIter.ForEach(func(c *object.Commit) error {
-		if c.Hash.String() == commitHash {
-			hash = c.Hash
-			return io.EOF
-		}
-		return nil // continue iteration loop
-	})
-
-	if err != io.EOF {
-		return nil, err
-	}
-
-	if hash.IsZero() {
-		return nil, nil
-	}
-
-	return repository.CommitObject(hash)
-}
-
-func getBranchCommitHash(r *git.Repository, gitRefs, gitRefsType string) (*plumbing.Hash, error) {
-	// first, we try to resolve a local revision. If possible, this is best. This succeeds if code branch and config
-	// branch are the same
-	commitHash, err := r.ResolveRevision(plumbing.Revision(gitRefs))
-	if err != nil {
-		// on second try, we try to resolve the remote branch. This introduces a chance that the remote has been altered
-		// with new hash after initial clone
-		commitHash, err = r.ResolveRevision(plumbing.Revision(fmt.Sprintf("refs/remotes/origin/%s", gitRefs)))
-		if err != nil {
-			if strings.EqualFold(err.Error(), "reference not found") {
-				return nil, fmt.Errorf("there is no %s %s or access to the repository", gitRefsType, gitRefs)
-			}
-			return nil, err
-		}
-	}
-	return commitHash, nil
-}
-
-// getGitCommitTags returns any git tags which point to commitHash
-func getGitCommitTags(gitWorkspace string, commitHashString string) (string, error) {
-	gitDir := getGitDir(gitWorkspace)
-	r, err := git.PlainOpen(gitDir)
-	if err != nil {
-		return "", err
-	}
-
-	commitHash := plumbing.NewHash(commitHashString)
-
-	log.Debug().Msgf("getting all tags for repository")
-	tags, err := r.Tags()
-	if err != nil {
-		return "", err
 	}
 	var tagNames []string
 
 	// List all tags, both lightweight tags and annotated tags and see if any tags point to HEAD reference.
 	err = tags.ForEach(func(t *plumbing.Reference) error {
-		log.Debug().Msgf("resolving commit hash of tag %s", t.Name())
 		// using workaround to circumvent tag resolution bug documented at https://github.com/go-git/go-git/issues/204
 		tagName := strings.TrimPrefix(string(t.Name()), "refs/tags/")
-		tagRef, err := r.Tag(tagName)
+		tagRef, err := r.repo.Tag(tagName)
 		if err != nil {
-			log.Warn().Msgf("could not resolve commit hash of tag %s: %v", t.Name(), err)
-			return nil
+			return err
 		}
-		revHash, err := r.ResolveRevision(plumbing.Revision(tagRef.Hash().String()))
+		revHash, err := r.repo.ResolveRevision(plumbing.Revision(tagRef.Hash().String()))
 		if err != nil {
-			log.Warn().Msgf("could not resolve commit hash of tag %s: %v", t.Name(), err)
-			return nil
+			return err
 		}
-		if *revHash == commitHash {
+		if *revHash == hash {
 			tagNames = append(tagNames, tagName)
 		}
 		return nil
 	})
-	if err != nil {
-		log.Warn().Msgf("could not resolve tags: %v", err)
-		return "", nil
-	}
 
-	tagNamesString := strings.Join(tagNames, " ")
-
-	return tagNamesString, nil
+	return tagNames, err
 }
 
-// GetCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
-// build branch
-func GetCommitHash(pipelineInfo *model.PipelineInfo) (string, error) {
-	commitId := pipelineInfo.PipelineArguments.CommitID
-	if commitId != "" {
-		log.Debug().Msgf("got git commit hash %s from env var %s", commitId, defaults.RadixCommitIdEnvironmentVariable)
-		return commitId, nil
-	}
-	log.Debug().Msgf("determining git commit hash of HEAD of %s %s", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault())
-	gitCommitHash, err := GetCommitHashFromHead(pipelineInfo.PipelineArguments.GitWorkspace, pipelineInfo.GetGitRef(), pipelineInfo.GetGitRefType())
-	log.Debug().Msgf("got git commit hash %s from HEAD of %s %s", gitCommitHash, pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault())
-	return gitCommitHash, err
-}
+func (r *repository) DiffCommits(beforeCommitHash, targetCommitHash string) (DiffEntries, error) {
+	var (
+		beforeTree, afterTree *object.Tree
+		err                   error
+	)
 
-// GetChangesFromGitRepository Get changed folders in environments and if radixconfig.yaml was changed
-func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash string, lastCommitHashesForEnvs commithash.EnvCommitHashMap) (map[string][]string, bool, error) {
-	radixConfigWasChanged := false
-	envChanges := make(map[string][]string)
-	if len(lastCommitHashesForEnvs) == 0 {
-		log.Info().Msgf("No changes in GitHub repository")
-		return nil, false, nil
+	if afterTree, err = r.resolveTreeFromCommitHash(targetCommitHash); err != nil {
+		return nil, fmt.Errorf("failed to resolve target commit: %w", err)
 	}
-	if strings.HasPrefix(radixConfigFileName, gitWorkspace) {
-		radixConfigFileName = strings.TrimPrefix(strings.TrimPrefix(radixConfigFileName, gitWorkspace), "/")
-	}
-	log.Info().Msgf("Changes in GitHub repository:")
-	for envName, radixDeploymentCommit := range lastCommitHashesForEnvs {
-		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash, radixDeploymentCommit.CommitHash)
-		envChanges[envName] = changedFolders
-		if err != nil {
-			return nil, false, err
+
+	if len(beforeCommitHash) > 0 {
+		if beforeTree, err = r.resolveTreeFromCommitHash(beforeCommitHash); err != nil {
+			return nil, fmt.Errorf("failed to resolve before commit: %w", err)
 		}
-		radixConfigWasChanged = radixConfigWasChanged || radixConfigWasChangedInEnv
-		printEnvironmentChangedFolders(envName, radixDeploymentCommit, targetCommitHash, changedFolders)
 	}
-	if radixConfigWasChanged {
-		log.Info().Msgf("Radix config file was changed %s", radixConfigFileName)
+
+	changes, err := object.DiffTree(beforeTree, afterTree)
+	if err != nil {
+		return nil, err
 	}
-	return envChanges, radixConfigWasChanged, nil
+
+	changedFiles := make(DiffEntries, 0, len(changes))
+	for _, change := range changes {
+		action, err := change.Action()
+		if err != nil {
+			return nil, err
+		}
+
+		switch action {
+		case merkletrie.Insert, merkletrie.Modify:
+			changedFiles = append(changedFiles, newDiffEntry(change.To))
+		default:
+			changedFiles = append(changedFiles, newDiffEntry(change.From))
+		}
+	}
+
+	return changedFiles, nil
 }
 
-func printEnvironmentChangedFolders(envName string, radixDeploymentCommit commithash.RadixDeploymentCommit, targetCommitHash string, changedFolders []string) {
-	log.Info().Msgf("- for the environment %s", envName)
-	if len(radixDeploymentCommit.RadixDeploymentName) == 0 {
-		log.Info().Msgf(" from initial commit to commit %s:", targetCommitHash)
-	} else {
-		log.Info().Msgf(" after the commit %s (of the deployment %s) to the commit %s:", radixDeploymentCommit.CommitHash, radixDeploymentCommit.RadixDeploymentName, targetCommitHash)
+func (r *repository) lfsMatchAttributes(wt *git.Worktree) ([]gitattributes.MatchAttribute, error) {
+	attrs, err := gitattributes.ReadPatterns(wt.Filesystem, nil)
+	if err != nil {
+		return nil, err
 	}
-	sort.Strings(changedFolders)
-	for _, folder := range changedFolders {
-		log.Info().Msgf("  - %s", folder)
+
+	lfsAttrs := slice.FindAll(attrs, func(ma gitattributes.MatchAttribute) bool {
+		return slice.Any(ma.Attributes, func(a gitattributes.Attribute) bool { return a.Value() == "lfs" })
+	})
+
+	return lfsAttrs, nil
+}
+
+func (r *repository) resolveHashForReference(reference string) (plumbing.Hash, bool, error) {
+	tryRefNames := []plumbing.ReferenceName{
+		plumbing.NewTagReferenceName(reference),
+		plumbing.NewBranchReferenceName(reference),
+	}
+
+	for _, remote := range r.remotes {
+		tryRefNames = append(tryRefNames, plumbing.NewRemoteReferenceName(remote, reference))
+	}
+
+	for _, refName := range tryRefNames {
+		ref, err := r.repo.Reference(refName, true)
+		if err == nil {
+			// If ref is an annotated tag, we must return the tag's target hash, not the hash of the tag itself
+			if tagObj, err := r.repo.TagObject(ref.Hash()); err == nil {
+				return tagObj.Target, true, err
+			}
+
+			return ref.Hash(), true, nil
+		} else if !errors.Is(err, plumbing.ErrReferenceNotFound) {
+			return plumbing.Hash{}, false, err
+		}
+	}
+
+	return plumbing.Hash{}, false, nil
+}
+
+func (r *repository) resolveTreeFromCommitHash(commitHash string) (*object.Tree, error) {
+	if len(commitHash) == 0 {
+		return nil, ErrEmptyCommitHash
+	}
+
+	commit, err := r.resolveCommitFromHash(commitHash)
+	if err != nil {
+		return nil, err
+	}
+
+	return commit.Tree()
+}
+
+func (r *repository) resolveCommitFromHash(commitHash string) (*object.Commit, error) {
+	commit, err := r.repo.CommitObject(plumbing.NewHash(commitHash))
+	if errors.Is(err, plumbing.ErrObjectNotFound) {
+		return nil, ErrCommitNotFound
+	}
+	return commit, err
+}
+
+func newDiffEntry(c object.ChangeEntry) DiffEntry {
+	return DiffEntry{
+		Name:  c.Name,
+		IsDir: c.TreeEntry.Mode == filemode.Dir,
 	}
 }

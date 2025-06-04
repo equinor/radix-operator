@@ -1626,6 +1626,16 @@ func (in *RadixComponent) DeepCopyInto(out *RadixComponent) {
 		*out = new(Network)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Command != nil {
+		in, out := &in.Command, &out.Command
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.Args != nil {
+		in, out := &in.Args, &out.Args
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -1827,6 +1837,16 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 		*out = new(Network)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Command != nil {
+		in, out := &in.Command, &out.Command
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.Args != nil {
+		in, out := &in.Args, &out.Args
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -1938,6 +1958,16 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 		in, out := &in.FailurePolicy, &out.FailurePolicy
 		*out = new(RadixJobComponentFailurePolicy)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.Command != nil {
+		in, out := &in.Command, &out.Command
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.Args != nil {
+		in, out := &in.Args, &out.Args
+		*out = make([]string, len(*in))
+		copy(*out, *in)
 	}
 	return
 }
@@ -2231,6 +2261,24 @@ func (in *RadixEnvironmentConfig) DeepCopyInto(out *RadixEnvironmentConfig) {
 		in, out := &in.Network, &out.Network
 		*out = new(Network)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.Command != nil {
+		in, out := &in.Command, &out.Command
+		*out = new([]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
+	}
+	if in.Args != nil {
+		in, out := &in.Args, &out.Args
+		*out = new([]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
 	}
 	return
 }
@@ -2710,6 +2758,16 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		*out = new(RadixJobComponentFailurePolicy)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Command != nil {
+		in, out := &in.Command, &out.Command
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.Args != nil {
+		in, out := &in.Args, &out.Args
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -2794,6 +2852,24 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 		in, out := &in.FailurePolicy, &out.FailurePolicy
 		*out = new(RadixJobComponentFailurePolicy)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.Command != nil {
+		in, out := &in.Command, &out.Command
+		*out = new([]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
+	}
+	if in.Args != nil {
+		in, out := &in.Args, &out.Args
+		*out = new([]string)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
 	}
 	return
 }
