@@ -131,12 +131,12 @@ func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
 		return err
 	}
 
-	pipelineJobName := strings.ToLower(fmt.Sprintf("%s-%s", cli.pipelineInfo.PipelineArguments.JobName, utils.RandString(5)))
+	configMapName := strings.ToLower(fmt.Sprintf("%s-%s", cli.pipelineInfo.PipelineArguments.JobName, utils.RandString(5)))
 	configMap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: pipelineJobName,
+			Name: configMapName,
 			Labels: map[string]string{
-				kube.RadixJobNameLabel:       pipelineJobName,
+				kube.RadixJobNameLabel:       cli.pipelineInfo.PipelineArguments.JobName,
 				kube.RadixConfigMapTypeLabel: string(kube.RadixPipelineResultConfigMap),
 			},
 		},
