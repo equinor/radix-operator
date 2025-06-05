@@ -12,6 +12,8 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -23,10 +25,19 @@ type ContextBuilder interface {
 }
 
 type contextBuilder struct {
+	logger zerolog.Logger
 }
 
-func NewContextBuilder() ContextBuilder {
-	return &contextBuilder{}
+// NewContextBuilder creates a new ContexBuilder.
+// If logger argument is nil, the default global logger is used
+func NewContextBuilder(logger *zerolog.Logger) ContextBuilder {
+	if logger == nil {
+		logger = &log.Logger
+	}
+
+	return &contextBuilder{
+		logger: *logger,
+	}
 }
 
 // GetBuildContext Prepare build context
@@ -42,6 +53,18 @@ func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo
 	var environmentsToBuild []model.EnvironmentToBuild
 	for _, targetEnv := range pipelineInfo.TargetEnvironments {
 		envCommitHash := internal.GetGitCommitHashFromDeployment(targetEnv.ActiveRadixDeployment)
+
+		if len(envCommitHash) > 0 {
+			commitExist, err := repo.CommitExists(envCommitHash)
+			if err != nil {
+				return nil, fmt.Errorf("failed to check if commit from active deployment exists: %w", err)
+			}
+			if !commitExist {
+				cb.logger.Info().Msgf("Commit from active deployment in environment %s was not found in the repository.", targetEnv.Environment)
+				envCommitHash = ""
+			}
+		}
+
 		changedFiles, err := repo.DiffCommits(envCommitHash, pipelineInfo.GitCommitHash)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get changes in git: %w", err)

@@ -95,7 +95,7 @@ func NewPreparePipelinesStep(opt ...Option) model.Step {
 func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 	if step.contextBuilder == nil {
-		step.contextBuilder = prepareInternal.NewContextBuilder()
+		step.contextBuilder = prepareInternal.NewContextBuilder(log.Ctx(ctx))
 	}
 	if step.subPipelineReader == nil {
 		step.subPipelineReader = prepareInternal.NewSubPipelineReader()

@@ -50,7 +50,7 @@ func (s *stepTestSuite) SetupSubTest() {
 }
 
 func (s *stepTestSuite) Test_GitCommitHashNoSet() {
-	sut := internal.NewContextBuilder()
+	sut := internal.NewContextBuilder(nil)
 	gitRepo := git.NewMockRepository(s.ctrl)
 	pipelineInfo := &model.PipelineInfo{
 		GitCommitHash:      "",
@@ -61,7 +61,7 @@ func (s *stepTestSuite) Test_GitCommitHashNoSet() {
 }
 
 func (s *stepTestSuite) Test_EmptyTargetEnvironment() {
-	sut := internal.NewContextBuilder()
+	sut := internal.NewContextBuilder(nil)
 	gitRepo := git.NewMockRepository(s.ctrl)
 	pipelineInfo := &model.PipelineInfo{
 		TargetEnvironments: []model.TargetEnvironment{},
@@ -72,7 +72,7 @@ func (s *stepTestSuite) Test_EmptyTargetEnvironment() {
 }
 
 func (s *stepTestSuite) Test_DiffCommitReturnsError() {
-	sut := internal.NewContextBuilder()
+	sut := internal.NewContextBuilder(nil)
 	gitError := errors.New("any error")
 	gitRepo := git.NewMockRepository(s.ctrl)
 	gitRepo.EXPECT().DiffCommits(gomock.Any(), gomock.Any()).Times(1).Return(nil, gitError)
@@ -85,7 +85,7 @@ func (s *stepTestSuite) Test_DiffCommitReturnsError() {
 }
 
 func (s *stepTestSuite) Test_DiffCommitsCalledOncePerTargetEnvirononment() {
-	sut := internal.NewContextBuilder()
+	sut := internal.NewContextBuilder(nil)
 	gitRepo := git.NewMockRepository(s.ctrl)
 	gitRepo.EXPECT().DiffCommits(gomock.Any(), gomock.Any()).Times(3).Return(nil, nil)
 	pipelineInfo := &model.PipelineInfo{
@@ -98,7 +98,7 @@ func (s *stepTestSuite) Test_DiffCommitsCalledOncePerTargetEnvirononment() {
 	s.ElementsMatch(actualBuildContext.EnvironmentsToBuild, []model.EnvironmentToBuild{{Environment: "env1"}, {Environment: "env2"}, {Environment: "env3"}})
 }
 
-func (s *stepTestSuite) Test_DiffCommitsCalledWithCorrectValue() {
+func (s *stepTestSuite) Test_CommitExistsAndDiffCommitsCalledWithCorrectArgs() {
 	const (
 		targetCommitHash = "anytargetcommit"
 		rd1Commit        = "rd1hash"
@@ -106,8 +106,10 @@ func (s *stepTestSuite) Test_DiffCommitsCalledWithCorrectValue() {
 	)
 
 	tests := map[string]struct {
-		activeRD            *v1.RadixDeployment
-		expectdBeforeCommit string
+		activeRD                *v1.RadixDeployment
+		expectedCommitExistsArg string
+		commitExistsResponse    bool
+		expectdBeforeCommit     string
 	}{
 		"no active deployment": {
 			activeRD:            nil,
@@ -118,19 +120,33 @@ func (s *stepTestSuite) Test_DiffCommitsCalledWithCorrectValue() {
 			expectdBeforeCommit: "",
 		},
 		"active deployment with both annotation and label": {
-			activeRD:            utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixCommitAnnotation: "commit_from_annotation"}).WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD(),
-			expectdBeforeCommit: "commit_from_annotation",
+			activeRD:                utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixCommitAnnotation: "commit_from_annotation"}).WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD(),
+			expectedCommitExistsArg: "commit_from_annotation",
+			commitExistsResponse:    true,
+			expectdBeforeCommit:     "commit_from_annotation",
 		},
 		"active deployment with label only": {
-			activeRD:            utils.NewDeploymentBuilder().WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD(),
-			expectdBeforeCommit: "commit_from_label",
+			activeRD:                utils.NewDeploymentBuilder().WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD(),
+			expectedCommitExistsArg: "commit_from_label",
+			commitExistsResponse:    true,
+			expectdBeforeCommit:     "commit_from_label",
+		},
+		"active deployment commit does not exist": {
+			activeRD:                utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixCommitAnnotation: "commit_from_annotation"}).WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD(),
+			expectedCommitExistsArg: "commit_from_annotation",
+			commitExistsResponse:    false,
+			expectdBeforeCommit:     "",
 		},
 	}
 
 	for testName, testSpec := range tests {
 		s.Run(testName, func() {
-			sut := internal.NewContextBuilder()
+			sut := internal.NewContextBuilder(nil)
 			gitRepo := git.NewMockRepository(s.ctrl)
+			if len(testSpec.expectedCommitExistsArg) > 0 {
+				gitRepo.EXPECT().CommitExists(testSpec.expectedCommitExistsArg).Times(1).Return(testSpec.commitExistsResponse, nil)
+			}
+
 			gitRepo.EXPECT().DiffCommits(testSpec.expectdBeforeCommit, targetCommitHash).Times(1).Return(nil, nil)
 
 			pipelineInfo := &model.PipelineInfo{
@@ -142,6 +158,19 @@ func (s *stepTestSuite) Test_DiffCommitsCalledWithCorrectValue() {
 			s.Require().NoError(err)
 		})
 	}
+}
+
+func (s *stepTestSuite) Test_CommitExistsReturnsError() {
+	sut := internal.NewContextBuilder(nil)
+	gitError := errors.New("any error")
+	gitRepo := git.NewMockRepository(s.ctrl)
+	gitRepo.EXPECT().CommitExists(gomock.Any()).Times(1).Return(true, gitError)
+	pipelineInfo := &model.PipelineInfo{
+		GitCommitHash:      "anyhash",
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "env1", ActiveRadixDeployment: utils.NewDeploymentBuilder().WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD()}},
+	}
+	_, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	s.ErrorIs(err, gitError)
 }
 
 func (s *stepTestSuite) Test_DetectComponentsWithChangedSource() {
@@ -369,7 +398,7 @@ func (s *stepTestSuite) Test_DetectComponentsWithChangedSource() {
 
 	for testName, testSpec := range tests {
 		s.Run(testName, func() {
-			sut := internal.NewContextBuilder()
+			sut := internal.NewContextBuilder(nil)
 			gitRepo := git.NewMockRepository(s.ctrl)
 			gitRepo.EXPECT().DiffCommits(gomock.Any(), gomock.Any()).Times(1).Return(testSpec.diffs, nil)
 			ra := utils.NewRadixApplicationBuilder().WithAppName("anyname").
