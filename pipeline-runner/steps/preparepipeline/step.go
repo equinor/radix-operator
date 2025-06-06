@@ -95,7 +95,7 @@ func NewPreparePipelinesStep(opt ...Option) model.Step {
 func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
 	if step.contextBuilder == nil {
-		step.contextBuilder = prepareInternal.NewContextBuilder(log.Ctx(ctx))
+		step.contextBuilder = prepareInternal.NewContextBuilder()
 	}
 	if step.subPipelineReader == nil {
 		step.subPipelineReader = prepareInternal.NewSubPipelineReader()
@@ -142,7 +142,7 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 	}
 
 	if slice.Any([]radixv1.RadixPipelineType{radixv1.Build, radixv1.BuildDeploy}, pipelineInfo.IsPipelineType) {
-		if err = step.setBuildInfo(pipelineInfo, repo); err != nil {
+		if err = step.setBuildInfo(ctx, pipelineInfo, repo); err != nil {
 			return err
 		}
 	}
@@ -191,7 +191,7 @@ func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo 
 	return commit, tagsConcat, nil
 }
 
-func (step *PreparePipelinesStepImplementation) setBuildInfo(pipelineInfo *model.PipelineInfo, repo git.Repository) error {
+func (step *PreparePipelinesStepImplementation) setBuildInfo(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) error {
 	commit, tags, err := step.getGitInfoForBuild(pipelineInfo, repo)
 	if err != nil {
 		return err
@@ -203,7 +203,7 @@ func (step *PreparePipelinesStepImplementation) setBuildInfo(pipelineInfo *model
 		return nil
 	}
 
-	buildContext, err := step.contextBuilder.GetBuildContext(pipelineInfo, repo)
+	buildContext, err := step.contextBuilder.GetBuildContext(ctx, pipelineInfo, repo)
 	if err != nil {
 		return err
 	}

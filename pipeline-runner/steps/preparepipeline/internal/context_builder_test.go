@@ -1,6 +1,7 @@
 package internal_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -50,29 +51,29 @@ func (s *stepTestSuite) SetupSubTest() {
 }
 
 func (s *stepTestSuite) Test_GitCommitHashNoSet() {
-	sut := internal.NewContextBuilder(nil)
+	sut := internal.NewContextBuilder()
 	gitRepo := git.NewMockRepository(s.ctrl)
 	pipelineInfo := &model.PipelineInfo{
 		GitCommitHash:      "",
 		TargetEnvironments: []model.TargetEnvironment{{Environment: "anyenv"}},
 	}
-	_, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	_, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 	s.ErrorIs(err, internal.ErrMissingGitCommitHash)
 }
 
 func (s *stepTestSuite) Test_EmptyTargetEnvironment() {
-	sut := internal.NewContextBuilder(nil)
+	sut := internal.NewContextBuilder()
 	gitRepo := git.NewMockRepository(s.ctrl)
 	pipelineInfo := &model.PipelineInfo{
 		TargetEnvironments: []model.TargetEnvironment{},
 	}
-	actual, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	actual, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 	s.NoError(err)
 	s.Empty(actual)
 }
 
 func (s *stepTestSuite) Test_DiffCommitReturnsError() {
-	sut := internal.NewContextBuilder(nil)
+	sut := internal.NewContextBuilder()
 	gitError := errors.New("any error")
 	gitRepo := git.NewMockRepository(s.ctrl)
 	gitRepo.EXPECT().DiffCommits(gomock.Any(), gomock.Any()).Times(1).Return(nil, gitError)
@@ -80,12 +81,12 @@ func (s *stepTestSuite) Test_DiffCommitReturnsError() {
 		GitCommitHash:      "anyhash",
 		TargetEnvironments: []model.TargetEnvironment{{Environment: "env1"}, {Environment: "env2"}},
 	}
-	_, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	_, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 	s.ErrorIs(err, gitError)
 }
 
 func (s *stepTestSuite) Test_DiffCommitsCalledOncePerTargetEnvirononment() {
-	sut := internal.NewContextBuilder(nil)
+	sut := internal.NewContextBuilder()
 	gitRepo := git.NewMockRepository(s.ctrl)
 	gitRepo.EXPECT().DiffCommits(gomock.Any(), gomock.Any()).Times(3).Return(nil, nil)
 	pipelineInfo := &model.PipelineInfo{
@@ -93,7 +94,7 @@ func (s *stepTestSuite) Test_DiffCommitsCalledOncePerTargetEnvirononment() {
 		TargetEnvironments: []model.TargetEnvironment{{Environment: "env1"}, {Environment: "env2"}, {Environment: "env3"}},
 		RadixApplication:   &v1.RadixApplication{},
 	}
-	actualBuildContext, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	actualBuildContext, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 	s.Require().NoError(err)
 	s.ElementsMatch(actualBuildContext.EnvironmentsToBuild, []model.EnvironmentToBuild{{Environment: "env1"}, {Environment: "env2"}, {Environment: "env3"}})
 }
@@ -141,7 +142,7 @@ func (s *stepTestSuite) Test_CommitExistsAndDiffCommitsCalledWithCorrectArgs() {
 
 	for testName, testSpec := range tests {
 		s.Run(testName, func() {
-			sut := internal.NewContextBuilder(nil)
+			sut := internal.NewContextBuilder()
 			gitRepo := git.NewMockRepository(s.ctrl)
 			if len(testSpec.expectedCommitExistsArg) > 0 {
 				gitRepo.EXPECT().CommitExists(testSpec.expectedCommitExistsArg).Times(1).Return(testSpec.commitExistsResponse, nil)
@@ -154,14 +155,14 @@ func (s *stepTestSuite) Test_CommitExistsAndDiffCommitsCalledWithCorrectArgs() {
 				TargetEnvironments: []model.TargetEnvironment{{Environment: "anyenv", ActiveRadixDeployment: testSpec.activeRD}},
 				RadixApplication:   &v1.RadixApplication{},
 			}
-			_, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+			_, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 			s.Require().NoError(err)
 		})
 	}
 }
 
 func (s *stepTestSuite) Test_CommitExistsReturnsError() {
-	sut := internal.NewContextBuilder(nil)
+	sut := internal.NewContextBuilder()
 	gitError := errors.New("any error")
 	gitRepo := git.NewMockRepository(s.ctrl)
 	gitRepo.EXPECT().CommitExists(gomock.Any()).Times(1).Return(true, gitError)
@@ -169,7 +170,7 @@ func (s *stepTestSuite) Test_CommitExistsReturnsError() {
 		GitCommitHash:      "anyhash",
 		TargetEnvironments: []model.TargetEnvironment{{Environment: "env1", ActiveRadixDeployment: utils.NewDeploymentBuilder().WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD()}},
 	}
-	_, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	_, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 	s.ErrorIs(err, gitError)
 }
 
@@ -398,7 +399,7 @@ func (s *stepTestSuite) Test_DetectComponentsWithChangedSource() {
 
 	for testName, testSpec := range tests {
 		s.Run(testName, func() {
-			sut := internal.NewContextBuilder(nil)
+			sut := internal.NewContextBuilder()
 			gitRepo := git.NewMockRepository(s.ctrl)
 			gitRepo.EXPECT().DiffCommits(gomock.Any(), gomock.Any()).Times(1).Return(testSpec.diffs, nil)
 			ra := utils.NewRadixApplicationBuilder().WithAppName("anyname").
@@ -410,7 +411,7 @@ func (s *stepTestSuite) Test_DetectComponentsWithChangedSource() {
 				TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
 				RadixApplication:   ra.BuildRA(),
 			}
-			actualBuildContext, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+			actualBuildContext, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 			s.Require().NoError(err)
 			s.Require().Len(actualBuildContext.EnvironmentsToBuild, 1)
 			s.Require().Equal(envName, actualBuildContext.EnvironmentsToBuild[0].Environment)

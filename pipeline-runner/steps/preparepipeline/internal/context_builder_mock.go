@@ -5,6 +5,7 @@
 package internal
 
 import (
+	context "context"
 	reflect "reflect"
 
 	model "github.com/equinor/radix-operator/pipeline-runner/model"
@@ -36,16 +37,16 @@ func (m *MockContextBuilder) EXPECT() *MockContextBuilderMockRecorder {
 }
 
 // GetBuildContext mocks base method.
-func (m *MockContextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo git.Repository) (*model.BuildContext, error) {
+func (m *MockContextBuilder) GetBuildContext(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) (*model.BuildContext, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBuildContext", pipelineInfo, repo)
+	ret := m.ctrl.Call(m, "GetBuildContext", ctx, pipelineInfo, repo)
 	ret0, _ := ret[0].(*model.BuildContext)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetBuildContext indicates an expected call of GetBuildContext.
-func (mr *MockContextBuilderMockRecorder) GetBuildContext(pipelineInfo, repo interface{}) *gomock.Call {
+func (mr *MockContextBuilderMockRecorder) GetBuildContext(ctx, pipelineInfo, repo interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBuildContext", reflect.TypeOf((*MockContextBuilder)(nil).GetBuildContext), pipelineInfo, repo)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBuildContext", reflect.TypeOf((*MockContextBuilder)(nil).GetBuildContext), ctx, pipelineInfo, repo)
 }
