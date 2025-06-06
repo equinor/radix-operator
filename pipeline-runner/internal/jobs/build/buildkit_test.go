@@ -26,26 +26,31 @@ import (
 )
 
 func Test_BuildKit_JobSpec(t *testing.T) {
-	t.Run("nocache-nopush", func(t *testing.T) { assertBuildKitJobSpec(t, false, false, nil, "") })
-	t.Run("cache-nopush", func(t *testing.T) { assertBuildKitJobSpec(t, true, false, nil, "") })
-	t.Run("nocache-push", func(t *testing.T) { assertBuildKitJobSpec(t, false, true, nil, "") })
-	t.Run("cache-push", func(t *testing.T) { assertBuildKitJobSpec(t, true, true, nil, "") })
-	t.Run("with buildsecrets", func(t *testing.T) { assertBuildKitJobSpec(t, true, true, []string{"secret1", "secret2"}, "") })
-	t.Run("with buildsecrets", func(t *testing.T) { assertBuildKitJobSpec(t, true, true, nil, "anyexternalregsecret") })
+	t.Run("nocache-nopush", func(t *testing.T) { assertBuildKitJobSpec(t, false, false, false, nil, "") })
+	t.Run("cache-nopush", func(t *testing.T) { assertBuildKitJobSpec(t, true, false, false, nil, "") })
+	t.Run("nocache-push", func(t *testing.T) { assertBuildKitJobSpec(t, false, false, true, nil, "") })
+	t.Run("cache-push", func(t *testing.T) { assertBuildKitJobSpec(t, true, false, true, nil, "") })
+	t.Run("cache-refresh-build-cache", func(t *testing.T) { assertBuildKitJobSpec(t, true, true, true, nil, "") })
+	t.Run("no-cache-refresh-build-cache", func(t *testing.T) { assertBuildKitJobSpec(t, false, true, true, nil, "") })
+	t.Run("with buildsecrets", func(t *testing.T) { assertBuildKitJobSpec(t, true, false, true, []string{"secret1", "secret2"}, "") })
+	t.Run("with buildsecrets", func(t *testing.T) { assertBuildKitJobSpec(t, true, false, true, nil, "anyexternalregsecret") })
 }
 
-func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets []string, externalRegistrySecret string) {
+func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushImage bool, buildSecrets []string, externalRegistrySecret string) {
 	const (
-		cloneURL      = "anycloneurl"
-		gitCommitHash = "anygitcommithash"
-		gitTags       = "anygittags"
+		cloneURL      = "git_url_to_clone"
+		gitCommitHash = "commit_hash_to_checkout"
+		gitTags       = "tag1 tag2"
+		gitWorkspace  = "/some-workspace"
+		gitRefName    = "git-branch-to-clone"
 	)
 
 	args := model.PipelineArguments{
 		AppName:                "anyappname",
 		PipelineType:           "anypipelinetype",
 		JobName:                "anyjobname",
-		Branch:                 "anybranch",
+		GitRef:                 gitRefName,
+		GitRefType:             "tag",
 		CommitID:               "anycommitid",
 		ImageTag:               "anyimagetag",
 		PushImage:              pushImage,
@@ -59,8 +64,8 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 		AppContainerRegistry:   "anyappcontainerregistry",
 		SeccompProfileFileName: "anyseccompprofilefile",
 		ExternalContainerRegistryDefaultAuthSecret: externalRegistrySecret,
-		Builder:      model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M"},
-		GitWorkspace: "/some-workspace",
+		Builder:      model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M", ResourcesLimitsCPU: "50m"},
+		GitWorkspace: gitWorkspace,
 	}
 	require.Equal(t, pushImage, args.PushImage)
 	require.Equal(t, externalRegistrySecret, args.ExternalContainerRegistryDefaultAuthSecret)
@@ -71,7 +76,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 	}
 
 	sut := build.NewBuildKit()
-	jobs := sut.BuildJobs(useCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
+	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
 	require.Len(t, jobs, len(componentImages))
 
 	for _, ci := range componentImages {
@@ -94,7 +99,9 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 			assert.Equal(t, expectedJobLabels, job.Labels)
 			componentImagesAnnotation, _ := json.Marshal([]pipeline.BuildComponentImage{ci})
 			expectedJobAnnotations := map[string]string{
-				kube.RadixBranchAnnotation:          args.Branch,
+				kube.RadixBranchAnnotation:          args.Branch, //nolint:staticcheck
+				kube.RadixGitRefAnnotation:          args.GitRef,
+				kube.RadixGitRefTypeAnnotation:      args.GitRefType,
 				kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
 			}
 			assert.Equal(t, expectedJobAnnotations, job.Annotations)
@@ -152,10 +159,11 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 			assert.ElementsMatch(t, []string{"internal-nslookup", "clone", "internal-chmod"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 			cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
 			assert.Equal(t, args.GitCloneGitImage, cloneContainer.Image)
-			assert.Equal(t, []string{"sh", "-c", "git config --global --add safe.directory /some-workspace && git clone anycloneurl -b anybranch --verbose --progress /some-workspace && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd /some-workspace && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -"}, cloneContainer.Command)
+			expectedCommand := fmt.Sprintf("git config --global --add safe.directory %[3]s && git clone %[2]s -b %[4]s --verbose --progress --filter=blob:none %[3]s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd %[3]s && echo \"Checking out commit %[1]s\" && git merge-base --is-ancestor %[1]s HEAD && git checkout -q %[1]s && cd - && cd %[3]s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", gitCommitHash, cloneURL, gitWorkspace, gitRefName)
+			assert.Equal(t, []string{"sh", "-c", expectedCommand}, cloneContainer.Command)
 			assert.Empty(t, cloneContainer.Args)
 			expectedCloneVolumeMounts := []corev1.VolumeMount{
-				{Name: git.BuildContextVolumeName, MountPath: "/some-workspace"},
+				{Name: git.BuildContextVolumeName, MountPath: gitWorkspace},
 				{Name: git.GitSSHKeyVolumeName, MountPath: "/.ssh", ReadOnly: true},
 				{Name: git.CloneRepoHomeVolumeName, MountPath: git.CloneRepoHomeVolumePath},
 			}
@@ -174,6 +182,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 				},
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceMemory: resource.MustParse(args.Builder.ResourcesLimitsMemory),
+					corev1.ResourceCPU:    resource.MustParse(args.Builder.ResourcesLimitsCPU),
 				},
 			}
 			assert.Equal(t, expectedResources, c.Resources)
@@ -228,7 +237,7 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 			}
 			assert.ElementsMatch(t, expectedEnvVars, c.Env)
 			expectedVolumeMounts := []corev1.VolumeMount{
-				{Name: git.BuildContextVolumeName, MountPath: "/some-workspace"},
+				{Name: git.BuildContextVolumeName, MountPath: gitWorkspace},
 				{Name: fmt.Sprintf("tmp-%s", ci.ContainerName), MountPath: "/tmp", ReadOnly: false},
 				{Name: fmt.Sprintf("var-%s", ci.ContainerName), MountPath: "/var", ReadOnly: false},
 				{Name: "build-kit-run", MountPath: "/run", ReadOnly: false},
@@ -257,13 +266,16 @@ func assertBuildKitJobSpec(t *testing.T, useCache, pushImage bool, buildSecrets 
 				"--secrets-path", "/build-secrets",
 				"--dockerfile", ci.Dockerfile,
 				"--context", ci.Context,
-				"--branch", args.Branch,
+				"--branch", args.GetGitRefOrDefault(),
 				"--git-commit-hash", gitCommitHash,
 				"--git-tags", gitTags,
 				"--target-environments", ci.EnvName,
 			}
-			if useCache {
+			if useBuildCache {
 				expectedArgs = append(expectedArgs, "--use-cache")
+			}
+			if refreshBuildCache {
+				expectedArgs = append(expectedArgs, "--refresh-cache")
 			}
 			if args.PushImage {
 				expectedArgs = append(expectedArgs, "--push")

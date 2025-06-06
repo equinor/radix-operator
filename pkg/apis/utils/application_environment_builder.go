@@ -9,6 +9,7 @@ import (
 type ApplicationEnvironmentBuilder interface {
 	WithName(name string) ApplicationEnvironmentBuilder
 	WithBuildFrom(branch string) ApplicationEnvironmentBuilder
+	WithWebhookEnabled(enabled *bool) ApplicationEnvironmentBuilder
 	WithEnvVars(envVars radixv1.EnvVarsMap) ApplicationEnvironmentBuilder
 	WithSubPipeline(subPipelineBuilder SubPipelineBuilder) ApplicationEnvironmentBuilder
 	Build() radixv1.Environment
@@ -17,6 +18,7 @@ type ApplicationEnvironmentBuilder interface {
 type applicationEnvironmentBuilder struct {
 	name               string
 	branch             string
+	webhookEnabled     *bool
 	envVars            radixv1.EnvVarsMap
 	subPipelineBuilder SubPipelineBuilder
 }
@@ -38,6 +40,12 @@ func (b *applicationEnvironmentBuilder) WithBuildFrom(branch string) Application
 	return b
 }
 
+// WithWebhookEnabled an application environment webhook enabled
+func (b *applicationEnvironmentBuilder) WithWebhookEnabled(enabled *bool) ApplicationEnvironmentBuilder {
+	b.webhookEnabled = enabled
+	return b
+}
+
 // WithEnvVars build env-vars
 func (b *applicationEnvironmentBuilder) WithEnvVars(envVars radixv1.EnvVarsMap) ApplicationEnvironmentBuilder {
 	b.envVars = envVars
@@ -55,8 +63,9 @@ func (b *applicationEnvironmentBuilder) Build() radixv1.Environment {
 	environment := radixv1.Environment{
 		Name: b.name,
 		Build: radixv1.EnvBuild{
-			From:      b.branch,
-			Variables: b.envVars,
+			From:           b.branch,
+			WebhookEnabled: b.webhookEnabled,
+			Variables:      b.envVars,
 		},
 	}
 	if !commonUtils.IsNil(b.subPipelineBuilder) {

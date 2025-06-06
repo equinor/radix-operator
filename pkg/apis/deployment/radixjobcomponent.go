@@ -126,6 +126,8 @@ func (c *jobComponentsBuilder) buildJobComponent(ctx context.Context, radixJobCo
 		ReadOnlyFileSystem:   getRadixCommonComponentReadOnlyFileSystem(&radixJobComponent, environmentSpecificConfig),
 		VolumeMounts:         volumeMounts,
 		Runtime:              componentImage.Runtime,
+		Command:              radixJobComponent.GetCommandForEnvironmentConfig(environmentSpecificConfig),
+		Args:                 radixJobComponent.GetArgsForEnvironmentConfig(environmentSpecificConfig),
 		BatchStatusRules:     getRadixJobComponentBatchStatusRules(&radixJobComponent, environmentSpecificConfig),
 		FailurePolicy:        failurePolicy,
 	}

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/equinor/radix-common/pkg/docker"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -139,8 +140,94 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T)
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.ElementsMatch(t, []string{"prod", "qa"}, targetEnvs)
+}
+
+func TestIsThereAnythingToDeploy_FromType(t *testing.T) {
+	const (
+		branch1 = "branch1"
+		branch2 = "branch2"
+		tag1    = "v1.0.0"
+		env1    = "env1"
+		env2    = "env2"
+		env3    = "env3"
+	)
+	scenarios := map[string]struct {
+		branch, gitRef, gitRefType string
+		raBuilder                  func() utils.ApplicationBuilder
+		expectedTargetEnvs         []string
+	}{
+		"matching branch, empty FromType": {
+			gitRef:     branch1,
+			gitRefType: string(radixv1.GitRefBranch),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1})
+			},
+			expectedTargetEnvs: []string{env1},
+		},
+		"not matching branch, empty FromType": {
+			gitRef:     branch1,
+			gitRefType: string(radixv1.GitRefBranch),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch2})
+			},
+			expectedTargetEnvs: nil,
+		},
+		"matching branch, FromType branch": {
+			gitRef:     branch1,
+			gitRefType: string(radixv1.GitRefBranch),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, FromType: string(radixv1.GitRefBranch)})
+			},
+			expectedTargetEnvs: []string{env1, env2},
+		},
+		"matching regex branch, FromType branch": {
+			gitRef:     "feature-1.0.0",
+			gitRefType: string(radixv1.GitRefBranch),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: "feature.*"}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: "feature.*", FromType: string(radixv1.GitRefBranch)}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: "feature.*", FromType: string(radixv1.GitRefTag)})
+			},
+			expectedTargetEnvs: []string{env1, env2},
+		},
+		"matching tag, FromType tag": {
+			gitRef:     tag1,
+			gitRefType: string(radixv1.GitRefTag),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: tag1}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: tag1, FromType: string(radixv1.GitRefBranch)}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: tag1, FromType: string(radixv1.GitRefTag)})
+			},
+			expectedTargetEnvs: []string{env1, env3},
+		},
+		"matching regex tag, FromType tag": {
+			gitRef:     "v1.0.0",
+			gitRefType: string(radixv1.GitRefTag),
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: "v1.*"}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: "v1.*", FromType: string(radixv1.GitRefBranch)}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: "v1.*", FromType: string(radixv1.GitRefTag)})
+			},
+			expectedTargetEnvs: []string{env1, env3},
+		},
+	}
+
+	for name, ts := range scenarios {
+		t.Run(name, func(t *testing.T) {
+			ra := ts.raBuilder().BuildRA()
+			targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(ts.gitRef, ts.gitRefType, ra, false)
+			assert.ElementsMatch(t, ts.expectedTargetEnvs, targetEnvs, "mismatched target environments")
+		})
+	}
 }
 
 func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_ListsBothButNoneIsBuilding(t *testing.T) {
@@ -151,7 +238,7 @@ func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_Lis
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -163,7 +250,7 @@ func TestIsThereAnythingToDeploy_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBu
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
@@ -175,7 +262,7 @@ func TestIsThereAnythingToDeploy_twoEnvNoBranch(t *testing.T) {
 		WithEnvironmentNoBranch("prod").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
@@ -185,8 +272,126 @@ func TestIsThereAnythingToDeploy_NoEnv(t *testing.T) {
 	ra := utils.NewRadixApplicationBuilder().
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.Equal(t, 0, len(targetEnvs))
+}
+
+func Test_TargetEnvironmentsForGitRefs(t *testing.T) {
+	const (
+		env1          = "env1"
+		env2          = "env2"
+		env3          = "env3"
+		branch1       = "branch1"
+		branch2       = "branch2"
+		tag1          = "tag1"
+		refTypeBranch = "branch"
+		refTypeTag    = "tag"
+	)
+	scenarios := map[string]struct {
+		gitRef, gitRefType            string
+		triggeredFromWebhook          bool
+		raBuilder                     func() utils.ApplicationBuilder
+		expectedTargetEnvironments    []string
+		expectedIgnoredForWebhookEnvs []string
+		expectedIgnoredForGitRefType  []string
+	}{
+		"one env for one branch": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironment(env1, branch1).
+					WithEnvironment(env2, branch2)
+			},
+			gitRef:                     branch1,
+			gitRefType:                 refTypeBranch,
+			triggeredFromWebhook:       true,
+			expectedTargetEnvironments: []string{env1},
+		},
+		"two envs for one branch": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironment(env1, branch1).
+					WithEnvironment(env2, branch1)
+			},
+			gitRef:                     branch1,
+			gitRefType:                 refTypeBranch,
+			triggeredFromWebhook:       true,
+			expectedTargetEnvironments: []string{env1, env2},
+		},
+		"disable webhook for one env": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, WebhookEnabled: pointers.Ptr(true)}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: branch1, WebhookEnabled: pointers.Ptr(false)})
+			},
+			gitRef:                        branch1,
+			triggeredFromWebhook:          true,
+			expectedTargetEnvironments:    []string{env1, env2},
+			expectedIgnoredForWebhookEnvs: []string{env3},
+		},
+		"triggeredFromWebhook for branch gitRefType": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1, FromType: ""}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, FromType: refTypeBranch}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: branch1, FromType: refTypeTag})
+			},
+			gitRef:                       branch1,
+			gitRefType:                   refTypeBranch,
+			triggeredFromWebhook:         true,
+			expectedTargetEnvironments:   []string{env1, env2},
+			expectedIgnoredForGitRefType: []string{env3},
+		},
+		"triggeredFromWebhook for tag gitRefType": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: tag1, FromType: ""}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: tag1, FromType: refTypeBranch}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: tag1, FromType: refTypeTag})
+			},
+			gitRef:                       tag1,
+			gitRefType:                   refTypeTag,
+			triggeredFromWebhook:         true,
+			expectedTargetEnvironments:   []string{env1, env3},
+			expectedIgnoredForGitRefType: []string{env2},
+		},
+		"not triggeredFromWebhook for branch gitRefType": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1, FromType: ""}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, FromType: refTypeBranch}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: branch1, FromType: refTypeTag})
+			},
+			gitRef:                       branch1,
+			gitRefType:                   refTypeBranch,
+			triggeredFromWebhook:         false,
+			expectedTargetEnvironments:   []string{env1, env2},
+			expectedIgnoredForGitRefType: []string{env3},
+		},
+		"not triggeredFromWebhook for tag gitRefType": {
+			raBuilder: func() utils.ApplicationBuilder {
+				return utils.NewRadixApplicationBuilder().
+					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: tag1, FromType: ""}).
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: tag1, FromType: refTypeBranch}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: tag1, FromType: refTypeTag})
+			},
+			gitRef:                       tag1,
+			gitRefType:                   refTypeTag,
+			triggeredFromWebhook:         false,
+			expectedTargetEnvironments:   []string{env1, env3},
+			expectedIgnoredForGitRefType: []string{env2},
+		},
+	}
+
+	for name, ts := range scenarios {
+		t.Run(name, func(t *testing.T) {
+			ra := ts.raBuilder().BuildRA()
+			targetEnvs, ignoredForWebhookEnvs, ignoredForGitRefsType := applicationconfig.GetTargetEnvironments(ts.gitRef, ts.gitRefType, ra, ts.triggeredFromWebhook)
+			assert.ElementsMatch(t, ts.expectedTargetEnvironments, targetEnvs, "mismatched target environments")
+			assert.ElementsMatch(t, ts.expectedIgnoredForWebhookEnvs, ignoredForWebhookEnvs, "mismatched ignored for webhook environments")
+			assert.ElementsMatch(t, ts.expectedIgnoredForGitRefType, ignoredForGitRefsType, "mismatched ignored for git refs type environments")
+		})
+	}
 }
 
 func TestIsThereAnythingToDeploy_promotionScheme_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
@@ -197,7 +402,7 @@ func TestIsThereAnythingToDeploy_promotionScheme_ListsBothButOnlyOneShouldBeBuil
 		WithEnvironment("prod", "").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.ElementsMatch(t, []string{"qa"}, targetEnvs)
 }
 
@@ -209,7 +414,7 @@ func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := applicationconfig.GetTargetEnvironments(branch, ra)
+	targetEnvs, _, _ := applicationconfig.GetTargetEnvironments(branch, "branch", ra, false)
 	assert.ElementsMatch(t, []string{"feature"}, targetEnvs)
 }
 
@@ -407,7 +612,7 @@ func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
 	assert.False(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
 }
 
-func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
+func Test_PrivateImageHubSecret_RoleAndRoleBinding(t *testing.T) {
 	tu, client, kubeUtil, radixClient := setupTest(t)
 
 	adminGroups, adminUsers := []string{"admin1", "admin2"}, []string{"adminUser1", "adminUser2"}
@@ -452,119 +657,267 @@ func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
 		})
 	}
 }
-func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
-	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
-	assert.Equal(t, "radix-private-image-hubs-sync=any-app", secret.ObjectMeta.Annotations["kubed.appscode.com/sync"])
-	assert.Equal(t, "radix-private-image-hubs-sync=any-app", secret.ObjectMeta.Annotations["replicator.v1.mittwald.de/replicate-to-matching"])
+func Test_PrivateImageHubSecret_LabelsAndAnnotations(t *testing.T) {
+	tu, client, kubeUtil, radixClient := setupTest(t)
+	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient, radixv1.PrivateImageHubEntries{})
+	require.NoError(t, err)
+
+	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedLabels := map[string]string{kube.RadixAppLabel: "any-app"}
+	assert.Equal(t, expectedLabels, secret.ObjectMeta.Labels)
+	expectedAnnotations := map[string]string{"replicator.v1.mittwald.de/replicate-to-matching": "radix-private-image-hubs-sync=any-app"}
+	assert.Equal(t, expectedAnnotations, secret.ObjectMeta.Annotations)
 }
 
-func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdatedNewAdded(t *testing.T) {
-	applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+func Test_PrivateImageHubSecret_KeepCustomAnnotations(t *testing.T) {
+	tu, client, kubeUtil, radixClient := setupTest(t)
+	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
 
-	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-		"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+	secret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	secret.Annotations["any-annotation"] = "any-value"
+	_, err = client.CoreV1().Secrets("any-app-app").Update(context.Background(), secret, metav1.UpdateOptions{})
+	require.NoError(t, err)
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
+	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
+		radixv1.PrivateImageHubEntries{
+			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
+				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Email:    "radix@equinor.com",
+			},
+		})
+	require.NoError(t, err)
+	secret, err = client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedAnnotations := map[string]string{
+		"replicator.v1.mittwald.de/replicate-to-matching": "radix-private-image-hubs-sync=any-app",
+		"any-annotation": "any-value",
+	}
+	assert.Equal(t, expectedAnnotations, secret.ObjectMeta.Annotations)
 }
 
-func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateUsername(t *testing.T) {
-	applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
+func Test_PrivateImageHubSecret_UpdateSpec(t *testing.T) {
+	tests := map[string]struct {
+		initialSpec         radixv1.PrivateImageHubEntries
+		initialExpectedAuth docker.Auths
+		passwords           map[string]string
+		updatedSpec         radixv1.PrivateImageHubEntries
+		updatedExpectedAuth docker.Auths
+	}{
+		"password retained when resync with no changes": {
+			initialSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			initialExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+			},
+			passwords: map[string]string{"registry.server.com": "anypassword"},
+			updatedSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			updatedExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Password: "anypassword",
+					Auth:     "YW55dXNlcjphbnlwYXNzd29yZA==",
+				},
+			},
 		},
-	})
-
-	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abb2",
-			Email:    "radix@equinor.com",
+		"password retained when resync with changed username": {
+			initialSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			initialExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+			},
+			passwords: map[string]string{"registry.server.com": "anypassword"},
+			updatedSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "newuser",
+					Email:    "any@email.com",
+				},
+			},
+			updatedExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "newuser",
+					Email:    "any@email.com",
+					Password: "anypassword",
+					Auth:     "bmV3dXNlcjphbnlwYXNzd29yZA==",
+				},
+			},
 		},
-	})
-
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abb2\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmIyOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
-}
-
-func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateServerName(t *testing.T) {
-	applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
+		"password retained when resync with changed email": {
+			initialSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			initialExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+			},
+			passwords: map[string]string{"registry.server.com": "anypassword"},
+			updatedSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "new@email.com",
+				},
+			},
+			updatedExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "new@email.com",
+					Password: "anypassword",
+					Auth:     "YW55dXNlcjphbnlwYXNzd29yZA==",
+				},
+			},
 		},
-	})
-
-	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme1.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
+		"password cleared when resync with changed server": {
+			initialSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			initialExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+			},
+			passwords: map[string]string{"registry.server.com": "anypassword"},
+			updatedSpec: radixv1.PrivateImageHubEntries{
+				"newregistry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+			},
+			updatedExpectedAuth: docker.Auths{
+				"newregistry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+			},
 		},
-	})
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme1.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
-}
-
-func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
-	client, _, _ := applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
+		"password retained when adding and removing servers": {
+			initialSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+				"oldregistry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "olduser",
+					Email:    "old@email.com",
+				},
+			},
+			initialExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Auth:     "YW55dXNlcjo=",
+				},
+				"oldregistry.server.com": docker.Credential{
+					Username: "olduser",
+					Email:    "old@email.com",
+					Auth:     "b2xkdXNlcjo=",
+				},
+			},
+			passwords: map[string]string{"registry.server.com": "anypassword"},
+			updatedSpec: radixv1.PrivateImageHubEntries{
+				"registry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+				},
+				"newregistry.server.com": &radixv1.RadixPrivateImageHubCredential{
+					Username: "newuser",
+					Email:    "new@email.com",
+				},
+			},
+			updatedExpectedAuth: docker.Auths{
+				"registry.server.com": docker.Credential{
+					Username: "anyuser",
+					Email:    "any@email.com",
+					Password: "anypassword",
+					Auth:     "YW55dXNlcjphbnlwYXNzd29yZA==",
+				},
+				"newregistry.server.com": docker.Credential{
+					Username: "newuser",
+					Email:    "new@email.com",
+					Auth:     "bmV3dXNlcjo=",
+				},
+			},
 		},
-		"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+	}
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			tu, client, kubeUtil, radixClient := setupTest(t)
 
-	client, _, _ = applyRadixAppWithPrivateImageHub(t, radixv1.PrivateImageHubEntries{
-		"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
-			Email:    "radix@equinor.com",
-		},
-	})
+			// Check initial private image hub spec
+			err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient, testSpec.initialSpec)
+			require.NoError(t, err)
+			initialSecret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+			require.NoError(t, err)
+			initialActualAuthConfig, err := applicationconfig.UnmarshalPrivateImageHubAuthConfig(initialSecret.Data[corev1.DockerConfigJsonKey])
+			require.NoError(t, err)
+			assert.Equal(t, testSpec.initialExpectedAuth, initialActualAuthConfig.Auths)
 
-	secret, _ = client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
-	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
-		string(secret.Data[corev1.DockerConfigJsonKey]))
+			// Update secret with passwords
+			for server, cred := range initialActualAuthConfig.Auths {
+				if pwd, found := testSpec.passwords[server]; found {
+					cred.Password = pwd
+					initialActualAuthConfig.Auths[server] = cred
+				}
+			}
+			authConfigData, err := applicationconfig.MarshalPrivateImageHubAuthConfig(initialActualAuthConfig)
+			require.NoError(t, err)
+			initialSecret.Data[corev1.DockerConfigJsonKey] = authConfigData
+			_, err = client.CoreV1().Secrets("any-app-app").Update(context.Background(), initialSecret, metav1.UpdateOptions{})
+			require.NoError(t, err)
+
+			// Check updated private image hub spec
+			err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient, testSpec.updatedSpec)
+			require.NoError(t, err)
+			updatedSecret, err := client.CoreV1().Secrets("any-app-app").Get(context.Background(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+			require.NoError(t, err)
+			updatedActualAuthConfig, err := applicationconfig.UnmarshalPrivateImageHubAuthConfig(updatedSecret.Data[corev1.DockerConfigJsonKey])
+			require.NoError(t, err)
+			assert.Equal(t, testSpec.updatedExpectedAuth, updatedActualAuthConfig.Auths)
+		})
+	}
 }
 
 func Test_RadixEnvironment(t *testing.T) {
@@ -687,8 +1040,7 @@ func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	}
 }
 
-func applyRadixAppWithPrivateImageHub(t *testing.T, privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *applicationconfig.ApplicationConfig, *kube.Kube) {
-	tu, client, kubeUtil, radixClient := setupTest(t)
+func applyRadixAppWithPrivateImageHub(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, privateImageHubs radixv1.PrivateImageHubEntries) error {
 	appBuilder := utils.ARadixApplication().
 		WithAppName("any-app").
 		WithEnvironment("dev", "master")
@@ -696,23 +1048,10 @@ func applyRadixAppWithPrivateImageHub(t *testing.T, privateImageHubs radixv1.Pri
 		appBuilder.WithPrivateImageRegistry(key, config.Username, config.Email)
 	}
 
-	err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, appBuilder)
-	if err != nil {
-		return nil, nil, nil
-	}
-	appConfig := getAppConfig(client, kubeUtil, radixClient, appBuilder)
-	return client, appConfig, kubeUtil
+	return applyApplicationWithSync(tu, client, kubeUtil, radixClient, appBuilder)
 }
 
-func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) *applicationconfig.ApplicationConfig {
-	ra := applicationBuilder.BuildRA()
-	radixRegistration, _ := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), ra.Name, metav1.GetOptions{})
-
-	return applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
-}
-
-func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
-	radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
+func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
 
 	ra, err := tu.ApplyApplication(applicationBuilder)
 	if err != nil {

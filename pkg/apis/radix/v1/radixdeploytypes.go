@@ -134,12 +134,19 @@ type RadixDeployComponent struct {
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
 	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy"`
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty"`
-	Node                    RadixNode               `json:"node,omitempty"`
-	Authentication          *Authentication         `json:"authentication,omitempty"`
-	Identity                *Identity               `json:"identity,omitempty"`
-	ReadOnlyFileSystem      *bool                   `json:"readOnlyFileSystem,omitempty"`
-	Runtime                 *Runtime                `json:"runtime,omitempty"`
-	Network                 *Network                `json:"network,omitempty"`
+	// Deprecated: use Runtime.NodeType instead.
+	// Defines GPU requirements for the component.
+	// More info: https://www.radix.equinor.com/radix-config#node
+	Node               RadixNode       `json:"node,omitempty"`
+	Authentication     *Authentication `json:"authentication,omitempty"`
+	Identity           *Identity       `json:"identity,omitempty"`
+	ReadOnlyFileSystem *bool           `json:"readOnlyFileSystem,omitempty"`
+	Runtime            *Runtime        `json:"runtime,omitempty"`
+	Network            *Network        `json:"network,omitempty"`
+	// GetCommand Entrypoint array. Not executed within a shell.
+	Command []string `json:"command,omitempty"`
+	// GetArgs Arguments to the entrypoint.
+	Args []string `json:"args,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetHealthChecks() *RadixHealthChecks {
@@ -226,9 +233,10 @@ func (deployComponent *RadixDeployComponent) GetExternalDNS() []RadixDeployExter
 	if len(deployComponent.ExternalDNS) > 0 {
 		return deployComponent.ExternalDNS
 	}
-	return slice.Map(deployComponent.DNSExternalAlias, func(alias string) RadixDeployExternalDNS {
-		return RadixDeployExternalDNS{FQDN: alias, UseCertificateAutomation: false}
-	})
+	return slice.Map(deployComponent.DNSExternalAlias, //nolint:staticcheck
+		func(alias string) RadixDeployExternalDNS {
+			return RadixDeployExternalDNS{FQDN: alias, UseCertificateAutomation: false}
+		})
 }
 
 func (deployComponent *RadixDeployComponent) IsDNSAppAlias() bool {
@@ -240,7 +248,7 @@ func (deployComponent *RadixDeployComponent) GetIngressConfiguration() []string 
 }
 
 func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
-	return &deployComponent.Node
+	return &deployComponent.Node //nolint:staticcheck
 }
 
 func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication {
@@ -273,6 +281,14 @@ func (deployComponent *RadixDeployComponent) SetVolumeMounts(mounts []RadixVolum
 
 func (deployComponent *RadixDeployComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
 	deployComponent.EnvironmentVariables = envVars
+}
+
+func (deployComponent *RadixDeployComponent) GetCommand() []string {
+	return deployComponent.Command
+}
+
+func (deployComponent *RadixDeployComponent) GetArgs() []string {
+	return deployComponent.Args
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
@@ -359,7 +375,7 @@ func (deployJobComponent *RadixDeployJobComponent) GetIngressConfiguration() []s
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
-	return &deployJobComponent.Node
+	return &deployJobComponent.Node //nolint:staticcheck
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authentication {
@@ -398,8 +414,16 @@ func (deployJobComponent *RadixDeployJobComponent) SetEnvironmentVariables(envVa
 	deployJobComponent.EnvironmentVariables = envVars
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetCommand() []string {
+	return deployJobComponent.Command
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetArgs() []string {
+	return deployJobComponent.Args
+}
+
 // GetNrOfReplicas gets number of replicas component will run
-func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
+func (deployComponent *RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
 	if deployComponent.HorizontalScaling != nil && deployComponent.HorizontalScaling.MinReplicas != nil {
 		replicas = *deployComponent.HorizontalScaling.MinReplicas
@@ -426,13 +450,14 @@ type RadixDeployJobComponent struct {
 	SchedulerPort           *int32                    `json:"schedulerPort,omitempty"`
 	Payload                 *RadixJobComponentPayload `json:"payload,omitempty"`
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy"`
-	Node                    RadixNode                 `json:"node,omitempty"`
-	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty"`
-	BackoffLimit            *int32                    `json:"backoffLimit,omitempty"`
-	Identity                *Identity                 `json:"identity,omitempty"`
-	Notifications           *Notifications            `json:"notifications,omitempty"`
-	ReadOnlyFileSystem      *bool                     `json:"readOnlyFileSystem,omitempty"`
-	Runtime                 *Runtime                  `json:"runtime,omitempty"`
+	// Deprecated: use Runtime.NodeType instead.
+	Node               RadixNode      `json:"node,omitempty"`
+	TimeLimitSeconds   *int64         `json:"timeLimitSeconds,omitempty"`
+	BackoffLimit       *int32         `json:"backoffLimit,omitempty"`
+	Identity           *Identity      `json:"identity,omitempty"`
+	Notifications      *Notifications `json:"notifications,omitempty"`
+	ReadOnlyFileSystem *bool          `json:"readOnlyFileSystem,omitempty"`
+	Runtime            *Runtime       `json:"runtime,omitempty"`
 	// BatchStatusRules Rules define how a batch status is set corresponding to batch job statuses
 	// +optional
 	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`
@@ -440,6 +465,10 @@ type RadixDeployJobComponent struct {
 	// FailurePolicy specifies the policy of handling failed job replicas
 	// +optional
 	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
+	// GetCommand Entrypoint array. Not executed within a shell.
+	Command []string `json:"command,omitempty"`
+	// GetArgs Arguments to the entrypoint.
+	Args []string `json:"args,omitempty"`
 }
 
 func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {
@@ -485,6 +514,10 @@ type RadixCommonDeployComponent interface {
 	GetRuntime() *Runtime
 	GetNetwork() *Network
 	GetHealthChecks() *RadixHealthChecks
+	// GetCommand Entrypoint array. Not executed within a shell.
+	GetCommand() []string
+	// GetArgs Arguments to the entrypoint.
+	GetArgs() []string
 }
 
 // IsActive The RadixDeployment is active

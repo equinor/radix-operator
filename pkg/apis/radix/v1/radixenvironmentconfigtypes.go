@@ -14,6 +14,7 @@ type RadixCommonEnvironmentConfig interface {
 	GetVariables() EnvVarsMap
 	GetSecretRefs() RadixSecretRefs
 	GetResources() ResourceRequirements
+	// Deprecated: use GetRuntime().GetNodeType() instead.
 	GetNode() RadixNode
 	GetImageTagName() string
 	GetHorizontalScaling() *RadixHorizontalScaling
@@ -27,6 +28,10 @@ type RadixCommonEnvironmentConfig interface {
 	// GetRuntime Gets environment specific target runtime requirements
 	GetRuntime() *Runtime
 	getEnabled() *bool
+	// GetCommand Entrypoint array. Not executed within a shell.
+	GetCommand() *[]string
+	// GetArgs Arguments to the entrypoint.
+	GetArgs() *[]string
 }
 
 func (config *RadixEnvironmentConfig) GetEnvironment() string {
@@ -91,6 +96,14 @@ func (config *RadixEnvironmentConfig) GetVolumeMounts() []RadixVolumeMount {
 
 func (config *RadixEnvironmentConfig) GetRuntime() *Runtime {
 	return config.Runtime
+}
+
+func (config *RadixEnvironmentConfig) GetCommand() *[]string {
+	return config.Command
+}
+
+func (config *RadixEnvironmentConfig) GetArgs() *[]string {
+	return config.Args
 }
 
 func (config *RadixEnvironmentConfig) getEnabled() *bool {
@@ -168,4 +181,12 @@ func (config *RadixJobComponentEnvironmentConfig) GetRuntime() *Runtime {
 
 func (config *RadixJobComponentEnvironmentConfig) getEnabled() *bool {
 	return config.Enabled
+}
+
+func (config *RadixJobComponentEnvironmentConfig) GetCommand() *[]string {
+	return config.Command
+}
+
+func (config *RadixJobComponentEnvironmentConfig) GetArgs() *[]string {
+	return config.Args
 }

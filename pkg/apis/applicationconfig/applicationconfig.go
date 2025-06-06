@@ -3,21 +3,17 @@ package applicationconfig
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	k8errors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -49,11 +45,6 @@ func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, 
 	}
 }
 
-// GetRadixApplicationConfig returns the provided config
-func (app *ApplicationConfig) GetRadixApplicationConfig() *radixv1.RadixApplication {
-	return app.config
-}
-
 // GetRadixRegistration returns the provided radix registration
 func (app *ApplicationConfig) GetRadixRegistration() *radixv1.RadixRegistration {
 	return app.registration
@@ -69,58 +60,31 @@ func IsConfigBranch(branch string, rr *radixv1.RadixRegistration) bool {
 	return strings.EqualFold(branch, GetConfigBranch(rr))
 }
 
-// GetTargetEnvironments Checks if given branch requires deployment to environments
-func GetTargetEnvironments(branchToBuild string, ra *radixv1.RadixApplication) []string {
+// GetTargetEnvironments Gets applicable target environments to be built for a given branch
+func GetTargetEnvironments(gitRef, gitRefType string, ra *radixv1.RadixApplication, triggeredFromWebhook bool) ([]string, []string, []string) {
 	var targetEnvs []string
+	var ignoredForWebhookEnvs, ignoredForGitRefType []string
 	for _, env := range ra.Spec.Environments {
-		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
-			targetEnvs = append(targetEnvs, env.Name)
+		if env.Build.From == "" || !branch.MatchesPattern(env.Build.From, gitRef) {
+			continue
 		}
+		if triggeredFromWebhook && env.Build.WebhookEnabled != nil && !*env.Build.WebhookEnabled {
+			ignoredForWebhookEnvs = append(ignoredForWebhookEnvs, env.Name)
+			continue
+		}
+		if len(env.Build.FromType) > 0 && len(gitRefType) > 0 && env.Build.FromType != gitRefType {
+			ignoredForGitRefType = append(ignoredForGitRefType, env.Name)
+			continue
+		}
+		targetEnvs = append(targetEnvs, env.Name)
 	}
-	return targetEnvs
+	return targetEnvs, ignoredForWebhookEnvs, ignoredForGitRefType
 }
 
-// ApplyConfigToApplicationNamespace Will apply the config to app namespace so that the operator can act on it
-func (app *ApplicationConfig) ApplyConfigToApplicationNamespace(ctx context.Context) error {
-	appNamespace := utils.GetAppNamespace(app.config.Name)
-
-	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(ctx, app.config.Name, metav1.GetOptions{})
-	if err != nil {
-		if k8errors.IsNotFound(err) {
-			app.logger.Debug().Msgf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
-			if err = radixvalidators.CanRadixApplicationBeInserted(ctx, app.radixclient, app.config, app.dnsAliasConfig); err != nil {
-				return err
-			}
-			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(ctx, app.config, metav1.CreateOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to create radix application. %v", err)
-			}
-			app.logger.Info().Msgf("RadixApplication %s saved to ns %s", app.config.Name, appNamespace)
-			return nil
-		}
-		return fmt.Errorf("failed to get radix application. %v", err)
-	}
-
-	app.logger.Debug().Msgf("RadixApplication %s exists in namespace %s", app.config.Name, appNamespace)
-	if reflect.DeepEqual(app.config.Spec, existingRA.Spec) {
-		app.logger.Info().Msgf("No changes to RadixApplication %s in namespace %s", app.config.Name, appNamespace)
-		return nil
-	}
-
-	if err = radixvalidators.CanRadixApplicationBeInserted(ctx, app.radixclient, app.config, app.dnsAliasConfig); err != nil {
-		return err
-	}
-
-	// Update RA if different
-	app.logger.Debug().Msgf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
-	// For an update, ResourceVersion of the new object must be the same with the old object
-	app.config.SetResourceVersion(existingRA.GetResourceVersion())
-	_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(ctx, app.config, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to update existing radix application: %w", err)
-	}
-	app.logger.Info().Msgf("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
-	return nil
+// GetAllTargetEnvironments Gets all target environments for a given branch
+func GetAllTargetEnvironments(gitRef, gitRefType string, ra *radixv1.RadixApplication) []string {
+	environments, _, _ := GetTargetEnvironments(gitRef, gitRefType, ra, false)
+	return environments
 }
 
 // OnSync is called when an application config is applied to application namespace

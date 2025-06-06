@@ -288,7 +288,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = spec.AutomountServiceAccountToken()
 	desiredDeployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
-	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent.GetNode())
+	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent)
 
 	existingVolumes, err := deploy.getDeployComponentExistingVolumes(ctx, deployComponent, desiredDeployment)
 	if err != nil {
@@ -309,6 +309,8 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	if err != nil {
 		return err
 	}
+	desiredDeployment.Spec.Template.Spec.Containers[0].Command = deployComponent.GetCommand()
+	desiredDeployment.Spec.Template.Spec.Containers[0].Args = deployComponent.GetArgs()
 
 	volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {
@@ -326,6 +328,8 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 			return err
 		}
 		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
+		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = nil
+		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = nil
 	}
 
 	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, appName, deploy.radixDeployment, deployComponent)

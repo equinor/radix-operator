@@ -5,19 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
-	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
+	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,54 +41,87 @@ func NewApplyConfigStep() model.Step {
 }
 
 // ImplementationForType Override of default step method
-func (cli *ApplyConfigStepImplementation) ImplementationForType() pipeline.StepType {
-	return cli.stepType
+func (step *ApplyConfigStepImplementation) ImplementationForType() pipeline.StepType {
+	return step.stepType
 }
 
 // SucceededMsg Override of default step method
-func (cli *ApplyConfigStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Applied config for application %s", cli.GetAppName())
+func (step *ApplyConfigStepImplementation) SucceededMsg() string {
+	return fmt.Sprintf("Applied config for application %s", step.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed to apply config for application %s. Error: %v", cli.GetAppName(), err)
+func (step *ApplyConfigStepImplementation) ErrorMsg(err error) string {
+	return fmt.Sprintf("Failed to apply config for application %s. Error: %v", step.GetAppName(), err)
 }
 
 // Run Override of default step method
-func (cli *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	printPrepareBuildContext(ctx, pipelineInfo.BuildContext)
+func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	printRadixConfigUpdatedSinceLastDeployment(log.Ctx(ctx), pipelineInfo)
+	printBuildContext(log.Ctx(ctx), pipelineInfo.BuildContext)
+	printSubPipelinesToRun(log.Ctx(ctx), pipelineInfo.EnvironmentSubPipelinesToRun)
 
-	applicationConfig := application.NewApplicationConfig(cli.GetKubeClient(), cli.GetKubeUtil(),
-		cli.GetRadixClient(), cli.GetRegistration(), pipelineInfo.RadixApplication,
-		pipelineInfo.PipelineArguments.DNSConfig)
-
-	pipelineInfo.SetApplicationConfig(applicationConfig)
-
-	if err := cli.setBuildSecret(pipelineInfo); err != nil {
-		return err
-	}
-	if err := cli.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
+	if err := step.setBuildSecret(pipelineInfo); err != nil {
 		return err
 	}
 
-	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
-		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(ctx, pipelineInfo.BuildContext)
+	if slice.Any([]radixv1.RadixPipelineType{radixv1.Build, radixv1.BuildDeploy, radixv1.Deploy}, pipelineInfo.IsPipelineType) {
+		if err := step.setBuildAndDeployImages(ctx, pipelineInfo); err != nil {
+			return err
+		}
 	}
 
-	if err := cli.validatePipelineInfo(pipelineInfo); err != nil {
+	if err := step.validatePipelineInfo(pipelineInfo); err != nil {
 		return err
 	}
 
-	return applicationConfig.ApplyConfigToApplicationNamespace(ctx)
+	return step.applyRadixApplication(ctx, pipelineInfo)
 }
 
-func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
+func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	ra := pipelineInfo.RadixApplication
+	namespace := operatorutils.GetAppNamespace(ra.GetName())
+	dnsAliasConfig := pipelineInfo.PipelineArguments.DNSConfig
+
+	if err := radixvalidators.CanRadixApplicationBeInserted(ctx, step.GetRadixClient(), ra, dnsAliasConfig); err != nil {
+		return err
+	}
+
+	existingRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Get(ctx, ra.Name, metav1.GetOptions{})
+	if err != nil {
+		if kubeerrors.IsNotFound(err) {
+			if _, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Create(ctx, ra, metav1.CreateOptions{}); err != nil {
+				return fmt.Errorf("failed to create radix application. %v", err)
+			}
+			log.Ctx(ctx).Info().Msgf("RadixApplication %s created", ra.Name)
+			return nil
+		}
+		return fmt.Errorf("failed to get radix application. %v", err)
+	}
+
+	log.Ctx(ctx).Debug().Msgf("RadixApplication %s exists in namespace %s", ra.Name, namespace)
+	if reflect.DeepEqual(ra.Spec, existingRA.Spec) {
+		log.Ctx(ctx).Info().Msgf("No changes to RadixApplication %s in namespace %s", ra.Name, namespace)
+		return nil
+	}
+
+	// Update RA if different
+	log.Ctx(ctx).Debug().Msgf("RadixApplication %s in namespace %s has changed, updating now", ra.Name, namespace)
+	// For an update, ResourceVersion of the new object must be the same with the old object
+	ra.SetResourceVersion(existingRA.GetResourceVersion())
+	if _, err = step.GetRadixClient().RadixV1().RadixApplications(namespace).Update(ctx, ra, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("failed to update existing radix application: %w", err)
+	}
+	log.Ctx(ctx).Info().Msgf("RadixApplication %s updated in namespace %s", ra.Name, namespace)
+	return nil
+}
+
+func (step *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.RadixApplication.Spec.Build == nil || len(pipelineInfo.RadixApplication.Spec.Build.Secrets) == 0 {
 		return nil
 	}
 
-	secret, err := cli.GetKubeClient().CoreV1().Secrets(operatorutils.GetAppNamespace(cli.GetAppName())).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
+	secret, err := step.GetKubeClient().CoreV1().Secrets(operatorutils.GetAppNamespace(step.GetAppName())).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
 	if err != nil {
 		// For new applications, or when buildsecrets is first added to radixconfig, the secret
 		// or role bindings may not be synced yet by radix-operator
@@ -98,20 +134,23 @@ func (cli *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.Pip
 	return nil
 }
 
-func (cli *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	componentImageSourceMap, err := cli.getEnvironmentComponentImageSource(ctx, pipelineInfo)
+func (step *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	componentImageSourceMap, err := step.getEnvironmentComponentImageSource(ctx, pipelineInfo)
 	if err != nil {
 		return err
 	}
+
 	setPipelineBuildComponentImages(pipelineInfo, componentImageSourceMap)
 	setPipelineDeployEnvironmentComponentImages(pipelineInfo, componentImageSourceMap)
+
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
 		printEnvironmentComponentImageSources(ctx, componentImageSourceMap)
 	}
+
 	return nil
 }
 
-func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
+func (step *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *model.PipelineInfo) error {
 
 	if err := validateBuildComponents(pipelineInfo); err != nil {
 		return err
@@ -120,7 +159,7 @@ func (cli *ApplyConfigStepImplementation) validatePipelineInfo(pipelineInfo *mod
 	if err := validateDeployComponents(pipelineInfo); err != nil {
 		return err
 	}
-	return validateDeployComponentImages(pipelineInfo.DeployEnvironmentComponentImages, pipelineInfo.RadixApplication)
+	return validateDeployComponentImages(pipelineInfo)
 }
 
 func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
@@ -140,7 +179,8 @@ func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
 }
 
 func hasNonDefaultRuntimeArchitecture(c pipeline.BuildComponentImage) bool {
-	return operatorutils.GetArchitectureFromRuntime(c.Runtime) != defaults.DefaultNodeSelectorArchitecture
+	arch := runtime.GetArchitectureFromRuntimeOrDefault(c.Runtime)
+	return arch != defaults.DefaultNodeSelectorArchitecture
 }
 
 func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
@@ -159,9 +199,9 @@ func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
 			errs = append(errs, fmt.Errorf("requested component %s does not exist", componentName))
 			continue
 		}
-		for _, env := range pipelineInfo.TargetEnvironments {
-			if !component.GetEnabledForEnvironment(env) {
-				errs = append(errs, fmt.Errorf("requested component %s is disabled in the environment %s", componentName, env))
+		for _, targetEnv := range pipelineInfo.TargetEnvironments {
+			if !component.GetEnabledForEnvironment(targetEnv.Environment) {
+				errs = append(errs, fmt.Errorf("requested component %s is disabled in the environment %s", componentName, targetEnv.Environment))
 			}
 		}
 	}
@@ -189,7 +229,12 @@ func printEnvironmentComponentImageSources(ctx context.Context, imageSourceMap e
 			continue
 		}
 		for _, componentSource := range componentImageSources {
-			log.Ctx(ctx).Info().Msgf("    - %s (arch: %s) from %s", componentSource.ComponentName, operatorutils.GetArchitectureFromRuntime(componentSource.Runtime), getImageSourceDescription(componentSource.ImageSource))
+			nodeArch := runtime.GetArchitectureFromRuntimeOrDefault(componentSource.Runtime)
+			attrs := fmt.Sprintf("arch: %s", nodeArch)
+			if nodeType := componentSource.Runtime.GetNodeType(); nodeType != nil {
+				attrs = fmt.Sprintf("%s, Node type: %s", attrs, *nodeType)
+			}
+			log.Ctx(ctx).Info().Msgf("    - %s (%s) from %s", componentSource.ComponentName, attrs, getImageSourceDescription(componentSource.ImageSource))
 		}
 	}
 }
@@ -225,31 +270,25 @@ const (
 	fromDeployment
 )
 
-func (cli *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx context.Context, pipelineInfo *model.PipelineInfo) (environmentComponentImageSourceMap, error) {
+func (step *ApplyConfigStepImplementation) getEnvironmentComponentImageSource(ctx context.Context, pipelineInfo *model.PipelineInfo) (environmentComponentImageSourceMap, error) {
 	ra := pipelineInfo.RadixApplication
 	appComponents := getCommonComponents(ra)
 	environmentComponentImageSources := make(environmentComponentImageSourceMap)
-	for _, envName := range pipelineInfo.TargetEnvironments {
-		envNamespace := operatorutils.GetEnvironmentNamespace(ra.GetName(), envName)
-		activeRadixDeployment, err := internal.GetActiveRadixDeployment(ctx, cli.GetKubeUtil(), envNamespace)
+	for _, targetEnv := range pipelineInfo.TargetEnvironments {
+		mustBuildComponent, err := mustBuildComponentForEnvironment(ctx, targetEnv, pipelineInfo.BuildContext, pipelineInfo.RadixApplication, pipelineInfo.BuildSecret)
 		if err != nil {
 			return nil, err
 		}
-
-		mustBuildComponent, err := mustBuildComponentForEnvironment(ctx, envName, pipelineInfo.BuildContext, activeRadixDeployment, pipelineInfo.RadixApplication, pipelineInfo.BuildSecret)
-		if err != nil {
-			return nil, err
-		}
-		if componentImageSources, err := cli.getComponentSources(appComponents, envName, activeRadixDeployment, mustBuildComponent); err != nil {
+		if componentImageSources, err := step.getComponentSources(appComponents, targetEnv.Environment, targetEnv.ActiveRadixDeployment, mustBuildComponent); err != nil {
 			return nil, err
 		} else if len(componentImageSources) > 0 {
-			environmentComponentImageSources[envName] = componentImageSources
+			environmentComponentImageSources[targetEnv.Environment] = componentImageSources
 		}
 	}
 	return environmentComponentImageSources, nil
 }
 
-func (cli *ApplyConfigStepImplementation) getComponentSources(appComponents []radixv1.RadixCommonComponent, envName string,
+func (step *ApplyConfigStepImplementation) getComponentSources(appComponents []radixv1.RadixCommonComponent, envName string,
 	activeRadixDeployment *radixv1.RadixDeployment, mustBuildComponent func(comp radixv1.RadixCommonComponent) bool) ([]componentImageSource, error) {
 
 	componentSource := make([]componentImageSource, 0)
@@ -360,21 +399,6 @@ func setPipelineDeployEnvironmentComponentImages(pipelineInfo *model.PipelineInf
 	}
 }
 
-func isRadixConfigNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.RadixDeployment, ra *radixv1.RadixApplication) (bool, error) {
-	if rd == nil {
-		return true, nil
-	}
-	currentRdConfigHash := rd.GetAnnotations()[kube.RadixConfigHash]
-	if len(currentRdConfigHash) == 0 {
-		return true, nil
-	}
-	hashEqual, err := hash.CompareRadixApplicationHash(currentRdConfigHash, ra)
-	if !hashEqual && err == nil {
-		log.Ctx(ctx).Info().Msgf("RadixApplication updated since last deployment to environment %s", rd.Spec.Environment)
-	}
-	return !hashEqual, err
-}
-
 func isBuildSecretNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.RadixDeployment, buildSecret *corev1.Secret) (bool, error) {
 	if rd == nil {
 		return true, nil
@@ -390,35 +414,39 @@ func isBuildSecretNewOrModifiedSinceDeployment(ctx context.Context, rd *radixv1.
 	return !hashEqual, err
 }
 
-func mustBuildComponentForEnvironment(ctx context.Context, environmentName string, buildContext *model.BuildContext, currentRd *radixv1.RadixDeployment, ra *radixv1.RadixApplication, buildSecret *corev1.Secret) (func(comp radixv1.RadixCommonComponent) bool, error) {
+func mustBuildComponentForEnvironment(ctx context.Context, targetEnvironment model.TargetEnvironment, buildContext *model.BuildContext, ra *radixv1.RadixApplication, buildSecret *corev1.Secret) (func(comp radixv1.RadixCommonComponent) bool, error) {
 	alwaysBuild := func(comp radixv1.RadixCommonComponent) bool {
 		return true
 	}
 
-	if buildContext == nil || currentRd == nil {
+	if buildContext == nil {
 		return alwaysBuild, nil
 	}
 
-	if isModified, err := isRadixConfigNewOrModifiedSinceDeployment(ctx, currentRd, ra); err != nil {
+	if targetEnvironment.ActiveRadixDeployment == nil {
+		return alwaysBuild, nil
+	}
+
+	if isEqual, err := targetEnvironment.CompareApplicationWithDeploymentHash(ra); err != nil {
+		return nil, err
+	} else if !isEqual {
+		return alwaysBuild, nil
+	}
+
+	if isModified, err := isBuildSecretNewOrModifiedSinceDeployment(ctx, targetEnvironment.ActiveRadixDeployment, buildSecret); err != nil {
 		return nil, err
 	} else if isModified {
 		return alwaysBuild, nil
 	}
 
-	if isModified, err := isBuildSecretNewOrModifiedSinceDeployment(ctx, currentRd, buildSecret); err != nil {
-		return nil, err
-	} else if isModified {
-		return alwaysBuild, nil
-	}
-
-	envBuildContext, found := slice.FindFirst(buildContext.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == environmentName })
+	envBuildContext, found := slice.FindFirst(buildContext.EnvironmentsToBuild, func(etb model.EnvironmentToBuild) bool { return etb.Environment == targetEnvironment.Environment })
 	if !found {
 		return alwaysBuild, nil
 	}
 
 	return func(comp radixv1.RadixCommonComponent) bool {
 		return slice.Any(envBuildContext.Components, func(s string) bool { return s == comp.GetName() }) ||
-			commonutils.IsNil(currentRd.GetCommonComponentByName(comp.GetName()))
+			commonutils.IsNil(targetEnvironment.ActiveRadixDeployment.GetCommonComponentByName(comp.GetName()))
 	}, nil
 }
 
@@ -440,60 +468,56 @@ func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComp
 	return commonComponents
 }
 
-func getPipelineShouldBeStopped(ctx context.Context, buildContext *model.BuildContext) (bool, string) {
-	if buildContext == nil || buildContext.ChangedRadixConfig ||
-		len(buildContext.EnvironmentsToBuild) == 0 ||
-		len(buildContext.EnvironmentSubPipelinesToRun) > 0 {
-		return false, ""
-	}
-	for _, environmentToBuild := range buildContext.EnvironmentsToBuild {
-		if len(environmentToBuild.Components) > 0 {
-			return false, ""
-		}
-	}
-	message := "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
-	log.Ctx(ctx).Info().Msg(message)
-	return true, message
-}
-
-func printPrepareBuildContext(ctx context.Context, buildContext *model.BuildContext) {
+func printBuildContext(logger *zerolog.Logger, buildContext *model.BuildContext) {
 	if buildContext == nil {
 		return
 	}
-	if buildContext.ChangedRadixConfig {
-		log.Ctx(ctx).Info().Msg("Radix config file was changed in the repository")
-	}
+
 	if len(buildContext.EnvironmentsToBuild) > 0 {
-		log.Ctx(ctx).Info().Msg("Components with changed source code in environments:")
+		logger.Info().Msg("Components with changed source code in environments:")
 		for _, environmentToBuild := range buildContext.EnvironmentsToBuild {
 			if len(environmentToBuild.Components) == 0 {
-				log.Ctx(ctx).Info().Msgf(" - %s: no components or jobs with changed source code", environmentToBuild.Environment)
+				logger.Info().Msgf(" - %s: no components or jobs with changed source code", environmentToBuild.Environment)
 			} else {
-				log.Ctx(ctx).Info().Msgf(" - %s: %s", environmentToBuild.Environment, strings.Join(environmentToBuild.Components, ","))
+				logger.Info().Msgf(" - %s: %s", environmentToBuild.Environment, strings.Join(environmentToBuild.Components, ","))
 			}
-		}
-	}
-	if len(buildContext.EnvironmentSubPipelinesToRun) == 0 {
-		log.Ctx(ctx).Info().Msg("No sub-pipelines to run")
-	} else {
-		log.Ctx(ctx).Info().Msg("Sub-pipelines to run")
-		for _, envSubPipeline := range buildContext.EnvironmentSubPipelinesToRun {
-			log.Ctx(ctx).Info().Msgf(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
 		}
 	}
 }
 
-func validateDeployComponentImages(deployComponentImages pipeline.DeployEnvironmentComponentImages, ra *radixv1.RadixApplication) error {
+func printSubPipelinesToRun(logger *zerolog.Logger, subPipelines []model.EnvironmentSubPipelineToRun) {
+	if len(subPipelines) == 0 {
+		logger.Info().Msg("No sub-pipelines to run")
+	} else {
+		logger.Info().Msg("Sub-pipelines to run")
+		for _, envSubPipeline := range subPipelines {
+			logger.Info().Msgf(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
+		}
+	}
+}
+
+func printRadixConfigUpdatedSinceLastDeployment(logger *zerolog.Logger, pipelineInfo *model.PipelineInfo) {
+	for _, targetEnv := range pipelineInfo.TargetEnvironments {
+		if targetEnv.ActiveRadixDeployment == nil {
+			continue
+		}
+		if isEqual, err := targetEnv.CompareApplicationWithDeploymentHash(pipelineInfo.RadixApplication); err != nil || !isEqual {
+			logger.Info().Msgf("RadixApplication updated since last deployment to environment %s", targetEnv.Environment)
+		}
+	}
+}
+
+func validateDeployComponentImages(pipelineInfo *model.PipelineInfo) error {
 	var errs []error
 
-	for envName, components := range deployComponentImages {
+	for envName, components := range pipelineInfo.DeployEnvironmentComponentImages {
 		for componentName, imageInfo := range components {
 			if strings.HasSuffix(imageInfo.ImagePath, radixv1.DynamicTagNameInEnvironmentConfig) {
 				if len(imageInfo.ImageTagName) > 0 {
 					continue
 				}
 
-				component := ra.GetCommonComponentByName(componentName)
+				component := pipelineInfo.RadixApplication.GetCommonComponentByName(componentName)
 				env := component.GetEnvironmentConfigByName(envName)
 				if len(component.GetImageTagName()) > 0 || (!commonutils.IsNil(env) && len(env.GetImageTagName()) > 0) {
 					continue

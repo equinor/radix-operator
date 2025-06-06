@@ -4,26 +4,26 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/equinor/radix-common/utils/slice"
-	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
 	Definition        *pipeline.Definition
-	RadixRegistration *radixv1.RadixRegistration
 	RadixApplication  *radixv1.RadixApplication
 	BuildSecret       *corev1.Secret
 	PipelineArguments PipelineArguments
 	Steps             []Step
 
-	// Temporary data
-	TargetEnvironments []string
+	// TargetEnvironments holds information about which environments to build and deploy.
+	// It is populated by the prepare-pipeline step by inspecting PipelineArguments
+	TargetEnvironments []TargetEnvironment
 
 	// GitCommitHash is derived by inspecting HEAD commit after cloning user repository in prepare-pipelines step.
 	// not to be confused with PipelineInfo.PipelineArguments.CommitID
@@ -37,18 +37,44 @@ type PipelineInfo struct {
 	DeployEnvironmentComponentImages pipeline.DeployEnvironmentComponentImages
 
 	// Pipeline job build context
-	BuildContext        *BuildContext
-	StopPipeline        bool
-	StopPipelineMessage string
+	BuildContext *BuildContext
+	// EnvironmentSubPipelinesToRun Sub-pipeline pipeline file named, if they are configured to be run
+	EnvironmentSubPipelinesToRun []EnvironmentSubPipelineToRun
+	StopPipeline                 bool
+	StopPipelineMessage          string
+}
 
-	// Promotion job git info
-	SourceDeploymentGitCommitHash string
-	SourceDeploymentGitBranch     string
+type TargetEnvironment struct {
+	Environment           string
+	ActiveRadixDeployment *radixv1.RadixDeployment
+}
+
+// CompareApplicationWithDeploymentHash generates a hash for ra and compares it
+// with the values stored in annotation radix.equinor.com/radix-config-hash of the ActiveRadixDeployment.
+// Returns true if the two hashes match, and false if they do not match, or ActiveRadixDeployment is nil or the annotation does not exist or has an empty value
+func (t TargetEnvironment) CompareApplicationWithDeploymentHash(ra *radixv1.RadixApplication) (bool, error) {
+	if t.ActiveRadixDeployment == nil {
+		return false, nil
+	}
+	currentRdConfigHash := t.ActiveRadixDeployment.GetAnnotations()[kube.RadixConfigHash]
+	if len(currentRdConfigHash) == 0 {
+		return false, nil
+	}
+	return hash.CompareRadixApplicationHash(currentRdConfigHash, ra)
+}
+
+// EnvironmentSubPipelineToRun An application environment sub-pipeline to be run
+type EnvironmentSubPipelineToRun struct {
+	// Environment name
+	Environment string
+	// PipelineFile Name of a sub-pipeline file, which need to be run
+	PipelineFile string
 }
 
 // Builder Holds info about the builder arguments
 type Builder struct {
 	ResourcesLimitsMemory   string
+	ResourcesLimitsCPU      string
 	ResourcesRequestsCPU    string
 	ResourcesRequestsMemory string
 }
@@ -61,19 +87,36 @@ type ApplyConfigOptions struct {
 type PipelineArguments struct {
 	PipelineType string
 	JobName      string
-	Branch       string
+	// Deprecated: use GitRef instead
+	Branch string
+	// GitRef Branch or tag to build from
+	//
+	// required: false
+	// example: master
+	GitRef string `json:"gitRef,omitempty"`
+	// GitRefType When the pipeline job should be built from branch or tag specified in GitRef:
+	// - branch
+	// - tag
+	// - <empty> - either branch or tag
+	//
+	// required false
+	// enum: branch,tag,""
+	// example: "branch"
+	GitRefType string `json:"gitRefType,omitempty"`
 	// CommitID is sent from GitHub webhook. not to be confused with PipelineInfo.GitCommitHash
 	CommitID string
 	ImageTag string
 	// OverrideUseBuildCache override default or configured build cache option
 	OverrideUseBuildCache *bool
-	PushImage             bool
-	DeploymentName        string
-	FromEnvironment       string
-	ToEnvironment         string
-	ComponentsToDeploy    []string
-
-	RadixConfigFile string
+	// RefreshBuildCache forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
+	RefreshBuildCache    *bool
+	PushImage            bool
+	DeploymentName       string
+	FromEnvironment      string
+	ToEnvironment        string
+	ComponentsToDeploy   []string
+	TriggeredFromWebhook bool
+	RadixConfigFile      string
 
 	// ImageBuilder Points to the image builder (repository and tag only)
 	ImageBuilder string
@@ -162,29 +205,6 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 	return nil
 }
 
-// SetApplicationConfig Set radixconfig to be used later by other steps, as well
-// as deriving info from the config
-func (p *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
-	p.RadixApplication = applicationConfig.GetRadixApplicationConfig()
-
-	// Obtain metadata for rest of pipeline
-	targetEnvironments := application.GetTargetEnvironments(p.PipelineArguments.Branch, p.RadixApplication)
-
-	// For deploy-only pipeline
-	if p.IsPipelineType(radixv1.Deploy) &&
-		!slice.Any(targetEnvironments, func(s string) bool { return s == p.PipelineArguments.ToEnvironment }) {
-		targetEnvironments = append(targetEnvironments, p.PipelineArguments.ToEnvironment)
-	}
-
-	// For build and build-deploy pipeline
-	if (p.IsPipelineType(radixv1.Build) || p.IsPipelineType(radixv1.BuildDeploy)) &&
-		len(p.PipelineArguments.ToEnvironment) > 0 {
-		targetEnvironments = []string{p.PipelineArguments.ToEnvironment}
-	}
-
-	p.TargetEnvironments = targetEnvironments
-}
-
 // SetGitAttributes Set git attributes to be used later by other steps
 func (p *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
 	p.GitCommitHash = gitCommitHash
@@ -196,26 +216,29 @@ func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bo
 	return p.GetRadixPipelineType() == pipelineType
 }
 
+// IsUsingBuildKit Check if buildkit should be used
 func (p *PipelineInfo) IsUsingBuildKit() bool {
-	return p.RadixApplication.Spec.Build != nil && p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
+	return p.RadixApplication != nil && p.RadixApplication.Spec.Build != nil &&
+		p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
 }
 
+// IsUsingBuildCache Check if build cache should be used
 func (p *PipelineInfo) IsUsingBuildCache() bool {
 	if !p.IsUsingBuildKit() {
 		return false
 	}
-
-	useBuildCache := p.RadixApplication.Spec.Build == nil || p.RadixApplication.Spec.Build.UseBuildCache == nil || *p.RadixApplication.Spec.Build.UseBuildCache
 	if p.PipelineArguments.OverrideUseBuildCache != nil {
-		useBuildCache = *p.PipelineArguments.OverrideUseBuildCache
+		return *p.PipelineArguments.OverrideUseBuildCache
 	}
-
-	return useBuildCache
+	return p.RadixApplication.Spec.Build != nil && (p.RadixApplication.Spec.Build.UseBuildCache == nil || *p.RadixApplication.Spec.Build.UseBuildCache)
 }
 
-// GetRadixConfigBranch Get config branch
-func (p *PipelineInfo) GetRadixConfigBranch() string {
-	return p.RadixRegistration.Spec.ConfigBranch
+// IsRefreshingBuildCache Check if build cache should be refreshed
+func (p *PipelineInfo) IsRefreshingBuildCache() bool {
+	if !p.IsUsingBuildKit() || p.PipelineArguments.RefreshBuildCache == nil {
+		return false
+	}
+	return *p.PipelineArguments.RefreshBuildCache
 }
 
 // GetRadixConfigFileInWorkspace Get radix config file
@@ -243,15 +266,9 @@ func (p *PipelineInfo) GetRadixApplication() *radixv1.RadixApplication {
 	return p.RadixApplication
 }
 
-// SetRadixApplication Set radix application
-func (p *PipelineInfo) SetRadixApplication(radixApplication *radixv1.RadixApplication) *PipelineInfo {
-	p.RadixApplication = radixApplication
-	return p
-}
-
-// GetBranch Get branch
-func (p *PipelineInfo) GetBranch() string {
-	return p.PipelineArguments.Branch
+// GetGitRef Get branch or tag
+func (p *PipelineInfo) GetGitRef() string {
+	return p.PipelineArguments.GetGitRefOrDefault()
 }
 
 // GetAppNamespace Get app namespace
@@ -289,8 +306,28 @@ func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
 	return p.PipelineArguments.FromEnvironment
 }
 
-// SetBuildContext Set build context
-func (p *PipelineInfo) SetBuildContext(context *BuildContext) *PipelineInfo {
-	p.BuildContext = context
-	return p
+// GetGitRefType Get git event ref type
+func (p *PipelineInfo) GetGitRefType() string {
+	return p.PipelineArguments.GitRefType
+}
+
+// GetGitRefTypeOrDefault Get git event ref type or "branch" by default
+func (p *PipelineInfo) GetGitRefTypeOrDefault() string {
+	if p.PipelineArguments.GitRefType == "" {
+		return string(radixv1.GitRefBranch)
+	}
+	return p.PipelineArguments.GitRefType
+}
+
+// GetGitRefOrDefault Get git event ref or "branch" by default
+func (args *PipelineArguments) GetGitRefOrDefault() string {
+	if args.GitRef == "" {
+		return args.Branch
+	}
+	return args.GitRef
+}
+
+// GetGitRefOrDefault Get git event ref or "branch" by default
+func (p *PipelineInfo) GetGitRefOrDefault() string {
+	return p.PipelineArguments.GetGitRefOrDefault()
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -36,10 +35,12 @@ func getCommonJobLabels(appName, pipelineJobName, imageTag string) map[string]st
 	}
 }
 
-func getCommonJobAnnotations(branch string, componentImages ...pipeline.BuildComponentImage) map[string]string {
+func getCommonJobAnnotations(branch, gitRef, gitRefType string, componentImages ...pipeline.BuildComponentImage) map[string]string {
 	componentImagesAnnotation, _ := json.Marshal(componentImages)
 	return map[string]string{
 		kube.RadixBranchAnnotation:          branch,
+		kube.RadixGitRefAnnotation:          gitRef,
+		kube.RadixGitRefTypeAnnotation:      gitRefType,
 		kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
 	}
 }
@@ -52,16 +53,16 @@ func getCommonPodAnnotations() map[string]string {
 	return radixannotations.ForClusterAutoscalerSafeToEvict(false)
 }
 
-func getCommonPodAffinity(runtime *radixv1.Runtime) *corev1.Affinity {
-	return utils.GetAffinityForPipelineJob(runtime)
+func getCommonPodAffinity(nodeArch string) *corev1.Affinity {
+	return utils.GetAffinityForPipelineJob(nodeArch)
 }
 
 func getCommonPodTolerations() []corev1.Toleration {
 	return utils.GetPipelineJobPodSpecTolerations()
 }
 
-func getCommonPodInitContainers(cloneURL, workspace, branch string, cloneConfig git.CloneConfig) []corev1.Container {
-	return git.CloneInitContainersWithSourceCode(cloneURL, branch, cloneConfig, workspace)
+func getCommonPodInitContainers(cloneURL, gitRefName, gitCommitID, workspace string, cloneConfig git.CloneConfig) []corev1.Container {
+	return git.CloneInitContainersWithSourceCode(cloneURL, gitRefName, gitCommitID, workspace, cloneConfig)
 }
 
 func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {

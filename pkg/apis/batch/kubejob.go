@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -117,9 +118,15 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	}
 
 	node := jobComponent.GetNode()
-	if batchJob.Node != nil {
-		node = batchJob.Node
+	if batchJob.Node != nil { // nolint:staticcheck // SA1019: Ignore linting deprecated fields
+		node = batchJob.Node // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	}
+	jobRuntime := jobComponent.GetRuntime()
+	if batchJob.Runtime != nil {
+		jobRuntime = batchJob.Runtime
+	}
+	nodeType := jobRuntime.GetNodeType()
+	nodeArch := runtime.GetArchitectureFromRuntimeOrDefault(jobRuntime)
 
 	backoffLimit := jobComponent.BackoffLimit
 	if batchJob.BackoffLimit != nil {
@@ -158,8 +165,8 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 					SecurityContext:              securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					RestartPolicy:                corev1.RestartPolicyNever,
 					ImagePullSecrets:             s.getJobPodImagePullSecrets(rd),
-					Affinity:                     operatorUtils.GetAffinityForBatchJob(ctx, jobComponent, node),
-					Tolerations:                  operatorUtils.GetScheduledJobPodSpecTolerations(node),
+					Affinity:                     operatorUtils.GetAffinityForBatchJob(ctx, node, nodeType, nodeArch),
+					Tolerations:                  operatorUtils.GetScheduledJobPodSpecTolerations(node, nodeType),
 					ActiveDeadlineSeconds:        timeLimitSeconds,
 					ServiceAccountName:           serviceAccountSpec.ServiceAccountName(),
 					AutomountServiceAccountToken: serviceAccountSpec.AutomountServiceAccountToken(),
@@ -222,6 +229,8 @@ func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment,
 		VolumeMounts:    volumeMounts,
 		SecurityContext: securityContext,
 		Resources:       resources,
+		Command:         jobComponent.Command,
+		Args:            jobComponent.Args,
 	}
 
 	return []corev1.Container{container}, nil

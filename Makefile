@@ -92,7 +92,15 @@ mocks: bootstrap
 	mockgen -source ./pipeline-runner/internal/watcher/namespace.go -destination ./pipeline-runner/internal/watcher/namespace_mock.go -package watcher
 	mockgen -source ./pipeline-runner/internal/jobs/build/interface.go -destination ./pipeline-runner/internal/jobs/build/mock/job.go -package mock
 	mockgen -source ./pipeline-runner/steps/internal/wait/pipelinerun.go -destination ./pipeline-runner/steps/internal/wait/pipelinerun_mock.go -package wait
+	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/context_builder.go -destination ./pipeline-runner/steps/preparepipeline/internal/context_builder_mock.go -package internal
+	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/subpipeline_reader.go -destination ./pipeline-runner/steps/preparepipeline/internal/subpipeline_reader_mock.go -package internal
+	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/radix_config_reader.go -destination ./pipeline-runner/steps/preparepipeline/internal/radix_config_reader_mock.go -package internal
+	mockgen -source ./pipeline-runner/steps/internal/ownerreferences/owner_references.go -destination ./pipeline-runner/steps/internal/ownerreferences/owner_references_mock.go -package ownerreferences
+	mockgen -source ./pipeline-runner/utils/git/git.go -destination ./pipeline-runner/utils/git/git_mock.go -package git
 
+.PHONY: tidy
+tidy:
+	go mod tidy
 
 .PHONY: build-pipeline
 build-pipeline:
@@ -167,12 +175,16 @@ lint: bootstrap
 generate: bootstrap code-gen crds mocks
 
 .PHONY: verify-generate
-verify-generate: bootstrap generate
+verify-generate: bootstrap tidy generate
 	git diff --exit-code
 
 .PHONY: apply-ra
 apply-ra: bootstrap
 	kubectl apply -f ./charts/radix-operator/templates/radixapplication.yaml
+
+.PHONY: apply-rb
+apply-rb: bootstrap
+	kubectl apply -f ./charts/radix-operator/templates/radixbatch.yaml
 
 .PHONY: apply-rd
 apply-rd: bootstrap

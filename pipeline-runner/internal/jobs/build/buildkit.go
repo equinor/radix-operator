@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -37,26 +38,27 @@ func NewBuildKit() JobsBuilder {
 
 type buildKit struct{}
 
-func (c *buildKit) BuildJobs(useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
+func (c *buildKit) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
 	var jobs []batchv1.Job
 
 	for _, componentImage := range componentImages {
-		job := c.buildJob(componentImage, useBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets)
+		job := c.buildJob(componentImage, useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets)
 		jobs = append(jobs, job)
 	}
 
 	return jobs
 }
 
-func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
+func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
 	props := &buildKitKubeJobProps{
-		pipelineArgs:   pipelineArgs,
-		componentImage: componentImage,
-		cloneURL:       cloneURL,
-		gitCommitHash:  gitCommitHash,
-		gitTags:        gitTags,
-		buildSecrets:   buildSecrets,
-		useBuildCache:  useBuildCache,
+		pipelineArgs:      pipelineArgs,
+		componentImage:    componentImage,
+		cloneURL:          cloneURL,
+		gitCommitHash:     gitCommitHash,
+		gitTags:           gitTags,
+		buildSecrets:      buildSecrets,
+		useBuildCache:     useBuildCache,
+		refreshBuildCache: refreshBuildCache,
 	}
 
 	return internal.BuildKubeJob(props)
@@ -65,13 +67,14 @@ func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuil
 var _ internal.KubeJobProps = &buildKitKubeJobProps{}
 
 type buildKitKubeJobProps struct {
-	pipelineArgs   model.PipelineArguments
-	componentImage pipeline.BuildComponentImage
-	cloneURL       string
-	gitCommitHash  string
-	gitTags        string
-	buildSecrets   []string
-	useBuildCache  bool
+	pipelineArgs      model.PipelineArguments
+	componentImage    pipeline.BuildComponentImage
+	cloneURL          string
+	gitCommitHash     string
+	gitTags           string
+	buildSecrets      []string
+	useBuildCache     bool
+	refreshBuildCache bool
 }
 
 func (c *buildKitKubeJobProps) JobName() string {
@@ -88,7 +91,8 @@ func (c *buildKitKubeJobProps) JobLabels() map[string]string {
 }
 
 func (c *buildKitKubeJobProps) JobAnnotations() map[string]string {
-	return getCommonJobAnnotations(c.pipelineArgs.Branch, c.componentImage)
+	branch := c.pipelineArgs.Branch //nolint:staticcheck
+	return getCommonJobAnnotations(branch, c.pipelineArgs.GitRef, c.pipelineArgs.GitRefType, c.componentImage)
 }
 
 func (c *buildKitKubeJobProps) PodLabels() map[string]string {
@@ -106,7 +110,8 @@ func (c *buildKitKubeJobProps) PodTolerations() []corev1.Toleration {
 }
 
 func (c *buildKitKubeJobProps) PodAffinity() *corev1.Affinity {
-	return getCommonPodAffinity(c.componentImage.Runtime)
+	nodeArch := runtime.GetArchitectureFromRuntimeOrDefault(c.componentImage.Runtime)
+	return getCommonPodAffinity(nodeArch)
 }
 
 func (*buildKitKubeJobProps) PodSecurityContext() *corev1.PodSecurityContext {
@@ -184,8 +189,12 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 }
 
 func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
-	cloneCfg := internalgit.CloneConfigFromPipelineArgs(c.pipelineArgs)
-	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GitWorkspace, c.pipelineArgs.Branch, cloneCfg)
+	cloneConfig := git.CloneConfig{
+		NSlookupImage: c.pipelineArgs.GitCloneNsLookupImage,
+		GitImage:      c.pipelineArgs.GitCloneGitImage,
+		BashImage:     c.pipelineArgs.GitCloneBashImage,
+	}
+	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GetGitRefOrDefault(), c.gitCommitHash, c.pipelineArgs.GitWorkspace, cloneConfig)
 }
 
 func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {
@@ -218,7 +227,7 @@ func (c *buildKitKubeJobProps) getPodContainerArgs() []string {
 		"--secrets-path", buildKitBuildSecretsPath,
 		"--dockerfile", c.componentImage.Dockerfile,
 		"--context", c.componentImage.Context,
-		"--branch", c.pipelineArgs.Branch,
+		"--branch", c.pipelineArgs.GetGitRefOrDefault(),
 		"--git-commit-hash", c.gitCommitHash,
 		"--git-tags", c.gitTags,
 		"--target-environments", c.componentImage.EnvName,
@@ -226,6 +235,10 @@ func (c *buildKitKubeJobProps) getPodContainerArgs() []string {
 
 	if c.useBuildCache {
 		args = append(args, "--use-cache")
+	}
+
+	if c.refreshBuildCache {
+		args = append(args, "--refresh-cache")
 	}
 
 	if c.pipelineArgs.PushImage {
@@ -257,6 +270,7 @@ func (c *buildKitKubeJobProps) getPodContainerResources() corev1.ResourceRequire
 			corev1.ResourceMemory: resource.MustParse(c.pipelineArgs.Builder.ResourcesRequestsMemory),
 		},
 		Limits: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceCPU:    resource.MustParse(c.pipelineArgs.Builder.ResourcesLimitsCPU),
 			corev1.ResourceMemory: resource.MustParse(c.pipelineArgs.Builder.ResourcesLimitsMemory),
 		},
 	}

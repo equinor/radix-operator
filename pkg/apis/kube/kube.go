@@ -19,10 +19,15 @@ import (
 // Radix Annotations
 const (
 	RadixBranchAnnotation                            = "radix-branch"
+	RadixGitRefAnnotation                            = "radix.equinor.com/git-ref"
+	RadixGitRefTypeAnnotation                        = "radix.equinor.com/git-ref-type"
 	RadixGitTagsAnnotation                           = "radix.equinor.com/radix-git-tags"
 	RadixCommitAnnotation                            = "radix.equinor.com/radix-commit"
 	RadixConfigHash                                  = "radix.equinor.com/radix-config-hash"
 	RadixBuildSecretHash                             = "radix.equinor.com/build-secret-hash"
+	RadixUseBuildKit                                 = "radix.equinor.com/use-build-kit"
+	RadixUseBuildCache                               = "radix.equinor.com/use-build-cache"
+	RadixRefreshBuildCache                           = "radix.equinor.com/refresh-build-cache"
 	RadixComponentImagesAnnotation                   = "radix-component-images"
 	RadixBuildComponentsAnnotation                   = "radix-build-component"
 	RadixDeploymentNameAnnotation                    = "radix-deployment-name"

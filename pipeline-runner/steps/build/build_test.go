@@ -86,7 +86,7 @@ func (s *buildTestSuite) Test_TargetEnvironmentsEmpty_ShouldSkip() {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments:    model.PipelineArguments{},
-		TargetEnvironments:   []string{},
+		TargetEnvironments:   []model.TargetEnvironment{},
 		BuildComponentImages: pipeline.EnvironmentBuildComponentImages{"anyenv": {{ComponentName: "anycomp"}}},
 	}
 
@@ -105,7 +105,7 @@ func (s *buildTestSuite) Test_BuildComponentImagesEmpty_ShouldSkip() {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments:    model.PipelineArguments{},
-		TargetEnvironments:   []string{"anyenv"},
+		TargetEnvironments:   []model.TargetEnvironment{{Environment: "anyenv"}},
 		BuildComponentImages: pipeline.EnvironmentBuildComponentImages{},
 	}
 
@@ -134,7 +134,7 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 		PipelineArguments: model.PipelineArguments{
 			JobName: jobName,
 		},
-		TargetEnvironments:   []string{"anyenv"},
+		TargetEnvironments:   []model.TargetEnvironment{{Environment: "anyenv"}},
 		BuildComponentImages: pipeline.EnvironmentBuildComponentImages{"anyenv": {}},
 		RadixApplication:     ra,
 	}
@@ -157,7 +157,7 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 
 	// secret correctly set
 	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
-	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
 	pipelineInfo.BuildSecret = &corev1.Secret{Data: map[string][]byte{secretName: []byte("anyvalue")}}
 	err = cli.Run(context.Background(), pipelineInfo)
@@ -184,13 +184,13 @@ func (s *buildTestSuite) Test_AppWithoutBuildSecrets_Validation() {
 		PipelineArguments: model.PipelineArguments{
 			JobName: jobName,
 		},
-		TargetEnvironments:   []string{"anyenv"},
+		TargetEnvironments:   []model.TargetEnvironment{{Environment: "anyenv"}},
 		BuildComponentImages: pipeline.EnvironmentBuildComponentImages{"anyenv": {}},
 		RadixApplication:     ra,
 	}
 
 	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
-	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
 	err := cli.Run(context.Background(), pipelineInfo)
 	s.NoError(err)
@@ -222,7 +222,7 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 		PipelineArguments: model.PipelineArguments{
 			JobName: jobName,
 		},
-		TargetEnvironments:   []string{"env1", "env2"},
+		TargetEnvironments:   []model.TargetEnvironment{{Environment: "env1"}, {Environment: "env2"}},
 		BuildComponentImages: pipeline.EnvironmentBuildComponentImages{"env1": env1Components, "env2": env2Components},
 		RadixApplication:     ra,
 		GitCommitHash:        "anycommithash",
@@ -239,6 +239,7 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 		{ObjectMeta: metav1.ObjectMeta{Name: "job2", Namespace: utils.GetAppNamespace(appName)}},
 	}
 	jobBuilder.EXPECT().BuildJobs(
+		gomock.Any(),
 		gomock.Any(),
 		pipelineInfo.PipelineArguments,
 		cloneUrl,

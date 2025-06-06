@@ -2,6 +2,7 @@ package v1
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
@@ -61,6 +62,19 @@ func (ra *RadixApplication) GetCommonComponentByName(name string) RadixCommonCom
 		return comp
 	}
 	return ra.GetJobComponentByName(name)
+}
+
+// GetEnvironmentByName returns the environment matching the name parameter, and a bool flag indicating if an environment was found or not
+func (ra *RadixApplication) GetEnvironmentByName(name string) (Environment, bool) {
+	if ra == nil {
+		return Environment{}, false
+	}
+
+	if i := slices.IndexFunc(ra.Spec.Environments, func(e Environment) bool { return e.Name == name }); i == -1 {
+		return Environment{}, false
+	} else {
+		return ra.Spec.Environments[i], true
+	}
 }
 
 // RadixApplicationSpec is the specification for an application.
@@ -189,6 +203,22 @@ type EnvBuild struct {
 	// Defines variables that will be available in sub-pipelines
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
+
+	// WebhookEnabled indicates whether the webhook should be disabled for the environment.
+	// If set to false, the webhook will not be triggered for this environment.
+	// +kubebuilder:default:=true
+	// +optional
+	WebhookEnabled *bool `json:"webhookEnabled,omitempty"`
+
+	// FromType When the pipeline job is triggered by a GitHub event via the Radix GitHub webhook FromType can specify
+	// which Git references are applicable for this environment:
+	// - branch - only events on branches (for refs/heads)
+	// - tag - only events on tags (for refs/tags)
+	// - <empty> - events on both branches and tags
+	//
+	// +kubebuilder:validation:Enum=branch;tag;""
+	// +optional
+	FromType string `json:"fromType,omitempty"`
 }
 
 // EgressConfig contains egress configuration.
@@ -442,6 +472,7 @@ type RadixComponent struct {
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
+	// Deprecated: use Runtime.NodeType instead.
 	// Defines GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
@@ -483,6 +514,30 @@ type RadixComponent struct {
 	// Network settings.
 	// +optional
 	Network *Network `json:"network,omitempty"`
+
+	// Entrypoint array. Not executed within a shell.
+	// The container image's ENTRYPOINT is used if this is not provided.
+	// Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+	// cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+	// to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+	// produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+	// of whether the variable exists or not. Cannot be updated.
+	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+	// +optional
+	// +listType=atomic
+	Command []string `json:"command,omitempty"`
+
+	// Arguments to the entrypoint.
+	// The container image's CMD is used if this is not provided.
+	// Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+	// cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+	// to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+	// produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+	// of whether the variable exists or not. Cannot be updated.
+	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+	// +optional
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
@@ -549,6 +604,7 @@ type RadixEnvironmentConfig struct {
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
+	// Deprecated: use Runtime.NodeType instead.
 	// Environment specific GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
@@ -590,6 +646,30 @@ type RadixEnvironmentConfig struct {
 	// Environment specific network settings.
 	// +optional
 	Network *Network `json:"network,omitempty"`
+
+	// Entrypoint array. Not executed within a shell.
+	// The container image's ENTRYPOINT is used if this is not provided.
+	// Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+	// cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+	// to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+	// produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+	// of whether the variable exists or not.
+	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+	// +optional
+	// +listType=atomic
+	Command *[]string `json:"command,omitempty"`
+
+	// Arguments to the entrypoint.
+	// The container image's CMD is used if this is not provided.
+	// Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+	// cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+	// to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+	// produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+	// of whether the variable exists or not.
+	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+	// +optional
+	// +listType=atomic
+	Args *[]string `json:"args,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -683,6 +763,7 @@ type RadixJobComponent struct {
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
+	// Deprecated: use Runtime.NodeType instead.
 	// Defines GPU requirements for the job.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
@@ -731,6 +812,30 @@ type RadixJobComponent struct {
 	// is incremented and it is checked against the backoffLimit.
 	// +optional
 	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
+
+	// Entrypoint array. Not executed within a shell.
+	// The container image's ENTRYPOINT is used if this is not provided.
+	// Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+	// cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+	// to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+	// produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+	// of whether the variable exists or not.
+	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+	// +optional
+	// +listType=atomic
+	Command []string `json:"command,omitempty"`
+
+	// Arguments to the entrypoint.
+	// The container image's CMD is used if this is not provided.
+	// Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+	// cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+	// to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+	// produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+	// of whether the variable exists or not.
+	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+	// +optional
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
 }
 
 // RadixJobComponentFailurePolicyRuleOnExitCodesOperator specifies the relationship between a job replica's exit code
@@ -852,6 +957,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
+	// Deprecated: use Runtime.NodeType instead.
 	// Environment specific GPU requirements for the job.
 	// More info: https://www.radix.equinor.com/radix-config#node
 	// +optional
@@ -905,6 +1011,30 @@ type RadixJobComponentEnvironmentConfig struct {
 	// is incremented and it is checked against the backoffLimit.
 	// +optional
 	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
+
+	// Entrypoint array. Not executed within a shell.
+	// The container image's ENTRYPOINT is used if this is not provided.
+	// Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+	// cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+	// to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+	// produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+	// of whether the variable exists or not.
+	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+	// +optional
+	// +listType=atomic
+	Command *[]string `json:"command,omitempty"`
+
+	// Arguments to the entrypoint.
+	// The container image's CMD is used if this is not provided.
+	// Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+	// cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced
+	// to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will
+	// produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless
+	// of whether the variable exists or not.
+	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+	// +optional
+	// +listType=atomic
+	Args *[]string `json:"args,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -1602,11 +1732,17 @@ const (
 
 // Runtime defines the component or job's target runtime requirements
 type Runtime struct {
-	// CPU architecture target for the component or job. Defaults to amd64.
-	// +kubebuilder:validation:Enum=amd64;arm64
-	// +kubebuilder:default:=amd64
+	// CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.
+	// +kubebuilder:validation:Enum=amd64;arm64;""
 	// +optional
 	Architecture RuntimeArchitecture `json:"architecture,omitempty"`
+
+	// Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.
+	// More info: https://www.radix.equinor.com/radix-config#nodetype
+	// +kubebuilder:validation:MaxLength=120
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +optional
+	NodeType *string `json:"nodeType,omitempty"`
 }
 
 // BatchStatusRule Rule how to set a batch status by job statuses
@@ -1703,6 +1839,14 @@ type IngressPublic struct {
 	//
 	// +optional
 	ProxyBodySize *NginxSizeFormat `json:"proxyBodySize,omitempty"`
+
+	// Sets the size of the buffer used for reading the first part of the response received from the proxied server.
+	// The size must be large enough to hold the response headers.
+	// Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
+	// If the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.
+	//
+	// +optional
+	ProxyBufferSize *NginxSizeFormat `json:"proxyBufferSize,omitempty"`
 }
 
 // RadixCommonComponent defines a common component interface for Radix components
@@ -1761,6 +1905,18 @@ type RadixCommonComponent interface {
 	GetImageTagName() string
 	// GetRuntime Gets target runtime requirements
 	GetRuntime() *Runtime
+	// GetCommand Entrypoint array. Not executed within a shell.
+	GetCommand() []string
+	// GetArgs Arguments to the entrypoint.
+	GetArgs() []string
+	// GetCommandForEnvironment Entrypoint array for the environment. Not executed within a shell.
+	GetCommandForEnvironment(environment string) []string
+	// GetArgsForEnvironment Arguments to the entrypoint for the environment.
+	GetArgsForEnvironment(environment string) []string
+	// GetCommandForEnvironmentConfig Entrypoint array for the environment config
+	GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
+	// GetArgsForEnvironmentConfig Arguments to the entrypoint for the environment config
+	GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
 }
 
 func (component *RadixComponent) GetName() string {
@@ -1883,6 +2039,30 @@ func (component *RadixComponent) GetHorizontalScaling() *RadixHorizontalScaling 
 
 func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
 	return getEnabledForEnvironment(component, environment)
+}
+
+func (component *RadixComponent) GetCommand() []string {
+	return component.Command
+}
+
+func (component *RadixComponent) GetArgs() []string {
+	return component.Args
+}
+
+func (component *RadixComponent) GetCommandForEnvironment(environment string) []string {
+	return getCommandForEnvironment(component, environment)
+}
+
+func (component *RadixComponent) GetArgsForEnvironment(environment string) []string {
+	return getArgsForEnvironment(component, environment)
+}
+
+func (component *RadixComponent) GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+	return getCommandForEnvironmentConfig(component, envConfig)
+}
+
+func (component *RadixComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+	return getArgsForEnvironmentConfig(component, envConfig)
 }
 
 func (component *RadixJobComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
@@ -2023,6 +2203,30 @@ func (component *RadixJobComponent) GetHorizontalScaling() *RadixHorizontalScali
 	return nil
 }
 
+func (component *RadixJobComponent) GetCommand() []string {
+	return component.Command
+}
+
+func (component *RadixJobComponent) GetArgs() []string {
+	return component.Args
+}
+
+func (component *RadixJobComponent) GetCommandForEnvironment(environment string) []string {
+	return getCommandForEnvironment(component, environment)
+}
+
+func (component *RadixJobComponent) GetArgsForEnvironment(environment string) []string {
+	return getArgsForEnvironment(component, environment)
+}
+
+func (component *RadixJobComponent) GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+	return getCommandForEnvironmentConfig(component, envConfig)
+}
+
+func (component *RadixJobComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+	return getArgsForEnvironmentConfig(component, envConfig)
+}
+
 // GetOAuth2 Returns OAuth2 if exist
 func (authentication *Authentication) GetOAuth2() *OAuth2 {
 	if authentication == nil {
@@ -2136,4 +2340,62 @@ func (azureIdentity *AzureIdentity) GetClientId() string {
 		return ""
 	}
 	return azureIdentity.ClientId
+}
+
+// GetNodeType returns node type from Runtime.
+func (runtime *Runtime) GetNodeType() *string {
+	if runtime == nil {
+		return nil
+	}
+	return runtime.NodeType
+}
+
+func getCommandForEnvironment(commonComponent RadixCommonComponent, environment string) []string {
+	environmentConfigsMap := getEnvironmentConfigMap(commonComponent)
+	if len(environmentConfigsMap) == 0 {
+		return commonComponent.GetCommand()
+	}
+	envConfig, ok := environmentConfigsMap[environment]
+	if !ok || commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+		return commonComponent.GetCommand()
+	}
+	if command := envConfig.GetCommand(); command != nil {
+		return *envConfig.GetCommand()
+	}
+	return commonComponent.GetCommand()
+}
+
+func getArgsForEnvironment(commonComponent RadixCommonComponent, environment string) []string {
+	environmentConfigsMap := getEnvironmentConfigMap(commonComponent)
+	if len(environmentConfigsMap) == 0 {
+		return commonComponent.GetArgs()
+	}
+	envConfig, ok := environmentConfigsMap[environment]
+	if !ok || commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+		return commonComponent.GetArgs()
+	}
+	if args := envConfig.GetArgs(); args != nil {
+		return *envConfig.GetArgs()
+	}
+	return commonComponent.GetArgs()
+}
+
+func getCommandForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
+	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+		return commonComponent.GetCommand()
+	}
+	if command := envConfig.GetCommand(); command != nil {
+		return *envConfig.GetCommand()
+	}
+	return commonComponent.GetCommand()
+}
+
+func getArgsForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
+	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+		return commonComponent.GetArgs()
+	}
+	if args := envConfig.GetArgs(); args != nil {
+		return *envConfig.GetArgs()
+	}
+	return commonComponent.GetArgs()
 }

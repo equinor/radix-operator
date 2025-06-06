@@ -21,6 +21,7 @@ import (
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -87,7 +88,9 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 			Name:   jobName,
 			Labels: getPipelineJobLabels(appName, jobName, job.radixJob.Spec, pipeline),
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: job.radixJob.Spec.Build.Branch,
+				kube.RadixBranchAnnotation:     job.radixJob.Spec.Build.Branch, //nolint:staticcheck
+				kube.RadixGitRefAnnotation:     job.radixJob.Spec.Build.GitRef,
+				kube.RadixGitRefTypeAnnotation: string(job.radixJob.Spec.Build.GitRefType),
 			},
 			OwnerReferences: GetOwnerReference(job.radixJob),
 		},
@@ -117,11 +120,12 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 								securitycontext.WithContainerRunAsGroup(runAsGroup),
 								securitycontext.WithContainerRunAsUser(runAsUser),
 								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true))),
+							Resources: getPipelineRunnerResources(),
 						},
 					},
 					Volumes:       git.GetJobVolumes(),
 					RestartPolicy: "Never",
-					Affinity:      utils.GetAffinityForPipelineJob(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+					Affinity:      utils.GetAffinityForPipelineJob(string(radixv1.RuntimeArchitectureArm64)),
 					Tolerations:   utils.GetPipelineJobPodSpecTolerations(),
 				},
 			},
@@ -129,6 +133,19 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 	}
 
 	return &jobCfg, nil
+}
+
+func getPipelineRunnerResources() corev1.ResourceRequirements {
+	return corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("500m"),
+			corev1.ResourceMemory: resource.MustParse("1000Mi"),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("100m"),
+			corev1.ResourceMemory: resource.MustParse("250Mi"),
+		},
+	}
 }
 
 func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) (string, error) {
@@ -143,7 +160,7 @@ func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) (strin
 }
 
 func (job *Job) getInitContainersForRadixConfig(rr *radixv1.RadixRegistration, workspace string) []corev1.Container {
-	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, git.CloneConfigContainerName, *job.config.PipelineJobConfig.GitCloneConfig, false, workspace)
+	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, *job.config.PipelineJobConfig.GitCloneConfig)
 }
 
 func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
@@ -169,7 +186,8 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 
 	if job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.IsZero() ||
 		job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.IsZero() ||
-		job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.IsZero() {
+		job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.IsZero() ||
+		job.config.PipelineJobConfig.AppBuilderResourcesLimitsCPU == nil || job.config.PipelineJobConfig.AppBuilderResourcesLimitsCPU.IsZero() {
 		return nil, fmt.Errorf("invalid or missing app builder resources")
 	}
 
@@ -181,6 +199,7 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.String()),
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.String()),
 		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.String()),
+		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsCPUEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesLimitsCPU.String()),
 		fmt.Sprintf("--%s=%s", defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, job.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images
@@ -199,6 +218,7 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 		fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, strings.Join(job.config.DNSConfig.ReservedDNSAliases, ",")),
 		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
+		fmt.Sprintf("--%s=%v", defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, job.radixJob.Spec.TriggeredFromWebhook),
 	}
 
 	// Pass git clone init container images
@@ -209,12 +229,17 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 	switch pipeline.Type {
 	case radixv1.BuildDeploy, radixv1.Build:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch)) //nolint:staticcheck
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitRefEnvironmentVariable, jobSpec.Build.GitRef))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitRefTypeEnvironmentVariable, jobSpec.Build.GitRefType))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, jobSpec.Build.ToEnvironment))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
 		if jobSpec.Build.OverrideUseBuildCache != nil {
-			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixOverrideUseBuildCacheVariable, *jobSpec.Build.OverrideUseBuildCache))
+			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixOverrideUseBuildCacheEnvironmentVariable, *jobSpec.Build.OverrideUseBuildCache))
+		}
+		if jobSpec.Build.RefreshBuildCache != nil {
+			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixRefreshBuildCacheEnvironmentVariable, *jobSpec.Build.RefreshBuildCache))
 		}
 	case radixv1.Promote:
 		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))

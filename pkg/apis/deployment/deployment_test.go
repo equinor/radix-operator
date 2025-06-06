@@ -1505,6 +1505,340 @@ func TestConfigMap_RetainDataBetweenSync(t *testing.T) {
 	assert.Equal(t, map[string]kube.EnvVarMetadata{"JOB2VAR1": {RadixConfigValue: "job2_original1"}}, varMeta)
 }
 
+func Test_ComponentAndJobSecrets_SecretKeyExistAndDataRetainedBetweenSync(t *testing.T) {
+	appName, envName := "anyapp", "anyenv"
+	ns := utils.GetEnvironmentNamespace(appName, envName)
+
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+
+	initialRD := utils.ARadixDeployment().
+		WithDeploymentName("rd-init").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithSecrets([]string{"compsecret1", "compsecret2", "compsecret3", "compsecret4"})).
+		WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("job").WithSecrets([]string{"jobsecret1", "jobsecret2", "jobsecret3", "jobsecret4"}))
+	updatedRD := utils.ARadixDeployment().
+		WithDeploymentName("rd-update").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithSecrets([]string{"compsecret1", "compsecret3", "compsecret5"})).
+		WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("job").WithSecrets([]string{"jobsecret1", "jobsecret3", "jobsecret5"}))
+
+	// Apply initial RD
+	_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, initialRD)
+	require.NoError(t, err)
+	// Verify secret created and Data is empty
+	actualCompSecret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), utils.GetComponentSecretName("comp"), metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, actualCompSecret.Data)
+	actualJobSecret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), utils.GetComponentSecretName("job"), metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, actualJobSecret.Data)
+
+	// Set secret data for test
+	actualCompSecret.Data = map[string][]byte{
+		"compsecret1": []byte("compvalue1"),
+		"compsecret2": []byte("compvalue2"),
+		"compsecret3": []byte("compvalue3"),
+		"compsecret4": []byte("compvalue4"),
+	}
+	_, err = kubeclient.CoreV1().Secrets(ns).Update(context.Background(), actualCompSecret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+	actualJobSecret.Data = map[string][]byte{
+		"jobsecret1": []byte("jobvalue1"),
+		"jobsecret2": []byte("jobvalue2"),
+		"jobsecret3": []byte("jobvalue3"),
+		"jobsecret4": []byte("jobvalue4"),
+	}
+	_, err = kubeclient.CoreV1().Secrets(ns).Update(context.Background(), actualJobSecret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	// Apply updated RD
+	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, updatedRD)
+	require.NoError(t, err)
+	actualCompSecret, err = kubeclient.CoreV1().Secrets(ns).Get(context.Background(), utils.GetComponentSecretName("comp"), metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedCompSecretData := map[string][]byte{
+		"compsecret1": []byte("compvalue1"),
+		"compsecret3": []byte("compvalue3"),
+	}
+	assert.Equal(t, expectedCompSecretData, actualCompSecret.Data)
+	actualJobSecret, err = kubeclient.CoreV1().Secrets(ns).Get(context.Background(), utils.GetComponentSecretName("job"), metav1.GetOptions{})
+	require.NoError(t, err)
+	expectedJobSecretData := map[string][]byte{
+		"jobsecret1": []byte("jobvalue1"),
+		"jobsecret3": []byte("jobvalue3"),
+	}
+	assert.Equal(t, expectedJobSecretData, actualJobSecret.Data)
+}
+
+func Test_BlobFuse2VolumeMountSecret_ExpectedKeysAndData(t *testing.T) {
+	tests := map[string]struct {
+		initialSpec         radixv1.RadixBlobFuse2VolumeMount
+		expectedInitialData map[string][]byte
+		setData             map[string][]byte
+		updateSpec          radixv1.RadixBlobFuse2VolumeMount
+		expectedUpdateData  map[string][]byte
+	}{
+		"volume requiring account key+name": {
+			initialSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any"},
+			expectedInitialData: map[string][]byte{
+				"accountkey":  nil,
+				"accountname": nil,
+			},
+			setData: map[string][]byte{
+				"accountkey":  []byte("anykey"),
+				"accountname": []byte("anyname"),
+			},
+			updateSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any"},
+			expectedUpdateData: map[string][]byte{
+				"accountkey":  []byte("anykey"),
+				"accountname": []byte("anyname"),
+			},
+		},
+		"initial volume requiring account key+name, updated volume only key": {
+			initialSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any"},
+			expectedInitialData: map[string][]byte{
+				"accountkey":  nil,
+				"accountname": nil,
+			},
+			setData: map[string][]byte{
+				"accountkey":  []byte("anykey"),
+				"accountname": []byte("anyname"),
+			},
+			updateSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any", StorageAccount: "anyaccount"},
+			expectedUpdateData: map[string][]byte{
+				"accountkey": []byte("anykey"),
+			},
+		},
+		"initial volume requiring account key only, updated volume key+name": {
+			initialSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any", StorageAccount: "anyaccount"},
+			expectedInitialData: map[string][]byte{
+				"accountkey": nil,
+			},
+			setData: map[string][]byte{
+				"accountkey": []byte("anykey"),
+			},
+			updateSpec: radixv1.RadixBlobFuse2VolumeMount{Container: "any"},
+			expectedUpdateData: map[string][]byte{
+				"accountkey":  []byte("anykey"),
+				"accountname": nil,
+			},
+		},
+	}
+
+	appName, envName := "anyapp", "anyenv"
+	ns := utils.GetEnvironmentNamespace(appName, envName)
+
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+			defer TeardownTest()
+
+			testComponentSecret := func(componentName string, expectedData map[string][]byte) *corev1.Secret {
+				secret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, "vol"), metav1.GetOptions{})
+				require.NoError(t, err)
+				assert.Equal(t, expectedData, secret.Data)
+				return secret
+			}
+
+			initialVolume := radixv1.RadixVolumeMount{Name: "vol", BlobFuse2: &testSpec.initialSpec}
+			initialRD := utils.ARadixDeployment().
+				WithDeploymentName("rd-init").
+				WithAppName(appName).
+				WithEnvironment(envName).
+				WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithVolumeMounts(initialVolume)).
+				WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("job").WithVolumeMounts(initialVolume))
+
+			_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, initialRD)
+			require.NoError(t, err)
+			compSecret := testComponentSecret("comp", testSpec.expectedInitialData)
+			jobSecret := testComponentSecret("job", testSpec.expectedInitialData)
+			for k, v := range testSpec.setData {
+				compSecret.Data[k] = v
+				jobSecret.Data[k] = v
+			}
+			_, err = kubeclient.CoreV1().Secrets(ns).Update(context.Background(), compSecret, metav1.UpdateOptions{})
+			require.NoError(t, err)
+			_, err = kubeclient.CoreV1().Secrets(ns).Update(context.Background(), jobSecret, metav1.UpdateOptions{})
+			require.NoError(t, err)
+
+			updatedVolume := radixv1.RadixVolumeMount{Name: "vol", BlobFuse2: &testSpec.updateSpec}
+			updatedRD := utils.ARadixDeployment().
+				WithDeploymentName("rd-update").
+				WithAppName(appName).
+				WithEnvironment(envName).
+				WithComponents(utils.NewDeployComponentBuilder().WithName("comp").WithVolumeMounts(updatedVolume)).
+				WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("job").WithVolumeMounts(updatedVolume))
+
+			_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, updatedRD)
+			require.NoError(t, err)
+			_ = testComponentSecret("comp", testSpec.expectedUpdateData)
+			_ = testComponentSecret("job", testSpec.expectedUpdateData)
+		})
+	}
+}
+
+func Test_ClientCertificate_Secrets(t *testing.T) {
+	tests := map[string]struct {
+		initialComp         func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder
+		initialExpectSecret bool
+		initialExpectedData map[string][]byte
+		setData             map[string][]byte
+		updateComp          func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder
+		updateExpectSecret  bool
+		updateExpectedData  map[string][]byte
+	}{
+		"no secret when ClientCertificate not set": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http")
+			},
+			initialExpectSecret: false,
+		},
+		"no secret when Verificate is Off": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOff),
+					},
+				})
+			},
+			initialExpectSecret: false,
+		},
+		"no secret when PublicPort not set": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
+					},
+				})
+			},
+			initialExpectSecret: false,
+		},
+		"secret created when Verification is On": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
+					},
+				})
+			},
+			initialExpectSecret: true,
+			initialExpectedData: map[string][]byte{"ca.crt": nil},
+		},
+		"secret created when Verification is Optional": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOptional),
+					},
+				})
+			},
+			initialExpectSecret: true,
+			initialExpectedData: map[string][]byte{"ca.crt": nil},
+		},
+		"secret created when Verification is OptionalNoCa": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOptionalNoCa),
+					},
+				})
+			},
+			initialExpectSecret: true,
+			initialExpectedData: map[string][]byte{"ca.crt": nil},
+		},
+		"secret created when PassCertificateToUpstream is true": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification:              pointers.Ptr(radixv1.VerificationTypeOff),
+						PassCertificateToUpstream: pointers.Ptr(true),
+					},
+				})
+			},
+			initialExpectSecret: true,
+			initialExpectedData: map[string][]byte{"ca.crt": nil},
+		},
+		"secret data persisted between syncs": {
+			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
+					},
+				})
+			},
+			initialExpectSecret: true,
+			initialExpectedData: map[string][]byte{"ca.crt": nil},
+			setData:             map[string][]byte{"ca.crt": []byte("updated cert")},
+			updateComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
+				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
+					ClientCertificate: &radixv1.ClientCertificate{
+						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
+					},
+				})
+			},
+			updateExpectSecret: true,
+			updateExpectedData: map[string][]byte{"ca.crt": []byte("updated cert")},
+		},
+	}
+
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			appName, environment, componentName := "anyapp", "test", "anycomp"
+			secretName := utils.GetComponentClientCertificateSecretName(componentName)
+			namespace := utils.GetEnvironmentNamespace(appName, environment)
+			testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+			defer TeardownTest()
+
+			if testSpec.initialComp == nil {
+				testSpec.initialComp = func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder { return b }
+			}
+			if testSpec.updateComp == nil {
+				testSpec.updateComp = func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder { return b }
+			}
+
+			initialRD := utils.ARadixDeployment().
+				WithDeploymentName("initial-rd").
+				WithAppName(appName).
+				WithEnvironment(environment).
+				WithComponents(testSpec.initialComp(utils.NewDeployComponentBuilder().WithName(componentName).WithSecrets([]string{"any"}))) // Need to fake creation of another k8s secret due to the way cleanup works
+			_, err := ApplyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, initialRD)
+			require.NoError(t, err)
+
+			initialSecret, err := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+			if testSpec.initialExpectSecret {
+				require.NoError(t, err)
+				assert.Equal(t, testSpec.initialExpectedData, initialSecret.Data)
+				for k, v := range testSpec.setData {
+					initialSecret.Data[k] = v
+				}
+				_, err = client.CoreV1().Secrets(namespace).Update(context.Background(), initialSecret, metav1.UpdateOptions{})
+				require.NoError(t, err)
+			} else {
+				assert.True(t, kubeerrors.IsNotFound(err))
+			}
+
+			updateRD := utils.ARadixDeployment().
+				WithDeploymentName("updated-rd").
+				WithAppName(appName).
+				WithEnvironment(environment).
+				WithComponents(testSpec.updateComp(utils.NewDeployComponentBuilder().WithName(componentName).WithSecrets([]string{"any"})))
+			_, err = ApplyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, updateRD)
+			require.NoError(t, err)
+
+			updatedSecret, err := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+			if testSpec.updateExpectSecret {
+				require.NoError(t, err)
+				assert.Equal(t, testSpec.updateExpectedData, updatedSecret.Data)
+			} else {
+				assert.True(t, kubeerrors.IsNotFound(err))
+			}
+		})
+	}
+}
+
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
@@ -3003,9 +3337,9 @@ func TestUseGpuNode(t *testing.T) {
 	jobComponentName := "jobComponentName"
 
 	// Test
-	nodeGpu1 := "nvidia-v100"
-	nodeGpu2 := "nvidia-v100, nvidia-p100"
-	nodeGpu3 := "nvidia-v100, nvidia-p100, -nvidia-k80"
+	nodeGpu1 := "gpu-nvidia-1-v1"
+	nodeGpu2 := "gpu-nvidia-1-v1, nvidia-p100"
+	nodeGpu3 := "gpu-nvidia-1-v1, nvidia-p100, -nvidia-k80"
 	nodeGpu4 := "nvidia-p100, -nvidia-k80"
 	rd, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
@@ -3081,7 +3415,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	jobComponentName := "jobComponentName"
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	// Test
-	gpuNvidiaV100 := "nvidia-v100"
+	gpuNvidiaV100 := "gpu-nvidia-1-v1"
 	gpuNvidiaP100 := "nvidia-p100"
 	gpuNvidiaK80 := "nvidia-k80"
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -3110,7 +3444,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 				WithNodeGpu(fmt.Sprintf("%s, -%s", gpuNvidiaP100, gpuNvidiaK80))))
 	require.NoError(t, err)
 
-	t.Run("has node with nvidia-v100", func(t *testing.T) {
+	t.Run("has node with gpu-nvidia-1-v1", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName1, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
@@ -3128,7 +3462,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		assert.Len(t, tolerations, 1)
 		assert.Equal(t, corev1.Toleration{Key: kube.RadixGpuCountLabel, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
 	})
-	t.Run("has node with nvidia-v100, nvidia-p100", func(t *testing.T) {
+	t.Run("has node with gpu-nvidia-1-v1, nvidia-p100", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName2, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
@@ -3146,7 +3480,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		assert.Len(t, tolerations, 1)
 		assert.Equal(t, corev1.Toleration{Key: kube.RadixGpuCountLabel, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule}, tolerations[0])
 	})
-	t.Run("has node with nvidia-v100, nvidia-p100, not nvidia-k80", func(t *testing.T) {
+	t.Run("has node with gpu-nvidia-1-v1, nvidia-p100, not nvidia-k80", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), componentName3, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
@@ -3295,7 +3629,7 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Test
-	gpuNvidiaV100 := "nvidia-v100"
+	gpuNvidiaV100 := "gpu-nvidia-1-v1"
 	nodeGpuCount1 := "1"
 	nodeGpuCount10 := "10"
 	nodeGpuCount0 := "0"
@@ -3424,7 +3758,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Test
-	gpuNvidiaV100 := "nvidia-v100"
+	gpuNvidiaV100 := "gpu-nvidia-1-v1"
 	gpuNvidiaP100 := "nvidia-p100"
 	gpuNvidiaK80 := "nvidia-k80"
 	nodeGpuCount10 := "10"

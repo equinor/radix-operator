@@ -14,14 +14,14 @@ type JobBuilder interface {
 	WithRadixApplication(ApplicationBuilder) JobBuilder
 	WithJobName(string) JobBuilder
 	WithAppName(string) JobBuilder
-	WithPipelineImageTag(string) JobBuilder
 	WithPipelineType(v1.RadixPipelineType) JobBuilder
 	WithBranch(branch string) JobBuilder
+	WithGitRef(gitRef string) JobBuilder
+	WithGitRefType(gitRefType string) JobBuilder
 	WithFromEnvironment(envName string) JobBuilder
 	WithToEnvironment(envName string) JobBuilder
 	WithCommitID(string) JobBuilder
 	WithPushImage(bool) JobBuilder
-	WithTektonImageTag(string) JobBuilder
 	WithImageTag(string) JobBuilder
 	WithDeploymentName(string) JobBuilder
 	WithStatusOnAnnotation(JobStatusBuilder) JobBuilder
@@ -29,6 +29,7 @@ type JobBuilder interface {
 	WithStatus(JobStatusBuilder) JobBuilder
 	WithCreated(time.Time) JobBuilder
 	WithOverrideUseBuildCache(value *bool) JobBuilder
+	WithRefreshBuildCache(value *bool) JobBuilder
 	GetApplicationBuilder() ApplicationBuilder
 	BuildRJ() *v1.RadixJob
 }
@@ -43,16 +44,17 @@ type JobBuilderStruct struct {
 	emptyStatus           bool
 	status                v1.RadixJobStatus
 	branch                string
+	gitRef                string
+	gitRefType            string
 	deploymentName        string
 	commitID              string
 	imageTag              string
 	created               time.Time
-	pipelineImageTag      string
 	pushImage             bool
-	tektonImageTag        string
 	toEnvironment         string
 	fromEnvironment       string
 	overrideUseBuildCache *bool
+	refreshBuildCache     *bool
 }
 
 // WithRadixApplication Links to RA builder
@@ -84,19 +86,21 @@ func (jb *JobBuilderStruct) WithPipelineType(pipeline v1.RadixPipelineType) JobB
 	return jb
 }
 
-// WithPipelineImageTag Sets the pipeline image tag
-func (jb *JobBuilderStruct) WithPipelineImageTag(imageTag string) JobBuilder {
-	jb.pipelineImageTag = imageTag
-	return jb
-}
-func (jb *JobBuilderStruct) WithTektonImageTag(imageTag string) JobBuilder {
-	jb.tektonImageTag = imageTag
-	return jb
-}
-
 // WithBranch Sets branch
 func (jb *JobBuilderStruct) WithBranch(branch string) JobBuilder {
 	jb.branch = branch
+	return jb
+}
+
+// WithGitRef Sets gitRef
+func (jb *JobBuilderStruct) WithGitRef(gitRef string) JobBuilder {
+	jb.gitRef = gitRef
+	return jb
+}
+
+// WithGitRefType Sets gitRefType
+func (jb *JobBuilderStruct) WithGitRefType(gitRefType string) JobBuilder {
+	jb.gitRefType = gitRefType
 	return jb
 }
 
@@ -167,6 +171,12 @@ func (jb *JobBuilderStruct) WithOverrideUseBuildCache(value *bool) JobBuilder {
 	return jb
 }
 
+// WithRefreshBuildCache Sets an optional WithRefreshBuildCache
+func (jb *JobBuilderStruct) WithRefreshBuildCache(value *bool) JobBuilder {
+	jb.refreshBuildCache = value
+	return jb
+}
+
 // GetApplicationBuilder Obtains the builder for the corresponding RA, if exists (used for testing)
 func (jb *JobBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 	if jb.applicationBuilder != nil {
@@ -190,23 +200,26 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 				kube.RadixAppLabel: jb.appName,
 			},
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:    jb.branch,
-				kube.RestoredStatusAnnotation: jb.restoredStatus,
+				kube.RadixBranchAnnotation:     jb.branch,
+				kube.RadixGitRefAnnotation:     jb.gitRef,
+				kube.RadixGitRefTypeAnnotation: jb.gitRefType,
+				kube.RestoredStatusAnnotation:  jb.restoredStatus,
 			},
 			CreationTimestamp: metav1.Time{Time: jb.created},
 		},
 		Spec: v1.RadixJobSpec{
-			AppName:       jb.appName,
-			PipeLineType:  jb.pipeline,
-			PipelineImage: jb.pipelineImageTag,
-			TektonImage:   jb.tektonImageTag,
+			AppName:      jb.appName,
+			PipeLineType: jb.pipeline,
 			Build: v1.RadixBuildSpec{
 				Branch:                jb.branch,
+				GitRef:                jb.gitRef,
+				GitRefType:            v1.GitRefType(jb.gitRefType),
 				ToEnvironment:         jb.toEnvironment,
 				ImageTag:              jb.imageTag,
 				CommitID:              jb.commitID,
 				PushImage:             jb.pushImage,
 				OverrideUseBuildCache: jb.overrideUseBuildCache,
+				RefreshBuildCache:     jb.refreshBuildCache,
 			},
 			Promote: v1.RadixPromoteSpec{
 				DeploymentName: jb.deploymentName,

@@ -84,6 +84,14 @@
                 "description": "Forces check/pull of images using static tags, e.g. myimage:latest, when deploying using deploy-only.\nMore info: https://www.radix.equinor.com/radix-config#alwayspullimageondeploy",
                 "type": "boolean"
               },
+              "args": {
+                "description": "Arguments to the entrypoint.\nThe container image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "x-kubernetes-list-type": "atomic"
+              },
               "authentication": {
                 "description": "Configuration for TLS client certificate or OAuth2 authentication.\nMore info: https://www.radix.equinor.com/radix-config#authentication",
                 "properties": {
@@ -243,6 +251,14 @@
                 },
                 "type": "object"
               },
+              "command": {
+                "description": "Entrypoint array. Not executed within a shell.\nThe container image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "x-kubernetes-list-type": "atomic"
+              },
               "dockerfileName": {
                 "description": "Name of the Dockerfile that builds the component.\nMore info: https://www.radix.equinor.com/radix-config#dockerfilename",
                 "type": "string"
@@ -259,6 +275,14 @@
                     "alwaysPullImageOnDeploy": {
                       "description": "Forces check/pull of images using static tags, e.g. myimage:latest, when deploying using deploy-only.",
                       "type": "boolean"
+                    },
+                    "args": {
+                      "description": "Arguments to the entrypoint.\nThe container image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
                     },
                     "authentication": {
                       "description": "Environment specific configuration for TLS client certificate or OAuth2 authentication.\nMore info: https://www.radix.equinor.com/radix-config#authentication",
@@ -418,6 +442,14 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "command": {
+                      "description": "Entrypoint array. Not executed within a shell.\nThe container image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
                     },
                     "dockerfileName": {
                       "description": "Name of the Dockerfile that builds the component.\nMore info: https://www.radix.equinor.com/radix-config#dockerfilename",
@@ -1175,6 +1207,11 @@
                                   "pattern": "^(?:0|[1-9][0-9]*[kKmMgG]?)$",
                                   "type": "string"
                                 },
+                                "proxyBufferSize": {
+                                  "description": "Sets the size of the buffer used for reading the first part of the response received from the proxied server.\nThe size must be large enough to hold the response headers.\nSizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, \"1024\", \"64k\", \"32m\", \"2g\"\nIf the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.",
+                                  "pattern": "^(?:0|[1-9][0-9]*[kKmMgG]?)$",
+                                  "type": "string"
+                                },
                                 "proxyReadTimeout": {
                                   "description": "Defines a timeout, in seconds, for reading a response from the proxied server.\nThe timeout is set only between two successive read operations, not for the transmission of the whole response.\nIf the proxied server does not transmit anything within this time, the connection is closed.",
                                   "minimum": 0,
@@ -1195,7 +1232,7 @@
                       "type": "object"
                     },
                     "node": {
-                      "description": "Environment specific GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                      "description": "Deprecated: use Runtime.NodeType instead.\nEnvironment specific GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
                       "properties": {
                         "gpu": {
                           "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -1241,12 +1278,18 @@
                       "description": "Runtime defines environment specific target runtime requirements for the component",
                       "properties": {
                         "architecture": {
-                          "default": "amd64",
-                          "description": "CPU architecture target for the component or job. Defaults to amd64.",
+                          "description": "CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.",
                           "enum": [
                             "amd64",
-                            "arm64"
+                            "arm64",
+                            ""
                           ],
+                          "type": "string"
+                        },
+                        "nodeType": {
+                          "description": "Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                          "maxLength": 120,
+                          "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                           "type": "string"
                         }
                       },
@@ -2405,6 +2448,11 @@
                             "pattern": "^(?:0|[1-9][0-9]*[kKmMgG]?)$",
                             "type": "string"
                           },
+                          "proxyBufferSize": {
+                            "description": "Sets the size of the buffer used for reading the first part of the response received from the proxied server.\nThe size must be large enough to hold the response headers.\nSizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, \"1024\", \"64k\", \"32m\", \"2g\"\nIf the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.",
+                            "pattern": "^(?:0|[1-9][0-9]*[kKmMgG]?)$",
+                            "type": "string"
+                          },
                           "proxyReadTimeout": {
                             "description": "Defines a timeout, in seconds, for reading a response from the proxied server.\nThe timeout is set only between two successive read operations, not for the transmission of the whole response.\nIf the proxied server does not transmit anything within this time, the connection is closed.",
                             "minimum": 0,
@@ -2425,7 +2473,7 @@
                 "type": "object"
               },
               "node": {
-                "description": "Defines GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                "description": "Deprecated: use Runtime.NodeType instead.\nDefines GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
                 "properties": {
                   "gpu": {
                     "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -2513,12 +2561,18 @@
                 "description": "Runtime defines the target runtime requirements for the component",
                 "properties": {
                   "architecture": {
-                    "default": "amd64",
-                    "description": "CPU architecture target for the component or job. Defaults to amd64.",
+                    "description": "CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.",
                     "enum": [
                       "amd64",
-                      "arm64"
+                      "arm64",
+                      ""
                     ],
+                    "type": "string"
+                  },
+                  "nodeType": {
+                    "description": "Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                    "maxLength": 120,
+                    "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
                 },
@@ -3032,12 +3086,26 @@
                     "minLength": 1,
                     "type": "string"
                   },
+                  "fromType": {
+                    "description": "FromType When the pipeline job is triggered by a GitHub event via the Radix GitHub webhook FromType can specify\nwhich Git references are applicable for this environment:\n- branch - only events on branches (for refs/heads)\n- tag - only events on tags (for refs/tags)\n- <empty> - events on both branches and tags",
+                    "enum": [
+                      "branch",
+                      "tag",
+                      ""
+                    ],
+                    "type": "string"
+                  },
                   "variables": {
                     "additionalProperties": {
                       "type": "string"
                     },
                     "description": "Defines variables that will be available in sub-pipelines",
                     "type": "object"
+                  },
+                  "webhookEnabled": {
+                    "default": true,
+                    "description": "WebhookEnabled indicates whether the webhook should be disabled for the environment.\nIf set to false, the webhook will not be triggered for this environment.",
+                    "type": "boolean"
                   }
                 },
                 "type": "object"
@@ -3163,6 +3231,14 @@
           "items": {
             "description": "RadixJobComponent defines a single job component within a RadixApplication\nThe job component is used by the radix-job-scheduler to create Kubernetes Job objects",
             "properties": {
+              "args": {
+                "description": "Arguments to the entrypoint.\nThe container image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "x-kubernetes-list-type": "atomic"
+              },
               "backoffLimit": {
                 "description": "Specifies the number of retries before marking this job failed.\nMore info: https://www.radix.equinor.com/radix-config#backofflimit",
                 "format": "int32",
@@ -3231,6 +3307,14 @@
                 },
                 "type": "array"
               },
+              "command": {
+                "description": "Entrypoint array. Not executed within a shell.\nThe container image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "x-kubernetes-list-type": "atomic"
+              },
               "dockerfileName": {
                 "description": "Name of the Dockerfile that builds the job.\nMore info: https://www.radix.equinor.com/radix-config#dockerfilename-2",
                 "type": "string"
@@ -3244,6 +3328,14 @@
                 "items": {
                   "description": "RadixJobComponentEnvironmentConfig defines environment specific settings\nfor a single job component within a RadixApplication",
                   "properties": {
+                    "args": {
+                      "description": "Arguments to the entrypoint.\nThe container image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
+                    },
                     "backoffLimit": {
                       "description": "Environment specific value for the number of retries before marking this job failed.\nMore info: https://www.radix.equinor.com/radix-config#backofflimit-2",
                       "format": "int32",
@@ -3311,6 +3403,14 @@
                         "type": "object"
                       },
                       "type": "array"
+                    },
+                    "command": {
+                      "description": "Entrypoint array. Not executed within a shell.\nThe container image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
                     },
                     "dockerfileName": {
                       "description": "Name of the Dockerfile that builds the component.\nMore info: https://www.radix.equinor.com/radix-config#dockerfilename",
@@ -3423,7 +3523,7 @@
                       "type": "boolean"
                     },
                     "node": {
-                      "description": "Environment specific GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                      "description": "Deprecated: use Runtime.NodeType instead.\nEnvironment specific GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
                       "properties": {
                         "gpu": {
                           "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -3476,12 +3576,18 @@
                       "description": "Runtime defines environment specific target runtime requirements for the job",
                       "properties": {
                         "architecture": {
-                          "default": "amd64",
-                          "description": "CPU architecture target for the component or job. Defaults to amd64.",
+                          "description": "CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.",
                           "enum": [
                             "amd64",
-                            "arm64"
+                            "arm64",
+                            ""
                           ],
+                          "type": "string"
+                        },
+                        "nodeType": {
+                          "description": "Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                          "maxLength": 120,
+                          "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                           "type": "string"
                         }
                       },
@@ -3993,7 +4099,7 @@
                 "type": "string"
               },
               "node": {
-                "description": "Defines GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
+                "description": "Deprecated: use Runtime.NodeType instead.\nDefines GPU requirements for the job.\nMore info: https://www.radix.equinor.com/radix-config#node",
                 "properties": {
                   "gpu": {
                     "description": "Defines rules for allowed GPU types.\nMore info: https://www.radix.equinor.com/radix-config#gpu",
@@ -4092,12 +4198,18 @@
                 "description": "Runtime defines target runtime requirements for the job",
                 "properties": {
                   "architecture": {
-                    "default": "amd64",
-                    "description": "CPU architecture target for the component or job. Defaults to amd64.",
+                    "description": "CPU architecture target for the component or job. When Architecture and NodeType are not defined, the Architecture defaults to amd64.",
                     "enum": [
                       "amd64",
-                      "arm64"
+                      "arm64",
+                      ""
                     ],
+                    "type": "string"
+                  },
+                  "nodeType": {
+                    "description": "Defines the node type for the component. It is a values of the node-pool label and taint with key radix-nodetype, where component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
+                    "maxLength": 120,
+                    "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
                   }
                 },

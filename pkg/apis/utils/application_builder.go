@@ -16,6 +16,7 @@ type ApplicationBuilder interface {
 	WithBuildKit(useBuildKit *bool) ApplicationBuilder
 	WithBuildCache(*bool) ApplicationBuilder
 	WithEnvironment(environment, buildFrom string) ApplicationBuilder
+	WithEnvironmentByBuild(environment string, build radixv1.EnvBuild) ApplicationBuilder
 	WithEnvironmentNoBranch(environment string) ApplicationBuilder
 	WithComponent(components RadixApplicationComponentBuilder) ApplicationBuilder
 	WithComponents(components ...RadixApplicationComponentBuilder) ApplicationBuilder
@@ -102,13 +103,18 @@ func (ap *ApplicationBuilderStruct) WithBuildVariables(buildVariables radixv1.En
 
 // WithEnvironment Appends to environment-build list
 func (ap *ApplicationBuilderStruct) WithEnvironment(environment, buildFrom string) ApplicationBuilder {
-	ap.environments = append(ap.environments, radixv1.Environment{
-		Name: environment,
-		Build: radixv1.EnvBuild{
-			From: buildFrom,
-		},
+	ap.WithEnvironmentByBuild(environment, radixv1.EnvBuild{
+		From: buildFrom,
 	})
+	return ap
+}
 
+// WithEnvironmentByBuild Appends to environment-build list
+func (ap *ApplicationBuilderStruct) WithEnvironmentByBuild(environment string, build radixv1.EnvBuild) ApplicationBuilder {
+	ap.environments = append(ap.environments, radixv1.Environment{
+		Name:  environment,
+		Build: build,
+	})
 	return ap
 }
 

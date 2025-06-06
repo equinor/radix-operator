@@ -62,99 +62,11 @@ func (s *applyConfigTestSuite) Test_RadixConfigMap_WithoutPrepareBuildCtx_Proces
 		},
 		RadixApplication: expectedRa,
 	}
-	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
+	step := applyconfig.NewApplyConfigStep()
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	err := step.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	s.Nil(pipelineInfo.BuildContext)
-}
-
-func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsNotMapped() {
-	const (
-		anyAppName      = "any-app"
-		nonMappedBranch = "feature"
-	)
-
-	rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
-	expectedRa := utils.ARadixApplication().WithAppName(anyAppName).BuildRA()
-	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-
-	pipelineInfo := &model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			AppName:      anyAppName,
-			PipelineType: string(radixv1.BuildDeploy),
-			Branch:       nonMappedBranch,
-		},
-		RadixApplication: expectedRa,
-	}
-
-	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
-	s.Require().NoError(err)
-	s.Empty(pipelineInfo.TargetEnvironments)
-}
-
-func (s *applyConfigTestSuite) Test_TargetEnvironments_BranchIsMapped() {
-	const (
-		anyAppName      = "any-app"
-		mappedBranch    = "master"
-		nonMappedBranch = "release"
-	)
-
-	rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
-	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-
-	ra := utils.NewRadixApplicationBuilder().
-		WithAppName(anyAppName).
-		WithEnvironment("mappedenv1", mappedBranch).
-		WithEnvironment("mappedenv2", mappedBranch).
-		WithEnvironment("nonmappedenv", nonMappedBranch).
-		WithComponents(
-			utils.AnApplicationComponent().
-				WithName("anyname")).
-		BuildRA()
-
-	pipelineInfo := &model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			AppName:      anyAppName,
-			PipelineType: string(radixv1.BuildDeploy),
-			Branch:       mappedBranch,
-		},
-		RadixApplication: ra,
-	}
-
-	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
-	s.Require().NoError(err)
-	s.ElementsMatch([]string{"mappedenv1", "mappedenv2"}, pipelineInfo.TargetEnvironments)
-}
-
-func (s *applyConfigTestSuite) Test_TargetEnvironments_DeployOnly() {
-	const (
-		anyAppName    = "any-app"
-		toEnvironment = "anyenv"
-	)
-
-	rr := utils.ARadixRegistration().WithName(anyAppName).BuildRR()
-	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	ra := utils.NewRadixApplicationBuilder().WithAppName(anyAppName).BuildRA()
-
-	pipelineInfo := &model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			AppName:       anyAppName,
-			PipelineType:  string(radixv1.Deploy),
-			ToEnvironment: toEnvironment,
-		},
-		RadixApplication: ra,
-	}
-
-	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-	err := cli.Run(context.Background(), pipelineInfo)
-	s.Require().NoError(err)
-	s.ElementsMatch([]string{toEnvironment}, pipelineInfo.TargetEnvironments)
 }
 
 func (s *applyConfigTestSuite) Test_BuildSecrets_SecretMissing() {
@@ -174,7 +86,8 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretMissing() {
 			PipelineType: string(radixv1.BuildDeploy),
 			Branch:       mappedBranch,
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "test"}},
 	}
 
 	cli := applyconfig.NewApplyConfigStep()
@@ -215,7 +128,7 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretExist() {
 	s.Equal(secret, pipelineInfo.BuildSecret)
 }
 
-func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFail() {
+func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPipelineShouldFail() {
 	appName := "anyapp"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -233,7 +146,8 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFa
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -242,7 +156,7 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPiplineShouldFa
 	s.ErrorIs(err, applyconfig.ErrDeployOnlyPipelineDoesNotSupportBuild)
 }
 
-func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
+func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPipelineShouldFail() {
 	appName := "anyapp"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -260,7 +174,8 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPiplineShouldFail() {
 			PipelineType:  string(radixv1.Deploy),
 			ToEnvironment: "dev",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -353,7 +268,8 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 			Clustername:       "clustername",
 			GitWorkspace:      "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: envName1}, {Environment: envName2}, {Environment: envName3}, {Environment: envName4}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -530,7 +446,8 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 			Clustername:       "anyclustername",
 			GitWorkspace:      "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -565,59 +482,81 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 	expectedBuildComponentImages := pipeline.EnvironmentBuildComponentImages{
 		"dev": []pipeline.BuildComponentImage{
 			buildComponentImageFunc("comp1-build", nil),
-			buildComponentImageFunc("comp2-build", nil),
+			buildComponentImageFunc("comp2-build", &radixv1.Runtime{}),
 			buildComponentImageFunc("comp3-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 			buildComponentImageFunc("comp4-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
-			buildComponentImageFunc("comp5-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+			buildComponentImageFunc("comp5-build", &radixv1.Runtime{}),
 			buildComponentImageFunc("comp6-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 			buildComponentImageFunc("comp7-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
 			buildComponentImageFunc("job1-build", nil),
-			buildComponentImageFunc("job2-build", nil),
+			buildComponentImageFunc("job2-build", &radixv1.Runtime{}),
 			buildComponentImageFunc("job3-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 			buildComponentImageFunc("job4-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
-			buildComponentImageFunc("job5-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
+			buildComponentImageFunc("job5-build", &radixv1.Runtime{}),
 			buildComponentImageFunc("job6-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
 			buildComponentImageFunc("job7-build", &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
 		},
 	}
-	s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages))
+	s.ElementsMatch(maps.Keys(expectedBuildComponentImages), maps.Keys(pipelineInfo.BuildComponentImages), "BuildComponentImages keys should match")
 	for env, images := range expectedBuildComponentImages {
-		s.ElementsMatch(images, pipelineInfo.BuildComponentImages[env])
+		for i, image := range images {
+			s.Equal(image, pipelineInfo.BuildComponentImages[env][i], "Not matched BuildComponentImage for component %s", image.ComponentName)
+		}
 	}
 
 	expectedDeployEnvironmentComponentImages := pipeline.DeployEnvironmentComponentImages{
 		"dev": pipeline.DeployComponentImages{
 			"comp1-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp1-build"), ImageTagName: "", Runtime: nil, Build: true},
-			"comp2-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp2-build"), ImageTagName: "", Runtime: nil, Build: true},
+			"comp2-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp2-build"), ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: true},
 			"comp3-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp3-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: true},
 			"comp4-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp4-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
-			"comp5-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp5-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
+			"comp5-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp5-build"), ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: true},
 			"comp6-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp6-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: true},
 			"comp7-build":  pipeline.DeployComponentImage{ImagePath: imagePathFunc("comp7-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
 			"comp1-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: nil, Build: false},
-			"comp2-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: nil, Build: false},
+			"comp2-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: false},
 			"comp3-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: false},
 			"comp4-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
-			"comp5-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
+			"comp5-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: false},
 			"comp6-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: false},
 			"comp7-deploy": pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
 			"job1-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job1-build"), ImageTagName: "", Runtime: nil, Build: true},
-			"job2-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job2-build"), ImageTagName: "", Runtime: nil, Build: true},
+			"job2-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job2-build"), ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: true},
 			"job3-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job3-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: true},
 			"job4-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job4-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
-			"job5-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job5-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
+			"job5-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job5-build"), ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: true},
 			"job6-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job6-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: true},
 			"job7-build":   pipeline.DeployComponentImage{ImagePath: imagePathFunc("job7-build"), ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: true},
 			"job1-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: nil, Build: false},
-			"job2-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: nil, Build: false},
+			"job2-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: false},
 			"job3-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: false},
 			"job4-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
-			"job5-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
+			"job5-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{}, Build: false},
 			"job6-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}, Build: false},
 			"job7-deploy":  pipeline.DeployComponentImage{ImagePath: "any", ImageTagName: "", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}, Build: false},
 		},
 	}
-	s.Equal(expectedDeployEnvironmentComponentImages, pipelineInfo.DeployEnvironmentComponentImages)
+	if !s.Len(pipelineInfo.DeployEnvironmentComponentImages, len(expectedDeployEnvironmentComponentImages), "DeployEnvironmentComponentImages length should match") {
+		return
+	}
+	for env, expectedComponentImages := range expectedDeployEnvironmentComponentImages {
+		deployEnvironmentComponentImages, ok := pipelineInfo.DeployEnvironmentComponentImages[env]
+		if !s.True(ok, "DeployEnvironmentComponentImages should contain environment %s", env) {
+			continue
+		}
+		if !s.Len(deployEnvironmentComponentImages, len(expectedComponentImages), "DeployComponentImages length should match for environment %s", env) {
+			continue
+		}
+		for componentName, expectedComponentImage := range expectedComponentImages {
+			deployComponentImage, ok := deployEnvironmentComponentImages[componentName]
+			if !s.True(ok, "DeployComponentImages should contain component %s in environment %s", componentName, env) {
+				continue
+			}
+			if !s.Equal(expectedComponentImage, deployComponentImage, "Not matched DeployComponentImage for component %s in environment %s", componentName, env) {
+				continue
+			}
+		}
+	}
 }
 
 func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled() {
@@ -672,7 +611,8 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 			Clustername:       "clustername",
 			GitWorkspace:      "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -787,9 +727,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			utils.NewDeployJobComponentBuilder().WithName("job-common2-changed").WithImage("dev-job-common2-changed:anytag"),
 		).
 		BuildRD()
-	_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetAppNamespace(appName)}}, metav1.CreateOptions{})
-	_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
-	_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), currentRd, metav1.CreateOptions{})
+
 	buildCtx := &model.BuildContext{
 		EnvironmentsToBuild: []model.EnvironmentToBuild{
 			{Environment: envName, Components: []string{"comp-changed", "comp-common1-changed", "comp-common3-changed", "job-changed", "job-common2-changed", "job-common3-changed"}},
@@ -807,7 +745,8 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			ContainerRegistry: "registry",
 			GitWorkspace:      "/some-workspace",
 		},
-		BuildContext: buildCtx,
+		BuildContext:       buildCtx,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: envName, ActiveRadixDeployment: currentRd}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1312,14 +1251,16 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 			}
 			_, _ = s.kubeClient.CoreV1().Secrets(utils.GetAppNamespace(appName)).Create(context.Background(), currentBuildSecret, metav1.CreateOptions{})
 			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-			if test.existingRd != nil {
-				_, _ = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
-				_, _ = s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, envName)).Create(context.Background(), test.existingRd, metav1.CreateOptions{})
+
+			var existingRd *radixv1.RadixDeployment
+			if test.existingRd != nil && test.existingRd.Status.Condition == radixv1.DeploymentActive {
+				existingRd = test.existingRd
 			}
 			pipelineInfo := model.PipelineInfo{
-				PipelineArguments: pipelineArgs,
-				RadixApplication:  ra,
-				BuildContext:      test.prepareBuildCtx,
+				PipelineArguments:  pipelineArgs,
+				RadixApplication:   ra,
+				BuildContext:       test.prepareBuildCtx,
+				TargetEnvironments: []model.TargetEnvironment{{Environment: envName, ActiveRadixDeployment: existingRd}},
 			}
 			applyStep := applyconfig.NewApplyConfigStep()
 			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
@@ -1343,53 +1284,111 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 
 func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 	appName := "anyapp"
-	type scenario struct {
-		name                 string
-		componentTagName     string
-		hasEnvironmentConfig bool
-		environmentTagName   string
-		expectedError        error
+	scenarios := map[string]struct {
+		componentTagName           string
+		hasEnvironmentConfig       bool
+		environmentTagName         string
+		pipelineTypeExpectedErrors map[radixv1.RadixPipelineType]error
+	}{
+		"deploy: imageTagName not set on component, missing environmentConfig": {
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.BuildDeploy: applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.Deploy:      applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
+		"deploy: imageTagName set on component, missing environmentConfig": {
+			componentTagName: "some-component-tag",
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       nil,
+				radixv1.BuildDeploy: nil,
+				radixv1.Deploy:      nil,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
+		"deploy: imageTagName not set on component, not set in environmentConfig": {
+			hasEnvironmentConfig: true,
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.BuildDeploy: applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.Deploy:      applyconfig.ErrMissingRequiredImageTagName,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
+		"deploy: imageTagName not set on component, set in environmentConfig": {
+			hasEnvironmentConfig: true,
+			environmentTagName:   "some-env-tag",
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       nil,
+				radixv1.BuildDeploy: nil,
+				radixv1.Deploy:      nil,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
+		"deploy: imageTagName set on component, not set in environmentConfig": {
+			componentTagName:     "some-component-tag",
+			hasEnvironmentConfig: true,
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       nil,
+				radixv1.BuildDeploy: nil,
+				radixv1.Deploy:      nil,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
+		"deploy: imageTagName set on component, set in environmentConfig": {
+			componentTagName:     "some-component-tag",
+			hasEnvironmentConfig: true,
+			environmentTagName:   "some-env-tag",
+			pipelineTypeExpectedErrors: map[radixv1.RadixPipelineType]error{
+				radixv1.Build:       nil,
+				radixv1.BuildDeploy: nil,
+				radixv1.Deploy:      nil,
+				radixv1.Promote:     nil,
+				radixv1.ApplyConfig: nil,
+			},
+		},
 	}
-	scenarios := []scenario{
-		{name: "no imageTagName in a component or an environment", expectedError: applyconfig.ErrMissingRequiredImageTagName},
-		{name: "imageTagName is in a component", componentTagName: "some-component-tag"},
-		{name: "imageTagName is not set in an environment", hasEnvironmentConfig: true, expectedError: applyconfig.ErrMissingRequiredImageTagName},
-		{name: "imageTagName is in an environment", hasEnvironmentConfig: true, environmentTagName: "some-env-tag"},
-		{name: "imageTagName is in a component, not in an environment", componentTagName: "some-component-tag", hasEnvironmentConfig: true},
-		{name: "imageTagName is in a component and in an environment", componentTagName: "some-component-tag", hasEnvironmentConfig: true, environmentTagName: "some-env-tag"},
-	}
-	for _, ts := range scenarios {
-		s.Run(ts.name, func() {
+	for scenarioName, scenario := range scenarios {
+		s.Run(scenarioName, func() {
 			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 
-			componentBuilder := utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("deploycomp").WithImage("any:{imageTagName}").WithImageTagName(ts.componentTagName)
-			if ts.hasEnvironmentConfig || ts.environmentTagName != "" {
-				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment("dev").WithImageTagName(ts.environmentTagName))
+			componentBuilder := utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("deploycomp").WithImage("any:{imageTagName}").WithImageTagName(scenario.componentTagName)
+			if scenario.hasEnvironmentConfig || scenario.environmentTagName != "" {
+				componentBuilder = componentBuilder.WithEnvironmentConfig(utils.AnEnvironmentConfig().WithEnvironment("dev").WithImageTagName(scenario.environmentTagName))
 			}
 			ra := utils.NewRadixApplicationBuilder().
 				WithAppName(appName).
 				WithEnvironment("dev", "anybranch").
 				WithComponents(componentBuilder).BuildRA()
-			//TODO ?
 
-			pipelineInfo := model.PipelineInfo{
-				PipelineArguments: model.PipelineArguments{
-					PipelineType:  string(radixv1.Deploy),
-					ToEnvironment: "dev",
-					GitWorkspace:  "/some-workspace",
-				},
-				RadixApplication: ra,
+			for pipelineType, expectedError := range scenario.pipelineTypeExpectedErrors {
+				pipelineInfo := model.PipelineInfo{
+					PipelineArguments: model.PipelineArguments{
+						PipelineType:  string(pipelineType),
+						ToEnvironment: "dev",
+						GitWorkspace:  "/some-workspace",
+					},
+					RadixApplication:   ra,
+					TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
+				}
+
+				applyStep := applyconfig.NewApplyConfigStep()
+				applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+				err := applyStep.Run(context.Background(), &pipelineInfo)
+				if expectedError == nil {
+					s.NoError(err, "pipeline type %s", pipelineType)
+				} else {
+					s.ErrorIs(err, applyconfig.ErrMissingRequiredImageTagName, "pipeline type %s", pipelineType)
+				}
 			}
 
-			applyStep := applyconfig.NewApplyConfigStep()
-			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
-			err := applyStep.Run(context.Background(), &pipelineInfo)
-			if ts.expectedError == nil {
-				s.NoError(err)
-			} else {
-				s.ErrorIs(err, applyconfig.ErrMissingRequiredImageTagName)
-			}
 		})
 	}
 }
@@ -1413,7 +1412,8 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInRAShouldSu
 			ToEnvironment: "dev",
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1440,7 +1440,8 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineAr
 			ImageTagNames: map[string]string{"deploycomp": "tag"},
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1466,7 +1467,8 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail(
 			ToEnvironment: "dev",
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1496,7 +1498,8 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed(
 			ToEnvironment: "dev",
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1523,7 +1526,8 @@ func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgS
 			ImageTagNames: map[string]string{"deployjob": "anytag"},
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1593,13 +1597,15 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 					ComponentsToDeploy: ts.componentsToDeploy,
 					GitWorkspace:       "/some-workspace",
 				},
-				RadixApplication: ra,
+				RadixApplication:   ra,
+				TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 			}
 			switch ts.pipelineType {
 			case radixv1.Deploy:
 				pipeline.PipelineArguments.ToEnvironment = "dev"
 			case radixv1.BuildDeploy:
-				pipeline.PipelineArguments.Branch = "main"
+				pipeline.PipelineArguments.GitRef = "main"
+				pipeline.PipelineArguments.GitRefType = "tag"
 			case radixv1.Promote:
 				pipeline.PipelineArguments.FromEnvironment = "dev"
 				pipeline.PipelineArguments.ToEnvironment = "dev"
@@ -1650,7 +1656,8 @@ func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
 			ImageTagNames: map[string]string{"comp1": "comp1customtag", "job1": "job1customtag"},
 			GitWorkspace:  "/some-workspace",
 		},
-		RadixApplication: ra,
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
@@ -1746,7 +1753,8 @@ func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 					Branch:       branchName,
 					GitWorkspace: "/some-workspace",
 				},
-				RadixApplication: ra,
+				RadixApplication:   ra,
+				TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
 			}
 
 			applyStep := applyconfig.NewApplyConfigStep()

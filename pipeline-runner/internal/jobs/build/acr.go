@@ -8,10 +8,10 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
-	internalgit "github.com/equinor/radix-operator/pipeline-runner/internal/git"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
@@ -34,7 +34,7 @@ func NewACR() JobsBuilder {
 
 type acr struct{}
 
-func (c *acr) BuildJobs(_ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
+func (c *acr) BuildJobs(_, _ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
 	props := &acrKubeJobProps{
 		pipelineArgs:    pipelineArgs,
 		componentImages: componentImages,
@@ -68,7 +68,8 @@ func (c *acrKubeJobProps) JobLabels() map[string]string {
 }
 
 func (c *acrKubeJobProps) JobAnnotations() map[string]string {
-	return getCommonJobAnnotations(c.pipelineArgs.Branch, c.componentImages...)
+	branch := c.pipelineArgs.Branch //nolint:staticcheck
+	return getCommonJobAnnotations(branch, c.pipelineArgs.GitRef, c.pipelineArgs.GitRefType, c.componentImages...)
 }
 
 func (c *acrKubeJobProps) PodLabels() map[string]string {
@@ -84,7 +85,7 @@ func (c *acrKubeJobProps) PodTolerations() []corev1.Toleration {
 }
 
 func (c *acrKubeJobProps) PodAffinity() *corev1.Affinity {
-	return getCommonPodAffinity(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64})
+	return getCommonPodAffinity(string(radixv1.RuntimeArchitectureArm64))
 }
 
 func (*acrKubeJobProps) PodSecurityContext() *corev1.PodSecurityContext {
@@ -119,8 +120,12 @@ func (c *acrKubeJobProps) PodVolumes() []corev1.Volume {
 }
 
 func (c *acrKubeJobProps) PodInitContainers() []corev1.Container {
-	cloneCfg := internalgit.CloneConfigFromPipelineArgs(c.pipelineArgs)
-	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GitWorkspace, c.pipelineArgs.Branch, cloneCfg)
+	cloneConfig := git.CloneConfig{
+		NSlookupImage: c.pipelineArgs.GitCloneNsLookupImage,
+		GitImage:      c.pipelineArgs.GitCloneGitImage,
+		BashImage:     c.pipelineArgs.GitCloneBashImage,
+	}
+	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GetGitRefOrDefault(), c.gitCommitHash, c.pipelineArgs.GitWorkspace, cloneConfig)
 }
 
 func (c *acrKubeJobProps) PodContainers() []corev1.Container {
@@ -135,6 +140,7 @@ func (c *acrKubeJobProps) getPodContainer(componentImage pipeline.BuildComponent
 		Env:             c.getPodContainerEnvVars(componentImage),
 		VolumeMounts:    c.getPodContainerVolumeMounts(componentImage),
 		SecurityContext: c.getPodContainerSecurityContext(),
+		Resources:       c.getPodContainerResources(),
 	}
 }
 
@@ -146,6 +152,19 @@ func (*acrKubeJobProps) getPodContainerSecurityContext() *corev1.SecurityContext
 		securitycontext.WithContainerRunAsGroup(1000),
 		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
 	)
+}
+
+func (c *acrKubeJobProps) getPodContainerResources() corev1.ResourceRequirements {
+	return corev1.ResourceRequirements{
+		Requests: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceCPU:    resource.MustParse("50m"),
+			corev1.ResourceMemory: resource.MustParse("100M"),
+		},
+		Limits: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceCPU:    resource.MustParse("500m"),
+			corev1.ResourceMemory: resource.MustParse("500M"),
+		},
+	}
 }
 
 func (c *acrKubeJobProps) getPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage) []corev1.VolumeMount {
@@ -177,7 +196,15 @@ func (c *acrKubeJobProps) getPodContainerEnvVars(componentImage pipeline.BuildCo
 	envVars := []corev1.EnvVar{
 		{
 			Name:  defaults.RadixBranchEnvironmentVariable,
-			Value: c.pipelineArgs.Branch,
+			Value: c.pipelineArgs.Branch, //nolint:staticcheck
+		},
+		{
+			Name:  defaults.RadixGitRefEnvironmentVariable,
+			Value: c.pipelineArgs.GitRef,
+		},
+		{
+			Name:  defaults.RadixGitRefTypeEnvironmentVariable,
+			Value: c.pipelineArgs.GitRefType,
 		},
 		{
 			Name:  defaults.RadixPipelineTargetEnvironmentsVariable,

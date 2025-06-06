@@ -3,10 +3,10 @@ package git
 import (
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -26,17 +26,42 @@ type CloneConfig struct {
 }
 
 // CloneInitContainersWithSourceCode The sidecars for cloning repo with source code
-func CloneInitContainersWithSourceCode(sshURL, branch string, config CloneConfig, workspace string) []corev1.Container {
-	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName, config, true, workspace)
+// Arguments:
+//   - sshURL: SSH URL to the remote git repository
+//   - branch: The branch to checkout
+//   - commitID (optional): The commit ID to checkout after clone finished. The clone step will fail if the commit ID is not an ancestor of HEAD for the branch
+//   - directory: The directory to clone the git repository to
+//   - config: defines the container images to be used by the init containers
+func CloneInitContainersWithSourceCode(sshURL, branch, commitID, directory string, config CloneConfig) []corev1.Container {
+	return CloneInitContainersWithContainerName(sshURL, branch, commitID, directory, true, true, CloneContainerName, config)
 }
 
-// CloneInitContainersWithContainerName The sidecars for cloning repo. Lfs is to support large files in cloned source code, it is not needed for Radix config ot SubPipeline
-func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, config CloneConfig, useLfs bool, workspace string) []corev1.Container {
-	gitConfigCommand := fmt.Sprintf("git config --global --add safe.directory %s", workspace)
-	gitCloneCommand := fmt.Sprintf("git clone %s -b %s --verbose --progress %s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")", sshURL, branch, workspace)
-	getLfsFilesCommands := fmt.Sprintf("cd %s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", workspace)
-	gitCloneCmd := []string{"sh", "-c", fmt.Sprintf("%s && %s %s", gitConfigCommand, gitCloneCommand,
-		utils.TernaryString(useLfs, fmt.Sprintf("&& %s", getLfsFilesCommands), ""))}
+// CloneInitContainersWithContainerName The sidecars for cloning a git repo. Lfs is to support large files in cloned source code, it is not needed for Radix config ot SubPipeline
+func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory string, useLfs, skipBlobs bool, cloneContainerName string, config CloneConfig) []corev1.Container {
+	commands := []string{
+		fmt.Sprintf("git config --global --add safe.directory %s", directory),
+	}
+
+	cloneArgs := []string{
+		fmt.Sprintf("-b %s", branch),
+		"--verbose",
+		"--progress",
+	}
+	if skipBlobs {
+		cloneArgs = append(cloneArgs, "--filter=blob:none")
+	}
+	commands = append(commands, fmt.Sprintf("git clone %s %s %s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")", sshURL, strings.Join(cloneArgs, " "), directory))
+
+	if len(commitID) > 0 {
+		commands = append(commands, fmt.Sprintf("cd %[1]s && echo \"Checking out commit %[2]s\" && git merge-base --is-ancestor %[2]s HEAD && git checkout -q %[2]s && cd -", directory, commitID))
+	}
+
+	if useLfs {
+		commands = append(commands, fmt.Sprintf("cd %s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", directory))
+	}
+
+	gitCloneCmd := []string{"sh", "-c", strings.Join(commands, " && ")}
+
 	containers := []corev1.Container{
 		{
 			Name:    fmt.Sprintf("%snslookup", InternalContainerPrefix),
@@ -46,7 +71,11 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(10, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(50, resource.Mega),
 				},
 			},
 			ImagePullPolicy: corev1.PullIfNotPresent,
@@ -72,7 +101,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      BuildContextVolumeName,
-					MountPath: workspace,
+					MountPath: directory,
 				},
 				{
 					Name:      GitSSHKeyVolumeName,
@@ -83,6 +112,16 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 					Name:      CloneRepoHomeVolumeName,
 					MountPath: CloneRepoHomeVolumePath,
 					ReadOnly:  false,
+				},
+			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(100, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(250, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(1000, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(2000, resource.Mega),
 				},
 			},
 			SecurityContext: securitycontext.Container(
@@ -98,17 +137,21 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			Image:           config.BashImage,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/usr/local/bin/bash", "-O", "dotglob", "-c"},
-			Args:            []string{fmt.Sprintf("chmod -R g+rw %s", path.Join(workspace, "*"))},
+			Args:            []string{fmt.Sprintf("chmod -R g+rw %s", path.Join(directory, "*"))},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      BuildContextVolumeName,
-					MountPath: workspace,
+					MountPath: directory,
 				},
 			},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
 					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
+				},
+				Limits: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    *resource.NewScaledQuantity(50, resource.Milli),
+					corev1.ResourceMemory: *resource.NewScaledQuantity(100, resource.Mega),
 				},
 			},
 			SecurityContext: securitycontext.Container(

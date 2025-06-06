@@ -139,22 +139,13 @@ func (h *deployHandler) buildDeploymentsForEnvironments(ctx context.Context, env
 }
 
 func (h *deployHandler) buildDeployment(ctx context.Context, envInfo envInfo) (*radixv1.RadixDeployment, error) {
-	sourceRd, err := internal.ConstructForTargetEnvironment(
-		ctx,
-		h.pipelineInfo.RadixApplication,
-		&envInfo.activeRd,
-		h.pipelineInfo.PipelineArguments.JobName,
-		h.pipelineInfo.PipelineArguments.ImageTag,
-		envInfo.activeRd.Annotations[kube.RadixBranchAnnotation],
+	sourceRd, err := internal.ConstructForTargetEnvironment(ctx,
+		h.pipelineInfo,
+		model.TargetEnvironment{Environment: envInfo.envName, ActiveRadixDeployment: &envInfo.activeRd},
 		envInfo.activeRd.Annotations[kube.RadixCommitAnnotation],
 		envInfo.activeRd.Annotations[kube.RadixGitTagsAnnotation],
-		nil,
-		envInfo.envName,
 		envInfo.activeRd.Annotations[kube.RadixConfigHash],
-		envInfo.activeRd.Annotations[kube.RadixBuildSecretHash],
-		h.pipelineInfo.BuildContext,
-		h.pipelineInfo.PipelineArguments.ComponentsToDeploy,
-	)
+		envInfo.activeRd.Annotations[kube.RadixBuildSecretHash])
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct Radix deployment: %w", err)
 	}

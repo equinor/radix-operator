@@ -33,13 +33,11 @@ func updateComponentNode(ctx context.Context, component v1.RadixCommonComponent,
 }
 
 func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) v1.EnvVarsMap {
-	if !component.GetEnabledForEnvironmentConfig(environmentSpecificConfig) {
-		return make(v1.EnvVarsMap)
-	}
 	var variables v1.EnvVarsMap
 	if !commonUtils.IsNil(environmentSpecificConfig) {
-		variables = environmentSpecificConfig.GetVariables()
+		variables = environmentSpecificConfig.GetVariables().DeepCopy()
 	}
+
 	if variables == nil {
 		variables = make(v1.EnvVarsMap)
 	}
@@ -73,7 +71,7 @@ func getRadixCommonComponentResources(component v1.RadixCommonComponent, environ
 func getRadixCommonComponentNode(ctx context.Context, radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.RadixNode {
 	var node v1.RadixNode
 	if !commonUtils.IsNil(environmentSpecificConfig) {
-		node = environmentSpecificConfig.GetNode()
+		node = environmentSpecificConfig.GetNode() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	}
 	updateComponentNode(ctx, radixComponent, &node)
 	return node

@@ -94,6 +94,9 @@ const (
 	// RadixPipelineJobToEnvironmentEnvironmentVariable Name of Radix environment for pipeline build-deploy or promote to
 	RadixPipelineJobToEnvironmentEnvironmentVariable = "TO_ENVIRONMENT"
 
+	// RadixPipelineJobTriggeredFromWebhookEnvironmentVariable Indicates that the pipeline job was triggered from a webhook
+	RadixPipelineJobTriggeredFromWebhookEnvironmentVariable = "TRIGGERED_FROM_WEBHOOK"
+
 	// RadixPromoteSourceDeploymentCommitHashEnvironmentVariable Git commit hash of source deployment in promote jobs
 	RadixPromoteSourceDeploymentCommitHashEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_COMMIT_HASH"
 
@@ -122,14 +125,23 @@ const (
 	// RadixPushImageEnvironmentVariable Push an image for the built component to an ACR
 	RadixPushImageEnvironmentVariable = "PUSH_IMAGE"
 
-	// RadixOverrideUseBuildCacheVariable override default or configured build cache option
-	RadixOverrideUseBuildCacheVariable = "OVERRIDE_USE_BUILD_CACHE"
+	// RadixOverrideUseBuildCacheEnvironmentVariable override default or configured build cache option
+	RadixOverrideUseBuildCacheEnvironmentVariable = "OVERRIDE_USE_BUILD_CACHE"
+
+	// RadixRefreshBuildCacheEnvironmentVariable forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
+	RadixRefreshBuildCacheEnvironmentVariable = "REFRESH_BUILD_CACHE"
 
 	// RadixPipelineJobEnvironmentVariable Radix pipeline job name
 	RadixPipelineJobEnvironmentVariable = "JOB_NAME"
 
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
+
+	// RadixGitRefEnvironmentVariable When the pipeline job should be built from branch or tag specified here
+	RadixGitRefEnvironmentVariable = "GIT_REF"
+
+	// RadixGitRefTypeEnvironmentVariable When the pipeline job should be built from branch, tag or any specified in GIT_REF: tag, branch or empty
+	RadixGitRefTypeEnvironmentVariable = "GIT_REF_TYPE"
 
 	// RadixConfigBranchEnvironmentVariable Branch of the Radix application config
 	RadixConfigBranchEnvironmentVariable = "RADIX_CONFIG_BRANCH"

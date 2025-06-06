@@ -698,11 +698,16 @@ func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []
 		deploymentBuilder := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(rdProps.envName).WithImageTag(rdProps.imageTag).
 			WithActiveFrom(rdProps.activeFrom).WithLabel(kube.RadixCommitLabel, commitId).WithLabel(kube.RadixJobNameLabel, jobName).
 			WithAnnotations(map[string]string{
-				kube.RadixGitTagsAnnotation: gitTags,
-				kube.RadixCommitAnnotation:  commitId,
-				kube.RadixBranchAnnotation:  "",
-				kube.RadixBuildSecretHash:   buildSecretHash,
-				kube.RadixConfigHash:        radixConfigHash,
+				kube.RadixGitTagsAnnotation:    gitTags,
+				kube.RadixCommitAnnotation:     commitId,
+				kube.RadixBranchAnnotation:     "",
+				kube.RadixGitRefAnnotation:     "",
+				kube.RadixGitRefTypeAnnotation: "",
+				kube.RadixBuildSecretHash:      buildSecretHash,
+				kube.RadixConfigHash:           radixConfigHash,
+				kube.RadixUseBuildKit:          "false",
+				kube.RadixUseBuildCache:        "false",
+				kube.RadixRefreshBuildCache:    "false",
 			})
 		for _, component := range ra.Spec.Components {
 			componentBuilder := utils.NewDeployComponentBuilder().WithName(component.Name)

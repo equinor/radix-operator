@@ -45,6 +45,17 @@ const (
 	JobStoppedNoChanges RadixJobCondition = "StoppedNoChanges"
 )
 
+// GitRefType Holds the type of git event refs
+// Read more about Git refs https://git-scm.com/book/en/v2/Git-Internals-Git-References
+type GitRefType string
+
+const (
+	// GitRefBranch event sent when a commit is made to a branch
+	GitRefBranch GitRefType = "branch"
+	// GitRefTag event sent when a tag is created
+	GitRefTag GitRefType = "tag"
+)
+
 // RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
 	// AppName Name of the Radix application
@@ -52,20 +63,16 @@ type RadixJobSpec struct {
 	// Deprecated: radix-api will be responsible for setting the CloneURL, it is taken from the RadixRegistration by the radix-operator
 	// CloneURL GitHub repository URL
 	CloneURL string `json:"cloneURL"`
-	// Deprecated: this repository is merged to radix-operator
-	// TektonImage Image of the radix-tekton
-	TektonImage string `json:"tektonImage"`
 	// PipeLineType Type of the pipeline
-	PipeLineType RadixPipelineType `json:"pipeLineType"`
-	// Deprecated: radix-api will be responsible for setting the PipelineImage, it is taken from the radix-operator configuration
-	// PipelineImage Image tag of the radix-pipeline
-	PipelineImage string               `json:"pipelineImage"`
-	Build         RadixBuildSpec       `json:"build"`
-	Promote       RadixPromoteSpec     `json:"promote"`
-	Deploy        RadixDeploySpec      `json:"deploy"`
-	ApplyConfig   RadixApplyConfigSpec `json:"applyConfig"`
+	PipeLineType RadixPipelineType    `json:"pipeLineType"`
+	Build        RadixBuildSpec       `json:"build"`
+	Promote      RadixPromoteSpec     `json:"promote"`
+	Deploy       RadixDeploySpec      `json:"deploy"`
+	ApplyConfig  RadixApplyConfigSpec `json:"applyConfig"`
 	// Stop If true, the job will be stopped
 	Stop bool `json:"stop"`
+	// TriggeredFromWebhook If true, the job was triggered from a webhook
+	TriggeredFromWebhook bool `json:"triggeredFromWebhook"`
 	// TriggeredBy Name of the user or UID oa a system principal which triggered the job
 	TriggeredBy string `json:"triggeredBy"`
 	// Deprecated: radix-api will be responsible for setting the RadixConfigFullName, it is taken from the RadixRegistration by the radix-operator
@@ -92,6 +99,7 @@ type RadixBuildSpec struct {
 	// +required
 	ImageTag string `json:"imageTag"`
 
+	// Deprecated: use GitRef instead
 	// Branch, from which the image to be built
 	//
 	// +required
@@ -112,10 +120,41 @@ type RadixBuildSpec struct {
 	// +optional
 	PushImage bool `json:"pushImage,omitempty"`
 
+	// Enables BuildKit when building Dockerfile.
+	//
+	// +optional
+	UseBuildKit *bool `json:"useBuildKit,omitempty"`
+
+	// Defaults to true and requires useBuildKit to have an effect.
+	//
+	// +optional
+	UseBuildCache *bool `json:"useBuildCache,omitempty"`
+
 	// OverrideUseBuildCache override default or configured build cache option
 	//
 	// +optional
 	OverrideUseBuildCache *bool `json:"overrideUseBuildCache,omitempty"`
+
+	// RefreshBuildCache forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
+	//
+	// +optional
+	RefreshBuildCache *bool `json:"refreshBuildCache,omitempty"`
+
+	// GitRef Branch or tag to build from
+	//
+	// required: false
+	// example: master
+	GitRef string `json:"gitRef,omitempty"`
+
+	// GitRefType When the pipeline job should be built from branch or tag specified in GitRef:
+	// - branch
+	// - tag
+	// - <empty> - either branch or tag
+	//
+	// required false
+	// enum: branch,tag,""
+	// example: "branch"
+	GitRefType GitRefType `json:"gitRefType,omitempty"`
 }
 
 // RadixPromoteSpec is the spec for a promote job
@@ -204,4 +243,20 @@ const (
 type RadixJobResult struct {
 	Result  RadixJobResultType `json:"result"`
 	Message string             `json:"message"`
+}
+
+// GetGitRefOrDefault Get git event ref or "branch" by default
+func (buildSpec *RadixBuildSpec) GetGitRefOrDefault() string {
+	if buildSpec.GitRef == "" {
+		return buildSpec.Branch
+	}
+	return buildSpec.GitRef
+}
+
+// GetGitRefTypeOrDefault Get git event ref type or "branch" by default
+func (buildSpec *RadixBuildSpec) GetGitRefTypeOrDefault() string {
+	if buildSpec.GitRefType == "" {
+		return string(GitRefBranch)
+	}
+	return string(buildSpec.GitRefType)
 }
