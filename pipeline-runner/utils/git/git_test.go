@@ -346,6 +346,48 @@ func Test_ResolveCommitForReference(t *testing.T) {
 	}
 }
 
+func Test_CommitExists(t *testing.T) {
+	tests := map[string]struct {
+		commitHash           string
+		expectedCommitExists bool
+		expectedError        error
+	}{
+		"commit exists": {
+			commitHash:           "3c572f685d2148b2f5a9776804a7d4b85f80f46c",
+			expectedCommitExists: true,
+		},
+		"non existing commit hash (valid)": {
+			commitHash:           "5000666922a01289cb70ee7bf174d7f0985f739f",
+			expectedCommitExists: false,
+		},
+		"invalid commit hash": {
+			commitHash:           "invalid-commit-hash",
+			expectedCommitExists: false,
+		},
+		"branch is not a commit": {
+			commitHash:           "main",
+			expectedCommitExists: false,
+		},
+		"tag is not a commit": {
+			commitHash:           "v1",
+			expectedCommitExists: false,
+		},
+	}
+
+	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
+	defer tearDownGitTest()
+	repo, err := git.Open(gitWorkspacePath)
+	require.NoError(t, err)
+
+	for testName, testSpec := range tests {
+		t.Run(testName, func(t *testing.T) {
+			exist, err := repo.CommitExists(testSpec.commitHash)
+			assert.NoError(t, err)
+			assert.Equal(t, testSpec.expectedCommitExists, exist)
+		})
+	}
+}
+
 func Test_ResolveTagsForCommit(t *testing.T) {
 	tests := map[string]struct {
 		commitHash   string

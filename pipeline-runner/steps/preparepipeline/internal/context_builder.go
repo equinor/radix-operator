@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path"
@@ -12,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -19,18 +21,19 @@ var (
 )
 
 type ContextBuilder interface {
-	GetBuildContext(pipelineInfo *model.PipelineInfo, repo git.Repository) (*model.BuildContext, error)
+	GetBuildContext(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) (*model.BuildContext, error)
 }
 
-type contextBuilder struct {
-}
+type contextBuilder struct{}
 
+// NewContextBuilder creates a new ContexBuilder.
+// If logger argument is nil, the default global logger is used
 func NewContextBuilder() ContextBuilder {
 	return &contextBuilder{}
 }
 
 // GetBuildContext Prepare build context
-func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo git.Repository) (*model.BuildContext, error) {
+func (cb *contextBuilder) GetBuildContext(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) (*model.BuildContext, error) {
 	if len(pipelineInfo.TargetEnvironments) == 0 {
 		return nil, nil
 	}
@@ -42,6 +45,18 @@ func (cb *contextBuilder) GetBuildContext(pipelineInfo *model.PipelineInfo, repo
 	var environmentsToBuild []model.EnvironmentToBuild
 	for _, targetEnv := range pipelineInfo.TargetEnvironments {
 		envCommitHash := internal.GetGitCommitHashFromDeployment(targetEnv.ActiveRadixDeployment)
+
+		if len(envCommitHash) > 0 {
+			commitExist, err := repo.CommitExists(envCommitHash)
+			if err != nil {
+				return nil, fmt.Errorf("failed to check if commit from active deployment exists: %w", err)
+			}
+			if !commitExist {
+				log.Ctx(ctx).Info().Msgf("Commit from active deployment in environment %s was not found in the repository.", targetEnv.Environment)
+				envCommitHash = ""
+			}
+		}
+
 		changedFiles, err := repo.DiffCommits(envCommitHash, pipelineInfo.GitCommitHash)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get changes in git: %w", err)
