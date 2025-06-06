@@ -1,6 +1,7 @@
 package internal_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -56,7 +57,7 @@ func (s *stepTestSuite) Test_GitCommitHashNoSet() {
 		GitCommitHash:      "",
 		TargetEnvironments: []model.TargetEnvironment{{Environment: "anyenv"}},
 	}
-	_, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	_, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 	s.ErrorIs(err, internal.ErrMissingGitCommitHash)
 }
 
@@ -66,7 +67,7 @@ func (s *stepTestSuite) Test_EmptyTargetEnvironment() {
 	pipelineInfo := &model.PipelineInfo{
 		TargetEnvironments: []model.TargetEnvironment{},
 	}
-	actual, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	actual, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 	s.NoError(err)
 	s.Empty(actual)
 }
@@ -80,7 +81,7 @@ func (s *stepTestSuite) Test_DiffCommitReturnsError() {
 		GitCommitHash:      "anyhash",
 		TargetEnvironments: []model.TargetEnvironment{{Environment: "env1"}, {Environment: "env2"}},
 	}
-	_, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	_, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 	s.ErrorIs(err, gitError)
 }
 
@@ -93,12 +94,12 @@ func (s *stepTestSuite) Test_DiffCommitsCalledOncePerTargetEnvirononment() {
 		TargetEnvironments: []model.TargetEnvironment{{Environment: "env1"}, {Environment: "env2"}, {Environment: "env3"}},
 		RadixApplication:   &v1.RadixApplication{},
 	}
-	actualBuildContext, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+	actualBuildContext, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 	s.Require().NoError(err)
 	s.ElementsMatch(actualBuildContext.EnvironmentsToBuild, []model.EnvironmentToBuild{{Environment: "env1"}, {Environment: "env2"}, {Environment: "env3"}})
 }
 
-func (s *stepTestSuite) Test_DiffCommitsCalledWithCorrectValue() {
+func (s *stepTestSuite) Test_CommitExistsAndDiffCommitsCalledWithCorrectArgs() {
 	const (
 		targetCommitHash = "anytargetcommit"
 		rd1Commit        = "rd1hash"
@@ -106,8 +107,10 @@ func (s *stepTestSuite) Test_DiffCommitsCalledWithCorrectValue() {
 	)
 
 	tests := map[string]struct {
-		activeRD            *v1.RadixDeployment
-		expectdBeforeCommit string
+		activeRD                *v1.RadixDeployment
+		expectedCommitExistsArg string
+		commitExistsResponse    bool
+		expectdBeforeCommit     string
 	}{
 		"no active deployment": {
 			activeRD:            nil,
@@ -118,12 +121,22 @@ func (s *stepTestSuite) Test_DiffCommitsCalledWithCorrectValue() {
 			expectdBeforeCommit: "",
 		},
 		"active deployment with both annotation and label": {
-			activeRD:            utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixCommitAnnotation: "commit_from_annotation"}).WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD(),
-			expectdBeforeCommit: "commit_from_annotation",
+			activeRD:                utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixCommitAnnotation: "commit_from_annotation"}).WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD(),
+			expectedCommitExistsArg: "commit_from_annotation",
+			commitExistsResponse:    true,
+			expectdBeforeCommit:     "commit_from_annotation",
 		},
 		"active deployment with label only": {
-			activeRD:            utils.NewDeploymentBuilder().WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD(),
-			expectdBeforeCommit: "commit_from_label",
+			activeRD:                utils.NewDeploymentBuilder().WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD(),
+			expectedCommitExistsArg: "commit_from_label",
+			commitExistsResponse:    true,
+			expectdBeforeCommit:     "commit_from_label",
+		},
+		"active deployment commit does not exist": {
+			activeRD:                utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixCommitAnnotation: "commit_from_annotation"}).WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD(),
+			expectedCommitExistsArg: "commit_from_annotation",
+			commitExistsResponse:    false,
+			expectdBeforeCommit:     "",
 		},
 	}
 
@@ -131,6 +144,10 @@ func (s *stepTestSuite) Test_DiffCommitsCalledWithCorrectValue() {
 		s.Run(testName, func() {
 			sut := internal.NewContextBuilder()
 			gitRepo := git.NewMockRepository(s.ctrl)
+			if len(testSpec.expectedCommitExistsArg) > 0 {
+				gitRepo.EXPECT().CommitExists(testSpec.expectedCommitExistsArg).Times(1).Return(testSpec.commitExistsResponse, nil)
+			}
+
 			gitRepo.EXPECT().DiffCommits(testSpec.expectdBeforeCommit, targetCommitHash).Times(1).Return(nil, nil)
 
 			pipelineInfo := &model.PipelineInfo{
@@ -138,10 +155,23 @@ func (s *stepTestSuite) Test_DiffCommitsCalledWithCorrectValue() {
 				TargetEnvironments: []model.TargetEnvironment{{Environment: "anyenv", ActiveRadixDeployment: testSpec.activeRD}},
 				RadixApplication:   &v1.RadixApplication{},
 			}
-			_, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+			_, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 			s.Require().NoError(err)
 		})
 	}
+}
+
+func (s *stepTestSuite) Test_CommitExistsReturnsError() {
+	sut := internal.NewContextBuilder()
+	gitError := errors.New("any error")
+	gitRepo := git.NewMockRepository(s.ctrl)
+	gitRepo.EXPECT().CommitExists(gomock.Any()).Times(1).Return(true, gitError)
+	pipelineInfo := &model.PipelineInfo{
+		GitCommitHash:      "anyhash",
+		TargetEnvironments: []model.TargetEnvironment{{Environment: "env1", ActiveRadixDeployment: utils.NewDeploymentBuilder().WithLabel(kube.RadixCommitLabel, "commit_from_label").BuildRD()}},
+	}
+	_, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
+	s.ErrorIs(err, gitError)
 }
 
 func (s *stepTestSuite) Test_DetectComponentsWithChangedSource() {
@@ -381,7 +411,7 @@ func (s *stepTestSuite) Test_DetectComponentsWithChangedSource() {
 				TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
 				RadixApplication:   ra.BuildRA(),
 			}
-			actualBuildContext, err := sut.GetBuildContext(pipelineInfo, gitRepo)
+			actualBuildContext, err := sut.GetBuildContext(context.Background(), pipelineInfo, gitRepo)
 			s.Require().NoError(err)
 			s.Require().Len(actualBuildContext.EnvironmentsToBuild, 1)
 			s.Require().Equal(envName, actualBuildContext.EnvironmentsToBuild[0].Environment)
