@@ -4,6 +4,7 @@ import (
 	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/oklog/ulid/v2"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 )
@@ -20,6 +21,12 @@ func Merge(labels ...map[string]string) kubelabels.Set {
 func ForApplicationName(appName string) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixAppLabel: appName,
+	}
+}
+
+func ForApplicationID(appID ulid.ULID) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppIDLabel: appID.String(),
 	}
 }
 

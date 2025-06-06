@@ -99,6 +99,7 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe, "readiness probe should be set")
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].LivenessProbe, "liveness probe should be set")
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].StartupProbe, "startup probe should be set")
+	assert.Equal(t, deployment.Spec.Template.Labels["radix-app-id"], "00000000000000000000000001", "radix-id label should be set") // is there a better test where thus belong?
 	assert.Equal(t, readynessProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid readiness probe initial delay")
 	assert.Equal(t, livenessProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].LivenessProbe.InitialDelaySeconds, "invalid liveness probe initial delay")
 	assert.Equal(t, startupProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].StartupProbe.InitialDelaySeconds, "invalid startup probe initial delay")
@@ -367,14 +368,18 @@ func Test_CommandAndArgs(t *testing.T) {
 
 func applyDeploymentWithSyncWithComponentResources(t *testing.T, origRequests, origLimits map[string]string) Deployment {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+
+	rr := utils.ARadixRegistration()
+	ra := utils.ARadixApplication().WithRadixRegistration(rr)
+
 	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
+		utils.ARadixDeployment().WithRadixApplication(ra).
 			WithComponents(utils.NewDeployComponentBuilder().
 				WithName("comp1").
 				WithResource(origRequests, origLimits)).
 			WithAppName("any-app").
 			WithEnvironment("test"))
-	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd}
+	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR()}
 }
 
 func TestDeployment_createJobAuxDeployment(t *testing.T) {

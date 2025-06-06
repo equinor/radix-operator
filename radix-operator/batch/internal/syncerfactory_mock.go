@@ -40,9 +40,9 @@ func (m *MockSyncerFactory) EXPECT() *MockSyncerFactoryMockRecorder {
 }
 
 // CreateSyncer mocks base method.
-func (m *MockSyncerFactory) CreateSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, radixBatch *v1.RadixBatch, config *config.Config, options ...batch.SyncerOption) batch.Syncer {
+func (m *MockSyncerFactory) CreateSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, registration *v1.RadixRegistration, radixBatch *v1.RadixBatch, config *config.Config, options ...batch.SyncerOption) batch.Syncer {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{kubeclient, kubeutil, radixclient, radixBatch, config}
+	varargs := []interface{}{kubeclient, kubeutil, radixclient, registration, radixBatch, config}
 	for _, a := range options {
 		varargs = append(varargs, a)
 	}
@@ -52,8 +52,8 @@ func (m *MockSyncerFactory) CreateSyncer(kubeclient kubernetes.Interface, kubeut
 }
 
 // CreateSyncer indicates an expected call of CreateSyncer.
-func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeclient, kubeutil, radixclient, radixBatch, config interface{}, options ...interface{}) *gomock.Call {
+func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeclient, kubeutil, radixclient, registration, radixBatch, config interface{}, options ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{kubeclient, kubeutil, radixclient, radixBatch, config}, options...)
+	varargs := append([]interface{}{kubeclient, kubeutil, radixclient, registration, radixBatch, config}, options...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), varargs...)
 }

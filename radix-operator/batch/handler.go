@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
@@ -73,7 +73,7 @@ func NewHandler(
 }
 
 func (h *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
-	radixBatch, err := h.radixclient.RadixV1().RadixBatches(namespace).Get(context.Background(), name, v1.GetOptions{})
+	radixBatch, err := h.radixclient.RadixV1().RadixBatches(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		// The resource may no longer exist, in which case we stop
 		// processing.
@@ -84,9 +84,28 @@ func (h *handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 		return err
 	}
+
+	appName, found := radixBatch.Labels[kube.RadixAppLabel]
+	if !found {
+		log.Ctx(ctx).Debug().Msgf("App name for radixbatch %s is not found", radixBatch.Name)
+		return nil
+	}
+
+	radixRegistration, err := h.radixclient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
+	if err != nil {
+		// The Registration resource may no longer exist, in which case we stop
+		// processing.
+		if errors.IsNotFound(err) {
+			log.Ctx(ctx).Debug().Msgf("RadixRegistration %s no longer exists", appName)
+			return nil
+		}
+
+		return err
+	}
+
 	ctx = log.Ctx(ctx).With().Str("app_name", radixBatch.Labels[kube.RadixAppLabel]).Logger().WithContext(ctx)
 	syncBatch := radixBatch.DeepCopy()
-	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncBatch, h.config)
+	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, radixRegistration, syncBatch, h.config)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		eventRecorder.Event(syncBatch, corev1.EventTypeWarning, SyncFailed, err.Error())

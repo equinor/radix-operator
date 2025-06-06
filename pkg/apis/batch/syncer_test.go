@@ -54,7 +54,9 @@ func TestSyncerTestSuite(t *testing.T) {
 }
 
 func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
-	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, forJob, config, options...)
+	defaultRR := utils.ARadixRegistration().BuildRR()
+
+	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, defaultRR, forJob, config, options...)
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
@@ -344,10 +346,10 @@ func (s *syncerTestSuite) Test_ServiceCreated() {
 		jobServices := slice.FindAll(allServices.Items, func(svc corev1.Service) bool { return svc.Name == getKubeServiceName(batchName, jobName) })
 		s.Len(jobServices, 1)
 		service := jobServices[0]
-		expectedServiceLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
+		expectedServiceLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAppIDLabel: "00000000000000000000000001", kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
 		s.Equal(expectedServiceLabels, service.Labels, "service labels")
 		s.Equal(ownerReference(batch), service.OwnerReferences)
-		expectedSelectorLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
+		expectedSelectorLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAppIDLabel: "00000000000000000000000001", kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
 		s.Equal(expectedSelectorLabels, service.Spec.Selector, "selector")
 		s.ElementsMatch([]corev1.ServicePort{{Name: "port1", Port: 8000, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt(8000)}, {Name: "port2", Port: 9000, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt(9000)}}, service.Spec.Ports)
 	}
@@ -485,9 +487,9 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		jobKubeJobs := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.Name == getKubeJobName(batchName, jobName) })
 		s.Len(jobKubeJobs, 1)
 		kubejob := jobKubeJobs[0]
-		expectedJobLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
+		expectedJobLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAppIDLabel: "00000000000000000000000001", kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
 		s.Equal(expectedJobLabels, kubejob.Labels, "job labels")
-		expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
+		expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAppIDLabel: "00000000000000000000000001", kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
 		s.Equal(expectedPodLabels, kubejob.Spec.Template.Labels, "pod labels")
 		expectedPodAnnotations := map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}
 		s.Equal(expectedPodAnnotations, kubejob.Spec.Template.Annotations)
@@ -866,7 +868,7 @@ func (s *syncerTestSuite) Test_JobWithIdentity() {
 	s.Require().NoError(sut.OnSync(context.Background()))
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
-	expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName, "azure.workload.identity/use": "true"}
+	expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAppIDLabel: "00000000000000000000000001", kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName, "azure.workload.identity/use": "true"}
 	s.Equal(expectedPodLabels, jobs.Items[0].Spec.Template.Labels)
 	s.Equal(utils.GetComponentServiceAccountName(componentName), jobs.Items[0].Spec.Template.Spec.ServiceAccountName)
 	s.Equal(pointers.Ptr(false), jobs.Items[0].Spec.Template.Spec.AutomountServiceAccountToken)
