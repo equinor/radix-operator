@@ -191,6 +191,7 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 	commitID := getDeployComponentCommitId(deployComponent)
 	lbs := radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationID(deploy.registration.Spec.AppID),
 		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForCommitId(commitID),
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
@@ -206,6 +207,7 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 func (deploy *Deployment) getJobAuxDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationID(deploy.registration.Spec.AppID),
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
 		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
 	)

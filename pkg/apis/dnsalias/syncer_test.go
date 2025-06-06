@@ -189,7 +189,7 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 		},
 	}
 	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
+		s.Run(ts.name, func() {
 
 			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
 			defer s.T().Cleanup(func() {
@@ -232,7 +232,7 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 					s.Assert().Len(ing.Spec.Rules, 1, "rules count")
 					rule := ing.Spec.Rules[0]
 					expectedIngress, ingressExists := ts.expectedIngress[ing.Name]
-					assert.True(t, ingressExists, "found not expected ingress %s for: appName %s, host %s, service %s, port %d",
+					s.Assert().True(ingressExists, "found not expected ingress %s for: appName %s, host %s, service %s, port %d",
 						ing.GetName(), appNameLabel, rule.Host, rule.HTTP.Paths[0].Backend.Service.Name,
 						rule.HTTP.Paths[0].Backend.Service.Port.Number)
 					if ingressExists {
