@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"github.com/rs/zerolog/log"
@@ -33,6 +35,12 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 		log.Ctx(ctx).Debug().Msgf("No need to patch deployment: %s ", currentDeployment.GetName())
 		return nil
 	}
+
+	if isAppIdTheOnlyChange(*currentDeployment, *desiredDeployment) {
+		log.Ctx(ctx).Debug().Msgf("Only RadixAppIDLabel changed for deployment: %s, skipping patch", currentDeployment.GetName())
+		return nil
+	}
+
 	log.Ctx(ctx).Debug().Msgf("Patch: %s", string(patchBytes))
 	patchedDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Patch(ctx, currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
@@ -40,6 +48,25 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 	}
 	log.Ctx(ctx).Debug().Msgf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
 	return nil
+}
+
+// isAppIdTheOnlyChange checks if the only difference between the current and desired deployment is the RadixAppIDLabel.
+// This is to avoid restarting radix-apps when the Radix App ID is changed. Remove this code and force sync all deployments
+// when _most_ apps have redeployed and is using AppID. See https://github.com/equinor/radix/issues/447 and its parent issue for more details
+func isAppIdTheOnlyChange(currentDeployment, desiredDeployment appsv1.Deployment) bool {
+
+	currentDeployment.Labels = nil
+	desiredDeployment.Labels = nil
+	specIsEqual := reflect.DeepEqual(currentDeployment, desiredDeployment)
+
+	currentLabels := maps.Clone(currentDeployment.Labels)
+	desiredLabels := maps.Clone(desiredDeployment.Labels)
+	appIDIsDifferent := currentLabels[RadixAppIDLabel] != desiredLabels[RadixAppIDLabel]
+	delete(currentLabels, RadixAppIDLabel)
+	delete(desiredLabels, RadixAppIDLabel)
+	labelsAreEqual := reflect.DeepEqual(currentLabels, desiredLabels)
+
+	return (appIDIsDifferent && specIsEqual && labelsAreEqual)
 }
 
 func getDeploymentPatch(currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) ([]byte, error) {
