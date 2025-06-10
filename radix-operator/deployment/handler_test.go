@@ -163,13 +163,14 @@ func (s *handlerSuite) Test_Sync() {
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
 			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123"),
+			deployment.NewRedisResourceManager(activeRd, rr, s.kubeUtil, "redis:123"),
 		}
 		factory.
 			EXPECT().
 			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, s.certClient, rr, activeRd, gomock.Eq(expectedIngressAnnotations), gomock.Eq(expectedAuxResources), s.config).
 			Return(syncer).
 			Times(1)
-		h := Handler{kubeclient: s.kubeClient, radixclient: s.radixClient, kubeutil: s.kubeUtil, kedaClient: s.kedaClient, prometheusperatorclient: s.promClient, certClient: s.certClient, deploymentSyncerFactory: factory, oauth2ProxyDockerImage: "oauth:123", oauth2DefaultConfig: oauthConfig, ingressConfiguration: ingressConfig, hasSynced: func(b bool) { callbackExecuted = b }, config: s.config}
+		h := Handler{kubeclient: s.kubeClient, radixclient: s.radixClient, kubeutil: s.kubeUtil, kedaClient: s.kedaClient, prometheusperatorclient: s.promClient, certClient: s.certClient, deploymentSyncerFactory: factory, oauth2ProxyDockerImage: "oauth:123", redisDockerImage: "redis:123", oauth2DefaultConfig: oauthConfig, ingressConfiguration: ingressConfig, hasSynced: func(b bool) { callbackExecuted = b }, config: s.config}
 		err := h.Sync(context.Background(), namespace, activeRdName, s.eventRecorder)
 		s.NoError(err)
 		s.True(callbackExecuted)

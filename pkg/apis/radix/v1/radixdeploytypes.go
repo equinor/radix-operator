@@ -291,6 +291,10 @@ func (deployComponent *RadixDeployComponent) GetArgs() []string {
 	return deployComponent.Args
 }
 
+func (deployComponent *RadixDeployComponent) HasZeroReplicas() bool {
+	return deployComponent.GetReplicas() != nil && *deployComponent.GetReplicas() > 0
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
@@ -422,6 +426,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetArgs() []string {
 	return deployJobComponent.Args
 }
 
+func (deployJobComponent *RadixDeployJobComponent) HasZeroReplicas() bool {
+	return deployJobComponent.GetReplicas() != nil && *deployJobComponent.GetReplicas() > 0
+}
+
 // GetNrOfReplicas gets number of replicas component will run
 func (deployComponent *RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
@@ -518,6 +526,8 @@ type RadixCommonDeployComponent interface {
 	GetCommand() []string
 	// GetArgs Arguments to the entrypoint.
 	GetArgs() []string
+	// HasZeroReplicas returns true if the component has zero replicas
+	HasZeroReplicas() bool
 }
 
 // IsActive The RadixDeployment is active

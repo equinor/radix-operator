@@ -253,6 +253,15 @@ func ForAuxComponent(appName string, component v1.RadixCommonDeployComponent) ma
 	}
 }
 
+// ForAuxRedisComponent returns labels for application component aux Redis
+func ForAuxRedisComponent(appName string, component v1.RadixCommonDeployComponent) map[string]string {
+	return map[string]string{
+		kube.RadixAppLabel:                    appName,
+		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
+		kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthRedisAuxiliaryComponentType,
+	}
+}
+
 // ForAuxComponentDefaultIngress returns labels for application component aux OAuth proxy default ingress
 func ForAuxComponentDefaultIngress(appName string, component v1.RadixCommonDeployComponent) kubelabels.Set {
 	return forAuxComponentIngress(appName, component, kube.RadixDefaultAliasLabel, "true")

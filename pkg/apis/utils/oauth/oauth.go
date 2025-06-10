@@ -38,6 +38,11 @@ func MergeAuxComponentResourceLabels(object metav1.Object, appName string, compo
 	object.SetLabels(labels.Merge(object.GetLabels(), radixlabels.ForAuxComponent(appName, component)))
 }
 
+// MergeAuxProxyComponentResourceLabels  Merge labels for object and aux Redis
+func MergeAuxProxyComponentResourceLabels(object metav1.Object, appName string, component radixv1.RadixCommonDeployComponent) {
+	object.SetLabels(labels.Merge(object.GetLabels(), radixlabels.ForAuxRedisComponent(appName, component)))
+}
+
 // MergeAuxComponentDefaultAliasIngressLabels  Merge labels for default alias ingress and aux OAuth proxy
 func MergeAuxComponentDefaultAliasIngressLabels(auxIngress *networkingv1.Ingress, appName string, component radixv1.RadixCommonDeployComponent) {
 	auxIngress.SetLabels(labels.Merge(auxIngress.GetLabels(), radixlabels.ForAuxComponentDefaultIngress(appName, component)))

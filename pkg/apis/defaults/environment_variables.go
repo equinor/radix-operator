@@ -115,6 +115,9 @@ const (
 	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
 	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
 
+	// RadixRedisImageEnvironmentVariable specifies the name and tag of the Redis image
+	RadixRedisImageEnvironmentVariable = "RADIX_REDIS_IMAGE"
+
 	// RadixConfigFileEnvironmentVariable Path to a radixconfig.yaml
 	// to be loaded from Radix application config branch
 	RadixConfigFileEnvironmentVariable = "RADIX_FILE_NAME"
