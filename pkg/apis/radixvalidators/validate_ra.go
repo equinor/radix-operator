@@ -622,7 +622,7 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 	}
 
 	// Validate RedisStore
-	if oauthWithDefaults.SessionStoreTypeIsRedis() {
+	if oauthWithDefaults.SessionStoreTypeIsManuallyConfiguredRedis() {
 		if redisStore := oauthWithDefaults.RedisStore; redisStore == nil {
 			errors = append(errors, OAuthRedisStoreEmptyErrorWithMessage(componentName, environmentName))
 		} else if len(strings.TrimSpace(redisStore.ConnectionURL)) == 0 {

@@ -207,7 +207,7 @@ func (o *redisResourceManager) uninstall(ctx context.Context, component v1.Radix
 		return err
 	}
 
-	if err := o.deleteSecrets(ctx, component); err != nil {
+	if err := o.deleteSecretValue(ctx, component); err != nil {
 		return err
 	}
 
@@ -249,18 +249,20 @@ func (o *redisResourceManager) deleteServices(ctx context.Context, component v1.
 	return nil
 }
 
-func (o *redisResourceManager) deleteSecrets(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxRedisComponent(o.rd.Spec.AppName, component)).String()
+func (o *redisResourceManager) deleteSecretValue(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
 	secrets, err := o.kubeutil.ListSecretsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
 	}
 
-	for _, secret := range secrets {
-		if err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
-			return err
+	for _, existingSecret := range secrets {
+		secret := existingSecret.DeepCopy()
+		if _, ok := secret.Data[defaults.OAuthRedisPasswordKeyName]; ok {
+			delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
+			_, err = o.kubeutil.UpdateSecret(ctx, existingSecret, secret)
 		}
-		o.logger.Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), secret.Namespace)
+		o.logger.Info().Msgf("Deleted secret key: %s from secret %s in namespace %s", defaults.OAuthRedisPasswordKeyName, secret.GetName(), secret.Namespace)
 	}
 
 	return nil
@@ -304,26 +306,29 @@ func (o *redisResourceManager) createOrUpdateService(ctx context.Context, compon
 }
 
 func (o *redisResourceManager) createOrUpdateSecret(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthRedisAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 	existingSecret, err := o.kubeutil.GetSecret(ctx, o.rd.Namespace, secretName)
 	if err != nil {
 		if !kubeerrors.IsNotFound(err) {
 			return err
 		}
-		secret, err := o.buildRedisSecret(o.rd.Spec.AppName, component)
+		secret, err := o.buildSecret(o.rd.Spec.AppName, component)
 		if err != nil {
 			return err
 		}
 		_, err = o.kubeutil.CreateSecret(ctx, o.rd.Namespace, secret)
 		return err
 	}
-
 	secret := existingSecret.DeepCopy()
 	oauthutil.MergeAuxProxyComponentResourceLabels(secret, o.rd.Spec.AppName, component)
-	if _, ok := secret.Data[defaults.OAuthRedisPasswordKeyName]; ok && !component.GetAuthentication().GetOAuth2().SessionStoreTypeIsRedis() {
-		delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
+	if passwordSecret, ok := secret.Data[defaults.OAuthRedisPasswordKeyName]; !ok || len(passwordSecret) == 0 {
+		passwordSecret, err = o.generateRandomPasswordSecret()
+		if err != nil {
+			return err
+		}
+		secret.Data[defaults.OAuthRedisPasswordKeyName] = passwordSecret
+		_, err = o.kubeutil.UpdateSecret(ctx, existingSecret, secret)
 	}
-	_, err = o.kubeutil.UpdateSecret(ctx, existingSecret, secret)
 	return err
 }
 
@@ -391,8 +396,8 @@ func (o *redisResourceManager) getRoleAndRoleBindingName(prefix, componentName s
 	return fmt.Sprintf("%s-%s", prefix, deploymentName)
 }
 
-func (o *redisResourceManager) buildRedisSecret(appName string, component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthRedisAuxiliaryComponentSuffix)
+func (o *redisResourceManager) buildSecret(appName string, component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 
 	secret := &corev1.Secret{
 		Type: corev1.SecretTypeOpaque,
@@ -541,7 +546,7 @@ func (o *redisResourceManager) getEnvVars(component v1.RadixCommonDeployComponen
 	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
 		envVars = append(envVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: v})
 	}
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthRedisAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
 	envVars = append(envVars, o.createEnvVarWithSecretRef(redisRedisPasswordEnvironmentVariable, secretName, defaults.OAuthRedisPasswordKeyName))
 	return envVars
 }

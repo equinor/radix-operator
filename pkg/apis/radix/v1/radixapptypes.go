@@ -2274,7 +2274,15 @@ func (oauth2 *OAuth2) SessionStoreTypeIsRedis() bool {
 	if oauth2 == nil {
 		return false
 	}
-	return oauth2.SessionStoreType == SessionStoreRedis || oauth2.SessionStoreTypeIsSystemManaged()
+	return oauth2.SessionStoreTypeIsManuallyConfiguredRedis() || oauth2.SessionStoreTypeIsSystemManaged()
+}
+
+// SessionStoreTypeIsManuallyConfiguredRedis Gets if the session store type is manually configured
+func (oauth2 *OAuth2) SessionStoreTypeIsManuallyConfiguredRedis() bool {
+	if oauth2 == nil {
+		return false
+	}
+	return oauth2.SessionStoreType == SessionStoreRedis
 }
 
 // SessionStoreTypeIsSystemManaged Gets if the session store type is configured by Radix
@@ -2377,11 +2385,14 @@ func (runtime *Runtime) GetNodeType() *string {
 }
 
 func (oauth2 *OAuth2) GetRedisStoreConnectionURL() string {
-	if oauth2 == nil || oauth2.RedisStore == nil {
+	if oauth2 == nil {
 		return ""
 	}
 	if oauth2.SessionStoreTypeIsSystemManaged() {
 		return OAuthRedisConnectionUrl
+	}
+	if oauth2.RedisStore == nil {
+		return ""
 	}
 	return oauth2.RedisStore.ConnectionURL
 }
