@@ -36,7 +36,7 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 		return nil
 	}
 
-	if isAppIdTheOnlyChange(*currentDeployment, *desiredDeployment) {
+	if isAppIdTheOnlyChange_akaThe447Hack(*currentDeployment, *desiredDeployment) {
 		log.Ctx(ctx).Debug().Msgf("Only RadixAppIDLabel changed for deployment: %s, skipping patch", currentDeployment.GetName())
 		return nil
 	}
@@ -50,10 +50,10 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 	return nil
 }
 
-// isAppIdTheOnlyChange checks if the only difference between the current and desired deployment is the RadixAppIDLabel.
+// isAppIdTheOnlyChange_akaThe447Hack checks if the only difference between the current and desired deployment is the RadixAppIDLabel.
 // This is to avoid restarting radix-apps when the Radix App ID is changed. Remove this code and force sync all deployments
 // when _most_ apps have redeployed and is using AppID. See https://github.com/equinor/radix/issues/447 and its parent issue for more details
-func isAppIdTheOnlyChange(currentDeployment, desiredDeployment appsv1.Deployment) bool {
+func isAppIdTheOnlyChange_akaThe447Hack(currentDeployment, desiredDeployment appsv1.Deployment) bool {
 
 	currentDeployment.Labels = nil
 	desiredDeployment.Labels = nil
