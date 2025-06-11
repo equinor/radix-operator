@@ -18,6 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
@@ -76,7 +77,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 	}
 
 	sut := build.NewBuildKit()
-	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
+	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, ulid.MustParse("01F8Z5V9G1D3H4J5K6Q7R8S9T0"))
 	require.Len(t, jobs, len(componentImages))
 
 	for _, ci := range componentImages {
@@ -110,6 +111,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			// Check pod template
 			expectedPodLabels := map[string]string{
 				kube.RadixJobNameLabel: args.JobName,
+				kube.RadixAppIDLabel:   "01F8Z5V9G1D3H4J5K6Q7R8S9T0",
 			}
 			assert.Equal(t, expectedPodLabels, job.Spec.Template.Labels)
 			expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
