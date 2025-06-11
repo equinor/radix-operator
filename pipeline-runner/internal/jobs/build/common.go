@@ -12,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/oklog/ulid/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -45,8 +46,11 @@ func getCommonJobAnnotations(branch, gitRef, gitRefType string, componentImages 
 	}
 }
 
-func getCommonPodLabels(pipelineJobName string) map[string]string {
-	return radixlabels.ForPipelineJobName(pipelineJobName)
+func getCommonPodLabels(pipelineJobName string, appID ulid.ULID) map[string]string {
+	return radixlabels.Merge(
+		radixlabels.ForPipelineJobName(pipelineJobName),
+		radixlabels.ForApplicationID(appID),
+	)
 }
 
 func getCommonPodAnnotations() map[string]string {

@@ -21,6 +21,7 @@ import (
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
+	"github.com/oklog/ulid/v2"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -157,7 +158,7 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 
 	// secret correctly set
 	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
-	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
 	pipelineInfo.BuildSecret = &corev1.Secret{Data: map[string][]byte{secretName: []byte("anyvalue")}}
 	err = cli.Run(context.Background(), pipelineInfo)
@@ -190,7 +191,7 @@ func (s *buildTestSuite) Test_AppWithoutBuildSecrets_Validation() {
 	}
 
 	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
-	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
 	err := cli.Run(context.Background(), pipelineInfo)
 	s.NoError(err)
@@ -208,7 +209,7 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 		env1Components []pipeline.BuildComponentImage = []pipeline.BuildComponentImage{{ComponentName: "env1comp1"}, {ComponentName: "env1comp2"}}
 		env2Components []pipeline.BuildComponentImage = []pipeline.BuildComponentImage{{ComponentName: "env2comp1"}, {ComponentName: "env2comp2"}}
 	)
-	rr := utils.ARadixRegistration().WithName(appName).WithCloneURL(cloneUrl).BuildRR()
+	rr := utils.ARadixRegistration().WithName(appName).WithAppID(ulid.Make()).WithCloneURL(cloneUrl).BuildRR()
 	ra := utils.ARadixApplication().WithBuildSecrets(buildSecrets...).BuildRA()
 	rj := utils.ARadixBuildDeployJob().WithJobName(jobName).WithAppName(appName).BuildRJ()
 	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
@@ -247,6 +248,7 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 		pipelineInfo.GitTags,
 		gomock.InAnyOrder(slices.Concat(env1Components, env2Components)),
 		gomock.InAnyOrder(buildSecrets),
+		rr.Spec.AppID,
 	).Return(jobsToReturn).Times(1)
 	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
 	err := cli.Run(context.Background(), pipelineInfo)

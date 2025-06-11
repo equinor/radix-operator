@@ -16,6 +16,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/oklog/ulid/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -38,18 +39,18 @@ func NewBuildKit() JobsBuilder {
 
 type buildKit struct{}
 
-func (c *buildKit) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
+func (c *buildKit) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID ulid.ULID) []batchv1.Job {
 	var jobs []batchv1.Job
 
 	for _, componentImage := range componentImages {
-		job := c.buildJob(componentImage, useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets)
+		job := c.buildJob(componentImage, useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets, appID)
 		jobs = append(jobs, job)
 	}
 
 	return jobs
 }
 
-func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
+func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string, appID ulid.ULID) batchv1.Job {
 	props := &buildKitKubeJobProps{
 		pipelineArgs:      pipelineArgs,
 		componentImage:    componentImage,
@@ -59,6 +60,7 @@ func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuil
 		buildSecrets:      buildSecrets,
 		useBuildCache:     useBuildCache,
 		refreshBuildCache: refreshBuildCache,
+		appID:             appID,
 	}
 
 	return internal.BuildKubeJob(props)
@@ -75,6 +77,7 @@ type buildKitKubeJobProps struct {
 	buildSecrets      []string
 	useBuildCache     bool
 	refreshBuildCache bool
+	appID             ulid.ULID
 }
 
 func (c *buildKitKubeJobProps) JobName() string {
@@ -96,7 +99,7 @@ func (c *buildKitKubeJobProps) JobAnnotations() map[string]string {
 }
 
 func (c *buildKitKubeJobProps) PodLabels() map[string]string {
-	return getCommonPodLabels(c.pipelineArgs.JobName)
+	return getCommonPodLabels(c.pipelineArgs.JobName, c.appID)
 }
 
 func (c *buildKitKubeJobProps) PodAnnotations() map[string]string {

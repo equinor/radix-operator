@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -38,13 +39,20 @@ func WithClock(clock commonutils.Clock) SyncerOption {
 	}
 }
 
+func WithRadixRegistration(registration *radixv1.RadixRegistration) SyncerOption {
+	return func(syncer *syncer) {
+		syncer.registration = registration
+	}
+}
+
 // NewSyncer Constructor os RadixBatches Syncer
-func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixBatch *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
+func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *v1.RadixRegistration, radixBatch *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
 	syncer := &syncer{
 		kubeClient:    kubeclient,
 		kubeUtil:      kubeUtil,
 		radixClient:   radixClient,
 		radixBatch:    radixBatch,
+		registration:  registration,
 		config:        config,
 		restartedJobs: map[string]radixv1.RadixBatchJob{},
 		clock:         commonutils.RealClock{},
@@ -62,6 +70,7 @@ type syncer struct {
 	kubeUtil      *kube.Kube
 	radixClient   radixclient.Interface
 	radixBatch    *radixv1.RadixBatch
+	registration  *v1.RadixRegistration
 	config        *config.Config
 	restartedJobs map[string]radixv1.RadixBatchJob
 	clock         commonutils.Clock
@@ -161,6 +170,7 @@ func (s *syncer) batchIdentifierLabel() labels.Set {
 func (s *syncer) batchJobIdentifierLabel(batchJobName, appName string) labels.Set {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(appName),
+		radixlabels.ForApplicationID(s.registration.Spec.AppID),
 		radixlabels.ForComponentName(s.radixBatch.Spec.RadixDeploymentJobRef.Job),
 		s.batchIdentifierLabel(),
 		radixlabels.ForJobScheduleJobType(),

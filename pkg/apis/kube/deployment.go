@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"github.com/rs/zerolog/log"
@@ -15,7 +17,7 @@ import (
 )
 
 // ApplyDeployment Create or update deployment in provided namespace
-func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) error {
+func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment, apply447hack bool) error {
 	if currentDeployment == nil {
 		createdDeployment, err := kubeutil.CreateDeployment(ctx, namespace, desiredDeployment)
 		if err != nil {
@@ -33,6 +35,16 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 		log.Ctx(ctx).Debug().Msgf("No need to patch deployment: %s ", currentDeployment.GetName())
 		return nil
 	}
+
+	// Ignore the 447 hack if its a job scheduler or oauth2proxy etc. Only apply the hack for components
+	// (we want to avoid restarting components when only the Radix App ID is changed)
+	if apply447hack {
+		if isAppIdTheOnlyChange_akaThe447Hack(*currentDeployment, *desiredDeployment) {
+			log.Ctx(ctx).Debug().Msgf("Only RadixAppIDLabel changed for deployment: %s, skipping patch", currentDeployment.GetName())
+			return nil
+		}
+	}
+
 	log.Ctx(ctx).Debug().Msgf("Patch: %s", string(patchBytes))
 	patchedDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Patch(ctx, currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
@@ -40,6 +52,27 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 	}
 	log.Ctx(ctx).Debug().Msgf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
 	return nil
+}
+
+// isAppIdTheOnlyChange_akaThe447Hack checks if the only difference between the current and desired deployment is the RadixAppIDLabel.
+// This is to avoid restarting radix-apps when the Radix App ID is changed. Remove this code and force sync all deployments
+// when _most_ apps have redeployed and is using AppID. See https://github.com/equinor/radix/issues/447 and its parent issue for more details
+func isAppIdTheOnlyChange_akaThe447Hack(currentDeployment, desiredDeployment appsv1.Deployment) bool {
+
+	currentLabels := maps.Clone(currentDeployment.Spec.Template.ObjectMeta.Labels)
+	desiredLabels := maps.Clone(desiredDeployment.Spec.Template.ObjectMeta.Labels)
+	currentDeployment.Spec.Template.ObjectMeta.Labels = nil
+	desiredDeployment.Spec.Template.ObjectMeta.Labels = nil
+
+	patchBytes, _ := getDeploymentPatch(&currentDeployment, &desiredDeployment)
+	specIsEqual := IsEmptyPatch(patchBytes)
+
+	appIDIsDifferent := currentLabels[RadixAppIDLabel] != desiredLabels[RadixAppIDLabel]
+	delete(currentLabels, RadixAppIDLabel)
+	delete(desiredLabels, RadixAppIDLabel)
+	labelsAreEqual := reflect.DeepEqual(currentLabels, desiredLabels)
+
+	return (appIDIsDifferent && specIsEqual && labelsAreEqual)
 }
 
 func getDeploymentPatch(currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) ([]byte, error) {

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/oklog/ulid/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -12,6 +13,7 @@ import (
 // RegistrationBuilder Handles construction of RR or applicationRegistration
 type RegistrationBuilder interface {
 	WithUID(types.UID) RegistrationBuilder
+	WithAppID(ulid.ULID) RegistrationBuilder
 	WithName(name string) RegistrationBuilder
 	WithRepository(string) RegistrationBuilder
 	WithSharedSecret(string) RegistrationBuilder
@@ -36,6 +38,7 @@ type RegistrationBuilder interface {
 // RegistrationBuilderStruct Instance variables
 type RegistrationBuilderStruct struct {
 	uid                 types.UID
+	appID                  ulid.ULID
 	name                string
 	repository          string
 	sharedSecret        string
@@ -57,6 +60,7 @@ type RegistrationBuilderStruct struct {
 
 // WithRadixRegistration Re-enginers a builder from a registration
 func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1.RadixRegistration) RegistrationBuilder {
+	rb.WithAppID(radixRegistration.Spec.AppID)
 	rb.WithName(radixRegistration.Name)
 	rb.WithCloneURL(radixRegistration.Spec.CloneURL)
 	rb.WithSharedSecret(radixRegistration.Spec.SharedSecret)
@@ -77,6 +81,12 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 // WithUID Sets UID
 func (rb *RegistrationBuilderStruct) WithUID(uid types.UID) RegistrationBuilder {
 	rb.uid = uid
+	return rb
+}
+
+// WithAppID Sets ID
+func (rb *RegistrationBuilderStruct) WithAppID(id ulid.ULID) RegistrationBuilder {
+	rb.appID = id
 	return rb
 }
 
@@ -206,6 +216,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			UID:  rb.uid,
 		},
 		Spec: v1.RadixRegistrationSpec{
+			AppID:               rb.appID,
 			CloneURL:            cloneURL,
 			SharedSecret:        rb.sharedSecret,
 			DeployKey:           rb.privateKey,
@@ -234,6 +245,7 @@ func NewRegistrationBuilder() RegistrationBuilder {
 // ARadixRegistration Constructor for registration builder containing test data
 func ARadixRegistration() RegistrationBuilder {
 	builder := NewRegistrationBuilder().
+		WithAppID(ulid.MustParse("00000000000000000000000001")).
 		WithName("anyapp").
 		WithCloneURL("git@github.com:equinor/anyapp").
 		WithSharedSecret("NotSoSecret").

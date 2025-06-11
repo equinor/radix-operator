@@ -129,11 +129,16 @@ func (a *RadixProbeHTTPGetAction) MapToCoreProbe() *corev1.HTTPGetAction {
 		return nil
 	}
 
+	scheme := a.Scheme
+	if a.Scheme == "" {
+		scheme = corev1.URISchemeHTTP // Default to HTTP if not specified
+	}
+
 	return &corev1.HTTPGetAction{
 		Path:        a.Path,
 		Port:        intstr.FromInt32(a.Port),
 		Host:        a.Host,
-		Scheme:      a.Scheme,
+		Scheme:      scheme,
 		HTTPHeaders: a.HTTPHeaders,
 	}
 }
