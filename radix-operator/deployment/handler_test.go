@@ -163,7 +163,7 @@ func (s *handlerSuite) Test_Sync() {
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
 			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123"),
-			deployment.NewRedisResourceManager(activeRd, rr, s.kubeUtil, "redis:123"),
+			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, "redis:123"),
 		}
 		factory.
 			EXPECT().

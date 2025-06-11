@@ -21,8 +21,6 @@ const (
 	OAuthRedisAuxiliaryComponentSuffix = "aux-redis"
 	// OAuthRedisPortNumber default port number for system managed Redis
 	OAuthRedisPortNumber int32 = 6379
-	// OAuthRedisConnectionUrl default connection URL for system managed Redis
-	OAuthRedisConnectionUrl = "redis://auth-state:6379"
 )
 
 // DynamicTagNameInEnvironmentConfig Pattern to indicate that the
@@ -2266,6 +2264,9 @@ func (oauth2 *OAuth2) GetSessionStoreType() SessionStoreType {
 	if oauth2 == nil {
 		return SessionStoreCookie
 	}
+	if oauth2.SessionStoreTypeIsSystemManaged() {
+		return SessionStoreRedis
+	}
 	return oauth2.SessionStoreType
 }
 
@@ -2385,13 +2386,7 @@ func (runtime *Runtime) GetNodeType() *string {
 }
 
 func (oauth2 *OAuth2) GetRedisStoreConnectionURL() string {
-	if oauth2 == nil {
-		return ""
-	}
-	if oauth2.SessionStoreTypeIsSystemManaged() {
-		return OAuthRedisConnectionUrl
-	}
-	if oauth2.RedisStore == nil {
+	if oauth2 == nil || oauth2.RedisStore == nil {
 		return ""
 	}
 	return oauth2.RedisStore.ConnectionURL

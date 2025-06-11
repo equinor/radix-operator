@@ -2,12 +2,7 @@ package deployment
 
 import (
 	"context"
-	"encoding/base64"
-	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/intstr"
-
-	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -25,16 +20,17 @@ import (
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/cache"
 )
 
 const (
-	redisRedisPasswordEnvironmentVariable = "OAUTH2_PROXY_REDIS_PASSWORD"
+	redisPasswordEnvironmentVariable = "REDIS_PASSWORD"
 )
 
-// NewRedisResourceManager creates a new RedisResourceManager
-func NewRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, redisDockerImage string) AuxiliaryResourceManager {
-	return &redisResourceManager{
+// NewOAuthRedisResourceManager creates a new RedisResourceManager
+func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, redisDockerImage string) AuxiliaryResourceManager {
+	return &oauthRedisResourceManager{
 		rd:               rd,
 		rr:               rr,
 		kubeutil:         kubeutil,
@@ -43,7 +39,7 @@ func NewRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, k
 	}
 }
 
-type redisResourceManager struct {
+type oauthRedisResourceManager struct {
 	rd               *v1.RadixDeployment
 	rr               *v1.RadixRegistration
 	kubeutil         *kube.Kube
@@ -51,7 +47,7 @@ type redisResourceManager struct {
 	logger           zerolog.Logger
 }
 
-func (o *redisResourceManager) Sync(ctx context.Context) error {
+func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
 	for _, component := range o.rd.Spec.Components {
 		if err := o.syncComponent(ctx, &component); err != nil {
 			return fmt.Errorf("failed to sync redis for component %s: %w", component.Name, err)
@@ -60,7 +56,7 @@ func (o *redisResourceManager) Sync(ctx context.Context) error {
 	return nil
 }
 
-func (o *redisResourceManager) syncComponent(ctx context.Context, component *v1.RadixDeployComponent) error {
+func (o *oauthRedisResourceManager) syncComponent(ctx context.Context, component *v1.RadixDeployComponent) error {
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2.SessionStoreTypeIsSystemManaged() {
 		o.logger.Debug().Msgf("Sync system managed Redis for the component %s", component.GetName())
 		return o.install(ctx, component.DeepCopy())
@@ -68,20 +64,16 @@ func (o *redisResourceManager) syncComponent(ctx context.Context, component *v1.
 	return o.uninstall(ctx, component)
 }
 
-func (o *redisResourceManager) GarbageCollect(ctx context.Context) error {
+func (o *oauthRedisResourceManager) GarbageCollect(ctx context.Context) error {
 	if err := o.garbageCollect(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect redis: %w", err)
 	}
 	return nil
 }
 
-func (o *redisResourceManager) garbageCollect(ctx context.Context) error {
+func (o *oauthRedisResourceManager) garbageCollect(ctx context.Context) error {
 	if err := o.garbageCollectDeployment(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect deployment: %w", err)
-	}
-
-	if err := o.garbageCollectSecrets(ctx); err != nil {
-		return fmt.Errorf("failed to garbage collect secrets: %w", err)
 	}
 
 	if err := o.garbageCollectRoles(ctx); err != nil {
@@ -95,7 +87,7 @@ func (o *redisResourceManager) garbageCollect(ctx context.Context) error {
 	return nil
 }
 
-func (o *redisResourceManager) garbageCollectDeployment(ctx context.Context) error {
+func (o *oauthRedisResourceManager) garbageCollectDeployment(ctx context.Context) error {
 	deployments, err := o.kubeutil.ListDeployments(ctx, o.rd.Namespace)
 	if err != nil {
 		return err
@@ -114,26 +106,7 @@ func (o *redisResourceManager) garbageCollectDeployment(ctx context.Context) err
 	return nil
 }
 
-func (o *redisResourceManager) garbageCollectSecrets(ctx context.Context) error {
-	secrets, err := o.kubeutil.ListSecrets(ctx, o.rd.Namespace)
-	if err != nil {
-		return err
-	}
-
-	for _, secret := range secrets {
-		if o.isEligibleForGarbageCollection(secret) {
-			err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{})
-			if err != nil && !kubeerrors.IsNotFound(err) {
-				return err
-			}
-			o.logger.Info().Msgf("Deleted secret: %s in namespace %s", secret.GetName(), secret.Namespace)
-		}
-	}
-
-	return nil
-}
-
-func (o *redisResourceManager) garbageCollectRoles(ctx context.Context) error {
+func (o *oauthRedisResourceManager) garbageCollectRoles(ctx context.Context) error {
 	roles, err := o.kubeutil.ListRoles(ctx, o.rd.Namespace)
 	if err != nil {
 		return err
@@ -151,7 +124,7 @@ func (o *redisResourceManager) garbageCollectRoles(ctx context.Context) error {
 	return nil
 }
 
-func (o *redisResourceManager) garbageCollectRoleBinding(ctx context.Context) error {
+func (o *oauthRedisResourceManager) garbageCollectRoleBinding(ctx context.Context) error {
 	roleBindings, err := o.kubeutil.ListRoleBindings(ctx, o.rd.Namespace)
 	if err != nil {
 		return err
@@ -169,7 +142,7 @@ func (o *redisResourceManager) garbageCollectRoleBinding(ctx context.Context) er
 	return nil
 }
 
-func (o *redisResourceManager) isEligibleForGarbageCollection(object metav1.Object) bool {
+func (o *oauthRedisResourceManager) isEligibleForGarbageCollection(object metav1.Object) bool {
 	if appName := object.GetLabels()[kube.RadixAppLabel]; appName != o.rd.Spec.AppName {
 		return false
 	}
@@ -183,11 +156,8 @@ func (o *redisResourceManager) isEligibleForGarbageCollection(object metav1.Obje
 	return !auxTargetComponentName.ExistInDeploymentSpec(o.rd)
 }
 
-func (o *redisResourceManager) install(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthRedisResourceManager) install(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	o.logger.Debug().Msgf("install the Redis for the component %s", component.GetName())
-	if err := o.createOrUpdateSecret(ctx, component); err != nil {
-		return err
-	}
 	if err := o.createOrUpdateRbac(ctx, component); err != nil {
 		return err
 	}
@@ -197,17 +167,13 @@ func (o *redisResourceManager) install(ctx context.Context, component v1.RadixCo
 	return o.createOrUpdateDeployment(ctx, component)
 }
 
-func (o *redisResourceManager) uninstall(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthRedisResourceManager) uninstall(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	o.logger.Debug().Msgf("uninstall redis for the component %s", component.GetName())
 	if err := o.deleteDeployment(ctx, component); err != nil {
 		return err
 	}
 
 	if err := o.deleteServices(ctx, component); err != nil {
-		return err
-	}
-
-	if err := o.deleteSecretValue(ctx, component); err != nil {
 		return err
 	}
 
@@ -218,8 +184,8 @@ func (o *redisResourceManager) uninstall(ctx context.Context, component v1.Radix
 	return o.deleteRoles(ctx, component)
 }
 
-func (o *redisResourceManager) deleteDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxRedisComponent(o.rd.Spec.AppName, component)).String()
+func (o *oauthRedisResourceManager) deleteDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component)).String()
 	deployments, err := o.kubeutil.ListDeploymentsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -234,8 +200,8 @@ func (o *redisResourceManager) deleteDeployment(ctx context.Context, component v
 	return nil
 }
 
-func (o *redisResourceManager) deleteServices(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxRedisComponent(o.rd.Spec.AppName, component)).String()
+func (o *oauthRedisResourceManager) deleteServices(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component)).String()
 	services, err := o.kubeutil.ListServicesWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -249,27 +215,8 @@ func (o *redisResourceManager) deleteServices(ctx context.Context, component v1.
 	return nil
 }
 
-func (o *redisResourceManager) deleteSecretValue(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
-	secrets, err := o.kubeutil.ListSecretsWithSelector(ctx, o.rd.Namespace, selector)
-	if err != nil {
-		return err
-	}
-
-	for _, existingSecret := range secrets {
-		secret := existingSecret.DeepCopy()
-		if _, ok := secret.Data[defaults.OAuthRedisPasswordKeyName]; ok {
-			delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
-			_, err = o.kubeutil.UpdateSecret(ctx, existingSecret, secret)
-		}
-		o.logger.Info().Msgf("Deleted secret key: %s from secret %s in namespace %s", defaults.OAuthRedisPasswordKeyName, secret.GetName(), secret.Namespace)
-	}
-
-	return nil
-}
-
-func (o *redisResourceManager) deleteRoleBindings(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxRedisComponent(o.rd.Spec.AppName, component)).String()
+func (o *oauthRedisResourceManager) deleteRoleBindings(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component)).String()
 	roleBindings, err := o.kubeutil.ListRoleBindingsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -284,8 +231,8 @@ func (o *redisResourceManager) deleteRoleBindings(ctx context.Context, component
 	return nil
 }
 
-func (o *redisResourceManager) deleteRoles(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxRedisComponent(o.rd.Spec.AppName, component)).String()
+func (o *oauthRedisResourceManager) deleteRoles(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component)).String()
 	roles, err := o.kubeutil.ListRolesWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -300,39 +247,12 @@ func (o *redisResourceManager) deleteRoles(ctx context.Context, component v1.Rad
 	return nil
 }
 
-func (o *redisResourceManager) createOrUpdateService(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthRedisResourceManager) createOrUpdateService(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	service := o.buildServiceSpec(component)
 	return o.kubeutil.ApplyService(ctx, o.rd.Namespace, service)
 }
 
-func (o *redisResourceManager) createOrUpdateSecret(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
-	existingSecret, err := o.kubeutil.GetSecret(ctx, o.rd.Namespace, secretName)
-	if err != nil {
-		if !kubeerrors.IsNotFound(err) {
-			return err
-		}
-		secret, err := o.buildSecret(o.rd.Spec.AppName, component)
-		if err != nil {
-			return err
-		}
-		_, err = o.kubeutil.CreateSecret(ctx, o.rd.Namespace, secret)
-		return err
-	}
-	secret := existingSecret.DeepCopy()
-	oauthutil.MergeAuxProxyComponentResourceLabels(secret, o.rd.Spec.AppName, component)
-	if passwordSecret, ok := secret.Data[defaults.OAuthRedisPasswordKeyName]; !ok || len(passwordSecret) == 0 {
-		passwordSecret, err = o.generateRandomPasswordSecret()
-		if err != nil {
-			return err
-		}
-		secret.Data[defaults.OAuthRedisPasswordKeyName] = passwordSecret
-		_, err = o.kubeutil.UpdateSecret(ctx, existingSecret, secret)
-	}
-	return err
-}
-
-func (o *redisResourceManager) createOrUpdateRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthRedisResourceManager) createOrUpdateRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	if err := o.createOrUpdateAppAdminRbac(ctx, component); err != nil {
 		return err
 	}
@@ -340,7 +260,7 @@ func (o *redisResourceManager) createOrUpdateRbac(ctx context.Context, component
 	return o.createOrUpdateAppReaderRbac(ctx, component)
 }
 
-func (o *redisResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthRedisResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthRedisAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName("radix-app-adm", component.GetName())
 	namespace := o.rd.Namespace
@@ -349,7 +269,7 @@ func (o *redisResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, c
 	role := kube.CreateAppRole(
 		o.rd.Spec.AppName,
 		roleName,
-		radixlabels.ForAuxRedisComponent(o.rd.Spec.AppName, component),
+		radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component),
 		kube.ManageSecretsRule([]string{secretName}),
 	)
 
@@ -367,7 +287,7 @@ func (o *redisResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, c
 	return o.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
-func (o *redisResourceManager) createOrUpdateAppReaderRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthRedisResourceManager) createOrUpdateAppReaderRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthRedisAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName("radix-app-reader", component.GetName())
 	namespace := o.rd.Namespace
@@ -376,7 +296,7 @@ func (o *redisResourceManager) createOrUpdateAppReaderRbac(ctx context.Context, 
 	role := kube.CreateAppRole(
 		o.rd.Spec.AppName,
 		roleName,
-		radixlabels.ForAuxRedisComponent(o.rd.Spec.AppName, component),
+		radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component),
 		kube.ReadSecretsRule([]string{secretName}),
 	)
 
@@ -391,33 +311,13 @@ func (o *redisResourceManager) createOrUpdateAppReaderRbac(ctx context.Context, 
 	return o.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
-func (o *redisResourceManager) getRoleAndRoleBindingName(prefix, componentName string) string {
+func (o *oauthRedisResourceManager) getRoleAndRoleBindingName(prefix, componentName string) string {
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
 	return fmt.Sprintf("%s-%s", prefix, deploymentName)
 }
 
-func (o *redisResourceManager) buildSecret(appName string, component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
-
-	secret := &corev1.Secret{
-		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-		},
-		Data: make(map[string][]byte),
-	}
-	oauthutil.MergeAuxComponentResourceLabels(secret, appName, component)
-	passwordSecret, err := o.generateRandomPasswordSecret()
-	if err != nil {
-		return nil, err
-	}
-	secret.Data[defaults.OAuthRedisPasswordKeyName] = passwordSecret
-	return secret, nil
-}
-
-func (o *redisResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
-	serviceName := utils.GetAuxiliaryComponentServiceName(component.GetName(), v1.OAuthRedisAuxiliaryComponentSuffix)
-
+func (o *oauthRedisResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
+	serviceName := defaults.GetAuxOAuthRedisServiceName(component.GetName())
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,
@@ -425,7 +325,7 @@ func (o *redisResourceManager) buildServiceSpec(component v1.RadixCommonDeployCo
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
+			Selector: radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component),
 			Ports: []corev1.ServicePort{
 				{
 					Port:       v1.OAuthRedisPortNumber,
@@ -435,23 +335,11 @@ func (o *redisResourceManager) buildServiceSpec(component v1.RadixCommonDeployCo
 			},
 		},
 	}
-	oauthutil.MergeAuxProxyComponentResourceLabels(service, o.rd.Spec.AppName, component)
+	oauthutil.MergeAuxOAuthRedisComponentResourceLabels(service, o.rd.Spec.AppName, component)
 	return service
 }
 
-func (o *redisResourceManager) generateRandomPasswordSecret() ([]byte, error) {
-	randomBytes := commonutils.GenerateRandomKey(32)
-	// Extra check to make sure correct number of bytes are returned for the random key
-	if len(randomBytes) != 32 {
-		return nil, errors.New("failed to generator cookie secret with correct length")
-	}
-	encoding := base64.URLEncoding
-	encodedBytes := make([]byte, encoding.EncodedLen(len(randomBytes)))
-	encoding.Encode(encodedBytes, randomBytes)
-	return encodedBytes, nil
-}
-
-func (o *redisResourceManager) createOrUpdateDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthRedisResourceManager) createOrUpdateDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	current, desired, err := o.getCurrentAndDesiredDeployment(ctx, component)
 	if err != nil {
 		return err
@@ -463,7 +351,7 @@ func (o *redisResourceManager) createOrUpdateDeployment(ctx context.Context, com
 	return nil
 }
 
-func (o *redisResourceManager) getCurrentAndDesiredDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+func (o *oauthRedisResourceManager) getCurrentAndDesiredDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), v1.OAuthRedisAuxiliaryComponentSuffix)
 
 	currentDeployment, err := o.kubeutil.GetDeployment(ctx, o.rd.Namespace, deploymentName)
@@ -478,7 +366,7 @@ func (o *redisResourceManager) getCurrentAndDesiredDeployment(ctx context.Contex
 	return currentDeployment, desiredDeployment, nil
 }
 
-func (o *redisResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
+func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
 	componentName := component.GetName()
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
 	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(v1.OAuthRedisPortNumber)
@@ -501,12 +389,12 @@ func (o *redisResourceManager) getDesiredDeployment(component v1.RadixCommonDepl
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointers.Ptr(replicas),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: radixlabels.ForAuxRedisComponent(o.rd.Spec.AppName, component),
+				MatchLabels: radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: radixlabels.Merge(
-						radixlabels.ForAuxRedisComponent(o.rd.Spec.AppName, component),
+						radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component),
 					),
 				},
 				Spec: corev1.PodSpec{
@@ -526,32 +414,77 @@ func (o *redisResourceManager) getDesiredDeployment(component v1.RadixCommonDepl
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
 								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+								securitycontext.WithContainerRunAsUser(1001),
 							),
 							Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "redis-data",
+									MountPath: "/bitnami/redis/data",
+								},
+								{
+									Name:      "redis-config",
+									MountPath: "/opt/bitnami/redis/etc",
+								},
+								{
+									Name:      "redis-tmp",
+									MountPath: "/tmp",
+								},
+								{
+									Name:      "redis-run",
+									MountPath: "/opt/bitnami/redis/tmp",
+								},
+							},
 						},
 					},
 					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					Affinity:        utils.GetAffinityForOAuthAuxComponent(),
+					Volumes: []corev1.Volume{
+						{
+							Name: "redis-data",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: "redis-config",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: "redis-tmp",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: "redis-run",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+					},
 				},
 			},
 		},
 	}
-	oauthutil.MergeAuxComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
+	oauthutil.MergeAuxOAuthProxyComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
 	return desiredDeployment, nil
 }
 
-func (o *redisResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {
+func (o *oauthRedisResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
 	// Radix env-vars
 	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
 		envVars = append(envVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: v})
 	}
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
-	envVars = append(envVars, o.createEnvVarWithSecretRef(redisRedisPasswordEnvironmentVariable, secretName, defaults.OAuthRedisPasswordKeyName))
+	envVars = append(envVars, o.createEnvVarWithSecretRef(redisPasswordEnvironmentVariable, secretName, defaults.OAuthRedisPasswordKeyName))
 	return envVars
 }
 
-func (o *redisResourceManager) createEnvVarWithSecretRef(envVarName, secretName, key string) corev1.EnvVar {
+func (o *oauthRedisResourceManager) createEnvVarWithSecretRef(envVarName, secretName, key string) corev1.EnvVar {
 	return corev1.EnvVar{
 		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
