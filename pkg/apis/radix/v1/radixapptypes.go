@@ -11,15 +11,15 @@ import (
 )
 
 const (
-	// OAuthProxyAuxiliaryComponentType component type
+	// OAuthProxyAuxiliaryComponentType Aux OAuth Proxy component type
 	OAuthProxyAuxiliaryComponentType = "oauth"
-	// OAuthProxyAuxiliaryComponentSuffix component suffix
+	// OAuthProxyAuxiliaryComponentSuffix Aux OAuth Proxy component suffix
 	OAuthProxyAuxiliaryComponentSuffix = "aux-oauth"
-	// OAuthRedisAuxiliaryComponentType component type
-	OAuthRedisAuxiliaryComponentType = "redis"
+	// OAuthRedisAuxiliaryComponentType Aux OAuth Redis component type
+	OAuthRedisAuxiliaryComponentType = "aux-oauth-redis"
 	// OAuthRedisAuxiliaryComponentSuffix component suffix
 	OAuthRedisAuxiliaryComponentSuffix = "aux-redis"
-	// OAuthRedisPortNumber default port number for system managed Redis
+	// OAuthRedisPortNumber default port number for system managed Aux OAuth Redis
 	OAuthRedisPortNumber int32 = 6379
 )
 

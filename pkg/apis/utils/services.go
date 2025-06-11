@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -20,4 +22,9 @@ func GetServicePorts(componentPorts []radixv1.ComponentPort) []corev1.ServicePor
 		ports = append(ports, servicePort)
 	}
 	return ports
+}
+
+// GetAuxOAuthProxyComponentServiceName returns service name for auxiliary OAuth proxy component
+func GetAuxOAuthProxyComponentServiceName(componentName string) string {
+	return fmt.Sprintf("%s-%s", componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 }

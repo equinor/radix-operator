@@ -317,7 +317,7 @@ func (o *oauthRedisResourceManager) getRoleAndRoleBindingName(prefix, componentN
 }
 
 func (o *oauthRedisResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
-	serviceName := defaults.GetAuxOAuthRedisServiceName(component.GetName())
+	serviceName := GetAuxOAuthRedisServiceName(component.GetName())
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,
@@ -469,7 +469,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 			},
 		},
 	}
-	oauthutil.MergeAuxOAuthProxyComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
+	oauthutil.MergeAuxOAuthRedisComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
 	return desiredDeployment, nil
 }
 

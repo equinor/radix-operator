@@ -595,7 +595,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxySecret(appName string, compon
 }
 
 func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
-	serviceName := defaults.GetAuxiliaryComponentServiceName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
+	serviceName := utils.GetAuxOAuthProxyComponentServiceName(component.GetName())
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,
@@ -805,7 +805,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 }
 
 func (o *oauthProxyResourceManager) getSystemManagedRedisStoreConnectionURL(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("redis://%s:%d", defaults.GetAuxOAuthRedisServiceName(component.GetName()), v1.OAuthRedisPortNumber)
+	return fmt.Sprintf("redis://%s:%d", GetAuxOAuthRedisServiceName(component.GetName()), v1.OAuthRedisPortNumber)
 }
 
 func getOAuthProxyProvider(oauth *v1.OAuth2) string {

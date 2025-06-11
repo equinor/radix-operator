@@ -659,7 +659,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyServiceCreated(
 	s.Nil(err)
 
 	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType}
-	expectedServiceName := defaults.GetAuxiliaryComponentServiceName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
+	expectedServiceName := utils.GetAuxOAuthProxyComponentServiceName(componentName)
 	actualServices, _ := s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualServices.Items, 1)
 	s.Equal(expectedServiceName, actualServices.Items[0].Name)
@@ -804,7 +804,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 					PathType: &pathType,
 					Backend: networkingv1.IngressBackend{
 						Service: &networkingv1.IngressServiceBackend{
-							Name: defaults.GetAuxiliaryComponentServiceName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix),
+							Name: utils.GetAuxOAuthProxyComponentServiceName(componentName),
 							Port: networkingv1.ServiceBackendPort{Number: defaults.OAuthProxyPortNumber},
 						},
 					},
@@ -946,7 +946,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 	s.Equal(utils.GetAuxiliaryComponentDeploymentName(component1Name, v1.OAuthProxyAuxiliaryComponentSuffix), actualDeploys.Items[0].Name)
 	actualServices, _ = s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualServices.Items, 1)
-	s.Equal(defaults.GetAuxiliaryComponentServiceName(component1Name, v1.OAuthProxyAuxiliaryComponentSuffix), actualServices.Items[0].Name)
+	s.Equal(utils.GetAuxOAuthProxyComponentServiceName(component1Name), actualServices.Items[0].Name)
 	actualSecrets, _ = s.kubeClient.CoreV1().Secrets(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualSecrets.Items, 1)
 	s.Equal(utils.GetAuxiliaryComponentSecretName(component1Name, v1.OAuthProxyAuxiliaryComponentSuffix), actualSecrets.Items[0].Name)
