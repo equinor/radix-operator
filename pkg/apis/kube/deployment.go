@@ -17,7 +17,7 @@ import (
 )
 
 // ApplyDeployment Create or update deployment in provided namespace
-func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) error {
+func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment, apply447hack bool) error {
 	if currentDeployment == nil {
 		createdDeployment, err := kubeutil.CreateDeployment(ctx, namespace, desiredDeployment)
 		if err != nil {
@@ -36,9 +36,13 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 		return nil
 	}
 
-	if isAppIdTheOnlyChange_akaThe447Hack(*currentDeployment, *desiredDeployment) {
-		log.Ctx(ctx).Debug().Msgf("Only RadixAppIDLabel changed for deployment: %s, skipping patch", currentDeployment.GetName())
-		return nil
+	// Ignore the 447 hack if its a job scheduler or oauth2proxy etc. Only apply the hack for components
+	// (we want to avoid restarting components when only the Radix App ID is changed)
+	if apply447hack {
+		if isAppIdTheOnlyChange_akaThe447Hack(*currentDeployment, *desiredDeployment) {
+			log.Ctx(ctx).Debug().Msgf("Only RadixAppIDLabel changed for deployment: %s, skipping patch", currentDeployment.GetName())
+			return nil
+		}
 	}
 
 	log.Ctx(ctx).Debug().Msgf("Patch: %s", string(patchBytes))
@@ -55,12 +59,14 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 // when _most_ apps have redeployed and is using AppID. See https://github.com/equinor/radix/issues/447 and its parent issue for more details
 func isAppIdTheOnlyChange_akaThe447Hack(currentDeployment, desiredDeployment appsv1.Deployment) bool {
 
-	currentDeployment.Labels = nil
-	desiredDeployment.Labels = nil
-	specIsEqual := reflect.DeepEqual(currentDeployment, desiredDeployment)
+	currentLabels := maps.Clone(currentDeployment.Spec.Template.ObjectMeta.Labels)
+	desiredLabels := maps.Clone(desiredDeployment.Spec.Template.ObjectMeta.Labels)
+	currentDeployment.Spec.Template.ObjectMeta.Labels = nil
+	desiredDeployment.Spec.Template.ObjectMeta.Labels = nil
 
-	currentLabels := maps.Clone(currentDeployment.Labels)
-	desiredLabels := maps.Clone(desiredDeployment.Labels)
+	patchBytes, _ := getDeploymentPatch(&currentDeployment, &desiredDeployment)
+	specIsEqual := IsEmptyPatch(patchBytes)
+
 	appIDIsDifferent := currentLabels[RadixAppIDLabel] != desiredLabels[RadixAppIDLabel]
 	delete(currentLabels, RadixAppIDLabel)
 	delete(desiredLabels, RadixAppIDLabel)

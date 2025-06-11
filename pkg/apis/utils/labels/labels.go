@@ -25,6 +25,10 @@ func ForApplicationName(appName string) kubelabels.Set {
 }
 
 func ForApplicationID(appID ulid.ULID) kubelabels.Set {
+	if appID.IsZero() {
+		return nil
+	}
+
 	return kubelabels.Set{
 		kube.RadixAppIDLabel: appID.String(),
 	}
@@ -251,9 +255,9 @@ func ForAccessValidation() kubelabels.Set {
 	}
 }
 
-// ForAuxComponent returns labels for application component aux OAuth proxy
-func ForAuxComponent(appName string, component v1.RadixCommonDeployComponent) map[string]string {
-	return map[string]string{
+// ForAuxComponentOauth returns labels for application component aux OAuth proxy
+func ForAuxComponentOauth(appName string, component v1.RadixCommonDeployComponent) kubelabels.Set {
+	return kubelabels.Set{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
 		kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType,
