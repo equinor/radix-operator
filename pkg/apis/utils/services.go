@@ -28,3 +28,8 @@ func GetServicePorts(componentPorts []radixv1.ComponentPort) []corev1.ServicePor
 func GetAuxOAuthProxyComponentServiceName(componentName string) string {
 	return fmt.Sprintf("%s-%s", componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 }
+
+// GetAuxOAuthRedisServiceName returns service name for auxiliary OAuth redis component
+func GetAuxOAuthRedisServiceName(componentName string) string {
+	return fmt.Sprintf("%s-%s", componentName, radixv1.OAuthRedisAuxiliaryComponentSuffix)
+}

@@ -29,22 +29,22 @@ const (
 )
 
 // NewOAuthRedisResourceManager creates a new RedisResourceManager
-func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, redisDockerImage string) AuxiliaryResourceManager {
+func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2RedisDockerImage string) AuxiliaryResourceManager {
 	return &oauthRedisResourceManager{
-		rd:               rd,
-		rr:               rr,
-		kubeutil:         kubeutil,
-		redisDockerImage: redisDockerImage,
-		logger:           log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "redis").Logger(),
+		rd:                     rd,
+		rr:                     rr,
+		kubeutil:               kubeutil,
+		oauth2RedisDockerImage: oauth2RedisDockerImage,
+		logger:                 log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "redis").Logger(),
 	}
 }
 
 type oauthRedisResourceManager struct {
-	rd               *v1.RadixDeployment
-	rr               *v1.RadixRegistration
-	kubeutil         *kube.Kube
-	redisDockerImage string
-	logger           zerolog.Logger
+	rd                     *v1.RadixDeployment
+	rr                     *v1.RadixRegistration
+	kubeutil               *kube.Kube
+	oauth2RedisDockerImage string
+	logger                 zerolog.Logger
 }
 
 func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
@@ -317,7 +317,7 @@ func (o *oauthRedisResourceManager) getRoleAndRoleBindingName(prefix, componentN
 }
 
 func (o *oauthRedisResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
-	serviceName := GetAuxOAuthRedisServiceName(component.GetName())
+	serviceName := utils.GetAuxOAuthRedisServiceName(component.GetName())
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,
@@ -401,7 +401,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 					Containers: []corev1.Container{
 						{
 							Name:            componentName,
-							Image:           o.redisDockerImage,
+							Image:           o.oauth2RedisDockerImage,
 							ImagePullPolicy: corev1.PullAlways,
 							Env:             o.getEnvVars(component),
 							Ports: []corev1.ContainerPort{

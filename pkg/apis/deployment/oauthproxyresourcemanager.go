@@ -805,7 +805,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 }
 
 func (o *oauthProxyResourceManager) getSystemManagedRedisStoreConnectionURL(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("redis://%s:%d", GetAuxOAuthRedisServiceName(component.GetName()), v1.OAuthRedisPortNumber)
+	return fmt.Sprintf("redis://%s:%d", utils.GetAuxOAuthRedisServiceName(component.GetName()), v1.OAuthRedisPortNumber)
 }
 
 func getOAuthProxyProvider(oauth *v1.OAuth2) string {

@@ -2,8 +2,6 @@ package deployment
 
 import (
 	"context"
-	"fmt"
-
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -82,9 +80,4 @@ func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *
 	}
 
 	return service
-}
-
-// GetAuxOAuthRedisServiceName returns service name for auxiliary OAuth redis component
-func GetAuxOAuthRedisServiceName(componentName string) string {
-	return fmt.Sprintf("%s-%s", componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
 }
