@@ -73,12 +73,25 @@ func (t *handler) Sync(ctx context.Context, namespace, jobName string, eventReco
 
 		return err
 	}
-	ctx = log.Ctx(ctx).With().Str("app_name", radixJob.Spec.AppName).Logger().WithContext(ctx)
+	logger := log.Ctx(ctx).With().Str("app_name", radixJob.Spec.AppName).Logger()
+
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(ctx, radixJob.Spec.AppName, metav1.GetOptions{})
+	if err != nil {
+		// The Registration resource may no longer exist, in which case we stop
+		// processing.
+		if errors.IsNotFound(err) {
+			logger.Debug().Msgf("RadixRegistration %s no longer exists", radixJob.Spec.AppName)
+			return nil
+		}
+
+		return err
+	}
 
 	syncJob := radixJob.DeepCopy()
-	log.Ctx(ctx).Debug().Msgf("Sync job %s", syncJob.Name)
+	logger.Debug().Msgf("Sync job %s", syncJob.Name)
+	ctx = logger.WithContext(ctx)
 
-	syncer := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, syncJob, t.config)
+	syncer := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, syncJob, t.config)
 	if err = syncer.OnSync(ctx); err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
 		// Put back on queue

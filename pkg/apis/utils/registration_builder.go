@@ -38,7 +38,7 @@ type RegistrationBuilder interface {
 // RegistrationBuilderStruct Instance variables
 type RegistrationBuilderStruct struct {
 	uid                 types.UID
-	appID                  ulid.ULID
+	appID               ulid.ULID
 	name                string
 	repository          string
 	sharedSecret        string
@@ -199,6 +199,11 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 		cloneURL = GetGithubCloneURLFromRepo(rb.repository)
 	}
 
+	appID := rb.appID
+	if appID.IsZero() {
+		appID = ulid.Make()
+	}
+
 	status := v1.RadixRegistrationStatus{}
 	if !rb.emptyStatus {
 		status = v1.RadixRegistrationStatus{
@@ -216,7 +221,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			UID:  rb.uid,
 		},
 		Spec: v1.RadixRegistrationSpec{
-			AppID:               rb.appID,
+			AppID:               appID,
 			CloneURL:            cloneURL,
 			SharedSecret:        rb.sharedSecret,
 			DeployKey:           rb.privateKey,
