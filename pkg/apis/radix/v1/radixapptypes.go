@@ -16,7 +16,7 @@ const (
 	// OAuthProxyAuxiliaryComponentSuffix Aux OAuth Proxy component suffix
 	OAuthProxyAuxiliaryComponentSuffix = "aux-oauth"
 	// OAuthRedisAuxiliaryComponentType Aux OAuth Redis component type
-	OAuthRedisAuxiliaryComponentType = "aux-oauth-redis"
+	OAuthRedisAuxiliaryComponentType = "oauth-redis"
 	// OAuthRedisAuxiliaryComponentSuffix component suffix
 	OAuthRedisAuxiliaryComponentSuffix = "aux-redis"
 	// OAuthRedisPortNumber default port number for system managed Aux OAuth Redis

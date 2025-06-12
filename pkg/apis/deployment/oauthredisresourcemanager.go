@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -75,15 +76,6 @@ func (o *oauthRedisResourceManager) garbageCollect(ctx context.Context) error {
 	if err := o.garbageCollectDeployment(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect deployment: %w", err)
 	}
-
-	if err := o.garbageCollectRoles(ctx); err != nil {
-		return fmt.Errorf("failed to garbage collect roles: %w", err)
-	}
-
-	if err := o.garbageCollectRoleBinding(ctx); err != nil {
-		return fmt.Errorf("failed to garbage collect role bindings: %w", err)
-	}
-
 	return nil
 }
 
@@ -106,42 +98,6 @@ func (o *oauthRedisResourceManager) garbageCollectDeployment(ctx context.Context
 	return nil
 }
 
-func (o *oauthRedisResourceManager) garbageCollectRoles(ctx context.Context) error {
-	roles, err := o.kubeutil.ListRoles(ctx, o.rd.Namespace)
-	if err != nil {
-		return err
-	}
-
-	for _, role := range roles {
-		if o.isEligibleForGarbageCollection(role) {
-			err := o.kubeutil.KubeClient().RbacV1().Roles(role.Namespace).Delete(ctx, role.Name, metav1.DeleteOptions{})
-			if err != nil && !kubeerrors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (o *oauthRedisResourceManager) garbageCollectRoleBinding(ctx context.Context) error {
-	roleBindings, err := o.kubeutil.ListRoleBindings(ctx, o.rd.Namespace)
-	if err != nil {
-		return err
-	}
-
-	for _, rolebinding := range roleBindings {
-		if o.isEligibleForGarbageCollection(rolebinding) {
-			err := o.kubeutil.KubeClient().RbacV1().RoleBindings(rolebinding.Namespace).Delete(ctx, rolebinding.Name, metav1.DeleteOptions{})
-			if err != nil && !kubeerrors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 func (o *oauthRedisResourceManager) isEligibleForGarbageCollection(object metav1.Object) bool {
 	if appName := object.GetLabels()[kube.RadixAppLabel]; appName != o.rd.Spec.AppName {
 		return false
@@ -158,9 +114,6 @@ func (o *oauthRedisResourceManager) isEligibleForGarbageCollection(object metav1
 
 func (o *oauthRedisResourceManager) install(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	o.logger.Debug().Msgf("install the Redis for the component %s", component.GetName())
-	if err := o.createOrUpdateRbac(ctx, component); err != nil {
-		return err
-	}
 	if err := o.createOrUpdateService(ctx, component); err != nil {
 		return err
 	}
@@ -177,11 +130,7 @@ func (o *oauthRedisResourceManager) uninstall(ctx context.Context, component v1.
 		return err
 	}
 
-	if err := o.deleteRoleBindings(ctx, component); err != nil {
-		return err
-	}
-
-	return o.deleteRoles(ctx, component)
+	return nil
 }
 
 func (o *oauthRedisResourceManager) deleteDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
@@ -215,105 +164,9 @@ func (o *oauthRedisResourceManager) deleteServices(ctx context.Context, componen
 	return nil
 }
 
-func (o *oauthRedisResourceManager) deleteRoleBindings(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component)).String()
-	roleBindings, err := o.kubeutil.ListRoleBindingsWithSelector(ctx, o.rd.Namespace, selector)
-	if err != nil {
-		return err
-	}
-
-	for _, rolebinding := range roleBindings {
-		if err := o.kubeutil.KubeClient().RbacV1().RoleBindings(rolebinding.Namespace).Delete(ctx, rolebinding.Name, metav1.DeleteOptions{}); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (o *oauthRedisResourceManager) deleteRoles(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component)).String()
-	roles, err := o.kubeutil.ListRolesWithSelector(ctx, o.rd.Namespace, selector)
-	if err != nil {
-		return err
-	}
-
-	for _, role := range roles {
-		if err := o.kubeutil.KubeClient().RbacV1().Roles(role.Namespace).Delete(ctx, role.Name, metav1.DeleteOptions{}); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (o *oauthRedisResourceManager) createOrUpdateService(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	service := o.buildServiceSpec(component)
 	return o.kubeutil.ApplyService(ctx, o.rd.Namespace, service)
-}
-
-func (o *oauthRedisResourceManager) createOrUpdateRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	if err := o.createOrUpdateAppAdminRbac(ctx, component); err != nil {
-		return err
-	}
-
-	return o.createOrUpdateAppReaderRbac(ctx, component)
-}
-
-func (o *oauthRedisResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthRedisAuxiliaryComponentSuffix)
-	roleName := o.getRoleAndRoleBindingName("radix-app-adm", component.GetName())
-	namespace := o.rd.Namespace
-
-	// create role
-	role := kube.CreateAppRole(
-		o.rd.Spec.AppName,
-		roleName,
-		radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component),
-		kube.ManageSecretsRule([]string{secretName}),
-	)
-
-	err := o.kubeutil.ApplyRole(ctx, namespace, role)
-	if err != nil {
-		return err
-	}
-
-	// create rolebinding
-	subjects, err := utils.GetAppAdminRbacSubjects(o.rr)
-	if err != nil {
-		return err
-	}
-	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
-	return o.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
-}
-
-func (o *oauthRedisResourceManager) createOrUpdateAppReaderRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthRedisAuxiliaryComponentSuffix)
-	roleName := o.getRoleAndRoleBindingName("radix-app-reader", component.GetName())
-	namespace := o.rd.Namespace
-
-	// create role
-	role := kube.CreateAppRole(
-		o.rd.Spec.AppName,
-		roleName,
-		radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component),
-		kube.ReadSecretsRule([]string{secretName}),
-	)
-
-	err := o.kubeutil.ApplyRole(ctx, namespace, role)
-	if err != nil {
-		return err
-	}
-
-	// create rolebinding
-	subjects := utils.GetAppReaderRbacSubjects(o.rr)
-	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
-	return o.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
-}
-
-func (o *oauthRedisResourceManager) getRoleAndRoleBindingName(prefix, componentName string) string {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
-	return fmt.Sprintf("%s-%s", prefix, deploymentName)
 }
 
 func (o *oauthRedisResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
