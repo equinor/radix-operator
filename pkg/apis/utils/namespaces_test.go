@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"strings"
 	"testing"
 
@@ -12,8 +11,12 @@ func Test_GetAuxiliaryComponentDeploymentName(t *testing.T) {
 	assert.Equal(t, "component-suffix", GetAuxiliaryComponentDeploymentName("component", "suffix"))
 }
 
-func Test_GetAuxiliaryComponentServiceName(t *testing.T) {
-	assert.Equal(t, "component-suffix", defaults.defaults.GetAuxiliaryComponentServiceName("component", "suffix"))
+func Test_GetAuxOAuthProxyComponentServiceName(t *testing.T) {
+	assert.Equal(t, "component-aux-oauth", GetAuxOAuthProxyComponentServiceName("component"))
+}
+
+func Test_GetAuxOAuthRedisComponentServiceName(t *testing.T) {
+	assert.Equal(t, "component-aux-oauth-redis", GetAuxOAuthRedisServiceName("component"))
 }
 
 func Test_GetAuxiliaryComponentSecretName(t *testing.T) {
