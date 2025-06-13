@@ -500,6 +500,20 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 29, "Unexpected amount of env-vars")
 	s.False(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie")
 	s.False(s.getEnvVarExist("OAUTH2_PROXY_REDIS_CONNECTION_URL", actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_CONNECTION_URL should not be present when SessionStoreType is cookie")
+
+	// Env var OAUTH2_PROXY_REDIS_PASSWORD and OAUTH2_PROXY_REDIS_CONNECTION_URL should be present again when SessionStoreType is systemManaged redis
+	returnOAuth.SessionStoreType = v1.SessionStoreSystemManaged
+	s.oauth2Config.EXPECT().MergeWith(inputOAuth).Times(1).Return(returnOAuth, nil)
+	err = sut.Sync(context.Background())
+	s.Nil(err)
+	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 31, "Unexpected amount of env-vars")
+	s.True(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie")
+	redisConnectUrlEnvVar, redisConnectUrlExists := slice.FindFirst(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, func(ev corev1.EnvVar) bool {
+		return ev.Name == "OAUTH2_PROXY_REDIS_CONNECTION_URL"
+	})
+	s.True(redisConnectUrlExists, "Env var OAUTH2_PROXY_REDIS_CONNECTION_URL should be present when SessionStoreType is systemManaged")
+	s.Equal("redis://server-aux-oauth-redis:6379", redisConnectUrlEnvVar.Value, "Invalid env var OAUTH2_PROXY_REDIS_CONNECTION_URL")
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCreated() {
