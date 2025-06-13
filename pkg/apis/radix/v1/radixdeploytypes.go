@@ -292,7 +292,7 @@ func (deployComponent *RadixDeployComponent) GetArgs() []string {
 }
 
 func (deployComponent *RadixDeployComponent) HasZeroReplicas() bool {
-	return deployComponent.GetReplicas() != nil && *deployComponent.GetReplicas() > 0
+	return deployComponent.GetReplicas() != nil && *deployComponent.GetReplicas() == 0
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
@@ -427,7 +427,7 @@ func (deployJobComponent *RadixDeployJobComponent) GetArgs() []string {
 }
 
 func (deployJobComponent *RadixDeployJobComponent) HasZeroReplicas() bool {
-	return deployJobComponent.GetReplicas() != nil && *deployJobComponent.GetReplicas() > 0
+	return deployJobComponent.GetReplicas() != nil && *deployJobComponent.GetReplicas() == 0
 }
 
 // GetNrOfReplicas gets number of replicas component will run

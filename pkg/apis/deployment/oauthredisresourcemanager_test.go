@@ -239,6 +239,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 	}
 	for _, test := range tests {
 		s.Run(test.name, func() {
+			s.setupTest()
 			sut := &oauthRedisResourceManager{test.rd, rr, s.kubeUtil, "redis:123", zerolog.Nop()}
 			err := sut.Sync(context.Background())
 			s.Nil(err)
@@ -330,31 +331,6 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisUninstall() {
 	appName, envName, component1Name, component2Name := "anyapp", "qa", "server", "web"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 
-	_, err := s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
-		context.Background(),
-		&networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{Name: "ing1", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component1Name, kube.RadixDefaultAliasLabel: "true"}},
-			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
-		metav1.CreateOptions{},
-	)
-	s.Require().NoError(err)
-	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
-		context.Background(),
-		&networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{Name: "ing2", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
-			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
-		metav1.CreateOptions{},
-	)
-	s.Require().NoError(err)
-	_, err = s.kubeClient.NetworkingV1().Ingresses(envNs).Create(
-		context.Background(),
-		&networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{Name: "ing3", Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: component2Name, kube.RadixDefaultAliasLabel: "true"}},
-			Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "anyhost"}}}},
-		metav1.CreateOptions{},
-	)
-	s.Require().NoError(err)
-
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	rd := utils.NewDeploymentBuilder().
 		WithAppName(appName).
@@ -363,16 +339,16 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisUninstall() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreSystemManaged}})).
 		BuildRD()
 	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop()}
-	err = sut.Sync(context.Background())
-	s.NoError(err)
+	err := sut.Sync(context.Background())
+	s.NoError(err, "failed to sync oauth redis manager")
 
 	// Bootstrap oauth redis resources for two components
-	actualDeploys, _ := s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
+	actualDeploys, err := s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
+	s.NoError(err, "failed to list deployments")
 	s.Len(actualDeploys.Items, 2)
-	actualServices, _ := s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
+	actualServices, err := s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
+	s.NoError(err, "failed to list services")
 	s.Len(actualServices.Items, 2)
-	actualSecrets, _ := s.kubeClient.CoreV1().Secrets(envNs).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualSecrets.Items, 2)
 
 	// Set OAuth config to nil for second component
 	rd = utils.NewDeploymentBuilder().
@@ -384,10 +360,12 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisUninstall() {
 	sut = &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop()}
 	err = sut.Sync(context.Background())
 	s.Nil(err)
-	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
+	actualDeploys, err = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
+	s.NoError(err, "failed to list deployments after OAuth config change")
 	s.Len(actualDeploys.Items, 1)
 	s.Equal(utils.GetAuxiliaryComponentDeploymentName(component1Name, v1.OAuthRedisAuxiliaryComponentSuffix), actualDeploys.Items[0].Name)
-	actualServices, _ = s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
+	actualServices, err = s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
+	s.NoError(err, "failed to list services after OAuth config change")
 	s.Len(actualServices.Items, 1)
 	s.Equal(utils.GetAuxOAuthRedisServiceName(component1Name), actualServices.Items[0].Name)
 }
@@ -426,11 +404,13 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_GarbageCollect() {
 	err := sut.GarbageCollect(context.Background())
 	s.Nil(err)
 
-	actualDeployments, _ := s.kubeClient.AppsV1().Deployments(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	actualDeployments, err := s.kubeClient.AppsV1().Deployments(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Require().NoError(err, "failed to list deployments")
 	s.Len(actualDeployments.Items, 5)
 	s.ElementsMatch([]string{"d1", "d2", "d5", "d6", "d7"}, s.getObjectNames(actualDeployments.Items))
 
-	actualServices, _ := s.kubeClient.CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	actualServices, err := s.kubeClient.CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Require().NoError(err, "failed to list services")
 	s.Len(actualServices.Items, 5)
 	s.ElementsMatch([]string{"svc1", "svc2", "svc5", "svc6", "svc7"}, s.getObjectNames(actualServices.Items))
 }

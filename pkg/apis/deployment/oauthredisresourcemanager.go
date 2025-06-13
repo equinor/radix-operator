@@ -58,7 +58,7 @@ func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
 }
 
 func (o *oauthRedisResourceManager) syncComponent(ctx context.Context, component *v1.RadixDeployComponent) error {
-	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2.SessionStoreTypeIsSystemManaged() {
+	if auth := component.GetAuthentication(); component.IsPublic() && auth.GetOAuth2().SessionStoreTypeIsSystemManaged() {
 		o.logger.Debug().Msgf("Sync system managed Redis for the component %s", component.GetName())
 		return o.install(ctx, component.DeepCopy())
 	}
@@ -76,6 +76,9 @@ func (o *oauthRedisResourceManager) garbageCollect(ctx context.Context) error {
 	if err := o.garbageCollectDeployment(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect deployment: %w", err)
 	}
+	if err := o.garbageCollectServices(ctx); err != nil {
+		return fmt.Errorf("failed to garbage collect services: %w", err)
+	}
 	return nil
 }
 
@@ -92,6 +95,24 @@ func (o *oauthRedisResourceManager) garbageCollectDeployment(ctx context.Context
 				return err
 			}
 			o.logger.Info().Msgf("Deleted deployment: %s in namespace %s", deployment.GetName(), deployment.Namespace)
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthRedisResourceManager) garbageCollectServices(ctx context.Context) error {
+	services, err := o.kubeutil.ListServices(ctx, o.rd.Namespace)
+	if err != nil {
+		return err
+	}
+
+	for _, service := range services {
+		if o.isEligibleForGarbageCollection(service) {
+			err := o.kubeutil.KubeClient().CoreV1().Services(service.Namespace).Delete(ctx, service.Name, metav1.DeleteOptions{})
+			if err != nil && !kubeerrors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 
@@ -198,10 +219,7 @@ func (o *oauthRedisResourceManager) createOrUpdateDeployment(ctx context.Context
 		return err
 	}
 
-	if err := o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired); err != nil {
-		return err
-	}
-	return nil
+	return o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired)
 }
 
 func (o *oauthRedisResourceManager) getCurrentAndDesiredDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {

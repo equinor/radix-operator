@@ -497,7 +497,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	err = sut.Sync(context.Background())
 	s.Nil(err)
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 30)
+	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 30, "Unexpected amount of env-vars")
 	s.False(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env))
 }
 
