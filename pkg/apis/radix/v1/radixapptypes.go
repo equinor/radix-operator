@@ -19,7 +19,9 @@ const (
 	OAuthRedisAuxiliaryComponentType = "oauth-redis"
 	// OAuthRedisAuxiliaryComponentSuffix component suffix
 	OAuthRedisAuxiliaryComponentSuffix = "aux-oauth-redis"
-	// OAuthRedisPortNumber default port number for system managed Aux OAuth Redis
+	// OAuthRedisPortName port name for system managed Aux OAuth Redis
+	OAuthRedisPortName = "http"
+	// OAuthRedisPortNumber port number for system managed Aux OAuth Redis
 	OAuthRedisPortNumber int32 = 6379
 )
 

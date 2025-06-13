@@ -277,7 +277,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 							Env:             o.getEnvVars(component),
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          "redis",
+									Name:          v1.OAuthRedisPortName,
 									ContainerPort: v1.OAuthRedisPortNumber,
 								},
 							},
