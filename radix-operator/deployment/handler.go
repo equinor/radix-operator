@@ -60,7 +60,7 @@ func WithOAuth2ProxyDockerImage(image string) HandlerConfigOption {
 // WithOAuth2RedisDockerImage configures the Docker image to use for OAuth2 redis auxiliary component
 func WithOAuth2RedisDockerImage(image string) HandlerConfigOption {
 	return func(h *Handler) {
-		h.redisDockerImage = image
+		h.oauth2RedisDockerImage = image
 	}
 }
 
@@ -88,7 +88,7 @@ type Handler struct {
 	hasSynced               common.HasSynced
 	oauth2DefaultConfig     defaults.OAuth2Config
 	oauth2ProxyDockerImage  string
-	redisDockerImage        string
+	oauth2RedisDockerImage  string
 	ingressConfiguration    ingress.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 	config                  *config.Config
@@ -165,7 +165,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
 		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage),
-		deployment.NewOAuthRedisResourceManager(syncRD, radixRegistration, t.kubeutil, t.redisDockerImage),
+		deployment.NewOAuthRedisResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2RedisDockerImage),
 	}
 
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)

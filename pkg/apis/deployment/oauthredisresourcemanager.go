@@ -32,26 +32,26 @@ const (
 // NewOAuthRedisResourceManager creates a new RedisResourceManager
 func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2RedisDockerImage string) AuxiliaryResourceManager {
 	return &oauthRedisResourceManager{
-		rd:                     rd,
-		rr:                     rr,
-		kubeutil:               kubeutil,
-		oauth2RedisDockerImage: oauth2RedisDockerImage,
-		logger:                 log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "redis").Logger(),
+		rd:                    rd,
+		rr:                    rr,
+		kubeutil:              kubeutil,
+		oauthRedisDockerImage: oauth2RedisDockerImage,
+		logger:                log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth-redis").Logger(),
 	}
 }
 
 type oauthRedisResourceManager struct {
-	rd                     *v1.RadixDeployment
-	rr                     *v1.RadixRegistration
-	kubeutil               *kube.Kube
-	oauth2RedisDockerImage string
-	logger                 zerolog.Logger
+	rd                    *v1.RadixDeployment
+	rr                    *v1.RadixRegistration
+	kubeutil              *kube.Kube
+	oauthRedisDockerImage string
+	logger                zerolog.Logger
 }
 
 func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
 	for _, component := range o.rd.Spec.Components {
 		if err := o.syncComponent(ctx, &component); err != nil {
-			return fmt.Errorf("failed to sync redis for component %s: %w", component.Name, err)
+			return fmt.Errorf("failed to sync oauth redis for component %s: %w", component.Name, err)
 		}
 	}
 	return nil
@@ -59,7 +59,7 @@ func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
 
 func (o *oauthRedisResourceManager) syncComponent(ctx context.Context, component *v1.RadixDeployComponent) error {
 	if auth := component.GetAuthentication(); component.IsPublic() && auth.GetOAuth2().SessionStoreTypeIsSystemManaged() {
-		o.logger.Debug().Msgf("Sync system managed Redis for the component %s", component.GetName())
+		o.logger.Debug().Msgf("Sync system managed redis for the component %s", component.GetName())
 		return o.install(ctx, component.DeepCopy())
 	}
 	return o.uninstall(ctx, component)
@@ -90,14 +90,12 @@ func (o *oauthRedisResourceManager) garbageCollectDeployment(ctx context.Context
 
 	for _, deployment := range deployments {
 		if o.isEligibleForGarbageCollection(deployment) {
-			err := o.kubeutil.KubeClient().AppsV1().Deployments(deployment.Namespace).Delete(ctx, deployment.Name, metav1.DeleteOptions{})
-			if err != nil && !kubeerrors.IsNotFound(err) {
+			if err := o.kubeutil.KubeClient().AppsV1().Deployments(deployment.Namespace).Delete(ctx, deployment.Name, metav1.DeleteOptions{}); err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
 			o.logger.Info().Msgf("Deleted deployment: %s in namespace %s", deployment.GetName(), deployment.Namespace)
 		}
 	}
-
 	return nil
 }
 
@@ -109,13 +107,11 @@ func (o *oauthRedisResourceManager) garbageCollectServices(ctx context.Context) 
 
 	for _, service := range services {
 		if o.isEligibleForGarbageCollection(service) {
-			err := o.kubeutil.KubeClient().CoreV1().Services(service.Namespace).Delete(ctx, service.Name, metav1.DeleteOptions{})
-			if err != nil && !kubeerrors.IsNotFound(err) {
+			if err := o.kubeutil.KubeClient().CoreV1().Services(service.Namespace).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil && !kubeerrors.IsNotFound(err) {
 				return err
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -142,7 +138,7 @@ func (o *oauthRedisResourceManager) install(ctx context.Context, component v1.Ra
 }
 
 func (o *oauthRedisResourceManager) uninstall(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	o.logger.Debug().Msgf("uninstall redis for the component %s", component.GetName())
+	o.logger.Debug().Msgf("uninstall oauth redis for the component %s", component.GetName())
 	if err := o.deleteDeployment(ctx, component); err != nil {
 		return err
 	}
@@ -150,7 +146,6 @@ func (o *oauthRedisResourceManager) uninstall(ctx context.Context, component v1.
 	if err := o.deleteServices(ctx, component); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -166,7 +161,6 @@ func (o *oauthRedisResourceManager) deleteDeployment(ctx context.Context, compon
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -251,6 +245,12 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 	}
 
 	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
+	const (
+		volumeNameRedisData   = "redis-data"
+		volumeNameRedisConfig = "redis-config"
+		volumeNameRedisTmp    = "redis-tmp"
+		volumeNameRedisRun    = "redis-run"
+	)
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            deploymentName,
@@ -272,7 +272,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 					Containers: []corev1.Container{
 						{
 							Name:            componentName,
-							Image:           o.oauth2RedisDockerImage,
+							Image:           o.oauthRedisDockerImage,
 							ImagePullPolicy: corev1.PullAlways,
 							Env:             o.getEnvVars(component),
 							Ports: []corev1.ContainerPort{
@@ -290,19 +290,19 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 							Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),
 							VolumeMounts: []corev1.VolumeMount{
 								{
-									Name:      "redis-data",
+									Name:      volumeNameRedisData,
 									MountPath: "/bitnami/redis/data",
 								},
 								{
-									Name:      "redis-config",
+									Name:      volumeNameRedisConfig,
 									MountPath: "/opt/bitnami/redis/etc",
 								},
 								{
-									Name:      "redis-tmp",
+									Name:      volumeNameRedisTmp,
 									MountPath: "/tmp",
 								},
 								{
-									Name:      "redis-run",
+									Name:      volumeNameRedisRun,
 									MountPath: "/opt/bitnami/redis/tmp",
 								},
 							},
@@ -311,30 +311,10 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					Affinity:        utils.GetAffinityForOAuthAuxComponent(),
 					Volumes: []corev1.Volume{
-						{
-							Name: "redis-data",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: "redis-config",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: "redis-tmp",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: "redis-run",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
+						o.getEmptyDirVolume(volumeNameRedisData),
+						o.getEmptyDirVolume(volumeNameRedisConfig),
+						o.getEmptyDirVolume(volumeNameRedisTmp),
+						o.getEmptyDirVolume(volumeNameRedisRun),
 					},
 				},
 			},
@@ -344,15 +324,22 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 	return desiredDeployment, nil
 }
 
+func (o *oauthRedisResourceManager) getEmptyDirVolume(name string) corev1.Volume {
+	return corev1.Volume{
+		Name: name,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
 func (o *oauthRedisResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
-	// Radix env-vars
 	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
 		envVars = append(envVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: v})
 	}
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
-	envVars = append(envVars, o.createEnvVarWithSecretRef(redisPasswordEnvironmentVariable, secretName, defaults.OAuthRedisPasswordKeyName))
-	return envVars
+	return append(envVars, o.createEnvVarWithSecretRef(redisPasswordEnvironmentVariable, secretName, defaults.OAuthRedisPasswordKeyName))
 }
 
 func (o *oauthRedisResourceManager) createEnvVarWithSecretRef(envVarName, secretName, key string) corev1.EnvVar {
