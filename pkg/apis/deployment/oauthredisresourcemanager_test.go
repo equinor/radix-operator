@@ -284,7 +284,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisDeploymentCreat
 
 	s.Len(defaultContainer.Ports, 1)
 	s.Equal(v1.OAuthRedisPortNumber, defaultContainer.Ports[0].ContainerPort)
-	s.Equal("redis", defaultContainer.Ports[0].Name)
+	s.Equal(v1.OAuthRedisPortName, defaultContainer.Ports[0].Name)
 	s.NotNil(defaultContainer.ReadinessProbe)
 	s.Equal(v1.OAuthRedisPortNumber, defaultContainer.ReadinessProbe.TCPSocket.Port.IntVal)
 
