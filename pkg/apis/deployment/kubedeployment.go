@@ -48,7 +48,8 @@ func (deploy *Deployment) reconcileDeployComponent(ctx context.Context, deployCo
 	if err = deploy.handleJobAuxDeployment(ctx, namespace, deployComponent, desiredDeployment, actualVolumes, desiredVolumeMounts); err != nil {
 		return err
 	}
-	return deploy.kubeutil.ApplyDeployment(ctx, namespace, currentDeployment, desiredDeployment, deployComponent.GetType() == v1.RadixComponentTypeComponent)
+	isComponent := deployComponent.GetType() == v1.RadixComponentTypeComponent
+	return deploy.kubeutil.ApplyDeployment(ctx, namespace, currentDeployment, desiredDeployment, isComponent)
 }
 
 func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
