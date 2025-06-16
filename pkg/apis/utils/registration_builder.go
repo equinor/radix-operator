@@ -199,11 +199,6 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 		cloneURL = GetGithubCloneURLFromRepo(rb.repository)
 	}
 
-	appID := rb.appID
-	if appID.IsZero() {
-		appID = ulid.Make()
-	}
-
 	status := v1.RadixRegistrationStatus{}
 	if !rb.emptyStatus {
 		status = v1.RadixRegistrationStatus{
@@ -221,7 +216,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			UID:  rb.uid,
 		},
 		Spec: v1.RadixRegistrationSpec{
-			AppID:               appID,
+			AppID:               rb.appID,
 			CloneURL:            cloneURL,
 			SharedSecret:        rb.sharedSecret,
 			DeployKey:           rb.privateKey,

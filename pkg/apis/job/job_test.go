@@ -1233,6 +1233,7 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 
 	for _, scenario := range scenarios {
 		s.Run(scenario.name, func() {
+			appId := ulid.Make()
 			s.setupTest()
 			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)
@@ -1246,7 +1247,7 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				if rdJob.jobStatus == radixv1.JobSucceeded {
 					_, err := s.testUtils.ApplyDeployment(context.Background(), utils.ARadixDeployment().
-						WithRadixApplication(nil).
+						WithRadixApplication(utils.ARadixApplication().WithRadixRegistration(utils.ARadixRegistration().WithAppID(appId))).
 						WithAppName(appName).
 						WithDeploymentName(fmt.Sprintf("%s-deployment", rdJob.jobName)).
 						WithJobName(rdJob.jobName).

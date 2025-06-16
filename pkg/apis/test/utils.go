@@ -171,11 +171,19 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuil
 // ApplyDeployment Will help persist a deployment
 func (tu *Utils) ApplyDeployment(ctx context.Context, deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
 	envs := make(map[string]struct{})
+
 	applicationBuilder := deploymentBuilder.GetApplicationBuilder()
 	if !commonUtils.IsNil(applicationBuilder) {
 		ra, _ := tu.ApplyApplication(applicationBuilder)
 		for _, env := range ra.Spec.Environments {
 			envs[env.Name] = struct{}{}
+		}
+
+		registrationBuilder := applicationBuilder.GetRegistrationBuilder()
+		if !commonUtils.IsNil(registrationBuilder) {
+			if _, err := tu.ApplyRegistration(registrationBuilder); err != nil {
+				return nil, err
+			}
 		}
 	}
 
