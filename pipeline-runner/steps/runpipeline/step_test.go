@@ -113,6 +113,7 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 		},
 	}
 	s.Assert().Equal(expected, l.Items[0].Spec.TaskRunTemplate)
+	s.Assert().Equal(l.Items[0].Labels[kube.RadixAppIDLabel], rr.Spec.AppID.String(), "mismatching app ID label in PipelineRun")
 }
 
 func (s *stepTestSuite) Test_RunPipeline_ApplyEnvVars() {
