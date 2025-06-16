@@ -182,7 +182,8 @@ func Test_DoNot_SyncAppID_WhenAddedLater(t *testing.T) {
 	_, err = radixclient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	require.NoError(t, err)
 
-	applyDeploymentUpdateWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	err = applyDeploymentUpdateWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err, "failed to apply deployment update")
 
 	deployment, err := kubeClient.AppsV1().Deployments("any-app-test").Get(context.Background(), "comp1", metav1.GetOptions{})
 	require.NoError(t, err, "failed to apply deployment1")
