@@ -32,6 +32,8 @@ type Repository interface {
 	// DiffCommits returns list of changes between two commits.
 	// If beforeCommitHash is empty, all changes up till targetCommit is returned.
 	DiffCommits(beforeCommitHash, targetCommitHash string) (DiffEntries, error)
+	// CommitExists checks if a commit exists.
+	CommitExists(commitHash string) (bool, error)
 }
 
 type DiffEntry struct {
@@ -197,6 +199,16 @@ func (r *repository) DiffCommits(beforeCommitHash, targetCommitHash string) (Dif
 	}
 
 	return changedFiles, nil
+}
+
+func (r *repository) CommitExists(commitHash string) (bool, error) {
+	if _, err := r.resolveCommitFromHash(commitHash); err != nil {
+		if !errors.Is(err, ErrCommitNotFound) {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
 }
 
 func (r *repository) resolveHashForReference(reference string) (plumbing.Hash, bool, error) {
