@@ -410,7 +410,7 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 			task.ObjectMeta.Annotations = map[string]string{}
 		}
 
-		for k, v := range labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName) {
+		for k, v := range labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName, step.GetAppID()) {
 			task.ObjectMeta.Labels[k] = v
 		}
 
@@ -536,7 +536,7 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 	hash := internal.GetJobNameHash(pipelineInfo)
 	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalPipelineName), timestamp, hash)
 	pipeline.ObjectMeta.Name = pipelineName
-	pipeline.ObjectMeta.Labels = labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName)
+	pipeline.ObjectMeta.Labels = labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName, step.GetAppID())
 	pipeline.ObjectMeta.Annotations = map[string]string{
 		kube.RadixBranchAnnotation:      pipelineInfo.PipelineArguments.Branch, // nolint:staticcheck
 		kube.RadixGitRefAnnotation:      pipelineInfo.PipelineArguments.GitRef,

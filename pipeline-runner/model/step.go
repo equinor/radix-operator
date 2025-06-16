@@ -5,8 +5,9 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/oklog/ulid/v2"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
@@ -77,6 +78,11 @@ func (step *DefaultStepImplementation) Run(_ context.Context, pipelineInfo *Pipe
 // GetAppName The name of the Radix application
 func (step *DefaultStepImplementation) GetAppName() string {
 	return step.rr.Name
+}
+
+// GetAppName The name of the Radix application
+func (step *DefaultStepImplementation) GetAppID() ulid.ULID {
+	return step.rr.Spec.AppID
 }
 
 // GetRegistration The Radix registration
