@@ -20,7 +20,7 @@ type RadixRegistration struct {
 	meta_v1.TypeMeta   `json:",inline"`
 	meta_v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec               RadixRegistrationSpec   `json:"spec"`
-	Status             RadixRegistrationStatus `json:"status"`
+	Status             RadixRegistrationStatus `json:"status,omitempty"`
 }
 
 // RadixRegistrationStatus is the status for a rr
