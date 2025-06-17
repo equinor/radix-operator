@@ -6,8 +6,9 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-// This is my thing
+// ULID uses the oklog/ulid package to represent a ULID (Universally Unique Lexicographically Sortable Identifier).
 // +kubebuilder:validation:Type:=string
+// +kubebuilder:validation:Format:=ulid
 // +kubebuilder:validation:Pattern=`^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$`
 type ULID struct {
 	ulid.ULID
