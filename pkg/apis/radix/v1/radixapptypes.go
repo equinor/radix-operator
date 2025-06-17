@@ -2261,35 +2261,24 @@ func (oauth2 *OAuth2) GetServiceAccountName(componentName string) string {
 	return "default"
 }
 
-// GetSessionStoreType Returns the session store type
-func (oauth2 *OAuth2) GetSessionStoreType() SessionStoreType {
-	if oauth2 == nil {
-		return SessionStoreCookie
-	}
-	if oauth2.SessionStoreTypeIsSystemManaged() {
-		return SessionStoreRedis
-	}
-	return oauth2.SessionStoreType
-}
-
-// SessionStoreTypeIsRedis Gets if the session store type is redis - configured manually or by Radix
-func (oauth2 *OAuth2) SessionStoreTypeIsRedis() bool {
+// IsSessionStoreTypeRedis Gets if the session store type is redis - configured manually or by Radix
+func (oauth2 *OAuth2) IsSessionStoreTypeRedis() bool {
 	if oauth2 == nil {
 		return false
 	}
-	return oauth2.SessionStoreTypeIsManuallyConfiguredRedis() || oauth2.SessionStoreTypeIsSystemManaged()
+	return oauth2.IsSessionStoreTypeIsManuallyConfiguredRedis() || oauth2.IsSessionStoreTypeSystemManaged()
 }
 
-// SessionStoreTypeIsManuallyConfiguredRedis Gets if the session store type is manually configured
-func (oauth2 *OAuth2) SessionStoreTypeIsManuallyConfiguredRedis() bool {
+// IsSessionStoreTypeIsManuallyConfiguredRedis Gets if the session store type is manually configured
+func (oauth2 *OAuth2) IsSessionStoreTypeIsManuallyConfiguredRedis() bool {
 	if oauth2 == nil {
 		return false
 	}
 	return oauth2.SessionStoreType == SessionStoreRedis
 }
 
-// SessionStoreTypeIsSystemManaged Gets if the session store type is configured by Radix
-func (oauth2 *OAuth2) SessionStoreTypeIsSystemManaged() bool {
+// IsSessionStoreTypeSystemManaged Gets if the session store type is configured by Radix
+func (oauth2 *OAuth2) IsSessionStoreTypeSystemManaged() bool {
 	if oauth2 == nil {
 		return false
 	}

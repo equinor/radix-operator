@@ -486,10 +486,10 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, co
 	oauthutil.MergeAuxOAuthProxyComponentResourceLabels(secret, o.rd.Spec.AppName, component)
 
 	redisPassword, redisPasswordExists := secret.Data[defaults.OAuthRedisPasswordKeyName]
-	if redisPasswordExists && !component.GetAuthentication().GetOAuth2().SessionStoreTypeIsRedis() {
+	if redisPasswordExists && !component.GetAuthentication().GetOAuth2().IsSessionStoreTypeRedis() {
 		delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
 	}
-	if component.GetAuthentication().GetOAuth2().SessionStoreTypeIsSystemManaged() &&
+	if component.GetAuthentication().GetOAuth2().IsSessionStoreTypeSystemManaged() &&
 		(!redisPasswordExists || len(redisPassword) <= 2) {
 		redisPassword, err = o.generateRandomSecretValue()
 		if err != nil {
@@ -584,7 +584,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxySecret(appName string, compon
 		return nil, err
 	}
 	secret.Data[defaults.OAuthCookieSecretKeyName] = cookieSecret
-	if component.GetAuthentication().GetOAuth2().SessionStoreTypeIsSystemManaged() {
+	if component.GetAuthentication().GetOAuth2().IsSessionStoreTypeSystemManaged() {
 		redisPassword, err := o.generateRandomSecretValue()
 		if err != nil {
 			return nil, err
@@ -760,7 +760,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 		envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyClientSecretEnvironmentVariable, secretName, defaults.OAuthClientSecretKeyName))
 	}
 
-	if oauth.SessionStoreTypeIsRedis() {
+	if oauth.IsSessionStoreTypeRedis() {
 		envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyRedisPasswordEnvironmentVariable, secretName, defaults.OAuthRedisPasswordKeyName))
 	}
 
@@ -772,7 +772,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	addEnvVarIfSet("OAUTH2_PROXY_PROXY_PREFIX", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
 	addEnvVarIfSet("OAUTH2_PROXY_LOGIN_URL", oauth.LoginURL)
 	addEnvVarIfSet("OAUTH2_PROXY_REDEEM_URL", oauth.RedeemURL)
-	addEnvVarIfSet("OAUTH2_PROXY_SESSION_STORE_TYPE", oauth.GetSessionStoreType())
+	addEnvVarIfSet("OAUTH2_PROXY_SESSION_STORE_TYPE", getSessionStoreType(oauth))
 
 	if oidc := oauth.OIDC; oidc != nil {
 		addEnvVarIfSet("OAUTH2_PROXY_OIDC_ISSUER_URL", oidc.IssuerURL)
@@ -792,9 +792,9 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 		addEnvVarIfSet("OAUTH2_PROXY_SESSION_COOKIE_MINIMAL", cookieStore.Minimal)
 	}
 
-	if oauth.SessionStoreTypeIsSystemManaged() {
+	if oauth.IsSessionStoreTypeSystemManaged() {
 		addEnvVarIfSet(oauthProxyRedisConnectionUrlEnvironmentVariable, o.getSystemManagedRedisStoreConnectionURL(component))
-	} else if oauth.SessionStoreTypeIsRedis() {
+	} else if oauth.IsSessionStoreTypeRedis() {
 		addEnvVarIfSet(oauthProxyRedisConnectionUrlEnvironmentVariable, oauth.GetRedisStoreConnectionURL())
 	}
 
@@ -802,6 +802,16 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 		addEnvVarIfSet(oauth2ProxySkipAuthRoutesEnvironmentVariable, strings.Join(oauth.SkipAuthRoutes, ","))
 	}
 	return envVars
+}
+
+func getSessionStoreType(oauth2 *v1.OAuth2) v1.SessionStoreType {
+	if oauth2 == nil {
+		return v1.SessionStoreCookie
+	}
+	if oauth2.IsSessionStoreTypeSystemManaged() {
+		return v1.SessionStoreRedis
+	}
+	return oauth2.SessionStoreType
 }
 
 func (o *oauthProxyResourceManager) getSystemManagedRedisStoreConnectionURL(component v1.RadixCommonDeployComponent) string {

@@ -58,7 +58,7 @@ func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
 }
 
 func (o *oauthRedisResourceManager) syncComponent(ctx context.Context, component *v1.RadixDeployComponent) error {
-	if auth := component.GetAuthentication(); component.IsPublic() && auth.GetOAuth2().SessionStoreTypeIsSystemManaged() {
+	if auth := component.GetAuthentication(); component.IsPublic() && auth.GetOAuth2().IsSessionStoreTypeSystemManaged() {
 		o.logger.Debug().Msgf("Sync system managed redis for the component %s", component.GetName())
 		return o.install(ctx, component.DeepCopy())
 	}
