@@ -13,7 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -303,7 +303,7 @@ func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component v1.
 }
 
 func (o *oauthProxyResourceManager) deleteDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponentOauth(o.rd.Spec.AppName, component)).String()
 	deployments, err := o.kubeutil.ListDeploymentsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -327,7 +327,7 @@ func (o *oauthProxyResourceManager) deleteIngresses(ctx context.Context, compone
 }
 
 func (o *oauthProxyResourceManager) deleteServices(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponentOauth(o.rd.Spec.AppName, component)).String()
 	services, err := o.kubeutil.ListServicesWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -343,7 +343,7 @@ func (o *oauthProxyResourceManager) deleteServices(ctx context.Context, componen
 }
 
 func (o *oauthProxyResourceManager) deleteSecrets(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponentOauth(o.rd.Spec.AppName, component)).String()
 	secrets, err := o.kubeutil.ListSecretsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -360,7 +360,7 @@ func (o *oauthProxyResourceManager) deleteSecrets(ctx context.Context, component
 }
 
 func (o *oauthProxyResourceManager) deleteRoleBindings(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponentOauth(o.rd.Spec.AppName, component)).String()
 	roleBindings, err := o.kubeutil.ListRoleBindingsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -376,7 +376,7 @@ func (o *oauthProxyResourceManager) deleteRoleBindings(ctx context.Context, comp
 }
 
 func (o *oauthProxyResourceManager) deleteRoles(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponent(o.rd.Spec.AppName, component)).String()
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxComponentOauth(o.rd.Spec.AppName, component)).String()
 	roles, err := o.kubeutil.ListRolesWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -511,7 +511,7 @@ func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Conte
 	role := kube.CreateAppRole(
 		o.rd.Spec.AppName,
 		roleName,
-		radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
+		radixlabels.ForAuxComponentOauth(o.rd.Spec.AppName, component),
 		kube.ManageSecretsRule([]string{secretName}),
 	)
 
@@ -538,7 +538,7 @@ func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Cont
 	role := kube.CreateAppRole(
 		o.rd.Spec.AppName,
 		roleName,
-		radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
+		radixlabels.ForAuxComponentOauth(o.rd.Spec.AppName, component),
 		kube.ReadSecretsRule([]string{secretName}),
 	)
 
@@ -587,7 +587,7 @@ func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDep
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
+			Selector: radixlabels.ForAuxComponentOauth(o.rd.Spec.AppName, component),
 			Ports: []corev1.ServicePort{
 				{
 					Port:       defaults.OAuthProxyPortNumber,
@@ -619,7 +619,7 @@ func (o *oauthProxyResourceManager) createOrUpdateDeployment(ctx context.Context
 		return err
 	}
 
-	if err := o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired); err != nil {
+	if err := o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired, false); err != nil {
 		return err
 	}
 	return nil
@@ -664,12 +664,13 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointers.Ptr(replicas),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
+				MatchLabels: radixlabels.ForAuxComponentOauth(o.rd.Spec.AppName, component),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: radixlabels.Merge(
-						radixlabels.ForAuxComponent(o.rd.Spec.AppName, component),
+						radixlabels.ForAuxComponentOauth(o.rd.Spec.AppName, component),
+						radixlabels.ForApplicationID(o.rr.Spec.AppID),
 						radixlabels.ForOAuthProxyPodWithRadixIdentity(oauth2),
 					),
 				},

@@ -29,12 +29,13 @@ type setStatusOfJobTestScenarioExpected struct {
 }
 
 type setStatusOfJobTestScenario struct {
-	name       string
-	radixJob   *v1.RadixJob
-	jobs       []*batchv1.Job
-	pods       []*corev1.Pod
-	configMaps []*corev1.ConfigMap
-	expected   setStatusOfJobTestScenarioExpected
+	name              string
+	radixJob          *v1.RadixJob
+	radixRegistration *v1.RadixRegistration
+	jobs              []*batchv1.Job
+	pods              []*corev1.Pod
+	configMaps        []*corev1.ConfigMap
+	expected          setStatusOfJobTestScenarioExpected
 }
 
 type getJobStepWithContainerNameScenario struct {
@@ -242,7 +243,7 @@ func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStat
 	err := s.initScenario(scenario)
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixJob, nil)
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixRegistration, scenario.radixJob, nil)
 	err = job.setStatusOfJob(context.Background())
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
@@ -254,6 +255,13 @@ func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStat
 }
 
 func (s *RadixJobStepTestSuite) initScenario(scenario *setStatusOfJobTestScenario) error {
+	rr := utils.ARadixRegistration().WithName(scenario.radixJob.Spec.AppName).BuildRR()
+	newRa, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	scenario.radixRegistration = newRa
+
 	if scenario.radixJob != nil {
 		if _, err := s.radixClient.RadixV1().RadixJobs(scenario.radixJob.Namespace).Create(context.Background(), scenario.radixJob, metav1.CreateOptions{}); err != nil {
 			return err
@@ -345,8 +353,8 @@ func (s *RadixJobStepTestSuite) appendJobPodInitContainerStatus(pod *corev1.Pod,
 func (s *RadixJobStepTestSuite) getBuildDeployJob(jobName, appName string) utils.JobBuilder {
 	return utils.NewJobBuilder().
 		WithJobName(jobName).
-		WithAppName(appName).
 		WithPipelineType(v1.BuildDeploy).
+		WithAppName(appName).
 		WithStatus(
 			utils.NewJobStatusBuilder().
 				WithCondition(v1.JobRunning),

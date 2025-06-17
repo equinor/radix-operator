@@ -131,6 +131,7 @@ func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineIn
 			pipelineInfo.GitTags,
 			imagesToBuild,
 			secrets,
+			rr.Spec.AppID,
 		)
 }
 

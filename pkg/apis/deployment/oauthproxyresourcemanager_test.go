@@ -435,10 +435,20 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Equal(utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix), actualDeploy.Name)
 	s.ElementsMatch([]metav1.OwnerReference{getOwnerReferenceOfDeployment(rd)}, actualDeploy.OwnerReferences)
 
-	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType}
-	s.Equal(expectedLabels, actualDeploy.Labels)
+	expectedDeployLabels := map[string]string{
+		kube.RadixAppLabel:                    appName,
+		kube.RadixAuxiliaryComponentLabel:     componentName,
+		kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType,
+	}
+	expectedPodLabels := map[string]string{
+		kube.RadixAppLabel:                    appName,
+		kube.RadixAppIDLabel:                  rr.Spec.AppID.String(),
+		kube.RadixAuxiliaryComponentLabel:     componentName,
+		kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType,
+	}
+	s.Equal(expectedDeployLabels, actualDeploy.Labels)
 	s.Len(actualDeploy.Spec.Template.Spec.Containers, 1)
-	s.Equal(expectedLabels, actualDeploy.Spec.Template.Labels)
+	s.Equal(expectedPodLabels, actualDeploy.Spec.Template.Labels)
 
 	defaultContainer := actualDeploy.Spec.Template.Spec.Containers[0]
 	s.Equal(sut.oauth2ProxyDockerImage, defaultContainer.Image)

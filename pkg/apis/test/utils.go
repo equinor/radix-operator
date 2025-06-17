@@ -102,14 +102,17 @@ func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder utils.RegistrationB
 func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (*radixv1.RadixApplication, error) {
 	regBuilder := applicationBuilder.GetRegistrationBuilder()
 	var rr *radixv1.RadixRegistration
+	var err error
 
-	if regBuilder != nil {
-		rr, _ = tu.ApplyRegistration(regBuilder)
+	if !commonUtils.IsNil(regBuilder) {
+		if rr, err = tu.ApplyRegistration(regBuilder); err != nil {
+			return nil, err
+		}
 	}
 
 	ra := applicationBuilder.BuildRA()
 	appNamespace := CreateAppNamespace(tu.client, ra.GetName())
-	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.Background(), ra, metav1.CreateOptions{})
+	_, err = tu.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.Background(), ra, metav1.CreateOptions{})
 	if err != nil {
 		if kubeerrors.IsAlreadyExists(err) {
 			return tu.ApplyApplicationUpdate(applicationBuilder)
@@ -171,6 +174,7 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuil
 // ApplyDeployment Will help persist a deployment
 func (tu *Utils) ApplyDeployment(ctx context.Context, deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
 	envs := make(map[string]struct{})
+
 	applicationBuilder := deploymentBuilder.GetApplicationBuilder()
 	if !commonUtils.IsNil(applicationBuilder) {
 		ra, _ := tu.ApplyApplication(applicationBuilder)

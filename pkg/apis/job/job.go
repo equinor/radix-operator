@@ -36,6 +36,7 @@ type Job struct {
 	radixclient               radixclient.Interface
 	kubeutil                  *kube.Kube
 	radixJob                  *v1.RadixJob
+	registration              *v1.RadixRegistration
 	originalRadixJobCondition v1.RadixJobCondition
 	config                    *apiconfig.Config
 }
@@ -43,12 +44,13 @@ type Job struct {
 const jobNameLabel = "job-name"
 
 // NewJob Constructor
-func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, radixJob *v1.RadixJob, config *apiconfig.Config) *Job {
+func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *v1.RadixRegistration, radixJob *v1.RadixJob, config *apiconfig.Config) *Job {
 	originalRadixJobStatus := radixJob.Status.Condition
 	return &Job{
 		kubeclient:                kubeClient,
 		radixclient:               radixClient,
 		kubeutil:                  kubeUtil,
+		registration:              registration,
 		radixJob:                  radixJob,
 		originalRadixJobCondition: originalRadixJobStatus,
 		config:                    config,
