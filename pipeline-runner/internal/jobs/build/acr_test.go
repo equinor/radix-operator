@@ -92,6 +92,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	// Check pod template
 	expectedPodLabels := map[string]string{
 		kube.RadixJobNameLabel: args.JobName,
+		kube.RadixAppLabel:     args.AppName,
 		kube.RadixAppIDLabel:   appId,
 	}
 	assert.Equal(t, expectedPodLabels, job.Spec.Template.Labels)

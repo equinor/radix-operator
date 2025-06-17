@@ -46,8 +46,9 @@ func getCommonJobAnnotations(branch, gitRef, gitRefType string, componentImages 
 	}
 }
 
-func getCommonPodLabels(pipelineJobName string, appID radixv1.ULID) map[string]string {
+func getCommonPodLabels(pipelineJobName string, appName string, appID radixv1.ULID) map[string]string {
 	return radixlabels.Merge(
+		radixlabels.ForApplicationName(appName),
 		radixlabels.ForPipelineJobName(pipelineJobName),
 		radixlabels.ForApplicationID(appID),
 	)

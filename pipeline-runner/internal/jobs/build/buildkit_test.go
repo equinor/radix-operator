@@ -111,6 +111,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 
 			// Check pod template
 			expectedPodLabels := map[string]string{
+				kube.RadixAppLabel:     args.AppName,
 				kube.RadixJobNameLabel: args.JobName,
 				kube.RadixAppIDLabel:   appID,
 			}

@@ -414,7 +414,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		{Name: "pod-labels", VolumeSource: corev1.VolumeSource{DownwardAPI: &corev1.DownwardAPIVolumeSource{Items: []corev1.DownwardAPIVolumeFile{{Path: "labels", FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.labels"}}}}}},
 	}
 
-	expectedPodLabels := map[string]string{kube.RadixJobNameLabel: jobName, kube.RadixAppIDLabel: appID.String()}
+	expectedPodLabels := map[string]string{kube.RadixJobNameLabel: jobName, kube.RadixAppLabel: "anyapp", kube.RadixAppIDLabel: appID.String()}
 	s.Equal(expectedPodLabels, podTemplate.Labels)
 	expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
 	s.Equal(expectedPodAnnotations, podTemplate.Annotations)

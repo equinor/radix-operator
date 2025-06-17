@@ -75,7 +75,7 @@ func (c *acrKubeJobProps) JobAnnotations() map[string]string {
 }
 
 func (c *acrKubeJobProps) PodLabels() map[string]string {
-	return getCommonPodLabels(c.pipelineArgs.JobName, c.appID)
+	return getCommonPodLabels(c.pipelineArgs.JobName, c.pipelineArgs.AppName, c.appID)
 }
 
 func (c *acrKubeJobProps) PodAnnotations() map[string]string {

@@ -99,7 +99,7 @@ func (c *buildKitKubeJobProps) JobAnnotations() map[string]string {
 }
 
 func (c *buildKitKubeJobProps) PodLabels() map[string]string {
-	return getCommonPodLabels(c.pipelineArgs.JobName, c.appID)
+	return getCommonPodLabels(c.pipelineArgs.JobName, c.pipelineArgs.AppName, c.appID)
 }
 
 func (c *buildKitKubeJobProps) PodAnnotations() map[string]string {
