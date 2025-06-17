@@ -23,7 +23,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -36,14 +35,12 @@ import (
 
 type OAuthRedisResourceManagerTestSuite struct {
 	suite.Suite
-	kubeClient                kubernetes.Interface
-	radixClient               radixclient.Interface
-	kedaClient                kedav2.Interface
-	secretProviderClient      secretProviderClient.Interface
-	kubeUtil                  *kube.Kube
-	ctrl                      *gomock.Controller
-	ingressAnnotationProvider *ingress.MockAnnotationProvider
-	oauth2Config              *defaults.MockOAuth2Config
+	kubeClient           kubernetes.Interface
+	radixClient          radixclient.Interface
+	kedaClient           kedav2.Interface
+	secretProviderClient secretProviderClient.Interface
+	kubeUtil             *kube.Kube
+	ctrl                 *gomock.Controller
 }
 
 func TestOAuthRedisResourceManagerTestSuite(t *testing.T) {
@@ -74,7 +71,6 @@ func (s *OAuthRedisResourceManagerTestSuite) setupTest() {
 	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.ctrl = gomock.NewController(s.T())
-	s.oauth2Config = defaults.NewMockOAuth2Config(s.ctrl)
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) TearDownTest() {
@@ -439,24 +435,6 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_GarbageCollect() {
 	s.ElementsMatch([]string{"svc1", "svc2", "svc5", "svc6", "svc7"}, s.getObjectNames(actualServices.Items))
 }
 
-func (*OAuthRedisResourceManagerTestSuite) getEnvVarExist(name string, envvars []corev1.EnvVar) bool {
-	for _, envvar := range envvars {
-		if envvar.Name == name {
-			return true
-		}
-	}
-	return false
-}
-
-func (*OAuthRedisResourceManagerTestSuite) getEnvVarValueByName(name string, envvars []corev1.EnvVar) string {
-	for _, envvar := range envvars {
-		if envvar.Name == name {
-			return envvar.Value
-		}
-	}
-	return ""
-}
-
 func (*OAuthRedisResourceManagerTestSuite) getEnvVarValueFromByName(name string, envvars []corev1.EnvVar) corev1.EnvVarSource {
 	for _, envvar := range envvars {
 		if envvar.Name == name && envvar.ValueFrom != nil {
@@ -502,18 +480,6 @@ func (s *OAuthRedisResourceManagerTestSuite) addDeployment(name, namespace, appN
 	s.Require().NoError(err)
 }
 
-func (s *OAuthRedisResourceManagerTestSuite) addSecret(name, namespace, appName, auxComponentName, auxComponentType string) {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
-		},
-	}
-	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
-	s.Require().NoError(err)
-}
-
 func (s *OAuthRedisResourceManagerTestSuite) addService(name, namespace, appName, auxComponentName, auxComponentType string) {
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -523,44 +489,6 @@ func (s *OAuthRedisResourceManagerTestSuite) addService(name, namespace, appName
 		},
 	}
 	_, err := s.kubeClient.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
-	s.Require().NoError(err)
-}
-
-func (s *OAuthRedisResourceManagerTestSuite) addIngress(name, namespace, appName, auxComponentName, auxComponentType string) {
-	ing := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
-		},
-	}
-	_, err := s.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.Background(), ing, metav1.CreateOptions{})
-	s.Require().NoError(err)
-}
-
-func (s *OAuthRedisResourceManagerTestSuite) addRole(name, namespace, appName, auxComponentName, auxComponentType string) {
-	role := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
-		},
-	}
-	_, err := s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), role, metav1.CreateOptions{})
-
-	s.Require().NoError(err)
-}
-
-func (s *OAuthRedisResourceManagerTestSuite) addRoleBinding(name, namespace, appName, auxComponentName, auxComponentType string) {
-	roleBinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
-		},
-	}
-	_, err := s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), roleBinding, metav1.CreateOptions{})
-
 	s.Require().NoError(err)
 }
 
