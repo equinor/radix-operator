@@ -44,6 +44,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 		gitTags       = "tag1 tag2"
 		gitWorkspace  = "/some-workspace"
 		gitRefName    = "git-branch-to-clone"
+		appID         = "01F8Z5V9G1D3H4J5K6Q7R8S9T0"
 	)
 
 	args := model.PipelineArguments{
@@ -77,7 +78,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 	}
 
 	sut := build.NewBuildKit()
-	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, ulid.MustParse("01F8Z5V9G1D3H4J5K6Q7R8S9T0"))
+	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appID)})
 	require.Len(t, jobs, len(componentImages))
 
 	for _, ci := range componentImages {
@@ -111,7 +112,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			// Check pod template
 			expectedPodLabels := map[string]string{
 				kube.RadixJobNameLabel: args.JobName,
-				kube.RadixAppIDLabel:   "01F8Z5V9G1D3H4J5K6Q7R8S9T0",
+				kube.RadixAppIDLabel:   appID,
 			}
 			assert.Equal(t, expectedPodLabels, job.Spec.Template.Labels)
 			expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)

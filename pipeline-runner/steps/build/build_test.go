@@ -21,7 +21,6 @@ import (
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	"github.com/oklog/ulid/v2"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -209,7 +208,7 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 		env1Components []pipeline.BuildComponentImage = []pipeline.BuildComponentImage{{ComponentName: "env1comp1"}, {ComponentName: "env1comp2"}}
 		env2Components []pipeline.BuildComponentImage = []pipeline.BuildComponentImage{{ComponentName: "env2comp1"}, {ComponentName: "env2comp2"}}
 	)
-	rr := utils.ARadixRegistration().WithName(appName).WithAppID(ulid.Make()).WithCloneURL(cloneUrl).BuildRR()
+	rr := utils.ARadixRegistration().WithName(appName).WithCloneURL(cloneUrl).BuildRR()
 	ra := utils.ARadixApplication().WithBuildSecrets(buildSecrets...).BuildRA()
 	rj := utils.ARadixBuildDeployJob().WithJobName(jobName).WithAppName(appName).BuildRJ()
 	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})

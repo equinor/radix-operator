@@ -18,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -281,7 +280,7 @@ func getPipelineJobLabels(appName, jobName string, jobSpec radixv1.RadixJobSpec,
 	return labels
 }
 
-func getPipelineJobPodLabels(jobName string, appID ulid.ULID) map[string]string {
+func getPipelineJobPodLabels(jobName string, appID radixv1.ULID) map[string]string {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationID(appID),
 		radixlabels.ForPipelineJobName(jobName),

@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"github.com/oklog/ulid/v2"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,20 +23,20 @@ type RadixRegistrationStatus struct {
 
 // RadixRegistrationSpec is the spec for an application
 type RadixRegistrationSpec struct {
-	AppID               ulid.ULID `json:"appID" yaml:"appID"`
-	CloneURL            string    `json:"cloneURL" yaml:"cloneURL"`
-	SharedSecret        string    `json:"sharedSecret" yaml:"sharedSecret"`
-	DeployKey           string    `json:"deployKey" yaml:"deployKey"`
-	DeployKeyPublic     string    `json:"deployKeyPublic" yaml:"deployKeyPublic"`
-	AdGroups            []string  `json:"adGroups" yaml:"adGroups"`
-	AdUsers             []string  `json:"adUsers" yaml:"adUsers"`
-	ReaderAdGroups      []string  `json:"readerAdGroups" yaml:"readerAdGroups"`
-	ReaderAdUsers       []string  `json:"readerAdUsers" yaml:"readerAdUsers"`
-	Creator             string    `json:"creator" yaml:"creator"`
-	Owner               string    `json:"owner" yaml:"owner"`
-	WBS                 string    `json:"wbs" yaml:"wbs"`
-	ConfigBranch        string    `json:"configBranch" yaml:"configBranch"`
-	RadixConfigFullName string    `json:"radixConfigFullName" yaml:"radixConfigFullName"`
+	AppID               ULID     `json:"appID" yaml:"appID"`
+	CloneURL            string   `json:"cloneURL" yaml:"cloneURL"`
+	SharedSecret        string   `json:"sharedSecret" yaml:"sharedSecret"`
+	DeployKey           string   `json:"deployKey" yaml:"deployKey"`
+	DeployKeyPublic     string   `json:"deployKeyPublic" yaml:"deployKeyPublic"`
+	AdGroups            []string `json:"adGroups" yaml:"adGroups"`
+	AdUsers             []string `json:"adUsers" yaml:"adUsers"`
+	ReaderAdGroups      []string `json:"readerAdGroups" yaml:"readerAdGroups"`
+	ReaderAdUsers       []string `json:"readerAdUsers" yaml:"readerAdUsers"`
+	Creator             string   `json:"creator" yaml:"creator"`
+	Owner               string   `json:"owner" yaml:"owner"`
+	WBS                 string   `json:"wbs" yaml:"wbs"`
+	ConfigBranch        string   `json:"configBranch" yaml:"configBranch"`
+	RadixConfigFullName string   `json:"radixConfigFullName" yaml:"radixConfigFullName"`
 	// ConfigurationItem is and identifier for an entity in a configuration management solution such as a CMDB.
 	// ITIL defines a CI as any component that needs to be managed in order to deliver an IT Service
 	// Ref: https://en.wikipedia.org/wiki/Configuration_item

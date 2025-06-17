@@ -36,6 +36,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 		gitTags       = "anygittags"
 		gitWorkspace  = "/some-workspace"
 		gitRefName    = "git-branch-to-clone"
+		appId         = "000005G4X6Y7Z8A9B0C1D2E3F4"
 	)
 
 	args := model.PipelineArguments{
@@ -66,7 +67,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	buildSecrets := []string{"secret1", "secret2"}
 
 	sut := build.NewACR()
-	jobs := sut.BuildJobs(false, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, ulid.MustParse("000005G4X6Y7Z8A9B0C1D2E3F4"))
+	jobs := sut.BuildJobs(false, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appId)})
 	require.Len(t, jobs, 1)
 	job := jobs[0]
 
@@ -91,7 +92,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	// Check pod template
 	expectedPodLabels := map[string]string{
 		kube.RadixJobNameLabel: args.JobName,
-		kube.RadixAppIDLabel:   "000005G4X6Y7Z8A9B0C1D2E3F4",
+		kube.RadixAppIDLabel:   appId,
 	}
 	assert.Equal(t, expectedPodLabels, job.Spec.Template.Labels)
 	expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)

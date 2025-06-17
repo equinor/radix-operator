@@ -14,7 +14,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/batch/internal"
 	"github.com/golang/mock/gomock"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	"github.com/oklog/ulid/v2"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,7 +66,7 @@ func (s *handlerTestSuite) Test_RadixScheduleJobNotFound() {
 }
 
 func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerError() {
-	rr := utils.ARadixRegistration().WithAppID(ulid.Make()).BuildRR()
+	rr := utils.ARadixRegistration().BuildRR()
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	jobName, namespace := "any-job", "ns"
@@ -84,7 +83,7 @@ func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerError() {
 }
 
 func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerNoError() {
-	rr := utils.ARadixRegistration().WithAppID(ulid.Make()).BuildRR()
+	rr := utils.ARadixRegistration().BuildRR()
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 

@@ -5,9 +5,8 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/oklog/ulid/v2"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
@@ -15,7 +14,7 @@ import (
 
 // Step Generic interface for any Step implementation
 type Step interface {
-	Init(context.Context, kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface, tektonclient.Interface, *v1.RadixRegistration)
+	Init(context.Context, kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface, tektonclient.Interface, *radixv1.RadixRegistration)
 
 	ImplementationForType() pipeline.StepType
 	ErrorMsg(error) string
@@ -23,7 +22,7 @@ type Step interface {
 	Run(context.Context, *PipelineInfo) error
 
 	GetAppName() string
-	GetRegistration() *v1.RadixRegistration
+	GetRegistration() *radixv1.RadixRegistration
 	GetKubeClient() kubernetes.Interface
 	GetRadixClient() radixclient.Interface
 	GetTektonClient() tektonclient.Interface
@@ -39,14 +38,14 @@ type DefaultStepImplementation struct {
 	kubeUtil                 *kube.Kube
 	prometheusOperatorClient monitoring.Interface
 	tektonClient             tektonclient.Interface
-	rr                       *v1.RadixRegistration
+	rr                       *radixv1.RadixRegistration
 	ErrorMessage             string
 	SuccessMessage           string
 	Error                    error
 }
 
 // Init Initialize step
-func (step *DefaultStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *v1.RadixRegistration) {
+func (step *DefaultStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	step.rr = rr
 	step.kubeClient = kubeClient
 	step.radixClient = radixClient
@@ -81,12 +80,12 @@ func (step *DefaultStepImplementation) GetAppName() string {
 }
 
 // GetAppName The name of the Radix application
-func (step *DefaultStepImplementation) GetAppID() ulid.ULID {
+func (step *DefaultStepImplementation) GetAppID() radixv1.ULID {
 	return step.rr.Spec.AppID
 }
 
 // GetRegistration The Radix registration
-func (step *DefaultStepImplementation) GetRegistration() *v1.RadixRegistration {
+func (step *DefaultStepImplementation) GetRegistration() *radixv1.RadixRegistration {
 	return step.rr
 }
 
