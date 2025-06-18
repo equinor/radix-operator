@@ -1076,6 +1076,16 @@ spec:
                                           required:
                                           - identity
                                           type: object
+                                        checkpointStrategy:
+                                          description: CheckpointStrategy defines
+                                            the strategy to use for checkpointing.
+                                            Defaults to azureFunction
+                                          enum:
+                                          - goSdk
+                                          - blobMetadata
+                                          - azureFunction
+                                          - ""
+                                          type: string
                                         connection:
                                           description: |-
                                             Connection The name of the environment variable holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
@@ -2372,6 +2382,15 @@ spec:
                                     required:
                                     - identity
                                     type: object
+                                  checkpointStrategy:
+                                    description: CheckpointStrategy defines the strategy
+                                      to use for checkpointing. Defaults to azureFunction
+                                    enum:
+                                    - goSdk
+                                    - blobMetadata
+                                    - azureFunction
+                                    - ""
+                                    type: string
                                   connection:
                                     description: |-
                                       Connection The name of the environment variable holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.

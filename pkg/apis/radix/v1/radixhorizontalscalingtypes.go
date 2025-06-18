@@ -164,6 +164,17 @@ type RadixHorizontalScalingAzureServiceBusTrigger struct {
 	Authentication RadixHorizontalScalingAuthentication `json:"authentication"`
 }
 
+type AzureEventHubTriggerCheckpointStrategy string
+
+const (
+	// AzureEventHubTriggerCheckpointStrategyGoSdk uses the go SDK to checkpoint
+	AzureEventHubTriggerCheckpointStrategyGoSdk AzureEventHubTriggerCheckpointStrategy = "goSdk"
+	// AzureEventHubTriggerCheckpointStrategyBlobMetadata uses the blob metadata to checkpoint
+	AzureEventHubTriggerCheckpointStrategyBlobMetadata AzureEventHubTriggerCheckpointStrategy = "blobMetadata"
+	// AzureEventHubTriggerCheckpointStrategyAzureFunction uses the Azure Function checkpointing strategy.
+	AzureEventHubTriggerCheckpointStrategyAzureFunction AzureEventHubTriggerCheckpointStrategy = "azureFunction"
+)
+
 // RadixHorizontalScalingAzureEventHubTrigger defines configuration for an Azure Event Hub trigger.
 type RadixHorizontalScalingAzureEventHubTrigger struct {
 	// Namespace - the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
@@ -207,6 +218,11 @@ type RadixHorizontalScalingAzureEventHubTrigger struct {
 	// Container name to store checkpoint. This is needed when a using an Event Hub application written in dotnet or java, and not an Azure function.
 	// +optional
 	Container string `json:"container,omitempty"`
+
+	// CheckpointStrategy defines the strategy to use for checkpointing. Defaults to azureFunction
+	// +optional
+	// +kubebuilder:validation:Enum=goSdk;blobMetadata;azureFunction;""
+	CheckpointStrategy AzureEventHubTriggerCheckpointStrategy `json:"checkpointStrategy,omitempty"`
 
 	// Authentication Workload Identity configured with a ClientID when used identity based authentication
 	Authentication *RadixHorizontalScalingAuthentication `json:"authentication"`

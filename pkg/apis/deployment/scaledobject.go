@@ -19,6 +19,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type ScaleTriggerType string
+
+const (
+	ScaleTriggerTypeAzureServiceBus ScaleTriggerType = "azure-servicebus"
+	ScaleTriggerTypeAzureEventHub   ScaleTriggerType = "azure-eventhub"
+	ScaleTriggerTypeCron            ScaleTriggerType = "cron"
+	ScaleTriggerTypeCpu             ScaleTriggerType = "cpu"
+	ScaleTriggerTypeMemory          ScaleTriggerType = ScaleTriggerTypeCpu
+)
+
 func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	componentName := deployComponent.GetName()
@@ -67,8 +77,7 @@ func (deploy *Deployment) garbageCollectDeprecatedHPAs(ctx context.Context) erro
 			continue
 		}
 
-		err = deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(ctx, hpa.Name, metav1.DeleteOptions{})
-		if err != nil && errors.IsNotFound(err) {
+		if err = deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(ctx, hpa.Name, metav1.DeleteOptions{}); err != nil && errors.IsNotFound(err) {
 			return err
 		}
 	}
@@ -91,8 +100,7 @@ func (deploy *Deployment) garbageCollectScalersNoLongerInSpec(ctx context.Contex
 		}
 
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
-			err = deploy.kubeutil.DeleteScaledObject(ctx, scaler)
-			if err != nil {
+			if err = deploy.kubeutil.DeleteScaledObject(ctx, scaler); err != nil {
 				return err
 			}
 		}
@@ -123,8 +131,7 @@ func (deploy *Deployment) garbageCollectTriggerAuthsNoLongerInSpec(ctx context.C
 			})
 
 			if !found {
-				err = deploy.kubeutil.DeleteTriggerAuthentication(ctx, currentAuth)
-				if err != nil {
+				if err = deploy.kubeutil.DeleteTriggerAuthentication(ctx, currentAuth); err != nil {
 					return err
 				}
 			}
@@ -181,7 +188,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 		case trigger.Cpu != nil:
 			triggers = append(triggers, kedav1.ScaleTriggers{
 				Name:       trigger.Name,
-				Type:       "cpu",
+				Type:       string(ScaleTriggerTypeCpu),
 				MetricType: autoscalingv2.UtilizationMetricType,
 				Metadata: map[string]string{
 					"value": strconv.Itoa(trigger.Cpu.Value),
@@ -190,7 +197,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 		case trigger.Memory != nil:
 			triggers = append(triggers, kedav1.ScaleTriggers{
 				Name:       trigger.Name,
-				Type:       "memory",
+				Type:       string(ScaleTriggerTypeMemory),
 				MetricType: autoscalingv2.UtilizationMetricType,
 				Metadata: map[string]string{
 					"value": strconv.Itoa(trigger.Memory.Value),
@@ -199,7 +206,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 		case trigger.Cron != nil:
 			triggers = append(triggers, kedav1.ScaleTriggers{
 				Name: trigger.Name,
-				Type: "cron",
+				Type: string(ScaleTriggerTypeCron),
 				Metadata: map[string]string{
 					"start":           trigger.Cron.Start,
 					"end":             trigger.Cron.End,
@@ -231,7 +238,45 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 
 			triggers = append(triggers, kedav1.ScaleTriggers{
 				Name:     trigger.Name,
-				Type:     "azure-servicebus",
+				Type:     string(ScaleTriggerTypeAzureServiceBus),
+				Metadata: metadata,
+				AuthenticationRef: &kedav1.AuthenticationRef{
+					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
+					Kind: "TriggerAuthentication",
+				},
+			})
+		case trigger.AzureEventHub != nil:
+			metadata := map[string]string{}
+
+			if trigger.AzureEventHub.Namespace != "" {
+				metadata["eventHubNamespace"] = trigger.AzureEventHub.Namespace
+			}
+			if trigger.AzureEventHub.Name != "" {
+				metadata["eventHubName"] = trigger.AzureEventHub.Name
+			}
+			if trigger.AzureEventHub.ConsumerGroup != "" {
+				metadata["consumerGroup"] = trigger.AzureEventHub.ConsumerGroup
+			}
+			if trigger.AzureEventHub.Connection != "" {
+				metadata["connectionFromEnv"] = trigger.AzureEventHub.Connection
+			}
+			if trigger.AzureEventHub.StorageConnection != "" {
+				metadata["storageConnectionFromEnv"] = trigger.AzureEventHub.StorageConnection
+			}
+			if trigger.AzureEventHub.StorageAccount != "" {
+				metadata["storageAccountName"] = trigger.AzureEventHub.StorageAccount
+			}
+			if trigger.AzureEventHub.Container != "" {
+				metadata["blobContainer"] = trigger.AzureEventHub.Container
+			}
+			if messageCount := trigger.AzureEventHub.MessageCount; messageCount != nil {
+				metadata["unprocessedEventThreshold"] = strconv.Itoa(*messageCount)
+			}
+			metadata["checkpointStrategy"] = string(trigger.AzureEventHub.CheckpointStrategy)
+
+			triggers = append(triggers, kedav1.ScaleTriggers{
+				Name:     trigger.Name,
+				Type:     string(ScaleTriggerTypeAzureEventHub),
 				Metadata: metadata,
 				AuthenticationRef: &kedav1.AuthenticationRef{
 					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
@@ -254,29 +299,37 @@ func (deploy *Deployment) getTriggerAuths(componentName string, config *radixv1.
 	for _, trigger := range config.Triggers {
 		switch {
 		case trigger.AzureServiceBus != nil:
-			auths = append(auths, kedav1.TriggerAuthentication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
-					Labels: map[string]string{
-						kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName,
-						kube.RadixComponentLabel: componentName,
-						kube.RadixTriggerLabel:   trigger.Name,
-					},
-					OwnerReferences: []metav1.OwnerReference{
-						getOwnerReferenceOfDeployment(deploy.radixDeployment),
-					},
-				},
-				Spec: kedav1.TriggerAuthenticationSpec{
-					PodIdentity: &kedav1.AuthPodIdentity{
-						Provider:   "azure-workload",
-						IdentityID: &trigger.AzureServiceBus.Authentication.Identity.Azure.ClientId,
-					},
-				},
-			})
+			auths = append(auths, deploy.getTriggerAuthentication(componentName, trigger.Name, trigger.AzureServiceBus.Authentication))
+		case trigger.AzureEventHub != nil:
+			if auth := trigger.AzureEventHub.Authentication; auth != nil {
+				auths = append(auths, deploy.getTriggerAuthentication(componentName, trigger.Name, *auth))
+			}
 		}
 	}
 
 	return auths
+}
+
+func (deploy *Deployment) getTriggerAuthentication(componentName, triggerName string, authentication radixv1.RadixHorizontalScalingAuthentication) kedav1.TriggerAuthentication {
+	return kedav1.TriggerAuthentication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: utils.GetTriggerAuthenticationName(componentName, triggerName),
+			Labels: map[string]string{
+				kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName,
+				kube.RadixComponentLabel: componentName,
+				kube.RadixTriggerLabel:   triggerName,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				getOwnerReferenceOfDeployment(deploy.radixDeployment),
+			},
+		},
+		Spec: kedav1.TriggerAuthenticationSpec{
+			PodIdentity: &kedav1.AuthPodIdentity{
+				Provider:   "azure-workload",
+				IdentityID: &authentication.Identity.Azure.ClientId,
+			},
+		},
+	}
 }
 
 func (deploy *Deployment) deleteScaledObjectIfExists(ctx context.Context, componentName string) error {
@@ -287,11 +340,9 @@ func (deploy *Deployment) deleteScaledObjectIfExists(ctx context.Context, compon
 		return fmt.Errorf("failed to list ScaledObject: %w", err)
 	}
 
-	err = deploy.kubeutil.DeleteScaledObject(ctx, scalers...)
-	if err != nil && errors.IsNotFound(err) {
+	if err = deploy.kubeutil.DeleteScaledObject(ctx, scalers...); err != nil && errors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete existing ScaledObject: %w", err)
 	}
-
 	return nil
 }
 
@@ -303,8 +354,7 @@ func (deploy *Deployment) deleteTargetAuthenticationIfExists(ctx context.Context
 		return fmt.Errorf("failed to list TargetAuthentication: %w", err)
 	}
 
-	err = deploy.kubeutil.DeleteTriggerAuthentication(ctx, auths...)
-	if err != nil && errors.IsNotFound(err) {
+	if err = deploy.kubeutil.DeleteTriggerAuthentication(ctx, auths...); err != nil && errors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete existing TargetAuthentication: %w", err)
 	}
 
