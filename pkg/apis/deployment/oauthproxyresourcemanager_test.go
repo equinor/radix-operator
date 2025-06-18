@@ -235,7 +235,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 				_, err := sut.kubeutil.KubeClient().CoreV1().ServiceAccounts(scenario.existingSa.Namespace).Create(context.Background(), scenario.existingSa, metav1.CreateOptions{})
 				s.NoError(err, "Failed to create service account")
 			}
-			auxOAuthSecret, err := buildOAuthProxySecret(appName, &scenario.rd.Spec.Components[0])
+			auxOAuthSecret, err := sut.buildOAuthProxySecret(appName, &scenario.rd.Spec.Components[0])
 			auxOAuthSecret.SetNamespace(scenario.rd.Namespace)
 			s.NoError(err, "Failed to build secret")
 			auxOAuthSecret.Data[defaults.OAuthClientSecretKeyName] = []byte("some-client-secret")
@@ -501,14 +501,29 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthClientSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyClientSecretEnvironmentVariable, defaultContainer.Env))
 	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthRedisPasswordKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyRedisPasswordEnvironmentVariable, defaultContainer.Env))
 
-	// Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie
+	// Env var OAUTH2_PROXY_REDIS_PASSWORD and OAUTH2_PROXY_REDIS_CONNECTION_URL should not be present when SessionStoreType is cookie
 	returnOAuth.SessionStoreType = "cookie"
 	s.oauth2Config.EXPECT().MergeWith(inputOAuth).Times(1).Return(returnOAuth, nil)
 	err = sut.Sync(context.Background())
 	s.Nil(err)
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 30)
-	s.False(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env))
+	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 29, "Unexpected amount of env-vars")
+	s.False(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie")
+	s.False(s.getEnvVarExist("OAUTH2_PROXY_REDIS_CONNECTION_URL", actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_CONNECTION_URL should not be present when SessionStoreType is cookie")
+
+	// Env var OAUTH2_PROXY_REDIS_PASSWORD and OAUTH2_PROXY_REDIS_CONNECTION_URL should be present again when SessionStoreType is systemManaged redis
+	returnOAuth.SessionStoreType = v1.SessionStoreSystemManaged
+	s.oauth2Config.EXPECT().MergeWith(inputOAuth).Times(1).Return(returnOAuth, nil)
+	err = sut.Sync(context.Background())
+	s.Nil(err)
+	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 31, "Unexpected amount of env-vars")
+	s.True(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie")
+	redisConnectUrlEnvVar, redisConnectUrlExists := slice.FindFirst(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, func(ev corev1.EnvVar) bool {
+		return ev.Name == "OAUTH2_PROXY_REDIS_CONNECTION_URL"
+	})
+	s.True(redisConnectUrlExists, "Env var OAUTH2_PROXY_REDIS_CONNECTION_URL should be present when SessionStoreType is systemManaged")
+	s.Equal("redis://server-aux-oauth-redis:6379", redisConnectUrlEnvVar.Value, "Invalid env var OAUTH2_PROXY_REDIS_CONNECTION_URL")
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCreated() {
@@ -669,7 +684,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyServiceCreated(
 	s.Nil(err)
 
 	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType}
-	expectedServiceName := utils.GetAuxiliaryComponentServiceName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
+	expectedServiceName := utils.GetAuxOAuthProxyComponentServiceName(componentName)
 	actualServices, _ := s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualServices.Items, 1)
 	s.Equal(expectedServiceName, actualServices.Items[0].Name)
@@ -814,7 +829,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 					PathType: &pathType,
 					Backend: networkingv1.IngressBackend{
 						Service: &networkingv1.IngressServiceBackend{
-							Name: utils.GetAuxiliaryComponentServiceName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix),
+							Name: utils.GetAuxOAuthProxyComponentServiceName(componentName),
 							Port: networkingv1.ServiceBackendPort{Number: defaults.OAuthProxyPortNumber},
 						},
 					},
@@ -956,7 +971,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 	s.Equal(utils.GetAuxiliaryComponentDeploymentName(component1Name, v1.OAuthProxyAuxiliaryComponentSuffix), actualDeploys.Items[0].Name)
 	actualServices, _ = s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualServices.Items, 1)
-	s.Equal(utils.GetAuxiliaryComponentServiceName(component1Name, v1.OAuthProxyAuxiliaryComponentSuffix), actualServices.Items[0].Name)
+	s.Equal(utils.GetAuxOAuthProxyComponentServiceName(component1Name), actualServices.Items[0].Name)
 	actualSecrets, _ = s.kubeClient.CoreV1().Secrets(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualSecrets.Items, 1)
 	s.Equal(utils.GetAuxiliaryComponentSecretName(component1Name, v1.OAuthProxyAuxiliaryComponentSuffix), actualSecrets.Items[0].Name)
