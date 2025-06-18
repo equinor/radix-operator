@@ -992,6 +992,86 @@
                             "maxProperties": 2,
                             "minProperties": 2,
                             "properties": {
+                              "azureEventHub": {
+                                "description": "AzureEventHub defines a trigger that scales based on number of unprocessed events in event hub",
+                                "properties": {
+                                  "authentication": {
+                                    "description": "Authentication Workload Identity configured with a ClientID when used identity based authentication",
+                                    "properties": {
+                                      "identity": {
+                                        "description": "RadixHorizontalScalingRequiredIdentity configuration for federation with required azure identity providers.",
+                                        "properties": {
+                                          "azure": {
+                                            "description": "Azure identity configuration",
+                                            "properties": {
+                                              "clientId": {
+                                                "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                                "type": "string"
+                                              }
+                                            },
+                                            "required": [
+                                              "clientId"
+                                            ],
+                                            "type": "object"
+                                          }
+                                        },
+                                        "required": [
+                                          "azure"
+                                        ],
+                                        "type": "object"
+                                      }
+                                    },
+                                    "required": [
+                                      "identity"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "connection": {
+                                    "description": "Connection The name of the environment variable holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.\nString should be in following format:\nExample:\nEndpoint=sb://eventhub-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secretKey123;EntityPath=eventhub-name",
+                                    "type": "string"
+                                  },
+                                  "consumerGroup": {
+                                    "description": "ConsumerGroup is the name of the consumer group to use when consuming events from the Event Hub. Defaults to $Default",
+                                    "type": "string"
+                                  },
+                                  "container": {
+                                    "description": "Container is the name of the Blob Storage container used for checkpointing.\nContainer name to store checkpoint. This is needed when a using an Event Hub application written in dotnet or java, and not an Azure function.",
+                                    "type": "string"
+                                  },
+                                  "messageCount": {
+                                    "description": "MessageCount is the threshold for unprocessed events. If the number of unprocessed events exceeds this threshold, the scaler will scale up. Default: 64 events.",
+                                    "minimum": 1,
+                                    "type": "integer"
+                                  },
+                                  "name": {
+                                    "description": "Name Name of the Azure Event Hub",
+                                    "maxLength": 260,
+                                    "minLength": 1,
+                                    "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
+                                    "type": "string"
+                                  },
+                                  "namespace": {
+                                    "description": "Namespace - the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname",
+                                    "maxLength": 50,
+                                    "minLength": 1,
+                                    "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
+                                    "type": "string"
+                                  },
+                                  "storageAccountName": {
+                                    "description": "StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.",
+                                    "type": "string"
+                                  },
+                                  "storageConnection": {
+                                    "description": "StorageConnection The name of the environment variable holding the connection string for storage account used to store checkpoint. As of now the Event Hub scaler only reads from Azure Blob Storage.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "authentication",
+                                  "namespace"
+                                ],
+                                "type": "object"
+                              },
                               "azureServiceBus": {
                                 "description": "AzureServiceBus defines a trigger that scales based on number of messages in queue",
                                 "properties": {
@@ -2203,6 +2283,86 @@
                       "maxProperties": 2,
                       "minProperties": 2,
                       "properties": {
+                        "azureEventHub": {
+                          "description": "AzureEventHub defines a trigger that scales based on number of unprocessed events in event hub",
+                          "properties": {
+                            "authentication": {
+                              "description": "Authentication Workload Identity configured with a ClientID when used identity based authentication",
+                              "properties": {
+                                "identity": {
+                                  "description": "RadixHorizontalScalingRequiredIdentity configuration for federation with required azure identity providers.",
+                                  "properties": {
+                                    "azure": {
+                                      "description": "Azure identity configuration",
+                                      "properties": {
+                                        "clientId": {
+                                          "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "clientId"
+                                      ],
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "azure"
+                                  ],
+                                  "type": "object"
+                                }
+                              },
+                              "required": [
+                                "identity"
+                              ],
+                              "type": "object"
+                            },
+                            "connection": {
+                              "description": "Connection The name of the environment variable holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.\nString should be in following format:\nExample:\nEndpoint=sb://eventhub-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secretKey123;EntityPath=eventhub-name",
+                              "type": "string"
+                            },
+                            "consumerGroup": {
+                              "description": "ConsumerGroup is the name of the consumer group to use when consuming events from the Event Hub. Defaults to $Default",
+                              "type": "string"
+                            },
+                            "container": {
+                              "description": "Container is the name of the Blob Storage container used for checkpointing.\nContainer name to store checkpoint. This is needed when a using an Event Hub application written in dotnet or java, and not an Azure function.",
+                              "type": "string"
+                            },
+                            "messageCount": {
+                              "description": "MessageCount is the threshold for unprocessed events. If the number of unprocessed events exceeds this threshold, the scaler will scale up. Default: 64 events.",
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "name": {
+                              "description": "Name Name of the Azure Event Hub",
+                              "maxLength": 260,
+                              "minLength": 1,
+                              "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
+                              "type": "string"
+                            },
+                            "namespace": {
+                              "description": "Namespace - the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname",
+                              "maxLength": 50,
+                              "minLength": 1,
+                              "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
+                              "type": "string"
+                            },
+                            "storageAccountName": {
+                              "description": "StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.",
+                              "type": "string"
+                            },
+                            "storageConnection": {
+                              "description": "StorageConnection The name of the environment variable holding the connection string for storage account used to store checkpoint. As of now the Event Hub scaler only reads from Azure Blob Storage.",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "authentication",
+                            "namespace"
+                          ],
+                          "type": "object"
+                        },
                         "azureServiceBus": {
                           "description": "AzureServiceBus defines a trigger that scales based on number of messages in queue",
                           "properties": {

@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	// DefaultTargetCPUUtilizationPercentage is the default target CPU utilization percentage for horizontal scaling.
 	DefaultTargetCPUUtilizationPercentage = 80
 )
 
@@ -42,12 +43,14 @@ type RadixHorizontalScaling struct {
 	Triggers []RadixHorizontalScalingTrigger `json:"triggers,omitempty"`
 }
 
+// RadixHorizontalScalingResource defines the resource usage which triggers scaling for the horizontal pod autoscaler.
 type RadixHorizontalScalingResource struct {
 	// Defines the resource usage which triggers scaling for the horizontal pod autoscaler.
 	// +kubebuilder:validation:Minimum=1
 	AverageUtilization *int32 `json:"averageUtilization"`
 }
 
+// RadixHorizontalScalingResources defines the resource usage parameters for the horizontal pod autoscaler.
 type RadixHorizontalScalingResources struct {
 	// Defines the CPU usage parameters for the horizontal pod autoscaler.
 	// +optional
@@ -80,19 +83,26 @@ type RadixHorizontalScalingTrigger struct {
 
 	// AzureServiceBus defines a trigger that scales based on number of messages in queue
 	AzureServiceBus *RadixHorizontalScalingAzureServiceBusTrigger `json:"azureServiceBus,omitempty"`
+
+	// AzureEventHub defines a trigger that scales based on number of unprocessed events in event hub
+	AzureEventHub *RadixHorizontalScalingAzureEventHubTrigger `json:"azureEventHub,omitempty"`
 }
 
+// RadixHorizontalScalingCPUTrigger defines configuration for a CPU trigger.
 type RadixHorizontalScalingCPUTrigger struct {
 	// Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
 	// +kubebuilder:validation:Minimum=15
 	Value int `json:"value"`
 }
 
+// RadixHorizontalScalingMemoryTrigger defines a trigger based on memory usage.
 type RadixHorizontalScalingMemoryTrigger struct {
 	// Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.
 	// +kubebuilder:validation:Minimum=15
 	Value int `json:"value"`
 }
+
+// RadixHorizontalScalingCronTrigger defines configuration for a cron trigger.
 type RadixHorizontalScalingCronTrigger struct {
 	// Start is a Cron expression indicating the start of the cron schedule.
 	// +kubebuilder:validation:Pattern=`^((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5})$`
@@ -110,6 +120,7 @@ type RadixHorizontalScalingCronTrigger struct {
 	DesiredReplicas int `json:"desiredReplicas"`
 }
 
+// RadixHorizontalScalingAzureServiceBusTrigger defines configuration for an Azure Service Bus trigger.
 type RadixHorizontalScalingAzureServiceBusTrigger struct {
 	// Namespace - Name of the Azure Service Bus namespace that contains your queue or topic. Required when using workload identity
 	// +kubebuilder:validation:MinLength=6
@@ -152,6 +163,56 @@ type RadixHorizontalScalingAzureServiceBusTrigger struct {
 	// Azure Service Bus requires Workload Identity configured with a ClientID
 	Authentication RadixHorizontalScalingAuthentication `json:"authentication"`
 }
+
+// RadixHorizontalScalingAzureEventHubTrigger defines configuration for an Azure Event Hub trigger.
+type RadixHorizontalScalingAzureEventHubTrigger struct {
+	// Namespace - the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=50
+	// +kubebuilder:validation:Pattern=^(([a-z][-a-z0-9]*)?[a-z0-9])?$
+	Namespace string `json:"namespace"`
+
+	// Name Name of the Azure Event Hub
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=260
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
+	Name string `json:"name,omitempty"`
+
+	// ConsumerGroup is the name of the consumer group to use when consuming events from the Event Hub. Defaults to $Default
+	// +optional
+	ConsumerGroup string `json:"consumerGroup,omitempty"`
+
+	// MessageCount is the threshold for unprocessed events. If the number of unprocessed events exceeds this threshold, the scaler will scale up. Default: 64 events.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	MessageCount *int `json:"messageCount,omitempty"`
+
+	// Connection The name of the environment variable holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
+	// String should be in following format:
+	// +optional
+	// Example:
+	// Endpoint=sb://eventhub-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secretKey123;EntityPath=eventhub-name
+	Connection string `json:"connection,omitempty"`
+
+	// StorageConnection The name of the environment variable holding the connection string for storage account used to store checkpoint. As of now the Event Hub scaler only reads from Azure Blob Storage.
+	// +optional
+	StorageConnection string `json:"storageConnection,omitempty"`
+
+	// StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.
+	// +optional
+	StorageAccount string `json:"storageAccountName,omitempty"`
+
+	// Container is the name of the Blob Storage container used for checkpointing.
+	// Container name to store checkpoint. This is needed when a using an Event Hub application written in dotnet or java, and not an Azure function.
+	// +optional
+	Container string `json:"container,omitempty"`
+
+	// Authentication Workload Identity configured with a ClientID when used identity based authentication
+	Authentication *RadixHorizontalScalingAuthentication `json:"authentication"`
+}
+
+// RadixHorizontalScalingAuthentication defines the authentication configuration for horizontal scaling.
 type RadixHorizontalScalingAuthentication struct {
 	Identity RadixHorizontalScalingRequiredIdentity `json:"identity"`
 }
