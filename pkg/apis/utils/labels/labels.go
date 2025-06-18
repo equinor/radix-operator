@@ -254,8 +254,8 @@ func ForAccessValidation() kubelabels.Set {
 	}
 }
 
-// ForAuxComponentOauth returns labels for application component aux OAuth proxy
-func ForAuxComponentOauth(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
+// ForAuxOAuthProxyComponent returns labels for application component aux OAuth proxy
+func ForAuxOAuthProxyComponent(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
@@ -264,11 +264,11 @@ func ForAuxComponentOauth(appName string, component radixv1.RadixCommonDeployCom
 }
 
 // ForAuxOAuthRedisComponent returns labels for application component aux Redis
-func ForAuxOAuthRedisComponent(appName string, component v1.RadixCommonDeployComponent) map[string]string {
+func ForAuxOAuthRedisComponent(appName string, component radixv1.RadixCommonDeployComponent) map[string]string {
 	return map[string]string{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
-		kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthRedisAuxiliaryComponentType,
+		kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthRedisAuxiliaryComponentType,
 	}
 }
 
