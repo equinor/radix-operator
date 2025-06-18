@@ -7,46 +7,54 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="CloneURL",type="string",JSONPath=".spec.cloneURL"
+// +kubebuilder:printcolumn:name="ConfigBranch",type="string",JSONPath=".spec.configBranch"
+// +kubebuilder:printcolumn:name="RadixConfig",type="string",JSONPath=".spec.radixConfigFullName"
+// +kubebuilder:printcolumn:name="Reconciled",type="date",JSONPath=".status.reconciled"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:resource:path=radixregistrations,scope=Cluster,shortName=rr
+// +kubebuilder:subresource:status
 
 // RadixRegistration describe an application
 type RadixRegistration struct {
-	meta_v1.TypeMeta   `json:",inline" yaml:",inline"`
-	meta_v1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Spec               RadixRegistrationSpec   `json:"spec" yaml:"spec"`
-	Status             RadixRegistrationStatus `json:"status" yaml:"status"`
+	meta_v1.TypeMeta   `json:",inline"`
+	meta_v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec               RadixRegistrationSpec   `json:"spec"`
+	Status             RadixRegistrationStatus `json:"status,omitempty"`
 }
 
 // RadixRegistrationStatus is the status for a rr
 type RadixRegistrationStatus struct {
-	Reconciled meta_v1.Time `json:"reconciled" yaml:"reconciled"`
+	Reconciled meta_v1.Time `json:"reconciled"`
 }
 
 // RadixRegistrationSpec is the spec for an application
 type RadixRegistrationSpec struct {
-	CloneURL            string   `json:"cloneURL" yaml:"cloneURL"`
-	SharedSecret        string   `json:"sharedSecret" yaml:"sharedSecret"`
-	DeployKey           string   `json:"deployKey" yaml:"deployKey"`
-	DeployKeyPublic     string   `json:"deployKeyPublic" yaml:"deployKeyPublic"`
-	AdGroups            []string `json:"adGroups" yaml:"adGroups"`
-	AdUsers             []string `json:"adUsers" yaml:"adUsers"`
-	ReaderAdGroups      []string `json:"readerAdGroups" yaml:"readerAdGroups"`
-	ReaderAdUsers       []string `json:"readerAdUsers" yaml:"readerAdUsers"`
-	Creator             string   `json:"creator" yaml:"creator"`
-	Owner               string   `json:"owner" yaml:"owner"`
-	WBS                 string   `json:"wbs" yaml:"wbs"`
-	ConfigBranch        string   `json:"configBranch" yaml:"configBranch"`
-	RadixConfigFullName string   `json:"radixConfigFullName" yaml:"radixConfigFullName"`
+	AppID               ULID     `json:"appID,omitempty"`
+	CloneURL            string   `json:"cloneURL"`
+	SharedSecret        string   `json:"sharedSecret,omitempty"`
+	DeployKey           string   `json:"deployKey,omitempty"`
+	DeployKeyPublic     string   `json:"deployKeyPublic,omitempty"`
+	AdGroups            []string `json:"adGroups,omitempty"`
+	AdUsers             []string `json:"adUsers,omitempty"`
+	ReaderAdGroups      []string `json:"readerAdGroups,omitempty"`
+	ReaderAdUsers       []string `json:"readerAdUsers,omitempty"`
+	Creator             string   `json:"creator,omitempty"`
+	Owner               string   `json:"owner,omitempty"`
+	WBS                 string   `json:"wbs,omitempty"`
+	ConfigBranch        string   `json:"configBranch"`
+	RadixConfigFullName string   `json:"radixConfigFullName,omitempty"`
 	// ConfigurationItem is and identifier for an entity in a configuration management solution such as a CMDB.
 	// ITIL defines a CI as any component that needs to be managed in order to deliver an IT Service
 	// Ref: https://en.wikipedia.org/wiki/Configuration_item
-	ConfigurationItem string `json:"configurationItem" yaml:"configurationItem"`
+	ConfigurationItem string `json:"configurationItem,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixRegistrationList is a list of Radix applications
 type RadixRegistrationList struct {
-	meta_v1.TypeMeta `json:",inline" yaml:",inline"`
-	meta_v1.ListMeta `json:"metadata" yaml:"metadata"`
-	Items            []RadixRegistration `json:"items" yaml:"items"`
+	meta_v1.TypeMeta `json:",inline"`
+	meta_v1.ListMeta `json:"metadata"`
+	Items            []RadixRegistration `json:"items"`
 }

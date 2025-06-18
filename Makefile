@@ -140,7 +140,11 @@ code-gen: bootstrap
 	./hack/update-codegen.sh
 
 .PHONY: crds
-crds: temp-crds radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd delete-temp-crds
+crds: temp-crds radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd delete-temp-crds
+
+.PHONY: radixregistration-crd
+radixregistration-crd: temp-crds
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixregistrations.yaml $(CRD_CHART_DIR)radixregistration.yaml
 
 .PHONY: radixapplication-crd
 radixapplication-crd: temp-crds

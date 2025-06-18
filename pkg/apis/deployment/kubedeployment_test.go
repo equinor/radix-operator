@@ -11,6 +11,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -122,6 +123,72 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 	assert.Equal(t, int32(5), deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid default readiness probe initial delay")
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.TCPSocket, "default readiness probe should be tcp")
 	assert.Equal(t, int32(8000), deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.TCPSocket.Port.IntVal, "invalid default readiness probe port")
+}
+
+func Test_Sync_AppID_OnNewDeployment(t *testing.T) {
+	appId := ulid.Make()
+	tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	_, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
+		utils.ARadixDeployment().
+			WithRadixApplication(utils.ARadixApplication().WithRadixRegistration(utils.ARadixRegistration().WithAppID(appId.String()))).
+			WithComponents(utils.NewDeployComponentBuilder().
+				WithName("comp1")).
+			WithAppName("any-app").
+			WithEnvironment("test").
+			WithDeploymentName("deployment1"))
+	require.NoError(t, err, "failed to apply deployment1")
+	deployment, err := kubeClient.AppsV1().Deployments("any-app-test").Get(context.Background(), "comp1", metav1.GetOptions{})
+	require.NoError(t, err, "failed to apply deployment1")
+
+	assert.Equal(t, deployment.Spec.Template.Labels["radix-app-id"], appId.String(), "radix-id label should be set")
+}
+
+func Test_DoNot_SyncAppID_WhenMissing(t *testing.T) {
+	tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	_, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
+		utils.ARadixDeployment().
+			WithRadixApplication(utils.ARadixApplication().WithRadixRegistration(utils.ARadixRegistration().WithAppID(ulid.Zero.String()))).
+			WithComponents(utils.NewDeployComponentBuilder().
+				WithName("comp1")).
+			WithAppName("any-app").
+			WithEnvironment("test").
+			WithDeploymentName("deployment1"))
+	require.NoError(t, err, "failed to apply deployment1")
+	deployment, err := kubeClient.AppsV1().Deployments("any-app-test").Get(context.Background(), "comp1", metav1.GetOptions{})
+	require.NoError(t, err, "failed to apply deployment1")
+
+	assert.NotContains(t, deployment.Spec.Template.Labels, "radix-app-id", "radix-id label should be set")
+}
+
+func Test_DoNot_SyncAppID_WhenAddedLater(t *testing.T) {
+	tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+
+	rrBuilder := utils.ARadixRegistration().WithAppID(ulid.Zero.String()).WithName("any-app")
+	rdBuilder := utils.ARadixDeployment().
+		WithAppName("any-app").
+		WithRadixApplication(utils.ARadixApplication().WithRadixRegistration(rrBuilder)).
+		WithComponents(utils.NewDeployComponentBuilder().
+			WithName("comp1")).
+		WithEnvironment("test").
+		WithDeploymentName("deployment1")
+
+	rd, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err, "failed to apply deployment1")
+
+	rr, err := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{})
+	require.NoError(t, err)
+
+	rr.Spec.AppID = v1.ULID{ULID: ulid.Make()} // Set a new app ID
+	_, err = radixclient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	err = applyDeploymentUpdateWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err, "failed to apply deployment update")
+
+	deployment, err := kubeClient.AppsV1().Deployments("any-app-test").Get(context.Background(), "comp1", metav1.GetOptions{})
+	require.NoError(t, err, "failed to apply deployment1")
+
+	assert.NotContains(t, deployment.Spec.Template.Labels, "radix-app-id", "radix-id label should be set")
 }
 
 func Test_UpdateResourcesInDeployment(t *testing.T) {
@@ -367,14 +434,18 @@ func Test_CommandAndArgs(t *testing.T) {
 
 func applyDeploymentWithSyncWithComponentResources(t *testing.T, origRequests, origLimits map[string]string) Deployment {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+
+	rr := utils.ARadixRegistration()
+	ra := utils.ARadixApplication().WithRadixRegistration(rr)
+
 	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
+		utils.ARadixDeployment().WithRadixApplication(ra).
 			WithComponents(utils.NewDeployComponentBuilder().
 				WithName("comp1").
 				WithResource(origRequests, origLimits)).
 			WithAppName("any-app").
 			WithEnvironment("test"))
-	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd}
+	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR()}
 }
 
 func TestDeployment_createJobAuxDeployment(t *testing.T) {

@@ -635,7 +635,7 @@ func (o *oauthProxyResourceManager) createOrUpdateDeployment(ctx context.Context
 		return err
 	}
 
-	if err := o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired); err != nil {
+	if err := o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired, false); err != nil {
 		return err
 	}
 	return nil
@@ -686,6 +686,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: radixlabels.Merge(
 						radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component),
+						radixlabels.ForApplicationID(o.rr.Spec.AppID),
 						radixlabels.ForOAuthProxyPodWithRadixIdentity(oauth2),
 					),
 				},

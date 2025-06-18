@@ -49,6 +49,7 @@ const (
 const (
 	K8sAppLabel                         = "k8s-app"
 	RadixAppLabel                       = "radix-app"
+	RadixAppIDLabel                     = "radix-app-id"
 	RadixEnvLabel                       = "radix-env"
 	RadixComponentLabel                 = "radix-component"
 	RadixDeploymentLabel                = "radix-deployment"

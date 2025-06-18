@@ -98,7 +98,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      radixlabels.ForPipelineJobName(jobName),
+					Labels:      getPipelineJobPodLabels(jobName, appName, job.registration.Spec.AppID),
 					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
 				},
 				Spec: corev1.PodSpec{
@@ -278,6 +278,14 @@ func getPipelineJobLabels(appName, jobName string, jobSpec radixv1.RadixJobSpec,
 	}
 
 	return labels
+}
+
+func getPipelineJobPodLabels(jobName string, appName string, appID radixv1.ULID) map[string]string {
+	return radixlabels.Merge(
+		radixlabels.ForApplicationName(appName),
+		radixlabels.ForApplicationID(appID),
+		radixlabels.ForPipelineJobName(jobName),
+	)
 }
 
 func getPushImageTag(pushImage bool) string {

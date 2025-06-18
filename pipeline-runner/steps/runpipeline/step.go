@@ -164,7 +164,7 @@ func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev
 	pipelineRun := pipelinev1.PipelineRun{
 		ObjectMeta: v1.ObjectMeta{
 			Name:   pipelineRunName,
-			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv),
+			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv, step.GetAppID()),
 			Annotations: map[string]string{
 				kube.RadixBranchAnnotation:              pipelineInfo.PipelineArguments.Branch, //nolint:staticcheck
 				kube.RadixGitRefAnnotation:              pipelineInfo.PipelineArguments.GitRef,
