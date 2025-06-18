@@ -490,7 +490,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, co
 		delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
 	}
 	if component.GetAuthentication().GetOAuth2().IsSessionStoreTypeSystemManaged() &&
-		(!redisPasswordExists || len(redisPassword) <= 2) {
+		(!redisPasswordExists || len(redisPassword) == 0) {
 		redisPassword, err = o.generateRandomSecretValue()
 		if err != nil {
 			return err
