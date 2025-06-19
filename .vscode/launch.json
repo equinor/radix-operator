@@ -8,8 +8,9 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/webhook/main.go",
 			"env": {
-				"LOG_LEVEL": "trace",
+				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
+				"CERT_DIR": "${workspaceFolder}/local/certs",
 			},
 		},
 		{

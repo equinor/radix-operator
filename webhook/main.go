@@ -21,8 +21,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	siglog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 func main() {
@@ -30,10 +32,14 @@ func main() {
 	c := internalconfig.MustParseConfig()
 	logger := initLogger(c)
 	logr := initLogr(logger)
+	logger.Info().Msgf("Starting Radix Webhook with config: %+v", c)
 
 	logger.Info().Msg("setting up manager")
 	restConfig := config.GetConfigOrDie()
-	mgr, err := manager.New(restConfig, manager.Options{Logger: logr})
+	mgr, err := manager.New(restConfig, manager.Options{Logger: logr, WebhookServer: webhook.NewServer(webhook.Options{
+		Port:    c.Port,
+		CertDir: c.CertDir,
+	})})
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to set up overall controller manager")
 	}
@@ -67,7 +73,12 @@ func main() {
 }
 
 func setupWebhook(mgr manager.Manager, client radixclient.Interface, certSetupFinished <-chan struct{}) error {
-	<-certSetupFinished
+	select {
+	case <-certSetupFinished:
+		log.Info().Msg("Certificate rotation setup finished, proceeding with webhook setup")
+	case <-time.NewTicker(1 * time.Minute).C:
+		log.Fatal().Msg("Failed to set up certificate rotation in time")
+	}
 
 	rrValidator := handler.NewRadixRegistrationValidator(client)
 	err := builder.WebhookManagedBy(mgr).
@@ -88,11 +99,15 @@ func addCertRotator(mgr manager.Manager, c internalconfig.Config) <-chan struct{
 			Namespace: c.SecretNamespace,
 			Name:      c.SecretName,
 		},
-		CAName:         c.CaName,
-		CAOrganization: c.CaOrganization,
-		DNSName:        c.DnsName,
-		ExtraDNSNames:  c.ExtraDnsNames,
-		IsReady:        setupFinished,
+		CAName:                 c.CaName,
+		CAOrganization:         c.CaOrganization,
+		CertDir:                c.CertDir,
+		RestartOnSecretRefresh: true,
+		DNSName:                c.DnsName,
+		ExtraDNSNames:          c.ExtraDnsNames,
+		IsReady:                setupFinished,
+		RequireLeaderElection:  false,
+		EnableReadinessCheck:   true,
 		Webhooks: []rotator.WebhookInfo{
 			{
 				Name: c.WebhookServiceName,
@@ -115,9 +130,10 @@ func addCertRotator(mgr manager.Manager, c internalconfig.Config) <-chan struct{
 func initLogr(logger zerolog.Logger) logr.Logger {
 	zerologr.NameFieldName = "logger"
 	zerologr.NameSeparator = "/"
-	zerologr.SetMaxV(1)
+	zerologr.SetMaxV(2)
 
 	var log logr.Logger = zerologr.New(&logger)
+	siglog.SetLogger(log)
 
 	return log
 }

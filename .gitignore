@@ -28,3 +28,4 @@ radix-operator/main
 
 # Temporary dir for CRD generation
 .temp-crds
+/local/
