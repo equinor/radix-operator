@@ -13,6 +13,9 @@ import (
 	"github.com/rs/zerolog"
 	"k8s.io/apimachinery/pkg/types"
 
+	internalconfig "github.com/equinor/radix-operator/webhook/internal/config"
+	"github.com/equinor/radix-operator/webhook/internal/handler"
+
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
 	"github.com/rs/zerolog/log"
@@ -24,7 +27,7 @@ import (
 
 func main() {
 	ctx := signals.SetupSignalHandler()
-	c := MustParseConfig()
+	c := internalconfig.MustParseConfig()
 	logger := initLogger(c)
 	logr := initLogr(logger)
 
@@ -35,28 +38,26 @@ func main() {
 		logger.Fatal().Err(err).Msg("unable to set up overall controller manager")
 	}
 
-	// Make sure certs are generated and valid if cert rotation is enabled.
-	logger.Info().Msg("setting up cert rotation")
-	if err = addCertRotator(ctx, mgr, c); err != nil {
-		logger.Fatal().Err(err).Msg("failed to configure certificate rotation")
+	if err := radixv1.AddToScheme(mgr.GetScheme()); err != nil {
+		logger.Fatal().Err(err).Msg("unable to add radixv1 scheme")
 	}
 
-	logger.Info().Msg("cert rotation setup complete")
+	// Make sure certs are generated and valid if cert rotation is enabled.
+	logger.Info().Msg("setting up cert rotation")
+	certSetupFinished := addCertRotator(mgr, c)
 
 	client, err := radixclient.NewForConfig(restConfig)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to set up radix client")
 	}
 
-	rrValidator := NewRadixRegistrationValidator(client)
-	err = builder.WebhookManagedBy(mgr).
-		For(&radixv1.RadixRegistration{}).
-		WithCustomPath("/api/v1/radixregistration/validator").
-		WithValidator(rrValidator).
-		Complete()
-	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to create webhook")
-	}
+	go func() {
+		logger.Debug().Msg("waiting for cert rotation to finish")
+		if err := setupWebhook(mgr, client, certSetupFinished); err != nil {
+			logger.Fatal().Err(err).Msg("unable to set up webhook")
+		}
+		logger.Info().Msg("webhook setup complete")
+	}()
 
 	logger.Info().Msg("starting manager")
 	if err := mgr.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -65,14 +66,28 @@ func main() {
 	logger.Info().Msg("shutting down")
 }
 
-func addCertRotator(ctx context.Context, mgr manager.Manager, c Config) error {
+func setupWebhook(mgr manager.Manager, client radixclient.Interface, certSetupFinished <-chan struct{}) error {
+	<-certSetupFinished
+
+	rrValidator := handler.NewRadixRegistrationValidator(client)
+	err := builder.WebhookManagedBy(mgr).
+		For(&radixv1.RadixRegistration{}).
+		WithCustomPath("/api/v1/radixregistration/validator").
+		WithValidator(rrValidator).
+		Complete()
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to create webhook")
+	}
+	return nil
+}
+
+func addCertRotator(mgr manager.Manager, c internalconfig.Config) <-chan struct{} {
 	setupFinished := make(chan struct{})
 	err := rotator.AddRotator(mgr, &rotator.CertRotator{
 		SecretKey: types.NamespacedName{
 			Namespace: c.SecretNamespace,
 			Name:      c.SecretName,
 		},
-		CertDir:        c.CertsFolder,
 		CAName:         c.CaName,
 		CAOrganization: c.CaOrganization,
 		DNSName:        c.DnsName,
@@ -89,13 +104,12 @@ func addCertRotator(ctx context.Context, mgr manager.Manager, c Config) error {
 		log.Fatal().Err(err).Msg("unable to set up cert rotation")
 	}
 
-	select {
-	case <-setupFinished:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	go func() {
+		<-setupFinished
+		log.Info().Msg("cert rotation setup complete")
+	}()
 
-	}
+	return setupFinished
 }
 
 func initLogr(logger zerolog.Logger) logr.Logger {
@@ -108,7 +122,7 @@ func initLogr(logger zerolog.Logger) logr.Logger {
 	return log
 }
 
-func initLogger(cfg Config) zerolog.Logger {
+func initLogger(cfg internalconfig.Config) zerolog.Logger {
 	zerolog.TimeFieldFormat = time.RFC3339
 	logLevelStr := cfg.LogLevel
 	if len(logLevelStr) == 0 {

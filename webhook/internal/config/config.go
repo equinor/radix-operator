@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"github.com/kelseyhightower/envconfig"
@@ -12,7 +12,6 @@ type Config struct {
 	UseProfiler    bool   `envconfig:"USE_PROFILER" default:"false" desc:"Enable Profiler"`
 	LogLevel       string `envconfig:"LOG_LEVEL" default:"info"`
 	LogPrettyPrint bool   `envconfig:"LOG_PRETTY" default:"false"`
-	CertsFolder    string `envconfig:"CERTS_FOLDER" desc:"Folder of tls.crt, tls.key and ca.crt"`
 
 	SecretName         string   `envconfig:"SECRET_NAME" default:"radix-webhook-certs" desc:"Name of the secret where the webhook TLS certificate is stored"`
 	SecretNamespace    string   `envconfig:"SECRET_NAMESPACE" default:"default" desc:"Namespace of the secret where the webhook TLS certificate is stored"`
