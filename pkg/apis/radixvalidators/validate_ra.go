@@ -1438,16 +1438,19 @@ func validateTriggerDefinition(config *radixv1.RadixHorizontalScaling) error {
 		}
 		if trigger.AzureEventHub != nil {
 			definitions++
-			if trigger.AzureEventHub.Namespace == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: Name of the Azure Event Hub namespace that contains your Event Hub: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			if trigger.AzureEventHub.Namespace == "" && trigger.AzureEventHub.Connection == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: event hub namespace or connection are required: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 
-			if trigger.AzureEventHub.Name == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: Event Hub name is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			if trigger.AzureEventHub.Name == "" && trigger.AzureEventHub.Connection == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: event hub name or connection are required: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 
-			if trigger.AzureEventHub.StorageAccount == "" || trigger.AzureEventHub.Container == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: both storage account name and its container name are required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			if trigger.AzureEventHub.StorageAccount == "" && trigger.AzureEventHub.StorageConnection == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: both storage account name or storage connection are required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+			if trigger.AzureEventHub.Container == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: storage account container name is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 			if trigger.AzureEventHub.Connection == "" && (trigger.AzureEventHub.Authentication == nil || trigger.AzureEventHub.Authentication.Identity.Azure.ClientId == "") {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: connection string for the event hub or azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))

@@ -178,6 +178,7 @@ const (
 // RadixHorizontalScalingAzureEventHubTrigger defines configuration for an Azure Event Hub trigger.
 type RadixHorizontalScalingAzureEventHubTrigger struct {
 	// Namespace - the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+	// +optional
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z][-a-z0-9]*)?[a-z0-9])?$
@@ -225,6 +226,7 @@ type RadixHorizontalScalingAzureEventHubTrigger struct {
 	CheckpointStrategy AzureEventHubTriggerCheckpointStrategy `json:"checkpointStrategy,omitempty"`
 
 	// Authentication Workload Identity configured with a ClientID when used identity based authentication
+	// +optional
 	Authentication *RadixHorizontalScalingAuthentication `json:"authentication"`
 }
 

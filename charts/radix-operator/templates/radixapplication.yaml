@@ -1142,9 +1142,6 @@ spec:
                                             Event Hub scaler only reads from Azure
                                             Blob Storage.
                                           type: string
-                                      required:
-                                      - authentication
-                                      - namespace
                                       type: object
                                     azureServiceBus:
                                       description: AzureServiceBus defines a trigger
@@ -2442,9 +2439,6 @@ spec:
                                       As of now the Event Hub scaler only reads from
                                       Azure Blob Storage.
                                     type: string
-                                required:
-                                - authentication
-                                - namespace
                                 type: object
                               azureServiceBus:
                                 description: AzureServiceBus defines a trigger that

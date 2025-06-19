@@ -26,7 +26,7 @@ const (
 	ScaleTriggerTypeAzureEventHub   ScaleTriggerType = "azure-eventhub"
 	ScaleTriggerTypeCron            ScaleTriggerType = "cron"
 	ScaleTriggerTypeCpu             ScaleTriggerType = "cpu"
-	ScaleTriggerTypeMemory          ScaleTriggerType = ScaleTriggerTypeCpu
+	ScaleTriggerTypeMemory          ScaleTriggerType = "memory"
 )
 
 func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
@@ -248,41 +248,46 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 		case trigger.AzureEventHub != nil:
 			metadata := map[string]string{}
 
-			if trigger.AzureEventHub.Namespace != "" {
-				metadata["eventHubNamespace"] = trigger.AzureEventHub.Namespace
-			}
-			if trigger.AzureEventHub.Name != "" {
-				metadata["eventHubName"] = trigger.AzureEventHub.Name
+			var authenticationRef *kedav1.AuthenticationRef
+			if trigger.AzureEventHub.Connection != "" {
+				metadata["connectionFromEnv"] = trigger.AzureEventHub.Connection
+			} else {
+				if trigger.AzureEventHub.Namespace != "" {
+					metadata["eventHubNamespace"] = trigger.AzureEventHub.Namespace
+				}
+				if trigger.AzureEventHub.Name != "" {
+					metadata["eventHubName"] = trigger.AzureEventHub.Name
+				}
+				authenticationRef = &kedav1.AuthenticationRef{
+					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
+					Kind: "TriggerAuthentication",
+				}
 			}
 			if trigger.AzureEventHub.ConsumerGroup != "" {
 				metadata["consumerGroup"] = trigger.AzureEventHub.ConsumerGroup
 			}
-			if trigger.AzureEventHub.Connection != "" {
-				metadata["connectionFromEnv"] = trigger.AzureEventHub.Connection
-			}
+
 			if trigger.AzureEventHub.StorageConnection != "" {
 				metadata["storageConnectionFromEnv"] = trigger.AzureEventHub.StorageConnection
-			}
-			if trigger.AzureEventHub.StorageAccount != "" {
+			} else if trigger.AzureEventHub.StorageAccount != "" {
 				metadata["storageAccountName"] = trigger.AzureEventHub.StorageAccount
 			}
 			if trigger.AzureEventHub.Container != "" {
 				metadata["blobContainer"] = trigger.AzureEventHub.Container
 			}
+
 			if messageCount := trigger.AzureEventHub.MessageCount; messageCount != nil {
 				metadata["unprocessedEventThreshold"] = strconv.Itoa(*messageCount)
 			}
 			metadata["checkpointStrategy"] = string(trigger.AzureEventHub.CheckpointStrategy)
 
-			triggers = append(triggers, kedav1.ScaleTriggers{
-				Name:     trigger.Name,
-				Type:     string(ScaleTriggerTypeAzureEventHub),
-				Metadata: metadata,
-				AuthenticationRef: &kedav1.AuthenticationRef{
-					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
-					Kind: "TriggerAuthentication",
-				},
-			})
+			scaleTrigger := kedav1.ScaleTriggers{
+				Name:              trigger.Name,
+				Type:              string(ScaleTriggerTypeAzureEventHub),
+				Metadata:          metadata,
+				AuthenticationRef: authenticationRef,
+			}
+			triggers = append(triggers, scaleTrigger)
 		}
 	}
 
