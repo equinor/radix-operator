@@ -13,7 +13,7 @@ import (
 // RegistrationBuilder Handles construction of RR or applicationRegistration
 type RegistrationBuilder interface {
 	WithUID(types.UID) RegistrationBuilder
-	WithAppID(ulid.ULID) RegistrationBuilder
+	WithAppID(string) RegistrationBuilder
 	WithName(name string) RegistrationBuilder
 	WithRepository(string) RegistrationBuilder
 	WithSharedSecret(string) RegistrationBuilder
@@ -38,7 +38,7 @@ type RegistrationBuilder interface {
 // RegistrationBuilderStruct Instance variables
 type RegistrationBuilderStruct struct {
 	uid                 types.UID
-	appID               ulid.ULID
+	appID               string
 	name                string
 	repository          string
 	sharedSecret        string
@@ -60,7 +60,7 @@ type RegistrationBuilderStruct struct {
 
 // WithRadixRegistration Re-enginers a builder from a registration
 func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1.RadixRegistration) RegistrationBuilder {
-	rb.WithAppID(radixRegistration.Spec.AppID)
+	rb.WithAppID(radixRegistration.Spec.AppID.String())
 	rb.WithName(radixRegistration.Name)
 	rb.WithCloneURL(radixRegistration.Spec.CloneURL)
 	rb.WithSharedSecret(radixRegistration.Spec.SharedSecret)
@@ -84,8 +84,8 @@ func (rb *RegistrationBuilderStruct) WithUID(uid types.UID) RegistrationBuilder 
 	return rb
 }
 
-// WithAppID Sets ID
-func (rb *RegistrationBuilderStruct) WithAppID(id ulid.ULID) RegistrationBuilder {
+// WithAppID Sets Radix AppID, if "" it will generate a new ULID
+func (rb *RegistrationBuilderStruct) WithAppID(id string) RegistrationBuilder {
 	rb.appID = id
 	return rb
 }
@@ -199,6 +199,11 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 		cloneURL = GetGithubCloneURLFromRepo(rb.repository)
 	}
 
+	appId := rb.appID
+	if appId == "" {
+		appId = ulid.Make().String()
+	}
+
 	status := v1.RadixRegistrationStatus{}
 	if !rb.emptyStatus {
 		status = v1.RadixRegistrationStatus{
@@ -216,7 +221,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			UID:  rb.uid,
 		},
 		Spec: v1.RadixRegistrationSpec{
-			AppID:               rb.appID,
+			AppID:               v1.ULID{ULID: ulid.MustParse(appId)},
 			CloneURL:            cloneURL,
 			SharedSecret:        rb.sharedSecret,
 			DeployKey:           rb.privateKey,
@@ -245,7 +250,7 @@ func NewRegistrationBuilder() RegistrationBuilder {
 // ARadixRegistration Constructor for registration builder containing test data
 func ARadixRegistration() RegistrationBuilder {
 	builder := NewRegistrationBuilder().
-		WithAppID(ulid.MustParse("00000000000000000000000001")).
+		WithAppID("00000000000000000000000001").
 		WithName("anyapp").
 		WithCloneURL("git@github.com:equinor/anyapp").
 		WithSharedSecret("NotSoSecret").

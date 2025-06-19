@@ -18,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -99,7 +98,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      getPipelineJobPodLabels(jobName, job.registration.Spec.AppID),
+					Labels:      getPipelineJobPodLabels(jobName, appName, job.registration.Spec.AppID),
 					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
 				},
 				Spec: corev1.PodSpec{
@@ -281,8 +280,9 @@ func getPipelineJobLabels(appName, jobName string, jobSpec radixv1.RadixJobSpec,
 	return labels
 }
 
-func getPipelineJobPodLabels(jobName string, appID ulid.ULID) map[string]string {
+func getPipelineJobPodLabels(jobName string, appName string, appID radixv1.ULID) map[string]string {
 	return radixlabels.Merge(
+		radixlabels.ForApplicationName(appName),
 		radixlabels.ForApplicationID(appID),
 		radixlabels.ForPipelineJobName(jobName),
 	)

@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
@@ -13,6 +14,7 @@ func Test_Merge(t *testing.T) {
 	actual := Merge(
 		kubelabels.Set{"a": "a", "b": "b", "c": "c1"},
 		kubelabels.Set{"a": "a", "c": "c2", "d": "d"},
+		kubelabels.Set(nil),
 	)
 	expected := kubelabels.Set{"a": "a", "b": "b", "c": "c2", "d": "d"}
 	assert.Equal(t, expected, actual)
@@ -22,6 +24,16 @@ func Test_ForApplicationName(t *testing.T) {
 	actual := ForApplicationName("anyappname")
 	expected := kubelabels.Set{kube.RadixAppLabel: "anyappname"}
 	assert.Equal(t, expected, actual)
+}
+func Test_ForApplicationID(t *testing.T) {
+	appId := v1.ULID{ULID: ulid.Make()}
+	actual := ForApplicationID(appId)
+	expected := kubelabels.Set{kube.RadixAppIDLabel: appId.String()}
+	assert.Equal(t, expected, actual)
+}
+func Test_ForApplicationID_WhenZero(t *testing.T) {
+	actual := ForApplicationID(v1.ULID{ULID: ulid.Zero})
+	assert.Nil(t, actual)
 }
 
 func Test_ForComponentName(t *testing.T) {

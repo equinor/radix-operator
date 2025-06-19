@@ -9,9 +9,9 @@ import (
 
 	model "github.com/equinor/radix-operator/pipeline-runner/model"
 	pipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "github.com/golang/mock/gomock"
-	ulid "github.com/oklog/ulid/v2"
-	v1 "k8s.io/api/batch/v1"
+	v10 "k8s.io/api/batch/v1"
 )
 
 // MockJobsBuilder is a mock of JobsBuilder interface.
@@ -38,10 +38,10 @@ func (m *MockJobsBuilder) EXPECT() *MockJobsBuilderMockRecorder {
 }
 
 // BuildJobs mocks base method.
-func (m *MockJobsBuilder) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID ulid.ULID) []v1.Job {
+func (m *MockJobsBuilder) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID v1.ULID) []v10.Job {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BuildJobs", useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, appID)
-	ret0, _ := ret[0].([]v1.Job)
+	ret0, _ := ret[0].([]v10.Job)
 	return ret0
 }
 

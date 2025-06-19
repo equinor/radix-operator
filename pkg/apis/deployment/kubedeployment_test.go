@@ -130,7 +130,7 @@ func Test_Sync_AppID_OnNewDeployment(t *testing.T) {
 	tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	_, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
 		utils.ARadixDeployment().
-			WithRadixApplication(utils.ARadixApplication().WithRadixRegistration(utils.ARadixRegistration().WithAppID(appId))).
+			WithRadixApplication(utils.ARadixApplication().WithRadixRegistration(utils.ARadixRegistration().WithAppID(appId.String()))).
 			WithComponents(utils.NewDeployComponentBuilder().
 				WithName("comp1")).
 			WithAppName("any-app").
@@ -147,7 +147,7 @@ func Test_DoNot_SyncAppID_WhenMissing(t *testing.T) {
 	tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	_, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
 		utils.ARadixDeployment().
-			WithRadixApplication(utils.ARadixApplication().WithRadixRegistration(utils.ARadixRegistration().WithAppID(ulid.Zero))).
+			WithRadixApplication(utils.ARadixApplication().WithRadixRegistration(utils.ARadixRegistration().WithAppID(ulid.Zero.String()))).
 			WithComponents(utils.NewDeployComponentBuilder().
 				WithName("comp1")).
 			WithAppName("any-app").
@@ -163,7 +163,7 @@ func Test_DoNot_SyncAppID_WhenMissing(t *testing.T) {
 func Test_DoNot_SyncAppID_WhenAddedLater(t *testing.T) {
 	tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 
-	rrBuilder := utils.ARadixRegistration().WithAppID(ulid.Zero).WithName("any-app")
+	rrBuilder := utils.ARadixRegistration().WithAppID(ulid.Zero.String()).WithName("any-app")
 	rdBuilder := utils.ARadixDeployment().
 		WithAppName("any-app").
 		WithRadixApplication(utils.ARadixApplication().WithRadixRegistration(rrBuilder)).
@@ -178,7 +178,7 @@ func Test_DoNot_SyncAppID_WhenAddedLater(t *testing.T) {
 	rr, err := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{})
 	require.NoError(t, err)
 
-	rr.Spec.AppID = ulid.Make() // Set a new app ID
+	rr.Spec.AppID = v1.ULID{ULID: ulid.Make()} // Set a new app ID
 	_, err = radixclient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	require.NoError(t, err)
 

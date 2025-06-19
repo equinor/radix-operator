@@ -4956,7 +4956,7 @@ func ApplyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 }
 
 func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, kedaClient kedav2.Interface, prometheusclient prometheusclient.Interface, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder, modifySyncer func(syncer DeploymentSyncer)) (*radixv1.RadixDeployment, error) {
+	radixclient radixclient.Interface, _ kedav2.Interface, prometheusclient prometheusclient.Interface, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder, modifySyncer func(syncer DeploymentSyncer)) (*radixv1.RadixDeployment, error) {
 
 	rd, err := tu.ApplyDeployment(context.Background(), deploymentBuilder)
 	if err != nil {
@@ -4980,7 +4980,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 }
 
 func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, kedaClient kedav2.Interface, prometheusclient prometheusclient.Interface, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder) error {
+	radixclient radixclient.Interface, _ kedav2.Interface, prometheusclient prometheusclient.Interface, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder) error {
 	rd, err := tu.ApplyDeploymentUpdate(deploymentBuilder)
 	if err != nil {
 		return err

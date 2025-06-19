@@ -187,7 +187,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 	rj, _, err := s.applyJobWithSync(
-		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID).WithRadixConfigFullName("some-radixconfig.yaml"),
+		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID.String()).WithRadixConfigFullName("some-radixconfig.yaml"),
 		utils.NewJobBuilder().
 			WithJobName(jobName).
 			WithAppName(appName).
@@ -414,7 +414,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		{Name: "pod-labels", VolumeSource: corev1.VolumeSource{DownwardAPI: &corev1.DownwardAPIVolumeSource{Items: []corev1.DownwardAPIVolumeFile{{Path: "labels", FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.labels"}}}}}},
 	}
 
-	expectedPodLabels := map[string]string{kube.RadixJobNameLabel: jobName, kube.RadixAppIDLabel: appID.String()}
+	expectedPodLabels := map[string]string{kube.RadixJobNameLabel: jobName, kube.RadixAppLabel: "anyapp", kube.RadixAppIDLabel: appID.String()}
 	s.Equal(expectedPodLabels, podTemplate.Labels)
 	expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
 	s.Equal(expectedPodAnnotations, podTemplate.Annotations)
@@ -1233,7 +1233,7 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 
 	for _, scenario := range scenarios {
 		s.Run(scenario.name, func() {
-			appId := ulid.Make()
+			appId := ulid.Make().String()
 			s.setupTest()
 			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)

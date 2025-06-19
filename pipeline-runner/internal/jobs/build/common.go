@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -46,8 +47,9 @@ func getCommonJobAnnotations(branch, gitRef, gitRefType string, componentImages 
 	}
 }
 
-func getCommonPodLabels(pipelineJobName string, appID ulid.ULID) map[string]string {
+func getCommonPodLabels(pipelineJobName string, appName string, appID radixv1.ULID) map[string]string {
 	return radixlabels.Merge(
+		radixlabels.ForApplicationName(appName),
 		radixlabels.ForPipelineJobName(pipelineJobName),
 		radixlabels.ForApplicationID(appID),
 	)

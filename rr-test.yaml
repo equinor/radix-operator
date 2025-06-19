@@ -1,0 +1,27 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixRegistration
+metadata:
+  creationTimestamp: "2023-06-10T08:16:20Z"
+  generation: 4
+  labels:
+    velero.io/backup-name: migration-20230610100910
+    velero.io/restore-name: migration-20230610100910-rr
+  name: aas
+  resourceVersion: "1359752496"
+  uid: 7e9a2116-acef-461b-9730-6576ecde6229
+spec:
+  adGroups:
+  - e4d7bdc5-9749-4865-b0e0-86a9fd7baf3e
+  cloneURL: git@github.com:equinor/i40.git
+  configBranch: main
+  configurationItem: 1a445e8787751554a9faa9383cbb358c
+  creator: FCEST@equinor.com
+  deployKey: ""
+  deployKeyPublic: ""
+  machineUser: false
+  owner: ""
+  radixConfigFullName: radix/eclipse-basyx/radixconfig.yaml
+  sharedSecret: 15Gc8ryFftQsfg1k6TIwU
+  wbs: ""
+status:
+  reconciled: "2025-06-06T10:40:32Z"

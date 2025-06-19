@@ -43,7 +43,7 @@ func getNodeTypeTolerations(nodeType *string) ([]corev1.Toleration, bool) {
 		return nil, false
 	}
 	if len(*nodeType) > 0 {
-		return []corev1.Toleration{corev1.Toleration{
+		return []corev1.Toleration{{
 			Key:      runtime.NodeTypeTolerationKey,
 			Operator: corev1.TolerationOpEqual,
 			Value:    *nodeType,

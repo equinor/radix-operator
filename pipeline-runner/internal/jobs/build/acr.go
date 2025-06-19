@@ -35,7 +35,7 @@ func NewACR() JobsBuilder {
 
 type acr struct{}
 
-func (c *acr) BuildJobs(_, _ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID ulid.ULID) []batchv1.Job {
+func (c *acr) BuildJobs(_, _ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID) []batchv1.Job {
 	props := &acrKubeJobProps{
 		pipelineArgs:    pipelineArgs,
 		componentImages: componentImages,
@@ -58,7 +58,7 @@ type acrKubeJobProps struct {
 	gitCommitHash   string
 	gitTags         string
 	buildSecrets    []string
-	appID           ulid.ULID
+	appID           radixv1.ULID
 }
 
 func (c *acrKubeJobProps) JobName() string {
@@ -76,7 +76,7 @@ func (c *acrKubeJobProps) JobAnnotations() map[string]string {
 }
 
 func (c *acrKubeJobProps) PodLabels() map[string]string {
-	return getCommonPodLabels(c.pipelineArgs.JobName, c.appID)
+	return getCommonPodLabels(c.pipelineArgs.JobName, c.pipelineArgs.AppName, c.appID)
 }
 
 func (c *acrKubeJobProps) PodAnnotations() map[string]string {
