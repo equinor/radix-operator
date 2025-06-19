@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radix-webhook
+  labels:
+    app.kubernetes.io/name: radix-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: radix-webhook
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: radix-webhook
+    spec:
+      serviceAccountName: radix-webhook
+      containers:
+        - name: radix-webhook
+          image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}"
+          ports:
+            - containerPort: 443
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radix-webhook
+  labels:
+    app.kubernetes.io/name: radix-webhook
+spec:
+  ports:
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+      name: https
+  selector:
+    app.kubernetes.io/name: radix-webhook

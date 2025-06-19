@@ -18,7 +18,6 @@ import (
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	"github.com/oklog/ulid/v2"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -62,7 +61,7 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 	mockCtrl := gomock.NewController(s.T())
 	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
-	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName).WithAppID(ulid.Make())
+	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
 	raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName).
 		WithEnvironment(internalTest.Env1, internalTest.BranchMain)
 	rr := rrBuilder.BuildRR()

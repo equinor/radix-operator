@@ -140,7 +140,7 @@ code-gen: bootstrap
 	./hack/update-codegen.sh
 
 .PHONY: crds
-crds: temp-crds radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd delete-temp-crds
+crds: temp-crds radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd # delete-temp-crds
 
 .PHONY: radixregistration-crd
 radixregistration-crd: temp-crds
@@ -165,7 +165,7 @@ radixdnsalias-crd: temp-crds
 
 .PHONY: temp-crds
 temp-crds: bootstrap
-	controller-gen crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
+	controller-gen +webhook crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
 
 .PHONY: delete-temp-crds
 delete-temp-crds:

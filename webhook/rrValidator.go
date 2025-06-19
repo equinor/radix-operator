@@ -58,7 +58,7 @@ func (v *RadixRegistrationValidator) ValidateUpdate(ctx context.Context, oldObj,
 		return nil, fmt.Errorf("expected a RadixRegistration but got a %T", newObj)
 	}
 
-	if !oldRr.Spec.AppID.IsZero() || oldRr.Spec.AppID.Compare(rr.Spec.AppID) != 0 {
+	if !oldRr.Spec.AppID.IsZero() && oldRr.Spec.AppID.ULID.Compare(rr.Spec.AppID.ULID) != 0 {
 		return nil, ErrRadixRegistrationAppIdIsImmutable
 	}
 
