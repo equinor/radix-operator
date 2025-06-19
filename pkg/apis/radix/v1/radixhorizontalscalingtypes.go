@@ -212,7 +212,7 @@ type RadixHorizontalScalingAzureEventHubTrigger struct {
 
 	// StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.
 	// +optional
-	StorageAccount string `json:"storageAccountName,omitempty"`
+	StorageAccount string `json:"accountName,omitempty"`
 
 	// Container is the name of the Blob Storage container used for checkpointing.
 	// Container name to store checkpoint. This is needed when a using an Event Hub application written in dotnet or java, and not an Azure function.

@@ -995,6 +995,10 @@
                               "azureEventHub": {
                                 "description": "AzureEventHub defines a trigger that scales based on number of unprocessed events in event hub",
                                 "properties": {
+                                  "accountName": {
+                                    "description": "StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.",
+                                    "type": "string"
+                                  },
                                   "authentication": {
                                     "description": "Authentication Workload Identity configured with a ClientID when used identity based authentication",
                                     "properties": {
@@ -1065,10 +1069,6 @@
                                     "maxLength": 50,
                                     "minLength": 1,
                                     "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
-                                    "type": "string"
-                                  },
-                                  "storageAccountName": {
-                                    "description": "StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.",
                                     "type": "string"
                                   },
                                   "storageConnection": {
@@ -2296,6 +2296,10 @@
                         "azureEventHub": {
                           "description": "AzureEventHub defines a trigger that scales based on number of unprocessed events in event hub",
                           "properties": {
+                            "accountName": {
+                              "description": "StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.",
+                              "type": "string"
+                            },
                             "authentication": {
                               "description": "Authentication Workload Identity configured with a ClientID when used identity based authentication",
                               "properties": {
@@ -2366,10 +2370,6 @@
                               "maxLength": 50,
                               "minLength": 1,
                               "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
-                              "type": "string"
-                            },
-                            "storageAccountName": {
-                              "description": "StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.",
                               "type": "string"
                             },
                             "storageConnection": {

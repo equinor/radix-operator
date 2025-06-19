@@ -36,8 +36,9 @@ const (
 )
 
 var (
-	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
-	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
+	validOAuthSessionStoreTypes         = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
+	validOAuthCookieSameSites           = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
+	validAzureEventHubTriggerCheckpoint = []radixv1.AzureEventHubTriggerCheckpointStrategy{radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction, radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk}
 
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
 		validateRadixApplicationAppName,
@@ -1338,7 +1339,7 @@ func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error
 		errs = append(errs, ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers)
 	}
 
-	if err := validateTriggerDefintion(config); err != nil {
+	if err := validateTriggerDefinition(config); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -1368,7 +1369,7 @@ func validateUniqueTriggerNames(config *radixv1.RadixHorizontalScaling) error {
 	return errors.Join(errs...)
 }
 
-func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
+func validateTriggerDefinition(config *radixv1.RadixHorizontalScaling) error {
 	var errs []error
 
 	for _, trigger := range config.Triggers {
@@ -1435,6 +1436,31 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 		}
+		if trigger.AzureEventHub != nil {
+			definitions++
+			if trigger.AzureEventHub.Namespace == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: Name of the Azure Event Hub namespace that contains your Event Hub: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+
+			if trigger.AzureEventHub.Name == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: Event Hub name is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+
+			if trigger.AzureEventHub.StorageAccount == "" || trigger.AzureEventHub.Container == "" {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: both storage account name and its container name are required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+			if trigger.AzureEventHub.Connection == "" && (trigger.AzureEventHub.Authentication == nil || trigger.AzureEventHub.Authentication.Identity.Azure.ClientId == "") {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: connection string for the event hub or azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+			if trigger.AzureEventHub.StorageConnection == "" && (trigger.AzureEventHub.Authentication == nil || trigger.AzureEventHub.Authentication.Identity.Azure.ClientId == "") {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: connection string for the storage accoun or azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+			if trigger.AzureEventHub.CheckpointStrategy != "" && !slice.Any(validAzureEventHubTriggerCheckpoint, func(item radixv1.AzureEventHubTriggerCheckpointStrategy) bool {
+				return item == trigger.AzureEventHub.CheckpointStrategy
+			}) {
+				errs = append(errs, fmt.Errorf("invalid trigger %s: invalid checkpoint strategy: %w", trigger.Name, ErrInvalidTriggerDefinition))
+			}
+		}
 
 		if definitions == 0 {
 			errs = append(errs, fmt.Errorf("invalid trigger %s: %w", trigger.Name, ErrNoDefinitionInTrigger))
@@ -1462,6 +1488,9 @@ func hasNonResourceTypeTriggers(config *radixv1.RadixHorizontalScaling) bool {
 			return true
 		}
 		if trigger.AzureServiceBus != nil {
+			return true
+		}
+		if trigger.AzureEventHub != nil {
 			return true
 		}
 	}

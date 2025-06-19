@@ -67,6 +67,30 @@ func (h *HorizontalScalingBuilderStruct) WithAzureServiceBusTrigger(namespace, c
 	return h
 }
 
+func (h *HorizontalScalingBuilderStruct) WithAzureEventHubTrigger(namespace, clientId, name, storageAccount, container string, messageCount *int) *HorizontalScalingBuilderStruct {
+	authentication := radixv1.RadixHorizontalScalingAuthentication{
+		Identity: radixv1.RadixHorizontalScalingRequiredIdentity{
+			Azure: radixv1.AzureIdentity{
+				ClientId: clientId,
+			},
+		},
+	}
+
+	h.WithTrigger(radixv1.RadixHorizontalScalingTrigger{
+		Name: "azure-eventhub",
+		AzureEventHub: &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+			Namespace:      namespace,
+			Name:           name,
+			MessageCount:   messageCount,
+			StorageAccount: storageAccount,
+			Container:      container,
+			Authentication: &authentication,
+		},
+	})
+
+	return h
+}
+
 func (h *HorizontalScalingBuilderStruct) WithCooldownPeriod(cooldown int32) *HorizontalScalingBuilderStruct {
 	h.cooldownPeriod = &cooldown
 	return h

@@ -1967,6 +1967,26 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrInvalidTriggerDefinition},
 		},
 		{
+			"Valid AzureEventHub trigger should be successfull",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithAzureEventHubTrigger("anamespace", "abcd", "event-hub-name", "some-storage-account", "some-container", pointers.Ptr(1)).
+					Build()
+			},
+			nil,
+		},
+		{
+			"Invalid AzureEventHub trigger should fail",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", "", "", "", "", nil).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
 			"component HPA custom resource scaling for HPA is valid",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
