@@ -8,7 +8,7 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:webhook:verbs=create;update,groups=radix.equinor.com,resources=radixregistrations,versions=v1,name=radixregistrations.validation.radix.equinor.com,path=/,webhookVersions=v1,matchPolicy=equivalent,mutating=false,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1
+// +kubebuilder:webhook:verbs=create;update,groups=radix.equinor.com,resources=radixregistrations,versions=v1,name=radixregistrations.validation.radix.equinor.com,path=/api/v1/radixregistration/validator,webhookVersions=v1,matchPolicy=equivalent,mutating=false,failurePolicy=fail,sideEffects=None,admissionReviewVersions=v1
 
 // RadixRegistration describe an application
 type RadixRegistration struct {
