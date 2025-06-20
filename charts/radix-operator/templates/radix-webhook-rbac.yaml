@@ -19,6 +19,12 @@ rules:
     resources: ["secrets"]
     resourceNames: ["radix-webhook-certs"]
     verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch", "update"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -34,4 +40,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: radix-webhook
-    namespace: {{ .Release.Namespace }}
+    namespace: default #TODO: {{ .Release.Namespace }}

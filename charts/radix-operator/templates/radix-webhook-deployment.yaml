@@ -15,16 +15,34 @@ spec:
         app.kubernetes.io/name: radix-webhook
     spec:
       serviceAccountName: radix-webhook
+      volumes:
+        - name: radix-webhook-certs
+          secret:
+            secretName: radix-webhook-certs
       containers:
         - name: radix-webhook
-          image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}"
+          image: localhost/webhook:1
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 443
+            - containerPort: 8443
+          volumeMounts:
+            - name: radix-webhook-certs
+              mountPath: /certs
+              readOnly: true
+          
           env:
-            - name: POD_NAMESPACE
+            - name: PORT
+              value: "8443"
+            - name: CERT_DIR
+              value: "/certs"
+            - name: SECRET_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: SECRET_NAME
+              value: "radix-webhook-certs"
+            - name: WEBHOOK_NAME
+              value: radix-webhook-configuration
 
 ---
 apiVersion: v1
@@ -35,8 +53,8 @@ metadata:
     app.kubernetes.io/name: radix-webhook
 spec:
   ports:
-    - port: 443
-      targetPort: 443
+    - port: 8443
+      targetPort: 8443
       protocol: TCP
       name: https
   selector:

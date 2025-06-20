@@ -27,13 +27,16 @@ func NewRadixRegistrationValidator(client radixclient.Interface) *RadixRegistrat
 
 // validate admits a RadixRegistration if its valid
 func (v *RadixRegistrationValidator) validate(ctx context.Context, rr *radixv1.RadixRegistration) (admission.Warnings, error) {
-
+	warnings := admission.Warnings{
+		"RadixRegistration validation started",
+		"fun stuff",
+	}
 	err := radixvalidators.CanRadixRegistrationBeInserted(context.Background(), v.client, rr)
 	if err != nil {
-		return nil, err
+		return warnings, err
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateCreate validates the object on creation..

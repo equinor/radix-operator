@@ -8,9 +8,10 @@ webhooks:
   - v1
   clientConfig:
     service:
-      name: webhook-service
+      name: radix-webhook
       namespace: default
       path: /api/v1/radixregistration/validator
+      port: 8443
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: radixregistrations.validation.radix.equinor.com
