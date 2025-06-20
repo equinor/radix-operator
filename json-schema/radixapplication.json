@@ -1058,16 +1058,14 @@
                                     "type": "integer"
                                   },
                                   "name": {
-                                    "description": "Name Name of the Azure Event Hub",
+                                    "description": "Name of the Azure Event Hub",
                                     "maxLength": 260,
-                                    "minLength": 1,
                                     "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
                                     "type": "string"
                                   },
                                   "namespace": {
                                     "description": "Namespace - the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname",
                                     "maxLength": 50,
-                                    "minLength": 1,
                                     "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
                                     "type": "string"
                                   },
@@ -2355,16 +2353,14 @@
                               "type": "integer"
                             },
                             "name": {
-                              "description": "Name Name of the Azure Event Hub",
+                              "description": "Name of the Azure Event Hub",
                               "maxLength": 260,
-                              "minLength": 1,
                               "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
                               "type": "string"
                             },
                             "namespace": {
                               "description": "Namespace - the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname",
                               "maxLength": 50,
-                              "minLength": 1,
                               "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
                               "type": "string"
                             },

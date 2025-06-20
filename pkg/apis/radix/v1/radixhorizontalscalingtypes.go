@@ -179,14 +179,12 @@ const (
 type RadixHorizontalScalingAzureEventHubTrigger struct {
 	// Namespace - the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
 	// +optional
-	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z][-a-z0-9]*)?[a-z0-9])?$
 	Namespace string `json:"namespace"`
 
-	// Name Name of the Azure Event Hub
+	// Name of the Azure Event Hub
 	// +optional
-	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=260
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
 	Name string `json:"name,omitempty"`
