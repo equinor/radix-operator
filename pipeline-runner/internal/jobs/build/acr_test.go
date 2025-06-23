@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -67,7 +68,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	buildSecrets := []string{"secret1", "secret2"}
 
 	sut := build.NewACR()
-	jobs := sut.BuildJobs(false, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appId)})
+	jobs := sut.BuildJobs(false, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radix.ULID{ULID: ulid.MustParse(appId)})
 	require.Len(t, jobs, 1)
 	job := jobs[0]
 

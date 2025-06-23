@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -78,7 +79,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 	}
 
 	sut := build.NewBuildKit()
-	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appID)})
+	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radix.ULID{ULID: ulid.MustParse(appID)})
 	require.Len(t, jobs, len(componentImages))
 
 	for _, ci := range componentImages {

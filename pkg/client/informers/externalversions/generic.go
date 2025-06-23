@@ -29,6 +29,7 @@ import (
 	fmt "fmt"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v2 "github.com/equinor/radix-operator/pkg/apis/radix/v2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -76,6 +77,24 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V1().RadixJobs().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("radixregistrations"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V1().RadixRegistrations().Informer()}, nil
+
+		// Group=radix.equinor.com, Version=v2
+	case v2.SchemeGroupVersion.WithResource("radixalerts"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V2().RadixAlerts().Informer()}, nil
+	case v2.SchemeGroupVersion.WithResource("radixapplications"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V2().RadixApplications().Informer()}, nil
+	case v2.SchemeGroupVersion.WithResource("radixbatches"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V2().RadixBatches().Informer()}, nil
+	case v2.SchemeGroupVersion.WithResource("radixdnsaliases"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V2().RadixDNSAliases().Informer()}, nil
+	case v2.SchemeGroupVersion.WithResource("radixdeployments"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V2().RadixDeployments().Informer()}, nil
+	case v2.SchemeGroupVersion.WithResource("radixenvironments"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V2().RadixEnvironments().Informer()}, nil
+	case v2.SchemeGroupVersion.WithResource("radixjobs"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V2().RadixJobs().Informer()}, nil
+	case v2.SchemeGroupVersion.WithResource("radixregistrations"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V2().RadixRegistrations().Informer()}, nil
 
 	}
 

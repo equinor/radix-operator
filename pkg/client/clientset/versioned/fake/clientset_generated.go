@@ -29,6 +29,8 @@ import (
 	clientset "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixv1 "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
 	fakeradixv1 "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1/fake"
+	radixv2 "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v2"
+	fakeradixv2 "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -93,4 +95,9 @@ var (
 // RadixV1 retrieves the RadixV1Client
 func (c *Clientset) RadixV1() radixv1.RadixV1Interface {
 	return &fakeradixv1.FakeRadixV1{Fake: &c.Fake}
+}
+
+// RadixV2 retrieves the RadixV2Client
+func (c *Clientset) RadixV2() radixv2.RadixV2Interface {
+	return &fakeradixv2.FakeRadixV2{Fake: &c.Fake}
 }

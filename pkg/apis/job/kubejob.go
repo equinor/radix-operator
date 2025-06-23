@@ -12,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
@@ -280,7 +281,7 @@ func getPipelineJobLabels(appName, jobName string, jobSpec radixv1.RadixJobSpec,
 	return labels
 }
 
-func getPipelineJobPodLabels(jobName string, appName string, appID radixv1.ULID) map[string]string {
+func getPipelineJobPodLabels(jobName string, appName string, appID radix.ULID) map[string]string {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(appName),
 		radixlabels.ForApplicationID(appID),

@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,20 +31,20 @@ type RadixRegistrationStatus struct {
 
 // RadixRegistrationSpec is the spec for an application
 type RadixRegistrationSpec struct {
-	AppID               ULID     `json:"appID,omitempty"`
-	CloneURL            string   `json:"cloneURL"`
-	SharedSecret        string   `json:"sharedSecret,omitempty"`
-	DeployKey           string   `json:"deployKey,omitempty"`
-	DeployKeyPublic     string   `json:"deployKeyPublic,omitempty"`
-	AdGroups            []string `json:"adGroups,omitempty"`
-	AdUsers             []string `json:"adUsers,omitempty"`
-	ReaderAdGroups      []string `json:"readerAdGroups,omitempty"`
-	ReaderAdUsers       []string `json:"readerAdUsers,omitempty"`
-	Creator             string   `json:"creator,omitempty"`
-	Owner               string   `json:"owner,omitempty"`
-	WBS                 string   `json:"wbs,omitempty"`
-	ConfigBranch        string   `json:"configBranch"`
-	RadixConfigFullName string   `json:"radixConfigFullName,omitempty"`
+	AppID               radix.ULID `json:"appID,omitempty"`
+	CloneURL            string     `json:"cloneURL"`
+	SharedSecret        string     `json:"sharedSecret,omitempty"`
+	DeployKey           string     `json:"deployKey,omitempty"`
+	DeployKeyPublic     string     `json:"deployKeyPublic,omitempty"`
+	AdGroups            []string   `json:"adGroups,omitempty"`
+	AdUsers             []string   `json:"adUsers,omitempty"`
+	ReaderAdGroups      []string   `json:"readerAdGroups,omitempty"`
+	ReaderAdUsers       []string   `json:"readerAdUsers,omitempty"`
+	Creator             string     `json:"creator,omitempty"`
+	Owner               string     `json:"owner,omitempty"`
+	WBS                 string     `json:"wbs,omitempty"`
+	ConfigBranch        string     `json:"configBranch"`
+	RadixConfigFullName string     `json:"radixConfigFullName,omitempty"`
 	// ConfigurationItem is and identifier for an entity in a configuration management solution such as a CMDB.
 	// ITIL defines a CI as any component that needs to be managed in order to deliver an IT Service
 	// Ref: https://en.wikipedia.org/wiki/Configuration_item

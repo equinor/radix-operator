@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
@@ -26,13 +27,13 @@ func Test_ForApplicationName(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 func Test_ForApplicationID(t *testing.T) {
-	appId := v1.ULID{ULID: ulid.Make()}
+	appId := radix.ULID{ULID: ulid.Make()}
 	actual := ForApplicationID(appId)
 	expected := kubelabels.Set{kube.RadixAppIDLabel: appId.String()}
 	assert.Equal(t, expected, actual)
 }
 func Test_ForApplicationID_WhenZero(t *testing.T) {
-	actual := ForApplicationID(v1.ULID{ULID: ulid.Zero})
+	actual := ForApplicationID(radix.ULID{ULID: ulid.Zero})
 	assert.Nil(t, actual)
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -178,7 +179,7 @@ func Test_DoNot_SyncAppID_WhenAddedLater(t *testing.T) {
 	rr, err := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{})
 	require.NoError(t, err)
 
-	rr.Spec.AppID = v1.ULID{ULID: ulid.Make()} // Set a new app ID
+	rr.Spec.AppID = radix.ULID{ULID: ulid.Make()} // Set a new app ID
 	_, err = radixclient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	require.NoError(t, err)
 

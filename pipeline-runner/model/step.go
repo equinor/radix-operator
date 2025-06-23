@@ -5,6 +5,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -80,7 +81,7 @@ func (step *DefaultStepImplementation) GetAppName() string {
 }
 
 // GetAppName The name of the Radix application
-func (step *DefaultStepImplementation) GetAppID() radixv1.ULID {
+func (step *DefaultStepImplementation) GetAppID() radix.ULID {
 	return step.rr.Spec.AppID
 }
 

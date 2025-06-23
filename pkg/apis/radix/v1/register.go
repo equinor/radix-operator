@@ -1,18 +1,15 @@
 package v1
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-const (
-	GroupName = "radix.equinor.com"
-)
-
 // SchemeGroupVersion provides the group version
 var SchemeGroupVersion = schema.GroupVersion{
-	Group:   GroupName,
+	Group:   radix.GroupName,
 	Version: "v1",
 }
 var (

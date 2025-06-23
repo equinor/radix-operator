@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/oklog/ulid/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -221,7 +222,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			UID:  rb.uid,
 		},
 		Spec: v1.RadixRegistrationSpec{
-			AppID:               v1.ULID{ULID: ulid.MustParse(appId)},
+			AppID:               radix.ULID{ULID: ulid.MustParse(appId)},
 			CloneURL:            cloneURL,
 			SharedSecret:        rb.sharedSecret,
 			DeployKey:           rb.privateKey,

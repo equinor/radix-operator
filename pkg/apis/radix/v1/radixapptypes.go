@@ -8,6 +8,7 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
 const (
@@ -29,6 +30,8 @@ const (
 // image tag should be taken from the environment config
 const DynamicTagNameInEnvironmentConfig = "{imageTagName}"
 
+var _ conversion.Convertible = &RadixApplication{}
+
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -42,6 +45,14 @@ type RadixApplication struct {
 	// Specification for an application.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/
 	Spec RadixApplicationSpec `json:"spec"`
+}
+
+func (src *RadixApplication) ConvertTo(dstRaw conversion.Hub) error {
+	return nil
+}
+
+func (dst *RadixApplication) ConvertFrom(srcRaw conversion.Hub) error {
+	return nil
 }
 
 // GetComponentByName returns the component matching the name parameter, or nil if not found

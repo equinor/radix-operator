@@ -3,6 +3,7 @@ package labels
 import (
 	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -23,7 +24,7 @@ func ForApplicationName(appName string) kubelabels.Set {
 	}
 }
 
-func ForApplicationID(appID radixv1.ULID) kubelabels.Set {
+func ForApplicationID(appID radix.ULID) kubelabels.Set {
 	if appID.IsZero() {
 		return nil
 	}

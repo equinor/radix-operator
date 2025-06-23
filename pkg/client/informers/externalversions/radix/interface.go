@@ -28,12 +28,15 @@ package radix
 import (
 	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
 	v1 "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
+	v2 "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v2"
 )
 
 // Interface provides access to each of this group's versions.
 type Interface interface {
 	// V1 provides access to shared informers for resources in V1.
 	V1() v1.Interface
+	// V2 provides access to shared informers for resources in V2.
+	V2() v2.Interface
 }
 
 type group struct {
@@ -50,4 +53,9 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // V1 returns a new v1.Interface.
 func (g *group) V1() v1.Interface {
 	return v1.New(g.factory, g.namespace, g.tweakListOptions)
+}
+
+// V2 returns a new v2.Interface.
+func (g *group) V2() v2.Interface {
+	return v2.New(g.factory, g.namespace, g.tweakListOptions)
 }

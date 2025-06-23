@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/radix"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -34,7 +35,7 @@ func NewACR() JobsBuilder {
 
 type acr struct{}
 
-func (c *acr) BuildJobs(_, _ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID) []batchv1.Job {
+func (c *acr) BuildJobs(_, _ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radix.ULID) []batchv1.Job {
 	props := &acrKubeJobProps{
 		pipelineArgs:    pipelineArgs,
 		componentImages: componentImages,
@@ -57,7 +58,7 @@ type acrKubeJobProps struct {
 	gitCommitHash   string
 	gitTags         string
 	buildSecrets    []string
-	appID           radixv1.ULID
+	appID           radix.ULID
 }
 
 func (c *acrKubeJobProps) JobName() string {

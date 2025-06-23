@@ -1,4 +1,4 @@
-package v1
+package radix
 
 import (
 	"encoding/json"
@@ -7,6 +7,8 @@ import (
 )
 
 // ULID uses the oklog/ulid package to represent a ULID (Universally Unique Lexicographically Sortable Identifier).
+//
+// +k8s:deepcopy-gen=true
 // +kubebuilder:validation:Type:=string
 // +kubebuilder:validation:Format:=ulid
 // +kubebuilder:validation:Pattern=`^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$`
