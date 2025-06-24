@@ -13,6 +13,8 @@ import (
 // +kubebuilder:subresource:status
 
 // RadixBatch enables batch execution of Radix job components.
+//
+// +kubebuilder:storageversion
 type RadixBatch struct {
 	meta_v1.TypeMeta   `json:",inline"`
 	meta_v1.ObjectMeta `json:"metadata"`

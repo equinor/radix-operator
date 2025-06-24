@@ -36,7 +36,8 @@ var _ conversion.Hub = &RadixApplication{}
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=radixapplications,shortName=ra
-
+// +kubebuilder:storageversion
+// +kubebuilder:conversion:hub
 // RadixApplication describes an application
 type RadixApplication struct {
 	metav1.TypeMeta   `json:",inline"`

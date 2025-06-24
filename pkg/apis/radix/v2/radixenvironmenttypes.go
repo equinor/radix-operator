@@ -9,6 +9,8 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixEnvironment is a Custom Resource Definition
+//
+// +kubebuilder:storageversion
 type RadixEnvironment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

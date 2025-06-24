@@ -17,6 +17,8 @@ import (
 // +kubebuilder:subresource:status
 
 // RadixRegistration describe an application
+//
+// +kubebuilder:storageversion
 type RadixRegistration struct {
 	meta_v1.TypeMeta   `json:",inline"`
 	meta_v1.ObjectMeta `json:"metadata,omitempty"`

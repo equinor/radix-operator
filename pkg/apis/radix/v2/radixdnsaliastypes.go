@@ -12,6 +12,8 @@ import meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 // +kubebuilder:subresource:status
 
 // RadixDNSAlias is a Custom Resource Definition
+//
+// +kubebuilder:storageversion
 type RadixDNSAlias struct {
 	meta.TypeMeta   `json:",inline"`
 	meta.ObjectMeta `json:"metadata"`

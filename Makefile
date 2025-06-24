@@ -165,7 +165,7 @@ radixdnsalias-crd: temp-crds
 
 .PHONY: temp-crds
 temp-crds: bootstrap
-	controller-gen crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
+	controller-gen crd:maxDescLen=0 paths=./pkg/apis/radix/./... output:dir:=$(CRD_TEMP_DIR)
 
 .PHONY: delete-temp-crds
 delete-temp-crds:

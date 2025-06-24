@@ -8,6 +8,8 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixAlert describe alert config for a radix environment
+//
+// +kubebuilder:storageversion
 type RadixAlert struct {
 	meta_v1.TypeMeta   `json:",inline" yaml:",inline"`
 	meta_v1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`

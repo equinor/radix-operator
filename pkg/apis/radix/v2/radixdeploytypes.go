@@ -20,6 +20,8 @@ import (
 // +kubebuilder:subresource:status
 
 // RadixDeployment describe a deployment
+//
+// +kubebuilder:storageversion
 type RadixDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
