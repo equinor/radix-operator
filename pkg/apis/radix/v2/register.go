@@ -10,7 +10,7 @@ import (
 // SchemeGroupVersion provides the group version
 var SchemeGroupVersion = schema.GroupVersion{
 	Group:   radix.GroupName,
-	Version: "v1",
+	Version: "v2",
 }
 var (
 	// SchemeBuilder builds a scheme
