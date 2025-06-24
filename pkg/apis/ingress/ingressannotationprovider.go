@@ -109,7 +109,7 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.Radix
 			return nil, err
 		}
 
-		svcName := utils.GetAuxiliaryComponentServiceName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
+		svcName := utils.GetAuxOAuthProxyComponentServiceName(component.GetName())
 
 		// Documentation for OAuth2 proxy auth-request: https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/overview#configuring-for-use-with-the-nginx-auth_request-directive
 		hostPath := fmt.Sprintf("https://$host%s", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))

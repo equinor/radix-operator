@@ -255,6 +255,7 @@ spec:
                               enum:
                               - cookie
                               - redis
+                              - systemManaged
                               - ""
                               type: string
                             setAuthorizationHeader:
@@ -458,6 +459,7 @@ spec:
                                     enum:
                                     - cookie
                                     - redis
+                                    - systemManaged
                                     - ""
                                     type: string
                                   setAuthorizationHeader:

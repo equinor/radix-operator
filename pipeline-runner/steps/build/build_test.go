@@ -157,7 +157,7 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 
 	// secret correctly set
 	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
-	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
 	pipelineInfo.BuildSecret = &corev1.Secret{Data: map[string][]byte{secretName: []byte("anyvalue")}}
 	err = cli.Run(context.Background(), pipelineInfo)
@@ -190,7 +190,7 @@ func (s *buildTestSuite) Test_AppWithoutBuildSecrets_Validation() {
 	}
 
 	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
-	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
 	err := cli.Run(context.Background(), pipelineInfo)
 	s.NoError(err)
@@ -247,6 +247,7 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 		pipelineInfo.GitTags,
 		gomock.InAnyOrder(slices.Concat(env1Components, env2Components)),
 		gomock.InAnyOrder(buildSecrets),
+		rr.Spec.AppID,
 	).Return(jobsToReturn).Times(1)
 	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
 	err := cli.Run(context.Background(), pipelineInfo)

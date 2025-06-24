@@ -48,7 +48,8 @@ func (deploy *Deployment) reconcileDeployComponent(ctx context.Context, deployCo
 	if err = deploy.handleJobAuxDeployment(ctx, namespace, deployComponent, desiredDeployment, actualVolumes, desiredVolumeMounts); err != nil {
 		return err
 	}
-	return deploy.kubeutil.ApplyDeployment(ctx, namespace, currentDeployment, desiredDeployment)
+	isComponent := deployComponent.GetType() == v1.RadixComponentTypeComponent
+	return deploy.kubeutil.ApplyDeployment(ctx, namespace, currentDeployment, desiredDeployment, isComponent)
 }
 
 func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
@@ -78,7 +79,7 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, namespace 
 	desiredDeployment.Spec.Template.Spec.Volumes = nil
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
 
-	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
+	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment, false)
 }
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
@@ -157,11 +158,13 @@ func (deploy *Deployment) createJobAuxDeployment(jobName, jobAuxDeploymentName s
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
 
-	desiredDeployment.Spec.Template.Spec.Containers[0].Image = "bitnami/bitnami-shell:latest"
+	desiredDeployment.Spec.Template.Spec.Containers[0].Image = "bash:alpine3.22"
 	desiredDeployment.Spec.Template.Spec.Containers[0].Command = []string{"sh"}
 	desiredDeployment.Spec.Template.Spec.Containers[0].Args = []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullIfNotPresent
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container(securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)))
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container(
+		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+		securitycontext.WithContainerRunAsUser(1000))
 
 	return desiredDeployment
 }
@@ -191,6 +194,7 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 	commitID := getDeployComponentCommitId(deployComponent)
 	lbs := radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationID(deploy.registration.Spec.AppID),
 		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForCommitId(commitID),
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
@@ -206,6 +210,7 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 func (deploy *Deployment) getJobAuxDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
 		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationID(deploy.registration.Spec.AppID),
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
 		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
 	)

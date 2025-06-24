@@ -40,6 +40,9 @@ func (js *JobSchedulerComponent) GetCommand() []string {
 func (js *JobSchedulerComponent) GetArgs() []string {
 	return nil
 }
+func (js *JobSchedulerComponent) HasZeroReplicas() bool {
+	return js.GetReplicas() != nil && *js.GetReplicas() == 0
+}
 
 func (js *JobSchedulerComponent) GetPorts() []radixv1.ComponentPort {
 	if js.RadixDeployJobComponent.SchedulerPort == nil {

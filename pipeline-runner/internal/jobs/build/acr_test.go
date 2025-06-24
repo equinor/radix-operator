@@ -17,6 +17,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -35,6 +36,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 		gitTags       = "anygittags"
 		gitWorkspace  = "/some-workspace"
 		gitRefName    = "git-branch-to-clone"
+		appId         = "000005G4X6Y7Z8A9B0C1D2E3F4"
 	)
 
 	args := model.PipelineArguments{
@@ -65,7 +67,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	buildSecrets := []string{"secret1", "secret2"}
 
 	sut := build.NewACR()
-	jobs := sut.BuildJobs(false, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets)
+	jobs := sut.BuildJobs(false, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appId)})
 	require.Len(t, jobs, 1)
 	job := jobs[0]
 
@@ -90,6 +92,8 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	// Check pod template
 	expectedPodLabels := map[string]string{
 		kube.RadixJobNameLabel: args.JobName,
+		kube.RadixAppLabel:     args.AppName,
+		kube.RadixAppIDLabel:   appId,
 	}
 	assert.Equal(t, expectedPodLabels, job.Spec.Template.Labels)
 	expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)

@@ -206,6 +206,7 @@ spec:
                               enum:
                               - cookie
                               - redis
+                              - systemManaged
                               - ""
                               type: string
                             setAuthorizationHeader:

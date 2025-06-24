@@ -8,11 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// GetAuxiliaryComponentServiceName returns service name for auxiliary component, e.g. the oauth proxy
-func GetAuxiliaryComponentServiceName(componentName string, auxSuffix string) string {
-	return fmt.Sprintf("%s-%s", componentName, auxSuffix)
-}
-
 // GetServicePorts transforms a Radix ComponentPort list toa  ServicePort list for use with a Kubernetes Service
 func GetServicePorts(componentPorts []radixv1.ComponentPort) []corev1.ServicePort {
 
@@ -27,4 +22,14 @@ func GetServicePorts(componentPorts []radixv1.ComponentPort) []corev1.ServicePor
 		ports = append(ports, servicePort)
 	}
 	return ports
+}
+
+// GetAuxOAuthProxyComponentServiceName returns service name for auxiliary OAuth proxy component
+func GetAuxOAuthProxyComponentServiceName(componentName string) string {
+	return fmt.Sprintf("%s-%s", componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
+}
+
+// GetAuxOAuthRedisServiceName returns service name for auxiliary OAuth redis component
+func GetAuxOAuthRedisServiceName(componentName string) string {
+	return fmt.Sprintf("%s-%s", componentName, radixv1.OAuthRedisAuxiliaryComponentSuffix)
 }
