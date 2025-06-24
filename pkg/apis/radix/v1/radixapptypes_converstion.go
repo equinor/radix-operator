@@ -12,7 +12,8 @@ func (src *RadixApplication) ConvertTo(dstRaw conversion.Hub) error {
 	if !ok {
 		return fmt.Errorf("expected a *v2.RadixApplication object but got %T", dstRaw)
 	}
-	fmt.Println("running ConvertTo")
+
+	fmt.Printf("ConvertTo for %s\n", src.GetObjectKind().GroupVersionKind().String())
 
 	dst.ObjectMeta = src.ObjectMeta
 
@@ -92,7 +93,7 @@ func (dst *RadixApplication) ConvertFrom(srcRaw conversion.Hub) error {
 	if !ok {
 		return fmt.Errorf("expected a *v2.RadixApplication object but got %T", srcRaw)
 	}
-	fmt.Println("running ConvertFrom")
+	fmt.Printf("ConvertFrom for %s\n", src.GetObjectKind().GroupVersionKind().String())
 
 	dst.ObjectMeta = src.ObjectMeta
 
