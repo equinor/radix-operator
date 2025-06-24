@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	v2 "github.com/equinor/radix-operator/pkg/apis/radix/v2"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
@@ -46,47 +45,6 @@ type RadixApplication struct {
 	// Specification for an application.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/
 	Spec RadixApplicationSpec `json:"spec"`
-}
-
-func (src *RadixApplication) ConvertTo(dstRaw conversion.Hub) error {
-	dst, ok := dstRaw.(*v2.RadixApplication)
-	if !ok {
-		return fmt.Errorf("expected a *v2.RadixApplication object but got %T", dstRaw)
-	}
-	fmt.Println("running ConvertTo")
-
-	dst.ObjectMeta = src.ObjectMeta
-
-	if build := src.Spec.Build; build != nil {
-		dst.Spec.Build = &v2.BuildSpec{
-			Secrets:       build.Secrets,
-			Variables:     v2.EnvVarsMap(build.Variables),
-			UseBuildKit:   build.UseBuildKit,
-			UseBuildCache: build.UseBuildCache,
-		}
-	}
-
-	return nil
-}
-
-func (dst *RadixApplication) ConvertFrom(srcRaw conversion.Hub) error {
-	src, ok := srcRaw.(*v2.RadixApplication)
-	if !ok {
-		return fmt.Errorf("expected a *v2.RadixApplication object but got %T", srcRaw)
-	}
-	fmt.Println("running ConvertFrom")
-
-	dst.ObjectMeta = src.ObjectMeta
-
-	if build := src.Spec.Build; build != nil {
-		dst.Spec.Build = &BuildSpec{
-			Secrets:       build.Secrets,
-			Variables:     EnvVarsMap(build.Variables),
-			UseBuildKit:   build.UseBuildKit,
-			UseBuildCache: build.UseBuildCache,
-		}
-	}
-	return nil
 }
 
 // GetComponentByName returns the component matching the name parameter, or nil if not found

@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
@@ -380,9 +379,44 @@ type ResourceRequirements struct {
 	Requests ResourceList `json:"requests,omitempty"`
 }
 
-// RadixComponent defines a component.
 type RadixComponent struct {
 	// Name of the component.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=50
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	Name string `json:"name"`
+
+	// Number of desired replicas.
+	// More info: https://www.radix.equinor.com/radix-config#replicas
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	Replicas *int `json:"replicas,omitempty"`
+
+	Containers []RadixComponentContainer `json:"containers"`
+
+	// Configuration for workload identity (federated credentials).
+	// More info: https://www.radix.equinor.com/radix-config#identity
+	// +optional
+	Identity *Identity `json:"identity,omitempty"`
+
+	// Controls if the component shall be deployed.
+	// More info: https://www.radix.equinor.com/radix-config#enabled
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Configuration for automatic horizontal scaling of replicas.
+	// More info: https://www.radix.equinor.com/radix-config#horizontalscaling
+	// +optional
+	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
+
+	// Runtime defines the target runtime requirements for the component
+	// +optional
+	Runtime *Runtime `json:"runtime,omitempty"`
+}
+
+// RadixComponent defines a component.
+type RadixComponentContainer struct {
+	// Name of the container.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
@@ -397,12 +431,6 @@ type RadixComponent struct {
 	// More info: https://www.radix.equinor.com/radix-config#dockerfilename
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
-
-	// Number of desired replicas.
-	// More info: https://www.radix.equinor.com/radix-config#replicas
-	// +kubebuilder:validation:Minimum=0
-	// +optional
-	Replicas *int `json:"replicas,omitempty"`
 
 	// HealthChecks can tell Radix if your application is ready to receive traffic.
 	// Defaults to a TCP check against your first listed port.
@@ -482,44 +510,19 @@ type RadixComponent struct {
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
-	// Deprecated: use Runtime.NodeType instead.
-	// Defines GPU requirements for the component.
-	// More info: https://www.radix.equinor.com/radix-config#node
-	// +optional
-	Node RadixNode `json:"node,omitempty"`
-
 	// Configuration for TLS client certificate or OAuth2 authentication.
 	// More info: https://www.radix.equinor.com/radix-config#authentication
 	// +optional
 	Authentication *Authentication `json:"authentication,omitempty"`
 
-	// Configuration for workload identity (federated credentials).
-	// More info: https://www.radix.equinor.com/radix-config#identity
-	// +optional
-	Identity *Identity `json:"identity,omitempty"`
-
-	// Controls if the component shall be deployed.
-	// More info: https://www.radix.equinor.com/radix-config#enabled
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
 	// Controls if the filesystem shall be read-only.
 	// +optional
 	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
-
-	// Configuration for automatic horizontal scaling of replicas.
-	// More info: https://www.radix.equinor.com/radix-config#horizontalscaling
-	// +optional
-	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
 
 	// Configuration for mounting cloud storage into the component.
 	// More info: https://www.radix.equinor.com/radix-config#volumemounts
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
-
-	// Runtime defines the target runtime requirements for the component
-	// +optional
-	Runtime *Runtime `json:"runtime,omitempty"`
 
 	// Network settings.
 	// +optional
@@ -1866,138 +1869,138 @@ type RadixCommonComponent interface {
 	// GetName Gets component name
 	GetName() string
 	// GetDockerfileName Gets component docker file name
-	GetDockerfileName() string
-	// GetReplicas Gets component replicas
-	GetReplicas() *int
-	// GetSourceFolder Gets component source folder
-	GetSourceFolder() string
-	// GetImage Gets component image
-	GetImage() string
-	// GetImageForEnvironment Gets image for the environment
-	GetImageForEnvironment(environment string) string
-	// GetSourceForEnvironment Gets source for the environment
-	GetSourceForEnvironment(environment string) ComponentSource
-	// GetNode Gets component node parameters
-	GetNode() *RadixNode
-	// GetVariables Gets component environment variables
-	GetVariables() EnvVarsMap
-	// GetPorts Gets component ports
-	GetPorts() []ComponentPort
-	// GetMonitoringConfig Gets component monitoring configuration
-	GetMonitoringConfig() MonitoringConfig
-	// GetSecrets Gets component secrets
-	GetSecrets() []string
-	// GetSecretRefs Gets component secret-refs
-	GetSecretRefs() RadixSecretRefs
-	// GetResources Gets component resources
-	GetResources() ResourceRequirements
-	// GetIdentity Get component identity
-	GetIdentity() *Identity
-	// GetEnvironmentConfig Gets component environment configuration
-	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
-	// GetEnvironmentConfigsMap Get component environment configuration as map by names
-	GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig
-	// getEnabled Gets the component status if it is enabled in the application
-	getEnabled() bool
-	// GetEnvironmentConfigByName  Gets component environment configuration by its name
-	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
-	// GetEnabledForEnvironmentConfig Gets the component status if it is enabled in the application for an environment config
-	GetEnabledForEnvironmentConfig(RadixCommonEnvironmentConfig) bool
-	// GetEnabledForEnvironment Checks if the component is enabled for any of the environments
-	GetEnabledForEnvironment(environment string) bool
-	// GetReadOnlyFileSystem Gets if filesystem shall be read-only
-	GetReadOnlyFileSystem() *bool
-	// GetMonitoring Gets monitoring setting
-	GetMonitoring() *bool
-	// GetHorizontalScaling Gets the component horizontal scaling
-	GetHorizontalScaling() *RadixHorizontalScaling
-	// GetVolumeMounts Get volume mount configurations
-	GetVolumeMounts() []RadixVolumeMount
-	// GetImageTagName Is a dynamic image tag for the component image
-	GetImageTagName() string
-	// GetRuntime Gets target runtime requirements
-	GetRuntime() *Runtime
-	// GetCommand Entrypoint array. Not executed within a shell.
-	GetCommand() []string
-	// GetArgs Arguments to the entrypoint.
-	GetArgs() []string
-	// GetCommandForEnvironment Entrypoint array for the environment. Not executed within a shell.
-	GetCommandForEnvironment(environment string) []string
-	// GetArgsForEnvironment Arguments to the entrypoint for the environment.
-	GetArgsForEnvironment(environment string) []string
-	// GetCommandForEnvironmentConfig Entrypoint array for the environment config
-	GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
-	// GetArgsForEnvironmentConfig Arguments to the entrypoint for the environment config
-	GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
+	// GetDockerfileName() string
+	// // GetReplicas Gets component replicas
+	// GetReplicas() *int
+	// // GetSourceFolder Gets component source folder
+	// GetSourceFolder() string
+	// // GetImage Gets component image
+	// GetImage() string
+	// // GetImageForEnvironment Gets image for the environment
+	// GetImageForEnvironment(environment string) string
+	// // GetSourceForEnvironment Gets source for the environment
+	// GetSourceForEnvironment(environment string) ComponentSource
+	// // GetNode Gets component node parameters
+	// GetNode() *RadixNode
+	// // GetVariables Gets component environment variables
+	// GetVariables() EnvVarsMap
+	// // GetPorts Gets component ports
+	// GetPorts() []ComponentPort
+	// // GetMonitoringConfig Gets component monitoring configuration
+	// GetMonitoringConfig() MonitoringConfig
+	// // GetSecrets Gets component secrets
+	// GetSecrets() []string
+	// // GetSecretRefs Gets component secret-refs
+	// GetSecretRefs() RadixSecretRefs
+	// // GetResources Gets component resources
+	// GetResources() ResourceRequirements
+	// // GetIdentity Get component identity
+	// GetIdentity() *Identity
+	// // GetEnvironmentConfig Gets component environment configuration
+	// GetEnvironmentConfig() []RadixCommonEnvironmentConfig
+	// // GetEnvironmentConfigsMap Get component environment configuration as map by names
+	// GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig
+	// // getEnabled Gets the component status if it is enabled in the application
+	// getEnabled() bool
+	// // GetEnvironmentConfigByName  Gets component environment configuration by its name
+	// GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
+	// // GetEnabledForEnvironmentConfig Gets the component status if it is enabled in the application for an environment config
+	// GetEnabledForEnvironmentConfig(RadixCommonEnvironmentConfig) bool
+	// // GetEnabledForEnvironment Checks if the component is enabled for any of the environments
+	// GetEnabledForEnvironment(environment string) bool
+	// // GetReadOnlyFileSystem Gets if filesystem shall be read-only
+	// GetReadOnlyFileSystem() *bool
+	// // GetMonitoring Gets monitoring setting
+	// GetMonitoring() *bool
+	// // GetHorizontalScaling Gets the component horizontal scaling
+	// GetHorizontalScaling() *RadixHorizontalScaling
+	// // GetVolumeMounts Get volume mount configurations
+	// GetVolumeMounts() []RadixVolumeMount
+	// // GetImageTagName Is a dynamic image tag for the component image
+	// GetImageTagName() string
+	// // GetRuntime Gets target runtime requirements
+	// GetRuntime() *Runtime
+	// // GetCommand Entrypoint array. Not executed within a shell.
+	// GetCommand() []string
+	// // GetArgs Arguments to the entrypoint.
+	// GetArgs() []string
+	// // GetCommandForEnvironment Entrypoint array for the environment. Not executed within a shell.
+	// GetCommandForEnvironment(environment string) []string
+	// // GetArgsForEnvironment Arguments to the entrypoint for the environment.
+	// GetArgsForEnvironment(environment string) []string
+	// // GetCommandForEnvironmentConfig Entrypoint array for the environment config
+	// GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
+	// // GetArgsForEnvironmentConfig Arguments to the entrypoint for the environment config
+	// GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
 }
 
 func (component *RadixComponent) GetName() string {
 	return component.Name
 }
 
-func (component *RadixComponent) GetDockerfileName() string {
-	return component.DockerfileName
-}
+// func (component *RadixComponent) GetDockerfileName() string {
+// 	return component.DockerfileName
+// }
 
 func (component *RadixComponent) GetReplicas() *int {
 	return component.Replicas
 }
 
-func (component *RadixComponent) GetSourceFolder() string {
-	return component.SourceFolder
-}
+// func (component *RadixComponent) GetSourceFolder() string {
+// 	return component.SourceFolder
+// }
 
-func (component *RadixComponent) GetImage() string {
-	return component.Image
-}
+// func (component *RadixComponent) GetImage() string {
+// 	return component.Image
+// }
 
-func (component *RadixComponent) GetImageForEnvironment(environment string) string {
-	return getImageForEnvironment(component, environment)
-}
+// func (component *RadixComponent) GetImageForEnvironment(environment string) string {
+// 	return getImageForEnvironment(component, environment)
+// }
 
-func (component *RadixComponent) GetSourceForEnvironment(environment string) ComponentSource {
-	return getSourceForEnvironment(component, environment)
-}
+// func (component *RadixComponent) GetSourceForEnvironment(environment string) ComponentSource {
+// 	return getSourceForEnvironment(component, environment)
+// }
 
-func (component *RadixComponent) GetNode() *RadixNode {
-	return &component.Node
-}
+// func (component *RadixComponent) GetNode() *RadixNode {
+// 	return &component.Node
+// }
 
-func (component *RadixComponent) GetVariables() EnvVarsMap {
-	return component.Variables
-}
+// func (component *RadixComponent) GetVariables() EnvVarsMap {
+// 	return component.Variables
+// }
 
-func (component *RadixComponent) GetPorts() []ComponentPort {
-	return component.Ports
-}
+// func (component *RadixComponent) GetPorts() []ComponentPort {
+// 	return component.Ports
+// }
 
-func (component *RadixComponent) GetMonitoringConfig() MonitoringConfig {
-	return component.MonitoringConfig
-}
+// func (component *RadixComponent) GetMonitoringConfig() MonitoringConfig {
+// 	return component.MonitoringConfig
+// }
 
-func (component *RadixComponent) GetMonitoring() *bool {
-	return component.Monitoring
-}
+// func (component *RadixComponent) GetMonitoring() *bool {
+// 	return component.Monitoring
+// }
 
-func (component *RadixComponent) GetSecrets() []string {
-	return component.Secrets
-}
+// func (component *RadixComponent) GetSecrets() []string {
+// 	return component.Secrets
+// }
 
-func (component *RadixComponent) GetSecretRefs() RadixSecretRefs {
-	return component.SecretRefs
-}
+// func (component *RadixComponent) GetSecretRefs() RadixSecretRefs {
+// 	return component.SecretRefs
+// }
 
-func (component *RadixComponent) GetVolumeMounts() []RadixVolumeMount {
-	return component.VolumeMounts
-}
+// func (component *RadixComponent) GetVolumeMounts() []RadixVolumeMount {
+// 	return component.VolumeMounts
+// }
 
-func (component *RadixComponent) GetImageTagName() string {
-	return component.ImageTagName
-}
+// func (component *RadixComponent) GetImageTagName() string {
+// 	return component.ImageTagName
+// }
 
-func (component *RadixComponent) GetResources() ResourceRequirements {
-	return component.Resources
-}
+// func (component *RadixComponent) GetResources() ResourceRequirements {
+// 	return component.Resources
+// }
 
 func (component *RadixComponent) GetIdentity() *Identity {
 	return component.Identity
@@ -2011,82 +2014,82 @@ func (component *RadixComponent) getEnabled() bool {
 	return component.Enabled == nil || *component.Enabled
 }
 
-func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
-	var environmentConfigs []RadixCommonEnvironmentConfig
-	for _, environmentConfig := range component.EnvironmentConfig {
-		environmentConfig := environmentConfig
-		environmentConfigs = append(environmentConfigs, &environmentConfig)
-	}
-	return environmentConfigs
-}
+// func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
+// 	var environmentConfigs []RadixCommonEnvironmentConfig
+// 	for _, environmentConfig := range component.EnvironmentConfig {
+// 		environmentConfig := environmentConfig
+// 		environmentConfigs = append(environmentConfigs, &environmentConfig)
+// 	}
+// 	return environmentConfigs
+// }
 
-func (component *RadixComponent) GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig {
-	return getEnvironmentConfigMap(component)
-}
+// func (component *RadixComponent) GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig {
+// 	return getEnvironmentConfigMap(component)
+// }
 
-func getEnvironmentConfigMap(component RadixCommonComponent) map[string]RadixCommonEnvironmentConfig {
-	environmentConfigsMap := make(map[string]RadixCommonEnvironmentConfig)
-	for _, environmentConfig := range component.GetEnvironmentConfig() {
-		config := environmentConfig
-		environmentConfigsMap[environmentConfig.GetEnvironment()] = config
-	}
-	return environmentConfigsMap
-}
+// func getEnvironmentConfigMap(component RadixCommonComponent) map[string]RadixCommonEnvironmentConfig {
+// 	environmentConfigsMap := make(map[string]RadixCommonEnvironmentConfig)
+// 	for _, environmentConfig := range component.GetEnvironmentConfig() {
+// 		config := environmentConfig
+// 		environmentConfigsMap[environmentConfig.GetEnvironment()] = config
+// 	}
+// 	return environmentConfigsMap
+// }
 
-func (component *RadixComponent) GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig {
-	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
-}
+// func (component *RadixComponent) GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig {
+// 	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
+// }
 
-func (component *RadixComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
-	return getEnabled(component, envConfig)
-}
+// func (component *RadixComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
+// 	return getEnabled(component, envConfig)
+// }
 
-func (component *RadixComponent) GetReadOnlyFileSystem() *bool {
-	return component.ReadOnlyFileSystem
-}
+// func (component *RadixComponent) GetReadOnlyFileSystem() *bool {
+// 	return component.ReadOnlyFileSystem
+// }
 
 func (component *RadixComponent) GetHorizontalScaling() *RadixHorizontalScaling {
 	return component.HorizontalScaling
 }
 
-func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
-	return getEnabledForEnvironment(component, environment)
-}
+// func (component *RadixComponent) GetEnabledForEnvironment(environment string) bool {
+// 	return getEnabledForEnvironment(component, environment)
+// }
 
-func (component *RadixComponent) GetCommand() []string {
-	return component.Command
-}
+// func (component *RadixComponent) GetCommand() []string {
+// 	return component.Command
+// }
 
-func (component *RadixComponent) GetArgs() []string {
-	return component.Args
-}
+// func (component *RadixComponent) GetArgs() []string {
+// 	return component.Args
+// }
 
-func (component *RadixComponent) GetCommandForEnvironment(environment string) []string {
-	return getCommandForEnvironment(component, environment)
-}
+// func (component *RadixComponent) GetCommandForEnvironment(environment string) []string {
+// 	return getCommandForEnvironment(component, environment)
+// }
 
-func (component *RadixComponent) GetArgsForEnvironment(environment string) []string {
-	return getArgsForEnvironment(component, environment)
-}
+// func (component *RadixComponent) GetArgsForEnvironment(environment string) []string {
+// 	return getArgsForEnvironment(component, environment)
+// }
 
-func (component *RadixComponent) GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
-	return getCommandForEnvironmentConfig(component, envConfig)
-}
+// func (component *RadixComponent) GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+// 	return getCommandForEnvironmentConfig(component, envConfig)
+// }
 
-func (component *RadixComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
-	return getArgsForEnvironmentConfig(component, envConfig)
-}
+// func (component *RadixComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+// 	return getArgsForEnvironmentConfig(component, envConfig)
+// }
 
-func (component *RadixJobComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
-	return getEnabled(component, envConfig)
-}
+// func (component *RadixJobComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
+// 	return getEnabled(component, envConfig)
+// }
 
-func getEnabled(component RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) bool {
-	if commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil {
-		return component.getEnabled()
-	}
-	return *envConfig.getEnabled()
-}
+// func getEnabled(component RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) bool {
+// 	if commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil {
+// 		return component.getEnabled()
+// 	}
+// 	return *envConfig.getEnabled()
+// }
 
 func (component *RadixJobComponent) GetName() string {
 	return component.Name
@@ -2108,13 +2111,13 @@ func (component *RadixJobComponent) GetImage() string {
 	return component.Image
 }
 
-func (component *RadixJobComponent) GetImageForEnvironment(environment string) string {
-	return getImageForEnvironment(component, environment)
-}
+// func (component *RadixJobComponent) GetImageForEnvironment(environment string) string {
+// 	return getImageForEnvironment(component, environment)
+// }
 
-func (component *RadixJobComponent) GetSourceForEnvironment(environment string) ComponentSource {
-	return getSourceForEnvironment(component, environment)
-}
+// func (component *RadixJobComponent) GetSourceForEnvironment(environment string) ComponentSource {
+// 	return getSourceForEnvironment(component, environment)
+// }
 
 func (component *RadixJobComponent) GetNode() *RadixNode {
 	return &component.Node
@@ -2186,9 +2189,9 @@ func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironm
 	return environmentConfigs
 }
 
-func (component *RadixJobComponent) GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig {
-	return getEnvironmentConfigMap(component)
-}
+// func (component *RadixJobComponent) GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig {
+// 	return getEnvironmentConfigMap(component)
+// }
 
 func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []RadixVolumeMount {
 	for _, envConfig := range component.EnvironmentConfig {
@@ -2203,9 +2206,9 @@ func (component *RadixJobComponent) GetEnvironmentConfigByName(environment strin
 	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
 }
 
-func (component *RadixJobComponent) GetEnabledForEnvironment(environment string) bool {
-	return getEnabledForEnvironment(component, environment)
-}
+// func (component *RadixJobComponent) GetEnabledForEnvironment(environment string) bool {
+// 	return getEnabledForEnvironment(component, environment)
+// }
 
 func (component *RadixJobComponent) GetReadOnlyFileSystem() *bool {
 	return component.ReadOnlyFileSystem
@@ -2223,21 +2226,21 @@ func (component *RadixJobComponent) GetArgs() []string {
 	return component.Args
 }
 
-func (component *RadixJobComponent) GetCommandForEnvironment(environment string) []string {
-	return getCommandForEnvironment(component, environment)
-}
+// func (component *RadixJobComponent) GetCommandForEnvironment(environment string) []string {
+// 	return getCommandForEnvironment(component, environment)
+// }
 
-func (component *RadixJobComponent) GetArgsForEnvironment(environment string) []string {
-	return getArgsForEnvironment(component, environment)
-}
+// func (component *RadixJobComponent) GetArgsForEnvironment(environment string) []string {
+// 	return getArgsForEnvironment(component, environment)
+// }
 
-func (component *RadixJobComponent) GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
-	return getCommandForEnvironmentConfig(component, envConfig)
-}
+// func (component *RadixJobComponent) GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+// 	return getCommandForEnvironmentConfig(component, envConfig)
+// }
 
-func (component *RadixJobComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
-	return getArgsForEnvironmentConfig(component, envConfig)
-}
+// func (component *RadixJobComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
+// 	return getArgsForEnvironmentConfig(component, envConfig)
+// }
 
 // GetOAuth2 Returns OAuth2 if exist
 func (authentication *Authentication) GetOAuth2() *OAuth2 {
@@ -2304,55 +2307,55 @@ func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCo
 	return nil
 }
 
-func getEnabledForEnvironment(component RadixCommonComponent, environment string) bool {
-	environmentConfigsMap := component.GetEnvironmentConfigsMap()
-	if len(environmentConfigsMap) == 0 {
-		return component.getEnabled()
-	}
-	return component.GetEnabledForEnvironmentConfig(environmentConfigsMap[environment])
-}
+// func getEnabledForEnvironment(component RadixCommonComponent, environment string) bool {
+// 	environmentConfigsMap := component.GetEnvironmentConfigsMap()
+// 	if len(environmentConfigsMap) == 0 {
+// 		return component.getEnabled()
+// 	}
+// 	return component.GetEnabledForEnvironmentConfig(environmentConfigsMap[environment])
+// }
 
-func getImageForEnvironment(component RadixCommonComponent, environment string) string {
-	environmentConfigsMap := component.GetEnvironmentConfigsMap()
-	if len(environmentConfigsMap) == 0 {
-		return component.GetImage()
-	}
-	if envConfig, ok := environmentConfigsMap[environment]; ok && !commonUtils.IsNil(envConfig) {
-		envConfigEnabled := envConfig.getEnabled() == nil || *envConfig.getEnabled()
-		if envConfigEnabled {
-			if len(strings.TrimSpace(envConfig.GetImage())) > 0 {
-				return strings.TrimSpace(envConfig.GetImage())
-			}
-			if len(strings.TrimSpace(envConfig.GetSourceFolder()))+len(strings.TrimSpace(envConfig.GetDockerfileName())) > 0 {
-				return ""
-			}
-		}
-	}
-	return component.GetImage()
-}
+// func getImageForEnvironment(component RadixCommonComponent, environment string) string {
+// 	environmentConfigsMap := component.GetEnvironmentConfigsMap()
+// 	if len(environmentConfigsMap) == 0 {
+// 		return component.GetImage()
+// 	}
+// 	if envConfig, ok := environmentConfigsMap[environment]; ok && !commonUtils.IsNil(envConfig) {
+// 		envConfigEnabled := envConfig.getEnabled() == nil || *envConfig.getEnabled()
+// 		if envConfigEnabled {
+// 			if len(strings.TrimSpace(envConfig.GetImage())) > 0 {
+// 				return strings.TrimSpace(envConfig.GetImage())
+// 			}
+// 			if len(strings.TrimSpace(envConfig.GetSourceFolder()))+len(strings.TrimSpace(envConfig.GetDockerfileName())) > 0 {
+// 				return ""
+// 			}
+// 		}
+// 	}
+// 	return component.GetImage()
+// }
 
-func getSourceForEnvironment(component RadixCommonComponent, environment string) ComponentSource {
-	environmentConfigsMap := component.GetEnvironmentConfigsMap()
-	source := ComponentSource{
-		Folder:        component.GetSourceFolder(),
-		DockefileName: component.GetDockerfileName(),
-	}
-	if len(environmentConfigsMap) == 0 {
-		return source
-	}
-	if envConfig, ok := environmentConfigsMap[environment]; ok && !commonUtils.IsNil(envConfig) {
-		envConfigEnabled := envConfig.getEnabled() == nil || *envConfig.getEnabled()
-		if envConfigEnabled {
-			if sourceFolder := strings.TrimSpace(envConfig.GetSourceFolder()); len(sourceFolder) > 0 {
-				source.Folder = sourceFolder
-			}
-			if dockerfileName := strings.TrimSpace(envConfig.GetDockerfileName()); len(dockerfileName) > 0 {
-				source.DockefileName = dockerfileName
-			}
-		}
-	}
-	return source
-}
+// func getSourceForEnvironment(component RadixCommonComponent, environment string) ComponentSource {
+// 	environmentConfigsMap := component.GetEnvironmentConfigsMap()
+// 	source := ComponentSource{
+// 		Folder:        component.GetSourceFolder(),
+// 		DockefileName: component.GetDockerfileName(),
+// 	}
+// 	if len(environmentConfigsMap) == 0 {
+// 		return source
+// 	}
+// 	if envConfig, ok := environmentConfigsMap[environment]; ok && !commonUtils.IsNil(envConfig) {
+// 		envConfigEnabled := envConfig.getEnabled() == nil || *envConfig.getEnabled()
+// 		if envConfigEnabled {
+// 			if sourceFolder := strings.TrimSpace(envConfig.GetSourceFolder()); len(sourceFolder) > 0 {
+// 				source.Folder = sourceFolder
+// 			}
+// 			if dockerfileName := strings.TrimSpace(envConfig.GetDockerfileName()); len(dockerfileName) > 0 {
+// 				source.DockefileName = dockerfileName
+// 			}
+// 		}
+// 	}
+// 	return source
+// }
 
 // GetAzure Get component Azure identity configuration
 func (identity *Identity) GetAzure() *AzureIdentity {
@@ -2385,52 +2388,52 @@ func (oauth2 *OAuth2) GetRedisStoreConnectionURL() string {
 	return oauth2.RedisStore.ConnectionURL
 }
 
-func getCommandForEnvironment(commonComponent RadixCommonComponent, environment string) []string {
-	environmentConfigsMap := getEnvironmentConfigMap(commonComponent)
-	if len(environmentConfigsMap) == 0 {
-		return commonComponent.GetCommand()
-	}
-	envConfig, ok := environmentConfigsMap[environment]
-	if !ok || commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
-		return commonComponent.GetCommand()
-	}
-	if command := envConfig.GetCommand(); command != nil {
-		return *envConfig.GetCommand()
-	}
-	return commonComponent.GetCommand()
-}
+// func getCommandForEnvironment(commonComponent RadixCommonComponent, environment string) []string {
+// 	environmentConfigsMap := getEnvironmentConfigMap(commonComponent)
+// 	if len(environmentConfigsMap) == 0 {
+// 		return commonComponent.GetCommand()
+// 	}
+// 	envConfig, ok := environmentConfigsMap[environment]
+// 	if !ok || commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+// 		return commonComponent.GetCommand()
+// 	}
+// 	if command := envConfig.GetCommand(); command != nil {
+// 		return *envConfig.GetCommand()
+// 	}
+// 	return commonComponent.GetCommand()
+// }
 
-func getArgsForEnvironment(commonComponent RadixCommonComponent, environment string) []string {
-	environmentConfigsMap := getEnvironmentConfigMap(commonComponent)
-	if len(environmentConfigsMap) == 0 {
-		return commonComponent.GetArgs()
-	}
-	envConfig, ok := environmentConfigsMap[environment]
-	if !ok || commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
-		return commonComponent.GetArgs()
-	}
-	if args := envConfig.GetArgs(); args != nil {
-		return *envConfig.GetArgs()
-	}
-	return commonComponent.GetArgs()
-}
+// func getArgsForEnvironment(commonComponent RadixCommonComponent, environment string) []string {
+// 	environmentConfigsMap := getEnvironmentConfigMap(commonComponent)
+// 	if len(environmentConfigsMap) == 0 {
+// 		return commonComponent.GetArgs()
+// 	}
+// 	envConfig, ok := environmentConfigsMap[environment]
+// 	if !ok || commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+// 		return commonComponent.GetArgs()
+// 	}
+// 	if args := envConfig.GetArgs(); args != nil {
+// 		return *envConfig.GetArgs()
+// 	}
+// 	return commonComponent.GetArgs()
+// }
 
-func getCommandForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
-	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
-		return commonComponent.GetCommand()
-	}
-	if command := envConfig.GetCommand(); command != nil {
-		return *envConfig.GetCommand()
-	}
-	return commonComponent.GetCommand()
-}
+// func getCommandForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
+// 	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+// 		return commonComponent.GetCommand()
+// 	}
+// 	if command := envConfig.GetCommand(); command != nil {
+// 		return *envConfig.GetCommand()
+// 	}
+// 	return commonComponent.GetCommand()
+// }
 
-func getArgsForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
-	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
-		return commonComponent.GetArgs()
-	}
-	if args := envConfig.GetArgs(); args != nil {
-		return *envConfig.GetArgs()
-	}
-	return commonComponent.GetArgs()
-}
+// func getArgsForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
+// 	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+// 		return commonComponent.GetArgs()
+// 	}
+// 	if args := envConfig.GetArgs(); args != nil {
+// 		return *envConfig.GetArgs()
+// 	}
+// 	return commonComponent.GetArgs()
+// }
