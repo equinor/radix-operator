@@ -54,6 +54,9 @@ func (src *RadixApplication) ConvertTo(dstRaw conversion.Hub) error {
 		return fmt.Errorf("expected a *v2.RadixApplication object but got %T", dstRaw)
 	}
 	fmt.Println("running ConvertTo")
+
+	dst.ObjectMeta = src.ObjectMeta
+
 	if build := src.Spec.Build; build != nil {
 		dst.Spec.Build = &v2.BuildSpec{
 			Secrets:       build.Secrets,
@@ -62,6 +65,7 @@ func (src *RadixApplication) ConvertTo(dstRaw conversion.Hub) error {
 			UseBuildCache: build.UseBuildCache,
 		}
 	}
+
 	return nil
 }
 
@@ -71,6 +75,9 @@ func (dst *RadixApplication) ConvertFrom(srcRaw conversion.Hub) error {
 		return fmt.Errorf("expected a *v2.RadixApplication object but got %T", srcRaw)
 	}
 	fmt.Println("running ConvertFrom")
+
+	dst.ObjectMeta = src.ObjectMeta
+
 	if build := src.Spec.Build; build != nil {
 		dst.Spec.Build = &BuildSpec{
 			Secrets:       build.Secrets,
