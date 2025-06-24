@@ -18,26 +18,26 @@ func (src *RadixApplication) ConvertTo(dstRaw conversion.Hub) error {
 
 	dstComponents := make([]v2.RadixComponent, 0, len(src.Spec.Components))
 	for _, srcComponent := range src.Spec.Components {
-		dstComponents = append(dstComponents, convertComponentV1ToV2(srcComponent))
+		dstComponents = append(dstComponents, convertComponentToV2(srcComponent))
 	}
 	dst.Spec.Components = dstComponents
 
 	return nil
 }
 
-func convertComponentV1ToV2(src RadixComponent) v2.RadixComponent {
+func convertComponentToV2(src RadixComponent) v2.RadixComponent {
 	dst := v2.RadixComponent{
 		Name:       src.Name,
 		Replicas:   src.Replicas,
 		Enabled:    src.Enabled,
-		Identity:   convertIdentityV1ToV2(src.Identity),
-		Containers: convertComponentV1ToV2Container(src),
+		Identity:   convertIdentityToV2(src.Identity),
+		Containers: convertComponentToV2Container(src),
 	}
 
 	return dst
 }
 
-func convertComponentV1ToV2Container(src RadixComponent) []v2.RadixComponentContainer {
+func convertComponentToV2Container(src RadixComponent) []v2.RadixComponentContainer {
 	container := v2.RadixComponentContainer{
 		Name:           src.Name,
 		SourceFolder:   src.SourceFolder,
@@ -45,7 +45,7 @@ func convertComponentV1ToV2Container(src RadixComponent) []v2.RadixComponentCont
 		Image:          src.Image,
 		ImageTagName:   src.ImageTagName,
 		Monitoring:     src.Monitoring,
-		Ports:          convertPortsV1ToV2(src.Ports),
+		Ports:          convertPortsToV2(src.Ports),
 	}
 
 	if len(src.PublicPort) > 0 {
@@ -57,7 +57,7 @@ func convertComponentV1ToV2Container(src RadixComponent) []v2.RadixComponentCont
 	return []v2.RadixComponentContainer{container}
 }
 
-func convertPortsV1ToV2(src []ComponentPort) []v2.ComponentPort {
+func convertPortsToV2(src []ComponentPort) []v2.ComponentPort {
 	dstPorts := make([]v2.ComponentPort, 0, len(src))
 
 	for _, srcPort := range src {
@@ -67,17 +67,17 @@ func convertPortsV1ToV2(src []ComponentPort) []v2.ComponentPort {
 	return dstPorts
 }
 
-func convertIdentityV1ToV2(src *Identity) *v2.Identity {
+func convertIdentityToV2(src *Identity) *v2.Identity {
 	if src == nil {
 		return nil
 	}
 
 	return &v2.Identity{
-		Azure: convertAzureIdentityV1Tov2(src.Azure),
+		Azure: convertAzureIdentityToV2(src.Azure),
 	}
 }
 
-func convertAzureIdentityV1Tov2(src *AzureIdentity) *v2.AzureIdentity {
+func convertAzureIdentityToV2(src *AzureIdentity) *v2.AzureIdentity {
 	if src == nil {
 		return nil
 	}
@@ -96,5 +96,63 @@ func (dst *RadixApplication) ConvertFrom(srcRaw conversion.Hub) error {
 
 	dst.ObjectMeta = src.ObjectMeta
 
+	dstComponents := make([]RadixComponent, 0, len(src.Spec.Components))
+	for _, srcComponent := range src.Spec.Components {
+		dstComponents = append(dstComponents, convertComponentToV1(srcComponent))
+	}
+	dst.Spec.Components = dstComponents
+
 	return nil
+}
+
+func convertComponentToV1(src v2.RadixComponent) RadixComponent {
+	dst := RadixComponent{
+		Name:     src.Name,
+		Replicas: src.Replicas,
+		Enabled:  src.Enabled,
+		Identity: convertIdentityToV1(src.Identity),
+	}
+
+	if len(src.Containers) > 0 {
+		srcContainer := src.Containers[0]
+		dst.SourceFolder = srcContainer.SourceFolder
+		dst.DockerfileName = srcContainer.DockerfileName
+		dst.Image = srcContainer.Image
+		dst.ImageTagName = srcContainer.ImageTagName
+		dst.Monitoring = srcContainer.Monitoring
+		dst.Ports = convertPortsToV1(srcContainer.Ports)
+		dst.PublicPort = srcContainer.PublicPort
+	}
+
+	return dst
+}
+
+func convertIdentityToV1(src *v2.Identity) *Identity {
+	if src == nil {
+		return nil
+	}
+
+	return &Identity{
+		Azure: convertAzureIdentityToV1(src.Azure),
+	}
+}
+
+func convertAzureIdentityToV1(src *v2.AzureIdentity) *AzureIdentity {
+	if src == nil {
+		return nil
+	}
+
+	return &AzureIdentity{
+		ClientId: src.ClientId,
+	}
+}
+
+func convertPortsToV1(src []v2.ComponentPort) []ComponentPort {
+	dstPorts := make([]ComponentPort, 0, len(src))
+
+	for _, srcPort := range src {
+		dstPorts = append(dstPorts, ComponentPort{Name: srcPort.Name, Port: srcPort.Port})
+	}
+
+	return dstPorts
 }
