@@ -17,13 +17,13 @@ type Config struct {
 	SecretName      string `envconfig:"SECRET_NAME" default:"radix-webhook-certs" desc:"Name of the secret where the webhook TLS certificate is stored"`
 	SecretNamespace string `envconfig:"SECRET_NAMESPACE" default:"default" desc:"Namespace of the secret where the webhook TLS certificate is stored"`
 
-	DisableCertRotation bool     `envconfig:"DISABLE_CERT_ROTATION" default:"false" desc:"Disable automatic certificate rotation"`
-	CertDir             string   `envconfig:"CERT_DIR" default:"/certs" desc:"Directory where the webhook TLS certificate is stored"`
-	CaName              string   `envconfig:"CA_NAME" default:"radix-webhook-ca" desc:"Name of the CA secret"`
-	CaOrganization      string   `envconfig:"CA_ORGANIZATION" default:"Radix Webhook CA" desc:"Organization of the CA"`
-	DnsName             string   `envconfig:"DNS_NAME" default:"radix-webhook.default.svc" desc:"DNS name of the webhook service"`
-	ExtraDnsNames       []string `envconfig:"EXTRA_DNS_NAMES" default:"" desc:"Additional DNS names for the webhook service, separated by commas"`
-	WebhookServiceName  string   `envconfig:"WEBHOOK_SERVICE_NAME" default:"radix-webhook-configuration" desc:"Name of the webhook service"`
+	DisableCertRotation      bool     `envconfig:"DISABLE_CERT_ROTATION" default:"false" desc:"Disable automatic certificate rotation"`
+	CertDir                  string   `envconfig:"CERT_DIR" default:"/certs" desc:"Directory where the webhook TLS certificate is stored"`
+	CaName                   string   `envconfig:"CA_NAME" default:"radix-webhook-ca" desc:"Name of the CA secret"`
+	CaOrganization           string   `envconfig:"CA_ORGANIZATION" default:"Radix Webhook CA" desc:"Organization of the CA"`
+	DnsName                  string   `envconfig:"DNS_NAME" default:"radix-webhook.default.svc" desc:"DNS name of the webhook service"`
+	ExtraDnsNames            []string `envconfig:"EXTRA_DNS_NAMES" default:"" desc:"Additional DNS names for the webhook service, separated by commas"`
+	WebhookConfigurationName string   `envconfig:"WEBHOOK_CONFIGURATION_NAME" default:"radix-webhook-configuration" desc:"Name of the webhook service"`
 }
 
 func MustParseConfig() Config {

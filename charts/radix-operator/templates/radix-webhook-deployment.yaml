@@ -47,7 +47,7 @@ spec:
               value: default
             - name: SECRET_NAME
               value: "radix-webhook-certs"
-            - name: WEBHOOK_NAME
+            - name: WEBHOOK_CONFIGURATION_NAME
               value: radix-webhook-configuration
             - name: CERTS_DIR
               value: /certs

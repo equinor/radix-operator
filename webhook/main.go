@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	internalconfig "github.com/equinor/radix-operator/webhook/internal/config"
-	"github.com/equinor/radix-operator/webhook/internal/handler"
+	"github.com/equinor/radix-operator/webhook/validator"
 
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
@@ -87,8 +87,8 @@ func setupWebhook(mgr manager.Manager, client radixclient.Interface, certSetupFi
 		log.Fatal().Msg("Failed to set up certificate rotation before deadline (60sec)")
 	}
 
-	rrValidator := handler.NewRadixRegistrationValidator(client)
-	mgr.GetWebhookServer().Register("/api/v1/radixregistration/validator", admission.WithCustomValidator(mgr.GetScheme(), &radixv1.RadixRegistration{}, rrValidator))
+	rrValidator := validator.NewRadixRegistrationValidator(client)
+	mgr.GetWebhookServer().Register(validator.RadixRegistrationValidatorWebhookPath, admission.WithCustomValidator(mgr.GetScheme(), &radixv1.RadixRegistration{}, rrValidator))
 
 	log.Info().Msg("webhook setup complete")
 }
@@ -114,7 +114,7 @@ func addCertRotator(mgr manager.Manager, c internalconfig.Config) <-chan struct{
 			EnableReadinessCheck:   true,
 			Webhooks: []rotator.WebhookInfo{
 				{
-					Name: c.WebhookServiceName,
+					Name: c.WebhookConfigurationName,
 					Type: rotator.Validating,
 				},
 			},
@@ -159,17 +159,6 @@ func addProbeEndpoints(mgr manager.Manager, certSetupFinished <-chan struct{}) {
 	mgr.GetLogger().Info("added healthz and readyz check")
 }
 
-func initLogr(logger zerolog.Logger) logr.Logger {
-	zerologr.NameFieldName = "logger"
-	zerologr.NameSeparator = "/"
-	zerologr.SetMaxV(2)
-
-	var log logr.Logger = zerologr.New(&logger)
-	siglog.SetLogger(log)
-
-	return log
-}
-
 func initLogger(cfg internalconfig.Config) zerolog.Logger {
 	zerolog.TimeFieldFormat = time.RFC3339
 	logLevelStr := cfg.LogLevel
@@ -193,4 +182,15 @@ func initLogger(cfg internalconfig.Config) zerolog.Logger {
 	log.Logger = logger
 	zerolog.DefaultContextLogger = &logger
 	return logger
+}
+
+func initLogr(logger zerolog.Logger) logr.Logger {
+	zerologr.NameFieldName = "logger"
+	zerologr.NameSeparator = "/"
+	zerologr.SetMaxV(2)
+
+	var log logr.Logger = zerologr.New(&logger)
+	siglog.SetLogger(log)
+
+	return log
 }
