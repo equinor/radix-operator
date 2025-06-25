@@ -5,5 +5,6 @@
 package tools
 
 import (
-	_ "k8s.io/code-generator" // Used for generating typed Kubernetes client for Radix custom resources.
+	_ "k8s.io/code-generator"                    // Used for generating typed Kubernetes client for Radix custom resources.
+	_ "k8s.io/code-generator/cmd/validation-gen" // Missing import from upstream
 )

@@ -8,22 +8,22 @@ import (
 )
 
 type Config struct {
-	Port           int    `envconfig:"PORT" default:"8443" desc:"Port where API will be served"`
-	MetricsPort    int    `envconfig:"METRICS_PORT" default:"9090"  desc:"Port where Metrics will be served"`
-	ProfilePort    int    `envconfig:"PROFILE_PORT" default:"7070"  desc:"Port where Profiler will be served"`
-	UseProfiler    bool   `envconfig:"USE_PROFILER" default:"false" desc:"Enable Profiler"`
+	Port           int    `envconfig:"PORT" default:"9443" desc:"The address the health endpoint binds to"`
+	MetricsPort    int    `envconfig:"METRICS_PORT" default:"9000"  desc:"The address the metric endpoint binds to."`
+	HealthPort     int    `envconfig:"HEALTH_PORT" default:"9440" desc:"The address the health endpoint binds to"`
 	LogLevel       string `envconfig:"LOG_LEVEL" default:"info"`
 	LogPrettyPrint bool   `envconfig:"LOG_PRETTY" default:"false"`
 
 	SecretName      string `envconfig:"SECRET_NAME" default:"radix-webhook-certs" desc:"Name of the secret where the webhook TLS certificate is stored"`
 	SecretNamespace string `envconfig:"SECRET_NAMESPACE" default:"default" desc:"Namespace of the secret where the webhook TLS certificate is stored"`
 
-	CertDir            string   `envconfig:"CERT_DIR" desc:"Directory where the webhook TLS certificate is stored"`
-	CaName             string   `envconfig:"CA_NAME" default:"radix-webhook-ca" desc:"Name of the CA secret"`
-	CaOrganization     string   `envconfig:"CA_ORGANIZATION" default:"Radix Webhook CA" desc:"Organization of the CA"`
-	DnsName            string   `envconfig:"DNS_NAME" default:"radix-webhook.default.svc" desc:"DNS name of the webhook service"`
-	ExtraDnsNames      []string `envconfig:"EXTRA_DNS_NAMES" default:"" desc:"Additional DNS names for the webhook service, separated by commas"`
-	WebhookServiceName string   `envconfig:"WEBHOOK_SERVICE_NAME" default:"radix-webhook-configuration" desc:"Name of the webhook service"`
+	DisableCertRotation bool     `envconfig:"DISABLE_CERT_ROTATION" default:"false" desc:"Disable automatic certificate rotation"`
+	CertDir             string   `envconfig:"CERT_DIR" default:"/certs" desc:"Directory where the webhook TLS certificate is stored"`
+	CaName              string   `envconfig:"CA_NAME" default:"radix-webhook-ca" desc:"Name of the CA secret"`
+	CaOrganization      string   `envconfig:"CA_ORGANIZATION" default:"Radix Webhook CA" desc:"Organization of the CA"`
+	DnsName             string   `envconfig:"DNS_NAME" default:"radix-webhook.default.svc" desc:"DNS name of the webhook service"`
+	ExtraDnsNames       []string `envconfig:"EXTRA_DNS_NAMES" default:"" desc:"Additional DNS names for the webhook service, separated by commas"`
+	WebhookServiceName  string   `envconfig:"WEBHOOK_SERVICE_NAME" default:"radix-webhook-configuration" desc:"Name of the webhook service"`
 }
 
 func MustParseConfig() Config {

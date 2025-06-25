@@ -16,7 +16,7 @@ type RadixRegistrationValidator struct {
 	client radixclient.Interface
 }
 
-var ErrRadixRegistrationAppIdIsImmutable = errors.New("Radix AppID is ummutable and cannot be modified after set")
+var ErrRadixRegistrationAppIdIsImmutable = errors.New("Radix AppID is immutable and cannot be modified after being set")
 var _ admission.CustomValidator = &RadixRegistrationValidator{}
 
 func NewRadixRegistrationValidator(client radixclient.Interface) *RadixRegistrationValidator {

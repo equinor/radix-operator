@@ -21,28 +21,40 @@ spec:
             secretName: radix-webhook-certs
       containers:
         - name: radix-webhook
-          image: localhost/webhook:1
+          image: localhost/webhook:7
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8443
-          volumeMounts:
-            - name: radix-webhook-certs
-              mountPath: /certs
-              readOnly: true
-          
+            - containerPort: 9443
+              name: webhook
+            - containerPort: 9440
+              name: healthz
+            - containerPort: 9000
+              name: metrics
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: healthz
+          livenessProbe:
+            httpGet: 
+              path: /healthz
+              port: healthz
           env:
-            - name: PORT
-              value: "8443"
-            - name: CERT_DIR
-              value: "/certs"
+            - name: LOG_LEVEL
+              value: "trace"
+            - name: LOG_PRETTY
+              value: "true"
             - name: SECRET_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+              value: default
             - name: SECRET_NAME
               value: "radix-webhook-certs"
             - name: WEBHOOK_NAME
               value: radix-webhook-configuration
+            - name: CERTS_DIR
+              value: /certs
+          volumeMounts:
+            - name: radix-webhook-certs
+              mountPath: /certs
+              readOnly: true
 
 ---
 apiVersion: v1
