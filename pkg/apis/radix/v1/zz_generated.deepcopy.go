@@ -2463,6 +2463,11 @@ func (in *RadixHorizontalScalingAzureEventHubTrigger) DeepCopyInto(out *RadixHor
 		*out = new(int)
 		**out = **in
 	}
+	if in.ActivationMessageCount != nil {
+		in, out := &in.ActivationMessageCount, &out.ActivationMessageCount
+		*out = new(int)
+		**out = **in
+	}
 	if in.Authentication != nil {
 		in, out := &in.Authentication, &out.Authentication
 		*out = new(RadixHorizontalScalingAuthentication)

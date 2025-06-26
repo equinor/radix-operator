@@ -999,6 +999,11 @@
                                     "description": "StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.",
                                     "type": "string"
                                   },
+                                  "activationMessageCount": {
+                                    "description": "ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)",
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
                                   "authentication": {
                                     "description": "Authentication Workload Identity configured with a ClientID when used identity based authentication",
                                     "properties": {
@@ -2293,6 +2298,11 @@
                             "accountName": {
                               "description": "StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.",
                               "type": "string"
+                            },
+                            "activationMessageCount": {
+                              "description": "ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)",
+                              "minimum": 0,
+                              "type": "integer"
                             },
                             "authentication": {
                               "description": "Authentication Workload Identity configured with a ClientID when used identity based authentication",

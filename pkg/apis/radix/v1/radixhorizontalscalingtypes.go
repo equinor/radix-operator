@@ -193,11 +193,6 @@ type RadixHorizontalScalingAzureEventHubTrigger struct {
 	// +optional
 	ConsumerGroup string `json:"consumerGroup,omitempty"`
 
-	// MessageCount is the threshold for unprocessed events. If the number of unprocessed events exceeds this threshold, the scaler will scale up. Default: 64 events.
-	// +optional
-	// +kubebuilder:validation:Minimum=1
-	MessageCount *int `json:"messageCount,omitempty"`
-
 	// Connection The name of the environment variable holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
 	// String should be in following format:
 	// +optional
@@ -222,6 +217,16 @@ type RadixHorizontalScalingAzureEventHubTrigger struct {
 	// +optional
 	// +kubebuilder:validation:Enum=goSdk;blobMetadata;azureFunction;""
 	CheckpointStrategy AzureEventHubTriggerCheckpointStrategy `json:"checkpointStrategy,omitempty"`
+
+	// MessageCount is the threshold for unprocessed events. If the number of unprocessed events exceeds this threshold, the scaler will scale up. Default: 64 events.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	MessageCount *int `json:"messageCount,omitempty"`
+
+	// ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	ActivationMessageCount *int `json:"activationMessageCount,omitempty"`
 
 	// Authentication Workload Identity configured with a ClientID when used identity based authentication
 	// +optional

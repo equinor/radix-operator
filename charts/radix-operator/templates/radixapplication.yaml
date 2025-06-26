@@ -1056,6 +1056,12 @@ spec:
                                             Blob Storage, the StorageConnection will
                                             be used.
                                           type: string
+                                        activationMessageCount:
+                                          description: 'ActivationMessageCount = Target
+                                            value for activating the scaler. (Default:
+                                            0, Optional)'
+                                          minimum: 0
+                                          type: integer
                                         authentication:
                                           description: Authentication Workload Identity
                                             configured with a ClientID when used identity
@@ -2355,6 +2361,12 @@ spec:
                                       to Blob Storage, the StorageConnection will
                                       be used.
                                     type: string
+                                  activationMessageCount:
+                                    description: 'ActivationMessageCount = Target
+                                      value for activating the scaler. (Default: 0,
+                                      Optional)'
+                                    minimum: 0
+                                    type: integer
                                   authentication:
                                     description: Authentication Workload Identity
                                       configured with a ClientID when used identity
