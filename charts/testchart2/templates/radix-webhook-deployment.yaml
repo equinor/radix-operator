@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radix-webhook
+  labels:
+  {{- include "testchart2.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.radixWebhook.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: radix-webhook
+    {{- include "testchart2.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: radix-webhook
+      {{- include "testchart2.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - env:
+        - name: LOG_LEVEL
+          value: {{ quote .Values.radixWebhook.radixWebhook.env.logLevel }}
+        - name: LOG_PRETTY
+          value: {{ quote .Values.radixWebhook.radixWebhook.env.logPretty }}
+        - name: SECRET_NAMESPACE
+          value: {{ quote .Values.radixWebhook.radixWebhook.env.secretNamespace }}
+        - name: SECRET_NAME
+          value: {{ quote .Values.radixWebhook.radixWebhook.env.secretName }}
+        - name: WEBHOOK_CONFIGURATION_NAME
+          value: {{ quote .Values.radixWebhook.radixWebhook.env.webhookConfigurationName
+            }}
+        - name: CERTS_DIR
+          value: {{ quote .Values.radixWebhook.radixWebhook.env.certsDir }}
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        image: {{ .Values.radixWebhook.radixWebhook.image.repository }}:{{ .Values.radixWebhook.radixWebhook.image.tag
+          | default .Chart.AppVersion }}
+        imagePullPolicy: {{ .Values.radixWebhook.radixWebhook.imagePullPolicy }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+        name: radix-webhook
+        ports:
+        - containerPort: 9443
+          name: webhook
+        - containerPort: 9440
+          name: healthz
+        - containerPort: 9000
+          name: metrics
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: healthz
+        resources: {}
+        volumeMounts:
+        - mountPath: /certs
+          name: radix-webhook-certs
+          readOnly: true
+      serviceAccountName: radix-webhook
+      volumes:
+      - name: radix-webhook-certs
+        secret:
+          secretName: radix-webhook-certs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radix-webhook
+  labels:
+  {{- include "testchart2.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.radixWebhook.type }}
+  selector:
+    app.kubernetes.io/name: radix-webhook
+    {{- include "testchart2.selectorLabels" . | nindent 4 }}
+  ports:
+  {{- .Values.radixWebhook.ports | toYaml | nindent 2 }}

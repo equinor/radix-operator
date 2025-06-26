@@ -1,0 +1,262 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: radixjobs.radix.equinor.com
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.2
+  labels:
+  {{- include "testchart2.labels" . | nindent 4 }}
+spec:
+  group: radix.equinor.com
+  names:
+    kind: RadixJob
+    listKind: RadixJobList
+    plural: radixjobs
+    singular: radixjob
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: RadixJob describe a Radix job
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RadixJobSpec is the spec for a job
+            properties:
+              appName:
+                description: AppName Name of the Radix application
+                type: string
+              applyConfig:
+                description: RadixApplyConfigSpec is the spec for a apply-config job
+                properties:
+                  deployExternalDNS:
+                    description: Deploy External DNS configuration
+                    type: boolean
+                type: object
+              build:
+                description: RadixBuildSpec is the spec for a build job
+                properties:
+                  branch:
+                    description: |-
+                      Deprecated: use GitRef instead
+                      Branch, from which the image to be built
+                    type: string
+                  commitID:
+                    description: CommitID, from which the image to be built
+                    type: string
+                  gitRef:
+                    description: |-
+                      GitRef Branch or tag to build from
+  
+                      required: false
+                      example: master
+                    type: string
+                  gitRefType:
+                    description: |-
+                      GitRefType When the pipeline job should be built from branch or tag specified in GitRef:
+                      - branch
+                      - tag
+                      - <empty> - either branch or tag
+  
+                      required false
+                      enum: branch,tag,""
+                      example: "branch"
+                    type: string
+                  imageTag:
+                    description: Tag of the built image
+                    type: string
+                  overrideUseBuildCache:
+                    description: OverrideUseBuildCache override default or configured
+                      build cache option
+                    type: boolean
+                  pushImage:
+                    description: Is the built image need to be pushed to the container
+                      registry repository
+                    type: boolean
+                  refreshBuildCache:
+                    description: RefreshBuildCache forces to rebuild cache when UseBuildCache
+                      is true in the RadixApplication or OverrideUseBuildCache is true
+                    type: boolean
+                  toEnvironment:
+                    description: ToEnvironment the environment to build or build-deploy
+                      to
+                    type: string
+                  useBuildCache:
+                    description: Defaults to true and requires useBuildKit to have an
+                      effect.
+                    type: boolean
+                  useBuildKit:
+                    description: Enables BuildKit when building Dockerfile.
+                    type: boolean
+                required:
+                - branch
+                - imageTag
+                type: object
+              cloneURL:
+                description: |-
+                  Deprecated: radix-api will be responsible for setting the CloneURL, it is taken from the RadixRegistration by the radix-operator
+                  CloneURL GitHub repository URL
+                type: string
+              deploy:
+                description: RadixDeploySpec is the spec for a deploy job
+                properties:
+                  commitID:
+                    description: Commit ID connected to the deployment
+                    type: string
+                  componentsToDeploy:
+                    description: |-
+                      ComponentsToDeploy List of components to deploy
+                      OPTIONAL If specified, only these components are deployed
+                    items:
+                      type: string
+                    type: array
+                  imageTagNames:
+                    additionalProperties:
+                      type: string
+                    description: Image tags names for components - if empty will use
+                      default logic
+                    type: object
+                  toEnvironment:
+                    description: Target environment for deploy
+                    type: string
+                required:
+                - toEnvironment
+                type: object
+              pipeLineType:
+                description: PipeLineType Type of the pipeline
+                type: string
+              promote:
+                description: RadixPromoteSpec is the spec for a promote job
+                properties:
+                  commitID:
+                    description: CommitID of the promoted deployment
+                    type: string
+                  deploymentName:
+                    description: Name of the Radix deployment to be promoted
+                    type: string
+                  fromEnvironment:
+                    description: Environment name, from which the Radix deployment is
+                      being promoted
+                    type: string
+                  toEnvironment:
+                    description: Environment name, to which the Radix deployment is
+                      being promoted
+                    type: string
+                required:
+                - fromEnvironment
+                - toEnvironment
+                type: object
+              radixConfigFullName:
+                description: |-
+                  Deprecated: radix-api will be responsible for setting the RadixConfigFullName, it is taken from the RadixRegistration by the radix-operator
+                  RadixConfigFullName Full name of the radix config file within the cloned GitHUb repository
+                type: string
+              stop:
+                description: Stop If true, the job will be stopped
+                type: boolean
+              triggeredBy:
+                description: TriggeredBy Name of the user or UID oa a system principal
+                  which triggered the job
+                type: string
+              triggeredFromWebhook:
+                description: TriggeredFromWebhook If true, the job was triggered from
+                  a webhook
+                type: boolean
+            required:
+            - appName
+            - applyConfig
+            - build
+            - cloneURL
+            - deploy
+            - pipeLineType
+            - promote
+            - radixConfigFullName
+            - stop
+            - triggeredBy
+            - triggeredFromWebhook
+            type: object
+          status:
+            description: RadixJobStatus is the status for a Radix job
+            properties:
+              condition:
+                description: RadixJobCondition Holds the condition of a job
+                type: string
+              created:
+                format: date-time
+                type: string
+              ended:
+                format: date-time
+                type: string
+              started:
+                format: date-time
+                type: string
+              steps:
+                items:
+                  description: RadixJobStep holds status for a single step
+                  properties:
+                    components:
+                      items:
+                        type: string
+                      type: array
+                    condition:
+                      description: RadixJobCondition Holds the condition of a job
+                      type: string
+                    ended:
+                      format: date-time
+                      type: string
+                    name:
+                      type: string
+                    podName:
+                      type: string
+                    started:
+                      format: date-time
+                      type: string
+                  required:
+                  - condition
+                  - ended
+                  - name
+                  - podName
+                  - started
+                  type: object
+                type: array
+              targetEnvironments:
+                items:
+                  type: string
+                type: array
+            required:
+            - condition
+            - created
+            - ended
+            - started
+            - steps
+            - targetEnvironments
+            type: object
+        required:
+        - spec
+        - status
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
