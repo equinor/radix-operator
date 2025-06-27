@@ -194,10 +194,10 @@ type RadixHorizontalScalingAzureEventHubTrigger struct {
 	// +optional
 	// +kubebuilder:validation:MaxLength=260
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
-	EventHubName string `json:"name,omitempty"`
+	EventHubName string `json:"eventHubName,omitempty"`
 
 	// EventHubNameFromEnv The name of the environment variable or secret holding the Azure Event Hub name.
-	// It is ignored when Name is defined.
+	// It is ignored when EventHubName is defined.
 	// +optional
 	// +kubebuilder:validation:MaxLength=260
 	// +kubebuilder:validation:Pattern=^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
