@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,22 +21,13 @@ var (
 	ErrInvalidEntraUuid           = stderrors.New("invalid Entra uuid")
 	validUuidRegex                = regexp.MustCompile("^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$")
 
-	requiredRadixRegistrationValidators = []RadixRegistrationValidator{
-		validateRadixRegistrationConfigBranch,
-	}
+	requiredRadixRegistrationValidators = []RadixRegistrationValidator{}
 )
 
 // RadixRegistrationValidator defines a validator function for a RadixRegistration
 type RadixRegistrationValidator func(radixRegistration *v1.RadixRegistration) error
 
-// RequireConfigurationItem validates that ConfigurationItem for a RadixRegistration set
-func RequireConfigurationItem(rr *v1.RadixRegistration) error {
-	if len(strings.TrimSpace(rr.Spec.ConfigurationItem)) == 0 {
-		return ResourceNameCannotBeEmptyErrorWithMessage("configuration item")
-	}
-
-	return nil
-}
+// FIX: Add unique AppID Validation, and optional required ADGroup, and unique repo+configBranch combination
 
 // RequireAdGroups validates that AdGroups contains minimum one item
 func RequireAdGroups(rr *v1.RadixRegistration) error {
@@ -81,7 +71,6 @@ func GetRadixRegistrationBeInsertedWarnings(ctx context.Context, client radixcli
 func GetRadixRegistrationBeUpdatedWarnings(ctx context.Context, client radixclient.Interface, radixRegistration *v1.RadixRegistration) ([]string, error) {
 	return appendNoDuplicateGitRepoWarning(ctx, client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
 }
-
 
 func validateRequiredResourceName(resourceName, value string, maxLength int) error {
 	if len(value) > maxLength {
@@ -128,22 +117,6 @@ func validateDoesRRExist(ctx context.Context, client radixclient.Interface, appN
 		}
 		return err
 	}
-	return nil
-}
-
-func validateRadixRegistrationConfigBranch(rr *v1.RadixRegistration) error {
-	return validateConfigBranch(rr.Spec.ConfigBranch)
-}
-
-func validateConfigBranch(name string) error {
-	if name == "" {
-		return ResourceNameCannotBeEmptyErrorWithMessage("branch name")
-	}
-
-	if !branch.IsValidName(name) {
-		return InvalidConfigBranchNameWithMessage(name)
-	}
-
 	return nil
 }
 

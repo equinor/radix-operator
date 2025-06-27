@@ -33,12 +33,12 @@ type RadixRegistrationSpec struct {
 
 	// AppID is the unique identifier for the Radix application. Not to be confused by Configuration Item.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule=`self == oldSelf`,message="Value is immutable"
 	AppID ULID `json:"appID"` // omitempty was configured, but aparently does not work with nested structs
 
 	// CloneURL is the URL of the GitHub repository where the Radix configuration file is located.
 	// +required
-	// +kubebuilder:validation:Pattern=`^(git@github.com:)([\w-]+)/([\w-]+)(.git)$`
+	// +kubebuilder:validation:Pattern=`^git@github.com:[\w-]+/[\w-]+.git$`
 	CloneURL string `json:"cloneURL"`
 
 	// deprecated: SharedSecret is the shared secret for the git repository.
@@ -55,22 +55,18 @@ type RadixRegistrationSpec struct {
 
 	// +optional
 	// +kubebuilder:validation:items:Format=uuid
-	// +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$`
 	AdGroups []string `json:"adGroups,omitempty"`
 
 	// +optional
 	// +kubebuilder:validation:items:Format=uuid
-	// +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$`
 	AdUsers []string `json:"adUsers,omitempty"`
 
 	// +optional
 	// +kubebuilder:validation:items:Format=uuid
-	// +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$`
 	ReaderAdGroups []string `json:"readerAdGroups,omitempty"`
 
 	// +optional
 	// +kubebuilder:validation:items:Format=uuid
-	// +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$`
 	ReaderAdUsers []string `json:"readerAdUsers,omitempty"`
 
 	// +optional
@@ -85,7 +81,12 @@ type RadixRegistrationSpec struct {
 
 	// ConfigBranch is the branch in the git repository where the Radix configuration file is located. See https://git-scm.com/docs/git-check-ref-format#_description for more details.
 	// +required
-	// +kubebuilder:validation:XValidation:rule=`!(  self.endsWith('.lock') ||  self.contains('..') ||  self.matches('.*[\\x00-\\x1F\\x7F ~^:\\?\\*\\[].*') ||  self.contains('@{') ||  self.contains('\\') ||  self.startsWith('/') ||  self.endsWith('/') ||  self.contains('//') ||  self.endsWith('.') ||  self == '@' ||  self == '' || self.split('/').maxLength(10) || self.split('/').exists(comp, comp.startsWith('.') || comp.endsWith('.lock')))`
+	// +kubebuilder:validation:XValidation:rule=`!(  self == '@' ||  self == '' )`
+	// +kubebuilder:validation:XValidation:rule=`!(  self.startsWith('/') )`
+	// +kubebuilder:validation:XValidation:rule=`!(  self.endsWith('.lock') ||  self.endsWith('.')  )`
+	// +kubebuilder:validation:XValidation:rule=`!(  self.contains('/.') || self.contains('.lock/') )`
+	// +kubebuilder:validation:XValidation:rule=`!(  self.contains('..') ||  self.contains('@{') ||  self.contains('\\')  ||  self.contains('//')  )`
+	// +kubebuilder:validation:XValidation:rule=`!(  self.matches('.*[\\x00-\\x1F\\x7F ~^:\\?\\*\\[].*') )`
 	ConfigBranch string `json:"configBranch"`
 
 	// RadixConfigFullName is the full name of the Radix configuration file in the git repository.
