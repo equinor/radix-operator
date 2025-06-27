@@ -177,43 +177,79 @@ const (
 
 // RadixHorizontalScalingAzureEventHubTrigger defines configuration for an Azure Event Hub trigger.
 type RadixHorizontalScalingAzureEventHubTrigger struct {
-	// Namespace - the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+	// Namespace The Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+	// +optional
+	// +kubebuilder:validation:MaxLength=150
+	// +kubebuilder:validation:Pattern=^(([a-z][-a-z0-9]*)?[a-z0-9])?$
+	Namespace string `json:"namespace,omitempty"`
+
+	// NamespaceFromEnv The name of the environment variable holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+	// It is ignored when Namespace is defined.
 	// +optional
 	// +kubebuilder:validation:MaxLength=50
-	// +kubebuilder:validation:Pattern=^(([a-z][-a-z0-9]*)?[a-z0-9])?$
-	Namespace string `json:"namespace"`
+	// +kubebuilder:validation:Pattern=^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
+	NamespaceFromEnv string `json:"namespaceFromEnv,omitempty"`
 
-	// Name of the Azure Event Hub
+	// Name of the Azure Event Hub within Namespace
 	// +optional
 	// +kubebuilder:validation:MaxLength=260
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
 	Name string `json:"name,omitempty"`
 
+	// NameFromEnv The name of the environment variable holding the Azure Event Hub name.
+	// It is ignored when Name is defined.
+	// +optional
+	// +kubebuilder:validation:MaxLength=260
+	// +kubebuilder:validation:Pattern=^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
+	NameFromEnv string `json:"nameFromEnv,omitempty"`
+
 	// ConsumerGroup is the name of the consumer group to use when consuming events from the Event Hub. Defaults to $Default
 	// +optional
+	// +kubebuilder:validation:MaxLength=150
 	ConsumerGroup string `json:"consumerGroup,omitempty"`
 
-	// Connection The name of the environment variable holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
-	// String should be in following format:
+	// Connection The connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
+	// String should be in following format: Endpoint=sb://<event-hub-namespace>.servicebus.windows.net/;SharedAccessKeyName=<key-name>;SharedAccessKey=<key-value>;EntityPath=<event-hub-name>
+	// EntityPath is optional. If it is not provided, then Name must be used to provide the name of the Azure Event Hub instance to use inside the namespace.
 	// +optional
+	// +kubebuilder:validation:MaxLength=260
 	// Example:
 	// Endpoint=sb://eventhub-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secretKey123;EntityPath=eventhub-name
 	Connection string `json:"connection,omitempty"`
 
-	// StorageConnection The name of the environment variable holding the connection string for storage account used to store checkpoint. As of now the Event Hub scaler only reads from Azure Blob Storage.
+	// ConnectionFromEnv The name of the environment variable holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
+	// String in the environment variable should be in following described in Connection
+	// It is ignored when Connection is defined.
 	// +optional
+	// +kubebuilder:validation:MaxLength=50
+	ConnectionFromEnv string `json:"connectionFromEnv,omitempty"`
+
+	// StorageConnection The connection string for storage account used to store checkpoint. As of now the Event Hub scaler only reads from Azure Blob Storage.
+	//
+	// +optional
+	// +kubebuilder:validation:MaxLength=260
 	StorageConnection string `json:"storageConnection,omitempty"`
 
-	// StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.
+	// StorageConnectionFromEnv The name of the environment variable holding the connection string for storage account used to store checkpoint. As of now the Event Hub scaler only reads from Azure Blob Storage.
+	// It is ignored when Connection is defined.
 	// +optional
+	// +kubebuilder:validation:MaxLength=50
+	StorageConnectionFromEnv string `json:"storageConnectionFromEnv,omitempty"`
+
+	// StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.
+	// It is ignored when Connection or ConnectionFromEnv are defined.
+	// +optional
+	// +kubebuilder:validation:MaxLength=150
 	StorageAccount string `json:"accountName,omitempty"`
 
 	// Container is the name of the Blob Storage container used for checkpointing.
-	// Container name to store checkpoint. This is needed when a using an Event Hub application written in dotnet or java, and not an Azure function.
+	// This is needed for every checkpointStrategy except of AzureFunction. With Azure Functions checkpointStrategy the Container is automatically set or overridden as azure-webjobs-eventhub.
+	// It should be set to azure-webjobs-eventhub for Azure Functions using blobMetadata as checkpointStrategy.
 	// +optional
+	// +kubebuilder:validation:MaxLength=150
 	Container string `json:"container,omitempty"`
 
-	// CheckpointStrategy defines the strategy to use for checkpointing. Defaults to azureFunction
+	// CheckpointStrategy defines the strategy to use for checkpointing. Defaults to azureFunction.
 	// +optional
 	// +kubebuilder:validation:Enum=goSdk;blobMetadata;azureFunction;""
 	CheckpointStrategy AzureEventHubTriggerCheckpointStrategy `json:"checkpointStrategy,omitempty"`
@@ -223,7 +259,7 @@ type RadixHorizontalScalingAzureEventHubTrigger struct {
 	// +kubebuilder:validation:Minimum=1
 	MessageCount *int `json:"messageCount,omitempty"`
 
-	// ActivationMessageCount = Target value for activating the scaler. (Default: 0, Optional)
+	// ActivationMessageCount Target value for activating the scaler. Defaults to 0
 	// +optional
 	// +kubebuilder:validation:Minimum=0
 	ActivationMessageCount *int `json:"activationMessageCount,omitempty"`

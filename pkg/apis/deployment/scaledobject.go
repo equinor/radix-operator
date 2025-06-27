@@ -186,118 +186,154 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 	for _, trigger := range config.Triggers {
 		switch {
 		case trigger.Cpu != nil:
-			triggers = append(triggers, kedav1.ScaleTriggers{
-				Name:       trigger.Name,
-				Type:       string(ScaleTriggerTypeCpu),
-				MetricType: autoscalingv2.UtilizationMetricType,
-				Metadata: map[string]string{
-					"value": strconv.Itoa(trigger.Cpu.Value),
-				},
-			})
+			triggers = append(triggers, getCpuTrigger(trigger))
 		case trigger.Memory != nil:
-			triggers = append(triggers, kedav1.ScaleTriggers{
-				Name:       trigger.Name,
-				Type:       string(ScaleTriggerTypeMemory),
-				MetricType: autoscalingv2.UtilizationMetricType,
-				Metadata: map[string]string{
-					"value": strconv.Itoa(trigger.Memory.Value),
-				},
-			})
+			triggers = append(triggers, getMemoryTrigger(trigger))
 		case trigger.Cron != nil:
-			triggers = append(triggers, kedav1.ScaleTriggers{
-				Name: trigger.Name,
-				Type: string(ScaleTriggerTypeCron),
-				Metadata: map[string]string{
-					"start":           trigger.Cron.Start,
-					"end":             trigger.Cron.End,
-					"timezone":        trigger.Cron.Timezone,
-					"desiredReplicas": strconv.Itoa(trigger.Cron.DesiredReplicas),
-				},
-			})
+			triggers = append(triggers, getCronTrigger(trigger))
 		case trigger.AzureServiceBus != nil:
-			metadata := map[string]string{}
-
-			if trigger.AzureServiceBus.Namespace != "" {
-				metadata["namespace"] = trigger.AzureServiceBus.Namespace
-			}
-			if trigger.AzureServiceBus.QueueName != "" {
-				metadata["queueName"] = trigger.AzureServiceBus.QueueName
-			}
-			if trigger.AzureServiceBus.TopicName != "" {
-				metadata["topicName"] = trigger.AzureServiceBus.TopicName
-			}
-			if trigger.AzureServiceBus.SubscriptionName != "" {
-				metadata["subscriptionName"] = trigger.AzureServiceBus.SubscriptionName
-			}
-			if trigger.AzureServiceBus.MessageCount != nil {
-				metadata["messageCount"] = strconv.Itoa(*trigger.AzureServiceBus.MessageCount)
-			}
-			if trigger.AzureServiceBus.ActivationMessageCount != nil {
-				metadata["activationMessageCount"] = strconv.Itoa(*trigger.AzureServiceBus.ActivationMessageCount)
-			}
-
-			triggers = append(triggers, kedav1.ScaleTriggers{
-				Name:     trigger.Name,
-				Type:     string(ScaleTriggerTypeAzureServiceBus),
-				Metadata: metadata,
-				AuthenticationRef: &kedav1.AuthenticationRef{
-					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
-					Kind: "TriggerAuthentication",
-				},
-			})
+			triggers = append(triggers, getAzureServiceBus(componentName, trigger))
 		case trigger.AzureEventHub != nil:
-			metadata := map[string]string{}
+			triggers = append(triggers, getAzureEventHub(componentName, trigger))
+		}
+	}
+	return triggers
+}
 
-			var authenticationRef *kedav1.AuthenticationRef
-			if trigger.AzureEventHub.Connection != "" {
-				metadata["connectionFromEnv"] = trigger.AzureEventHub.Connection
-			} else {
-				authenticationRef = &kedav1.AuthenticationRef{
-					Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
-					Kind: "TriggerAuthentication",
-				}
-			}
-			if trigger.AzureEventHub.Namespace != "" {
-				metadata["eventHubNamespace"] = trigger.AzureEventHub.Namespace
-			}
-			if trigger.AzureEventHub.Name != "" {
-				metadata["eventHubName"] = trigger.AzureEventHub.Name
-			}
+func getCpuTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
+	return kedav1.ScaleTriggers{
+		Name:       trigger.Name,
+		Type:       string(ScaleTriggerTypeCpu),
+		MetricType: autoscalingv2.UtilizationMetricType,
+		Metadata: map[string]string{
+			"value": strconv.Itoa(trigger.Cpu.Value),
+		},
+	}
+}
 
-			if trigger.AzureEventHub.ConsumerGroup != "" {
-				metadata["consumerGroup"] = trigger.AzureEventHub.ConsumerGroup
-			}
+func getMemoryTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
+	return kedav1.ScaleTriggers{
+		Name:       trigger.Name,
+		Type:       string(ScaleTriggerTypeMemory),
+		MetricType: autoscalingv2.UtilizationMetricType,
+		Metadata: map[string]string{
+			"value": strconv.Itoa(trigger.Memory.Value),
+		},
+	}
+}
 
-			if trigger.AzureEventHub.StorageConnection != "" {
-				metadata["storageConnectionFromEnv"] = trigger.AzureEventHub.StorageConnection
-			}
-			if trigger.AzureEventHub.StorageAccount != "" {
-				metadata["storageAccountName"] = trigger.AzureEventHub.StorageAccount
-			}
-			if trigger.AzureEventHub.Container != "" {
-				metadata["blobContainer"] = trigger.AzureEventHub.Container
-			}
+func getCronTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
+	return kedav1.ScaleTriggers{
+		Name: trigger.Name,
+		Type: string(ScaleTriggerTypeCron),
+		Metadata: map[string]string{
+			"start":           trigger.Cron.Start,
+			"end":             trigger.Cron.End,
+			"timezone":        trigger.Cron.Timezone,
+			"desiredReplicas": strconv.Itoa(trigger.Cron.DesiredReplicas),
+		},
+	}
+}
 
-			if messageCount := trigger.AzureEventHub.MessageCount; messageCount != nil {
-				metadata["unprocessedEventThreshold"] = strconv.Itoa(*messageCount)
-			}
-			if trigger.AzureEventHub.ActivationMessageCount != nil {
-				metadata["activationUnprocessedEventThreshold"] = strconv.Itoa(*trigger.AzureEventHub.ActivationMessageCount)
-			}
+func getAzureServiceBus(componentName string, trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
+	metadata := map[string]string{}
 
-			metadata["checkpointStrategy"] = string(trigger.AzureEventHub.CheckpointStrategy)
+	if trigger.AzureServiceBus.Namespace != "" {
+		metadata["namespace"] = trigger.AzureServiceBus.Namespace
+	}
+	if trigger.AzureServiceBus.QueueName != "" {
+		metadata["queueName"] = trigger.AzureServiceBus.QueueName
+	}
+	if trigger.AzureServiceBus.TopicName != "" {
+		metadata["topicName"] = trigger.AzureServiceBus.TopicName
+	}
+	if trigger.AzureServiceBus.SubscriptionName != "" {
+		metadata["subscriptionName"] = trigger.AzureServiceBus.SubscriptionName
+	}
+	if trigger.AzureServiceBus.MessageCount != nil {
+		metadata["messageCount"] = strconv.Itoa(*trigger.AzureServiceBus.MessageCount)
+	}
+	if trigger.AzureServiceBus.ActivationMessageCount != nil {
+		metadata["activationMessageCount"] = strconv.Itoa(*trigger.AzureServiceBus.ActivationMessageCount)
+	}
 
-			scaleTrigger := kedav1.ScaleTriggers{
-				Name:              trigger.Name,
-				Type:              string(ScaleTriggerTypeAzureEventHub),
-				Metadata:          metadata,
-				AuthenticationRef: authenticationRef,
-			}
-			triggers = append(triggers, scaleTrigger)
+	return kedav1.ScaleTriggers{
+		Name:     trigger.Name,
+		Type:     string(ScaleTriggerTypeAzureServiceBus),
+		Metadata: metadata,
+		AuthenticationRef: &kedav1.AuthenticationRef{
+			Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
+			Kind: "TriggerAuthentication",
+		},
+	}
+}
+
+func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
+	metadata := map[string]string{}
+
+	var authenticationRef *kedav1.AuthenticationRef
+	if trigger.AzureEventHub.Connection != "" {
+		metadata["connection"] = trigger.AzureEventHub.Connection
+	} else if trigger.AzureEventHub.ConnectionFromEnv != "" {
+		metadata["connectionFromEnv"] = trigger.AzureEventHub.StorageConnectionFromEnv
+	} else {
+		authenticationRef = &kedav1.AuthenticationRef{
+			Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
+			Kind: "TriggerAuthentication",
 		}
 	}
 
-	return triggers
+	if trigger.AzureEventHub.Namespace != "" {
+		metadata["eventHubNamespace"] = trigger.AzureEventHub.Namespace
+	} else if trigger.AzureEventHub.NamespaceFromEnv != "" {
+		metadata["eventHubNamespaceFromEnv"] = trigger.AzureEventHub.NamespaceFromEnv
+	}
+	if trigger.AzureEventHub.Name != "" {
+		metadata["eventHubName"] = trigger.AzureEventHub.Name
+	} else if trigger.AzureEventHub.NameFromEnv != "" {
+		metadata["eventHubNameFromEnv"] = trigger.AzureEventHub.NameFromEnv
+	}
+
+	if trigger.AzureEventHub.ConsumerGroup != "" {
+		metadata["consumerGroup"] = trigger.AzureEventHub.ConsumerGroup
+	}
+
+	if trigger.AzureEventHub.StorageConnection != "" {
+		metadata["storageConnection"] = trigger.AzureEventHub.StorageConnection
+	} else if trigger.AzureEventHub.StorageConnectionFromEnv != "" {
+		metadata["storageConnectionFromEnv"] = trigger.AzureEventHub.StorageConnectionFromEnv
+	} else if trigger.AzureEventHub.StorageAccount != "" {
+		metadata["storageAccountName"] = trigger.AzureEventHub.StorageAccount // Only required for Workload Identity
+	}
+
+	if messageCount := trigger.AzureEventHub.MessageCount; messageCount != nil {
+		metadata["unprocessedEventThreshold"] = strconv.Itoa(*messageCount)
+	}
+	if trigger.AzureEventHub.ActivationMessageCount != nil {
+		metadata["activationUnprocessedEventThreshold"] = strconv.Itoa(*trigger.AzureEventHub.ActivationMessageCount)
+	}
+
+	checkpointStrategy := getAzureEventHubCheckpointStrategy(trigger)
+	metadata["checkpointStrategy"] = string(checkpointStrategy)
+
+	metadata["blobContainer"] = trigger.AzureEventHub.Container
+	if checkpointStrategy == radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction {
+		metadata["blobContainer"] = "azure-webjobs-eventhub" // With Azure Functions checkpointStrategy the Container is automatically set or overridden as azure-webjobs-eventhub.
+	}
+
+	return kedav1.ScaleTriggers{
+		Name:              trigger.Name,
+		Type:              string(ScaleTriggerTypeAzureEventHub),
+		Metadata:          metadata,
+		AuthenticationRef: authenticationRef,
+	}
+}
+
+func getAzureEventHubCheckpointStrategy(trigger radixv1.RadixHorizontalScalingTrigger) radixv1.AzureEventHubTriggerCheckpointStrategy {
+	if trigger.AzureEventHub.CheckpointStrategy == "" {
+		return radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction
+	}
+	return trigger.AzureEventHub.CheckpointStrategy
 }
 
 func (deploy *Deployment) getTriggerAuths(componentName string, config *radixv1.RadixHorizontalScaling) []kedav1.TriggerAuthentication {
