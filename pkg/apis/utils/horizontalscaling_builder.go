@@ -80,7 +80,7 @@ func (h *HorizontalScalingBuilderStruct) WithAzureEventHubTrigger(namespace, cli
 		Name: "azure-eventhub",
 		AzureEventHub: &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
 			Namespace:      namespace,
-			Name:           name,
+			EventHubName:   name,
 			MessageCount:   messageCount,
 			StorageAccount: storageAccount,
 			Container:      container,

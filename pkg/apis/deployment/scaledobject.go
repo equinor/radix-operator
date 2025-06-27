@@ -272,9 +272,7 @@ func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScali
 	metadata := map[string]string{}
 
 	var authenticationRef *kedav1.AuthenticationRef
-	if trigger.AzureEventHub.Connection != "" {
-		metadata["connection"] = trigger.AzureEventHub.Connection
-	} else if trigger.AzureEventHub.ConnectionFromEnv != "" {
+	if trigger.AzureEventHub.EventHubConnectionFromEnv != "" {
 		metadata["connectionFromEnv"] = trigger.AzureEventHub.StorageConnectionFromEnv
 	} else {
 		authenticationRef = &kedav1.AuthenticationRef{
@@ -288,18 +286,18 @@ func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScali
 	} else if trigger.AzureEventHub.NamespaceFromEnv != "" {
 		metadata["eventHubNamespaceFromEnv"] = trigger.AzureEventHub.NamespaceFromEnv
 	}
-	if trigger.AzureEventHub.Name != "" {
-		metadata["eventHubName"] = trigger.AzureEventHub.Name
-	} else if trigger.AzureEventHub.NameFromEnv != "" {
-		metadata["eventHubNameFromEnv"] = trigger.AzureEventHub.NameFromEnv
+	if trigger.AzureEventHub.EventHubName != "" {
+		metadata["eventHubName"] = trigger.AzureEventHub.EventHubName
+	} else if trigger.AzureEventHub.EventHubNameFromEnv != "" {
+		metadata["eventHubNameFromEnv"] = trigger.AzureEventHub.EventHubNameFromEnv
 	}
 
 	if trigger.AzureEventHub.ConsumerGroup != "" {
 		metadata["consumerGroup"] = trigger.AzureEventHub.ConsumerGroup
 	}
 
-	if trigger.AzureEventHub.StorageConnection != "" {
-		metadata["storageConnection"] = trigger.AzureEventHub.StorageConnection
+	if trigger.AzureEventHub.StorageConnectionFromEnv != "" {
+		metadata["storageConnection"] = trigger.AzureEventHub.StorageConnectionFromEnv
 	} else if trigger.AzureEventHub.StorageConnectionFromEnv != "" {
 		metadata["storageConnectionFromEnv"] = trigger.AzureEventHub.StorageConnectionFromEnv
 	} else if trigger.AzureEventHub.StorageAccount != "" {

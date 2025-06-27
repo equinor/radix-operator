@@ -1050,8 +1050,8 @@ spec:
                                       properties:
                                         accountName:
                                           description: |-
-                                            StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.
-                                            It is ignored when Connection or ConnectionFromEnv are defined.
+                                            StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnectionFromEnv will be used.
+                                            It is ignored when EventHubConnectionFromEnv is defined.
                                           maxLength: 150
                                           type: string
                                         activationMessageCount:
@@ -1098,22 +1098,6 @@ spec:
                                           - azureFunction
                                           - ""
                                           type: string
-                                        connection:
-                                          description: |-
-                                            Connection The connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
-                                            String should be in following format: Endpoint=sb://<event-hub-namespace>.servicebus.windows.net/;SharedAccessKeyName=<key-name>;SharedAccessKey=<key-value>;EntityPath=<event-hub-name>
-                                            EntityPath is optional. If it is not provided, then Name must be used to provide the name of the Azure Event Hub instance to use inside the namespace.
-                                            Example:
-                                            Endpoint=sb://eventhub-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secretKey123;EntityPath=eventhub-name
-                                          maxLength: 260
-                                          type: string
-                                        connectionFromEnv:
-                                          description: |-
-                                            ConnectionFromEnv The name of the environment variable holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
-                                            String in the environment variable should be in following described in Connection
-                                            It is ignored when Connection is defined.
-                                          maxLength: 50
-                                          type: string
                                         consumerGroup:
                                           description: ConsumerGroup is the name of
                                             the consumer group to use when consuming
@@ -1128,6 +1112,22 @@ spec:
                                             It should be set to azure-webjobs-eventhub for Azure Functions using blobMetadata as checkpointStrategy.
                                           maxLength: 150
                                           type: string
+                                        eventHubConnectionFromEnv:
+                                          description: |-
+                                            EventHubConnectionFromEnv The name of the environment variable or secret holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
+                                            String should be in following format: Endpoint=sb://<event-hub-namespace>.servicebus.windows.net/;SharedAccessKeyName=<key-name>;SharedAccessKey=<key-value>;EntityPath=<event-hub-name>
+                                            EntityPath is optional. If it is not provided, then Name must be used to provide the name of the Azure Event Hub instance to use inside the namespace.
+                                            Example:
+                                            Endpoint=sb://eventhub-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secretKey123;EntityPath=eventhub-name
+                                          maxLength: 50
+                                          type: string
+                                        eventHubNameFromEnv:
+                                          description: |-
+                                            EventHubNameFromEnv The name of the environment variable or secret holding the Azure Event Hub name.
+                                            It is ignored when Name is defined.
+                                          maxLength: 260
+                                          pattern: ^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
+                                          type: string
                                         messageCount:
                                           description: 'MessageCount is the threshold
                                             for unprocessed events. If the number
@@ -1137,17 +1137,10 @@ spec:
                                           minimum: 1
                                           type: integer
                                         name:
-                                          description: Name of the Azure Event Hub
-                                            within Namespace
+                                          description: EventHubName of the Azure Event
+                                            Hub within Namespace
                                           maxLength: 260
                                           pattern: ^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
-                                          type: string
-                                        nameFromEnv:
-                                          description: |-
-                                            NameFromEnv The name of the environment variable holding the Azure Event Hub name.
-                                            It is ignored when Name is defined.
-                                          maxLength: 260
-                                          pattern: ^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
                                           type: string
                                         namespace:
                                           description: Namespace The Event Hubs namespace
@@ -1157,22 +1150,18 @@ spec:
                                           type: string
                                         namespaceFromEnv:
                                           description: |-
-                                            NamespaceFromEnv The name of the environment variable holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+                                            NamespaceFromEnv The name of the environment variable or secret  holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
                                             It is ignored when Namespace is defined.
                                           maxLength: 50
                                           pattern: ^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
                                           type: string
-                                        storageConnection:
-                                          description: StorageConnection The connection
-                                            string for storage account used to store
-                                            checkpoint. As of now the Event Hub scaler
-                                            only reads from Azure Blob Storage.
-                                          maxLength: 260
-                                          type: string
                                         storageConnectionFromEnv:
-                                          description: |-
-                                            StorageConnectionFromEnv The name of the environment variable holding the connection string for storage account used to store checkpoint. As of now the Event Hub scaler only reads from Azure Blob Storage.
-                                            It is ignored when Connection is defined.
+                                          description: StorageConnectionFromEnv The
+                                            name of the environment variable or secret
+                                            holding the connection string for storage
+                                            account used to store checkpoint. As of
+                                            now the Event Hub scaler only reads from
+                                            Azure Blob Storage.
                                           maxLength: 50
                                           type: string
                                       type: object
@@ -2386,8 +2375,8 @@ spec:
                                 properties:
                                   accountName:
                                     description: |-
-                                      StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnection will be used.
-                                      It is ignored when Connection or ConnectionFromEnv are defined.
+                                      StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnectionFromEnv will be used.
+                                      It is ignored when EventHubConnectionFromEnv is defined.
                                     maxLength: 150
                                     type: string
                                   activationMessageCount:
@@ -2432,22 +2421,6 @@ spec:
                                     - azureFunction
                                     - ""
                                     type: string
-                                  connection:
-                                    description: |-
-                                      Connection The connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
-                                      String should be in following format: Endpoint=sb://<event-hub-namespace>.servicebus.windows.net/;SharedAccessKeyName=<key-name>;SharedAccessKey=<key-value>;EntityPath=<event-hub-name>
-                                      EntityPath is optional. If it is not provided, then Name must be used to provide the name of the Azure Event Hub instance to use inside the namespace.
-                                      Example:
-                                      Endpoint=sb://eventhub-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secretKey123;EntityPath=eventhub-name
-                                    maxLength: 260
-                                    type: string
-                                  connectionFromEnv:
-                                    description: |-
-                                      ConnectionFromEnv The name of the environment variable holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
-                                      String in the environment variable should be in following described in Connection
-                                      It is ignored when Connection is defined.
-                                    maxLength: 50
-                                    type: string
                                   consumerGroup:
                                     description: ConsumerGroup is the name of the
                                       consumer group to use when consuming events
@@ -2461,6 +2434,22 @@ spec:
                                       It should be set to azure-webjobs-eventhub for Azure Functions using blobMetadata as checkpointStrategy.
                                     maxLength: 150
                                     type: string
+                                  eventHubConnectionFromEnv:
+                                    description: |-
+                                      EventHubConnectionFromEnv The name of the environment variable or secret holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
+                                      String should be in following format: Endpoint=sb://<event-hub-namespace>.servicebus.windows.net/;SharedAccessKeyName=<key-name>;SharedAccessKey=<key-value>;EntityPath=<event-hub-name>
+                                      EntityPath is optional. If it is not provided, then Name must be used to provide the name of the Azure Event Hub instance to use inside the namespace.
+                                      Example:
+                                      Endpoint=sb://eventhub-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secretKey123;EntityPath=eventhub-name
+                                    maxLength: 50
+                                    type: string
+                                  eventHubNameFromEnv:
+                                    description: |-
+                                      EventHubNameFromEnv The name of the environment variable or secret holding the Azure Event Hub name.
+                                      It is ignored when Name is defined.
+                                    maxLength: 260
+                                    pattern: ^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
+                                    type: string
                                   messageCount:
                                     description: 'MessageCount is the threshold for
                                       unprocessed events. If the number of unprocessed
@@ -2469,17 +2458,10 @@ spec:
                                     minimum: 1
                                     type: integer
                                   name:
-                                    description: Name of the Azure Event Hub within
-                                      Namespace
+                                    description: EventHubName of the Azure Event Hub
+                                      within Namespace
                                     maxLength: 260
                                     pattern: ^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
-                                    type: string
-                                  nameFromEnv:
-                                    description: |-
-                                      NameFromEnv The name of the environment variable holding the Azure Event Hub name.
-                                      It is ignored when Name is defined.
-                                    maxLength: 260
-                                    pattern: ^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
                                     type: string
                                   namespace:
                                     description: Namespace The Event Hubs namespace
@@ -2489,22 +2471,17 @@ spec:
                                     type: string
                                   namespaceFromEnv:
                                     description: |-
-                                      NamespaceFromEnv The name of the environment variable holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+                                      NamespaceFromEnv The name of the environment variable or secret  holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
                                       It is ignored when Namespace is defined.
                                     maxLength: 50
                                     pattern: ^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
                                     type: string
-                                  storageConnection:
-                                    description: StorageConnection The connection
-                                      string for storage account used to store checkpoint.
-                                      As of now the Event Hub scaler only reads from
-                                      Azure Blob Storage.
-                                    maxLength: 260
-                                    type: string
                                   storageConnectionFromEnv:
-                                    description: |-
-                                      StorageConnectionFromEnv The name of the environment variable holding the connection string for storage account used to store checkpoint. As of now the Event Hub scaler only reads from Azure Blob Storage.
-                                      It is ignored when Connection is defined.
+                                    description: StorageConnectionFromEnv The name
+                                      of the environment variable or secret holding
+                                      the connection string for storage account used
+                                      to store checkpoint. As of now the Event Hub
+                                      scaler only reads from Azure Blob Storage.
                                     maxLength: 50
                                     type: string
                                 type: object
