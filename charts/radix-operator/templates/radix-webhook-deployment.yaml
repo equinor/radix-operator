@@ -51,6 +51,10 @@ spec:
               value: radix-webhook-configuration
             - name: CERTS_DIR
               value: /certs
+            - name: REQUIRE_AD_GROUPS
+              value: "true"
+            - name: REQUIRE_CONFIGURATION_ITEM
+              value: "true"
           volumeMounts:
             - name: radix-webhook-certs
               mountPath: /certs

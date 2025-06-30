@@ -8,6 +8,8 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/webhook/main.go",
 			"env": {
+				"REQUIRE_AD_GROUPS": "true",
+				"REQUIRE_CONFIGURATION_ITEM": "true",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
 				"CERT_DIR": "${workspaceFolder}/local/certs",

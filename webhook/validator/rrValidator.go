@@ -16,14 +16,25 @@ const RadixRegistrationValidatorWebhookPath = "/radix/v1/radixregistration/valid
 //+kubebuilder:webhook:path=/radix/v1/radixregistration/validater,mutating=false,failurePolicy=fail,sideEffects=None,groups=radix.equinor.com,resources=radixregistrations,verbs=create;update,versions=v1,name=validate.radixapplication.radix.equinor.com,admissionReviewVersions={v1}
 
 type RadixRegistrationValidator struct {
-	client radixclient.Interface
+	validators []radixvalidators.RadixRegistrationValidator
 }
 
 var _ admission.CustomValidator = &RadixRegistrationValidator{}
 
-func NewRadixRegistrationValidator(client radixclient.Interface) *RadixRegistrationValidator {
+func NewRadixRegistrationValidator(ctx context.Context, client radixclient.Interface, requireAdGroups, requireConfigurationItem bool) *RadixRegistrationValidator {
+
+	validators := []radixvalidators.RadixRegistrationValidator{
+		radixvalidators.CreateRequireUniqueAppIdValidator(ctx, client),
+	}
+	if requireAdGroups {
+		validators = append(validators, radixvalidators.RequireAdGroups)
+	}
+	if requireConfigurationItem {
+		validators = append(validators, radixvalidators.RequireConfigurationItem)
+	}
+
 	return &RadixRegistrationValidator{
-		client: client,
+		validators: validators,
 	}
 }
 
@@ -34,7 +45,7 @@ func (v *RadixRegistrationValidator) ValidateCreate(ctx context.Context, obj run
 		return nil, fmt.Errorf("expected a RadixRegistration but got a %T", obj)
 	}
 
-	return nil, radixvalidators.ValidateRadixRegistration(rr, radixvalidators.RequireAdGroups, radixvalidators.CreateRequireUniqueAppIdValidator(ctx, v.client))
+	return nil, radixvalidators.ValidateRadixRegistration(rr, v.validators...)
 }
 
 // ValidateUpdate validates the object on update.
@@ -44,7 +55,7 @@ func (v *RadixRegistrationValidator) ValidateUpdate(ctx context.Context, oldObj,
 		return nil, fmt.Errorf("expected a RadixRegistration but got a %T", newObj)
 	}
 
-	return nil, radixvalidators.ValidateRadixRegistration(rr, radixvalidators.RequireAdGroups, radixvalidators.CreateRequireUniqueAppIdValidator(ctx, v.client))
+	return nil, radixvalidators.ValidateRadixRegistration(rr, v.validators...)
 }
 
 // ValidateDelete validates the object on deletion.

@@ -38,7 +38,8 @@ func main() {
 	c := internalconfig.MustParseConfig()
 	logger := initLogger(c)
 	logr := initLogr(logger)
-	logger.Info().Msgf("Starting Radix Webhook with config: %+v", c)
+	logger.Info().Str("version", internalconfig.ParseVersion()).Msg("Starting Radix Webhook")
+	logger.Info().Interface("config", c).Msg("Configuration")
 
 	logger.Info().Msg("setting up manager")
 	restConfig := config.GetConfigOrDie()
@@ -70,7 +71,7 @@ func main() {
 
 	certSetupFinished := addCertRotator(mgr, c)
 	addProbeEndpoints(mgr, certSetupFinished)
-	go setupWebhook(mgr, client, certSetupFinished) // blocks until cert rotation is set up, but needs manager to start first
+	go setupWebhook(ctx, mgr, client, c, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
 
 	logger.Info().Msg("starting manager")
 	if err := mgr.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -79,7 +80,7 @@ func main() {
 	logger.Info().Msg("shutting down")
 }
 
-func setupWebhook(mgr manager.Manager, client radixclient.Interface, certSetupFinished <-chan struct{}) {
+func setupWebhook(ctx context.Context, mgr manager.Manager, client radixclient.Interface, c internalconfig.Config, certSetupFinished <-chan struct{}) {
 	log.Debug().Msg("Configuring webhook...")
 	select {
 	case <-certSetupFinished:
@@ -87,7 +88,7 @@ func setupWebhook(mgr manager.Manager, client radixclient.Interface, certSetupFi
 		log.Fatal().Msg("Failed to set up certificate rotation before deadline (60sec)")
 	}
 
-	rrValidator := validator.NewRadixRegistrationValidator(client)
+	rrValidator := validator.NewRadixRegistrationValidator(ctx, client, c.RequireAdGroups, c.RequireConfigurationItem)
 	mgr.GetWebhookServer().Register(validator.RadixRegistrationValidatorWebhookPath, admission.WithCustomValidator(mgr.GetScheme(), &radixv1.RadixRegistration{}, rrValidator))
 
 	log.Info().Msg("webhook setup complete")
