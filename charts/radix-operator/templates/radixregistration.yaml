@@ -82,9 +82,9 @@ spec:
                 pattern: ^git@github.com:[\w-]+/[\w-]+.git$
                 type: string
               configBranch:
-                description: ConfigBranch is the branch in the git repository where
-                  the Radix configuration file is located. See https://git-scm.com/docs/git-check-ref-format#_description
-                  for more details.
+                description: |-
+                  ConfigBranch is the branch in the git repository where the Radix configuration file is located.
+                  See https://git-scm.com/docs/git-check-ref-format#_description for more details.
                 type: string
                 x-kubernetes-validations:
                 - rule: '!(  self == ''@'' ||  self == '''' )'
@@ -103,6 +103,9 @@ spec:
                 type: string
               creator:
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               deployKey:
                 description: 'deprecated: DeployKey is the deploy key for the git
                   repository.'

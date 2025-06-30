@@ -10,7 +10,7 @@ webhooks:
     service:
       name: radix-webhook
       namespace: default
-      path: /api/v1/radixregistration/validator
+      path: /radix/v1/radixregistration/validater
       port: 9443
   failurePolicy: Fail
   matchPolicy: Equivalent

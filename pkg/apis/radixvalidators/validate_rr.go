@@ -18,16 +18,14 @@ const (
 
 var (
 	ErrInvalidRadixConfigFullName = stderrors.New("invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information")
-	ErrInvalidEntraUuid           = stderrors.New("invalid Entra uuid")
-	validUuidRegex                = regexp.MustCompile("^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$")
-
-	requiredRadixRegistrationValidators = []RadixRegistrationValidator{}
 )
 
 // RadixRegistrationValidator defines a validator function for a RadixRegistration
 type RadixRegistrationValidator func(radixRegistration *v1.RadixRegistration) error
 
 // FIX: Add unique AppID Validation, and optional required ADGroup, and unique repo+configBranch combination
+// FIX: Do not allow removing AppID, Creator or Owner from existing RadixRegistration
+
 // RequireAdGroups validates that AdGroups contains minimum one item
 func RequireAdGroups(rr *v1.RadixRegistration) error {
 	if len(rr.Spec.AdGroups) == 0 {
@@ -40,15 +38,12 @@ func RequireAdGroups(rr *v1.RadixRegistration) error {
 // CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(ctx context.Context, client radixclient.Interface, radixRegistration *v1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
-	validators := append(requiredRadixRegistrationValidators)
-	validators = append(validators, additionalValidators...)
-	return validateRadixRegistration(radixRegistration, validators...)
+	return validateRadixRegistration(radixRegistration, additionalValidators...)
 }
 
 // CanRadixRegistrationBeUpdated Validates update of RR
 func CanRadixRegistrationBeUpdated(radixRegistration *v1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
-	validators := append(requiredRadixRegistrationValidators, additionalValidators...)
-	return validateRadixRegistration(radixRegistration, validators...)
+	return validateRadixRegistration(radixRegistration, additionalValidators...)
 }
 
 func validateRadixRegistration(radixRegistration *v1.RadixRegistration, validators ...RadixRegistrationValidator) error {
