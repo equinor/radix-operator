@@ -39,12 +39,6 @@ func WithClock(clock commonutils.Clock) SyncerOption {
 	}
 }
 
-func WithRadixRegistration(registration *radixv1.RadixRegistration) SyncerOption {
-	return func(syncer *syncer) {
-		syncer.registration = registration
-	}
-}
-
 // NewSyncer Constructor os RadixBatches Syncer
 func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *v1.RadixRegistration, radixBatch *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
 	syncer := &syncer{
