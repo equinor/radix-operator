@@ -181,13 +181,6 @@ func (tu *Utils) ApplyDeployment(ctx context.Context, deploymentBuilder utils.De
 		for _, env := range ra.Spec.Environments {
 			envs[env.Name] = struct{}{}
 		}
-
-		registrationBuilder := applicationBuilder.GetRegistrationBuilder()
-		if !commonUtils.IsNil(registrationBuilder) {
-			if _, err := tu.ApplyRegistration(registrationBuilder); err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	rd := deploymentBuilder.BuildRD()
