@@ -9,8 +9,8 @@ WORKDIR /src
 COPY ./go.mod ./go.sum ./
 RUN go mod download
 COPY . .
-WORKDIR /src/webhook
-RUN go build -ldflags="-s -w" -o /build/webhook
+WORKDIR /src
+RUN go build -ldflags="-s -w" -o /build/webhook ./webhook/main.go
 
 # Final stage, ref https://github.com/GoogleContainerTools/distroless/blob/main/base/README.md for distroless
 FROM gcr.io/distroless/static
