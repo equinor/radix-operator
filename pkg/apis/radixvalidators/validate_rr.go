@@ -71,6 +71,10 @@ func GetRadixRegistrationBeUpdatedWarnings(ctx context.Context, client radixclie
 	return appendNoDuplicateGitRepoWarning(ctx, client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
 }
 
+func validateAppName(appName string) error {
+	return validateRequiredResourceName("app name", appName, 253)
+}
+
 func validateRequiredResourceName(resourceName, value string, maxLength int) error {
 	if len(value) > maxLength {
 		return InvalidStringValueMaxLengthErrorWithMessage(resourceName, value, maxLength)
