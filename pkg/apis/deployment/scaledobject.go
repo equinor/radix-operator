@@ -19,16 +19,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type ScaleTriggerType string
-
-const (
-	ScaleTriggerTypeAzureServiceBus ScaleTriggerType = "azure-servicebus"
-	ScaleTriggerTypeAzureEventHub   ScaleTriggerType = "azure-eventhub"
-	ScaleTriggerTypeCron            ScaleTriggerType = "cron"
-	ScaleTriggerTypeCpu             ScaleTriggerType = "cpu"
-	ScaleTriggerTypeMemory          ScaleTriggerType = "memory"
-)
-
 func (deploy *Deployment) createOrUpdateScaledObject(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	componentName := deployComponent.GetName()
@@ -203,7 +193,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 func getCpuTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
 	return kedav1.ScaleTriggers{
 		Name:       trigger.Name,
-		Type:       string(ScaleTriggerTypeCpu),
+		Type:       "cpu",
 		MetricType: autoscalingv2.UtilizationMetricType,
 		Metadata: map[string]string{
 			"value": strconv.Itoa(trigger.Cpu.Value),
@@ -214,7 +204,7 @@ func getCpuTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTr
 func getMemoryTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
 	return kedav1.ScaleTriggers{
 		Name:       trigger.Name,
-		Type:       string(ScaleTriggerTypeMemory),
+		Type:       "memory",
 		MetricType: autoscalingv2.UtilizationMetricType,
 		Metadata: map[string]string{
 			"value": strconv.Itoa(trigger.Memory.Value),
@@ -225,7 +215,7 @@ func getMemoryTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.Scal
 func getCronTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
 	return kedav1.ScaleTriggers{
 		Name: trigger.Name,
-		Type: string(ScaleTriggerTypeCron),
+		Type: "cron",
 		Metadata: map[string]string{
 			"start":           trigger.Cron.Start,
 			"end":             trigger.Cron.End,
@@ -259,7 +249,7 @@ func getAzureServiceBus(componentName string, trigger radixv1.RadixHorizontalSca
 
 	return kedav1.ScaleTriggers{
 		Name:     trigger.Name,
-		Type:     string(ScaleTriggerTypeAzureServiceBus),
+		Type:     "azure-servicebus",
 		Metadata: metadata,
 		AuthenticationRef: &kedav1.AuthenticationRef{
 			Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
@@ -273,7 +263,7 @@ func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScali
 
 	var authenticationRef *kedav1.AuthenticationRef
 	if trigger.AzureEventHub.EventHubConnectionFromEnv != "" {
-		metadata["connectionFromEnv"] = trigger.AzureEventHub.StorageConnectionFromEnv
+		metadata["connectionFromEnv"] = trigger.AzureEventHub.EventHubConnectionFromEnv
 	} else {
 		authenticationRef = &kedav1.AuthenticationRef{
 			Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
@@ -321,7 +311,7 @@ func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScali
 
 	return kedav1.ScaleTriggers{
 		Name:              trigger.Name,
-		Type:              string(ScaleTriggerTypeAzureEventHub),
+		Type:              "azure-eventhub",
 		Metadata:          metadata,
 		AuthenticationRef: authenticationRef,
 	}
@@ -329,7 +319,7 @@ func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScali
 
 func getAzureEventHubCheckpointStrategy(trigger radixv1.RadixHorizontalScalingTrigger) radixv1.AzureEventHubTriggerCheckpointStrategy {
 	if trigger.AzureEventHub.CheckpointStrategy == "" {
-		return radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction
+		return radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata
 	}
 	return trigger.AzureEventHub.CheckpointStrategy
 }

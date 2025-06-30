@@ -1037,7 +1037,7 @@
                                     "type": "object"
                                   },
                                   "checkpointStrategy": {
-                                    "description": "CheckpointStrategy defines the strategy to use for checkpointing. Defaults to azureFunction.",
+                                    "description": "CheckpointStrategy defines the strategy to use for checkpointing. Defaults to blobMetadata.",
                                     "enum": [
                                       "goSdk",
                                       "blobMetadata",
@@ -2354,7 +2354,7 @@
                               "type": "object"
                             },
                             "checkpointStrategy": {
-                              "description": "CheckpointStrategy defines the strategy to use for checkpointing. Defaults to azureFunction.",
+                              "description": "CheckpointStrategy defines the strategy to use for checkpointing. Defaults to blobMetadata.",
                               "enum": [
                                 "goSdk",
                                 "blobMetadata",

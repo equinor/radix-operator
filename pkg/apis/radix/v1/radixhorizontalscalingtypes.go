@@ -235,7 +235,7 @@ type RadixHorizontalScalingAzureEventHubTrigger struct {
 	// +kubebuilder:validation:MaxLength=150
 	Container string `json:"container,omitempty"`
 
-	// CheckpointStrategy defines the strategy to use for checkpointing. Defaults to azureFunction.
+	// CheckpointStrategy defines the strategy to use for checkpointing. Defaults to blobMetadata.
 	// +optional
 	// +kubebuilder:validation:Enum=goSdk;blobMetadata;azureFunction;""
 	CheckpointStrategy AzureEventHubTriggerCheckpointStrategy `json:"checkpointStrategy,omitempty"`

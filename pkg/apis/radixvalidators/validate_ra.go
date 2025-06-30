@@ -36,9 +36,10 @@ const (
 )
 
 var (
-	validOAuthSessionStoreTypes         = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
-	validOAuthCookieSameSites           = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
-	validAzureEventHubTriggerCheckpoint = []radixv1.AzureEventHubTriggerCheckpointStrategy{radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction, radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk}
+	validOAuthSessionStoreTypes          = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
+	validOAuthCookieSameSites            = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
+	validAzureEventHubTriggerCheckpoints = map[radixv1.AzureEventHubTriggerCheckpointStrategy]any{radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction: struct{}{},
+		radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata: struct{}{}, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk: struct{}{}}
 
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
 		validateRadixApplicationAppName,
@@ -1483,12 +1484,18 @@ func validateAzureEventHubTrigger(trigger radixv1.RadixHorizontalScalingTrigger)
 		errs = append(errs, fmt.Errorf("invalid trigger %s: storage account container name is required for not azureFunction checkpointStrategy: %w", trigger.Name, ErrInvalidTriggerDefinition))
 	}
 
-	if trigger.AzureEventHub.CheckpointStrategy != "" && !slice.Any(validAzureEventHubTriggerCheckpoint, func(item radixv1.AzureEventHubTriggerCheckpointStrategy) bool {
-		return item == trigger.AzureEventHub.CheckpointStrategy
-	}) {
+	if !isValidAzureEventHubTriggerCheckpoints(trigger.AzureEventHub.CheckpointStrategy) {
 		errs = append(errs, fmt.Errorf("invalid trigger %s: invalid checkpoint strategy: %w", trigger.Name, ErrInvalidTriggerDefinition))
 	}
 	return errs
+}
+
+func isValidAzureEventHubTriggerCheckpoints(checkpointStrategy radixv1.AzureEventHubTriggerCheckpointStrategy) bool {
+	if checkpointStrategy == "" {
+		return true
+	}
+	_, ok := validAzureEventHubTriggerCheckpoints[checkpointStrategy]
+	return ok
 }
 
 func validateKedaCronSchedule(schedule string) error {
