@@ -9,6 +9,8 @@ import (
 )
 
 var (
+	ErrAdGroupIsRequired                                                   = errors.New("ad group is required")
+	ErrAppIdMustBeUnique                                                   = errors.New("app id must be unique")
 	ErrMissingPrivateImageHubUsername                                      = errors.New("missing private image hub username")
 	ErrEnvForDNSAppAliasNotDefined                                         = errors.New("env for dns app alias not defined")
 	ErrComponentForDNSAppAliasNotDefined                                   = errors.New("component for dns app alias not defined")
@@ -27,6 +29,7 @@ var (
 	ErrCPUResourceRequirementFormat                                        = errors.New("cpu resource requirement format")
 	ErrInvalidVerificationType                                             = errors.New("invalid verification")
 	ErrInvalidHealthCheckProbe                                             = errors.New("probe configuration error, only one action allowed")
+	ErrConfigurationItemIsRequired                                         = errors.New("configuration item is required")
 	ErrSuccessThresholdMustBeOne                                           = errors.New("success threshold must be equal to one")
 	ErrResourceRequestOverLimit                                            = errors.New("resource request over limit")
 	ErrInvalidResource                                                     = errors.New("invalid resource")

@@ -1,7 +1,6 @@
 package radixvalidators_test
 
 import (
-	"context"
 	"testing"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -17,52 +16,28 @@ import (
 func Test_valid_rr_returns_true(t *testing.T) {
 	_, client := validRRSetup()
 	validRR := createValidRR()
-	err := radixvalidators.CanRadixRegistrationBeInserted(context.Background(), client, validRR)
+	err := radixvalidators.ValidateRadixRegistration(validRR, radixvalidators.RequireAdGroups, radixvalidators.RequireConfigurationItem, radixvalidators.CreateRequireUniqueAppIdValidator(t.Context(), client))
 	assert.Nil(t, err)
 }
 
 type updateRRFunc func(rr *v1.RadixRegistration)
 
-func TestCanRadixApplicationBeInserted(t *testing.T) {
-	var testScenarios = []struct {
-		name                 string
-		updateRR             updateRRFunc
-		additionalValidators []radixvalidators.RadixRegistrationValidator
-	}{
-		{"empty ConfigurationItem", func(rr *v1.RadixRegistration) { rr.Spec.ConfigurationItem = "" }, []radixvalidators.RadixRegistrationValidator{}},
-		{"empty ad groups", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = nil }, []radixvalidators.RadixRegistrationValidator{radixvalidators.RequireAdGroups}},
-	}
-
-	_, client := validRRSetup()
-
-	for _, testcase := range testScenarios {
-		t.Run(testcase.name, func(t *testing.T) {
-			validRR := createValidRR()
-			testcase.updateRR(validRR)
-			err := radixvalidators.CanRadixRegistrationBeInserted(context.Background(), client, validRR, testcase.additionalValidators...)
-
-			assert.NotNil(t, err)
-		})
-	}
-}
-
 func TestCanRadixApplicationBeUpdated(t *testing.T) {
+	_, client := validRRSetup()
 	var testScenarios = []struct {
 		name                 string
 		updateRR             updateRRFunc
 		additionalValidators []radixvalidators.RadixRegistrationValidator
 	}{
-		{"empty ConfigurationItem", func(rr *v1.RadixRegistration) { rr.Spec.ConfigurationItem = "" }, []radixvalidators.RadixRegistrationValidator{}},
-		{"empty ad groups", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = nil }, []radixvalidators.RadixRegistrationValidator{radixvalidators.RequireAdGroups}},
+		{"empty ConfigurationItem", func(rr *v1.RadixRegistration) { rr.Spec.ConfigurationItem = "" }, []radixvalidators.RadixRegistrationValidator{radixvalidators.RequireAdGroups, radixvalidators.RequireConfigurationItem, radixvalidators.CreateRequireUniqueAppIdValidator(t.Context(), client)}},
+		{"empty ad groups", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = nil }, []radixvalidators.RadixRegistrationValidator{radixvalidators.RequireAdGroups, radixvalidators.RequireConfigurationItem, radixvalidators.CreateRequireUniqueAppIdValidator(t.Context(), client)}},
 	}
-
-	_, client := validRRSetup()
 
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRR := createValidRR()
 			testcase.updateRR(validRR)
-			err := radixvalidators.CanRadixRegistrationBeUpdated(validRR, testcase.additionalValidators...)
+			err := radixvalidators.ValidateRadixRegistration(validRR, testcase.additionalValidators...)
 
 			assert.NotNil(t, err)
 		})
@@ -71,7 +46,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 	t.Run("name already exist", func(t *testing.T) {
 		validRR := createValidRR()
 		client = radixfake.NewSimpleClientset(validRR)
-		err := radixvalidators.CanRadixRegistrationBeUpdated(validRR)
+		err := radixvalidators.ValidateRadixRegistration(validRR)
 
 		assert.Nil(t, err)
 	})
