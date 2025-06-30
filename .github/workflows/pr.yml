@@ -30,25 +30,9 @@ jobs:
           linux/amd64
           linux/arm64
 
-  radix-operator-test:
-    name: Pipeline-runner unit tests
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version-file: 'go.mod'
-    - name: Install dependencies
-      run: |
-        cd ./radix-operator
-        go mod download
-    - name: Run Tests
-      run: |
-        cd ./radix-operator
-        go test -cover `go list ./...`
 
-  pipeline-runner-test:
-    name: Pipeline-runner unit tests
+  unit-test:
+    name: Unit tests
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -57,11 +41,9 @@ jobs:
         go-version-file: 'go.mod'
     - name: Install dependencies
       run: |
-        cd ./pipeline-runner
         go mod download
     - name: Run Tests
       run: |
-        cd ./pipeline-runner
         go test -cover `go list ./...`
 
   radix-operator-lint:
