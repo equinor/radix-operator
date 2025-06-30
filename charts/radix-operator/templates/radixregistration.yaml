@@ -76,11 +76,10 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
-                - rule: oldself.size() > 0 && self.size() > 0
               cloneURL:
                 description: CloneURL is the URL of the GitHub repository where the
                   Radix configuration file is located.
-                pattern: ^(git@github.com:)([\w-]+)/([\w-]+)(.git)$
+                pattern: ^git@github.com:[\w-]+/[\w-]+.git$
                 type: string
               configBranch:
                 description: ConfigBranch is the branch in the git repository where

@@ -28,7 +28,6 @@ var (
 type RadixRegistrationValidator func(radixRegistration *v1.RadixRegistration) error
 
 // FIX: Add unique AppID Validation, and optional required ADGroup, and unique repo+configBranch combination
-
 // RequireAdGroups validates that AdGroups contains minimum one item
 func RequireAdGroups(rr *v1.RadixRegistration) error {
 	if len(rr.Spec.AdGroups) == 0 {

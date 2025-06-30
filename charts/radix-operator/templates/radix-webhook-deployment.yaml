@@ -21,7 +21,7 @@ spec:
             secretName: radix-webhook-certs
       containers:
         - name: radix-webhook
-          image: localhost/webhook:7
+          image: localhost/webhook:8
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9443

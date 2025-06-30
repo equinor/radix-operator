@@ -70,6 +70,7 @@ type RadixRegistrationSpec struct {
 	ReaderAdUsers []string `json:"readerAdUsers,omitempty"`
 
 	// +optional
+	// +kubebuilder:validation:XValidation:rule=`self == oldSelf`,message="Value is immutable"
 	Creator string `json:"creator,omitempty"`
 
 	// +optional
@@ -79,7 +80,8 @@ type RadixRegistrationSpec struct {
 	// deprecated: use ConfigurationItem instead
 	WBS string `json:"wbs,omitempty"`
 
-	// ConfigBranch is the branch in the git repository where the Radix configuration file is located. See https://git-scm.com/docs/git-check-ref-format#_description for more details.
+	// ConfigBranch is the branch in the git repository where the Radix configuration file is located. 
+	// See https://git-scm.com/docs/git-check-ref-format#_description for more details.
 	// +required
 	// +kubebuilder:validation:XValidation:rule=`!(  self == '@' ||  self == '' )`
 	// +kubebuilder:validation:XValidation:rule=`!(  self.startsWith('/') )`
