@@ -1463,9 +1463,8 @@ func validateAzureEventHubTrigger(trigger radixv1.RadixHorizontalScalingTrigger)
 	if trigger.AzureEventHub.Namespace == "" && trigger.AzureEventHub.NamespaceFromEnv == "" {
 		errs = append(errs, fmt.Errorf("invalid trigger %s: event hub namespace is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
 	}
-	if trigger.AzureEventHub.EventHubName == "" && trigger.AzureEventHub.EventHubNameFromEnv == "" && (trigger.AzureEventHub.Authentication != nil ||
-		(trigger.AzureEventHub.Authentication == nil && trigger.AzureEventHub.EventHubConnectionFromEnv == "")) {
-		errs = append(errs, fmt.Errorf("invalid trigger %s: event hub name is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	if trigger.AzureEventHub.EventHubName == "" && trigger.AzureEventHub.EventHubNameFromEnv == "" && trigger.AzureEventHub.Authentication != nil {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: event hub name is required for azure workload identity: %w", trigger.Name, ErrInvalidTriggerDefinition))
 	}
 	if trigger.AzureEventHub.EventHubConnectionFromEnv == "" &&
 		(trigger.AzureEventHub.Authentication == nil || trigger.AzureEventHub.Authentication.Identity.Azure.ClientId == "") {

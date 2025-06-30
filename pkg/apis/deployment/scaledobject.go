@@ -287,8 +287,6 @@ func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScali
 	}
 
 	if trigger.AzureEventHub.StorageConnectionFromEnv != "" {
-		metadata["storageConnection"] = trigger.AzureEventHub.StorageConnectionFromEnv
-	} else if trigger.AzureEventHub.StorageConnectionFromEnv != "" {
 		metadata["storageConnectionFromEnv"] = trigger.AzureEventHub.StorageConnectionFromEnv
 	} else if trigger.AzureEventHub.StorageAccount != "" {
 		metadata["storageAccountName"] = trigger.AzureEventHub.StorageAccount // Only required for Workload Identity
