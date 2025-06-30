@@ -8,8 +8,7 @@ WORKDIR /src
 
 COPY ./go.mod ./go.sum ./
 RUN go mod download
-COPY ./webhook ./webhook
-COPY ./pkg ./pkg
+COPY . .
 WORKDIR /src/webhook
 RUN go build -ldflags="-s -w" -o /build/webhook
 
