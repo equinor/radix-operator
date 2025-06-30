@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -91,121 +90,5 @@ func TestOnSync_PublicKeyCmDoesNotExist_NewKeyIsGenerated(t *testing.T) {
 	assert.NoError(t, err)
 	privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
 	assert.NotNil(t, privateKey)
-
-}
-
-func TestOnSync_PublicKeyCmDoesNotExist_KeyIsCopiedFromRR(t *testing.T) {
-	// Setup
-	tu, client, kubeUtil, radixClient, _ := setupTest(t)
-	defer os.Clearenv()
-
-	// Test
-	appName := "any-app"
-	rr := utils.ARadixRegistration().
-		WithName(appName).
-		WithPublicKey(somePublicKey).
-		WithPrivateKey(somePrivateKey)
-
-	// check public key cm does not exist
-	_, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
-	assert.Error(t, err)
-
-	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
-	assert.NoError(t, err)
-
-	// check public key cm exists, and has same public key as RR
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, cm)
-	publicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
-	assert.Equal(t, somePublicKey, publicKey)
-
-	// check secret exists, and has same private key as RR
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, secret)
-	privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
-	assert.Equal(t, []byte(somePrivateKey), privateKey)
-}
-
-func TestOnSync_PublicKeyInCmIsEmpty_KeyIsCopiedFromRR(t *testing.T) {
-	// Setup
-	tu, client, kubeUtil, radixClient, _ := setupTest(t)
-	defer os.Clearenv()
-
-	// Test
-	appName := "any-app"
-	rr := utils.ARadixRegistration().
-		WithName(appName).
-		WithPublicKey(somePublicKey).
-		WithPrivateKey(somePrivateKey)
-
-	// check public key cm does not exist
-	_, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
-	assert.Error(t, err)
-
-	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
-	assert.NoError(t, err)
-
-	// delete data in public key cm
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	cm.Data = map[string]string{}
-	_, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Update(context.Background(), cm, metav1.UpdateOptions{})
-	assert.NoError(t, err)
-
-	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
-	assert.NoError(t, err)
-
-	// check public key cm exists, and has same public key as RR
-	cm, err = client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, cm)
-	publicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
-	assert.Equal(t, somePublicKey, strings.TrimSpace(publicKey))
-
-	// check secret exists, and has same private key as RR
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, secret)
-	privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
-	assert.Equal(t, []byte(somePrivateKey), privateKey)
-
-}
-
-func TestOnSync_PrivateKeySecretIsUpdatedManually_PublicKeyIsUpdated(t *testing.T) {
-	// Setup
-	tu, client, kubeUtil, radixClient, _ := setupTest(t)
-	defer os.Clearenv()
-
-	// Test
-	appName := "any-app"
-	rr := utils.ARadixRegistration().
-		WithName(appName).
-		WithPublicKey(somePublicKey).
-		WithPrivateKey(somePrivateKey)
-
-	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
-	assert.NoError(t, err)
-
-	// modify the private key secret manually
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
-	assert.NoError(t, err)
-
-	deployKey, err := utils.GenerateDeployKey()
-	assert.NoError(t, err)
-
-	newSecret := secret.DeepCopy()
-	newSecret.Data[defaults.GitPrivateKeySecretKey] = []byte(deployKey.PrivateKey)
-
-	_, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Update(context.Background(), newSecret, metav1.UpdateOptions{})
-	assert.NoError(t, err)
-	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
-	assert.NoError(t, err)
-	// check that the public key cm is updated
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	publicKey := cm.Data[defaults.GitPublicKeyConfigMapKey]
-	assert.Equal(t, deployKey.PublicKey, publicKey)
 
 }

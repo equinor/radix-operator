@@ -55,18 +55,9 @@ func (v *RadixRegistrationValidator) ValidateCreate(ctx context.Context, obj run
 
 // ValidateUpdate validates the object on update.
 func (v *RadixRegistrationValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	oldRr, ok := oldObj.(*radixv1.RadixRegistration)
-	if !ok {
-		return nil, fmt.Errorf("expected a RadixRegistration but got a %T", oldObj)
-	}
-
 	rr, ok := newObj.(*radixv1.RadixRegistration)
 	if !ok {
 		return nil, fmt.Errorf("expected a RadixRegistration but got a %T", newObj)
-	}
-
-	if !oldRr.Spec.AppID.IsZero() && oldRr.Spec.AppID.ULID.Compare(rr.Spec.AppID.ULID) != 0 {
-		return nil, ErrRadixRegistrationAppIdIsImmutable
 	}
 
 	return v.validate(ctx, rr)

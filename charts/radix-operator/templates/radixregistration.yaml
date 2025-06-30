@@ -106,14 +106,6 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
-              deployKey:
-                description: 'deprecated: DeployKey is the deploy key for the git
-                  repository.'
-                type: string
-              deployKeyPublic:
-                description: 'deprecated: DeployKeyPublic is the public key for the
-                  deploy key.'
-                type: string
               owner:
                 type: string
               radixConfigFullName:
@@ -134,11 +126,6 @@ spec:
               sharedSecret:
                 description: 'deprecated: SharedSecret is the shared secret for the
                   git repository.'
-                type: string
-              wbs:
-                description: |-
-                  WBS: Deprecated: WBS was previously used to identify the application in a WBS (Work Breakdown Structure).
-                  deprecated: use ConfigurationItem instead
                 type: string
             required:
             - cloneURL

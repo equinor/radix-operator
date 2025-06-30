@@ -45,14 +45,6 @@ type RadixRegistrationSpec struct {
 	// +optional
 	SharedSecret string `json:"sharedSecret,omitempty"`
 
-	// deprecated: DeployKey is the deploy key for the git repository.
-	// +optional
-	DeployKey string `json:"deployKey,omitempty"`
-
-	// deprecated: DeployKeyPublic is the public key for the deploy key.
-	// +optional
-	DeployKeyPublic string `json:"deployKeyPublic,omitempty"`
-
 	// +optional
 	// +kubebuilder:validation:items:Format=uuid
 	AdGroups []string `json:"adGroups,omitempty"`
@@ -76,11 +68,7 @@ type RadixRegistrationSpec struct {
 	// +optional
 	Owner string `json:"owner,omitempty"`
 
-	// WBS: Deprecated: WBS was previously used to identify the application in a WBS (Work Breakdown Structure).
-	// deprecated: use ConfigurationItem instead
-	WBS string `json:"wbs,omitempty"`
-
-	// ConfigBranch is the branch in the git repository where the Radix configuration file is located. 
+	// ConfigBranch is the branch in the git repository where the Radix configuration file is located.
 	// See https://git-scm.com/docs/git-check-ref-format#_description for more details.
 	// +required
 	// +kubebuilder:validation:XValidation:rule=`!(  self == '@' ||  self == '' )`

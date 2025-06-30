@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -43,15 +43,15 @@ var (
 	radixRequestedCPU = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "radix_operator_requested_cpu",
 		Help: "Requested cpu in millicore by environment and component",
-	}, []string{"application", "environment", "component", "wbs"})
+	}, []string{"application", "environment", "component"})
 	radixRequestedMemory = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "radix_operator_requested_memory",
 		Help: "Requested memory in megabyte by environment and component. 1Mi = 1024 * 1024 bytes > 1MB = 1000000 bytes (ref https://simple.wikipedia.org/wiki/Mebibyte)",
-	}, []string{"application", "environment", "component", "wbs"})
+	}, []string{"application", "environment", "component"})
 	radixRequestedReplicas = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "radix_operator_requested_replicas",
 		Help: "Requested replicas by environment and component",
-	}, []string{"application", "environment", "component", "wbs"})
+	}, []string{"application", "environment", "component"})
 
 	radixJobProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "radix_operator_radix_job_processed",
@@ -97,13 +97,13 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) error 
 		}
 
 		radixRequestedCPU.
-			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).
+			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).
 			Set(float64(cpu.MilliValue()))
 		radixRequestedMemory.
-			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).
+			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).
 			Set(float64(memory.ScaledValue(resource.Mega)))
 		radixRequestedReplicas.
-			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).
+			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).
 			Set(nrReplicas)
 	}
 
