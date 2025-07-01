@@ -198,3 +198,60 @@ podSecurityStandard:
   warn:
     level: "" # One of privileged, baseline, restricted
     version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"
+
+radixWebhook:
+  enabled: false
+  nameOverride: ""
+
+  logLevel: info
+  logPretty: "false"
+  requireAdGroups: "true"
+  requireConfigurationItem: "true"
+  tlsSecretName: radix-webhook-certs
+  disableCertRotation: "false"
+  caName: "radix-webhook-ca"
+  caOrganization: "Radix Webhook CA"
+  webhookConfigurationName: radix-webhook-configuration
+
+  port: 9443
+  healthzPort: 9440
+  metricsPort: 9000
+
+  image: 
+    repository: localhost/webhook
+    tag: 7  
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      memory: 1Gi
+      cpu: 1000m
+    requests:
+      cpu: 100m
+      memory: 100Mi
+
+  serviceAccount:
+    # The name of the service account to use.
+    # If not set, a name is generated using the fullname template
+    nameOverride: ""
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  # Extra pod labels
+  podLabels: {}
+  # Annotations to add to the pod
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  securityContext:
+    privileged: false
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false

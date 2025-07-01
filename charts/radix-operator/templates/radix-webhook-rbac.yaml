@@ -1,27 +1,20 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: radix-webhook
+  name: {{ template "radix-webhook.sa.fullname" . }}
   labels:
-    app.kubernetes.io/name: radix-webhook
+    {{- include "radix-webhook.labels" . | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: radix-webhook
+  name: radix-webhook-admission-controller
   labels:
-    app.kubernetes.io/name: radix-webhook
+    {{- include "radix-webhook.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["radix.equinor.com"]
     resources: ["radixregistrations"]
     verbs: ["get", "list"]
-  - apiGroups: [""]
-    resources: ["secrets"]
-    resourceNames: ["radix-webhook-certs"]
-    verbs: ["get", "create", "update"]
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["list", "watch"]
   - apiGroups: ["admissionregistration.k8s.io"]
     resources: ["validatingwebhookconfigurations"]
     verbs: ["get", "list", "watch", "update"]
@@ -29,14 +22,45 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: radix-webhook
+  name: radix-webhook-admission-controller
   labels:
-    app.kubernetes.io/name: radix-webhook
+    {{- include "radix-webhook.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: radix-webhook
 subjects:
   - kind: ServiceAccount
-    name: radix-webhook
-    namespace: default #TODO: {{ .Release.Namespace }}
+    name: {{ template "radix-webhook.sa.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: radix-webhook-secret-controller
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: 
+    - {{ .Values.radixWebhook.tlsSecretName | quote }}
+    verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: radix-webhook-secret-controller
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: radix-webhook-secret-controller
+subjects:
+  - kind: ServiceAccount
+    name: {{ template "radix-webhook.sa.fullname" . }}
+    namespace: {{ .Release.Namespace }}

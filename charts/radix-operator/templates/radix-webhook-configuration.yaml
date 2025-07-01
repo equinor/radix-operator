@@ -2,16 +2,16 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: radix-webhook-configuration
+  name: {{ .Values.radixWebhook.webhookConfigurationName }}
 webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
     service:
-      name: radix-webhook
-      namespace: default
-      path: /radix/v1/radixregistration/validater
-      port: 9443
+      name: {{ template "radix-webhook.fullname" . }}
+      namespace: {{ .Release.Namespace }}
+      path: /radix/v1/radixregistration/validation
+      port: {{ .Values.radixWebhook.port}}
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: radixregistrations.validation.radix.equinor.com

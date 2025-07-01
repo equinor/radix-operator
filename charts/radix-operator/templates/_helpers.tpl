@@ -73,3 +73,43 @@ Utility function to take list to comma separated string
 {{- range $k, $v := . -}}{{- if not $local.first -}},{{- end -}}{{- $v -}}{{- $_ := set $local "first" false -}}{{- end -}}
 {{- end -}}
 
+{{/*
+Create a fully qualified app name for radix-webhook.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+If release name contains chart name it will be used as a full name.
+*/}}
+{{- define "radix-webhook.fullname" -}}
+{{- if .Values.radixWebhook.nameOverride }}
+{{- .Values.radixWebhook.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- printf "%s-webhook" .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{- define "radix-webhook.sa.fullname" -}}
+{{- if .Values.radixWebhook.serviceAccount.nameOverride }}
+{{- .Values.radixWebhook.serviceAccount.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- printf "%s-webhook" .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Webhook Common labels
+*/}}
+{{- define "radix-webhook.labels" -}}
+helm.sh/chart: {{ include "radix-operator.chart" . }}
+{{ include "radix-webhook.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Webhook Selector labels
+*/}}
+{{- define "radix-webhook.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "radix-webhook.fullname" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
