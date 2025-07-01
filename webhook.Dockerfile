@@ -1,5 +1,5 @@
 FROM --platform=$BUILDPLATFORM docker.io/golang:1.24.4-alpine3.21 AS builder
- # allow go build tool to parse .git repo and read build info
+# allow go build tool to parse .git repo and read build info
 RUN apk add git
 
 ARG TARGETARCH
