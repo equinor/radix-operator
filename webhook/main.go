@@ -38,7 +38,7 @@ func main() {
 	c := internalconfig.MustParseConfig()
 	logger := initLogger(c)
 	logr := initLogr(logger)
-	logger.Info().Str("version", internalconfig.ParseVersion()).Msg("Starting Radix Webhook")
+	logger.Info().Str("version", internalconfig.Version).Msg("Starting Radix Webhook")
 	logger.Info().Interface("config", c).Msg("Configuration")
 
 	logger.Info().Msg("setting up manager")

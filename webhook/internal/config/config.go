@@ -1,13 +1,14 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"runtime/debug"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog/log"
 )
+
+var Version = "dev (unknown)"
 
 type Config struct {
 	Port           int    `envconfig:"PORT" default:"9443" desc:"The address the health endpoint binds to"`
@@ -47,32 +48,16 @@ func MustParseConfig() Config {
 	return s
 }
 
-func ParseVersion() string {
+func init() {
+	// Use debug.ReadBuildInfo to get the version information
+	// Requires Go 1.18 or later
+	// Requires .git folder to be present when building
+	// need to run build in the webhook directory
+
 	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		return "dev (no build info)"
+	if !ok || info.Main.Version == "" {
+		return
 	}
 
-	commit := "unknown"
-	modified := ""
-	version := "dev"
-
-	if info.Main.Version != "" {
-		version = info.Main.Version
-	}
-
-	for _, setting := range info.Settings {
-		switch setting.Key {
-		case "vcs.revision":
-			commit = setting.Value
-		case "vcs.modified":
-			if setting.Value == "true" {
-				modified = "-modified"
-			}
-		}
-	}
-
-	version = fmt.Sprintf("%s (%s%s)", version, commit, modified)
-
-	return version
+	Version = info.Main.Version
 }
