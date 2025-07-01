@@ -261,21 +261,34 @@ func getAzureServiceBus(componentName string, trigger radixv1.RadixHorizontalSca
 func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
 	metadata := map[string]string{}
 
-	var authenticationRef *kedav1.AuthenticationRef
-	if trigger.AzureEventHub.EventHubConnectionFromEnv != "" {
-		metadata["connectionFromEnv"] = trigger.AzureEventHub.EventHubConnectionFromEnv
-	} else {
-		authenticationRef = &kedav1.AuthenticationRef{
+	scaleTriggers := kedav1.ScaleTriggers{
+		Name: trigger.Name,
+		Type: "azure-eventhub",
+	}
+
+	if auth := trigger.AzureEventHub.Authentication; auth != nil && (*auth).Identity.Azure.ClientId != "" {
+		scaleTriggers.AuthenticationRef = &kedav1.AuthenticationRef{
 			Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
 			Kind: "TriggerAuthentication",
 		}
+		if trigger.AzureEventHub.EventHubNamespace != "" {
+			metadata["eventHubNamespace"] = trigger.AzureEventHub.EventHubNamespace
+		} else if trigger.AzureEventHub.EventHubNamespaceFromEnv != "" {
+			metadata["eventHubNamespaceFromEnv"] = trigger.AzureEventHub.EventHubNamespaceFromEnv
+		}
+		if trigger.AzureEventHub.StorageAccount != "" {
+			metadata["storageAccountName"] = trigger.AzureEventHub.StorageAccount
+		}
+	} else {
+		if trigger.AzureEventHub.EventHubConnectionFromEnv != "" {
+			metadata["connectionFromEnv"] = trigger.AzureEventHub.EventHubConnectionFromEnv
+		}
+		if trigger.AzureEventHub.StorageConnectionFromEnv != "" {
+			metadata["storageConnectionFromEnv"] = trigger.AzureEventHub.StorageConnectionFromEnv
+		}
 	}
 
-	if trigger.AzureEventHub.Namespace != "" {
-		metadata["eventHubNamespace"] = trigger.AzureEventHub.Namespace
-	} else if trigger.AzureEventHub.NamespaceFromEnv != "" {
-		metadata["eventHubNamespaceFromEnv"] = trigger.AzureEventHub.NamespaceFromEnv
-	}
+	// Required when used Workload Identity or when EventHub Connection string has no suffix EntityPath=eventhub-name
 	if trigger.AzureEventHub.EventHubName != "" {
 		metadata["eventHubName"] = trigger.AzureEventHub.EventHubName
 	} else if trigger.AzureEventHub.EventHubNameFromEnv != "" {
@@ -286,33 +299,24 @@ func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScali
 		metadata["consumerGroup"] = trigger.AzureEventHub.ConsumerGroup
 	}
 
-	if trigger.AzureEventHub.StorageConnectionFromEnv != "" {
-		metadata["storageConnectionFromEnv"] = trigger.AzureEventHub.StorageConnectionFromEnv
-	} else if trigger.AzureEventHub.StorageAccount != "" {
-		metadata["storageAccountName"] = trigger.AzureEventHub.StorageAccount // Only required for Workload Identity
-	}
-
-	if messageCount := trigger.AzureEventHub.MessageCount; messageCount != nil {
+	if messageCount := trigger.AzureEventHub.UnprocessedEventThreshold; messageCount != nil {
 		metadata["unprocessedEventThreshold"] = strconv.Itoa(*messageCount)
 	}
-	if trigger.AzureEventHub.ActivationMessageCount != nil {
-		metadata["activationUnprocessedEventThreshold"] = strconv.Itoa(*trigger.AzureEventHub.ActivationMessageCount)
+	if trigger.AzureEventHub.ActivationUnprocessedEventThreshold != nil {
+		metadata["activationUnprocessedEventThreshold"] = strconv.Itoa(*trigger.AzureEventHub.ActivationUnprocessedEventThreshold)
 	}
 
 	checkpointStrategy := getAzureEventHubCheckpointStrategy(trigger)
 	metadata["checkpointStrategy"] = string(checkpointStrategy)
 
 	metadata["blobContainer"] = trigger.AzureEventHub.Container
+	// With Azure Functions checkpointStrategy the Container is automatically set or overridden as azure-webjobs-eventhub.
 	if checkpointStrategy == radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction {
-		metadata["blobContainer"] = "azure-webjobs-eventhub" // With Azure Functions checkpointStrategy the Container is automatically set or overridden as azure-webjobs-eventhub.
+		metadata["blobContainer"] = "azure-webjobs-eventhub"
 	}
 
-	return kedav1.ScaleTriggers{
-		Name:              trigger.Name,
-		Type:              "azure-eventhub",
-		Metadata:          metadata,
-		AuthenticationRef: authenticationRef,
-	}
+	scaleTriggers.Metadata = metadata
+	return scaleTriggers
 }
 
 func getAzureEventHubCheckpointStrategy(trigger radixv1.RadixHorizontalScalingTrigger) radixv1.AzureEventHubTriggerCheckpointStrategy {

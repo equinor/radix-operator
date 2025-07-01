@@ -177,20 +177,20 @@ const (
 
 // RadixHorizontalScalingAzureEventHubTrigger defines configuration for an Azure Event Hub trigger.
 type RadixHorizontalScalingAzureEventHubTrigger struct {
-	// Namespace The Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+	// EventHubNamespace The Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
 	// +optional
 	// +kubebuilder:validation:MaxLength=150
 	// +kubebuilder:validation:Pattern=^(([a-z][-a-z0-9]*)?[a-z0-9])?$
-	Namespace string `json:"namespace,omitempty"`
+	EventHubNamespace string `json:"eventHubNamespace,omitempty"`
 
-	// NamespaceFromEnv The name of the environment variable or secret  holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
-	// It is ignored when Namespace is defined.
+	// EventHubNamespaceFromEnv The name of the environment variable or secret  holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+	// It is ignored when EventHubNamespace is defined.
 	// +optional
 	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
-	NamespaceFromEnv string `json:"namespaceFromEnv,omitempty"`
+	EventHubNamespaceFromEnv string `json:"eventHubNamespaceFromEnv,omitempty"`
 
-	// EventHubName of the Azure Event Hub within Namespace
+	// EventHubName of the Azure Event Hub within Event Hub namespace
 	// +optional
 	// +kubebuilder:validation:MaxLength=260
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
@@ -240,15 +240,16 @@ type RadixHorizontalScalingAzureEventHubTrigger struct {
 	// +kubebuilder:validation:Enum=goSdk;blobMetadata;azureFunction;""
 	CheckpointStrategy AzureEventHubTriggerCheckpointStrategy `json:"checkpointStrategy,omitempty"`
 
-	// MessageCount is the threshold for unprocessed events. If the number of unprocessed events exceeds this threshold, the scaler will scale up. Default: 64 events.
+	// UnprocessedEventThreshold Average target value to trigger scaling actions. Default: 64 events.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
-	MessageCount *int `json:"messageCount,omitempty"`
+	UnprocessedEventThreshold *int `json:"unprocessedEventThreshold,omitempty"`
 
-	// ActivationMessageCount Target value for activating the scaler. Defaults to 0
+	// ActivationUnprocessedEventThreshold Target value for activating the scaler. Defaults to 0.
+	// Learn more about activation https://keda.sh/docs/2.17/concepts/scaling-deployments/#activating-and-scaling-thresholds
 	// +optional
 	// +kubebuilder:validation:Minimum=0
-	ActivationMessageCount *int `json:"activationMessageCount,omitempty"`
+	ActivationUnprocessedEventThreshold *int `json:"activationUnprocessedEventThreshold,omitempty"`
 
 	// Authentication Workload Identity configured with a ClientID when used identity based authentication
 	// +optional

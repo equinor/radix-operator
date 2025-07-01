@@ -1460,29 +1460,29 @@ func validateAzureServiceBusTrigger(trigger radixv1.RadixHorizontalScalingTrigge
 
 func validateAzureEventHubTrigger(trigger radixv1.RadixHorizontalScalingTrigger) []error {
 	var errs []error
-	if trigger.AzureEventHub.Namespace == "" && trigger.AzureEventHub.NamespaceFromEnv == "" {
-		errs = append(errs, fmt.Errorf("invalid trigger %s: event hub namespace is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
-	}
-	if trigger.AzureEventHub.EventHubName == "" && trigger.AzureEventHub.EventHubNameFromEnv == "" && trigger.AzureEventHub.Authentication != nil {
-		errs = append(errs, fmt.Errorf("invalid trigger %s: event hub name is required for azure workload identity: %w", trigger.Name, ErrInvalidTriggerDefinition))
-	}
-	if trigger.AzureEventHub.EventHubConnectionFromEnv == "" &&
-		(trigger.AzureEventHub.Authentication == nil || trigger.AzureEventHub.Authentication.Identity.Azure.ClientId == "") {
-		errs = append(errs, fmt.Errorf("invalid trigger %s: connection string for the event hub or azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+
+	if auth := trigger.AzureEventHub.Authentication; auth != nil && (*auth).Identity.Azure.ClientId != "" {
+		if trigger.AzureEventHub.EventHubNamespace == "" && trigger.AzureEventHub.EventHubNamespaceFromEnv == "" {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: event hub namespace is required when used workload identity: %w", trigger.Name, ErrInvalidTriggerDefinition))
+		}
+		if trigger.AzureEventHub.EventHubName == "" && trigger.AzureEventHub.EventHubNameFromEnv == "" {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: event hub name is required when used workload identity: %w", trigger.Name, ErrInvalidTriggerDefinition))
+		}
+		if trigger.AzureEventHub.StorageAccount == "" {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: both storage account name and storage connection are required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+		}
+	} else {
+		if trigger.AzureEventHub.EventHubConnectionFromEnv == "" {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: event hub connection string is required when not used workload identity: %w", trigger.Name, ErrInvalidTriggerDefinition))
+		}
+		if trigger.AzureEventHub.StorageConnectionFromEnv == "" {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: storage account connection string when not used workload identity: %w", trigger.Name, ErrInvalidTriggerDefinition))
+		}
 	}
 
-	if trigger.AzureEventHub.StorageConnectionFromEnv == "" &&
-		(trigger.AzureEventHub.Authentication == nil || trigger.AzureEventHub.Authentication.Identity.Azure.ClientId == "") {
-		errs = append(errs, fmt.Errorf("invalid trigger %s: connection string for the storage accoun or azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
-	}
-	if trigger.AzureEventHub.StorageAccount == "" && (trigger.AzureEventHub.Authentication != nil ||
-		(trigger.AzureEventHub.Authentication == nil && trigger.AzureEventHub.StorageConnectionFromEnv == "")) {
-		errs = append(errs, fmt.Errorf("invalid trigger %s: both storage account name and storage connection are required: %w", trigger.Name, ErrInvalidTriggerDefinition))
-	}
 	if trigger.AzureEventHub.Container == "" && trigger.AzureEventHub.CheckpointStrategy != radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction {
 		errs = append(errs, fmt.Errorf("invalid trigger %s: storage account container name is required for not azureFunction checkpointStrategy: %w", trigger.Name, ErrInvalidTriggerDefinition))
 	}
-
 	if !isValidAzureEventHubTriggerCheckpoints(trigger.AzureEventHub.CheckpointStrategy) {
 		errs = append(errs, fmt.Errorf("invalid trigger %s: invalid checkpoint strategy: %w", trigger.Name, ErrInvalidTriggerDefinition))
 	}

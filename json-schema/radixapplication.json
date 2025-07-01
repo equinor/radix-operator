@@ -1000,8 +1000,8 @@
                                     "maxLength": 150,
                                     "type": "string"
                                   },
-                                  "activationMessageCount": {
-                                    "description": "ActivationMessageCount Target value for activating the scaler. Defaults to 0",
+                                  "activationUnprocessedEventThreshold": {
+                                    "description": "ActivationUnprocessedEventThreshold Target value for activating the scaler. Defaults to 0.\nLearn more about activation https://keda.sh/docs/2.17/concepts/scaling-deployments/#activating-and-scaling-thresholds",
                                     "minimum": 0,
                                     "type": "integer"
                                   },
@@ -1062,7 +1062,7 @@
                                     "type": "string"
                                   },
                                   "eventHubName": {
-                                    "description": "EventHubName of the Azure Event Hub within Namespace",
+                                    "description": "EventHubName of the Azure Event Hub within Event Hub namespace",
                                     "maxLength": 260,
                                     "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
                                     "type": "string"
@@ -1073,19 +1073,14 @@
                                     "pattern": "^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$",
                                     "type": "string"
                                   },
-                                  "messageCount": {
-                                    "description": "MessageCount is the threshold for unprocessed events. If the number of unprocessed events exceeds this threshold, the scaler will scale up. Default: 64 events.",
-                                    "minimum": 1,
-                                    "type": "integer"
-                                  },
-                                  "namespace": {
-                                    "description": "Namespace The Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname",
+                                  "eventHubNamespace": {
+                                    "description": "EventHubNamespace The Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname",
                                     "maxLength": 150,
                                     "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
                                     "type": "string"
                                   },
-                                  "namespaceFromEnv": {
-                                    "description": "NamespaceFromEnv The name of the environment variable or secret  holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname\nIt is ignored when Namespace is defined.",
+                                  "eventHubNamespaceFromEnv": {
+                                    "description": "EventHubNamespaceFromEnv The name of the environment variable or secret  holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname\nIt is ignored when EventHubNamespace is defined.",
                                     "maxLength": 50,
                                     "pattern": "^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$",
                                     "type": "string"
@@ -1094,6 +1089,11 @@
                                     "description": "StorageConnectionFromEnv The name of the environment variable or secret holding the connection string for storage account used to store checkpoint. As of now the Event Hub scaler only reads from Azure Blob Storage.",
                                     "maxLength": 50,
                                     "type": "string"
+                                  },
+                                  "unprocessedEventThreshold": {
+                                    "description": "UnprocessedEventThreshold Average target value to trigger scaling actions. Default: 64 events.",
+                                    "minimum": 1,
+                                    "type": "integer"
                                   }
                                 },
                                 "type": "object"
@@ -2317,8 +2317,8 @@
                               "maxLength": 150,
                               "type": "string"
                             },
-                            "activationMessageCount": {
-                              "description": "ActivationMessageCount Target value for activating the scaler. Defaults to 0",
+                            "activationUnprocessedEventThreshold": {
+                              "description": "ActivationUnprocessedEventThreshold Target value for activating the scaler. Defaults to 0.\nLearn more about activation https://keda.sh/docs/2.17/concepts/scaling-deployments/#activating-and-scaling-thresholds",
                               "minimum": 0,
                               "type": "integer"
                             },
@@ -2379,7 +2379,7 @@
                               "type": "string"
                             },
                             "eventHubName": {
-                              "description": "EventHubName of the Azure Event Hub within Namespace",
+                              "description": "EventHubName of the Azure Event Hub within Event Hub namespace",
                               "maxLength": 260,
                               "pattern": "^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$",
                               "type": "string"
@@ -2390,19 +2390,14 @@
                               "pattern": "^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$",
                               "type": "string"
                             },
-                            "messageCount": {
-                              "description": "MessageCount is the threshold for unprocessed events. If the number of unprocessed events exceeds this threshold, the scaler will scale up. Default: 64 events.",
-                              "minimum": 1,
-                              "type": "integer"
-                            },
-                            "namespace": {
-                              "description": "Namespace The Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname",
+                            "eventHubNamespace": {
+                              "description": "EventHubNamespace The Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname",
                               "maxLength": 150,
                               "pattern": "^(([a-z][-a-z0-9]*)?[a-z0-9])?$",
                               "type": "string"
                             },
-                            "namespaceFromEnv": {
-                              "description": "NamespaceFromEnv The name of the environment variable or secret  holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname\nIt is ignored when Namespace is defined.",
+                            "eventHubNamespaceFromEnv": {
+                              "description": "EventHubNamespaceFromEnv The name of the environment variable or secret  holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname\nIt is ignored when EventHubNamespace is defined.",
                               "maxLength": 50,
                               "pattern": "^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$",
                               "type": "string"
@@ -2411,6 +2406,11 @@
                               "description": "StorageConnectionFromEnv The name of the environment variable or secret holding the connection string for storage account used to store checkpoint. As of now the Event Hub scaler only reads from Azure Blob Storage.",
                               "maxLength": 50,
                               "type": "string"
+                            },
+                            "unprocessedEventThreshold": {
+                              "description": "UnprocessedEventThreshold Average target value to trigger scaling actions. Default: 64 events.",
+                              "minimum": 1,
+                              "type": "integer"
                             }
                           },
                           "type": "object"
