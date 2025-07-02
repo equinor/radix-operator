@@ -140,7 +140,7 @@ code-gen: bootstrap
 	./hack/update-codegen.sh
 
 .PHONY: crds
-crds: temp-crds radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd delete-temp-crds
+crds: temp-crds radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixwebhook delete-temp-crds
 
 .PHONY: radixregistration-crd
 radixregistration-crd: temp-crds
@@ -163,10 +163,15 @@ radixdeployment-crd: temp-crds
 radixdnsalias-crd: temp-crds
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdnsaliases.yaml $(CRD_CHART_DIR)radixdnsalias.yaml
 
+.PHONY: radixwebhook
+radixwebhook: temp-crds
+	cp $(CRD_TEMP_DIR)radix-webhook-configuration.yaml $(CRD_CHART_DIR)radix-webhook-configuration.yaml
+
 .PHONY: temp-crds
 temp-crds: bootstrap
 	controller-gen +crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
-	controller-gen +webhook paths=./webhook/validator/ output:stdout > $(CRD_TEMP_DIR)/admission-webhook.yaml
+	controller-gen +webhook paths=./webhook/validator/ output:stdout > $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
+	./hack/helmify-admission-webhook.sh $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
 
 .PHONY: delete-temp-crds
 delete-temp-crds:
