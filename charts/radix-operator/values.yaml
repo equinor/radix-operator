@@ -217,7 +217,7 @@ radixWebhook:
   metricsPort: 9000
 
   image: 
-    repository: ghcr.io/equinor/radix-operator/radix-webhook
+    repository: ghcr.io/equinor/radix-webhook
     tag: ""  # Default to appVersion in Chart.yaml
     pullPolicy: IfNotPresent
 
