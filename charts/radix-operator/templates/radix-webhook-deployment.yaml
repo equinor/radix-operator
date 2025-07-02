@@ -4,6 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "radix-webhook.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "radix-webhook.labels" . | nindent 4 }}
 spec:

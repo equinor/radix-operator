@@ -59,7 +59,7 @@ func main() {
 		HealthProbeBindAddress: fmt.Sprintf(":%d", c.HealthPort),
 		WebhookServer: webhook.NewServer(webhook.Options{
 			Port:    c.Port,
-			CertDir: c.CertDir,
+			CertDir: c.CertsDir,
 		}),
 		Metrics: server.Options{
 			BindAddress: fmt.Sprintf(":%d", c.MetricsPort),
@@ -106,7 +106,7 @@ func addCertRotator(mgr manager.Manager, c internalconfig.Config) <-chan struct{
 			},
 			CAName:                 c.CaName,
 			CAOrganization:         c.CaOrganization,
-			CertDir:                c.CertDir,
+			CertDir:                c.CertsDir,
 			RestartOnSecretRefresh: true,
 			DNSName:                c.DnsName,
 			ExtraDNSNames:          c.ExtraDnsNames,
