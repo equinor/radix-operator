@@ -78,7 +78,7 @@ func (h *HorizontalScalingBuilderStruct) WithAzureEventHubTrigger(clientId strin
 		}
 	}
 	h.WithTrigger(radixv1.RadixHorizontalScalingTrigger{
-		Name:          "azure-eventhub",
+		Name:          "azure-event-hub",
 		AzureEventHub: trigger,
 	})
 

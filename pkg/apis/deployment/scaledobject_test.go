@@ -250,6 +250,150 @@ func TestScalerTriggers(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "AzureEventHub with Workload identity",
+			builder: utils.NewHorizontalScalingBuilder().WithAzureEventHubTrigger("some-client-id", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+				EventHubNamespace:                   "some-eventhub-namespace",
+				EventHubName:                        "some-eventhub-name",
+				ConsumerGroup:                       "some-consumer-group",
+				StorageAccount:                      "some-storage-account",
+				Container:                           "some-container",
+				CheckpointStrategy:                  "goSdk",
+				UnprocessedEventThreshold:           pointers.Ptr(100),
+				ActivationUnprocessedEventThreshold: pointers.Ptr(2),
+			}),
+			expected: v1alpha1.ScaleTriggers{
+				Name: "azure-event-hub",
+				Type: "azure-eventhub",
+				Metadata: map[string]string{
+					"eventHubNamespace":                   "some-eventhub-namespace",
+					"eventHubName":                        "some-eventhub-name",
+					"consumerGroup":                       "some-consumer-group",
+					"storageAccountName":                  "some-storage-account",
+					"checkpointStrategy":                  "goSdk",
+					"blobContainer":                       "some-container",
+					"unprocessedEventThreshold":           "100",
+					"activationUnprocessedEventThreshold": "2",
+				},
+				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: utils.GetTriggerAuthenticationName(componentName, "azure-event-hub"), Kind: "TriggerAuthentication"},
+			},
+			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
+				PodIdentity: &v1alpha1.AuthPodIdentity{
+					Provider:   "azure-workload",
+					IdentityID: pointers.Ptr("some-client-id"),
+				},
+			},
+		},
+		{
+			name: "AzureEventHub with Workload identity and event hub namespace and name from env-vars",
+			builder: utils.NewHorizontalScalingBuilder().WithAzureEventHubTrigger("some-client-id", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+				EventHubNamespaceFromEnv:            "EVENTHUB_NAMESPACE",
+				EventHubNameFromEnv:                 "EVENTHUB_NAME",
+				ConsumerGroup:                       "some-consumer-group",
+				StorageAccount:                      "some-storage-account",
+				Container:                           "some-container",
+				CheckpointStrategy:                  "goSdk",
+				UnprocessedEventThreshold:           pointers.Ptr(100),
+				ActivationUnprocessedEventThreshold: pointers.Ptr(2),
+			}),
+			expected: v1alpha1.ScaleTriggers{
+				Name: "azure-event-hub",
+				Type: "azure-eventhub",
+				Metadata: map[string]string{
+					"eventHubNamespaceFromEnv":            "EVENTHUB_NAMESPACE",
+					"eventHubNameFromEnv":                 "EVENTHUB_NAME",
+					"consumerGroup":                       "some-consumer-group",
+					"storageAccountName":                  "some-storage-account",
+					"checkpointStrategy":                  "goSdk",
+					"blobContainer":                       "some-container",
+					"unprocessedEventThreshold":           "100",
+					"activationUnprocessedEventThreshold": "2",
+				},
+				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: utils.GetTriggerAuthenticationName(componentName, "azure-event-hub"), Kind: "TriggerAuthentication"},
+			},
+			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
+				PodIdentity: &v1alpha1.AuthPodIdentity{
+					Provider:   "azure-workload",
+					IdentityID: pointers.Ptr("some-client-id"),
+				},
+			},
+		},
+		{
+			name: "AzureEventHub with Workload identity with minimum properties",
+			builder: utils.NewHorizontalScalingBuilder().WithAzureEventHubTrigger("some-client-id", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+				EventHubNamespace: "some-eventhub-namespace",
+				EventHubName:      "some-eventhub-name",
+				StorageAccount:    "some-storage-account",
+				Container:         "some-container",
+			}),
+			expected: v1alpha1.ScaleTriggers{
+				Name: "azure-event-hub",
+				Type: "azure-eventhub",
+				Metadata: map[string]string{
+					"eventHubNamespace":  "some-eventhub-namespace",
+					"eventHubName":       "some-eventhub-name",
+					"storageAccountName": "some-storage-account",
+					"blobContainer":      "some-container",
+					"checkpointStrategy": "blobMetadata",
+				},
+				AuthenticationRef: &v1alpha1.AuthenticationRef{Name: utils.GetTriggerAuthenticationName(componentName, "azure-event-hub"), Kind: "TriggerAuthentication"},
+			},
+			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
+				PodIdentity: &v1alpha1.AuthPodIdentity{
+					Provider:   "azure-workload",
+					IdentityID: pointers.Ptr("some-client-id"),
+				},
+			},
+		},
+		{
+			name: "AzureEventHub with connection strings",
+			builder: utils.NewHorizontalScalingBuilder().WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+				EventHubConnectionFromEnv:           "EVENTHUB_CONNECTION",
+				EventHubName:                        "some-eventhub-name",
+				ConsumerGroup:                       "some-consumer-group",
+				StorageConnectionFromEnv:            "STORAGE_CONNECTION",
+				Container:                           "some-container",
+				CheckpointStrategy:                  "goSdk",
+				UnprocessedEventThreshold:           pointers.Ptr(100),
+				ActivationUnprocessedEventThreshold: pointers.Ptr(2),
+			}),
+			expected: v1alpha1.ScaleTriggers{
+				Name: "azure-event-hub",
+				Type: "azure-eventhub",
+				Metadata: map[string]string{
+					"connectionFromEnv":                   "EVENTHUB_CONNECTION",
+					"eventHubName":                        "some-eventhub-name",
+					"consumerGroup":                       "some-consumer-group",
+					"storageConnectionFromEnv":            "STORAGE_CONNECTION",
+					"checkpointStrategy":                  "goSdk",
+					"blobContainer":                       "some-container",
+					"unprocessedEventThreshold":           "100",
+					"activationUnprocessedEventThreshold": "2",
+				},
+				AuthenticationRef: nil,
+			},
+			expecedAuth: nil,
+		},
+		{
+			name: "AzureEventHub with connection strings with minimum properties",
+			builder: utils.NewHorizontalScalingBuilder().WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+				EventHubConnectionFromEnv: "EVENTHUB_CONNECTION",
+				StorageConnectionFromEnv:  "STORAGE_CONNECTION",
+				Container:                 "some-container",
+			}),
+			expected: v1alpha1.ScaleTriggers{
+				Name: "azure-event-hub",
+				Type: "azure-eventhub",
+				Metadata: map[string]string{
+					"connectionFromEnv":        "EVENTHUB_CONNECTION",
+					"storageConnectionFromEnv": "STORAGE_CONNECTION",
+					"checkpointStrategy":       "blobMetadata",
+					"blobContainer":            "some-container",
+				},
+				AuthenticationRef: nil,
+			},
+			expecedAuth: nil,
+		},
 	}
 
 	for _, testcase := range testScenarios {
@@ -272,18 +416,18 @@ func TestScalerTriggers(t *testing.T) {
 
 			scaler, err := kedaClient.KedaV1alpha1().ScaledObjects(rd.GetNamespace()).Get(context.Background(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
 			require.NoError(t, err)
-			require.Len(t, scaler.Spec.Triggers, 1)
+			require.Len(t, scaler.Spec.Triggers, 1, "Expected exactly one trigger in ScaledObject")
 			trigger := scaler.Spec.Triggers[0]
 
-			assert.Equal(t, testcase.expected, trigger)
+			assert.Equal(t, testcase.expected, trigger, "Trigger spec does not match expected")
 
 			if testcase.expecedAuth == nil {
-				assert.Nil(t, testcase.expecedAuth)
+				assert.Nil(t, testcase.expecedAuth, "Expected authentication spec should be nil for this test case")
 			} else {
 				actualAuth, err := kedaClient.KedaV1alpha1().TriggerAuthentications(rd.GetNamespace()).Get(context.Background(), testcase.expected.AuthenticationRef.Name, metav1.GetOptions{})
 				require.NoError(t, err)
 
-				assert.Equal(t, *testcase.expecedAuth, actualAuth.Spec)
+				assert.Equal(t, *testcase.expecedAuth, actualAuth.Spec, "Trigger authentication spec does not match expected")
 			}
 
 		})
