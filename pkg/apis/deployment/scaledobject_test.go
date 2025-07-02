@@ -121,7 +121,7 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 				WithPort("http", 6379).
 				WithPublicPort("http").
 				WithReplicas(pointers.Ptr(1)).
-				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).WithAzureServiceBusTrigger("test", "abcd", "queue", "", "", nil, nil).Build())))
+				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).WithAzureServiceBusTrigger("test", "abcd", "queue", "", "", "", nil, nil).Build())))
 	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
@@ -208,8 +208,8 @@ func TestScalerTriggers(t *testing.T) {
 			}},
 		},
 		{
-			name:    "AzureServiceBus-Queue",
-			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", pointers.Ptr(5), pointers.Ptr(10)),
+			name:    "AzureServiceBus-Queue Workload Identity",
+			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", "", pointers.Ptr(5), pointers.Ptr(10)),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-service-bus",
 				Type: "azure-servicebus",
@@ -229,8 +229,25 @@ func TestScalerTriggers(t *testing.T) {
 			},
 		},
 		{
+			name:    "AzureServiceBus-Queue Connection String",
+			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "", "queue-name", "", "", "CONNECTION_STRING", pointers.Ptr(5), pointers.Ptr(10)),
+			expected: v1alpha1.ScaleTriggers{
+				Name: "azure-service-bus",
+				Type: "azure-servicebus",
+				Metadata: map[string]string{
+					"queueName":              "queue-name",
+					"namespace":              "anamespace",
+					"messageCount":           "5",
+					"activationMessageCount": "10",
+					"connectionFromEnv":      "CONNECTION_STRING",
+				},
+				AuthenticationRef: nil,
+			},
+			expecedAuth: nil,
+		},
+		{
 			name:    "AzureServiceBus-Topic",
-			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "", "topic-name", "subscription-name", pointers.Ptr(5), pointers.Ptr(10)),
+			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "", "topic-name", "subscription-name", "", pointers.Ptr(5), pointers.Ptr(10)),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-service-bus",
 				Type: "azure-servicebus",

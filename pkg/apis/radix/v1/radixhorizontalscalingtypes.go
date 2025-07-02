@@ -149,6 +149,12 @@ type RadixHorizontalScalingAzureServiceBusTrigger struct {
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
 	SubscriptionName string `json:"subscriptionName,omitempty"`
 
+	// ConnectionFromEnv The name of the environment variable your deployment uses to get the connection string of the Azure Service Bus namespace.
+	// Ignored when used Workload Identity.
+	// +optional
+	// +kubebuilder:validation:MaxLength=50
+	ConnectionFromEnv string `json:"connectionFromEnv,omitempty"`
+
 	// MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
 	// +optional
 	// DesiredReplicas Number of replicas to which the resource has to be scaled between the start and end of the cron schedule.

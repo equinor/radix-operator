@@ -1452,8 +1452,8 @@ func validateAzureServiceBusTrigger(trigger radixv1.RadixHorizontalScalingTrigge
 	if trigger.AzureServiceBus.QueueName == "" && (trigger.AzureServiceBus.TopicName == "" || trigger.AzureServiceBus.SubscriptionName == "") {
 		errs = append(errs, fmt.Errorf("invalid trigger %s: both topicName and subscriptionName must be set if queueName is not used: %w", trigger.Name, ErrInvalidTriggerDefinition))
 	}
-	if trigger.AzureServiceBus.Authentication.Identity.Azure.ClientId == "" {
-		errs = append(errs, fmt.Errorf("invalid trigger %s: azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	if trigger.AzureServiceBus.Authentication.Identity.Azure.ClientId == "" && trigger.AzureServiceBus.ConnectionFromEnv == "" {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: azure workload identity or connectionFromEnv are required: %w", trigger.Name, ErrInvalidTriggerDefinition))
 	}
 	return errs
 }

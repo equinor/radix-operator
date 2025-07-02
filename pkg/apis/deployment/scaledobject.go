@@ -228,6 +228,22 @@ func getCronTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleT
 func getAzureServiceBus(componentName string, trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
 	metadata := map[string]string{}
 
+	scaleTriggers := kedav1.ScaleTriggers{
+		Name: trigger.Name,
+		Type: "azure-servicebus",
+	}
+
+	if auth := trigger.AzureServiceBus.Authentication.Identity.Azure; auth.ClientId != "" {
+		scaleTriggers.AuthenticationRef = &kedav1.AuthenticationRef{
+			Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
+			Kind: "TriggerAuthentication",
+		}
+	} else {
+		if trigger.AzureServiceBus.ConnectionFromEnv != "" {
+			metadata["connectionFromEnv"] = trigger.AzureServiceBus.ConnectionFromEnv
+		}
+	}
+
 	if trigger.AzureServiceBus.Namespace != "" {
 		metadata["namespace"] = trigger.AzureServiceBus.Namespace
 	}
@@ -246,16 +262,8 @@ func getAzureServiceBus(componentName string, trigger radixv1.RadixHorizontalSca
 	if trigger.AzureServiceBus.ActivationMessageCount != nil {
 		metadata["activationMessageCount"] = strconv.Itoa(*trigger.AzureServiceBus.ActivationMessageCount)
 	}
-
-	return kedav1.ScaleTriggers{
-		Name:     trigger.Name,
-		Type:     "azure-servicebus",
-		Metadata: metadata,
-		AuthenticationRef: &kedav1.AuthenticationRef{
-			Name: utils.GetTriggerAuthenticationName(componentName, trigger.Name),
-			Kind: "TriggerAuthentication",
-		},
-	}
+	scaleTriggers.Metadata = metadata
+	return scaleTriggers
 }
 
 func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
@@ -336,7 +344,9 @@ func (deploy *Deployment) getTriggerAuths(componentName string, config *radixv1.
 	for _, trigger := range config.Triggers {
 		switch {
 		case trigger.AzureServiceBus != nil:
-			auths = append(auths, deploy.getTriggerAuthentication(componentName, trigger.Name, trigger.AzureServiceBus.Authentication))
+			if auth := trigger.AzureServiceBus.Authentication; auth.Identity.Azure.ClientId != "" {
+				auths = append(auths, deploy.getTriggerAuthentication(componentName, trigger.Name, trigger.AzureServiceBus.Authentication))
+			}
 		case trigger.AzureEventHub != nil:
 			if auth := trigger.AzureEventHub.Authentication; auth != nil {
 				auths = append(auths, deploy.getTriggerAuthentication(componentName, trigger.Name, *auth))

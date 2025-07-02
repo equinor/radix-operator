@@ -1201,6 +1201,12 @@ spec:
                                           required:
                                           - identity
                                           type: object
+                                        connectionFromEnv:
+                                          description: |-
+                                            ConnectionFromEnv The name of the environment variable your deployment uses to get the connection string of the Azure Service Bus namespace.
+                                            Ignored when used Workload Identity.
+                                          maxLength: 50
+                                          type: string
                                         messageCount:
                                           description: |-
                                             MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
@@ -2520,6 +2526,12 @@ spec:
                                     required:
                                     - identity
                                     type: object
+                                  connectionFromEnv:
+                                    description: |-
+                                      ConnectionFromEnv The name of the environment variable your deployment uses to get the connection string of the Azure Service Bus namespace.
+                                      Ignored when used Workload Identity.
+                                    maxLength: 50
+                                    type: string
                                   messageCount:
                                     description: |-
                                       MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
