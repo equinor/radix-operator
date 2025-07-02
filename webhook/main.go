@@ -82,11 +82,7 @@ func main() {
 
 func setupWebhook(ctx context.Context, mgr manager.Manager, client radixclient.Interface, c internalconfig.Config, certSetupFinished <-chan struct{}) {
 	log.Debug().Msg("Configuring webhook...")
-	select {
-	case <-certSetupFinished:
-	case <-time.NewTicker(1 * time.Minute).C:
-		log.Fatal().Msg("Failed to set up certificate rotation before deadline (60sec)")
-	}
+	<-certSetupFinished
 
 	rrValidator := validator.NewRadixRegistrationValidator(ctx, client, c.RequireAdGroups, c.RequireConfigurationItem)
 	mgr.GetWebhookServer().Register(validator.RadixRegistrationValidatorWebhookPath, admission.WithCustomValidator(mgr.GetScheme(), &radixv1.RadixRegistration{}, rrValidator))
@@ -125,7 +121,11 @@ func addCertRotator(mgr manager.Manager, c internalconfig.Config) <-chan struct{
 		}
 
 		go func() {
-			<-setupFinished
+			select {
+			case <-setupFinished:
+			case <-time.NewTicker(60 * time.Second).C:
+				log.Fatal().Msg("Failed to set up certificate rotation before deadline (60sec)")
+			}
 			log.Info().Msg("cert rotation setup complete")
 		}()
 	} else {

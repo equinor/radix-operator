@@ -12,12 +12,6 @@ import (
 // RadixRegistrationValidator defines a validator function for a RadixRegistration
 type RadixRegistrationValidator func(radixRegistration *radixv1.RadixRegistration) error
 
-// CanRadixRegistrationBeInserted Validates RR
-func CanRadixRegistrationBeInserted(ctx context.Context, client radixclient.Interface, radixRegistration *radixv1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
-	// cannot be used from admission control - returns the same radix reg that we try to validate
-	return validateRadixRegistration(radixRegistration, additionalValidators...)
-}
-
 // ValidateRadixRegistration Validates update of RR
 func ValidateRadixRegistration(radixRegistration *radixv1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
 	return validateRadixRegistration(radixRegistration, additionalValidators...)

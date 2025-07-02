@@ -169,8 +169,8 @@ radixwebhook: temp-crds
 
 .PHONY: temp-crds
 temp-crds: bootstrap
-	controller-gen crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
-	controller-gen webhook paths=./webhook/validator/ output:stdout > $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
+	controller-gen +crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
+	controller-gen +webhook paths=./webhook/validator/ output:stdout > $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
 	./hack/helmify-admission-webhook.sh $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
 
 .PHONY: delete-temp-crds
