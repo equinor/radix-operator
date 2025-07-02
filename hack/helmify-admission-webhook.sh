@@ -1,5 +1,4 @@
 #!/bin/bash
-# Script to helmify .temp-dir/admission-webhook.yaml to match .temp-dir/radix-webhook-configuration.yaml
 # This script uses sed to replace static values with Helm template expressions.
 
 
