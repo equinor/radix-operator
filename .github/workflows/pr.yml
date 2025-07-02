@@ -77,8 +77,8 @@ jobs:
     name: Helm Lint
     runs-on: ubuntu-latest
     steps:
-    - uses: azure/setup-helm@v4.3.0
     - uses: actions/checkout@v4
+    - uses: azure/setup-helm@v4.3.0
     - name: Helm Lint
       run: |
         helm lint charts/radix-operator --set radixWebhook.enabled=true --set radixGroups.user=test@test.com
