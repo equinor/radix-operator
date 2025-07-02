@@ -15,6 +15,9 @@ fi
 file="$1"
 
 
+# Remove all lines that are just '---'
+sed -i '/^---$/d' "$file"
+
 # Insert Helm if at the top
 sed -i '1s;^;{{ if .Values.radixWebhook.enabled }}\n\n;' "$file"
 
@@ -32,5 +35,6 @@ sed -i 's/^  name: validate.radixapplication.radix.equinor.com/  name: radixregi
 # Add matchPolicy after failurePolicy
 sed -i '/^  failurePolicy: Fail/a \\  matchPolicy: Equivalent' "$file"
 
-# Add Helm end at the end
+# Add an empty line before the last {{ end }}
+echo '' >> "$file"
 echo '{{ end }}' >> "$file"
