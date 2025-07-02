@@ -39,7 +39,7 @@ spec:
       volumes:
         - name: certs
           secret:
-            secretName: {{ .Values.radixWebhook.tlsSecretName | quote }}
+            secretName: {{ template "radix-webhook.secret.fullname" . }}
             
       containers:
         - name: radix-webhook
@@ -76,7 +76,7 @@ spec:
             - name: SECRET_NAMESPACE
               value: {{ .Release.Namespace }}
             - name: SECRET_NAME
-              value: {{ .Values.radixWebhook.tlsSecretName | quote }}
+              value: {{ include "radix-webhook.secret.fullname" . }}
             - name: WEBHOOK_CONFIGURATION_NAME
               value: {{ .Values.radixWebhook.webhookConfigurationName | quote }}
             - name: CERTS_DIR

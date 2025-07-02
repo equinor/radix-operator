@@ -11,7 +11,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: radix-webhook-admission-controller
+  name:  {{ template "radix-webhook.fullname" . }}-admission-controller
   labels:
     {{- include "radix-webhook.labels" . | nindent 4 }}
 rules:
@@ -25,13 +25,13 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: radix-webhook-admission-controller
+  name: {{ template "radix-webhook.fullname" . }}-admission-controller
   labels:
     {{- include "radix-webhook.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: radix-webhook
+  name:  {{ template "radix-webhook.fullname" . }}-admission-controller
 subjects:
   - kind: ServiceAccount
     name: {{ template "radix-webhook.sa.fullname" . }}
@@ -40,7 +40,7 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: radix-webhook-secret-controller
+  name: {{ template "radix-webhook.fullname" . }}-secret-controller
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "radix-webhook.labels" . | nindent 4 }}
@@ -48,7 +48,7 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     resourceNames: 
-    - {{ .Values.radixWebhook.tlsSecretName | quote }}
+    - {{ template "radix-webhook.secret.fullname" . }}
     verbs: ["get", "create", "update"]
   - apiGroups: [""]
     resources: ["secrets"]
@@ -57,14 +57,14 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: radix-webhook-secret-controller
+  name: {{ template "radix-webhook.fullname" . }}-secret-controller
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "radix-webhook.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: radix-webhook-secret-controller
+  name: {{ template "radix-webhook.fullname" . }}-secret-controller
 subjects:
   - kind: ServiceAccount
     name: {{ template "radix-webhook.sa.fullname" . }}

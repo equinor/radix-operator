@@ -207,7 +207,6 @@ radixWebhook:
   logPretty: "false"
   requireAdGroups: "true"
   requireConfigurationItem: "true"
-  tlsSecretName: radix-webhook-certs
   disableCertRotation: "false"
   caName: "radix-webhook-ca"
   caOrganization: "Radix Webhook CA"
@@ -218,8 +217,8 @@ radixWebhook:
   metricsPort: 9000
 
   image: 
-    repository: localhost/webhook
-    tag: 7  
+    repository: ghcr.io/equinor/radix-operator/radix-webhook
+    tag: ""  # Default to appVersion in Chart.yaml
     pullPolicy: IfNotPresent
 
   resources:
