@@ -7,6 +7,8 @@ jobs:
   build:
     name: pull-request-check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@v4
     - name: Set up Docker Buildx
@@ -34,6 +36,8 @@ jobs:
   unit-test:
     name: Unit tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
@@ -49,6 +53,8 @@ jobs:
   radix-operator-lint:
     name: Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@v4
       with:
@@ -64,6 +70,8 @@ jobs:
   verify-code-generation:
     name: Verify Code Generation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
@@ -76,6 +84,8 @@ jobs:
   helm-lint:
     name: Helm Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@v4
     - uses: azure/setup-helm@v4.3.0
