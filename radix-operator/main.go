@@ -313,6 +313,10 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 	if oauth2DockerImage == "" {
 		panic(fmt.Errorf("failed to read OAuth2 Docker image from environment variable %s", defaults.RadixOAuthProxyImageEnvironmentVariable))
 	}
+	oauth2RedisDockerImage := os.Getenv(defaults.RadixOAuthRedisImageEnvironmentVariable)
+	if oauth2RedisDockerImage == "" {
+		panic(fmt.Errorf("failed to read Redis Docker image from environment variable %s", defaults.RadixOAuthRedisImageEnvironmentVariable))
+	}
 	handler := deployment.NewHandler(
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
@@ -324,6 +328,7 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		deployment.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 		deployment.WithIngressConfiguration(a.ingressConfiguration),
 		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),
+		deployment.WithOAuth2RedisDockerImage(oauth2RedisDockerImage),
 	)
 
 	return deployment.NewController(ctx,

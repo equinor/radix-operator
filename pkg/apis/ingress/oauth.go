@@ -64,7 +64,7 @@ func BuildOAuthProxyIngressForComponentIngress(namespace string, component v1.Ra
 									PathType: &pathType,
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{
-											Name: utils.GetAuxiliaryComponentServiceName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix),
+											Name: utils.GetAuxOAuthProxyComponentServiceName(component.GetName()),
 											Port: networkingv1.ServiceBackendPort{
 												Number: oAuthProxyPortNumber,
 											},

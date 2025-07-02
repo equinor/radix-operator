@@ -101,6 +101,8 @@ spec:
               value: {{ .Values.oauthProxyDefaultIssuerUrl }}
             - name: RADIX_OAUTH_PROXY_IMAGE
               value: {{ .Values.oauthProxyImage }}
+            - name: RADIX_OAUTH_REDIS_IMAGE
+              value: {{ .Values.oauthRedisImage }}
             - name: REGISTRATION_CONTROLLER_THREADS
               value: {{ .Values.registrationControllerThreads | quote }}
             - name: APPLICATION_CONTROLLER_THREADS

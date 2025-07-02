@@ -230,7 +230,7 @@ const (
 // RadixBatchCondition describes the state of the RadixBatch
 type RadixBatchCondition struct {
 	// Type of RadixBatch condition.
-	Type RadixBatchConditionType `json:"type"`
+	Type RadixBatchConditionType `json:"type,omitempty"`
 
 	// The reason for the condition.
 	// +optional

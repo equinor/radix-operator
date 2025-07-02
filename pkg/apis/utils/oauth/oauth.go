@@ -33,9 +33,14 @@ func GetAuxAuthProxyIngressName(sourceIngressName string) string {
 	return fmt.Sprintf("%s-%s", sourceIngressName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 }
 
-// MergeAuxComponentResourceLabels  Merge labels for object and aux OAuth proxy
-func MergeAuxComponentResourceLabels(object metav1.Object, appName string, component radixv1.RadixCommonDeployComponent) {
-	object.SetLabels(labels.Merge(object.GetLabels(), radixlabels.ForAuxComponentOauth(appName, component)))
+// MergeAuxOAuthProxyComponentResourceLabels  Merge labels for object and aux OAuth proxy
+func MergeAuxOAuthProxyComponentResourceLabels(object metav1.Object, appName string, component radixv1.RadixCommonDeployComponent) {
+	object.SetLabels(labels.Merge(object.GetLabels(), radixlabels.ForAuxOAuthProxyComponent(appName, component)))
+}
+
+// MergeAuxOAuthRedisComponentResourceLabels  Merge labels for object and aux Redis
+func MergeAuxOAuthRedisComponentResourceLabels(object metav1.Object, appName string, component radixv1.RadixCommonDeployComponent) {
+	object.SetLabels(labels.Merge(object.GetLabels(), radixlabels.ForAuxOAuthRedisComponent(appName, component)))
 }
 
 // MergeAuxComponentDefaultAliasIngressLabels  Merge labels for default alias ingress and aux OAuth proxy

@@ -293,8 +293,6 @@ spec:
                     - Active
                     - Completed
                     type: string
-                required:
-                - type
                 type: object
               jobStatuses:
                 description: Status for each job defined in spec.jobs

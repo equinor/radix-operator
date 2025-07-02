@@ -158,11 +158,13 @@ func (deploy *Deployment) createJobAuxDeployment(jobName, jobAuxDeploymentName s
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
 
-	desiredDeployment.Spec.Template.Spec.Containers[0].Image = "bitnami/bitnami-shell:latest"
+	desiredDeployment.Spec.Template.Spec.Containers[0].Image = "bash:alpine3.22"
 	desiredDeployment.Spec.Template.Spec.Containers[0].Command = []string{"sh"}
 	desiredDeployment.Spec.Template.Spec.Containers[0].Args = []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullIfNotPresent
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container(securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)))
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container(
+		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+		securitycontext.WithContainerRunAsUser(1000))
 
 	return desiredDeployment
 }

@@ -11,10 +11,18 @@ import (
 )
 
 const (
-	// OAuthProxyAuxiliaryComponentType component type
+	// OAuthProxyAuxiliaryComponentType Aux OAuth Proxy component type
 	OAuthProxyAuxiliaryComponentType = "oauth"
-	// OAuthProxyAuxiliaryComponentSuffix component suffix
+	// OAuthProxyAuxiliaryComponentSuffix Aux OAuth Proxy component suffix
 	OAuthProxyAuxiliaryComponentSuffix = "aux-oauth"
+	// OAuthRedisAuxiliaryComponentType Aux OAuth Redis component type
+	OAuthRedisAuxiliaryComponentType = "oauth-redis"
+	// OAuthRedisAuxiliaryComponentSuffix component suffix
+	OAuthRedisAuxiliaryComponentSuffix = "aux-oauth-redis"
+	// OAuthRedisPortName port name for system managed Aux OAuth Redis
+	OAuthRedisPortName = "http"
+	// OAuthRedisPortNumber port number for system managed Aux OAuth Redis
+	OAuthRedisPortNumber int32 = 6379
 )
 
 // DynamicTagNameInEnvironmentConfig Pattern to indicate that the
@@ -1540,6 +1548,8 @@ const (
 	SessionStoreCookie SessionStoreType = "cookie"
 	// SessionStoreRedis use redis for session store
 	SessionStoreRedis SessionStoreType = "redis"
+	// SessionStoreSystemManaged use redis for system storage configured by Radix
+	SessionStoreSystemManaged SessionStoreType = "systemManaged"
 )
 
 // VerificationType Certificate verification type
@@ -1613,7 +1623,7 @@ type OAuth2 struct {
 	Cookie *OAuth2Cookie `json:"cookie,omitempty"`
 
 	// Defines where to store session data.
-	// +kubebuilder:validation:Enum=cookie;redis;""
+	// +kubebuilder:validation:Enum=cookie;redis;systemManaged;""
 	// +optional
 	SessionStoreType SessionStoreType `json:"sessionStoreType,omitempty"`
 
@@ -2251,12 +2261,28 @@ func (oauth2 *OAuth2) GetServiceAccountName(componentName string) string {
 	return "default"
 }
 
-// GetSessionStoreType Returns the session store type
-func (oauth2 *OAuth2) GetSessionStoreType() SessionStoreType {
+// IsSessionStoreTypeRedis Gets if the session store type is redis - configured manually or by Radix
+func (oauth2 *OAuth2) IsSessionStoreTypeRedis() bool {
 	if oauth2 == nil {
-		return SessionStoreCookie
+		return false
 	}
-	return oauth2.SessionStoreType
+	return oauth2.IsSessionStoreTypeIsManuallyConfiguredRedis() || oauth2.IsSessionStoreTypeSystemManaged()
+}
+
+// IsSessionStoreTypeIsManuallyConfiguredRedis Gets if the session store type is manually configured
+func (oauth2 *OAuth2) IsSessionStoreTypeIsManuallyConfiguredRedis() bool {
+	if oauth2 == nil {
+		return false
+	}
+	return oauth2.SessionStoreType == SessionStoreRedis
+}
+
+// IsSessionStoreTypeSystemManaged Gets if the session store type is configured by Radix
+func (oauth2 *OAuth2) IsSessionStoreTypeSystemManaged() bool {
+	if oauth2 == nil {
+		return false
+	}
+	return oauth2.SessionStoreType == SessionStoreSystemManaged
 }
 
 // GetClientID Returns the client ID
@@ -2348,6 +2374,13 @@ func (runtime *Runtime) GetNodeType() *string {
 		return nil
 	}
 	return runtime.NodeType
+}
+
+func (oauth2 *OAuth2) GetRedisStoreConnectionURL() string {
+	if oauth2 == nil || oauth2.RedisStore == nil {
+		return ""
+	}
+	return oauth2.RedisStore.ConnectionURL
 }
 
 func getCommandForEnvironment(commonComponent RadixCommonComponent, environment string) []string {

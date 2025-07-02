@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
+	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
 	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
 
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
@@ -658,7 +658,7 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 	}
 
 	// Validate RedisStore
-	if oauthWithDefaults.GetSessionStoreType() == radixv1.SessionStoreRedis {
+	if oauthWithDefaults.IsSessionStoreTypeIsManuallyConfiguredRedis() {
 		if redisStore := oauthWithDefaults.RedisStore; redisStore == nil {
 			errors = append(errors, OAuthRedisStoreEmptyErrorWithMessage(componentName, environmentName))
 		} else if len(strings.TrimSpace(redisStore.ConnectionURL)) == 0 {
