@@ -46,19 +46,15 @@ type RadixRegistrationSpec struct {
 	SharedSecret string `json:"sharedSecret,omitempty"`
 
 	// +optional
-	// +kubebuilder:validation:items:Format=uuid
 	AdGroups []string `json:"adGroups,omitempty"`
 
 	// +optional
-	// +kubebuilder:validation:items:Format=uuid
 	AdUsers []string `json:"adUsers,omitempty"`
 
 	// +optional
-	// +kubebuilder:validation:items:Format=uuid
 	ReaderAdGroups []string `json:"readerAdGroups,omitempty"`
 
 	// +optional
-	// +kubebuilder:validation:items:Format=uuid
 	ReaderAdUsers []string `json:"readerAdUsers,omitempty"`
 
 	// +optional
