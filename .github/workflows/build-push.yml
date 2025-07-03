@@ -209,7 +209,7 @@ jobs:
       run: |
         echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $GITHUB_OUTPUT
         echo "pipeline=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag }}" >> $GITHUB_OUTPUT
-        echo "webhook=${{ matrix.target.acr-name }}.azurecr.io/radix-webhook:${{ needs.build-pipelinerunner.outputs.tag }}" >> $GITHUB_OUTPUT
+        echo "webhook=${{ matrix.target.acr-name }}.azurecr.io/radix-webhook:${{ needs.build-webhook.outputs.tag }}" >> $GITHUB_OUTPUT
 
     - name: ACR Login
       run: az acr login --name ${{ matrix.target.acr-name }}
