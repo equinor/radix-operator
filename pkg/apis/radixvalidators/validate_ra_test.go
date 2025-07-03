@@ -1947,11 +1947,21 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			[]error{radixvalidators.ErrInvalidTriggerDefinition},
 		},
 		{
-			"Valid AzureServiceBus trigger should be successfull",
+			"Valid AzureServiceBus trigger should be successful with clientId",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMaxReplicas(4).
-					WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", nil, nil).
+					WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", "", nil, nil).
+					Build()
+			},
+			nil,
+		},
+		{
+			"Valid AzureServiceBus trigger should be successful with connection string",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithAzureServiceBusTrigger("anamespace", "", "queue-name", "", "", "CONNECTION_STRING", nil, nil).
 					Build()
 			},
 			nil,
@@ -1961,7 +1971,180 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
 					WithMaxReplicas(4).
-					WithAzureServiceBusTrigger("", "", "", "", "", nil, nil).
+					WithAzureServiceBusTrigger("", "", "", "", "", "", nil, nil).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Valid AzureEventHub trigger should be successful with clientId",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithAzureEventHubTrigger("abcd", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubNamespace: "some-event-hub-namespace",
+						EventHubName:      "some-event-hub-name",
+						StorageAccount:    "some-storage-account",
+						Container:         "some-container",
+					}).
+					Build()
+			},
+			nil,
+		},
+		{
+			"Valid AzureEventHub trigger should be successful with clientId and attrs from env-vars",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithAzureEventHubTrigger("abcd", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubNamespaceFromEnv: "EVENT_HUB_NAMESPACE",
+						EventHubNameFromEnv:      "EVENT_HUB_NAME",
+						StorageAccount:           "some-storage-account",
+						Container:                "some-container",
+					}).
+					Build()
+			},
+			nil,
+		},
+		{
+			"Valid AzureEventHub trigger should be successful with no clientId",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubConnectionFromEnv: "EVENT_HUB_CONNECTION",
+						StorageConnectionFromEnv:  "STORAGE_CONNECTION",
+						Container:                 "some-container",
+					}).
+					Build()
+			},
+			nil,
+		},
+		{
+			"Invalid AzureEventHub trigger with no properties",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Invalid AzureEventHub trigger with no clientId and no event hub connection string",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						StorageConnectionFromEnv: "STORAGE_CONNECTION",
+						Container:                "some-container",
+					}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Invalid AzureEventHub trigger with no clientId and no event storage connection string",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubConnectionFromEnv: "EVENT_HUB_CONNECTION",
+						Container:                 "some-container",
+					}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Invalid AzureEventHub trigger with no clientId and no container name for blobMetadata checkpoint strategy",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubConnectionFromEnv: "EVENT_HUB_CONNECTION",
+						StorageConnectionFromEnv:  "STORAGE_CONNECTION",
+						CheckpointStrategy:        "blobMetadata",
+					}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Invalid AzureEventHub trigger with clientId and no container name for blobMetadata checkpoint strategy",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubNamespace:  "some-event-hub-namespace",
+						EventHubName:       "some-event-hub-name",
+						StorageAccount:     "some-storage-account",
+						CheckpointStrategy: "blobMetadata",
+					}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Invalid AzureEventHub trigger with clientId and no storage account",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubNamespace: "some-event-hub-namespace",
+						EventHubName:      "some-event-hub-name",
+						Container:         "some-container",
+					}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Invalid AzureEventHub trigger with clientId and invalid strategy",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubNamespace:  "some-event-hub-namespace",
+						EventHubName:       "some-event-hub-name",
+						StorageAccount:     "some-storage-account",
+						Container:          "some-container",
+						CheckpointStrategy: "invalid-strategy",
+					}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Invalid AzureEventHub trigger with clientId and no event hub name",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubNamespace: "some-event-hub-namespace",
+						StorageAccount:    "some-storage-account",
+						Container:         "some-container",
+					}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Invalid AzureEventHub trigger with clientId and no event hub namespace",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubName:   "some-event-hub-name",
+						StorageAccount: "some-storage-account",
+						Container:      "some-container",
+					}).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
+			"Invalid AzureEventHub trigger with clientId and invalid strategy",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().WithMaxReplicas(4).
+					WithAzureEventHubTrigger("", &radixv1.RadixHorizontalScalingAzureEventHubTrigger{
+						EventHubNamespace:  "some-event-hub-namespace",
+						EventHubName:       "some-event-hub-name",
+						StorageAccount:     "some-storage-account",
+						Container:          "some-container",
+						CheckpointStrategy: "invalid-strategy",
+					}).
 					Build()
 			},
 			[]error{radixvalidators.ErrInvalidTriggerDefinition},
@@ -1977,7 +2160,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 					WithMemoryTrigger(80).
 					WithCPUTrigger(80).
 					WithCRONTrigger("* * * * *", "* * * * *", "Europe/Oslo", 10).
-					WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", nil, nil).
+					WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", "", nil, nil).
 					Build()
 			},
 			nil,
