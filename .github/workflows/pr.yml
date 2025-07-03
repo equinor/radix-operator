@@ -31,6 +31,15 @@ jobs:
         platforms: |
           linux/amd64
           linux/arm64
+    - name: Build radix-webhook
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: ./webhook.Dockerfile
+        push: false
+        platforms: |
+          linux/amd64
+          linux/arm64
 
 
   unit-test:
