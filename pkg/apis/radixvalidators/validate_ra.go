@@ -36,8 +36,10 @@ const (
 )
 
 var (
-	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
-	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
+	validOAuthSessionStoreTypes          = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
+	validOAuthCookieSameSites            = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
+	validAzureEventHubTriggerCheckpoints = map[radixv1.AzureEventHubTriggerCheckpointStrategy]any{radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction: struct{}{},
+		radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata: struct{}{}, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk: struct{}{}}
 
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
 		validateRadixApplicationAppName,
@@ -1338,7 +1340,7 @@ func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error
 		errs = append(errs, ErrInvalidMinimumReplicasConfigurationWithMemoryAndCPUTriggers)
 	}
 
-	if err := validateTriggerDefintion(config); err != nil {
+	if err := validateTriggerDefinition(config); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -1368,7 +1370,7 @@ func validateUniqueTriggerNames(config *radixv1.RadixHorizontalScaling) error {
 	return errors.Join(errs...)
 }
 
-func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
+func validateTriggerDefinition(config *radixv1.RadixHorizontalScaling) error {
 	var errs []error
 
 	for _, trigger := range config.Triggers {
@@ -1380,72 +1382,119 @@ func validateTriggerDefintion(config *radixv1.RadixHorizontalScaling) error {
 
 		if trigger.Cpu != nil {
 			definitions++
-
 			if trigger.Cpu.Value == 0 {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
-
 		}
 		if trigger.Memory != nil {
 			definitions++
-
 			if trigger.Memory.Value == 0 {
 				errs = append(errs, fmt.Errorf("invalid trigger %s: value must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
 			}
 		}
 		if trigger.Cron != nil {
 			definitions++
-
-			if trigger.Cron.Start == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: start must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
-			} else if err := validateKedaCronSchedule(trigger.Cron.Start); err != nil {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: start is invalid: %w: %w", trigger.Name, err, ErrInvalidTriggerDefinition))
-			}
-
-			if trigger.Cron.End == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: end must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
-			} else if err := validateKedaCronSchedule(trigger.Cron.End); err != nil {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: end is invalid: %w: %w", trigger.Name, err, ErrInvalidTriggerDefinition))
-			}
-
-			if trigger.Cron.Timezone == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: timezone must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
-			}
-
-			if trigger.Cron.DesiredReplicas < 1 {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: desiredReplicas must be positive integer: %w", trigger.Name, ErrInvalidTriggerDefinition))
-			}
+			errs = append(errs, validateCronTrigger(trigger)...)
 		}
 		if trigger.AzureServiceBus != nil {
 			definitions++
-
-			// TODO: this is only requrired when using WorkloadIdentity
-			if trigger.AzureServiceBus.Namespace == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: Name of the Azure Service Bus namespace that contains your queue or topic: %w", trigger.Name, ErrInvalidTriggerDefinition))
-			}
-
-			if trigger.AzureServiceBus.QueueName != "" && (trigger.AzureServiceBus.TopicName != "" || trigger.AzureServiceBus.SubscriptionName != "") {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: queueName cannot be used with topicName or subscriptionName: %w", trigger.Name, ErrInvalidTriggerDefinition))
-			}
-
-			if trigger.AzureServiceBus.QueueName == "" && (trigger.AzureServiceBus.TopicName == "" || trigger.AzureServiceBus.SubscriptionName == "") {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: both topicName and subscriptionName must be set if queueName is not used: %w", trigger.Name, ErrInvalidTriggerDefinition))
-			}
-			if trigger.AzureServiceBus.Authentication.Identity.Azure.ClientId == "" {
-				errs = append(errs, fmt.Errorf("invalid trigger %s: azure workload identity is required: %w", trigger.Name, ErrInvalidTriggerDefinition))
-			}
+			errs = append(errs, validateAzureServiceBusTrigger(trigger)...)
 		}
-
+		if trigger.AzureEventHub != nil {
+			definitions++
+			errs = append(errs, validateAzureEventHubTrigger(trigger)...)
+		}
 		if definitions == 0 {
 			errs = append(errs, fmt.Errorf("invalid trigger %s: %w", trigger.Name, ErrNoDefinitionInTrigger))
-		}
-
-		if definitions > 1 {
+		} else if definitions > 1 {
 			errs = append(errs, fmt.Errorf("invalid trigger %s: %w (found %d definitions)", trigger.Name, ErrMoreThanOneDefinitionInTrigger, definitions))
 		}
 	}
 
 	return errors.Join(errs...)
+}
+
+func validateCronTrigger(trigger radixv1.RadixHorizontalScalingTrigger) []error {
+	var errs []error
+	if trigger.Cron.Start == "" {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: start must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	} else if err := validateKedaCronSchedule(trigger.Cron.Start); err != nil {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: start is invalid: %w: %w", trigger.Name, err, ErrInvalidTriggerDefinition))
+	}
+
+	if trigger.Cron.End == "" {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: end must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	} else if err := validateKedaCronSchedule(trigger.Cron.End); err != nil {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: end is invalid: %w: %w", trigger.Name, err, ErrInvalidTriggerDefinition))
+	}
+
+	if trigger.Cron.Timezone == "" {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: timezone must be set: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	}
+
+	if trigger.Cron.DesiredReplicas < 1 {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: desiredReplicas must be positive integer: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	}
+	return errs
+}
+
+func validateAzureServiceBusTrigger(trigger radixv1.RadixHorizontalScalingTrigger) []error {
+	var errs []error
+	// TODO: this is only requrired when using WorkloadIdentity
+	if trigger.AzureServiceBus.Namespace == "" {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: Name of the Azure Service Bus namespace that contains your queue or topic: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	}
+
+	if trigger.AzureServiceBus.QueueName != "" && (trigger.AzureServiceBus.TopicName != "" || trigger.AzureServiceBus.SubscriptionName != "") {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: queueName cannot be used with topicName or subscriptionName: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	}
+
+	if trigger.AzureServiceBus.QueueName == "" && (trigger.AzureServiceBus.TopicName == "" || trigger.AzureServiceBus.SubscriptionName == "") {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: both topicName and subscriptionName must be set if queueName is not used: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	}
+	if trigger.AzureServiceBus.Authentication.Identity.Azure.ClientId == "" && trigger.AzureServiceBus.ConnectionFromEnv == "" {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: azure workload identity or connectionFromEnv are required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	}
+	return errs
+}
+
+func validateAzureEventHubTrigger(trigger radixv1.RadixHorizontalScalingTrigger) []error {
+	var errs []error
+
+	if auth := trigger.AzureEventHub.Authentication; auth != nil && (*auth).Identity.Azure.ClientId != "" {
+		if trigger.AzureEventHub.EventHubNamespace == "" && trigger.AzureEventHub.EventHubNamespaceFromEnv == "" {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: event hub namespace is required when used workload identity: %w", trigger.Name, ErrInvalidTriggerDefinition))
+		}
+		if trigger.AzureEventHub.EventHubName == "" && trigger.AzureEventHub.EventHubNameFromEnv == "" {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: event hub name is required when used workload identity: %w", trigger.Name, ErrInvalidTriggerDefinition))
+		}
+		if trigger.AzureEventHub.StorageAccount == "" {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: both storage account name and storage connection are required: %w", trigger.Name, ErrInvalidTriggerDefinition))
+		}
+	} else {
+		if trigger.AzureEventHub.EventHubConnectionFromEnv == "" {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: event hub connection string is required when not used workload identity: %w", trigger.Name, ErrInvalidTriggerDefinition))
+		}
+		if trigger.AzureEventHub.StorageConnectionFromEnv == "" {
+			errs = append(errs, fmt.Errorf("invalid trigger %s: storage account connection string when not used workload identity: %w", trigger.Name, ErrInvalidTriggerDefinition))
+		}
+	}
+
+	if trigger.AzureEventHub.Container == "" && trigger.AzureEventHub.CheckpointStrategy != radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: storage account container name is required for not azureFunction checkpointStrategy: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	}
+	if !isValidAzureEventHubTriggerCheckpoints(trigger.AzureEventHub.CheckpointStrategy) {
+		errs = append(errs, fmt.Errorf("invalid trigger %s: invalid checkpoint strategy: %w", trigger.Name, ErrInvalidTriggerDefinition))
+	}
+	return errs
+}
+
+func isValidAzureEventHubTriggerCheckpoints(checkpointStrategy radixv1.AzureEventHubTriggerCheckpointStrategy) bool {
+	if checkpointStrategy == "" {
+		return true
+	}
+	_, ok := validAzureEventHubTriggerCheckpoints[checkpointStrategy]
+	return ok
 }
 
 func validateKedaCronSchedule(schedule string) error {
@@ -1462,6 +1511,9 @@ func hasNonResourceTypeTriggers(config *radixv1.RadixHorizontalScaling) bool {
 			return true
 		}
 		if trigger.AzureServiceBus != nil {
+			return true
+		}
+		if trigger.AzureEventHub != nil {
 			return true
 		}
 	}
