@@ -37,7 +37,6 @@ func main() {
 	ctx := signals.SetupSignalHandler()
 	c := internalconfig.MustParseConfig()
 	logger := initLogger(c)
-	logr := initLogr(logger)
 	logger.Info().Str("version", internalconfig.Version).Msg("Starting Radix Webhook")
 	logger.Info().Interface("config", c).Msg("Configuration")
 
@@ -54,7 +53,7 @@ func main() {
 	utilruntime.Must(radixv1.AddToScheme(scheme))
 	mgr, err := manager.New(restConfig, manager.Options{
 		Scheme:                 scheme,
-		Logger:                 logr,
+		Logger:                 initLogr(logger),
 		LeaderElection:         false,
 		HealthProbeBindAddress: fmt.Sprintf(":%d", c.HealthPort),
 		WebhookServer: webhook.NewServer(webhook.Options{
