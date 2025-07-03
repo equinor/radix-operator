@@ -74,30 +74,6 @@ Utility function to take list to comma separated string
 {{- end -}}
 
 {{/*
-Create a fully qualified app name for radix-webhook.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-*/}}
-{{- define "radix-webhook.fullname" -}}
-{{- if .Values.radixWebhook.nameOverride }}
-{{- .Values.radixWebhook.nameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-webhook" .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
-
-{{- define "radix-webhook.sa.fullname" -}}
-{{- if .Values.radixWebhook.serviceAccount.nameOverride }}
-{{- .Values.radixWebhook.serviceAccount.nameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-webhook" .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
-
-{{- define "radix-webhook.secret.fullname" -}}
-{{- printf "%s-webhook-certs" .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
 Webhook Common labels
 */}}
 {{- define "radix-webhook.labels" -}}
@@ -113,6 +89,6 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 Webhook Selector labels
 */}}
 {{- define "radix-webhook.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "radix-webhook.fullname" . }}
+app.kubernetes.io/name: "radix-webhook"
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

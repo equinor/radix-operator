@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "radix-webhook.fullname" . }}
+  name: radix-webhook
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "radix-webhook.labels" . | nindent 4 }}
@@ -17,7 +17,7 @@ spec:
       labels:
         {{- include "radix-webhook.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ template "radix-webhook.sa.fullname" . }}
+      serviceAccountName: radix-webhook
 
       {{- with .Values.radixWebhook.nodeSelector }}
       nodeSelector:
@@ -39,26 +39,29 @@ spec:
       volumes:
         - name: certs
           secret:
-            secretName: {{ template "radix-webhook.secret.fullname" . }}
+            secretName: radix-webhook-certs
             
       containers:
         - name: radix-webhook
           image: {{ .Values.radixWebhook.image.repository }}:{{ .Values.radixWebhook.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.radixWebhook.imagePullPolicy | default "IfNotPresent" }}
+
           {{- with .Values.radixWebhook.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+
           {{- with .Values.radixWebhook.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          
           ports:
-            - containerPort: {{ .Values.radixWebhook.port }}
+            - containerPort: 9443
               name: webhook
-            - containerPort: {{ .Values.radixWebhook.healthzPort }}
+            - containerPort: 9440
               name: healthz
-            - containerPort: {{ .Values.radixWebhook.metricsPort }}
+            - containerPort: 9000
               name: metrics
           readinessProbe:
             httpGet:
@@ -76,23 +79,17 @@ spec:
             - name: SECRET_NAMESPACE
               value: {{ .Release.Namespace }}
             - name: SECRET_NAME
-              value: {{ include "radix-webhook.secret.fullname" . }}
+              value: "radix-webhook-certs"
             - name: WEBHOOK_CONFIGURATION_NAME
-              value: {{ .Values.radixWebhook.webhookConfigurationName | quote }}
+              value: "radix-webhook-configuration"
             - name: CERTS_DIR
               value: "/run/certs"
             - name: REQUIRE_AD_GROUPS
               value: {{ .Values.radixWebhook.requireAdGroups | quote }}
             - name: REQUIRE_CONFIGURATION_ITEM
               value: {{ .Values.radixWebhook.requireConfigurationItem | quote }}
-            - name: DISABLE_CERT_ROTATION
-              value: {{ .Values.radixWebhook.disableCertRotation | quote }}
-            - name: CA_NAME
-              value: {{ .Values.radixWebhook.caName | quote }}
-            - name: CA_ORGANIZATION
-              value: {{ .Values.radixWebhook.caOrganization | quote }}
             - name: DNS_NAME
-              value: {{ template "radix-webhook.fullname" . }}.{{ .Release.Namespace }}.svc
+              value: radix-webhook.{{ .Release.Namespace }}.svc
           volumeMounts:
             - name: certs
               mountPath: /run/certs

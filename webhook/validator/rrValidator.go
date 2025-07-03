@@ -13,7 +13,7 @@ import (
 
 const RadixRegistrationValidatorWebhookPath = "/radix/v1/radixregistration/validation"
 
-//+kubebuilder:webhook:path=/radix/v1/radixregistration/validation,mutating=false,failurePolicy=fail,sideEffects=None,groups=radix.equinor.com,resources=radixregistrations,verbs=create;update,versions=v1,name=validate.radixapplication.radix.equinor.com,admissionReviewVersions={v1}
+//+kubebuilder:webhook:path=/radix/v1/radixregistration/validation,mutating=false,failurePolicy=fail,sideEffects=None,groups=radix.equinor.com,resources=radixregistrations,verbs=create;update,versions=v1,name=validate.radix.equinor.com,admissionReviewVersions={v1}
 
 type RadixRegistrationValidator struct {
 	validators []radixvalidators.RadixRegistrationValidator

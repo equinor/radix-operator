@@ -19,17 +19,14 @@ sed -i '/^---$/d' "$file"
 
 # Insert Helm if at the top
 sed -i '1s;^;{{ if .Values.radixWebhook.enabled }}\n\n;' "$file"
-
 # Replace metadata name
-sed -i 's/^  name: validating-webhook-configuration/  name: {{ .Values.radixWebhook.webhookConfigurationName }}/' "$file"
+sed -i 's/^  name: validating-webhook-configuration/  name: radix-webhook-configuration/' "$file"
+
 
 # Replace service name, namespace, and add port
-sed -i 's/^      name: webhook-service/      name: {{ template "radix-webhook.fullname" . }}/' "$file"
+sed -i 's/^      name: webhook-service/      name: radix-webhook/' "$file"
 sed -i 's/^      namespace: system/      namespace: {{ .Release.Namespace }}/' "$file"
-sed -i '/^      path: \/radix\/v1\/radixregistration\/validation/a \\      port: {{ .Values.radixWebhook.port}}' "$file"
-
-# Replace webhook name
-sed -i 's/^  name: validate.radixapplication.radix.equinor.com/  name: radixregistrations.validation.radix.equinor.com/' "$file"
+sed -i '/^      path: \/radix\/v1\/radixregistration\/validation/a \\      port: 443' "$file"
 
 # Add matchPolicy after failurePolicy
 sed -i '/^  failurePolicy: Fail/a \\  matchPolicy: Equivalent' "$file"

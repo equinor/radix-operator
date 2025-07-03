@@ -5,12 +5,12 @@ kind: ServiceMonitor
 metadata:
   labels:
     {{- include "radix-webhook.labels" . | nindent 4 }}
-  name: {{ template "radix-webhook.fullname" . }}
+  name: radix-webhook
   namespace: {{ .Release.Namespace | quote }}
 spec:
   endpoints:
   - honorLabels: true
-    port: metrics
+    port: metrics # 9000
   namespaceSelector:
     matchNames:
     - {{.Release.Namespace | quote }}
