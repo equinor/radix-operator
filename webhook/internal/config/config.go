@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"runtime/debug"
 
 	"github.com/kelseyhightower/envconfig"
@@ -38,11 +37,6 @@ func MustParseConfig() Config {
 	if err != nil {
 		_ = envconfig.Usage("", &s)
 		log.Fatal().Msg(err.Error())
-	}
-
-	if s.CertsDir == "" {
-		s.CertsDir = os.TempDir() + "/k8s-webhook-server/serving-certs"
-		log.Warn().Msgf("CERT_DIR is not set, using default: %s", s.CertsDir)
 	}
 
 	return s
