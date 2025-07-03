@@ -15,7 +15,7 @@ webhooks:
       port: 443
   failurePolicy: Fail
   matchPolicy: Equivalent
-  name: radixregistrations.validation.radix.equinor.com
+  name: validate.radix.equinor.com
   rules:
   - apiGroups:
     - radix.equinor.com

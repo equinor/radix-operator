@@ -59,12 +59,10 @@ spec:
             properties:
               adGroups:
                 items:
-                  format: uuid
                   type: string
                 type: array
               adUsers:
                 items:
-                  format: uuid
                   type: string
                 type: array
               appID:
@@ -115,12 +113,10 @@ spec:
                 type: string
               readerAdGroups:
                 items:
-                  format: uuid
                   type: string
                 type: array
               readerAdUsers:
                 items:
-                  format: uuid
                   type: string
                 type: array
               sharedSecret:
