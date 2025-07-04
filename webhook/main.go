@@ -17,9 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	internalconfig "github.com/equinor/radix-operator/webhook/internal/config"
-	"github.com/equinor/radix-operator/webhook/validator"
+	"github.com/equinor/radix-operator/webhook/validation"
 
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
 	"github.com/rs/zerolog/log"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -30,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 func main() {
@@ -41,17 +39,10 @@ func main() {
 	logger.Info().Interface("config", c).Msg("Configuration")
 
 	logger.Info().Msg("setting up manager")
-	restConfig := config.GetConfigOrDie()
-
-	client, err := radixclient.NewForConfig(restConfig)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to set up radix client")
-	}
-
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(radixv1.AddToScheme(scheme))
-	mgr, err := manager.New(restConfig, manager.Options{
+	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{
 		Scheme:                 scheme,
 		Logger:                 initLogr(logger),
 		LeaderElection:         false,
@@ -70,7 +61,7 @@ func main() {
 
 	certSetupFinished := addCertRotator(mgr, c)
 	addProbeEndpoints(mgr, certSetupFinished)
-	go setupWebhook(ctx, mgr, client, c, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
+	go setupWebhook(ctx, mgr, c, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
 
 	logger.Info().Msg("starting manager")
 	if err := mgr.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -79,13 +70,10 @@ func main() {
 	logger.Info().Msg("shutting down")
 }
 
-func setupWebhook(ctx context.Context, mgr manager.Manager, client radixclient.Interface, c internalconfig.Config, certSetupFinished <-chan struct{}) {
-	log.Debug().Msg("Configuring webhook...")
+func setupWebhook(ctx context.Context, mgr manager.Manager, c internalconfig.Config, certSetupFinished <-chan struct{}) {
 	<-certSetupFinished
-
-	rrValidator := validator.NewRadixRegistrationValidator(ctx, client, c.RequireAdGroups, c.RequireConfigurationItem)
-	mgr.GetWebhookServer().Register(validator.RadixRegistrationValidatorWebhookPath, admission.WithCustomValidator(mgr.GetScheme(), &radixv1.RadixRegistration{}, rrValidator))
-
+	log.Debug().Msg("Configuring webhook...")
+	validation.SetupWebhook(mgr, c.RequireAdGroups, c.RequireConfigurationItem)
 	log.Info().Msg("webhook setup complete")
 }
 

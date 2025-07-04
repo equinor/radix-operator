@@ -5,23 +5,25 @@ import (
 	"errors"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// RadixRegistrationValidator defines a validator function for a RadixRegistration
-type RadixRegistrationValidator func(radixRegistration *radixv1.RadixRegistration) (string, error)
+// validatorFunc defines a validatorFunc function for a RadixRegistration
+type validatorFunc func(ctx context.Context, radixRegistration *radixv1.RadixRegistration) (string, error)
 
 type Validator struct {
-	validators []RadixRegistrationValidator
+	validators []validatorFunc
 }
 
-func CreateOnlineValidator(ctx context.Context, client radixclient.Interface, requireAdGroups, requireConfigurationItem bool) Validator {
-	return Validator{
-		validators: []RadixRegistrationValidator{
-			CreateRequireUniqueAppIdValidator(ctx, client),
-			CreateRequireAdGroupsValidator(requireAdGroups),
+var _ genericvalidator.Validator[*radixv1.RadixRegistration] = &Validator{}
+
+func CreateOnlineValidator(client client.Client, requireAdGroups, requireConfigurationItem bool) *Validator {
+	return &Validator{
+		validators: []validatorFunc{
+			createRequireUniqueAppIdValidator(client),
+			createRequireAdGroupsValidator(requireAdGroups),
 			CreateRequireConfigurationItemValidator(requireConfigurationItem),
 		},
 	}
@@ -29,18 +31,18 @@ func CreateOnlineValidator(ctx context.Context, client radixclient.Interface, re
 
 func CreateOfflineValidator(requireAdGroups, requireConfigurationItem bool) Validator {
 	return Validator{
-		validators: []RadixRegistrationValidator{
-			CreateRequireAdGroupsValidator(requireAdGroups),
+		validators: []validatorFunc{
+			createRequireAdGroupsValidator(requireAdGroups),
 			CreateRequireConfigurationItemValidator(requireConfigurationItem),
 		},
 	}
 }
 
-func (validator *Validator) Validate(rr *radixv1.RadixRegistration) (admission.Warnings, error) {
+func (validator *Validator) Validate(ctx context.Context, rr *radixv1.RadixRegistration) (admission.Warnings, error) {
 	var errs []error
 	var wrns admission.Warnings
 	for _, v := range validator.validators {
-		wrn, err := v(rr)
+		wrn, err := v(ctx, rr)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -53,8 +55,8 @@ func (validator *Validator) Validate(rr *radixv1.RadixRegistration) (admission.W
 }
 
 // RequireAdGroups validates that AdGroups contains minimum one item
-func CreateRequireAdGroupsValidator(required bool) RadixRegistrationValidator {
-	return func(rr *radixv1.RadixRegistration) (string, error) {
+func createRequireAdGroupsValidator(required bool) validatorFunc {
+	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
 		if len(rr.Spec.AdGroups) == 0 && required {
 			return "", ErrAdGroupIsRequired
 		}
@@ -67,8 +69,8 @@ func CreateRequireAdGroupsValidator(required bool) RadixRegistrationValidator {
 	}
 }
 
-func CreateRequireConfigurationItemValidator(required bool) RadixRegistrationValidator {
-	return func(rr *radixv1.RadixRegistration) (string, error) {
+func CreateRequireConfigurationItemValidator(required bool) validatorFunc {
+	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
 		if rr.Spec.ConfigurationItem == "" && required {
 			return "", ErrConfigurationItemIsRequired
 		}
@@ -77,13 +79,14 @@ func CreateRequireConfigurationItemValidator(required bool) RadixRegistrationVal
 	}
 }
 
-func CreateRequireUniqueAppIdValidator(ctx context.Context, client radixclient.Interface) RadixRegistrationValidator {
-	return func(rr *radixv1.RadixRegistration) (string, error) {
+func createRequireUniqueAppIdValidator(client client.Client) validatorFunc {
+	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
 		if rr.Spec.AppID.IsZero() {
 			return "", nil // AppID is not required
 		}
 
-		existingRRs, err := client.RadixV1().RadixRegistrations().List(ctx, metav1.ListOptions{})
+		existingRRs := radixv1.RadixRegistrationList{}
+		err := client.List(ctx, &existingRRs)
 		if err != nil {
 			return "", nil // No existing RR with this AppID
 		}
