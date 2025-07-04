@@ -13,18 +13,18 @@ const RadixRegistrationValidatorWebhookPath = "/radix/v1/radixregistration/valid
 
 //+kubebuilder:webhook:path=/radix/v1/radixregistration/validation,mutating=false,failurePolicy=fail,sideEffects=None,groups=radix.equinor.com,resources=radixregistrations,verbs=create;update,versions=v1,name=validate.radix.equinor.com,admissionReviewVersions={v1}
 
-type radixRegistrationValidator struct {
+type admissionCustomValidator struct {
 	validator Validator
 }
 
-func NewRadixRegistrationCustomValidator(validator Validator) admission.CustomValidator {
-	return &radixRegistrationValidator{
+func NewAdmissionCustomValidator(validator Validator) admission.CustomValidator {
+	return &admissionCustomValidator{
 		validator: validator,
 	}
 }
 
 // ValidateCreate validates the object on creation..
-func (v *radixRegistrationValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *admissionCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	rr, ok := obj.(*radixv1.RadixRegistration)
 	if !ok {
 		return nil, fmt.Errorf("expected a RadixRegistration but got a %T", obj)
@@ -34,7 +34,7 @@ func (v *radixRegistrationValidator) ValidateCreate(ctx context.Context, obj run
 }
 
 // ValidateUpdate validates the object on update.
-func (v *radixRegistrationValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+func (v *admissionCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	rr, ok := newObj.(*radixv1.RadixRegistration)
 	if !ok {
 		return nil, fmt.Errorf("expected a RadixRegistration but got a %T", newObj)
@@ -46,6 +46,6 @@ func (v *radixRegistrationValidator) ValidateUpdate(ctx context.Context, oldObj,
 // ValidateDelete validates the object on deletion.
 // The optional warnings will be added to the response as warning messages.
 // Return an error if the object is invalid.
-func (v *radixRegistrationValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *admissionCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	return nil, nil
 }

@@ -84,7 +84,7 @@ func setupWebhook(mgr manager.Manager, client radixclient.Interface, c internalc
 	log.Debug().Msg("Configuring webhook...")
 	<-certSetupFinished
 
-	rrValidator := radixregistration.NewRadixRegistrationCustomValidator(radixregistration.CreateOnlineValidator(client, c.RequireAdGroups, c.RequireConfigurationItem))
+	rrValidator := radixregistration.NewAdmissionCustomValidator(radixregistration.CreateOnlineValidator(client, c.RequireAdGroups, c.RequireConfigurationItem))
 	mgr.GetWebhookServer().Register(radixregistration.RadixRegistrationValidatorWebhookPath, admission.WithCustomValidator(mgr.GetScheme(), &radixv1.RadixRegistration{}, rrValidator))
 
 	log.Info().Msg("webhook setup complete")
