@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/webhook/validator/radixregistration"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -16,25 +16,14 @@ const RadixRegistrationValidatorWebhookPath = "/radix/v1/radixregistration/valid
 //+kubebuilder:webhook:path=/radix/v1/radixregistration/validation,mutating=false,failurePolicy=fail,sideEffects=None,groups=radix.equinor.com,resources=radixregistrations,verbs=create;update,versions=v1,name=validate.radix.equinor.com,admissionReviewVersions={v1}
 
 type RadixRegistrationValidator struct {
-	validators []radixvalidators.RadixRegistrationValidator
+	validator radixregistration.Validator
 }
 
 var _ admission.CustomValidator = &RadixRegistrationValidator{}
 
 func NewRadixRegistrationValidator(ctx context.Context, client radixclient.Interface, requireAdGroups, requireConfigurationItem bool) *RadixRegistrationValidator {
-
-	validators := []radixvalidators.RadixRegistrationValidator{
-		radixvalidators.CreateRequireUniqueAppIdValidator(ctx, client),
-	}
-	if requireAdGroups {
-		validators = append(validators, radixvalidators.RequireAdGroups)
-	}
-	if requireConfigurationItem {
-		validators = append(validators, radixvalidators.RequireConfigurationItem)
-	}
-
 	return &RadixRegistrationValidator{
-		validators: validators,
+		validator: radixregistration.CreateOnlineValidator(ctx, client, requireAdGroups, requireConfigurationItem),
 	}
 }
 
@@ -45,7 +34,7 @@ func (v *RadixRegistrationValidator) ValidateCreate(ctx context.Context, obj run
 		return nil, fmt.Errorf("expected a RadixRegistration but got a %T", obj)
 	}
 
-	return nil, radixvalidators.ValidateRadixRegistration(rr, v.validators...)
+	return v.validator.Validate(rr)
 }
 
 // ValidateUpdate validates the object on update.
@@ -55,7 +44,7 @@ func (v *RadixRegistrationValidator) ValidateUpdate(ctx context.Context, oldObj,
 		return nil, fmt.Errorf("expected a RadixRegistration but got a %T", newObj)
 	}
 
-	return nil, radixvalidators.ValidateRadixRegistration(rr, v.validators...)
+	return v.validator.Validate(rr)
 }
 
 // ValidateDelete validates the object on deletion.
