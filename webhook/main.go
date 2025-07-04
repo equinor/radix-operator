@@ -17,8 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	internalconfig "github.com/equinor/radix-operator/webhook/internal/config"
-
-	"github.com/equinor/radix-operator/webhook/validator/radixregistration"
+	"github.com/equinor/radix-operator/webhook/validation"
 
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
@@ -31,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 func main() {
@@ -84,8 +82,7 @@ func setupWebhook(mgr manager.Manager, client radixclient.Interface, c internalc
 	log.Debug().Msg("Configuring webhook...")
 	<-certSetupFinished
 
-	rrValidator := radixregistration.NewAdmissionCustomValidator(radixregistration.CreateOnlineValidator(client, c.RequireAdGroups, c.RequireConfigurationItem))
-	mgr.GetWebhookServer().Register(radixregistration.RadixRegistrationValidatorWebhookPath, admission.WithCustomValidator(mgr.GetScheme(), &radixv1.RadixRegistration{}, rrValidator))
+	validation.SetupRadixRegistrationWebhookWithManager(mgr, c, client)
 
 	log.Info().Msg("webhook setup complete")
 }
