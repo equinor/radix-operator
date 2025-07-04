@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"strings"
 	"time"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -19,13 +18,10 @@ type RegistrationBuilder interface {
 	WithSharedSecret(string) RegistrationBuilder
 	WithAdGroups([]string) RegistrationBuilder
 	WithAdUsers([]string) RegistrationBuilder
-	WithPublicKey(string) RegistrationBuilder
-	WithPrivateKey(string) RegistrationBuilder
 	WithCloneURL(string) RegistrationBuilder
 	WithOwner(string) RegistrationBuilder
 	WithCreator(string) RegistrationBuilder
 	WithEmptyStatus() RegistrationBuilder
-	WithWBS(string) RegistrationBuilder
 	WithConfigBranch(string) RegistrationBuilder
 	WithRadixConfigFullName(string) RegistrationBuilder
 	WithConfigurationItem(string) RegistrationBuilder
@@ -44,13 +40,10 @@ type RegistrationBuilderStruct struct {
 	sharedSecret        string
 	adGroups            []string
 	adUsers             []string
-	publicKey           string
-	privateKey          string
 	cloneURL            string
 	owner               string
 	creator             string
 	emptyStatus         bool
-	wbs                 string
 	configBranch        string
 	radixConfigFullName string
 	configurationItem   string
@@ -68,11 +61,8 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithAdUsers(radixRegistration.Spec.AdUsers)
 	rb.WithReaderAdGroups(radixRegistration.Spec.ReaderAdGroups)
 	rb.WithReaderAdUsers(radixRegistration.Spec.ReaderAdUsers)
-	rb.WithPublicKey(radixRegistration.Spec.DeployKeyPublic)
-	rb.WithPrivateKey(radixRegistration.Spec.DeployKey)
 	rb.WithOwner(radixRegistration.Spec.Owner)
 	rb.WithCreator(radixRegistration.Spec.Creator)
-	rb.WithWBS(radixRegistration.Spec.WBS)
 	rb.WithRadixConfigFullName(radixRegistration.Spec.RadixConfigFullName)
 	rb.WithConfigurationItem(radixRegistration.Spec.ConfigurationItem)
 	return rb
@@ -150,27 +140,9 @@ func (rb *RegistrationBuilderStruct) WithReaderAdUsers(readerAdUsers []string) R
 	return rb
 }
 
-// WithPublicKey Sets public key
-func (rb *RegistrationBuilderStruct) WithPublicKey(publicKey string) RegistrationBuilder {
-	rb.publicKey = strings.TrimSuffix(publicKey, "\n")
-	return rb
-}
-
-// WithPrivateKey Sets private key
-func (rb *RegistrationBuilderStruct) WithPrivateKey(privateKey string) RegistrationBuilder {
-	rb.privateKey = privateKey
-	return rb
-}
-
 // WithEmptyStatus Indicates that the RR has no reconciled status
 func (rb *RegistrationBuilderStruct) WithEmptyStatus() RegistrationBuilder {
 	rb.emptyStatus = true
-	return rb
-}
-
-// WithWBS Sets WBS
-func (rb *RegistrationBuilderStruct) WithWBS(wbs string) RegistrationBuilder {
-	rb.wbs = wbs
 	return rb
 }
 
@@ -224,15 +196,12 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			AppID:               v1.ULID{ULID: ulid.MustParse(appId)},
 			CloneURL:            cloneURL,
 			SharedSecret:        rb.sharedSecret,
-			DeployKey:           rb.privateKey,
-			DeployKeyPublic:     rb.publicKey,
 			AdGroups:            rb.adGroups,
 			AdUsers:             rb.adUsers,
 			ReaderAdGroups:      rb.readerAdGroups,
 			ReaderAdUsers:       rb.readerAdUsers,
 			Owner:               rb.owner,
 			Creator:             rb.creator,
-			WBS:                 rb.wbs,
 			ConfigBranch:        rb.configBranch,
 			RadixConfigFullName: rb.radixConfigFullName,
 			ConfigurationItem:   rb.configurationItem,
@@ -259,7 +228,6 @@ func ARadixRegistration() RegistrationBuilder {
 		WithReaderAdGroups([]string{"40edc80d-0047-450d-b71a-970e6bb61d64"}).
 		WithOwner("radix@equinor.com").
 		WithCreator("radix@equinor.com").
-		WithWBS("A.BCD.00.999").
 		WithConfigBranch("main")
 
 	return builder

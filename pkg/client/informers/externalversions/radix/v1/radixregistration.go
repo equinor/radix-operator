@@ -68,13 +68,25 @@ func NewFilteredRadixRegistrationInformer(client versioned.Interface, resyncPeri
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RadixV1().RadixRegistrations().List(context.TODO(), options)
+				return client.RadixV1().RadixRegistrations().List(context.Background(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RadixV1().RadixRegistrations().Watch(context.TODO(), options)
+				return client.RadixV1().RadixRegistrations().Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.RadixV1().RadixRegistrations().List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.RadixV1().RadixRegistrations().Watch(ctx, options)
 			},
 		},
 		&apisradixv1.RadixRegistration{},

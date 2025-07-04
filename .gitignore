@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+__debug_bin*
 
 # Test binary, build with `go test -c`
 *.test
@@ -26,4 +27,5 @@ pipeline-runner/__debug_bin
 radix-operator/main
 
 # Temporary dir for CRD generation
-.temp-crds
+.temp-resources
+/local/

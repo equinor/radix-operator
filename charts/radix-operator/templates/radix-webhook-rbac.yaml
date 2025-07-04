@@ -1,0 +1,72 @@
+{{ if .Values.radixWebhook.enabled }}
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: radix-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name:  radix-webhook-admission-controller
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["radix.equinor.com"]
+    resources: ["radixregistrations"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: radix-webhook-admission-controller
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: radix-webhook-admission-controller
+subjects:
+  - kind: ServiceAccount
+    name: radix-webhook
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: radix-webhook-secret-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["radix-webhook-certs"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: radix-webhook-secret-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: radix-webhook-secret-controller
+subjects:
+  - kind: ServiceAccount
+    name: radix-webhook
+    namespace: {{ .Release.Namespace }}
+
+{{ end }}

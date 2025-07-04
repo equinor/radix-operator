@@ -66,28 +66,50 @@ spec:
                   type: string
                 type: array
               appID:
+                description: AppID is the unique identifier for the Radix application.
+                  Not to be confused by Configuration Item.
                 format: ulid
                 pattern: ^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               cloneURL:
+                description: CloneURL is the URL of the GitHub repository where the
+                  Radix configuration file is located.
+                pattern: ^git@github.com:[\w-]+/[\w-]+.git$
                 type: string
               configBranch:
+                description: |-
+                  ConfigBranch is the branch in the git repository where the Radix configuration file is located.
+                  See https://git-scm.com/docs/git-check-ref-format#_description for more details.
                 type: string
+                x-kubernetes-validations:
+                - rule: '!(  self == ''@'' ||  self == '''' )'
+                - rule: '!(  self.startsWith(''/'') )'
+                - rule: '!(  self.endsWith(''.lock'') ||  self.endsWith(''.'')  )'
+                - rule: '!(  self.contains(''/.'') || self.contains(''.lock/'') )'
+                - rule: '!(  self.contains(''..'') ||  self.contains(''@{'') ||  self.contains(''\\'')  ||  self.contains(''//'')  )'
+                - rule: '!(  self.matches(''.*[\\x00-\\x1F\\x7F ~^:\\?\\*\\[].*'')
+                    )'
               configurationItem:
                 description: |-
                   ConfigurationItem is and identifier for an entity in a configuration management solution such as a CMDB.
                   ITIL defines a CI as any component that needs to be managed in order to deliver an IT Service
                   Ref: https://en.wikipedia.org/wiki/Configuration_item
+                maxLength: 100
                 type: string
               creator:
                 type: string
-              deployKey:
-                type: string
-              deployKeyPublic:
-                type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               owner:
                 type: string
               radixConfigFullName:
+                description: RadixConfigFullName is the full name of the Radix configuration
+                  file in the git repository.
+                pattern: ^(\/*[a-zA-Z0-9_\.\-]+)+((\.yaml)|(\.yml))$
                 type: string
               readerAdGroups:
                 items:
@@ -98,8 +120,8 @@ spec:
                   type: string
                 type: array
               sharedSecret:
-                type: string
-              wbs:
+                description: 'deprecated: SharedSecret is the shared secret for the
+                  git repository.'
                 type: string
             required:
             - cloneURL

@@ -1,0 +1,21 @@
+{{ if .Values.radixWebhook.enabled }}
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+  name: radix-webhook
+  namespace: {{ .Release.Namespace | quote }}
+spec:
+  endpoints:
+  - honorLabels: true
+    port: metrics # 9000
+  namespaceSelector:
+    matchNames:
+    - {{.Release.Namespace | quote }}
+  selector:
+    matchLabels:
+      {{- include "radix-webhook.selectorLabels" . | nindent 6 }}
+
+{{end}}

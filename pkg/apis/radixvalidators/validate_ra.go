@@ -27,7 +27,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -115,10 +117,44 @@ func validateRadixApplicationAppName(app *radixv1.RadixApplication) error {
 	return validateAppName(app.Name)
 }
 
+func validateAppName(appName string) error {
+	return validateRequiredResourceName("app name", appName, 253)
+}
+
+func validateRequiredResourceName(resourceName, value string, maxLength int) error {
+	if len(value) > maxLength {
+		return InvalidStringValueMaxLengthErrorWithMessage(resourceName, value, maxLength)
+	}
+
+	if value == "" {
+		return ResourceNameCannotBeEmptyErrorWithMessage(resourceName)
+	}
+
+	re := regexp.MustCompile(resourceNameTemplate)
+
+	isValid := re.MatchString(value)
+	if !isValid {
+		return InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage(resourceName, value)
+	}
+
+	return nil
+}
+
 func validateDoesRRExistFactory(ctx context.Context, client radixclient.Interface) RadixApplicationValidator {
 	return func(radixApplication *radixv1.RadixApplication) error {
 		return validateDoesRRExist(ctx, client, radixApplication.Name)
 	}
+}
+
+func validateDoesRRExist(ctx context.Context, client radixclient.Interface, appName string) error {
+	_, err := client.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return NoRegistrationExistsForApplicationErrorWithMessage(appName)
+		}
+		return err
+	}
+	return nil
 }
 
 func validateDNSAliasFactory(ctx context.Context, client radixclient.Interface, dnsAliasConfig *dnsalias.DNSConfig) RadixApplicationValidator {
