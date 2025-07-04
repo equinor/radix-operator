@@ -778,6 +778,123 @@ spec:
                             maxProperties: 2
                             minProperties: 2
                             properties:
+                              azureEventHub:
+                                description: AzureEventHub defines a trigger that
+                                  scales based on number of unprocessed events in
+                                  event hub
+                                properties:
+                                  accountName:
+                                    description: |-
+                                      StorageAccount Name of the storage account used for checkpointing. If storage account is not specified when used identity based authentication to Blob Storage, the StorageConnectionFromEnv will be used.
+                                      It is ignored when EventHubConnectionFromEnv is defined.
+                                    maxLength: 150
+                                    type: string
+                                  activationUnprocessedEventThreshold:
+                                    description: |-
+                                      ActivationUnprocessedEventThreshold Target value for activating the scaler. Defaults to 0.
+                                      Learn more about activation https://keda.sh/docs/2.17/concepts/scaling-deployments/#activating-and-scaling-thresholds
+                                    minimum: 0
+                                    type: integer
+                                  authentication:
+                                    description: Authentication Workload Identity
+                                      configured with a ClientID when used identity
+                                      based authentication
+                                    properties:
+                                      identity:
+                                        description: RadixHorizontalScalingRequiredIdentity
+                                          configuration for federation with required
+                                          azure identity providers.
+                                        properties:
+                                          azure:
+                                            description: Azure identity configuration
+                                            properties:
+                                              clientId:
+                                                description: Defines the Client ID
+                                                  for a user defined managed identity
+                                                  or application ID for an application
+                                                  registration.
+                                                type: string
+                                            required:
+                                            - clientId
+                                            type: object
+                                        required:
+                                        - azure
+                                        type: object
+                                    required:
+                                    - identity
+                                    type: object
+                                  checkpointStrategy:
+                                    description: CheckpointStrategy defines the strategy
+                                      to use for checkpointing. Defaults to blobMetadata.
+                                    enum:
+                                    - goSdk
+                                    - blobMetadata
+                                    - azureFunction
+                                    - ""
+                                    type: string
+                                  consumerGroup:
+                                    description: ConsumerGroup is the name of the
+                                      consumer group to use when consuming events
+                                      from the Event Hub. Defaults to $Default
+                                    maxLength: 150
+                                    type: string
+                                  container:
+                                    description: |-
+                                      Container is the name of the Blob Storage container used for checkpointing.
+                                      This is needed for every checkpointStrategy except of AzureFunction. With Azure Functions checkpointStrategy the Container is automatically set or overridden as azure-webjobs-eventhub.
+                                      It should be set to azure-webjobs-eventhub for Azure Functions using blobMetadata as checkpointStrategy.
+                                    maxLength: 150
+                                    type: string
+                                  eventHubConnectionFromEnv:
+                                    description: |-
+                                      EventHubConnectionFromEnv The name of the environment variable or secret holding the connection string for the Event Hub. This is required when not using identity based authentication to Event Hub.
+                                      String should be in following format: Endpoint=sb://<event-hub-namespace>.servicebus.windows.net/;SharedAccessKeyName=<key-name>;SharedAccessKey=<key-value>;EntityPath=<event-hub-name>
+                                      EntityPath is optional. If it is not provided, then Name must be used to provide the name of the Azure Event Hub instance to use inside the namespace.
+                                      Example:
+                                      Endpoint=sb://eventhub-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=secretKey123;EntityPath=eventhub-name
+                                    maxLength: 50
+                                    type: string
+                                  eventHubName:
+                                    description: EventHubName of the Azure Event Hub
+                                      within Event Hub namespace
+                                    maxLength: 260
+                                    pattern: ^(([a-z0-9][-_a-z0-9./]*)?[a-z0-9])?$
+                                    type: string
+                                  eventHubNameFromEnv:
+                                    description: |-
+                                      EventHubNameFromEnv The name of the environment variable or secret holding the Azure Event Hub name.
+                                      It is ignored when EventHubName is defined.
+                                    maxLength: 260
+                                    pattern: ^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
+                                    type: string
+                                  eventHubNamespace:
+                                    description: EventHubNamespace The Event Hubs
+                                      namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+                                    maxLength: 150
+                                    pattern: ^(([a-z][-a-z0-9]*)?[a-z0-9])?$
+                                    type: string
+                                  eventHubNamespaceFromEnv:
+                                    description: |-
+                                      EventHubNamespaceFromEnv The name of the environment variable or secret  holding the Event Hubs namespace to build FQDN like myeventhubnamespace.servicebus.windows.netname
+                                      It is ignored when EventHubNamespace is defined.
+                                    maxLength: 50
+                                    pattern: ^(([a-zA-Z][_a-zA-Z0-9]*)?[a-zA-Z0-9])?$
+                                    type: string
+                                  storageConnectionFromEnv:
+                                    description: StorageConnectionFromEnv The name
+                                      of the environment variable or secret holding
+                                      the connection string for storage account used
+                                      to store checkpoint. As of now the Event Hub
+                                      scaler only reads from Azure Blob Storage.
+                                    maxLength: 50
+                                    type: string
+                                  unprocessedEventThreshold:
+                                    description: 'UnprocessedEventThreshold Average
+                                      target value to trigger scaling actions. Default:
+                                      64 events.'
+                                    minimum: 1
+                                    type: integer
+                                type: object
                               azureServiceBus:
                                 description: AzureServiceBus defines a trigger that
                                   scales based on number of messages in queue
@@ -815,6 +932,12 @@ spec:
                                     required:
                                     - identity
                                     type: object
+                                  connectionFromEnv:
+                                    description: |-
+                                      ConnectionFromEnv The name of the environment variable your deployment uses to get the connection string of the Azure Service Bus namespace.
+                                      Ignored when used Workload Identity.
+                                    maxLength: 50
+                                    type: string
                                   messageCount:
                                     description: |-
                                       MessageCount  - Amount of active messages in your Azure Service Bus queue or topic to scale on. Defaults to 5 messages
