@@ -17,7 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	internalconfig "github.com/equinor/radix-operator/webhook/internal/config"
-	"github.com/equinor/radix-operator/webhook/validator"
+
+	"github.com/equinor/radix-operator/webhook/validator/radixregistration"
 
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
@@ -70,7 +71,7 @@ func main() {
 
 	certSetupFinished := addCertRotator(mgr, c)
 	addProbeEndpoints(mgr, certSetupFinished)
-	go setupWebhook(ctx, mgr, client, c, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
+	go setupWebhook(mgr, client, c, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
 
 	logger.Info().Msg("starting manager")
 	if err := mgr.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -79,12 +80,12 @@ func main() {
 	logger.Info().Msg("shutting down")
 }
 
-func setupWebhook(ctx context.Context, mgr manager.Manager, client radixclient.Interface, c internalconfig.Config, certSetupFinished <-chan struct{}) {
+func setupWebhook(mgr manager.Manager, client radixclient.Interface, c internalconfig.Config, certSetupFinished <-chan struct{}) {
 	log.Debug().Msg("Configuring webhook...")
 	<-certSetupFinished
 
-	rrValidator := validator.NewRadixRegistrationValidator(ctx, client, c.RequireAdGroups, c.RequireConfigurationItem)
-	mgr.GetWebhookServer().Register(validator.RadixRegistrationValidatorWebhookPath, admission.WithCustomValidator(mgr.GetScheme(), &radixv1.RadixRegistration{}, rrValidator))
+	rrValidator := radixregistration.NewRadixRegistrationCustomValidator(radixregistration.CreateOnlineValidator(client, c.RequireAdGroups, c.RequireConfigurationItem))
+	mgr.GetWebhookServer().Register(radixregistration.RadixRegistrationValidatorWebhookPath, admission.WithCustomValidator(mgr.GetScheme(), &radixv1.RadixRegistration{}, rrValidator))
 
 	log.Info().Msg("webhook setup complete")
 }
