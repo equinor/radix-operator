@@ -61,7 +61,7 @@ func main() {
 
 	certSetupFinished := addCertRotator(mgr, c)
 	addProbeEndpoints(mgr, certSetupFinished)
-	go setupWebhook(ctx, mgr, c, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
+	go setupWebhook(mgr, c, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
 
 	logger.Info().Msg("starting manager")
 	if err := mgr.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -70,10 +70,10 @@ func main() {
 	logger.Info().Msg("shutting down")
 }
 
-func setupWebhook(ctx context.Context, mgr manager.Manager, c internalconfig.Config, certSetupFinished <-chan struct{}) {
+func setupWebhook(mgr manager.Manager, c internalconfig.Config, certSetupFinished <-chan struct{}) {
 	<-certSetupFinished
 	log.Debug().Msg("Configuring webhook...")
-	validation.SetupWebhook(mgr, c.RequireAdGroups, c.RequireConfigurationItem)
+	validation.SetupWebhook(mgr, c)
 	log.Info().Msg("webhook setup complete")
 }
 

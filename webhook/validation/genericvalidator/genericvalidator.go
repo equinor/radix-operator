@@ -2,6 +2,7 @@ package genericvalidator
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -32,11 +33,10 @@ func NewGenericAdmissionValidator[TObj runtime.Object](createValidator Validator
 }
 
 func (v *AdmissionValidator[TObj]) Register(mgr manager.Manager, path string) {
-	t := new(TObj)
-	mgr.GetWebhookServer().Register(path, admission.WithCustomValidator(mgr.GetScheme(), *t, v))
-	log.Info().Str("path", path).Type("type", *t).Msg("registered admission validator")
+	obj := v.instantiateGenericType()
+	mgr.GetWebhookServer().Register(path, admission.WithCustomValidator(mgr.GetScheme(), obj, v))
+	log.Info().Str("path", path).Stringer("type", obj.GetObjectKind().GroupVersionKind()).Msg("registered admission validator")
 }
-
 func (v *AdmissionValidator[TObj]) ValidateCreate(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
 	request, err := admission.RequestFromContext(ctx)
 	if err != nil {
@@ -103,4 +103,10 @@ func (v *AdmissionValidator[TObj]) runValidation(ctx context.Context, obj runtim
 	warnings, err := validator.Validate(ctx, tobj)
 	log.Ctx(ctx).Info().Strs("warnings", warnings).Err(err).Msg("admission controll completed")
 	return warnings, err
+}
+
+func (*AdmissionValidator[TObj]) instantiateGenericType() runtime.Object {
+	var obj TObj
+	elementType := reflect.ValueOf(obj).Type().Elem()
+	return reflect.New(elementType).Interface().(runtime.Object)
 }
