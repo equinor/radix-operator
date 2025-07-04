@@ -34,6 +34,7 @@ func NewGenericAdmissionValidator[TObj runtime.Object](createValidator Validator
 func (v *AdmissionValidator[TObj]) Register(mgr manager.Manager, path string) {
 	t := new(TObj)
 	mgr.GetWebhookServer().Register(path, admission.WithCustomValidator(mgr.GetScheme(), *t, v))
+	log.Info().Str("path", path).Type("type", *t).Msg("registered admission validator")
 }
 
 func (v *AdmissionValidator[TObj]) ValidateCreate(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
