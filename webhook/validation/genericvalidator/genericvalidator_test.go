@@ -19,9 +19,9 @@ func TestNewGenericValidator(t *testing.T) {
 	genVal := genericvalidator.NewGenericAdmissionValidator(validatorFn, nil, nil)
 
 	ctx := admission.NewContextWithRequest(t.Context(), admission.Request{})
-	actuaWarnings, err := genVal.ValidateCreate(ctx, &v1.RadixRegistration{})
+	actualWarnings, err := genVal.ValidateCreate(ctx, &v1.RadixRegistration{})
 	expectedWarnings := admission.Warnings{"some warnings"}
 
-	assert.Equal(t, expectedWarnings, actuaWarnings)
+	assert.Equal(t, expectedWarnings, actualWarnings)
 	assert.EqualError(t, err, "some error")
 }
