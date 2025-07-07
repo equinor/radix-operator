@@ -204,9 +204,9 @@ radixWebhook:
   enabled: false
 
   logLevel: info
-  logPretty: "false"
-  requireAdGroups: "true"
-  requireConfigurationItem: "true"
+  logPretty: false
+  requireAdGroups: true
+  requireConfigurationItem: true
 
   image: 
     repository: ghcr.io/equinor/radix-webhook
