@@ -35,6 +35,12 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.radixWebhook.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.radixWebhook.image.pullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
 
       volumes:
         - name: certs

@@ -86,6 +86,7 @@ image:
   repository: xx
   tag: xx
   pullPolicy: Always
+  pullSecrets: [] # List of image pull secret names to use for the radix-operator image
 
 service:
   # annotations: {}
@@ -212,6 +213,7 @@ radixWebhook:
     repository: ghcr.io/equinor/radix-webhook
     tag: ""  # Default to appVersion in Chart.yaml
     pullPolicy: IfNotPresent
+    pullSecrets: [] # List of image pull secret names to use for the radix-webhook image
 
   resources:
     limits:

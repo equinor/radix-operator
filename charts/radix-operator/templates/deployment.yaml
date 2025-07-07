@@ -211,3 +211,10 @@ spec:
       volumes:
       {{- toYaml . | nindent 8 }}
       {{- end }}
+      
+      {{- if .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.image.pullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
