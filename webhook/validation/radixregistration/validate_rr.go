@@ -6,6 +6,7 @@ import (
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
+	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -88,7 +89,8 @@ func createRequireUniqueAppIdValidator(client client.Client) validatorFunc {
 		existingRRs := radixv1.RadixRegistrationList{}
 		err := client.List(ctx, &existingRRs)
 		if err != nil {
-			return "", nil // No existing RR with this AppID
+			log.Ctx(ctx).Error().Err(err).Msg("failed to list existing RadixRegistrations")
+			return "", ErrUnknownServerError // Something went wrong while listing existing RadixRegistrations, let the user try again
 		}
 
 		for _, existingRR := range existingRRs.Items {
