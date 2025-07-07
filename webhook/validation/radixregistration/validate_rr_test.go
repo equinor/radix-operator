@@ -38,7 +38,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 		expectedError            error
 	}{
 		{
-			name:                     "optional ConfigurationItem is empty",
+			name:                     "optional ConfigurationItem is empty is allowed",
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.ConfigurationItem = "" },
 			requireAdGroups:          false,
 			requireConfigurationItem: false,
@@ -46,7 +46,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			expectedError:            nil,
 		},
 		{
-			name:                     "required ConfigurationItem is empty",
+			name:                     "required ConfigurationItem is empty fails",
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.ConfigurationItem = "" },
 			requireAdGroups:          false,
 			requireConfigurationItem: true,
@@ -54,7 +54,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			expectedError:            radixregistration.ErrConfigurationItemIsRequired,
 		},
 		{
-			name:                     "optional ad groups is empty",
+			name:                     "optional ad groups is empty returns warning",
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.AdGroups = nil },
 			requireAdGroups:          false,
 			requireConfigurationItem: false,
@@ -62,7 +62,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			expectedError:            nil,
 		},
 		{
-			name:                     "required ad groups is empty",
+			name:                     "required ad groups is empty fails",
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.AdGroups = nil },
 			requireAdGroups:          true,
 			requireConfigurationItem: false,
