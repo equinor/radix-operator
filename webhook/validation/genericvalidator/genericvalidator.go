@@ -2,8 +2,8 @@ package genericvalidator
 
 import (
 	"context"
-	"reflect"
 
+	"github.com/equinor/radix-operator/pkg/apis/utils/generic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,9 +14,6 @@ import (
 
 var _ webhook.CustomValidator = &AdmissionValidator[runtime.Object]{}
 
-type Validator[TObj runtime.Object] interface {
-	Validate(ctx context.Context, obj TObj) (warnings admission.Warnings, err error)
-}
 
 type AdmissionValidator[TObj runtime.Object] struct {
 	CreateValidation Validator[TObj]
@@ -33,9 +30,9 @@ func NewGenericAdmissionValidator[TObj runtime.Object](createValidator Validator
 }
 
 func (v *AdmissionValidator[TObj]) Register(mgr manager.Manager, path string) {
-	obj := v.instantiateGenericType()
+	obj := generic.InstantiateGenericStruct[TObj]()
 	mgr.GetWebhookServer().Register(path, admission.WithCustomValidator(mgr.GetScheme(), obj, v))
-	log.Info().Str("path", path).Stringer("type", obj.GetObjectKind().GroupVersionKind()).Msg("registered admission validator")
+	log.Info().Str("path", path).Str("kind", obj.GetObjectKind().GroupVersionKind().Kind).Str("version", obj.GetObjectKind().GroupVersionKind().Version).Msg("registered admission validator")
 }
 func (v *AdmissionValidator[TObj]) ValidateCreate(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
 	request, err := admission.RequestFromContext(ctx)
@@ -103,10 +100,4 @@ func (v *AdmissionValidator[TObj]) runValidation(ctx context.Context, obj runtim
 	warnings, err := validator.Validate(ctx, tobj)
 	log.Ctx(ctx).Info().Strs("warnings", warnings).Err(err).Msg("admission controll completed")
 	return warnings, err
-}
-
-func (*AdmissionValidator[TObj]) instantiateGenericType() runtime.Object {
-	var obj TObj
-	elementType := reflect.ValueOf(obj).Type().Elem()
-	return reflect.New(elementType).Interface().(runtime.Object)
 }

@@ -12,10 +12,9 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// Test Required/NotRequired AdGroups and ConfigurationItem
-// Test Offline vs Online validation
 // Test unique appId validation
 
 func Test_valid_rr_returns_true(t *testing.T) {
@@ -29,27 +28,62 @@ func Test_valid_rr_returns_true(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-type updateRRFunc func(rr *radixv1.RadixRegistration)
-
 func TestCanRadixApplicationBeUpdated(t *testing.T) {
 	var testScenarios = []struct {
-		name     string
-		updateRR updateRRFunc
+		name                     string
+		updateRR                 func(rr *radixv1.RadixRegistration)
+		requireAdGroups          bool
+		requireConfigurationItem bool
+		expectedWarnings         admission.Warnings
+		expectedError            error
 	}{
-		{"empty ConfigurationItem", func(rr *radixv1.RadixRegistration) { rr.Spec.ConfigurationItem = "" }},
-		{"empty ad groups", func(rr *radixv1.RadixRegistration) { rr.Spec.AdGroups = nil }},
+		{
+			name:                     "optional ConfigurationItem is empty",
+			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.ConfigurationItem = "" },
+			requireAdGroups:          false,
+			requireConfigurationItem: false,
+			expectedWarnings:         nil,
+			expectedError:            nil,
+		},
+		{
+			name:                     "required ConfigurationItem is empty",
+			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.ConfigurationItem = "" },
+			requireAdGroups:          false,
+			requireConfigurationItem: true,
+			expectedWarnings:         nil,
+			expectedError:            radixregistration.ErrConfigurationItemIsRequired,
+		},
+		{
+			name:                     "optional ad groups is empty",
+			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.AdGroups = nil },
+			requireAdGroups:          false,
+			requireConfigurationItem: false,
+			expectedWarnings:         admission.Warnings{radixregistration.WarningAdGroupsShouldHaveAtleastOneItem},
+			expectedError:            nil,
+		},
+		{
+			name:                     "required ad groups is empty",
+			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.AdGroups = nil },
+			requireAdGroups:          true,
+			requireConfigurationItem: false,
+			expectedWarnings:         nil,
+			expectedError:            radixregistration.ErrAdGroupIsRequired,
+		},
 	}
 
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			client := createClient()
-			validator := radixregistration.CreateOnlineValidator(client, true, true)
+			validator := radixregistration.CreateOfflineValidator(testcase.requireAdGroups, testcase.requireConfigurationItem)
 			validRR := createValidRR()
 			testcase.updateRR(validRR)
 			warnings, err := validator.Validate(t.Context(), validRR)
 
-			assert.Empty(t, warnings)
-			assert.NotNil(t, err)
+			assert.Equal(t, testcase.expectedWarnings, warnings)
+			if testcase.expectedError == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorIs(t, err, testcase.expectedError)
+			}
 		})
 	}
 }
