@@ -12,7 +12,7 @@
 				"REQUIRE_CONFIGURATION_ITEM": "true",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
-				"CERT_DIR": "${workspaceFolder}/local/certs",
+				"CERTS_DIR": "${workspaceFolder}/local/certs",
 			},
 		},
 		{

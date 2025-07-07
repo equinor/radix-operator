@@ -14,7 +14,6 @@ import (
 
 var _ webhook.CustomValidator = &AdmissionValidator[runtime.Object]{}
 
-
 type AdmissionValidator[TObj runtime.Object] struct {
 	CreateValidation Validator[TObj]
 	UpdateValidation Validator[TObj]
@@ -32,7 +31,7 @@ func NewGenericAdmissionValidator[TObj runtime.Object](createValidator Validator
 func (v *AdmissionValidator[TObj]) Register(mgr manager.Manager, path string) {
 	obj := generic.InstantiateGenericStruct[TObj]()
 	mgr.GetWebhookServer().Register(path, admission.WithCustomValidator(mgr.GetScheme(), obj, v))
-	log.Info().Str("path", path).Str("kind", obj.GetObjectKind().GroupVersionKind().Kind).Str("version", obj.GetObjectKind().GroupVersionKind().Version).Msg("registered admission validator")
+	log.Info().Str("path", path).Msg("registered admission validator")
 }
 func (v *AdmissionValidator[TObj]) ValidateCreate(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
 	request, err := admission.RequestFromContext(ctx)
