@@ -12,9 +12,6 @@ import (
 )
 
 func TestNewGenericValidator(t *testing.T) {
-	// This is a placeholder for the test function.
-	// The actual test implementation would go here.
-	// It should create an instance of AdmissionValidator and verify its behavior.
 	validatorFn := genericvalidator.ValidatorFunc[*v1.RadixRegistration](func(ctx context.Context, obj *v1.RadixRegistration) (admission.Warnings, error) {
 		return admission.Warnings{"some warnings"}, errors.New("some error")
 	})
