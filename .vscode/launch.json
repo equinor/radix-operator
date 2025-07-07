@@ -2,6 +2,20 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+			"name": "Launch-Webhook",
+			"type": "go",
+			"request": "launch",
+			"mode": "auto",
+			"program": "${workspaceFolder}/webhook/main.go",
+			"env": {
+				"REQUIRE_AD_GROUPS": "true",
+				"REQUIRE_CONFIGURATION_ITEM": "true",
+				"LOG_LEVEL": "info",
+				"LOG_PRETTY": "true",
+				"CERTS_DIR": "${workspaceFolder}/local/certs",
+			},
+		},
+		{
 			"name": "Launch-build-deploy-pipeline",
 			"type": "go",
 			"request": "launch",

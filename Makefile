@@ -4,7 +4,7 @@ VERSION 	?= latest
 DNS_ZONE = dev.radix.equinor.com
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-CRD_TEMP_DIR := ./.temp-crds/
+CRD_TEMP_DIR := ./.temp-resources/
 CRD_CHART_DIR := ./charts/radix-operator/templates/
 JSON_SCHEMA_DIR := ./json-schema/
 
@@ -139,36 +139,42 @@ vendor:
 code-gen: bootstrap
 	./hack/update-codegen.sh
 
-.PHONY: crds
-crds: temp-crds radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd delete-temp-crds
+.PHONY: helmresources
+helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixwebhook delete-temp-resources
 
 .PHONY: radixregistration-crd
-radixregistration-crd: temp-crds
+radixregistration-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixregistrations.yaml $(CRD_CHART_DIR)radixregistration.yaml
 
 .PHONY: radixapplication-crd
-radixapplication-crd: temp-crds
+radixapplication-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixapplications.yaml $(CRD_CHART_DIR)radixapplication.yaml
 	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml > $(JSON_SCHEMA_DIR)radixapplication.json
 
 .PHONY: radixbatch-crd
-radixbatch-crd: temp-crds
+radixbatch-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixbatches.yaml $(CRD_CHART_DIR)radixbatch.yaml
 
 .PHONY: radixdeployment-crd
-radixdeployment-crd: temp-crds
+radixdeployment-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdeployments.yaml $(CRD_CHART_DIR)radixdeployment.yaml
 
 .PHONY: radixdnsalias-crd
-radixdnsalias-crd: temp-crds
+radixdnsalias-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdnsaliases.yaml $(CRD_CHART_DIR)radixdnsalias.yaml
 
-.PHONY: temp-crds
-temp-crds: bootstrap
-	controller-gen crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
+.PHONY: radixwebhook
+radixwebhook: temp-resources
+	cp $(CRD_TEMP_DIR)radix-webhook-configuration.yaml $(CRD_CHART_DIR)radix-webhook-configuration.yaml
 
-.PHONY: delete-temp-crds
-delete-temp-crds:
+.PHONY: temp-resources
+temp-resources: bootstrap
+	controller-gen +crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
+	controller-gen +webhook paths=./webhook/validation/ output:stdout > $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
+	./hack/helmify-admission-webhook.sh $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
+
+.PHONY: delete-temp-resources
+delete-temp-resources:
 	rm -rf $(CRD_TEMP_DIR)
 
 .PHONY: lint
@@ -176,7 +182,7 @@ lint: bootstrap
 	golangci-lint run
 
 .PHONY: generate
-generate: bootstrap code-gen crds mocks
+generate: bootstrap code-gen helmresources mocks
 
 .PHONY: verify-generate
 verify-generate: bootstrap tidy generate

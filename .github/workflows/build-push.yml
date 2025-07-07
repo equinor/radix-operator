@@ -104,11 +104,59 @@ jobs:
           cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache"
           cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache,mode=max"
 
+  build-webhook:
+    runs-on: ubuntu-latest
+    name: Build Webhook
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      fullname_latest: ${{ steps.metadata.outputs.fullname_latest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image names
+        id: metadata
+        run: |
+          sha=${GITHUB_SHA::8}
+          ts=$(date +%s)
+          tag_latest=${GITHUB_REF_NAME}-latest
+          tag=${GITHUB_REF_NAME}-${sha}-${ts}
+          image="radix-webhook"
+          echo "tag_latest=$tag_latest" >> $GITHUB_OUTPUT
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+          echo "fullname=ghcr.io/equinor/$image:$tag" >> $GITHUB_OUTPUT
+          echo "fullname_latest=ghcr.io/equinor/$image:$tag_latest" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push pipeline-runner docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          file: ./webhook.Dockerfile
+          platforms: |
+            linux/amd64
+            linux/arm64
+          tags: |
+            ${{ steps.metadata.outputs.fullname }}
+            ${{ steps.metadata.outputs.fullname_latest }}
+          cache-from: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache"
+          cache-to: "type=registry,ref=${{ steps.metadata.outputs.fullname_latest }}-buildcache,mode=max"
+
   deploy:
     runs-on: ubuntu-latest
     needs:
       - build-pipelinerunner
       - build-operator
+      - build-webhook
     strategy:
       fail-fast: false
       matrix:
@@ -161,6 +209,7 @@ jobs:
       run: |
         echo "operator=${{ matrix.target.acr-name }}.azurecr.io/radix-operator:${{ needs.build-operator.outputs.tag }}" >> $GITHUB_OUTPUT
         echo "pipeline=${{ matrix.target.acr-name }}.azurecr.io/radix-pipeline:${{ needs.build-pipelinerunner.outputs.tag }}" >> $GITHUB_OUTPUT
+        echo "webhook=${{ matrix.target.acr-name }}.azurecr.io/radix-webhook:${{ needs.build-webhook.outputs.tag }}" >> $GITHUB_OUTPUT
 
     - name: ACR Login
       run: az acr login --name ${{ matrix.target.acr-name }}
@@ -202,6 +251,20 @@ jobs:
           ${{ steps.metadata.outputs.pipeline }}
         cache-from: "type=registry,ref=${{ needs.build-pipelinerunner.outputs.fullname_latest }}-buildcache"
         cache-to: "type=registry,ref=${{ needs.build-pipelinerunner.outputs.fullname_latest }}-buildcache,mode=max"
+
+    - name: Build and push webhook docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        push: true
+        file: ./webhook.Dockerfile
+        platforms: |
+          linux/amd64
+          linux/arm64
+        tags: |
+          ${{ steps.metadata.outputs.webhook }}
+        cache-from: "type=registry,ref=${{ needs.build-webhook.outputs.fullname_latest }}-buildcache"
+        cache-to: "type=registry,ref=${{ needs.build-webhook.outputs.fullname_latest }}-buildcache,mode=max"
 
     - name: Revoke GitHub IP on ACR
       if: ${{ steps.update_firewall.outcome == 'success' && !cancelled()}} # Always run this step even if previous step failed

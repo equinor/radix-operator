@@ -1,9 +1,10 @@
 apiVersion: v2
 name: radix-operator
-version: 1.64.0
-appVersion: 1.84.0
+version: 1.65.0
+appVersion: 1.85.0
 kubeVersion: ">=1.24.0"
 description: Radix Operator
+icon:  https://radix.equinor.com/images/logos/logo.svg
 keywords:
   - radix
 home: radix.equinor.com
