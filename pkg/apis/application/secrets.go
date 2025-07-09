@@ -116,11 +116,6 @@ func getExistingOrGenerateNewDeployKey(fromSecret *corev1.Secret, fromRadixRegis
 			return nil, fmt.Errorf("failed to parse deploy key from existing secret: %w", err)
 		}
 		return keypair, nil
-	case len(fromRadixRegistration.Spec.DeployKey) > 0:
-		return &utils.DeployKey{
-			PrivateKey: fromRadixRegistration.Spec.DeployKey,
-			PublicKey:  fromRadixRegistration.Spec.DeployKeyPublic,
-		}, nil
 	default:
 		keypair, err := utils.GenerateDeployKey()
 		if err != nil {

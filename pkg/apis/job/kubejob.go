@@ -13,7 +13,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -54,10 +53,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 	if err != nil {
 		return nil, err
 	}
-	radixConfigFullName, err := getRadixConfigFullName(radixRegistration)
-	if err != nil {
-		return nil, err
-	}
+	radixConfigFullName := getRadixConfigFullName(radixRegistration)
 
 	containerRegistry, err := defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
 	if err != nil {
@@ -148,15 +144,12 @@ func getPipelineRunnerResources() corev1.ResourceRequirements {
 	}
 }
 
-func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) (string, error) {
+func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) string {
 	radixConfigFullName := radixRegistration.Spec.RadixConfigFullName
 	if len(radixConfigFullName) == 0 {
 		radixConfigFullName = defaults.DefaultRadixConfigFileName
 	}
-	if err := radixvalidators.ValidateRadixConfigFullName(radixConfigFullName); err != nil {
-		return "", err
-	}
-	return radixConfigFullName, nil
+	return radixConfigFullName
 }
 
 func (job *Job) getInitContainersForRadixConfig(rr *radixv1.RadixRegistration, workspace string) []corev1.Container {

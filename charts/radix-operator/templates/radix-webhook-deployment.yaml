@@ -1,0 +1,104 @@
+{{ if .Values.radixWebhook.enabled }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radix-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "radix-webhook.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "radix-webhook.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: radix-webhook
+
+      {{- with .Values.radixWebhook.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.radixWebhook.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.radixWebhook.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.radixWebhook.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.radixWebhook.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.radixWebhook.image.pullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+
+      volumes:
+        - name: certs
+          secret:
+            secretName: radix-webhook-certs
+            
+      containers:
+        - name: radix-webhook
+          image: {{ .Values.radixWebhook.image.repository }}:{{ .Values.radixWebhook.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.radixWebhook.imagePullPolicy | default "IfNotPresent" }}
+
+          {{- with .Values.radixWebhook.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.radixWebhook.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          
+          ports:
+            - containerPort: 9443
+              name: webhook
+            - containerPort: 9440
+              name: healthz
+            - containerPort: 9000
+              name: metrics
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: healthz
+          livenessProbe:
+            httpGet: 
+              path: /healthz
+              port: healthz
+          env:
+            - name: LOG_LEVEL
+              value: {{ .Values.radixWebhook.logLevel | quote }}
+            - name: LOG_PRETTY
+              value: {{ .Values.radixWebhook.logPretty | quote }}
+            - name: SECRET_NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: SECRET_NAME
+              value: "radix-webhook-certs"
+            - name: WEBHOOK_CONFIGURATION_NAME
+              value: "radix-webhook-configuration"
+            - name: CERTS_DIR
+              value: "/run/certs"
+            - name: REQUIRE_AD_GROUPS
+              value: {{ .Values.radixWebhook.requireAdGroups | quote }}
+            - name: REQUIRE_CONFIGURATION_ITEM
+              value: {{ .Values.radixWebhook.requireConfigurationItem | quote }}
+            - name: DNS_NAME
+              value: radix-webhook.{{ .Release.Namespace }}.svc
+          volumeMounts:
+            - name: certs
+              mountPath: /run/certs
+              readOnly: true
+    
+{{ end }}

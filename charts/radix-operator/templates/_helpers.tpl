@@ -73,3 +73,22 @@ Utility function to take list to comma separated string
 {{- range $k, $v := . -}}{{- if not $local.first -}},{{- end -}}{{- $v -}}{{- $_ := set $local "first" false -}}{{- end -}}
 {{- end -}}
 
+{{/*
+Webhook Common labels
+*/}}
+{{- define "radix-webhook.labels" -}}
+helm.sh/chart: {{ include "radix-operator.chart" . }}
+{{ include "radix-webhook.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Webhook Selector labels
+*/}}
+{{- define "radix-webhook.selectorLabels" -}}
+app.kubernetes.io/name: "radix-webhook"
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

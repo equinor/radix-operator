@@ -1,0 +1,19 @@
+{{ if .Values.radixWebhook.enabled }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: radix-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: 443
+      targetPort: webhook # 9443
+      protocol: TCP
+      name: webhook
+  selector:
+    {{- include "radix-webhook.selectorLabels" . | nindent 4 }}
+    
+{{ end }}
