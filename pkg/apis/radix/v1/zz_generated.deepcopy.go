@@ -1283,6 +1283,13 @@ func (in *RadixBatchJob) DeepCopyInto(out *RadixBatchJob) {
 		*out = new(RadixJobComponentFailurePolicy)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Variables != nil {
+		in, out := &in.Variables, &out.Variables
+		*out = make(EnvVarsMap, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

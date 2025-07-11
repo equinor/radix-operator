@@ -102,6 +102,11 @@ type RadixBatchJob struct {
 	// +optional
 	Restart string `json:"restart,omitempty"`
 
+	// Name of an existing container image to use when running the job. Overrides an image in the RadixDeployment
+	// More info: https://www.radix.equinor.com/radix-config#image-2
+	// +optional
+	Image string `json:"image,omitempty"`
+
 	// ImageTagName defines the image tag name to use for the job image
 	//
 	// +optional
@@ -110,6 +115,11 @@ type RadixBatchJob struct {
 	// FailurePolicy specifies the policy of handling failed job replicas
 	// +optional
 	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
+
+	// List of environment variables and values.
+	// More info: https://www.radix.equinor.com/radix-config#variables-common-2
+	// +optional
+	Variables EnvVarsMap `json:"variables,omitempty"`
 }
 
 // PayloadSecretKeySelector selects a key of a Secret.

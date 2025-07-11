@@ -208,7 +208,7 @@ func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment,
 	if err != nil {
 		return nil, err
 	}
-	environmentVariables, err := s.getContainerEnvironmentVariables(ctx, rd, jobComponent, kubeJobName)
+	environmentVariables, err := s.getContainerEnvironmentVariables(ctx, rd, jobComponent, batchJob, kubeJobName)
 	if err != nil {
 		return nil, err
 	}
@@ -238,6 +238,9 @@ func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment,
 
 func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob) string {
 	image := jobComponent.Image
+	if batchJob.Image != "" {
+		image = batchJob.Image
+	}
 	if batchJob.ImageTagName == "" {
 		return image
 	}
@@ -249,13 +252,33 @@ func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv
 	return fmt.Sprintf("%s:%s", image, batchJob.ImageTagName)
 }
 
-func (s *syncer) getContainerEnvironmentVariables(ctx context.Context, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, kubeJobName string) ([]corev1.EnvVar, error) {
+func (s *syncer) getContainerEnvironmentVariables(ctx context.Context, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob, kubeJobName string) ([]corev1.EnvVar, error) {
 	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(ctx, s.kubeUtil, rd.Spec.AppName, rd, jobComponent)
 	if err != nil {
 		return nil, err
 	}
 	environmentVariables = append(environmentVariables, corev1.EnvVar{Name: defaults.RadixScheduleJobNameEnvironmentVariable, Value: kubeJobName})
+	environmentVariables = applyBatchJobEnvironmentVariables(batchJob, environmentVariables)
 	return environmentVariables, nil
+}
+
+func applyBatchJobEnvironmentVariables(batchJob *radixv1.RadixBatchJob, componentEnvVars []corev1.EnvVar) []corev1.EnvVar {
+	if len(batchJob.Variables) == 0 {
+		return componentEnvVars
+	}
+	appliedJobEnvVarNames := make(map[string]struct{})
+	for i, componentEnvVar := range componentEnvVars {
+		if jobEnvVarValue, ok := batchJob.Variables[componentEnvVar.Name]; ok {
+			componentEnvVars[i].Value = jobEnvVarValue
+			appliedJobEnvVarNames[componentEnvVar.Name] = struct{}{}
+		}
+	}
+	for varName, varValue := range batchJob.Variables {
+		if _, ok := appliedJobEnvVarNames[varName]; !ok {
+			componentEnvVars = append(componentEnvVars, corev1.EnvVar{Name: varName, Value: varValue})
+		}
+	}
+	return componentEnvVars
 }
 
 func (s *syncer) getContainerResources(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) (corev1.ResourceRequirements, error) {
