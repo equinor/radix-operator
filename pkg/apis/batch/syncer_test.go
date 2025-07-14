@@ -536,6 +536,130 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Len(services.Items, 0)
 	}
 }
+func (s *syncerTestSuite) Test_BatchWithCustomImages() {
+	const appName, batchName, componentName, namespace, rdName = "any-app", "any-batch", "compute", "any-ns", "any-rd"
+	const job1Name, job2Name, job3Name = "job1", "job2", "job3"
+	const imageName1, imageName2, imageName3, imageName3new = "any-image:tag1", "any-image:tag2", "any-image:tag3", "any-image:tag3-new"
+	const imageId1, imageId2, imageId3 = "image-digest1", "image-digest2", "image-digest3"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.Merge(
+			radixlabels.ForJobScheduleJobType(),
+			radixlabels.ForApplicationName(appName),
+			radixlabels.ForComponentName(componentName),
+		)},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  componentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: job1Name},
+				{Name: job2Name, Image: imageName2},
+				{Name: job3Name, Image: imageName3},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name:                 componentName,
+					Image:                imageName1,
+					EnvironmentVariables: radixv1.EnvVarsMap{"VAR1": "any-val", "VAR2": "any-val"},
+					Secrets:              []string{"SECRET1", "SECRET2"},
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	rd, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	s.applyRadixDeploymentEnvVarsConfigMaps(s.kubeUtil, rd)
+
+	sut := s.createSyncer(batch, nil)
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	kubeJob1, ok := slice.FindFirst(allJobs.Items, func(job batchv1.Job) bool { return job.Name == getKubeJobName(batchName, job1Name) })
+	if s.True(ok, "Kube job1 should be created") {
+		s.Equal(imageName1, kubeJob1.Spec.Template.Spec.Containers[0].Image)
+	}
+	kubeJob2, ok := slice.FindFirst(allJobs.Items, func(job batchv1.Job) bool { return job.Name == getKubeJobName(batchName, job2Name) })
+	if s.True(ok, "Kube job2 should be created") {
+		s.Equal(imageName2, kubeJob2.Spec.Template.Spec.Containers[0].Image)
+	}
+	kubeJob3, ok := slice.FindFirst(allJobs.Items, func(job batchv1.Job) bool { return job.Name == getKubeJobName(batchName, job3Name) })
+	if s.True(ok, "Kube job3 should be created") {
+		s.Equal(imageName3, kubeJob3.Spec.Template.Spec.Containers[0].Image)
+	}
+
+	err = s.createPodForJob(kubeJob1, namespace, imageName1, imageId1)
+	s.Require().NoError(err, "should be able to create pod for job1")
+	err = s.createPodForJob(kubeJob2, namespace, imageName2, imageId2)
+	s.Require().NoError(err, "should be able to create pod for job1")
+	err = s.createPodForJob(kubeJob3, namespace, imageName3new, imageId3)
+	s.Require().NoError(err, "should be able to create pod for job1")
+
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	radixBatchList, err := s.radixClient.RadixV1().RadixBatches(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().NoError(err, "should be able to list batches")
+	s.Len(radixBatchList.Items, 1, "only one batch should be created")
+
+	radixBatchStatus := radixBatchList.Items[0].Status
+	batchJobStatus1, ok := slice.FindFirst(radixBatchStatus.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool { return jobStatus.Name == job1Name })
+	if s.True(ok, "job1 status should be found") {
+		if s.Len(batchJobStatus1.RadixBatchJobPodStatuses, 1, "job1 should have one pod status") {
+			s.Equal(imageName1, batchJobStatus1.RadixBatchJobPodStatuses[0].Image, "job1 pod status should have correct image")
+			s.Equal(imageName1, batchJobStatus1.RadixBatchJobPodStatuses[0].ImageInSpec, "job1 pod status should have correct image in spec")
+			s.Equal(imageId1, batchJobStatus1.RadixBatchJobPodStatuses[0].ImageID, "job1 pod status should have correct image id")
+		}
+	}
+	batchJobStatus2, ok := slice.FindFirst(radixBatchStatus.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool { return jobStatus.Name == job2Name })
+	if s.True(ok, "job1 status should be found") {
+		if s.Len(batchJobStatus2.RadixBatchJobPodStatuses, 1, "job2 should have one pod status") {
+			s.Equal(imageName2, batchJobStatus2.RadixBatchJobPodStatuses[0].Image, "job2 pod status should have correct image")
+			s.Equal(imageName2, batchJobStatus2.RadixBatchJobPodStatuses[0].ImageInSpec, "job2 pod status should have correct image in spec")
+			s.Equal(imageId2, batchJobStatus2.RadixBatchJobPodStatuses[0].ImageID, "job2 pod status should have correct image id")
+		}
+	}
+	batchJobStatus3, ok := slice.FindFirst(radixBatchStatus.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool { return jobStatus.Name == job3Name })
+	if s.True(ok, "job1 status should be found") {
+		if s.Len(batchJobStatus3.RadixBatchJobPodStatuses, 1, "job3 should have one pod status") {
+			s.Equal(imageName3new, batchJobStatus3.RadixBatchJobPodStatuses[0].Image, "job3 pod status should have new image")
+			s.Equal(imageName3, batchJobStatus3.RadixBatchJobPodStatuses[0].ImageInSpec, "job3 pod status should have correct image in spec")
+			s.Equal(imageId3, batchJobStatus3.RadixBatchJobPodStatuses[0].ImageID, "job3 pod status should have correct image id")
+		}
+	}
+}
+
+func (s *syncerTestSuite) createPodForJob(kubeJob batchv1.Job, namespace string, statusImageName, statusImageId string) error {
+	podLabels := radixlabels.Merge(
+		kubeJob.GetLabels(),
+	)
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      kubeJob.Name + "-pod",
+			Namespace: namespace,
+			Labels:    podLabels,
+		},
+		Spec: kubeJob.Spec.Template.Spec,
+		Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name:    kubeJob.GetLabels()[kube.RadixComponentLabel],
+					Image:   statusImageName,
+					ImageID: statusImageId,
+				},
+			},
+		},
+	}
+	_, err := s.kubeClient.CoreV1().Pods(namespace).Create(context.Background(), pod, metav1.CreateOptions{})
+	return err
+}
 
 func (s *syncerTestSuite) Test_Batch_AffinityFromRuntime() {
 	appName, batchName, componentName, namespace, rdName, imageName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "any-image"
