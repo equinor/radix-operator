@@ -129,6 +129,11 @@ spec:
                       required:
                       - rules
                       type: object
+                    image:
+                      description: |-
+                        Name of an existing container image to use when running the job. Overrides an image in the RadixDeployment
+                        More info: https://www.radix.equinor.com/radix-config#image-2
+                      type: string
                     imageTagName:
                       description: ImageTagName defines the image tag name to use
                         for the job image
@@ -234,6 +239,13 @@ spec:
                       format: int64
                       minimum: 1
                       type: integer
+                    variables:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        List of environment variables and values.
+                        More info: https://www.radix.equinor.com/radix-config#variables-common-2
+                      type: object
                   required:
                   - name
                   type: object
