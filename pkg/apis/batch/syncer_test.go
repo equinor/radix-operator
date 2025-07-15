@@ -614,7 +614,6 @@ func (s *syncerTestSuite) Test_BatchWithCustomImages() {
 	if s.True(ok, "job1 status should be found") {
 		if s.Len(batchJobStatus1.RadixBatchJobPodStatuses, 1, "job1 should have one pod status") {
 			s.Equal(imageName1, batchJobStatus1.RadixBatchJobPodStatuses[0].Image, "job1 pod status should have correct image")
-			s.Equal(imageName1, batchJobStatus1.RadixBatchJobPodStatuses[0].ImageInSpec, "job1 pod status should have correct image in spec")
 			s.Equal(imageId1, batchJobStatus1.RadixBatchJobPodStatuses[0].ImageID, "job1 pod status should have correct image id")
 		}
 	}
@@ -622,15 +621,13 @@ func (s *syncerTestSuite) Test_BatchWithCustomImages() {
 	if s.True(ok, "job1 status should be found") {
 		if s.Len(batchJobStatus2.RadixBatchJobPodStatuses, 1, "job2 should have one pod status") {
 			s.Equal(imageName2, batchJobStatus2.RadixBatchJobPodStatuses[0].Image, "job2 pod status should have correct image")
-			s.Equal(imageName2, batchJobStatus2.RadixBatchJobPodStatuses[0].ImageInSpec, "job2 pod status should have correct image in spec")
 			s.Equal(imageId2, batchJobStatus2.RadixBatchJobPodStatuses[0].ImageID, "job2 pod status should have correct image id")
 		}
 	}
 	batchJobStatus3, ok := slice.FindFirst(radixBatchStatus.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool { return jobStatus.Name == job3Name })
 	if s.True(ok, "job1 status should be found") {
 		if s.Len(batchJobStatus3.RadixBatchJobPodStatuses, 1, "job3 should have one pod status") {
-			s.Equal(imageName3new, batchJobStatus3.RadixBatchJobPodStatuses[0].Image, "job3 pod status should have new image")
-			s.Equal(imageName3, batchJobStatus3.RadixBatchJobPodStatuses[0].ImageInSpec, "job3 pod status should have correct image in spec")
+			s.Equal(imageName3, batchJobStatus3.RadixBatchJobPodStatuses[0].Image, "job3 pod status should have new image")
 			s.Equal(imageId3, batchJobStatus3.RadixBatchJobPodStatuses[0].ImageID, "job3 pod status should have correct image id")
 		}
 	}

@@ -356,11 +356,6 @@ type RadixBatchJobPodStatus struct {
 	// +optional
 	Image string `json:"image"`
 
-	// The name of container image that is specified in PodSpec.
-	// More info: https://kubernetes.io/docs/concepts/containers/images.
-	// +optional
-	ImageInSpec string `json:"imageInSpec"`
-
 	// The image ID of the container's image. The image ID may not
 	// match the image ID of the image used in the PodSpec, as it may have been
 	// resolved by the runtime.

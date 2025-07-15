@@ -381,11 +381,6 @@ spec:
                               match the image ID of the image used in the PodSpec, as it may have been
                               resolved by the runtime.
                             type: string
-                          imageInSpec:
-                            description: |-
-                              The name of container image that is specified in PodSpec.
-                              More info: https://kubernetes.io/docs/concepts/containers/images.
-                            type: string
                           message:
                             description: A human-readable message indicating details
                               about why the job is in this phase

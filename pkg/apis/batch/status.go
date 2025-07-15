@@ -184,18 +184,17 @@ func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName strin
 	jobComponentName := s.radixBatch.GetLabels()[kube.RadixComponentLabel]
 	podStatusMap := getPodStatusMap(jobStatus)
 	for _, pod := range s.getJobPods(ctx, batchJobName) {
-		imageInPodSpec := getImageInPodSpec(jobComponentName, pod)
-		podStatus := getOrCreatePodStatusForPod(&pod, jobStatus, podStatusMap)
+		podStatus := getOrCreatePodStatusForPod(&pod, jobStatus, podStatusMap, jobComponentName)
 		if podContainerStatus, ok := s.getJobComponentContainerStatus(jobComponentName, pod); ok {
-			setPodStatusByPodLastContainerStatus(podContainerStatus, podStatus, jobStatus, imageInPodSpec)
+			setPodStatusByPodLastContainerStatus(podContainerStatus, podStatus, jobStatus)
 			continue
 		}
-		setPodStatusByPodCondition(&pod, podStatus, jobStatus, imageInPodSpec)
+		setPodStatusByPodCondition(&pod, podStatus, jobStatus)
 	}
 }
 
-func getImageInPodSpec(jobComponentName string, pod corev1.Pod) string {
-	if container, ok := slice.FindFirst(pod.Spec.Containers, func(container corev1.Container) bool { return container.Name == jobComponentName }); ok {
+func getImageInPodSpec(containerName string, pod *corev1.Pod) string {
+	if container, ok := slice.FindFirst(pod.Spec.Containers, func(container corev1.Container) bool { return container.Name == containerName }); ok {
 		return container.Image
 	}
 	return ""
@@ -210,7 +209,7 @@ func (s *syncer) getJobComponentContainerStatus(containerName string, pod corev1
 	return nil, false
 }
 
-func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJobStatus, podStatusMap map[string]*radixv1.RadixBatchJobPodStatus) *radixv1.RadixBatchJobPodStatus {
+func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJobStatus, podStatusMap map[string]*radixv1.RadixBatchJobPodStatus, jobComponentName string) *radixv1.RadixBatchJobPodStatus {
 	podStatus, ok := podStatusMap[pod.GetName()]
 	if !ok {
 		jobStatus.RadixBatchJobPodStatuses = append(jobStatus.RadixBatchJobPodStatuses, radixv1.RadixBatchJobPodStatus{
@@ -224,6 +223,7 @@ func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJo
 	if podStatePhaseShouldBeStopped(jobStatus, podStatus) {
 		podStatus.Phase = radixv1.PodStopped
 	}
+	podStatus.Image = getImageInPodSpec(jobComponentName, pod)
 	return podStatus
 }
 
@@ -236,10 +236,8 @@ func (s *syncer) getJobPods(ctx context.Context, batchJobName string) []corev1.P
 	return jobPods.Items
 }
 
-func setPodStatusByPodLastContainerStatus(containerStatus *corev1.ContainerStatus, podStatus *radixv1.RadixBatchJobPodStatus, jobStatus *radixv1.RadixBatchJobStatus, imageInPodSpec string) {
+func setPodStatusByPodLastContainerStatus(containerStatus *corev1.ContainerStatus, podStatus *radixv1.RadixBatchJobPodStatus, jobStatus *radixv1.RadixBatchJobStatus) {
 	podStatus.RestartCount = containerStatus.RestartCount
-	podStatus.ImageInSpec = imageInPodSpec
-	podStatus.Image = containerStatus.Image
 	podStatus.ImageID = containerStatus.ImageID
 	switch {
 	case containerStatus.State.Running != nil:
@@ -286,7 +284,7 @@ func extendMessage(podStatus *radixv1.RadixBatchJobPodStatus) string {
 	return ""
 }
 
-func setPodStatusByPodCondition(pod *corev1.Pod, podStatus *radixv1.RadixBatchJobPodStatus, jobStatus *radixv1.RadixBatchJobStatus, imageInPodSpec string) {
+func setPodStatusByPodCondition(pod *corev1.Pod, podStatus *radixv1.RadixBatchJobPodStatus, jobStatus *radixv1.RadixBatchJobStatus) {
 	if len(pod.Status.Conditions) == 0 {
 		return
 	}
@@ -297,8 +295,6 @@ func setPodStatusByPodCondition(pod *corev1.Pod, podStatus *radixv1.RadixBatchJo
 		}
 		return conditions[i].LastTransitionTime.After(conditions[j].LastTransitionTime.Time)
 	})
-	podStatus.ImageInSpec = imageInPodSpec
-	podStatus.Image = imageInPodSpec
 	podStatus.Reason = conditions[0].Reason
 	podStatus.Message = conditions[0].Message
 	podStatus.Phase = radixv1.RadixBatchJobPodPhase(pod.Status.Phase)
