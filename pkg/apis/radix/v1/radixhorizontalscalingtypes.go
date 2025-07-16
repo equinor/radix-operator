@@ -167,6 +167,7 @@ type RadixHorizontalScalingAzureServiceBusTrigger struct {
 	ActivationMessageCount *int `json:"activationMessageCount,omitempty"`
 
 	// Azure Service Bus requires Workload Identity configured with a ClientID
+	// +optional
 	Authentication RadixHorizontalScalingAuthentication `json:"authentication"`
 }
 
