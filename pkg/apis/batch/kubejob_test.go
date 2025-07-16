@@ -182,6 +182,30 @@ func Test_GetJobCommandAndArgs(t *testing.T) {
 			wantCommand:      []string{"comp-cmd"},
 			wantArgs:         []string{"job-arg1", "job-arg2"},
 		},
+		"job command is empty array, component command set, job command overrides to empty": {
+			jobCommand:       []string{},
+			jobArgs:          nil,
+			componentCommand: []string{"comp-cmd"},
+			componentArgs:    nil,
+			wantCommand:      []string{},
+			wantArgs:         nil,
+		},
+		"job args is empty array, component args set, job args overrides to empty": {
+			jobCommand:       nil,
+			jobArgs:          []string{},
+			componentCommand: nil,
+			componentArgs:    []string{"comp-arg1", "comp-arg2"},
+			wantCommand:      nil,
+			wantArgs:         []string{},
+		},
+		"job command and args are empty arrays, component command and args set, job overrides to empty": {
+			jobCommand:       []string{},
+			jobArgs:          []string{},
+			componentCommand: []string{"comp-cmd"},
+			componentArgs:    []string{"comp-arg1", "comp-arg2"},
+			wantCommand:      []string{},
+			wantArgs:         []string{},
+		},
 	}
 
 	for name, tt := range scenarios {
