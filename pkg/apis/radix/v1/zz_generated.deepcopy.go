@@ -1290,6 +1290,16 @@ func (in *RadixBatchJob) DeepCopyInto(out *RadixBatchJob) {
 			(*out)[key] = val
 		}
 	}
+	if in.Command != nil {
+		in, out := &in.Command, &out.Command
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.Args != nil {
+		in, out := &in.Args, &out.Args
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

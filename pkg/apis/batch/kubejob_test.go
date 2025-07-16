@@ -93,3 +93,62 @@ func Test_Variables(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetJobCommandAndArgs(t *testing.T) {
+	type args struct {
+		jobComponentImage string
+		imageTagName      string
+		jobImage          string
+	}
+	type scenario struct {
+		jobCommand       []string
+		jobArgs          []string
+		componentCommand []string
+		componentArgs    []string
+		wantCommand      []string
+		wantArgs         []string
+	}
+	scenarios := map[string]scenario{
+		"job command and args are not set": {
+			jobCommand:  nil,
+			jobArgs:     nil,
+			wantCommand: nil,
+			wantArgs:    nil,
+		},
+		"job single command is set": {
+			jobCommand:  []string{"bash"},
+			jobArgs:     nil,
+			wantCommand: []string{"bash"},
+			wantArgs:    nil,
+		},
+		"job command with arguments is set": {
+			jobCommand:  []string{"sh", "-c", "echo hello"},
+			jobArgs:     nil,
+			wantCommand: []string{"sh", "-c", "echo hello"},
+			wantArgs:    nil,
+		},
+		"job command is set and args are set": {
+			jobCommand:  []string{"sh", "-c"},
+			jobArgs:     []string{"echo hello"},
+			wantCommand: []string{"sh", "-c"},
+			wantArgs:    []string{"echo hello"},
+		},
+		"job only args are set": {
+			jobCommand:  nil,
+			jobArgs:     []string{"--verbose", "--output=json"},
+			wantCommand: nil,
+			wantArgs:    []string{"--verbose", "--output=json"},
+		},
+	}
+
+	for name, tt := range scenarios {
+		t.Run(name, func(t *testing.T) {
+			jobComponent := radixv1.RadixDeployJobComponent{Command: tt.componentCommand, Args: tt.componentArgs}
+			radixBatch := radixv1.RadixBatchJob{Command: tt.jobCommand, Args: tt.jobArgs}
+			gotCommand := getJobCommand(&jobComponent, &radixBatch)
+			assert.ElementsMatch(t, tt.wantCommand, gotCommand, "getJobCommand() should return expected command")
+			gotArgs := getJobArgs(&jobComponent, &radixBatch)
+			assert.ElementsMatch(t, tt.wantArgs, gotArgs, "getJobArgs() should return expected args")
+		})
+	}
+}
