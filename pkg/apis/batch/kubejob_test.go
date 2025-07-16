@@ -95,11 +95,6 @@ func Test_Variables(t *testing.T) {
 }
 
 func Test_GetJobCommandAndArgs(t *testing.T) {
-	type args struct {
-		jobComponentImage string
-		imageTagName      string
-		jobImage          string
-	}
 	type scenario struct {
 		jobCommand       []string
 		jobArgs          []string
