@@ -1957,6 +1957,16 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			nil,
 		},
 		{
+			"Valid AzureServiceBus trigger should be fail without connection string and clientId",
+			func(ra *radixv1.RadixApplication) {
+				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
+					WithMaxReplicas(4).
+					WithAzureServiceBusTrigger("anamespace", "", "queue-name", "", "", "", nil, nil).
+					Build()
+			},
+			[]error{radixvalidators.ErrInvalidTriggerDefinition},
+		},
+		{
 			"Valid AzureServiceBus trigger should be successful with connection string",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].HorizontalScaling = utils.NewHorizontalScalingBuilder().
