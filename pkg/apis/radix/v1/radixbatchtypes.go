@@ -131,7 +131,7 @@ type RadixBatchJob struct {
 	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
 	// +optional
 	// +listType=atomic
-	Command []string `json:"command,omitempty"`
+	Command *[]string `json:"command,omitempty"`
 
 	// Arguments to the entrypoint.
 	// The container image's CMD is used if this is not provided.
@@ -143,7 +143,7 @@ type RadixBatchJob struct {
 	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
 	// +optional
 	// +listType=atomic
-	Args []string `json:"args,omitempty"`
+	Args *[]string `json:"args,omitempty"`
 }
 
 // PayloadSecretKeySelector selects a key of a Secret.

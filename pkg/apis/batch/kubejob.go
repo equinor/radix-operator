@@ -238,14 +238,14 @@ func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment,
 
 func getJobArgs(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob) []string {
 	if batchJob.Args != nil {
-		return batchJob.Args
+		return *batchJob.Args
 	}
 	return jobComponent.Args
 }
 
 func getJobCommand(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob) []string {
 	if batchJob.Command != nil {
-		return batchJob.Command
+		return *batchJob.Command
 	}
 	return jobComponent.Command
 }
