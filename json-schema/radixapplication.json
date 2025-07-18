@@ -1177,7 +1177,6 @@
                                   }
                                 },
                                 "required": [
-                                  "authentication",
                                   "namespace"
                                 ],
                                 "type": "object"
@@ -2499,7 +2498,6 @@
                             }
                           },
                           "required": [
-                            "authentication",
                             "namespace"
                           ],
                           "type": "object"

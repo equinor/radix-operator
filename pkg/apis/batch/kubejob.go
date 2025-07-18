@@ -229,11 +229,25 @@ func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment,
 		VolumeMounts:    volumeMounts,
 		SecurityContext: securityContext,
 		Resources:       resources,
-		Command:         jobComponent.Command,
-		Args:            jobComponent.Args,
+		Command:         getJobCommand(jobComponent, batchJob),
+		Args:            getJobArgs(jobComponent, batchJob),
 	}
 
 	return []corev1.Container{container}, nil
+}
+
+func getJobArgs(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob) []string {
+	if batchJob.Args != nil {
+		return *batchJob.Args
+	}
+	return jobComponent.Args
+}
+
+func getJobCommand(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob) []string {
+	if batchJob.Command != nil {
+		return *batchJob.Command
+	}
+	return jobComponent.Command
 }
 
 func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob) string {
