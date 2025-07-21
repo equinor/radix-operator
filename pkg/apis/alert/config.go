@@ -7,6 +7,7 @@ const (
 	radixReplicaNameLabel     = "radix_replica_name"
 	radixJobNameLabel         = "job_name"
 	radixPipelineJobNameLabel = "label_radix_job_name"
+	radixDeploymentNameLabel  = "label_radix_deployment_name"
 )
 
 // AlertScope defines scope for an alert
@@ -50,6 +51,11 @@ var (
 			GroupBy:    []string{radixApplicationNameLabel, radixPipelineJobNameLabel},
 			Resolvable: false,
 			Scope:      ApplicationScope,
+		},
+		"RadixAppDeploymentActivated": {
+			GroupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixDeploymentNameLabel},
+			Resolvable: false,
+			Scope:      EnvironmentScope,
 		},
 	}
 )

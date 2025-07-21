@@ -83,7 +83,9 @@ func NewController(ctx context.Context,
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
-
+			if oldRD.Status.Condition != v1.DeploymentActive && newRD.Status.Condition == v1.DeploymentActive {
+				metrics.RadixDeploymentActivated(newRD)
+			}
 			if _, err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixDeployment informer UpdateFunc")
 			}
@@ -173,7 +175,8 @@ func NewController(ctx context.Context,
 func deepEqual(old, new *v1.RadixDeployment) bool {
 	if !reflect.DeepEqual(new.Spec, old.Spec) ||
 		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
-		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
+		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) ||
+		!reflect.DeepEqual(new.Status.Condition, old.Status.Condition) {
 		return false
 	}
 

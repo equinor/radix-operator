@@ -57,6 +57,11 @@ var (
 		Name: "radix_operator_radix_job_processed",
 		Help: "The number of radix jobs processed with status",
 	}, []string{"application", "pipeline_type", "status"})
+
+	radixDeploymentActivated = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "radix_operator_radix_deployment_activation_timestamp",
+		Help: "The radix deployment activation timestamp",
+	}, []string{"application", "environment", "deployment_name"})
 )
 
 func init() {
@@ -137,6 +142,15 @@ func RadixJobStatusChanged(rj *v1.RadixJob) {
 	}
 	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
 		"status": string(rj.Status.Condition)}).Inc()
+}
+
+// RadixDeploymentActivated sets timestamp to metric when radix deployments is activated
+func RadixDeploymentActivated(rd *v1.RadixDeployment) {
+	if rd == nil {
+		return
+	}
+	radixDeploymentActivated.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": string(rd.Spec.Environment),
+		"deployment_name": string(rd.Name)}).Set(float64(time.Now().Unix()))
 }
 
 // DefaultBuckets Holds the buckets used as default
