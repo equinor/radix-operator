@@ -144,7 +144,7 @@ func RadixJobStatusChanged(rj *v1.RadixJob) {
 		"status": string(rj.Status.Condition)}).Inc()
 }
 
-// RadixDeploymentActivated sets timestamp to metric when radix deployments is activated
+// RadixDeploymentActivated sets timestamp to metric when Radix Deployment is activated
 func RadixDeploymentActivated(rd *v1.RadixDeployment) {
 	if rd == nil {
 		return
