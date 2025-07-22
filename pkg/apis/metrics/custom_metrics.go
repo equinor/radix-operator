@@ -149,8 +149,8 @@ func RadixDeploymentActivated(rd *v1.RadixDeployment) {
 	if rd == nil {
 		return
 	}
-	radixDeploymentActivated.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": string(rd.Spec.Environment),
-		"deployment_name": string(rd.Name)}).Set(float64(time.Now().Unix()))
+	radixDeploymentActivated.With(prometheus.Labels{"label_radix_app": rd.Spec.AppName, "label_radix_env": string(rd.Spec.Environment),
+		"label_radix_deployment_name": string(rd.Name)}).Set(float64(time.Now().Unix()))
 }
 
 // DefaultBuckets Holds the buckets used as default
