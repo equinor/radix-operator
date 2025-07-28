@@ -111,7 +111,7 @@ func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespac
 
 func (syncer *alertSyncer) getAlertManagerConfig(ctx context.Context) (*v1alpha1.AlertmanagerConfig, error) {
 	receivers := syncer.getAlertmanagerConfigReceivers()
-	routes := syncer.getAlertManagerConfigRoutes(ctx)
+	routes := syncer.getAlertmanagerConfigRoutes(ctx)
 
 	routeJSON := []apiextensionsv1.JSON{}
 	for _, route := range routes {
@@ -207,7 +207,7 @@ func (syncer *alertSyncer) getMappedAlertConfigsForReceiverName(receiverName str
 	return mappedAlertConfigs
 }
 
-func (syncer *alertSyncer) getAlertManagerConfigRoutes(ctx context.Context) []v1alpha1.Route {
+func (syncer *alertSyncer) getAlertmanagerConfigRoutes(ctx context.Context) []v1alpha1.Route {
 	var routes []v1alpha1.Route
 
 	for _, alert := range syncer.radixAlert.Spec.Alerts {
