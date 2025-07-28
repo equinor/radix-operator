@@ -61,7 +61,7 @@ var (
 	radixDeploymentActivated = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "radix_operator_radix_deployment_activation_timestamp",
 		Help: "The radix deployment activation timestamp",
-	}, []string{"label_radix_app", "label_radix_env", "label_radix_deployment_name", "namespace"})
+	}, []string{"label_radix_app", "label_radix_env", "label_radix_deployment_name"})
 )
 
 func init() {
@@ -152,8 +152,7 @@ func RadixDeploymentActivated(rd *v1.RadixDeployment) {
 	radixDeploymentActivated.With(prometheus.Labels{
 		"label_radix_app":             rd.Spec.AppName,
 		"label_radix_env":             string(rd.Spec.Environment),
-		"label_radix_deployment_name": string(rd.Name),
-		"namespace":                   utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)}).
+		"label_radix_deployment_name": string(rd.Name)}).
 		Set(float64(time.Now().Unix()))
 }
 
