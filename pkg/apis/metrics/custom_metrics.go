@@ -61,7 +61,12 @@ var (
 	radixDeploymentActivated = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "radix_operator_radix_deployment_activation_timestamp",
 		Help: "The radix deployment activation timestamp",
-	}, []string{"label_radix_app", "label_radix_env", "label_radix_deployment_name"})
+	}, []string{"label_radix_app", "label_radix_env", "label_radix_deployment_name", "namespace"})
+
+	radixDeploymentActivatedCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "radix_operator_radix_deployment_activation_total",
+		Help: "The radix deployment activation total count",
+	}, []string{"label_radix_app", "label_radix_env", "label_radix_deployment_name", "namespace"})
 )
 
 func init() {
@@ -151,9 +156,16 @@ func RadixDeploymentActivated(rd *v1.RadixDeployment) {
 	}
 	radixDeploymentActivated.With(prometheus.Labels{
 		"label_radix_app":             rd.Spec.AppName,
-		"label_radix_env":             string(rd.Spec.Environment),
-		"label_radix_deployment_name": string(rd.Name)}).
+		"label_radix_env":             rd.Spec.Environment,
+		"label_radix_deployment_name": rd.Name,
+		"namespace":                   utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)}).
 		Set(float64(time.Now().Unix()))
+	radixDeploymentActivatedCount.With(prometheus.Labels{
+		"label_radix_app":             rd.Spec.AppName,
+		"label_radix_env":             rd.Spec.Environment,
+		"label_radix_deployment_name": rd.Name,
+		"namespace":                   utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)}).
+		Add(1)
 }
 
 // DefaultBuckets Holds the buckets used as default

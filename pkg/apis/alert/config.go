@@ -57,6 +57,11 @@ var (
 			Resolvable: false,
 			Scope:      EnvironmentScope,
 		},
+		"RadixDeploymentActivated2": {
+			GroupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixDeploymentNameLabel},
+			Resolvable: false,
+			Scope:      EnvironmentScope,
+		},
 	}
 )
 
