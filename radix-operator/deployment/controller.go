@@ -84,7 +84,7 @@ func NewController(ctx context.Context,
 				return
 			}
 			if oldRD.Status.Condition != v1.DeploymentActive && newRD.Status.Condition == v1.DeploymentActive {
-				metrics.RadixDeploymentActivated(newRD)
+				metrics.RadixDeploymentActivated(ctx, newRD)
 			}
 			if _, err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixDeployment informer UpdateFunc")

@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -57,15 +59,9 @@ var (
 		Name: "radix_operator_radix_job_processed",
 		Help: "The number of radix jobs processed with status",
 	}, []string{"application", "pipeline_type", "status"})
-
 	radixDeploymentActivated = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "radix_operator_radix_deployment_activation_timestamp",
 		Help: "The radix deployment activation timestamp",
-	}, []string{"label_radix_app", "label_radix_env", "label_radix_deployment_name", "namespace"})
-
-	radixDeploymentActivatedCount = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "radix_operator_radix_deployment_activation_total",
-		Help: "The radix deployment activation total count",
 	}, []string{"label_radix_app", "label_radix_env", "label_radix_deployment_name", "namespace"})
 )
 
@@ -150,22 +146,17 @@ func RadixJobStatusChanged(rj *v1.RadixJob) {
 }
 
 // RadixDeploymentActivated sets timestamp to metric when Radix Deployment is activated
-func RadixDeploymentActivated(rd *v1.RadixDeployment) {
+func RadixDeploymentActivated(ctx context.Context, rd *v1.RadixDeployment) {
 	if rd == nil {
 		return
 	}
-	radixDeploymentActivated.With(prometheus.Labels{
+	labels := prometheus.Labels{
 		"label_radix_app":             rd.Spec.AppName,
 		"label_radix_env":             rd.Spec.Environment,
 		"label_radix_deployment_name": rd.Name,
-		"namespace":                   utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)}).
-		Set(float64(time.Now().Unix()))
-	radixDeploymentActivatedCount.With(prometheus.Labels{
-		"label_radix_app":             rd.Spec.AppName,
-		"label_radix_env":             rd.Spec.Environment,
-		"label_radix_deployment_name": rd.Name,
-		"namespace":                   utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)}).
-		Add(1)
+		"namespace":                   utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)}
+	log.Ctx(ctx).Info().Msgf("Send RadixDeploymentActivated %s", labels)
+	radixDeploymentActivated.With(labels).Set(float64(time.Now().Unix()))
 }
 
 // DefaultBuckets Holds the buckets used as default

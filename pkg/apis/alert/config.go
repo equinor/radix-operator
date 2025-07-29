@@ -27,6 +27,11 @@ var (
 		text:      "{{ template \"radix-slack-alert-text\" .}}",
 	}
 	defaultAlertConfigs AlertConfigs = AlertConfigs{
+		"RadixDeploymentActivated": {
+			GroupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixDeploymentNameLabel},
+			Resolvable: false,
+			Scope:      EnvironmentScope,
+		},
 		"RadixAppComponentCrashLooping": {
 			GroupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixComponentNameLabel, radixReplicaNameLabel},
 			Resolvable: true,
@@ -51,16 +56,6 @@ var (
 			GroupBy:    []string{radixApplicationNameLabel, radixPipelineJobNameLabel},
 			Resolvable: false,
 			Scope:      ApplicationScope,
-		},
-		"RadixDeploymentActivated": {
-			GroupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixDeploymentNameLabel},
-			Resolvable: false,
-			Scope:      EnvironmentScope,
-		},
-		"RadixDeploymentActivated2": {
-			GroupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixDeploymentNameLabel},
-			Resolvable: false,
-			Scope:      EnvironmentScope,
 		},
 	}
 )
