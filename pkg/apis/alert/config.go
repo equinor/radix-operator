@@ -7,7 +7,7 @@ const (
 	radixReplicaNameLabel     = "radix_replica_name"
 	radixJobNameLabel         = "job_name"
 	radixPipelineJobNameLabel = "label_radix_job_name"
-	radixDeploymentNameLabel  = "label_radix_deployment_name"
+	radixDeploymentNameLabel  = "label_radix_deployment"
 )
 
 // AlertScope defines scope for an alert

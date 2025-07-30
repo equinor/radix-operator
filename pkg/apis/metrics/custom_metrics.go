@@ -62,7 +62,7 @@ var (
 	radixDeploymentActivated = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "radix_operator_radix_deployment_activation_timestamp",
 		Help: "The radix deployment activation timestamp",
-	}, []string{"label_radix_app", "label_radix_env", "label_radix_deployment_name", "namespace"})
+	}, []string{"label_radix_app", "label_radix_env", "label_radix_deployment", "namespace"})
 )
 
 func init() {
@@ -151,10 +151,10 @@ func RadixDeploymentActivated(ctx context.Context, rd *v1.RadixDeployment) {
 		return
 	}
 	labels := prometheus.Labels{
-		"label_radix_app":             rd.Spec.AppName,
-		"label_radix_env":             rd.Spec.Environment,
-		"label_radix_deployment_name": rd.Name,
-		"namespace":                   utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)}
+		"label_radix_app":        rd.Spec.AppName,
+		"label_radix_env":        rd.Spec.Environment,
+		"label_radix_deployment": rd.Name,
+		"namespace":              utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)}
 	log.Ctx(ctx).Info().Msgf("Send RadixDeploymentActivated %s", labels)
 	radixDeploymentActivated.With(labels).Set(float64(time.Now().Unix()))
 }
