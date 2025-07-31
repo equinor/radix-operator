@@ -178,6 +178,10 @@ func (deployComponent *RadixDeployComponent) GetPorts() []ComponentPort {
 	return deployComponent.Ports
 }
 
+func (deployComponent *RadixDeployComponent) GetMonitoringPortName() string {
+	return getFirstPortName(deployComponent)
+}
+
 func (deployComponent *RadixDeployComponent) GetEnvironmentVariables() EnvVarsMap {
 	return deployComponent.EnvironmentVariables
 }
@@ -309,6 +313,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
 
 func (deployJobComponent *RadixDeployJobComponent) GetPorts() []ComponentPort {
 	return deployJobComponent.Ports
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetMonitoringPortName() string {
+	return getFirstPortName(deployJobComponent)
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetEnvironmentVariables() EnvVarsMap {
@@ -496,6 +504,8 @@ type RadixCommonDeployComponent interface {
 	GetType() RadixComponentType
 	GetImage() string
 	GetPorts() []ComponentPort
+	// GetMonitoringPortName returns the name of the port used for monitoring
+	GetMonitoringPortName() string
 	GetEnvironmentVariables() EnvVarsMap
 	SetEnvironmentVariables(envVars EnvVarsMap)
 	GetSecrets() []string
@@ -533,4 +543,11 @@ type RadixCommonDeployComponent interface {
 // IsActive The RadixDeployment is active
 func (rd *RadixDeployment) IsActive() bool {
 	return rd.Status.Condition == DeploymentActive
+}
+
+func getFirstPortName(deployComponent RadixCommonDeployComponent) string {
+	if ports := deployComponent.GetPorts(); len(ports) > 0 {
+		return ports[0].Name
+	}
+	return ""
 }

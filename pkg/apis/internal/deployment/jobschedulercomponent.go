@@ -56,6 +56,9 @@ func (js *JobSchedulerComponent) GetPorts() []radixv1.ComponentPort {
 		},
 	}
 }
+func (js *JobSchedulerComponent) GetMonitoringPortName() string {
+	return js.RadixDeployJobComponent.GetMonitoringPortName()
+}
 
 func (js *JobSchedulerComponent) GetEnvironmentVariables() radixv1.EnvVarsMap {
 	envVarsMap := js.EnvironmentVariables.DeepCopy()
@@ -72,7 +75,7 @@ func (js *JobSchedulerComponent) GetSecrets() []string {
 }
 
 func (js *JobSchedulerComponent) GetMonitoring() bool {
-	return false
+	return js.RadixDeployJobComponent.Monitoring
 }
 
 func (js *JobSchedulerComponent) GetResources() *radixv1.ResourceRequirements {
