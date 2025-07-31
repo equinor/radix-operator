@@ -7,6 +7,7 @@ const (
 	radixReplicaNameLabel     = "radix_replica_name"
 	radixJobNameLabel         = "job_name"
 	radixPipelineJobNameLabel = "label_radix_job_name"
+	radixDeploymentNameLabel  = "label_radix_deployment"
 )
 
 // AlertScope defines scope for an alert
@@ -26,6 +27,11 @@ var (
 		text:      "{{ template \"radix-slack-alert-text\" .}}",
 	}
 	defaultAlertConfigs AlertConfigs = AlertConfigs{
+		"RadixDeploymentActivated": {
+			GroupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixDeploymentNameLabel},
+			Resolvable: false,
+			Scope:      EnvironmentScope,
+		},
 		"RadixAppComponentCrashLooping": {
 			GroupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixComponentNameLabel, radixReplicaNameLabel},
 			Resolvable: true,

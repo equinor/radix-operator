@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -57,6 +59,10 @@ var (
 		Name: "radix_operator_radix_job_processed",
 		Help: "The number of radix jobs processed with status",
 	}, []string{"application", "pipeline_type", "status"})
+	radixDeploymentActivated = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "radix_operator_radix_deployment_activation_timestamp",
+		Help: "The radix deployment activation timestamp",
+	}, []string{"label_radix_app", "label_radix_env", "label_radix_deployment", "namespace"})
 )
 
 func init() {
@@ -137,6 +143,20 @@ func RadixJobStatusChanged(rj *v1.RadixJob) {
 	}
 	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
 		"status": string(rj.Status.Condition)}).Inc()
+}
+
+// RadixDeploymentActivated sets timestamp to metric when Radix Deployment is activated
+func RadixDeploymentActivated(ctx context.Context, rd *v1.RadixDeployment) {
+	if rd == nil {
+		return
+	}
+	labels := prometheus.Labels{
+		"label_radix_app":        rd.Spec.AppName,
+		"label_radix_env":        rd.Spec.Environment,
+		"label_radix_deployment": rd.Name,
+		"namespace":              utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)}
+	log.Ctx(ctx).Info().Msgf("Send RadixDeploymentActivated %s", labels)
+	radixDeploymentActivated.With(labels).Set(float64(time.Now().Unix()))
 }
 
 // DefaultBuckets Holds the buckets used as default
