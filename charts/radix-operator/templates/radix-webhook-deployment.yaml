@@ -96,6 +96,8 @@ spec:
               value: {{ .Values.radixWebhook.requireConfigurationItem | quote }}
             - name: DNS_NAME
               value: radix-webhook.{{ .Release.Namespace }}.svc
+            - name: VALIDATE_CONFIGURATION_ITEM_URL
+              value: {{ .Values.radixWebhook.validateConfigurationItemUrl | quote }}
           volumeMounts:
             - name: certs
               mountPath: /run/certs

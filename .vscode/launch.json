@@ -13,6 +13,7 @@
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
 				"CERTS_DIR": "${workspaceFolder}/local/certs",
+				"VALIDATE_CONFIGURATION_ITEM_URL": "http://localhost:8090/hello/{appId}"
 			},
 		},
 		{
