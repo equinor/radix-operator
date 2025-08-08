@@ -1,7 +1,9 @@
 package config
 
 import (
+	"net/url"
 	"runtime/debug"
+	"strings"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog/log"
@@ -12,8 +14,9 @@ var Version = "dev (unknown)"
 type Config struct {
 	CertsDir string `envconfig:"CERTS_DIR" required:"true" desc:"Directory where the webhook TLS certificate is stored"`
 
-	RequireAdGroups          bool `envconfig:"REQUIRE_AD_GROUPS" default:"false" desc:"Require AD groups for authentication"`
-	RequireConfigurationItem bool `envconfig:"REQUIRE_CONFIGURATION_ITEM" default:"false" desc:"Require configuration item for authentication"`
+	RequireAdGroups              bool     `envconfig:"REQUIRE_AD_GROUPS" default:"false" desc:"Require AD groups for authentication"`
+	RequireConfigurationItem     bool     `envconfig:"REQUIRE_CONFIGURATION_ITEM" default:"false" desc:"Require configuration item for authentication"`
+	ValidateConfigurationItemUrl *url.URL `envconfig:"VALIDATE_CONFIGURATION_ITEM_URL" default:"https://api-radix-servicenow-proxy-prod.radix.equinor.com/api/v1/applications/{appId}" desc:"URL to validate configuration item for authentication, 2xx is OK, others are denied"`
 
 	LogLevel       string `envconfig:"LOG_LEVEL" default:"info" desc:"Log level for the application. Possible values: debug, info, warn, error, fatal"`
 	LogPrettyPrint bool   `envconfig:"LOG_PRETTY" default:"false" desc:"Enable pretty print for logs. If set to true, the logs will be formatted in a human-readable way."`
@@ -37,6 +40,14 @@ func MustParseConfig() Config {
 	if err != nil {
 		_ = envconfig.Usage("", &s)
 		log.Fatal().Msg(err.Error())
+	}
+
+	if s.ValidateConfigurationItemUrl != nil && s.ValidateConfigurationItemUrl.String() == "" {
+		s.ValidateConfigurationItemUrl = nil
+	}
+
+	if s.ValidateConfigurationItemUrl != nil && !strings.Contains(s.ValidateConfigurationItemUrl.Path, "{appId}") {
+		log.Fatal().Msg("VALIDATE_CONFIGURATION_ITEM_URL must contain {appId} placeholder")
 	}
 
 	return s

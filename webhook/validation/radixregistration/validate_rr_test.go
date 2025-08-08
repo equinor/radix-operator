@@ -1,12 +1,16 @@
 package radixregistration_test
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/webhook/validation/radixregistration"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -18,14 +22,29 @@ import (
 // Test unique appId validation
 
 func Test_valid_rr_returns_true(t *testing.T) {
-	client := createClient()
+	kubeClient := createKubeClient()
+	httpClient, targetUrl := createHttpClient(t, okHandler)
+
 	validRR := createValidRR()
 
-	validator := radixregistration.CreateOnlineValidator(client, true, true)
+	validator := radixregistration.CreateOnlineValidator(kubeClient, httpClient, true, true, targetUrl)
 	warnings, err := validator.Validate(t.Context(), validRR)
 
 	assert.Empty(t, warnings)
 	assert.Nil(t, err)
+}
+
+func TestInvalidConfigurationItemUrl(t *testing.T) {
+	kubeClient := createKubeClient()
+	httpClient, targetUrl := createHttpClient(t, notFoundHandler)
+
+	validRR := createValidRR()
+
+	validator := radixregistration.CreateOnlineValidator(kubeClient, httpClient, true, true, targetUrl)
+	warnings, err := validator.Validate(t.Context(), validRR)
+
+	assert.Empty(t, warnings)
+	assert.ErrorIs(t, err, radixregistration.ErrConfigurationItemIsNotValid)
 }
 
 func TestCanRadixApplicationBeUpdated(t *testing.T) {
@@ -91,9 +110,10 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 func TestDuplicateAppIDMustFail(t *testing.T) {
 	validRR := createValidRR()
 	validRR2 := createValidRR()
-	client := createClient(validRR)
+	kubeClient := createKubeClient(validRR)
+	httpClient, targetUrl := createHttpClient(t, okHandler)
 	validRR2.Name = "duplicate-app-id"
-	validator := radixregistration.CreateOnlineValidator(client, false, false)
+	validator := radixregistration.CreateOnlineValidator(kubeClient, httpClient, false, false, targetUrl)
 
 	_, err := validator.Validate(t.Context(), validRR2)
 
@@ -105,10 +125,29 @@ func createValidRR() *radixv1.RadixRegistration {
 	return validRR
 }
 
-func createClient(initObjs ...client.Object) client.Client {
+func createKubeClient(initObjs ...client.Object) client.Client {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(radixv1.AddToScheme(scheme))
 
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+}
+
+func createHttpClient(t *testing.T, handler http.HandlerFunc) (*http.Client, *url.URL) {
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL + "/someurl/{appId}")
+	require.NoError(t, err)
+
+	return server.Client(), serverURL
+}
+
+func okHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
 }

@@ -209,6 +209,9 @@ radixWebhook:
   requireAdGroups: true
   requireConfigurationItem: true
 
+   # Must be empty, or a valid URL with {appId} as a placeholder for the app ID. Used to validate the configuration item in RadixRegistration. 2xx is considered valid. Will be authenticated with Kubernetes service account token.
+  validateConfigurationItemUrl: "" # "https://api-radix-servicenow-proxy-prod.radix.equinor.com/api/v1/applications/{appId}"
+
   image: 
     repository: ghcr.io/equinor/radix-webhook
     tag: ""  # Default to appVersion in Chart.yaml
