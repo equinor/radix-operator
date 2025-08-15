@@ -277,15 +277,6 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisDeploymentCreat
 	redisDataVolume, redisDataVolumeExists := slice.FindFirst(actualDeploy.Spec.Template.Spec.Volumes, func(volume corev1.Volume) bool { return volume.Name == "redis-data" })
 	s.True(redisDataVolumeExists, "Missing volume redis-data")
 	s.NotNil(redisDataVolume.EmptyDir, "Missing EmptyDir in the volume redis-data")
-	redisConfigVolume, redisConfigVolumeExists := slice.FindFirst(actualDeploy.Spec.Template.Spec.Volumes, func(volume corev1.Volume) bool { return volume.Name == "redis-config" })
-	s.True(redisConfigVolumeExists, "Missing volume redis-config")
-	s.NotNil(redisConfigVolume.EmptyDir, "Missing EmptyDir in the volume redis-config")
-	redisTmpVolume, redisTmpVolumeExists := slice.FindFirst(actualDeploy.Spec.Template.Spec.Volumes, func(volume corev1.Volume) bool { return volume.Name == "redis-tmp" })
-	s.True(redisTmpVolumeExists, "Missing volume redis-tmp")
-	s.NotNil(redisTmpVolume.EmptyDir, "Missing EmptyDir in the volume redis-tmp")
-	redisRunVolume, redisRunVolumeExists := slice.FindFirst(actualDeploy.Spec.Template.Spec.Volumes, func(volume corev1.Volume) bool { return volume.Name == "redis-run" })
-	s.True(redisRunVolumeExists, "Missing volume redis-run")
-	s.NotNil(redisRunVolume.EmptyDir, "Missing EmptyDir in the volume redis-run")
 
 	defaultContainer := actualDeploy.Spec.Template.Spec.Containers[0]
 	s.Equal(sut.oauthRedisDockerImage, defaultContainer.Image)
@@ -295,18 +286,20 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisDeploymentCreat
 	s.Equal(v1.OAuthRedisPortName, defaultContainer.Ports[0].Name)
 	s.NotNil(defaultContainer.ReadinessProbe)
 	s.Equal(v1.OAuthRedisPortNumber, defaultContainer.ReadinessProbe.TCPSocket.Port.IntVal)
+
+	expectedArgs := []string{
+		"redis-server",
+		"--save", "3600 1 300 100 60 10000",
+		"--dir", "/data",
+		"--appendonly", "yes",
+		"--protected-mode", "yes",
+		"--requirepass", "$(REDIS_PASSWORD)",
+	}
+	s.Equal(expectedArgs, defaultContainer.Args, "Unexpected args in oauth redis container")
+
 	redisDataVolumeMount, redisDataVolumeMountExists := slice.FindFirst(defaultContainer.VolumeMounts, func(volumeMount corev1.VolumeMount) bool { return volumeMount.Name == "redis-data" })
 	s.True(redisDataVolumeMountExists, "Missing volume redis-data")
-	s.Equal("/bitnami/redis/data", redisDataVolumeMount.MountPath, "Missing EmptyDir in the volume-mount redis-data")
-	redisConfigVolumeMount, redisConfigVolumeMountExists := slice.FindFirst(defaultContainer.VolumeMounts, func(volumeMount corev1.VolumeMount) bool { return volumeMount.Name == "redis-config" })
-	s.True(redisConfigVolumeMountExists, "Missing volume redis-config")
-	s.Equal("/opt/bitnami/redis/etc", redisConfigVolumeMount.MountPath, "Missing EmptyDir in the volume-mount redis-config")
-	redisTmpVolumeMount, redisTmpVolumeMountExists := slice.FindFirst(defaultContainer.VolumeMounts, func(volumeMount corev1.VolumeMount) bool { return volumeMount.Name == "redis-tmp" })
-	s.True(redisTmpVolumeMountExists, "Missing volume redis-tmp")
-	s.Equal("/tmp", redisTmpVolumeMount.MountPath, "Missing EmptyDir in the volume-mount redis-tmp")
-	redisRunVolumeMount, redisRunVolumeMountExists := slice.FindFirst(defaultContainer.VolumeMounts, func(volumeMount corev1.VolumeMount) bool { return volumeMount.Name == "redis-run" })
-	s.True(redisRunVolumeMountExists, "Missing volume-mount redis-run")
-	s.Equal("/opt/bitnami/redis/tmp", redisRunVolumeMount.MountPath, "Missing EmptyDir in the volume-mount redis-run")
+	s.Equal("/data", redisDataVolumeMount.MountPath, "Missing EmptyDir in the volume-mount redis-data")
 
 	expectedAffinity := &corev1.Affinity{
 		NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
