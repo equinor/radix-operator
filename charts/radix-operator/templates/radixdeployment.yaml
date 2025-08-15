@@ -1134,6 +1134,12 @@ spec:
                                     If the proxied server does not transmit anything within this time, the connection is closed.
                                   minimum: 0
                                   type: integer
+                                proxyRequestBuffering:
+                                  description: |-
+                                    Defines if request buffering is enabled. Default is true.
+                                    If set to false, the request body will be sent to the proxied server immediately, without buffering.
+                                    This can be useful for large file uploads or streaming data.
+                                  type: boolean
                                 proxySendTimeout:
                                   description: |-
                                     Defines a timeout, in seconds, for transmitting a request to the proxied server.

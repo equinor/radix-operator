@@ -215,6 +215,10 @@ func Test_PublicIngressConfigAnnotationProvider(t *testing.T) {
 			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{ProxyBufferSize: pointers.Ptr(radixv1.NginxSizeFormat("123k"))}}}},
 			expectedAnnotation: map[string]string{"nginx.ingress.kubernetes.io/proxy-buffer-size": "123k"},
 		},
+		"proxyRequestBufferEnabled annotation set to off": {
+			component:          &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{ProxyRequestBuffering: pointers.Ptr(false)}}}},
+			expectedAnnotation: map[string]string{"nginx.ingress.kubernetes.io/proxy-request-buffering": "off"},
+		},
 		"all fields set": {
 			component: &radixv1.RadixDeployComponent{Network: &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{
 				ProxyReadTimeout: pointers.Ptr[uint](123),

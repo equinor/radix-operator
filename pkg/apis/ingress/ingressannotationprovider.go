@@ -185,6 +185,10 @@ func (*ingressPublicConfigAnnotationProvider) GetAnnotations(component radixv1.R
 		annotations["nginx.ingress.kubernetes.io/proxy-send-timeout"] = strconv.FormatUint(uint64(*v), 10)
 	}
 
+	if cfg.ProxyRequestBuffering != nil && !*cfg.ProxyRequestBuffering {
+		annotations["nginx.ingress.kubernetes.io/proxy-request-buffering"] = "off"
+	}
+
 	return annotations, nil
 }
 
