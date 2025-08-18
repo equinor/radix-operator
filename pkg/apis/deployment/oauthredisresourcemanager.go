@@ -7,7 +7,7 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -246,10 +246,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 
 	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
 	const (
-		volumeNameRedisData   = "redis-data"
-		volumeNameRedisConfig = "redis-config"
-		volumeNameRedisTmp    = "redis-tmp"
-		volumeNameRedisRun    = "redis-run"
+		volumeNameRedisData = "redis-data"
 	)
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -275,6 +272,14 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 							Image:           o.oauthRedisDockerImage,
 							ImagePullPolicy: corev1.PullAlways,
 							Env:             o.getEnvVars(component),
+							Args: []string{
+								"redis-server",
+								"--save", "3600 1 300 100 60 10000",
+								"--dir", "/data",
+								"--appendonly", "yes",
+								"--protected-mode", "yes",
+								"--requirepass", "$(REDIS_PASSWORD)",
+							},
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          v1.OAuthRedisPortName,
@@ -291,19 +296,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      volumeNameRedisData,
-									MountPath: "/bitnami/redis/data",
-								},
-								{
-									Name:      volumeNameRedisConfig,
-									MountPath: "/opt/bitnami/redis/etc",
-								},
-								{
-									Name:      volumeNameRedisTmp,
-									MountPath: "/tmp",
-								},
-								{
-									Name:      volumeNameRedisRun,
-									MountPath: "/opt/bitnami/redis/tmp",
+									MountPath: "/data",
 								},
 							},
 						},
@@ -312,9 +305,6 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 					Affinity:        utils.GetAffinityForOAuthAuxComponent(),
 					Volumes: []corev1.Volume{
 						o.getEmptyDirVolume(volumeNameRedisData),
-						o.getEmptyDirVolume(volumeNameRedisConfig),
-						o.getEmptyDirVolume(volumeNameRedisTmp),
-						o.getEmptyDirVolume(volumeNameRedisRun),
 					},
 				},
 			},
