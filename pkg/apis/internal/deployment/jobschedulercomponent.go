@@ -71,10 +71,6 @@ func (js *JobSchedulerComponent) GetSecrets() []string {
 	return nil
 }
 
-func (js *JobSchedulerComponent) GetMonitoring() bool {
-	return false
-}
-
 func (js *JobSchedulerComponent) GetResources() *radixv1.ResourceRequirements {
 	return &radixv1.ResourceRequirements{
 		Limits: map[string]string{
