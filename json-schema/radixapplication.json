@@ -1329,6 +1329,10 @@
                                   "minimum": 0,
                                   "type": "integer"
                                 },
+                                "proxyRequestBuffering": {
+                                  "description": "Defines if request buffering is enabled. Default is true.\nIf set to false, the request body will be sent to the proxied server immediately, without buffering.\nThis can be useful for large file uploads or streaming data.",
+                                  "type": "boolean"
+                                },
                                 "proxySendTimeout": {
                                   "description": "Defines a timeout, in seconds, for transmitting a request to the proxied server.\nThe timeout is set only between two successive write operations, not for the transmission of the whole request.\nIf the proxied server does not receive anything within this time, the connection is closed.",
                                   "minimum": 0,
@@ -2679,6 +2683,10 @@
                             "description": "Defines a timeout, in seconds, for reading a response from the proxied server.\nThe timeout is set only between two successive read operations, not for the transmission of the whole response.\nIf the proxied server does not transmit anything within this time, the connection is closed.",
                             "minimum": 0,
                             "type": "integer"
+                          },
+                          "proxyRequestBuffering": {
+                            "description": "Defines if request buffering is enabled. Default is true.\nIf set to false, the request body will be sent to the proxied server immediately, without buffering.\nThis can be useful for large file uploads or streaming data.",
+                            "type": "boolean"
                           },
                           "proxySendTimeout": {
                             "description": "Defines a timeout, in seconds, for transmitting a request to the proxied server.\nThe timeout is set only between two successive write operations, not for the transmission of the whole request.\nIf the proxied server does not receive anything within this time, the connection is closed.",
