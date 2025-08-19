@@ -1857,6 +1857,13 @@ type IngressPublic struct {
 	//
 	// +optional
 	ProxyBufferSize *NginxSizeFormat `json:"proxyBufferSize,omitempty"`
+
+	// Defines if request buffering is enabled. Default is true.
+	// If set to false, the request body will be sent to the proxied server immediately, without buffering.
+	// This can be useful for large file uploads or streaming data.
+	//
+	// +optional
+	ProxyRequestBuffering *bool `json:"proxyRequestBuffering,omitempty"`
 }
 
 // RadixCommonComponent defines a common component interface for Radix components
