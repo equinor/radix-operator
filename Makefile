@@ -82,11 +82,11 @@ mocks: bootstrap
 	mockgen -source ./pkg/apis/alert/alert.go -destination ./pkg/apis/alert/alert_mock.go -package alert
 	mockgen -source ./pkg/apis/alert/alertfactory.go -destination ./pkg/apis/alert/alertfactory_mock.go -package alert
 	mockgen -source ./pkg/apis/batch/syncer.go -destination ./pkg/apis/batch/syncer_mock.go -package batch
-	mockgen -source ./radix-operator/batch/internal/syncerfactory.go -destination ./radix-operator/batch/internal/syncerfactory_mock.go -package internal
+	mockgen -source ./operator/batch/internal/syncerfactory.go -destination ./operator/batch/internal/syncerfactory_mock.go -package internal
 	mockgen -source ./pkg/apis/dnsalias/syncer.go -destination ./pkg/apis/dnsalias/syncer_mock.go -package dnsalias
-	mockgen -source ./radix-operator/dnsalias/internal/syncerfactory.go -destination ./radix-operator/dnsalias/internal/syncerfactory_mock.go -package internal
-	mockgen -source ./radix-operator/common/handler.go -destination ./radix-operator/common/handler_mock.go -package common
-	mockgen -source ./pkg/apis/job/job_history.go -destination ./radix-operator/job/job_history_mock.go -package job
+	mockgen -source ./operator/dnsalias/internal/syncerfactory.go -destination ./operator/dnsalias/internal/syncerfactory_mock.go -package internal
+	mockgen -source ./operator/common/handler.go -destination ./operator/common/handler_mock.go -package common
+	mockgen -source ./pkg/apis/job/job_history.go -destination ./operator/job/job_history_mock.go -package job
 	mockgen -source ./pipeline-runner/internal/wait/job.go -destination ./pipeline-runner/internal/wait/job_mock.go -package wait
 	mockgen -source ./pipeline-runner/internal/watcher/radix_deployment_watcher.go -destination ./pipeline-runner/internal/watcher/radix_deployment_watcher_mock.go -package watcher
 	mockgen -source ./pipeline-runner/internal/watcher/namespace.go -destination ./pipeline-runner/internal/watcher/namespace_mock.go -package watcher
@@ -118,7 +118,7 @@ deploy-pipeline-arm64:
 
 .PHONY: build-operator
 build-operator:
-	docker build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) --platform linux/arm64,linux/amd64 -f operator.Dockerfile . --no-cache
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) --platform linux/arm64,linux/amd64 -f operator.Dockerfile . --no-cache
 
 .PHONY: deploy-operator
 deploy-operator: build-operator
