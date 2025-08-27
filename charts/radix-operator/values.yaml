@@ -162,11 +162,11 @@ radixGroups:
 deploymentsPerEnvironmentHistoryLimit: 10
 pipelineJobsHistoryLimit: 5
 pipelineJobsHistoryPeriodLimit: "720h"
-pipelineImageTag: master-latest
+pipelineImageTag: master-latest # deprecated issue #1388
 logLevel: "INFO"
 logPretty: false
 oauthProxyDefaultIssuerUrl: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
-oauthProxyImage: quay.io/oauth2-proxy/oauth2-proxy:v7.2.0
+oauthProxyImage: quay.io/oauth2-proxy/oauth2-proxy:v7.2.0 # deprecated issue #1388
 oauthRedisImage: docker.io/redis:8.0
 externalRegistryDefaultAuthSecret: "" # Name of the secret containing default container registry credentials for pulling images when building with buildah and pulling external images for components and jobs
 
@@ -220,6 +220,21 @@ gitCloneBash:
   image:
     tag: "5.2"
     repository: docker.io/library/bash
+
+oauth2proxy:
+  image:
+    tag: "v7.2.0"
+    repository: quay.io/oauth2-proxy/oauth2-proxy
+
+oauth2redis:
+  image:
+    tag: "8.0"
+    repository: docker.io/redis
+
+radixPipelineRunner:
+  image:
+    tag: master-latest
+    repository: radixdev.azurecr.io/radix-pipeline
 
 radixImageBuilder:
   image: 
