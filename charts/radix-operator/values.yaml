@@ -13,7 +13,6 @@ alertControllerThreads: 1
 kubeClientRateLimitBurst: 5
 kubeClientRateLimitQPS: 5
 
-configToMap: radix-config-2-map:master-latest
 imageBuilder: radix-image-builder:master-latest
 buildKitImageBuilder: radix-buildkit-builder:main-latest # TODO: Configure in radix-flux
 buildahImageBuilder: xx # TODO: Deprecated, remove
@@ -200,6 +199,16 @@ podSecurityStandard:
   warn:
     level: "" # One of privileged, baseline, restricted
     version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"
+
+acrImageBuild:
+  image: 
+    tag: master-latest
+    repository:  radixdev.azurecr.io/radix-image-builder
+
+buildKitImageBuild:
+  image:
+    tag: main-latest
+    repository: radixdev.azurecr.io/radix-buildkit-builder
 
 radixWebhook:
   enabled: false
