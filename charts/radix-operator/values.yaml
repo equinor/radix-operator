@@ -13,15 +13,15 @@ alertControllerThreads: 1
 kubeClientRateLimitBurst: 5
 kubeClientRateLimitQPS: 5
 
-imageBuilder: radix-image-builder:master-latest
-buildKitImageBuilder: radix-buildkit-builder:main-latest # TODO: Configure in radix-flux
-buildahImageBuilder: xx # TODO: Deprecated, remove
-jobScheduler: radix-job-scheduler:main-latest
+imageBuilder: radix-image-builder:master-latest # deprecated #1388
+buildKitImageBuilder: radix-buildkit-builder:main-latest # deprecated #1388 # TODO: Configure in radix-flux
+buildahImageBuilder: xx # deprecated #1388
+jobScheduler: radix-job-scheduler:main-latest # deprecated #1388
 
 # Images used by git clone init containers in pipeline
-gitCloneNsLookupImage: "" # Image containing nslookup, e.g. "alpine:3.20". Defaults to "alpine:latest" if not set
-gitCloneGitImage: "" # Image containing git, e.g. "alpine/git:2.45.2". Defaults to "alpine/git:latest" if not set
-gitCloneBashImage: "" # Image containing bash, e.g. "bash:5.2". Defaults to "bash:latest" if not set
+gitCloneNsLookupImage: "" # deprecated #1388 # Image containing nslookup, e.g. "alpine:3.20". Defaults to "alpine:latest" if not set
+gitCloneGitImage: "" # deprecated #1388 # Image containing git, e.g. "alpine/git:2.45.2". Defaults to "alpine/git:latest" if not set
+gitCloneBashImage: "" # deprecated #1388 # Image containing bash, e.g. "bash:5.2". Defaults to "bash:latest" if not set
 
 reservedAppDNSAlias:
   api: radix-api
@@ -172,8 +172,11 @@ externalRegistryDefaultAuthSecret: "" # Name of the secret containing default co
 
 seccompProfile:
   fileNameOnNode: allow-buildah.json
+  image:
+    tag: 3.20
+    repository: docker.io/alpine
   installer:
-    image: docker.io/alpine:3.20
+    image: docker.io/alpine:3.20 # deprecated issue #1388
     configMapName: "seccomp-allow-buildah"
     daemonSetName: copy-seccomp-profile
     resources:
@@ -200,15 +203,38 @@ podSecurityStandard:
     level: "" # One of privileged, baseline, restricted
     version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"
 
-acrImageBuild:
+# Image containing nslookup
+gitCloneNsLookup:
+  image:
+    tag: "3.20"
+    repository: docker.io/library/alpine
+
+# Image containing git
+gitCloneGit:
+  image:
+    tag: "2.45.2"
+    repository: docker.io/alpine/git
+
+# Image containing bash
+gitCloneBash:
+  image:
+    tag: "5.2"
+    repository: docker.io/library/bash
+
+radixImageBuilder:
   image: 
     tag: master-latest
     repository:  radixdev.azurecr.io/radix-image-builder
 
-buildKitImageBuild:
+radixBuildKitImageBuilder:
   image:
     tag: main-latest
     repository: radixdev.azurecr.io/radix-buildkit-builder
+
+radixJobScheduler:
+  image:
+    tag: main-latest
+    repository: radixdev.azurecr.io/radix-job-scheduler
 
 radixWebhook:
   enabled: false
