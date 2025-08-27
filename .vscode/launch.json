@@ -137,7 +137,7 @@
 			"type": "go",
 			"request": "launch",
 			"mode": "auto",
-			"program": "${workspaceFolder}/radix-operator/main.go",
+			"program": "${workspaceFolder}/operator/main.go",
 			"env": {
 				"APP_ALIAS_BASE_URL": "app.dev.radix.equinor.com",
 				"DNS_ZONE": "dev.radix.equinor.com",
