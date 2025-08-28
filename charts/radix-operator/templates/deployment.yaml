@@ -83,10 +83,14 @@ spec:
               value: {{ .Values.pipelineJobsHistoryLimit | quote }}
             - name: RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT
               value: {{ .Values.pipelineJobsHistoryPeriodLimit | quote }}
-            - name: RADIX_IMAGE_BUILDER
+            - name: RADIX_IMAGE_BUILDER # deprecated issue #1388
               value: {{ .Values.imageBuilder }}
-            - name: RADIXOPERATOR_JOB_SCHEDULER
+            - name: RADIX_IMAGE_BUILDER_IMAGE
+              value: {{ .Values.radixImageBuilder.image.repository }}:{{ .Values.radixImageBuilder.image.tag | default "master-latest" }}
+            - name: RADIXOPERATOR_JOB_SCHEDULER # deprecated issue #1388
               value: {{ .Values.jobScheduler }}
+            - name: RADIXOPERATOR_JOB_SCHEDULER_IMAGE
+              value: {{ .Values.radixJobScheduler.image.repository }}:{{ .Values.radixJobScheduler.image.tag | default "main-latest" }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: LOG_PRETTY
@@ -149,16 +153,22 @@ spec:
             {{- end }}
             - name: SECCOMP_PROFILE_FILENAME
               value: {{ .Values.seccompProfile.fileNameOnNode }}
-            - name: RADIX_BUILDAH_IMAGE_BUILDER # TODO: Deprecated, remove
-              value: {{ .Values.buildahImageBuilder }}
-            - name: RADIX_BUILDKIT_IMAGE_BUILDER
+            - name: RADIX_BUILDKIT_IMAGE_BUILDER # deprecated issue #1388
               value: {{ .Values.buildKitImageBuilder }}
-            - name: RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE
+            - name: RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE
+              value: {{ .Values.radixBuildKitImageBuilder.image.repository }}:{{ .Values.radixBuildKitImageBuilder.image.tag | default "main-latest" }}
+            - name: RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE # deprecated issue #1388
               value: {{ .Values.gitCloneNsLookupImage }}
-            - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE
+            - name: RADIX_PIPELINE_GIT_CLONE_NSLOOKUP
+              value: {{ .Values.gitCloneNsLookup.image.repository }}:{{ .Values.gitCloneNsLookup.image.tag | default "latest" }}
+            - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE # deprecated issue #1388
               value: {{ .Values.gitCloneGitImage }}
-            - name: RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE
+            - name: RADIX_PIPELINE_GIT_CLONE_GIT
+              value: {{ .Values.gitCloneGit.image.repository }}:{{ .Values.gitCloneGit.image.tag | default "latest" }}
+            - name: RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE # deprecated issue #1388
               value: {{ .Values.gitCloneBashImage }}
+            - name: RADIX_PIPELINE_GIT_CLONE_BASH
+              value: {{ .Values.gitCloneBash.image.repository }}:{{ .Values.gitCloneBash.image.tag | default "latest" }}
             - name: RADIX_RESERVED_APP_DNS_ALIASES
               value: {{ include "helm-toolkit.utils.joinMapWithComma" .Values.reservedAppDNSAlias | quote }}
             - name: RADIX_RESERVED_DNS_ALIASES

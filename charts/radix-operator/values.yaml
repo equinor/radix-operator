@@ -13,15 +13,14 @@ alertControllerThreads: 1
 kubeClientRateLimitBurst: 5
 kubeClientRateLimitQPS: 5
 
-imageBuilder: radix-image-builder:master-latest # deprecated #1388
-buildKitImageBuilder: radix-buildkit-builder:main-latest # deprecated #1388 # TODO: Configure in radix-flux
-buildahImageBuilder: xx # deprecated #1388
-jobScheduler: radix-job-scheduler:main-latest # deprecated #1388
+imageBuilder: radix-image-builder:master-latest # deprecated issue #1388
+buildKitImageBuilder: radix-buildkit-builder:main-latest # deprecated issue #1388 # TODO: Configure in radix-flux
+jobScheduler: radix-job-scheduler:main-latest # deprecated issue #1388
 
 # Images used by git clone init containers in pipeline
-gitCloneNsLookupImage: "" # deprecated #1388 # Image containing nslookup, e.g. "alpine:3.20". Defaults to "alpine:latest" if not set
-gitCloneGitImage: "" # deprecated #1388 # Image containing git, e.g. "alpine/git:2.45.2". Defaults to "alpine/git:latest" if not set
-gitCloneBashImage: "" # deprecated #1388 # Image containing bash, e.g. "bash:5.2". Defaults to "bash:latest" if not set
+gitCloneNsLookupImage: "" # deprecated issue #1388 # Image containing nslookup, e.g. "alpine:3.20". Defaults to "alpine:latest" if not set
+gitCloneGitImage: "" # deprecated issue #1388 # Image containing git, e.g. "alpine/git:2.45.2". Defaults to "alpine/git:latest" if not set
+gitCloneBashImage: "" # deprecated issue #1388 # Image containing bash, e.g. "bash:5.2". Defaults to "bash:latest" if not set
 
 reservedAppDNSAlias:
   api: radix-api
