@@ -172,7 +172,7 @@ externalRegistryDefaultAuthSecret: "" # Name of the secret containing default co
 seccompProfile:
   fileNameOnNode: allow-buildah.json
   image:
-    tag: 3.20
+    tag: "3.20"
     repository: docker.io/alpine
   installer:
     image: docker.io/alpine:3.20 # deprecated issue #1388
