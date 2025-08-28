@@ -56,7 +56,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 		CommitID:               "anycommitid",
 		ImageTag:               "anyimagetag",
 		PushImage:              pushImage,
-		BuildKitImageBuilder:   "anyimagebuilder",
+		BuildKitImageBuilder:   "docker.io/anyimagebuilder",
 		GitCloneNsLookupImage:  "anynslookupimage",
 		GitCloneGitImage:       "anygitcloneimage",
 		GitCloneBashImage:      "anybashimage",
@@ -177,7 +177,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			require.Len(t, job.Spec.Template.Spec.Containers, 1)
 			c := job.Spec.Template.Spec.Containers[0]
 			assert.Equal(t, ci.ContainerName, c.Name)
-			assert.Equal(t, fmt.Sprintf("%s/%s", args.ContainerRegistry, args.BuildKitImageBuilder), c.Image)
+			assert.Equal(t, args.BuildKitImageBuilder, c.Image)
 			assert.Equal(t, corev1.PullAlways, c.ImagePullPolicy)
 			expectedResources := corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{

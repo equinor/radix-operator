@@ -203,7 +203,7 @@ func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
 func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {
 	container := corev1.Container{
 		Name:            c.componentImage.ContainerName,
-		Image:           fmt.Sprintf("%s/%s", c.pipelineArgs.ContainerRegistry, c.pipelineArgs.BuildKitImageBuilder),
+		Image:           c.pipelineArgs.BuildKitImageBuilder,
 		ImagePullPolicy: corev1.PullAlways,
 		Args:            c.getPodContainerArgs(),
 		Env:             c.getPodContainerEnvVars(),
