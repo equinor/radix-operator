@@ -122,9 +122,6 @@ type PipelineArguments struct {
 	ImageBuilder string
 	// BuildKitImageBuilder Points to the BuildKit compliant image builder (repository and tag only)
 	BuildKitImageBuilder string
-	// GitCloneNsLookupImage defines image containing nslookup.
-	// Used as option to the CloneInitContainers function.
-	GitCloneNsLookupImage string
 	// GitCloneGitImage defines image containing git cli.
 	// Must support running as user 65534.
 	// Used as option to the CloneInitContainers function.

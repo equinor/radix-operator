@@ -40,24 +40,23 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	)
 
 	args := model.PipelineArguments{
-		AppName:               "anyappname",
-		PipelineType:          "anypipelinetype",
-		JobName:               "anyjobname",
-		GitRef:                gitRefName,
-		GitRefType:            "tag",
-		CommitID:              "anycommitid",
-		ImageTag:              "anyimagetag",
-		PushImage:             pushImage,
-		ImageBuilder:          "anyimagebuilder",
-		GitCloneNsLookupImage: "anynslookupimage",
-		GitCloneGitImage:      "anygitcloneimage",
-		GitCloneBashImage:     "anybashimage",
-		Clustertype:           "anyclustertype",
-		Clustername:           "anyclustername",
-		ContainerRegistry:     "anycontainerregistry",
-		SubscriptionId:        "anysubscriptionid",
-		RadixZone:             "anyradixzone",
-		GitWorkspace:          gitWorkspace,
+		AppName:           "anyappname",
+		PipelineType:      "anypipelinetype",
+		JobName:           "anyjobname",
+		GitRef:            gitRefName,
+		GitRefType:        "tag",
+		CommitID:          "anycommitid",
+		ImageTag:          "anyimagetag",
+		PushImage:         pushImage,
+		ImageBuilder:      "anyimagebuilder",
+		GitCloneGitImage:  "anygitcloneimage",
+		GitCloneBashImage: "anybashimage",
+		Clustertype:       "anyclustertype",
+		Clustername:       "anyclustername",
+		ContainerRegistry: "anycontainerregistry",
+		SubscriptionId:    "anysubscriptionid",
+		RadixZone:         "anyradixzone",
+		GitWorkspace:      gitWorkspace,
 	}
 	require.Equal(t, pushImage, args.PushImage)
 	componentImages := []pipeline.BuildComponentImage{
@@ -127,10 +126,10 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	assert.ElementsMatch(t, expectedVolumes, job.Spec.Template.Spec.Volumes)
 
 	// Check init containers
-	assert.ElementsMatch(t, []string{"internal-nslookup", "clone", "internal-chmod"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
+	assert.ElementsMatch(t, []string{"clone"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 	cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
 	assert.Equal(t, args.GitCloneGitImage, cloneContainer.Image)
-	expectedCommand := fmt.Sprintf("git config --global --add safe.directory %[3]s && git clone %[2]s -b %[4]s --verbose --progress --filter=blob:none %[3]s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd %[3]s && echo \"Checking out commit %[1]s\" && git merge-base --is-ancestor %[1]s HEAD && git checkout -q %[1]s && cd - && cd /some-workspace && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", gitCommitHash, cloneURL, gitWorkspace, gitRefName)
+	expectedCommand := fmt.Sprintf("umask 007 && git config --global --add safe.directory %[3]s && git clone %[2]s -b %[4]s --verbose --progress --filter=blob:none %[3]s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd %[3]s && echo \"Checking out commit %[1]s\" && git merge-base --is-ancestor %[1]s HEAD && git checkout -q %[1]s && cd - && cd /some-workspace && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", gitCommitHash, cloneURL, gitWorkspace, gitRefName)
 	assert.Equal(t, []string{"sh", "-c", expectedCommand}, cloneContainer.Command)
 	assert.Empty(t, cloneContainer.Args)
 	expectedCloneVolumeMounts := []corev1.VolumeMount{

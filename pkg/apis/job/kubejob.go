@@ -215,7 +215,6 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 	}
 
 	// Pass git clone init container images
-	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneNsLookupImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneConfig.NSlookupImage))
 	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneGitImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneConfig.GitImage))
 	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneBashImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneConfig.BashImage))
 

@@ -100,9 +100,8 @@ func NewConfig() *apiconfig.Config {
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
 			PipelineImageTag:                      viper.GetString(defaults.RadixPipelineImageTagEnvironmentVariable),
 			GitCloneConfig: &git.CloneConfig{
-				NSlookupImage: viper.GetString(defaults.RadixGitCloneNsLookupImageEnvironmentVariable),
-				GitImage:      viper.GetString(defaults.RadixGitCloneGitImageEnvironmentVariable),
-				BashImage:     viper.GetString(defaults.RadixGitCloneBashImageEnvironmentVariable),
+				GitImage:  viper.GetString(defaults.RadixGitCloneGitImageEnvironmentVariable),
+				BashImage: viper.GetString(defaults.RadixGitCloneBashImageEnvironmentVariable),
 			},
 		},
 		CertificateAutomation: certificateconfig.AutomationConfig{

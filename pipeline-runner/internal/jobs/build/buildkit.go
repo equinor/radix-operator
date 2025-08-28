@@ -193,7 +193,6 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 
 func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
 	cloneConfig := git.CloneConfig{
-		NSlookupImage: c.pipelineArgs.GitCloneNsLookupImage,
 		GitImage:      c.pipelineArgs.GitCloneGitImage,
 		BashImage:     c.pipelineArgs.GitCloneBashImage,
 	}

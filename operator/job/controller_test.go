@@ -148,9 +148,8 @@ func createConfig() *config.Config {
 			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
 			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
 			GitCloneConfig: &git.CloneConfig{
-				NSlookupImage: "nslookup:any",
-				GitImage:      "git:any",
-				BashImage:     "bash:any",
+				GitImage:  "git:any",
+				BashImage: "bash:any",
 			},
 			PipelineImageTag: "anypipelinetag",
 		},

@@ -153,7 +153,7 @@ spec:
               value: {{ .Values.buildahImageBuilder }}
             - name: RADIX_BUILDKIT_IMAGE_BUILDER
               value: {{ .Values.buildKitImageBuilder }}
-            - name: RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE
+            - name: RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE # TODO: Deprecated, remove
               value: {{ .Values.gitCloneNsLookupImage }}
             - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE
               value: {{ .Values.gitCloneGitImage }}

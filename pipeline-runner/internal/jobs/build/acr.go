@@ -123,9 +123,8 @@ func (c *acrKubeJobProps) PodVolumes() []corev1.Volume {
 
 func (c *acrKubeJobProps) PodInitContainers() []corev1.Container {
 	cloneConfig := git.CloneConfig{
-		NSlookupImage: c.pipelineArgs.GitCloneNsLookupImage,
-		GitImage:      c.pipelineArgs.GitCloneGitImage,
-		BashImage:     c.pipelineArgs.GitCloneBashImage,
+		GitImage:  c.pipelineArgs.GitCloneGitImage,
+		BashImage: c.pipelineArgs.GitCloneBashImage,
 	}
 	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GetGitRefOrDefault(), c.gitCommitHash, c.pipelineArgs.GitWorkspace, cloneConfig)
 }

@@ -2,7 +2,6 @@ package git
 
 import (
 	"fmt"
-	"path"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -12,15 +11,12 @@ import (
 )
 
 const (
-	// The script to ensure that GitHub responds before cloning. It breaks after max attempts
-	waitForGithubToRespond = "n=1;max=10;delay=2;while true; do if [ \"$n\" -lt \"$max\" ]; then nslookup github.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo \"The command has failed after $n attempts.\"; break; fi done"
-	podLabelsVolumeName    = "pod-labels"
-	podLabelsFileName      = "labels"
+	podLabelsVolumeName = "pod-labels"
+	podLabelsFileName   = "labels"
 )
 
 // CloneConfig Git repository cloning configuration
 type CloneConfig struct {
-	NSlookupImage string
 	GitImage      string
 	BashImage     string
 }
@@ -39,6 +35,7 @@ func CloneInitContainersWithSourceCode(sshURL, branch, commitID, directory strin
 // CloneInitContainersWithContainerName The sidecars for cloning a git repo. Lfs is to support large files in cloned source code, it is not needed for Radix config ot SubPipeline
 func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory string, useLfs, skipBlobs bool, cloneContainerName string, config CloneConfig) []corev1.Container {
 	commands := []string{
+		"umask 007", // make sure all containers use group 1000, and have read/write access to the code directory
 		fmt.Sprintf("git config --global --add safe.directory %s", directory),
 	}
 
@@ -63,30 +60,6 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 	gitCloneCmd := []string{"sh", "-c", strings.Join(commands, " && ")}
 
 	containers := []corev1.Container{
-		{
-			Name:    fmt.Sprintf("%snslookup", InternalContainerPrefix),
-			Image:   config.NSlookupImage,
-			Command: []string{"/bin/sh", "-c"},
-			Args:    []string{waitForGithubToRespond},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(10, resource.Mega),
-				},
-				Limits: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(50, resource.Mega),
-				},
-			},
-			ImagePullPolicy: corev1.PullIfNotPresent,
-			SecurityContext: securitycontext.Container(
-				securitycontext.WithContainerRunAsUser(1000), // Any user will probably do
-				securitycontext.WithContainerRunAsGroup(1000),
-				securitycontext.WithContainerDropAllCapabilities(),
-				securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-				securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
-			),
-		},
 		{
 			Name:            cloneContainerName,
 			Image:           config.GitImage,
@@ -122,36 +95,6 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(1000, resource.Milli),
 					corev1.ResourceMemory: *resource.NewScaledQuantity(2000, resource.Mega),
-				},
-			},
-			SecurityContext: securitycontext.Container(
-				securitycontext.WithContainerRunAsUser(65534), // Must be this user when running as non root
-				securitycontext.WithContainerRunAsGroup(1000),
-				securitycontext.WithContainerDropAllCapabilities(),
-				securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-				securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
-			),
-		},
-		{
-			Name:            fmt.Sprintf("%schmod", InternalContainerPrefix),
-			Image:           config.BashImage,
-			ImagePullPolicy: corev1.PullIfNotPresent,
-			Command:         []string{"/usr/local/bin/bash", "-O", "dotglob", "-c"},
-			Args:            []string{fmt.Sprintf("chmod -R g+rw %s", path.Join(directory, "*"))},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      BuildContextVolumeName,
-					MountPath: directory,
-				},
-			},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
-				},
-				Limits: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(50, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(100, resource.Mega),
 				},
 			},
 			SecurityContext: securitycontext.Container(
