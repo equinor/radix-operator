@@ -28,7 +28,6 @@ import (
 )
 
 const (
-	workerImage = "radix-pipeline"
 	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
 	ResultContent = "ResultContent"
 	runAsUser     = 1000

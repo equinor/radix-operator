@@ -227,7 +227,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	expectedContainers := []corev1.Container{
 		{
 			Name:            "radix-pipeline",
-			Image:           fmt.Sprintf("%s/radix-pipeline:%s", s.config.registry, pipelineTag),
+			Image:           pipelineTag,
 			ImagePullPolicy: corev1.PullAlways,
 			Args: []string{
 				fmt.Sprintf("--RADIX_APP=%s", appName),
