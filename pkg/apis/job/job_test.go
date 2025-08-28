@@ -75,7 +75,7 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 	}{
 		clusterName:    "AnyClusterName",
 		egressIps:      "0.0.0.0",
-		builderImage:   "builder:any",
+		builderImage:   "docker.io/builder:any",
 		buildkitImage:  "buildkit:any",
 		buildahSecComp: "anyseccomp",
 		nslookupImage:  "nslookup:any",
@@ -238,7 +238,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY=2000Mi",
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU=200m",
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-				fmt.Sprintf("--RADIX_IMAGE_BUILDER=%s", s.config.builderImage),
+				fmt.Sprintf("--RADIX_IMAGE_BUILDER_IMAGE=%s", s.config.builderImage),
 				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
 				fmt.Sprintf("--RADIX_CLUSTER_TYPE=%s", s.config.clusterType),

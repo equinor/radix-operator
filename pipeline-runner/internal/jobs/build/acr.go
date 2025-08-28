@@ -1,7 +1,6 @@
 package build
 
 import (
-	"fmt"
 	"path"
 	"strings"
 	"time"
@@ -137,7 +136,7 @@ func (c *acrKubeJobProps) PodContainers() []corev1.Container {
 func (c *acrKubeJobProps) getPodContainer(componentImage pipeline.BuildComponentImage) corev1.Container {
 	return corev1.Container{
 		Name:            componentImage.ContainerName,
-		Image:           fmt.Sprintf("%s/%s", c.pipelineArgs.ContainerRegistry, c.pipelineArgs.ImageBuilder),
+		Image:           c.pipelineArgs.ImageBuilder,
 		ImagePullPolicy: corev1.PullAlways,
 		Env:             c.getPodContainerEnvVars(componentImage),
 		VolumeMounts:    c.getPodContainerVolumeMounts(componentImage),
