@@ -98,7 +98,7 @@ func NewConfig() *apiconfig.Config {
 			AppBuilderResourcesLimitsCPU:          defaults.GetResourcesLimitsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
-			PipelineImageTag:                      viper.GetString(defaults.RadixPipelineImageTagEnvironmentVariable),
+			PipelineImage:                         viper.GetString(defaults.RadixPipelineImageEnvironmentVariable),
 			GitCloneConfig: &git.CloneConfig{
 				NSlookupImage: viper.GetString(defaults.RadixGitCloneNsLookupImageEnvironmentVariable),
 				GitImage:      viper.GetString(defaults.RadixGitCloneGitImageEnvironmentVariable),

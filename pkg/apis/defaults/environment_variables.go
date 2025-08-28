@@ -218,8 +218,8 @@ const (
 	// RadixCertificateAutomationRenewBeforeVariable Defines renew_before for certificates issued by cluster issuer
 	RadixCertificateAutomationRenewBeforeVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE"
 
-	// RadixPipelineImageTagEnvironmentVariable Radix pipeline image tag
-	RadixPipelineImageTagEnvironmentVariable = "RADIXOPERATOR_PIPELINE_IMAGE_TAG"
+	// RadixPipelineImageEnvironmentVariable Radix pipeline image tag
+	RadixPipelineImageEnvironmentVariable = "RADIXOPERATOR_PIPELINE_IMAGE"
 
 	// RadixGitCloneNsLookupImageEnvironmentVariable The container image containing nslookup, used in pipeline git clone init containers
 	RadixGitCloneNsLookupImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE"

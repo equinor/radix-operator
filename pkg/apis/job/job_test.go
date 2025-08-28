@@ -184,7 +184,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appID := ulid.Make()
-	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 	rj, _, err := s.applyJobWithSync(
 		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID.String()).WithRadixConfigFullName("some-radixconfig.yaml"),
@@ -440,7 +440,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
-	const appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag = "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	const appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag = "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
 	argUseBuildCacheTrue := fmt.Sprintf("--%s=true", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
 	argUseBuildCacheFalse := fmt.Sprintf("--%s=false", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
 	argRefreshBuildCacheTrue := fmt.Sprintf("--%s=true", defaults.RadixRefreshBuildCacheEnvironmentVariable)
@@ -1686,7 +1686,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 						GitImage:      "git:any",
 						BashImage:     "bash:any",
 					},
-					PipelineImageTag: "anypipelinetag",
+					PipelineImage: "docker.io/anypipeline:tag",
 				},
 			},
 			expectedError:                             "",
@@ -1707,7 +1707,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 						GitImage:      "git:any",
 						BashImage:     "bash:any",
 					},
-					PipelineImageTag: "anypipelinetag",
+					PipelineImage: "docker.io/anypipeline:tag",
 				}},
 			expectedError: "invalid or missing app builder resources",
 		},
@@ -1723,7 +1723,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 						GitImage:      "git:any",
 						BashImage:     "bash:any",
 					},
-					PipelineImageTag: "anypipelinetag",
+					PipelineImage: "docker.io/anypipeline:tag",
 				}},
 			expectedError: "invalid or missing app builder resources",
 		},
@@ -1739,7 +1739,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 						GitImage:      "git:any",
 						BashImage:     "bash:any",
 					},
-					PipelineImageTag: "anypipelinetag",
+					PipelineImage: "docker.io/anypipeline:tag",
 				}},
 			expectedError: "invalid or missing app builder resources",
 		},
@@ -1804,7 +1804,7 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 				GitImage:      "git:any",
 				BashImage:     "bash:any",
 			},
-			PipelineImageTag: "anypipelinetag",
+			PipelineImage: "docker.io/anypipeline:tag",
 		},
 		ContainerRegistryConfig: containerregistry.Config{
 			ExternalRegistryAuthSecret: "an-external-registry-secret",

@@ -18,6 +18,6 @@ type Config struct {
 	AppBuilderResourcesRequestsMemory     *resource.Quantity
 	// GitCloneConfig Config for the git repo cloning
 	GitCloneConfig *git.CloneConfig
-	// PipelineImageTag Tag for the radix-pipeline image
-	PipelineImageTag string
+	// PipelineImage Tag for the radix-pipeline image
+	PipelineImage string
 }

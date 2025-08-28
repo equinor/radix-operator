@@ -152,7 +152,7 @@ func createConfig() *config.Config {
 				GitImage:      "git:any",
 				BashImage:     "bash:any",
 			},
-			PipelineImageTag: "anypipelinetag",
+			PipelineImage: "docker.io/anypipeline:tag",
 		},
 	}
 }
