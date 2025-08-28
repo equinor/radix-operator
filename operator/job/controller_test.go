@@ -146,7 +146,7 @@ func createConfig() *config.Config {
 			AppBuilderResourcesLimitsCPU:      pointers.Ptr(resource.MustParse("200m")),
 			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
 			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
-			GitCloneImage:                     "git:any",
+			GitCloneImage:                     "docker.io/git:any",
 			PipelineImage:                     "docker.io/anypipeline:tag",
 		},
 	}
