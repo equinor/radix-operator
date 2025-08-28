@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -27,10 +26,7 @@ func (js *JobSchedulerComponent) GetHealthChecks() *radixv1.RadixHealthChecks {
 }
 
 func (js *JobSchedulerComponent) GetImage() string {
-	containerRegistry := os.Getenv(defaults.ContainerRegistryEnvironmentVariable)
-	radixJobScheduler := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
-	radixJobSchedulerImageUrl := fmt.Sprintf("%s/%s", containerRegistry, radixJobScheduler)
-	return radixJobSchedulerImageUrl
+	return os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 }
 
 func (js *JobSchedulerComponent) GetCommand() []string {
