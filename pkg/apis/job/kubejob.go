@@ -153,7 +153,7 @@ func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) string
 }
 
 func (job *Job) getInitContainersForRadixConfig(rr *radixv1.RadixRegistration, workspace string) []corev1.Container {
-	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, *job.config.PipelineJobConfig.GitCloneConfig)
+	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, job.config.PipelineJobConfig.GitCloneImage)
 }
 
 func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
@@ -215,9 +215,7 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 	}
 
 	// Pass git clone init container images
-	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneNsLookupImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneConfig.NSlookupImage))
-	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneGitImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneConfig.GitImage))
-	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneBashImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneConfig.BashImage))
+	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneGitImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneImage))
 
 	switch pipeline.Type {
 	case radixv1.BuildDeploy, radixv1.Build:

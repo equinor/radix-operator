@@ -135,13 +135,11 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringSliceVar(&pipelineArgs.DNSConfig.ReservedDNSAliases, defaults.RadixReservedDNSAliasesEnvironmentVariable, make([]string, 0), "The list of DNS aliases, reserved for Radix platform services")
 	cmd.Flags().StringSliceVar(&pipelineArgs.ComponentsToDeploy, defaults.RadixComponentsToDeployVariable, make([]string, 0), "The list of components to deploy (optional)")
 	// Git clone init container images
-	cmd.Flags().StringVar(&pipelineArgs.GitCloneNsLookupImage, defaults.RadixGitCloneNsLookupImageEnvironmentVariable, "alpine:latest", "Container image with nslookup used by git clone init containers")
 	cmd.Flags().StringVar(&pipelineArgs.GitCloneGitImage, defaults.RadixGitCloneGitImageEnvironmentVariable, "alpine/git:latest", "Container image with git used by git clone init containers")
-	cmd.Flags().StringVar(&pipelineArgs.GitCloneBashImage, defaults.RadixGitCloneBashImageEnvironmentVariable, "bash:latest", "Container image with bash used by git clone init containers")
 	cmd.Flags().BoolVar(&pipelineArgs.ApplyConfigOptions.DeployExternalDNS, defaults.RadixPipelineApplyConfigDeployExternalDNSFlag, false, "Deploy changes to External DNS configuration with the 'apply-config' pipeline")
 	cmd.Flags().StringVar(&pipelineArgs.GitWorkspace, defaults.RadixGithubWorkspaceEnvironmentVariable, git.Workspace, fmt.Sprintf("(Optional) Workspace path to the cloned GitHub repository. Default %s", git.Workspace))
 	cmd.Flags().BoolVar(&pipelineArgs.TriggeredFromWebhook, defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, false, "Indicates if the pipeline was triggered from a webhook")
-
+	
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
 		return fmt.Errorf("failed to parse command arguments. Error: %v", err)
