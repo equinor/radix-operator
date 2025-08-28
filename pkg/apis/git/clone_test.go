@@ -14,11 +14,10 @@ func Test_CloneInitContainers_CustomImages(t *testing.T) {
 		name  string
 		image string
 	}
-	cfg := git.CloneConfig{GitImage: "anygit:any", BashImage: "anybash:any"}
-	containers := git.CloneInitContainersWithSourceCode("anysshurl", "anybranch", "anycommit", "/some-workspace", cfg)
+	containers := git.CloneInitContainersWithSourceCode("anysshurl", "anybranch", "anycommit", "/some-workspace", "anygit:any")
 	actual := slice.Map(containers, func(c corev1.Container) containerInfo { return containerInfo{name: c.Name, image: c.Image} })
 	expected := []containerInfo{
-		{name: git.CloneContainerName, image: cfg.GitImage},
+		{name: git.CloneContainerName, image: "anygit:any"},
 	}
 	assert.Equal(t, expected, actual)
 }
@@ -29,11 +28,10 @@ func Test_CloneInitContainersWithContainerName_CustomImages(t *testing.T) {
 		image string
 	}
 	cloneName := "anyclonename"
-	cfg := git.CloneConfig{GitImage: "anygit:any", BashImage: "anybash:any"}
-	containers := git.CloneInitContainersWithContainerName("anysshurl", "anybranch", "anycommit", "/some-workspace", true, false, cloneName, cfg)
+	containers := git.CloneInitContainersWithContainerName("anysshurl", "anybranch", "anycommit", "/some-workspace", true, false, cloneName, "anygit:any")
 	actual := slice.Map(containers, func(c corev1.Container) containerInfo { return containerInfo{name: c.Name, image: c.Image} })
 	expected := []containerInfo{
-		{name: cloneName, image: cfg.GitImage},
+		{name: cloneName, image: "anygit:any"},
 	}
 	assert.Equal(t, expected, actual)
 }

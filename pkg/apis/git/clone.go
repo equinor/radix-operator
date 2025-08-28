@@ -15,12 +15,6 @@ const (
 	podLabelsFileName   = "labels"
 )
 
-// CloneConfig Git repository cloning configuration
-type CloneConfig struct {
-	GitImage      string
-	BashImage     string
-}
-
 // CloneInitContainersWithSourceCode The sidecars for cloning repo with source code
 // Arguments:
 //   - sshURL: SSH URL to the remote git repository
@@ -28,12 +22,12 @@ type CloneConfig struct {
 //   - commitID (optional): The commit ID to checkout after clone finished. The clone step will fail if the commit ID is not an ancestor of HEAD for the branch
 //   - directory: The directory to clone the git repository to
 //   - config: defines the container images to be used by the init containers
-func CloneInitContainersWithSourceCode(sshURL, branch, commitID, directory string, config CloneConfig) []corev1.Container {
-	return CloneInitContainersWithContainerName(sshURL, branch, commitID, directory, true, true, CloneContainerName, config)
+func CloneInitContainersWithSourceCode(sshURL, branch, commitID, directory, gitImage string) []corev1.Container {
+	return CloneInitContainersWithContainerName(sshURL, branch, commitID, directory, true, true, CloneContainerName, gitImage)
 }
 
 // CloneInitContainersWithContainerName The sidecars for cloning a git repo. Lfs is to support large files in cloned source code, it is not needed for Radix config ot SubPipeline
-func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory string, useLfs, skipBlobs bool, cloneContainerName string, config CloneConfig) []corev1.Container {
+func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory string, useLfs, skipBlobs bool, cloneContainerName, gitImage string) []corev1.Container {
 	commands := []string{
 		"umask 007", // make sure all containers use group 1000, and have read/write access to the code directory
 		fmt.Sprintf("git config --global --add safe.directory %s", directory),
@@ -62,7 +56,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 	containers := []corev1.Container{
 		{
 			Name:            cloneContainerName,
-			Image:           config.GitImage,
+			Image:           gitImage,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         gitCloneCmd,
 			Env: []corev1.EnvVar{

@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/git"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -147,11 +146,8 @@ func createConfig() *config.Config {
 			AppBuilderResourcesLimitsCPU:      pointers.Ptr(resource.MustParse("200m")),
 			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
 			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
-			GitCloneConfig: &git.CloneConfig{
-				GitImage:  "git:any",
-				BashImage: "bash:any",
-			},
-			PipelineImageTag: "anypipelinetag",
+			GitCloneImage:                     "git:any",
+			PipelineImageTag:                  "anypipelinetag",
 		},
 	}
 }

@@ -58,7 +58,6 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 		PushImage:              pushImage,
 		BuildKitImageBuilder:   "anyimagebuilder",
 		GitCloneGitImage:       "anygitcloneimage",
-		GitCloneBashImage:      "anybashimage",
 		Clustertype:            "anyclustertype",
 		Clustername:            "anyclustername",
 		ContainerRegistry:      "anycontainerregistry",

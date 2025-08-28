@@ -11,7 +11,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
@@ -122,11 +121,7 @@ func (c *acrKubeJobProps) PodVolumes() []corev1.Volume {
 }
 
 func (c *acrKubeJobProps) PodInitContainers() []corev1.Container {
-	cloneConfig := git.CloneConfig{
-		GitImage:  c.pipelineArgs.GitCloneGitImage,
-		BashImage: c.pipelineArgs.GitCloneBashImage,
-	}
-	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GetGitRefOrDefault(), c.gitCommitHash, c.pipelineArgs.GitWorkspace, cloneConfig)
+	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GetGitRefOrDefault(), c.gitCommitHash, c.pipelineArgs.GitWorkspace, c.pipelineArgs.GitCloneGitImage)
 }
 
 func (c *acrKubeJobProps) PodContainers() []corev1.Container {

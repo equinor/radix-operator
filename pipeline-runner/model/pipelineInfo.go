@@ -126,9 +126,6 @@ type PipelineArguments struct {
 	// Must support running as user 65534.
 	// Used as option to the CloneInitContainers function.
 	GitCloneGitImage string
-	// GitCloneBashImage defines image with bash.
-	// Used as option to the CloneInitContainers function.
-	GitCloneBashImage string
 	// SeccompProfileFileName Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node
 	SeccompProfileFileName string
 	// Used for tagging meta-information

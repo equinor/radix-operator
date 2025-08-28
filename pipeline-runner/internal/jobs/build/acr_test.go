@@ -50,7 +50,6 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 		PushImage:         pushImage,
 		ImageBuilder:      "anyimagebuilder",
 		GitCloneGitImage:  "anygitcloneimage",
-		GitCloneBashImage: "anybashimage",
 		Clustertype:       "anyclustertype",
 		Clustername:       "anyclustername",
 		ContainerRegistry: "anycontainerregistry",
