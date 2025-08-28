@@ -1,7 +1,6 @@
 package git_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -15,13 +14,10 @@ func Test_CloneInitContainers_CustomImages(t *testing.T) {
 		name  string
 		image string
 	}
-	cfg := git.CloneConfig{NSlookupImage: "anynslookup:any", GitImage: "anygit:any", BashImage: "anybash:any"}
-	containers := git.CloneInitContainersWithSourceCode("anysshurl", "anybranch", "anycommit", "/some-workspace", cfg)
+	containers := git.CloneInitContainersWithSourceCode("anysshurl", "anybranch", "anycommit", "/some-workspace", "anygit:any")
 	actual := slice.Map(containers, func(c corev1.Container) containerInfo { return containerInfo{name: c.Name, image: c.Image} })
 	expected := []containerInfo{
-		{name: fmt.Sprintf("%snslookup", git.InternalContainerPrefix), image: cfg.NSlookupImage},
-		{name: git.CloneContainerName, image: cfg.GitImage},
-		{name: fmt.Sprintf("%schmod", git.InternalContainerPrefix), image: cfg.BashImage},
+		{name: git.CloneContainerName, image: "anygit:any"},
 	}
 	assert.Equal(t, expected, actual)
 }
@@ -32,13 +28,10 @@ func Test_CloneInitContainersWithContainerName_CustomImages(t *testing.T) {
 		image string
 	}
 	cloneName := "anyclonename"
-	cfg := git.CloneConfig{NSlookupImage: "anynslookup:any", GitImage: "anygit:any", BashImage: "anybash:any"}
-	containers := git.CloneInitContainersWithContainerName("anysshurl", "anybranch", "anycommit", "/some-workspace", true, false, cloneName, cfg)
+	containers := git.CloneInitContainersWithContainerName("anysshurl", "anybranch", "anycommit", "/some-workspace", true, false, cloneName, "anygit:any")
 	actual := slice.Map(containers, func(c corev1.Container) containerInfo { return containerInfo{name: c.Name, image: c.Image} })
 	expected := []containerInfo{
-		{name: fmt.Sprintf("%snslookup", git.InternalContainerPrefix), image: cfg.NSlookupImage},
-		{name: cloneName, image: cfg.GitImage},
-		{name: fmt.Sprintf("%schmod", git.InternalContainerPrefix), image: cfg.BashImage},
+		{name: cloneName, image: "anygit:any"},
 	}
 	assert.Equal(t, expected, actual)
 }

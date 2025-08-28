@@ -196,10 +196,6 @@ const (
 	// SeccompProfileFileNameEnvironmentVariable Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory
 	SeccompProfileFileNameEnvironmentVariable = "SECCOMP_PROFILE_FILENAME"
 
-	// Deprecated: Radix no longer uses the buildah image directly. Use RadixBuildKitImageBuilderEnvironmentVariable
-	// RadixBuildahImageBuilderEnvironmentVariable The container image used for running the buildah engine
-	RadixBuildahImageBuilderEnvironmentVariable = "RADIX_BUILDAH_IMAGE_BUILDER"
-
 	// RadixBuildKitImageBuilderEnvironmentVariable Repository and tag for the buildkit image builder
 	RadixBuildKitImageBuilderEnvironmentVariable = "RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE"
 
@@ -221,14 +217,8 @@ const (
 	// RadixPipelineImageEnvironmentVariable Radix pipeline image tag
 	RadixPipelineImageEnvironmentVariable = "RADIXOPERATOR_PIPELINE_IMAGE"
 
-	// RadixGitCloneNsLookupImageEnvironmentVariable The container image containing nslookup, used in pipeline git clone init containers
-	RadixGitCloneNsLookupImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE"
-
 	// RadixGitCloneGitImageEnvironmentVariable The container image containing git, used in pipeline git clone init containers
 	RadixGitCloneGitImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE"
-
-	// RadixGitCloneBashImageEnvironmentVariable The container image containing bash, used in pipeline git clone init containers
-	RadixGitCloneBashImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE"
 
 	// RadixExternalRegistryDefaultAuthEnvironmentVariable Name of the secret containing default credentials for external container registries.
 	// Used when pulling images for components and jobs and for pulling images in Dockerfiles when building with buildah.
