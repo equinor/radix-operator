@@ -24,7 +24,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ template "radix-operator.fullname" . }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion}}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: metrics
@@ -83,10 +83,14 @@ spec:
               value: {{ .Values.pipelineJobsHistoryLimit | quote }}
             - name: RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT
               value: {{ .Values.pipelineJobsHistoryPeriodLimit | quote }}
-            - name: RADIX_IMAGE_BUILDER
+            - name: RADIX_IMAGE_BUILDER # deprecated issue #1388
               value: {{ .Values.imageBuilder }}
-            - name: RADIXOPERATOR_JOB_SCHEDULER
+            - name: RADIX_IMAGE_BUILDER_IMAGE
+              value: {{ .Values.radixImageBuilder.image.repository }}:{{ .Values.radixImageBuilder.image.tag | default "master-latest" }}
+            - name: RADIXOPERATOR_JOB_SCHEDULER # deprecated issue #1388
               value: {{ .Values.jobScheduler }}
+            - name: RADIXOPERATOR_JOB_SCHEDULER_IMAGE
+              value: {{ .Values.radixJobScheduler.image.repository }}:{{ .Values.radixJobScheduler.image.tag | default "main-latest" }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: LOG_PRETTY
@@ -100,9 +104,9 @@ spec:
             - name: RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL
               value: {{ .Values.oauthProxyDefaultIssuerUrl }}
             - name: RADIX_OAUTH_PROXY_IMAGE
-              value: {{ .Values.oauthProxyImage }}
+              value: {{ .Values.oauth2proxy.image.repository }}:{{ .Values.oauth2proxy.image.tag }}
             - name: RADIX_OAUTH_REDIS_IMAGE
-              value: {{ .Values.oauthRedisImage }}
+              value: {{ .Values.oauth2redis.image.repository }}:{{ .Values.oauth2redis.image.tag }}
             - name: REGISTRATION_CONTROLLER_THREADS
               value: {{ .Values.registrationControllerThreads | quote }}
             - name: APPLICATION_CONTROLLER_THREADS
@@ -149,15 +153,15 @@ spec:
             {{- end }}
             - name: SECCOMP_PROFILE_FILENAME
               value: {{ .Values.seccompProfile.fileNameOnNode }}
-            - name: RADIX_BUILDAH_IMAGE_BUILDER # TODO: Deprecated, remove after chart and code has been deployed
-              value: {{ .Values.buildahImageBuilder }}
-            - name: RADIX_BUILDKIT_IMAGE_BUILDER
+            - name: RADIX_BUILDKIT_IMAGE_BUILDER # deprecated issue #1388
               value: {{ .Values.buildKitImageBuilder }}
-            - name: RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE # TODO: Deprecated, remove after chart and code has been deployed
+            - name: RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE
+              value: {{ .Values.radixBuildKitImageBuilder.image.repository }}:{{ .Values.radixBuildKitImageBuilder.image.tag | default "main-latest" }}
+            - name: RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE # deprecated issue #1388
               value: {{ .Values.gitCloneNsLookupImage }}
             - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE
-              value: {{ .Values.gitCloneGitImage }}
-            - name: RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE # TODO: Deprecated, remove after chart and code has been deployed
+              value: {{ .Values.gitClone.image.repository }}:{{ .Values.gitClone.image.tag | default "latest" }}
+            - name: RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE # deprecated issue #1388
               value: {{ .Values.gitCloneBashImage }}
             - name: RADIX_RESERVED_APP_DNS_ALIASES
               value: {{ include "helm-toolkit.utils.joinMapWithComma" .Values.reservedAppDNSAlias | quote }}
@@ -175,8 +179,10 @@ spec:
               value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
             - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
               value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
-            - name: RADIXOPERATOR_PIPELINE_IMAGE_TAG
+            - name: RADIXOPERATOR_PIPELINE_IMAGE_TAG # deprecated issue #1388
               value: {{ .Values.pipelineImageTag }}
+            - name: RADIXOPERATOR_PIPELINE_IMAGE
+              value: {{ .Values.radixPipelineRunner.image.repository }}:{{ .Values.radixPipelineRunner.image.tag | default .Chart.AppVersion }}
           livenessProbe:
             httpGet:
               path: /healthz
