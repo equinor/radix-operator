@@ -24,7 +24,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ template "radix-operator.fullname" . }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion}}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: metrics
@@ -181,7 +181,7 @@ spec:
               value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
             - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
               value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
-            - name: RADIXOPERATOR_PIPELINE_IMAGE_TAG
+            - name: RADIXOPERATOR_PIPELINE_IMAGE_TAG # deprecated issue #1388
               value: {{ .Values.pipelineImageTag }}
             - name: RADIXOPERATOR_PIPELINE_IMAGE
               value: {{ .Values.radixPipelineRunner.image.repository }}:{{ .Values.radixPipelineRunner.image.tag | default .Chart.AppVersion }}
