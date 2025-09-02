@@ -12,6 +12,10 @@ spec:
       labels:
         app: {{ .Values.seccompProfile.installer.daemonSetName }}
     spec:
+      imagePullSecrets:
+        {{- range .Values.seccompProfile.image.pullSecrets }}
+        - name: {{ . }}
+        {{- end }}
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

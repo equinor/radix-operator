@@ -172,6 +172,7 @@ seccompProfile:
   image:
     tag: "3.20"
     repository: docker.io/alpine
+    pullSecrets: [] # List of secret names to use
   installer:
     configMapName: "seccomp-allow-buildah"
     daemonSetName: copy-seccomp-profile
