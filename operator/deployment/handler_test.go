@@ -163,7 +163,7 @@ func (s *handlerSuite) Test_Sync() {
 			ingress.NewRedirectErrorPageAnnotationProvider(),
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123"),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123", s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, "redis:123", s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 		}
 		factory.
