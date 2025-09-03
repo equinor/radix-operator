@@ -65,7 +65,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	buildSecrets := []string{"secret1", "secret2"}
 
 	sut := build.NewACR()
-	jobs := sut.BuildJobs(false, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appId)})
+	jobs := sut.BuildJobs(false, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appId)}, "anysecret")
 	require.Len(t, jobs, 1)
 	job := jobs[0]
 

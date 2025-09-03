@@ -20,6 +20,7 @@ type KubeJobProps interface {
 	PodVolumes() []corev1.Volume
 	PodInitContainers() []corev1.Container
 	PodContainers() []corev1.Container
+	PodImagePullSecrets() []corev1.LocalObjectReference
 }
 
 // BuildKubeJob builds a Kubernetes job with properties defined by source argument
@@ -38,13 +39,14 @@ func BuildKubeJob(props KubeJobProps) batchv1.Job {
 					Annotations: props.PodAnnotations(),
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy:   corev1.RestartPolicyNever,
-					Affinity:        props.PodAffinity(),
-					Tolerations:     props.PodTolerations(),
-					SecurityContext: props.PodSecurityContext(),
-					Volumes:         props.PodVolumes(),
-					InitContainers:  props.PodInitContainers(),
-					Containers:      props.PodContainers(),
+					RestartPolicy:    corev1.RestartPolicyNever,
+					Affinity:         props.PodAffinity(),
+					Tolerations:      props.PodTolerations(),
+					SecurityContext:  props.PodSecurityContext(),
+					Volumes:          props.PodVolumes(),
+					InitContainers:   props.PodInitContainers(),
+					Containers:       props.PodContainers(),
+					ImagePullSecrets: props.PodImagePullSecrets(),
 				},
 			},
 		},

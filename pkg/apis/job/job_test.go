@@ -346,6 +346,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
 	s.Equal(expectedPodAnnotations, podTemplate.Annotations)
 	expectedPodSpec := corev1.PodSpec{
+		ImagePullSecrets:   []corev1.LocalObjectReference{{Name: "an-external-registry-secret"}},
 		RestartPolicy:      corev1.RestartPolicyNever,
 		Tolerations:        expectedTolerations,
 		Affinity:           expectedAffinity,

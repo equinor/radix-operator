@@ -91,6 +91,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
 				},
 				Spec: corev1.PodSpec{
+					ImagePullSecrets:   job.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth(),
 					ServiceAccountName: defaults.PipelineServiceAccountName,
 					SecurityContext: securitycontext.Pod(
 						securitycontext.WithPodFSGroup(fsGroup),

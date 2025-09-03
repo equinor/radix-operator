@@ -76,7 +76,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 	}
 
 	sut := build.NewBuildKit()
-	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appID)})
+	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appID)}, "anysecret")
 	require.Len(t, jobs, len(componentImages))
 
 	for _, ci := range componentImages {
