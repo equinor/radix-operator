@@ -2,7 +2,6 @@ package git
 
 import (
 	"fmt"
-	"path"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -12,18 +11,9 @@ import (
 )
 
 const (
-	// The script to ensure that GitHub responds before cloning. It breaks after max attempts
-	waitForGithubToRespond = "n=1;max=10;delay=2;while true; do if [ \"$n\" -lt \"$max\" ]; then nslookup github.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo \"The command has failed after $n attempts.\"; break; fi done"
-	podLabelsVolumeName    = "pod-labels"
-	podLabelsFileName      = "labels"
+	podLabelsVolumeName = "pod-labels"
+	podLabelsFileName   = "labels"
 )
-
-// CloneConfig Git repository cloning configuration
-type CloneConfig struct {
-	NSlookupImage string
-	GitImage      string
-	BashImage     string
-}
 
 // CloneInitContainersWithSourceCode The sidecars for cloning repo with source code
 // Arguments:
@@ -32,13 +22,14 @@ type CloneConfig struct {
 //   - commitID (optional): The commit ID to checkout after clone finished. The clone step will fail if the commit ID is not an ancestor of HEAD for the branch
 //   - directory: The directory to clone the git repository to
 //   - config: defines the container images to be used by the init containers
-func CloneInitContainersWithSourceCode(sshURL, branch, commitID, directory string, config CloneConfig) []corev1.Container {
-	return CloneInitContainersWithContainerName(sshURL, branch, commitID, directory, true, true, CloneContainerName, config)
+func CloneInitContainersWithSourceCode(sshURL, branch, commitID, directory, gitImage string) []corev1.Container {
+	return CloneInitContainersWithContainerName(sshURL, branch, commitID, directory, true, true, CloneContainerName, gitImage)
 }
 
 // CloneInitContainersWithContainerName The sidecars for cloning a git repo. Lfs is to support large files in cloned source code, it is not needed for Radix config ot SubPipeline
-func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory string, useLfs, skipBlobs bool, cloneContainerName string, config CloneConfig) []corev1.Container {
+func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory string, useLfs, skipBlobs bool, cloneContainerName, gitImage string) []corev1.Container {
 	commands := []string{
+		"umask 002", // make sure all users and groups have read+execute access to the files, since different users may access it (default is 022 and group+write for backwards compatibility)
 		fmt.Sprintf("git config --global --add safe.directory %s", directory),
 	}
 
@@ -64,32 +55,8 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 
 	containers := []corev1.Container{
 		{
-			Name:    fmt.Sprintf("%snslookup", InternalContainerPrefix),
-			Image:   config.NSlookupImage,
-			Command: []string{"/bin/sh", "-c"},
-			Args:    []string{waitForGithubToRespond},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(10, resource.Mega),
-				},
-				Limits: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(50, resource.Mega),
-				},
-			},
-			ImagePullPolicy: corev1.PullIfNotPresent,
-			SecurityContext: securitycontext.Container(
-				securitycontext.WithContainerRunAsUser(1000), // Any user will probably do
-				securitycontext.WithContainerRunAsGroup(1000),
-				securitycontext.WithContainerDropAllCapabilities(),
-				securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-				securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
-			),
-		},
-		{
 			Name:            cloneContainerName,
-			Image:           config.GitImage,
+			Image:           gitImage,
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         gitCloneCmd,
 			Env: []corev1.EnvVar{
@@ -122,36 +89,6 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 				Limits: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceCPU:    *resource.NewScaledQuantity(1000, resource.Milli),
 					corev1.ResourceMemory: *resource.NewScaledQuantity(2000, resource.Mega),
-				},
-			},
-			SecurityContext: securitycontext.Container(
-				securitycontext.WithContainerRunAsUser(65534), // Must be this user when running as non root
-				securitycontext.WithContainerRunAsGroup(1000),
-				securitycontext.WithContainerDropAllCapabilities(),
-				securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-				securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
-			),
-		},
-		{
-			Name:            fmt.Sprintf("%schmod", InternalContainerPrefix),
-			Image:           config.BashImage,
-			ImagePullPolicy: corev1.PullIfNotPresent,
-			Command:         []string{"/usr/local/bin/bash", "-O", "dotglob", "-c"},
-			Args:            []string{fmt.Sprintf("chmod -R g+rw %s", path.Join(directory, "*"))},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      BuildContextVolumeName,
-					MountPath: directory,
-				},
-			},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(10, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(1, resource.Mega),
-				},
-				Limits: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(50, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(100, resource.Mega),
 				},
 			},
 			SecurityContext: securitycontext.Container(
