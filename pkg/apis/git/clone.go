@@ -51,6 +51,8 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 		commands = append(commands, fmt.Sprintf("cd %s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", directory))
 	}
 
+	commands = append(commands, fmt.Sprintf("chmod -R g+r %s/.git", directory))
+
 	gitCloneCmd := []string{"sh", "-c", strings.Join(commands, " && ")}
 
 	containers := []corev1.Container{

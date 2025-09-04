@@ -189,8 +189,8 @@
 				"RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON": "0 0 * * *",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
-				"RADIXOPERATOR_PIPELINE_IMAGE_TAG": "1388-manage-image-tags-dev",
-				"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE": "radixdevcache.azurecr.io/alpine/git:2.45.2",
+				"RADIXOPERATOR_PIPELINE_IMAGE": "radixdev.azurecr.io/radix-pipeline:1388-manage-image-tags-dev",
+				"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE": "docker.io/alpine/git:2.45.2"
 			},
 			"args": ["--useOutClusterClient=false"]
 		},
