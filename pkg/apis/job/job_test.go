@@ -291,7 +291,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		{
 			Name:            "clone-config",
 			Image:           s.config.gitImage,
-			Command:         []string{"sh", "-c", "umask 007 && git config --global --add safe.directory /workspace && git clone  -b  --verbose --progress /workspace && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")"},
+			Command:         []string{"sh", "-c", "umask 002 && git config --global --add safe.directory /workspace && git clone  -b  --verbose --progress /workspace && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && chmod -R g+r /workspace/.git"},
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Env:             []corev1.EnvVar{{Name: "HOME", Value: "/home/clone"}},
 			VolumeMounts: []corev1.VolumeMount{

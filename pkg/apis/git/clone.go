@@ -29,7 +29,7 @@ func CloneInitContainersWithSourceCode(sshURL, branch, commitID, directory, gitI
 // CloneInitContainersWithContainerName The sidecars for cloning a git repo. Lfs is to support large files in cloned source code, it is not needed for Radix config ot SubPipeline
 func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory string, useLfs, skipBlobs bool, cloneContainerName, gitImage string) []corev1.Container {
 	commands := []string{
-		"umask 007", // make sure all containers use group 1000, and have read/write access to the code directory
+		"umask 002", // make sure all users and groups have read+execute access to the files, since different users may access it (default is 022 and group+write for backwards compatibility)
 		fmt.Sprintf("git config --global --add safe.directory %s", directory),
 	}
 
@@ -50,6 +50,8 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 	if useLfs {
 		commands = append(commands, fmt.Sprintf("cd %s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", directory))
 	}
+
+	commands = append(commands, fmt.Sprintf("chmod -R g+r %s/.git", directory))
 
 	gitCloneCmd := []string{"sh", "-c", strings.Join(commands, " && ")}
 
