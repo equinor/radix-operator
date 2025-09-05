@@ -213,7 +213,7 @@ func (o *oauthRedisResourceManager) createOrUpdateDeployment(ctx context.Context
 		return err
 	}
 
-	return o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired, false)
+	return o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired)
 }
 
 func (o *oauthRedisResourceManager) getCurrentAndDesiredDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {

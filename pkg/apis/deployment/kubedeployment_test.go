@@ -187,8 +187,7 @@ func Test_DoNot_SyncAppID_WhenAddedLater(t *testing.T) {
 
 	deployment, err := kubeClient.AppsV1().Deployments("any-app-test").Get(context.Background(), "comp1", metav1.GetOptions{})
 	require.NoError(t, err, "failed to apply deployment1")
-
-	assert.NotContains(t, deployment.Spec.Template.Labels, "radix-app-id", "radix-id label should be set")
+	assert.Contains(t, deployment.Spec.Template.Labels, "radix-app-id", "radix-id label should be set")
 }
 
 func Test_UpdateResourcesInDeployment(t *testing.T) {
