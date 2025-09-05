@@ -16,6 +16,5 @@ type Config struct {
 	AppBuilderResourcesRequestsCPU        *resource.Quantity
 	AppBuilderResourcesRequestsMemory     *resource.Quantity
 	GitCloneImage                         string
-	// PipelineImageTag Tag for the radix-pipeline image
-	PipelineImageTag string
+	PipelineImage                         string
 }

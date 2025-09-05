@@ -10,5 +10,5 @@ import (
 // JobsBuilder defines interface for creating pipeline build jobs
 type JobsBuilder interface {
 	// BuildJobs returns a slice of Kubernetes jobs to be used for building container images for Radix components and jobs
-	BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID) []batchv1.Job
+	BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID, imagePullSecrets string) []batchv1.Job
 }

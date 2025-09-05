@@ -70,10 +70,10 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 	}{
 		clusterName:    "AnyClusterName",
 		egressIps:      "0.0.0.0",
-		builderImage:   "builder:any",
-		buildkitImage:  "buildkit:any",
+		builderImage:   "docker.io/builder:any",
+		buildkitImage:  "docker.io/buildkit:any",
 		buildahSecComp: "anyseccomp",
-		gitImage:       "git:any",
+		gitImage:       "docker.io/git:any",
 		radixZone:      "anyzone",
 		clusterType:    "anyclustertype",
 		registry:       "anyregistry",
@@ -175,7 +175,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appID := ulid.Make()
-	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 	rj, _, err := s.applyJobWithSync(
 		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID.String()).WithRadixConfigFullName("some-radixconfig.yaml"),
@@ -218,7 +218,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	expectedContainers := []corev1.Container{
 		{
 			Name:            "radix-pipeline",
-			Image:           fmt.Sprintf("%s/radix-pipeline:%s", s.config.registry, pipelineTag),
+			Image:           pipelineTag,
 			ImagePullPolicy: corev1.PullAlways,
 			Args: []string{
 				fmt.Sprintf("--RADIX_APP=%s", appName),
@@ -229,8 +229,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY=2000Mi",
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU=200m",
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-				fmt.Sprintf("--RADIX_IMAGE_BUILDER=%s", s.config.builderImage),
-				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER=%s", s.config.buildkitImage),
+				fmt.Sprintf("--RADIX_IMAGE_BUILDER_IMAGE=%s", s.config.builderImage),
+				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
 				fmt.Sprintf("--RADIX_CLUSTER_TYPE=%s", s.config.clusterType),
 				fmt.Sprintf("--RADIX_ZONE=%s", s.config.radixZone),
@@ -346,6 +346,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
 	s.Equal(expectedPodAnnotations, podTemplate.Annotations)
 	expectedPodSpec := corev1.PodSpec{
+		ImagePullSecrets:   []corev1.LocalObjectReference{{Name: "an-external-registry-secret"}},
 		RestartPolicy:      corev1.RestartPolicyNever,
 		Tolerations:        expectedTolerations,
 		Affinity:           expectedAffinity,
@@ -367,7 +368,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
-	const appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag = "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "anypipelinetag"
+	const appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag = "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
 	argUseBuildCacheTrue := fmt.Sprintf("--%s=true", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
 	argUseBuildCacheFalse := fmt.Sprintf("--%s=false", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
 	argRefreshBuildCacheTrue := fmt.Sprintf("--%s=true", defaults.RadixRefreshBuildCacheEnvironmentVariable)
@@ -1596,8 +1597,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 					AppBuilderResourcesLimitsCPU:      pointers.Ptr(resource.MustParse("456m")),
 					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
 					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
-					GitCloneImage:                     "git:any",
-					PipelineImageTag:                  "anypipelinetag",
+					PipelineImage:                     "docker.io/anypipeline:tag",
+					GitCloneImage:                     "docker.io/git:any",
 				},
 			},
 			expectedError:                             "",
@@ -1613,8 +1614,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 				PipelineJobConfig: &pipelinejob.Config{
 					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
 					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
-					GitCloneImage:                     "git:any",
-					PipelineImageTag:                  "anypipelinetag",
+					PipelineImage:                     "docker.io/anypipeline:tag",
+					GitCloneImage:                     "docker.io/git:any",
 				}},
 			expectedError: "invalid or missing app builder resources",
 		},
@@ -1625,8 +1626,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 				PipelineJobConfig: &pipelinejob.Config{
 					AppBuilderResourcesRequestsCPU:  pointers.Ptr(resource.MustParse("123m")),
 					AppBuilderResourcesLimitsMemory: pointers.Ptr(resource.MustParse("2345Mi")),
-					GitCloneImage:                   "git:any",
-					PipelineImageTag:                "anypipelinetag",
+					PipelineImage:                   "docker.io/anypipeline:tag",
+					GitCloneImage:                   "docker.io/git:any",
 				}},
 			expectedError: "invalid or missing app builder resources",
 		},
@@ -1637,8 +1638,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 				PipelineJobConfig: &pipelinejob.Config{
 					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
 					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
-					GitCloneImage:                     "git:any",
-					PipelineImageTag:                  "anypipelinetag",
+					PipelineImage:                     "docker.io/anypipeline:tag",
+					GitCloneImage:                     "docker.io/git:any",
 				}},
 			expectedError: "invalid or missing app builder resources",
 		},
@@ -1698,8 +1699,8 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 			AppBuilderResourcesLimitsCPU:      pointers.Ptr(resource.MustParse("200m")),
 			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
 			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
-			GitCloneImage:                     "git:any",
-			PipelineImageTag:                  "anypipelinetag",
+			PipelineImage:                     "docker.io/anypipeline:tag",
+			GitCloneImage:                     "docker.io/git:any",
 		},
 		ContainerRegistryConfig: containerregistry.Config{
 			ExternalRegistryAuthSecret: "an-external-registry-secret",

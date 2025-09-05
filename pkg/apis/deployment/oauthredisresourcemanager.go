@@ -30,22 +30,24 @@ const (
 )
 
 // NewOAuthRedisResourceManager creates a new RedisResourceManager
-func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2RedisDockerImage string) AuxiliaryResourceManager {
+func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2RedisDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
 	return &oauthRedisResourceManager{
-		rd:                    rd,
-		rr:                    rr,
-		kubeutil:              kubeutil,
-		oauthRedisDockerImage: oauth2RedisDockerImage,
-		logger:                log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth-redis").Logger(),
+		rd:                         rd,
+		rr:                         rr,
+		kubeutil:                   kubeutil,
+		oauthRedisDockerImage:      oauth2RedisDockerImage,
+		externalRegistryAuthSecret: externalRegistryAuthSecret,
+		logger:                     log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth-redis").Logger(),
 	}
 }
 
 type oauthRedisResourceManager struct {
-	rd                    *v1.RadixDeployment
-	rr                    *v1.RadixRegistration
-	kubeutil              *kube.Kube
-	oauthRedisDockerImage string
-	logger                zerolog.Logger
+	rd                         *v1.RadixDeployment
+	rr                         *v1.RadixRegistration
+	kubeutil                   *kube.Kube
+	oauthRedisDockerImage      string
+	externalRegistryAuthSecret string
+	logger                     zerolog.Logger
 }
 
 func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
@@ -244,6 +246,11 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 		replicas = 0
 	}
 
+	var imagePullSecrets []corev1.LocalObjectReference
+	if o.externalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: o.externalRegistryAuthSecret})
+	}
+
 	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
 	const (
 		volumeNameRedisData = "redis-data"
@@ -266,6 +273,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 					),
 				},
 				Spec: corev1.PodSpec{
+					ImagePullSecrets: imagePullSecrets,
 					Containers: []corev1.Container{
 						{
 							Name:            componentName,

@@ -28,7 +28,6 @@ import (
 )
 
 const (
-	workerImage = "radix-pipeline"
 	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
 	ResultContent = "ResultContent"
 	runAsUser     = 1000
@@ -54,13 +53,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 		return nil, err
 	}
 	radixConfigFullName := getRadixConfigFullName(radixRegistration)
-
-	containerRegistry, err := defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
-	if err != nil {
-		return nil, err
-	}
-	imageTag := fmt.Sprintf("%s/%s:%s", containerRegistry, workerImage, job.config.PipelineJobConfig.PipelineImageTag)
-	log.Ctx(ctx).Info().Msgf("Using image: %s", imageTag)
+	log.Ctx(ctx).Info().Msgf("Using image: %s", job.config.PipelineJobConfig.PipelineImage)
 
 	backOffLimit := int32(0)
 	appName := job.radixJob.Spec.AppName
@@ -98,6 +91,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
 				},
 				Spec: corev1.PodSpec{
+					ImagePullSecrets:   job.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth(),
 					ServiceAccountName: defaults.PipelineServiceAccountName,
 					SecurityContext: securitycontext.Pod(
 						securitycontext.WithPodFSGroup(fsGroup),
@@ -106,7 +100,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 					Containers: []corev1.Container{
 						{
 							Name:            defaults.RadixPipelineJobPipelineContainerName,
-							Image:           imageTag,
+							Image:           job.config.PipelineJobConfig.PipelineImage,
 							ImagePullPolicy: corev1.PullAlways,
 							VolumeMounts:    git.GetJobContainerVolumeMounts(workspace),
 							Args:            containerArguments,

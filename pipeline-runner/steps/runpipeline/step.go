@@ -194,7 +194,19 @@ func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev
 }
 
 func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipelineInfo *model.PipelineInfo) *pod.Template {
-	podTemplate := pod.Template{
+
+	var imagePullSecrets []corev1.LocalObjectReference
+
+	ra := pipelineInfo.GetRadixApplication()
+	if ra != nil && len(ra.Spec.PrivateImageHubs) > 0 {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: operatorDefaults.PrivateImageHubSecretName})
+	}
+	if pipelineInfo.PipelineArguments.ExternalContainerRegistryDefaultAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: pipelineInfo.PipelineArguments.ExternalContainerRegistryDefaultAuthSecret})
+	}
+
+	return &pod.Template{
+		ImagePullSecrets: imagePullSecrets,
 		SecurityContext: &corev1.PodSecurityContext{
 			RunAsNonRoot: pointers.Ptr(true),
 		},
@@ -203,13 +215,6 @@ func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipeline
 			corev1.LabelOSStable:   "linux",
 		},
 	}
-
-	ra := pipelineInfo.GetRadixApplication()
-	if ra != nil && len(ra.Spec.PrivateImageHubs) > 0 {
-		podTemplate.ImagePullSecrets = []corev1.LocalObjectReference{{Name: operatorDefaults.PrivateImageHubSecretName}}
-	}
-
-	return &podTemplate
 }
 
 func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipelinev1.Pipeline, targetEnv string, pipelineInfo *model.PipelineInfo) []pipelinev1.Param {
