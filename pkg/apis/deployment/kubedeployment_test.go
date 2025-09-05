@@ -460,6 +460,8 @@ func TestDeployment_createJobAuxDeployment(t *testing.T) {
 	assert.Equal(t, "20M", resources.Requests.Memory().String())
 	assert.Equal(t, "0", resources.Limits.Cpu().String())
 	assert.Equal(t, "20M", resources.Limits.Memory().String())
+	assert.Equal(t, "bash:alpine3.22", jobAuxDeployment.Spec.Template.Spec.Containers[0].Image)
 	assert.Equal(t, "an-external-registry-secret", jobAuxDeployment.Spec.Template.Spec.ImagePullSecrets[0].Name)
-	assert.Equal(t, `echo start`, jobAuxDeployment.Spec.Template.Spec.Containers[0].Command[0])
+	assert.Equal(t, `sh`, jobAuxDeployment.Spec.Template.Spec.Containers[0].Command[0])
+	assert.Equal(t, []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}, jobAuxDeployment.Spec.Template.Spec.Containers[0].Args)
 }
