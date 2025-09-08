@@ -1,7 +1,6 @@
 package build
 
 import (
-	"fmt"
 	"path"
 	"strings"
 	"time"
@@ -33,15 +32,22 @@ func NewACR() JobsBuilder {
 
 type acr struct{}
 
-func (c *acr) BuildJobs(_, _ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID) []batchv1.Job {
+func (c *acr) BuildJobs(_, _ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID, imagePullSecret string) []batchv1.Job {
+
+	var pullSecrets []corev1.LocalObjectReference
+	if imagePullSecret != "" {
+		pullSecrets = append(pullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
+	}
+
 	props := &acrKubeJobProps{
-		pipelineArgs:    pipelineArgs,
-		componentImages: componentImages,
-		cloneURL:        cloneURL,
-		gitCommitHash:   gitCommitHash,
-		gitTags:         gitTags,
-		buildSecrets:    buildSecrets,
-		appID:           appID,
+		pipelineArgs:     pipelineArgs,
+		componentImages:  componentImages,
+		cloneURL:         cloneURL,
+		gitCommitHash:    gitCommitHash,
+		gitTags:          gitTags,
+		buildSecrets:     buildSecrets,
+		appID:            appID,
+		imagePullSecrets: pullSecrets,
 	}
 
 	return []batchv1.Job{internal.BuildKubeJob(props)}
@@ -50,13 +56,14 @@ func (c *acr) BuildJobs(_, _ bool, pipelineArgs model.PipelineArguments, cloneUR
 var _ internal.KubeJobProps = &acrKubeJobProps{}
 
 type acrKubeJobProps struct {
-	pipelineArgs    model.PipelineArguments
-	componentImages []pipeline.BuildComponentImage
-	cloneURL        string
-	gitCommitHash   string
-	gitTags         string
-	buildSecrets    []string
-	appID           radixv1.ULID
+	pipelineArgs     model.PipelineArguments
+	componentImages  []pipeline.BuildComponentImage
+	cloneURL         string
+	gitCommitHash    string
+	gitTags          string
+	buildSecrets     []string
+	appID            radixv1.ULID
+	imagePullSecrets []corev1.LocalObjectReference
 }
 
 func (c *acrKubeJobProps) JobName() string {
@@ -124,6 +131,10 @@ func (c *acrKubeJobProps) PodInitContainers() []corev1.Container {
 	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GetGitRefOrDefault(), c.gitCommitHash, c.pipelineArgs.GitWorkspace, c.pipelineArgs.GitCloneGitImage)
 }
 
+func (c *acrKubeJobProps) PodImagePullSecrets() []corev1.LocalObjectReference {
+	return c.imagePullSecrets
+}
+
 func (c *acrKubeJobProps) PodContainers() []corev1.Container {
 	return slice.Map(c.componentImages, c.getPodContainer)
 }
@@ -131,7 +142,7 @@ func (c *acrKubeJobProps) PodContainers() []corev1.Container {
 func (c *acrKubeJobProps) getPodContainer(componentImage pipeline.BuildComponentImage) corev1.Container {
 	return corev1.Container{
 		Name:            componentImage.ContainerName,
-		Image:           fmt.Sprintf("%s/%s", c.pipelineArgs.ContainerRegistry, c.pipelineArgs.ImageBuilder),
+		Image:           c.pipelineArgs.ImageBuilder,
 		ImagePullPolicy: corev1.PullAlways,
 		Env:             c.getPodContainerEnvVars(componentImage),
 		VolumeMounts:    c.getPodContainerVolumeMounts(componentImage),

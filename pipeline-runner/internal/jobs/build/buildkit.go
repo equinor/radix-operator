@@ -38,18 +38,23 @@ func NewBuildKit() JobsBuilder {
 
 type buildKit struct{}
 
-func (c *buildKit) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID) []batchv1.Job {
+func (c *buildKit) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID, imagePullSecret string) []batchv1.Job {
 	var jobs []batchv1.Job
 
+	var pullSecrets []corev1.LocalObjectReference
+	if imagePullSecret != "" {
+		pullSecrets = append(pullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
+	}
+
 	for _, componentImage := range componentImages {
-		job := c.buildJob(componentImage, useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets, appID)
+		job := c.buildJob(componentImage, useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets, appID, pullSecrets)
 		jobs = append(jobs, job)
 	}
 
 	return jobs
 }
 
-func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string, appID radixv1.ULID) batchv1.Job {
+func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string, appID radixv1.ULID, imagePullSecrets []corev1.LocalObjectReference) batchv1.Job {
 	props := &buildKitKubeJobProps{
 		pipelineArgs:      pipelineArgs,
 		componentImage:    componentImage,
@@ -60,6 +65,7 @@ func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuil
 		useBuildCache:     useBuildCache,
 		refreshBuildCache: refreshBuildCache,
 		appID:             appID,
+		imagePullSecrets:  imagePullSecrets,
 	}
 
 	return internal.BuildKubeJob(props)
@@ -77,6 +83,7 @@ type buildKitKubeJobProps struct {
 	useBuildCache     bool
 	refreshBuildCache bool
 	appID             radixv1.ULID
+	imagePullSecrets  []corev1.LocalObjectReference
 }
 
 func (c *buildKitKubeJobProps) JobName() string {
@@ -121,6 +128,10 @@ func (*buildKitKubeJobProps) PodSecurityContext() *corev1.PodSecurityContext {
 		securitycontext.WithPodFSGroup(1000),
 		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
 		securitycontext.WithPodRunAsNonRoot(pointers.Ptr(false)))
+}
+
+func (c *buildKitKubeJobProps) PodImagePullSecrets() []corev1.LocalObjectReference {
+	return c.imagePullSecrets
 }
 
 func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
@@ -197,7 +208,7 @@ func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
 func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {
 	container := corev1.Container{
 		Name:            c.componentImage.ContainerName,
-		Image:           fmt.Sprintf("%s/%s", c.pipelineArgs.ContainerRegistry, c.pipelineArgs.BuildKitImageBuilder),
+		Image:           c.pipelineArgs.BuildKitImageBuilder,
 		ImagePullPolicy: corev1.PullAlways,
 		Args:            c.getPodContainerArgs(),
 		Env:             c.getPodContainerEnvVars(),

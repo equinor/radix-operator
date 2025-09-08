@@ -156,6 +156,7 @@ func (deploy *Deployment) createJobAuxDeployment(jobName, jobAuxDeploymentName s
 	}
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
+	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = "bash:alpine3.22"
 	desiredDeployment.Spec.Template.Spec.Containers[0].Command = []string{"sh"}

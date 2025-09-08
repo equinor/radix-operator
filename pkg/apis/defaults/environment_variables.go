@@ -74,10 +74,10 @@ const (
 	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
 
 	// RadixImageBuilderEnvironmentVariable Points to the image builder
-	RadixImageBuilderEnvironmentVariable = "RADIX_IMAGE_BUILDER"
+	RadixImageBuilderEnvironmentVariable = "RADIX_IMAGE_BUILDER_IMAGE"
 
 	// OperatorRadixJobSchedulerEnvironmentVariable Points to the image used to deploy job scheduler REST API for RD jobs
-	OperatorRadixJobSchedulerEnvironmentVariable = "RADIXOPERATOR_JOB_SCHEDULER"
+	OperatorRadixJobSchedulerEnvironmentVariable = "RADIXOPERATOR_JOB_SCHEDULER_IMAGE"
 
 	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
 	RadixDeploymentEnvironmentVariable = "RADIX_DEPLOYMENT"
@@ -197,7 +197,7 @@ const (
 	SeccompProfileFileNameEnvironmentVariable = "SECCOMP_PROFILE_FILENAME"
 
 	// RadixBuildKitImageBuilderEnvironmentVariable Repository and tag for the buildkit image builder
-	RadixBuildKitImageBuilderEnvironmentVariable = "RADIX_BUILDKIT_IMAGE_BUILDER"
+	RadixBuildKitImageBuilderEnvironmentVariable = "RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE"
 
 	// RadixReservedAppDNSAliasesEnvironmentVariable The list of DNS aliases, reserved for Radix platform Radix application
 	RadixReservedAppDNSAliasesEnvironmentVariable = "RADIX_RESERVED_APP_DNS_ALIASES"
@@ -214,8 +214,8 @@ const (
 	// RadixCertificateAutomationRenewBeforeVariable Defines renew_before for certificates issued by cluster issuer
 	RadixCertificateAutomationRenewBeforeVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE"
 
-	// RadixPipelineImageTagEnvironmentVariable Radix pipeline image tag
-	RadixPipelineImageTagEnvironmentVariable = "RADIXOPERATOR_PIPELINE_IMAGE_TAG"
+	// RadixPipelineImageEnvironmentVariable Radix pipeline image tag
+	RadixPipelineImageEnvironmentVariable = "RADIXOPERATOR_PIPELINE_IMAGE"
 
 	// RadixGitCloneGitImageEnvironmentVariable The container image containing git, used in pipeline git clone init containers
 	RadixGitCloneGitImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE"

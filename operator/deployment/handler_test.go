@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -50,7 +51,7 @@ func (s *handlerSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.certClient = certfake.NewSimpleClientset()
-	s.config = &config.Config{LogLevel: "some_non_default_value"} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
+	s.config = &config.Config{LogLevel: "some_non_default_value", ContainerRegistryConfig: containerregistry.Config{ExternalRegistryAuthSecret: "anysecret"}} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
 	s.eventRecorder = &record.FakeRecorder{}
 }
 
@@ -162,8 +163,8 @@ func (s *handlerSuite) Test_Sync() {
 			ingress.NewRedirectErrorPageAnnotationProvider(),
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123"),
-			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, "redis:123"),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), "oauth:123", s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, "redis:123", s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 		}
 		factory.
 			EXPECT().
@@ -186,7 +187,7 @@ func (s *handlerSuite) Test_Sync() {
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(syncer).
 			Times(1)
-		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil, kedaClient: s.kedaClient, deploymentSyncerFactory: factory}
+		h := Handler{radixclient: s.radixClient, kubeutil: s.kubeUtil, kedaClient: s.kedaClient, deploymentSyncerFactory: factory, config: s.config}
 		err := h.Sync(context.Background(), namespace, activeRdName, s.eventRecorder)
 		s.NoError(err)
 	})
