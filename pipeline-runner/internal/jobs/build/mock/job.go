@@ -38,15 +38,15 @@ func (m *MockJobsBuilder) EXPECT() *MockJobsBuilderMockRecorder {
 }
 
 // BuildJobs mocks base method.
-func (m *MockJobsBuilder) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID v1.ULID, imagePullSecrets string) []v10.Job {
+func (m *MockJobsBuilder) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID v1.ULID, imagePullSecret string) []v10.Job {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildJobs", useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, appID, imagePullSecrets)
+	ret := m.ctrl.Call(m, "BuildJobs", useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, appID, imagePullSecret)
 	ret0, _ := ret[0].([]v10.Job)
 	return ret0
 }
 
 // BuildJobs indicates an expected call of BuildJobs.
-func (mr *MockJobsBuilderMockRecorder) BuildJobs(useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, appID, imagePullSecrets interface{}) *gomock.Call {
+func (mr *MockJobsBuilderMockRecorder) BuildJobs(useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, appID, imagePullSecret interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildJobs", reflect.TypeOf((*MockJobsBuilder)(nil).BuildJobs), useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, appID, imagePullSecrets)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildJobs", reflect.TypeOf((*MockJobsBuilder)(nil).BuildJobs), useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, appID, imagePullSecret)
 }

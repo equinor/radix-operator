@@ -32,11 +32,11 @@ func NewACR() JobsBuilder {
 
 type acr struct{}
 
-func (c *acr) BuildJobs(_, _ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID, imagePullSecrets string) []batchv1.Job {
+func (c *acr) BuildJobs(_, _ bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID, imagePullSecret string) []batchv1.Job {
 
 	var pullSecrets []corev1.LocalObjectReference
-	if imagePullSecrets != "" {
-		pullSecrets = append(pullSecrets, corev1.LocalObjectReference{Name: imagePullSecrets})
+	if imagePullSecret != "" {
+		pullSecrets = append(pullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
 	}
 
 	props := &acrKubeJobProps{
