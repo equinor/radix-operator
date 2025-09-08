@@ -637,7 +637,7 @@ func (o *oauthProxyResourceManager) createOrUpdateDeployment(ctx context.Context
 		return err
 	}
 
-	if err := o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired, false); err != nil {
+	if err := o.kubeutil.ApplyDeployment(ctx, o.rd.Namespace, current, desired); err != nil {
 		return err
 	}
 	return nil
