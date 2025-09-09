@@ -224,7 +224,7 @@ radixPipelineRunner:
 radixImageBuilder:
   image: 
     tag: latest
-    repository:  rghcr.io/equinor/radix/image-builder
+    repository: ghcr.io/equinor/radix/image-builder
 
 radixBuildKitImageBuilder:
   image:
