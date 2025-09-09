@@ -223,13 +223,13 @@ radixPipelineRunner:
 
 radixImageBuilder:
   image: 
-    tag: master-latest
-    repository:  radixdev.azurecr.io/radix-image-builder
+    tag: latest
+    repository:  rghcr.io/equinor/radix/image-builder
 
 radixBuildKitImageBuilder:
   image:
-    tag: main-latest
-    repository: radixdev.azurecr.io/radix-buildkit-builder
+    tag: latest
+    repository: ghcr.io/equinor/radix/buildkit-builder
 
 radixJobScheduler:
   image:
