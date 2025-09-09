@@ -65,7 +65,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	buildSecrets := []string{"secret1", "secret2"}
 
 	sut := build.NewACR()
-	jobs := sut.BuildJobs(false, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appId)})
+	jobs := sut.BuildJobs(false, false, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appId)}, "anysecret")
 	require.Len(t, jobs, 1)
 	job := jobs[0]
 
@@ -149,7 +149,7 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 			c, ok := slice.FindFirst(job.Spec.Template.Spec.Containers, func(c corev1.Container) bool { return c.Name == ci.ContainerName })
 			require.True(t, ok)
 			assert.Equal(t, ci.ContainerName, c.Name)
-			assert.Equal(t, fmt.Sprintf("%s/%s", args.ContainerRegistry, args.ImageBuilder), c.Image)
+			assert.Equal(t, args.ImageBuilder, c.Image)
 			assert.Equal(t, corev1.PullAlways, c.ImagePullPolicy)
 			assert.Equal(t, resource.MustParse("500m"), *c.Resources.Limits.Cpu())
 			assert.Equal(t, resource.MustParse("50m"), *c.Resources.Requests.Cpu())

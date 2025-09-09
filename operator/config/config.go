@@ -97,7 +97,7 @@ func NewConfig() *apiconfig.Config {
 			AppBuilderResourcesLimitsCPU:          defaults.GetResourcesLimitsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsCPU:        defaults.GetResourcesRequestsCPUForAppBuilderNamespace(),
 			AppBuilderResourcesRequestsMemory:     defaults.GetResourcesRequestsMemoryForAppBuilderNamespace(),
-			PipelineImageTag:                      viper.GetString(defaults.RadixPipelineImageTagEnvironmentVariable),
+			PipelineImage:                         viper.GetString(defaults.RadixPipelineImageEnvironmentVariable),
 			GitCloneImage:                         viper.GetString(defaults.RadixGitCloneGitImageEnvironmentVariable),
 		},
 		CertificateAutomation: certificateconfig.AutomationConfig{

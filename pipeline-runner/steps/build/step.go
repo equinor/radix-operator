@@ -132,6 +132,7 @@ func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineIn
 			imagesToBuild,
 			secrets,
 			rr.Spec.AppID,
+			pipelineInfo.PipelineArguments.ExternalContainerRegistryDefaultAuthSecret,
 		)
 }
 

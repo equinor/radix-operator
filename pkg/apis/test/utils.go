@@ -300,7 +300,7 @@ func SetRequiredEnvironmentVariables() {
 	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
 	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
-	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler:main-latest")
+	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 	os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
 	os.Setenv(defaults.ContainerRegistryEnvironmentVariable, "any.container.registry")

@@ -13,7 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -42,7 +42,7 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, oauth2ProxyDockerImage string) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, oauth2ProxyDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
@@ -50,6 +50,7 @@ func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistrati
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		oauth2DefaultConfig:        oauth2DefaultConfig,
 		oauth2ProxyDockerImage:     oauth2ProxyDockerImage,
+		externalRegistryAuthSecret: externalRegistryAuthSecret,
 		logger:                     log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth2").Logger(),
 	}
 }
@@ -61,6 +62,7 @@ type oauthProxyResourceManager struct {
 	ingressAnnotationProviders []ingress.AnnotationProvider
 	oauth2DefaultConfig        defaults.OAuth2Config
 	oauth2ProxyDockerImage     string
+	externalRegistryAuthSecret string
 	logger                     zerolog.Logger
 }
 
@@ -670,6 +672,11 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 		replicas = 0
 	}
 
+	var imagePullSecrets []corev1.LocalObjectReference
+	if o.externalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: o.externalRegistryAuthSecret})
+	}
+
 	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -691,6 +698,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 					),
 				},
 				Spec: corev1.PodSpec{
+					ImagePullSecrets: imagePullSecrets,
 					Containers: []corev1.Container{
 						{
 							Name:            componentName,
