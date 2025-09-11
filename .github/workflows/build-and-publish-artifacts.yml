@@ -172,7 +172,7 @@ jobs:
           helm push radix-operator-$version.tgz $helm_repo
           
           # Use git to get list of generated packages
-          helm_packages=$(git status --short | sed s/^...//)
+          helm_packages=$(ls *.tgz)
           echo "helm_packages="$helm_packages"" >>"$GITHUB_OUTPUT"
       - name: Upload Helm packages to release
         if: needs.metadata.outputs.release-exist == 'true'
