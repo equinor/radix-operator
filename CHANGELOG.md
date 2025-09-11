@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 - *(ci)* Configure new release workflows - ([d47633d](https://github.com/equinor/radix-operator/commit/d47633d05dc8bb6774f23c1f6feae9dad42bf2e4)) by @nilsgstrabo in [#1435](https://github.com/equinor/radix-operator/pull/1435)
 
 
+## New Contributors ❤️
+
+* @github-actions[bot] made their first contribution in [#1438](https://github.com/equinor/radix-operator/pull/1438)
 ## [1.88.6](https://github.com/equinor/radix-operator/compare/v1.88.5..v1.88.6) - 2025-09-09
 
 ### 🐛 Bug Fixes
