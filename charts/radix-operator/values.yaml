@@ -81,8 +81,9 @@ app:
 replicaCount: 1
 
 image:
-  repository: xx
-  tag: xx
+  repository: ghcr.io/equinor/radix/operator
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
   pullPolicy: Always
   pullSecrets: [] # List of image pull secret names to use for the radix-operator image
 
@@ -203,38 +204,39 @@ podSecurityStandard:
 # Image containing git
 gitClone:
   image:
-    tag: "2.45.2"
     repository: docker.io/alpine/git
+    tag: "2.45.2"
 
 oauth2proxy:
   image:
-    tag: "v7.9.0"
     repository: quay.io/oauth2-proxy/oauth2-proxy
+    tag: "v7.9.0"
 
 oauth2redis:
   image:
-    tag: "8.0"
     repository: docker.io/redis
+    tag: "8.0"
 
 radixPipelineRunner:
   image:
-    tag: master-latest
-    repository: radixdev.azurecr.io/radix-pipeline
+    repository: ghcr.io/equinor/radix/pipeline
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
 
 radixImageBuilder:
   image: 
-    tag: latest
     repository: ghcr.io/equinor/radix/image-builder
+    tag: latest
 
 radixBuildKitImageBuilder:
   image:
-    tag: latest
     repository: ghcr.io/equinor/radix/buildkit-builder
+    tag: latest
 
 radixJobScheduler:
   image:
-    tag: main-latest
     repository: radixdev.azurecr.io/radix-job-scheduler
+    tag: main-latest
 
 radixWebhook:
   enabled: false
@@ -245,10 +247,11 @@ radixWebhook:
   requireConfigurationItem: true
 
   image: 
-    repository: ghcr.io/equinor/radix-webhook
-    tag: ""  # Default to appVersion in Chart.yaml
+    repository: ghcr.io/equinor/radix/webhook
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
     pullPolicy: IfNotPresent
-    pullSecrets: [] # List of image pull secret names to use for the radix-webhook image
+    pullSecrets: [] # List of image pull secret names to use for the webhook image
 
   resources:
     limits:
