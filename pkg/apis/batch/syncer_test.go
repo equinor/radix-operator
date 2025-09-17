@@ -104,7 +104,6 @@ func (s *syncerTestSuite) setupTest() {
 	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "any-group")
 }
 
 func (s *syncerTestSuite) Test_RestoreStatus() {

@@ -23,9 +23,14 @@ roleRef:
   kind: ClusterRole
   name: radix-platform-user
 subjects:
+{{- range .Values.rbac.createApp.groups }}
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
-  name: "{{ required ".Values.radixGroups.user is required" .Values.radixGroups.user }}"
+  name: {{ . | quote }}
+{{- end }}
+{{- if le (len .Values.rbac.createApp.groups) 0 }}
+{{- fail "rbac.createApp.groups must have at least one entry" }}
+{{- end }}    
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

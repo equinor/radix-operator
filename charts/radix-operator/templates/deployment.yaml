@@ -41,8 +41,8 @@ spec:
               value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
               value: {{ .Values.clusterType }}
-            - name: RADIXOPERATOR_DEFAULT_USER_GROUP
-              value: "{{ required ".Values.radixGroups.user is required" .Values.radixGroups.user }}"
+            - name: RADIXOPERATOR_DEFAULT_APP_ADMIN_GROUPS
+              value: {{ .Values.rbac.createApp.groups | join "," | quote }}
             # For configuring limit ranges on app namespaces
             - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY
               value: {{ .Values.app.limitrange.default.memory | quote }}

@@ -81,10 +81,7 @@ func (syncer *alertSyncer) grantAdminAccessToAlertConfigSecret(ctx context.Conte
 	}
 
 	// create rolebinding
-	subjects, err := utils.GetAppAdminRbacSubjects(rr)
-	if err != nil {
-		return err
-	}
+	subjects := utils.GetAppAdminRbacSubjects(rr)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	rolebinding.OwnerReferences = syncer.getOwnerReference()
 	return syncer.kubeUtil.ApplyRoleBinding(ctx, namespace, rolebinding)

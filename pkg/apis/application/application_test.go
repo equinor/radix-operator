@@ -197,9 +197,9 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)
-	defaultRole := "9876-54321-09876"
+	defaultGroups := "group1,group2"
 	defer os.Clearenv()
-	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultRole)
+	os.Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, defaultGroups)
 
 	// Test
 	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().WithName("any-app").WithAdGroups([]string{}).WithReaderAdGroups([]string{}))
@@ -209,12 +209,16 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	assert.ElementsMatch(t,
 		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName},
 		getRoleBindingNames(rolebindings))
-	assert.Equal(t, defaultRole, getRoleBindingByName(defaults.AppAdminRoleName, rolebindings).Subjects[0].Name)
-	assert.Equal(t, defaultRole, getRoleBindingByName("git-ssh-keys", rolebindings).Subjects[0].Name)
+
+	expectedSubjects := []rbacv1.Subject{
+		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "group1"},
+		{Kind: rbacv1.GroupKind, APIGroup: rbacv1.GroupName, Name: "group2"},
+	}
+	assert.ElementsMatch(t, expectedSubjects, getRoleBindingByName(defaults.AppAdminRoleName, rolebindings).Subjects)
+	assert.ElementsMatch(t, expectedSubjects, getRoleBindingByName("git-ssh-keys", rolebindings).Subjects)
 
 	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
-	require.Len(t, getClusterRoleBindingByName("radix-platform-user-rr-any-app", clusterRoleBindings).Subjects, 1)
-	assert.Equal(t, defaultRole, getClusterRoleBindingByName("radix-platform-user-rr-any-app", clusterRoleBindings).Subjects[0].Name)
+	assert.ElementsMatch(t, expectedSubjects, getClusterRoleBindingByName("radix-platform-user-rr-any-app", clusterRoleBindings).Subjects)
 	assert.Len(t, getClusterRoleBindingByName("radix-platform-user-rr-reader-any-app", clusterRoleBindings).Subjects, 0)
 }
 

@@ -76,10 +76,7 @@ func (deploy *Deployment) grantAccessToComponentRuntimeSecrets(ctx context.Conte
 
 func (deploy *Deployment) grantAdminAccessToSecrets(ctx context.Context, roleName string, secretNames []string, extraLabels map[string]string) error {
 	namespace, registration := deploy.radixDeployment.Namespace, deploy.registration
-	subjects, err := utils.GetAppAdminRbacSubjects(registration)
-	if err != nil {
-		return err
-	}
+	subjects := utils.GetAppAdminRbacSubjects(registration)
 	role := kube.CreateManageSecretRole(registration.Name, roleName, secretNames, extraLabels)
 	roleBinding := kube.GetRolebindingToRoleForSubjectsWithLabels(role.ObjectMeta.Name, subjects, role.Labels)
 
