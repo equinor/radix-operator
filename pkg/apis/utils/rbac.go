@@ -1,9 +1,7 @@
 package utils
 
 import (
-	"iter"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -13,7 +11,7 @@ import (
 
 // GetAppAdminRbacSubjects Get Role bindings for application admins
 func GetAppAdminRbacSubjects(rr *radixv1.RadixRegistration) []rbacv1.Subject {
-	adGroups := slices.Collect(getAdAdminGroupsWithDefault(rr))
+	adGroups := getAdAdminGroupsWithDefault(rr)
 
 	return getRoleBindingSubjects(adGroups, rr.Spec.AdUsers)
 }
@@ -23,21 +21,19 @@ func GetAppReaderRbacSubjects(rr *radixv1.RadixRegistration) []rbacv1.Subject {
 	return getRoleBindingSubjects(rr.Spec.ReaderAdGroups, rr.Spec.ReaderAdUsers)
 }
 
-func getAdAdminGroupsWithDefault(registration *radixv1.RadixRegistration) iter.Seq[string] {
+func getAdAdminGroupsWithDefault(registration *radixv1.RadixRegistration) []string {
 	if len(registration.Spec.AdGroups) > 0 {
-		return slices.Values(registration.Spec.AdGroups)
+		return registration.Spec.AdGroups
 	}
 
-	return func(yield func(string) bool) {
-		groups := strings.SplitSeq(os.Getenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable), ",")
-		for group := range groups {
-			if group := strings.TrimSpace(group); len(group) > 0 {
-				if !yield(group) {
-					return
-				}
-			}
+	var groups []string
+	for _, group := range strings.Split(os.Getenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable), ",") {
+		if group := strings.TrimSpace(group); len(group) > 0 {
+			groups = append(groups, group)
 		}
 	}
+
+	return groups
 }
 
 func getRoleBindingSubjects(groups, users []string) []rbacv1.Subject {
