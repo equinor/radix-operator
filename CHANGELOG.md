@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.101.0](https://github.com/equinor/radix-operator/compare/v1.100.0..v1.101.0) - 2025-09-18
+
+### 🚀 Features
+
+- Allow multiple platform user groups - ([66814c4](https://github.com/equinor/radix-operator/commit/66814c4abe00d8507a6ca354338388258eac33de)) by @nilsgstrabo in [#1444](https://github.com/equinor/radix-operator/pull/1444)
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Remove rr-test.yaml (#1442) - ([16307e5](https://github.com/equinor/radix-operator/commit/16307e54fc524be8966aafe8f0bc8eb7cb884acd)) by @nilsgstrabo in [#1442](https://github.com/equinor/radix-operator/pull/1442)
+
+- Remove deprecated build-push workflow - ([2b2ed03](https://github.com/equinor/radix-operator/commit/2b2ed034cdaa5162c6d31f11608645298d206d89)) by @nilsgstrabo in [#1447](https://github.com/equinor/radix-operator/pull/1447)
+
+
 ## [1.100.0](https://github.com/equinor/radix-operator/compare/v1.88.6..v1.100.0) - 2025-09-11
 
 ### 🚀 Features
@@ -9,6 +23,9 @@ All notable changes to this project will be documented in this file.
 - *(ci)* Configure new release workflows - ([d47633d](https://github.com/equinor/radix-operator/commit/d47633d05dc8bb6774f23c1f6feae9dad42bf2e4)) by @nilsgstrabo in [#1435](https://github.com/equinor/radix-operator/pull/1435)
 
 
+## New Contributors ❤️
+
+* @github-actions[bot] made their first contribution in [#1438](https://github.com/equinor/radix-operator/pull/1438)
 ## [1.88.6](https://github.com/equinor/radix-operator/compare/v1.88.5..v1.88.6) - 2025-09-09
 
 ### 🐛 Bug Fixes
