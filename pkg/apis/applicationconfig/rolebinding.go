@@ -14,7 +14,7 @@ func rolebindingAppReaderToBuildSecrets(registration *radixv1.RadixRegistration,
 	return kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 }
 func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
-	subjects, _ := utils.GetAppAdminRbacSubjects(registration)
+	subjects := utils.GetAppAdminRbacSubjects(registration)
 	roleName := role.ObjectMeta.Name
 	return kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 }

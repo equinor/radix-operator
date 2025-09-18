@@ -155,11 +155,7 @@ func (env *Environment) ApplyNamespace(ctx context.Context, name string) error {
 
 // ApplyAdGroupRoleBinding grants access to environment namespace
 func (env *Environment) ApplyAdGroupRoleBinding(ctx context.Context, namespace string) error {
-	adminSubjects, err := utils.GetAppAdminRbacSubjects(env.regConfig)
-	if err != nil {
-		return err
-	}
-
+	adminSubjects := utils.GetAppAdminRbacSubjects(env.regConfig)
 	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, adminSubjects)
 	adminRoleBinding.SetOwnerReferences(env.AsOwnerReference())
 
@@ -168,8 +164,7 @@ func (env *Environment) ApplyAdGroupRoleBinding(ctx context.Context, namespace s
 	readerRoleBinding.SetOwnerReferences(env.AsOwnerReference())
 
 	for _, roleBinding := range []*rbacv1.RoleBinding{adminRoleBinding, readerRoleBinding} {
-		err = env.kubeutil.ApplyRoleBinding(ctx, namespace, roleBinding)
-		if err != nil {
+		if err := env.kubeutil.ApplyRoleBinding(ctx, namespace, roleBinding); err != nil {
 			return err
 		}
 	}

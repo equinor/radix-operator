@@ -156,8 +156,9 @@ prometheusName: kube-prometheus # TODO: Remove as it is no longer used
 
 clusterType: development
 
-radixGroups:
-  user: "" # The groupid granting users access to the Radix platform
+rbac:
+  createApp:
+    groups: [] # List of groups with permission to create new RadixRegistation
 
 deploymentsPerEnvironmentHistoryLimit: 10
 pipelineJobsHistoryLimit: 5
