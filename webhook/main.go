@@ -40,6 +40,7 @@ func main() {
 
 	logger.Info().Msg("setting up manager")
 	scheme := runtime.NewScheme()
+
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(radixv1.AddToScheme(scheme))
 	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{
