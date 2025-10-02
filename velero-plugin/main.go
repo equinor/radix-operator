@@ -17,7 +17,6 @@ func main() {
 	kubeUtil, err := initKube()
 	if err != nil {
 		logger.Fatalf("unable to init Kube util: %s", err)
-		return
 	}
 
 	logger.WithField("config", c).Info("Configuration")
