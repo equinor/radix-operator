@@ -40,6 +40,15 @@ jobs:
         platforms: |
           linux/amd64
           linux/arm64
+    - name: Build radix-velero-plugin
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: ./veleroplugin.Dockerfile
+        push: false
+        platforms: |
+          linux/amd64
+          linux/arm64          
 
 
   unit-test:
@@ -59,7 +68,7 @@ jobs:
       run: |
         go test -cover `go list ./...`
 
-  radix-operator-lint:
+  go-lint:
     name: Lint
     runs-on: ubuntu-latest
     permissions:

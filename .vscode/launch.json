@@ -16,6 +16,17 @@
 			},
 		},
 		{
+			"name": "Launch-Velero-plugin",
+			"type": "go",
+			"request": "launch",
+			"mode": "auto",
+			"program": "${workspaceFolder}/velero-plugin/main.go",
+			"args": [
+				"--log-level=debug",
+				"--log-pretty=true"
+			],
+		},
+		{
 			"name": "Launch-build-deploy-pipeline",
 			"type": "go",
 			"request": "launch",
