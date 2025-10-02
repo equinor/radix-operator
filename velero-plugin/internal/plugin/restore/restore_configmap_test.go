@@ -14,7 +14,7 @@ import (
 	"github.com/vmware-tanzu/velero/pkg/plugin/velero"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	unsturctured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
@@ -56,8 +56,8 @@ func (s *restoreConfigMapPluginTest) Test_Execute_RadixAppLabelNotSet() {
 	sourceUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&source)
 	s.Require().NoError(err)
 	input := &velero.RestoreItemActionExecuteInput{
-		Item:           &unsturctured.Unstructured{Object: sourceUnstructured},
-		ItemFromBackup: &unsturctured.Unstructured{Object: sourceUnstructured},
+		Item:           &unstructured.Unstructured{Object: sourceUnstructured},
+		ItemFromBackup: &unstructured.Unstructured{Object: sourceUnstructured},
 	}
 
 	plugin := restore.RestoreConfigMapPlugin{
@@ -91,8 +91,8 @@ func (s *restoreConfigMapPluginTest) Test_Execute_RadixClientError() {
 	sourceUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&source)
 	s.Require().NoError(err)
 	input := &velero.RestoreItemActionExecuteInput{
-		Item:           &unsturctured.Unstructured{Object: sourceUnstructured},
-		ItemFromBackup: &unsturctured.Unstructured{Object: sourceUnstructured},
+		Item:           &unstructured.Unstructured{Object: sourceUnstructured},
+		ItemFromBackup: &unstructured.Unstructured{Object: sourceUnstructured},
 	}
 
 	plugin := restore.RestoreConfigMapPlugin{
@@ -115,8 +115,8 @@ func (s *restoreConfigMapPluginTest) Test_Execute_RadixRegistrationMissing() {
 	sourceUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&source)
 	s.Require().NoError(err)
 	input := &velero.RestoreItemActionExecuteInput{
-		Item:           &unsturctured.Unstructured{Object: sourceUnstructured},
-		ItemFromBackup: &unsturctured.Unstructured{Object: sourceUnstructured},
+		Item:           &unstructured.Unstructured{Object: sourceUnstructured},
+		ItemFromBackup: &unstructured.Unstructured{Object: sourceUnstructured},
 	}
 
 	plugin := restore.RestoreConfigMapPlugin{
@@ -151,8 +151,8 @@ func (s *restoreConfigMapPluginTest) Test_Execute_RadixRegistrationExist() {
 	sourceUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&source)
 	s.Require().NoError(err)
 	input := &velero.RestoreItemActionExecuteInput{
-		Item:           &unsturctured.Unstructured{Object: sourceUnstructured},
-		ItemFromBackup: &unsturctured.Unstructured{Object: sourceUnstructured},
+		Item:           &unstructured.Unstructured{Object: sourceUnstructured},
+		ItemFromBackup: &unstructured.Unstructured{Object: sourceUnstructured},
 	}
 
 	plugin := restore.RestoreConfigMapPlugin{

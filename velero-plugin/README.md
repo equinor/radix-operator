@@ -6,11 +6,6 @@ This plugin is intended to assist velero in backup/restores, so that we are able
 
 This annotation will be picked up by the radix-operator, after the restore is done
 
-## Building the plugin
-
-Docker images are automatically build and pushed to both radixdev and radixprod ACR. 
-A push to the master branch builds a new image with tag **master-latest**, and push to release branch tags the image with **release-latest**
-
 ## Plugin deployment
 
 To deploy your plugin image to an Velero server, there are two options.
@@ -29,7 +24,7 @@ The version set in `image` should match the installed version of radix-operator.
 ```yaml
 initContainers:
   - name: radix-velero-plugin
-    image: ghcr.iop/equinor/radix/velero-plugin:x.y.z # Replace x.y.z with the actual version you want to install.
+    image: ghcr.io/equinor/radix/velero-plugin:x.y.z # Replace x.y.z with the actual version you want to install.
     imagePullPolicy: IfNotPresent
     securityContext:
       readOnlyRootFilesystem: true

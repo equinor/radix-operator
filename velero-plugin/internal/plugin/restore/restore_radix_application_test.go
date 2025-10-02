@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/vmware-tanzu/velero/pkg/plugin/velero"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	unsturctured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
@@ -55,8 +55,8 @@ func (s *restoreRadixApplicationPluginTest) Test_Execute_RadixClientError() {
 	sourceUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&source)
 	s.Require().NoError(err)
 	input := &velero.RestoreItemActionExecuteInput{
-		Item:           &unsturctured.Unstructured{Object: sourceUnstructured},
-		ItemFromBackup: &unsturctured.Unstructured{Object: sourceUnstructured},
+		Item:           &unstructured.Unstructured{Object: sourceUnstructured},
+		ItemFromBackup: &unstructured.Unstructured{Object: sourceUnstructured},
 	}
 
 	plugin := restore.RestoreRadixApplicationPlugin{
@@ -77,8 +77,8 @@ func (s *restoreRadixApplicationPluginTest) Test_Execute_RadixRegistrationMissin
 	sourceUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&source)
 	s.Require().NoError(err)
 	input := &velero.RestoreItemActionExecuteInput{
-		Item:           &unsturctured.Unstructured{Object: sourceUnstructured},
-		ItemFromBackup: &unsturctured.Unstructured{Object: sourceUnstructured},
+		Item:           &unstructured.Unstructured{Object: sourceUnstructured},
+		ItemFromBackup: &unstructured.Unstructured{Object: sourceUnstructured},
 	}
 
 	plugin := restore.RestoreRadixApplicationPlugin{
@@ -117,8 +117,8 @@ func (s *restoreRadixApplicationPluginTest) Test_Execute_RadixRegistrationExist(
 	sourceUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&source)
 	s.Require().NoError(err)
 	input := &velero.RestoreItemActionExecuteInput{
-		Item:           &unsturctured.Unstructured{Object: sourceUnstructured},
-		ItemFromBackup: &unsturctured.Unstructured{Object: sourceUnstructured},
+		Item:           &unstructured.Unstructured{Object: sourceUnstructured},
+		ItemFromBackup: &unstructured.Unstructured{Object: sourceUnstructured},
 	}
 
 	plugin := restore.RestoreRadixApplicationPlugin{
