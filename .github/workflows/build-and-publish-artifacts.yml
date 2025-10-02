@@ -154,7 +154,7 @@ jobs:
         id: container-metadata
         uses: docker/metadata-action@v5
         with:
-          images: "${{ env.CONTAINER_REGISTRY }}/equinor/radix/veleroplugin"
+          images: "${{ env.CONTAINER_REGISTRY }}/equinor/radix/velero-plugin"
           tags: ${{ needs.metadata.outputs.version }}
       - name: Build and push container images
         uses: docker/build-push-action@v6
