@@ -22,7 +22,7 @@ type RestoreRadixJobPlugin struct {
 
 // AppliesTo returns information about which resources this action should be invoked for.
 // A RestoreItemAction's Execute function will only be invoked on items that match the returned
-// selector. A zero-valued ResourceSelector matches all resources.g
+// selector. A zero-valued ResourceSelector matches all resources.
 func (p *RestoreRadixJobPlugin) AppliesTo() (velero.ResourceSelector, error) {
 	return velero.ResourceSelector{
 		IncludedResources: []string{"radixjobs.radix.equinor.com"},
