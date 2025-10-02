@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// RestoreBatchPlugin is a restore item action plugin for Velero
-type RestoreBatchPlugin struct {
+// RestoreRadixBatchPlugin is a restore item action plugin for Velero
+type RestoreRadixBatchPlugin struct {
 	Log  logrus.FieldLogger
 	Kube *kube.Kube
 }
@@ -22,7 +22,7 @@ type RestoreBatchPlugin struct {
 // AppliesTo returns information about which resources this action should be invoked for.
 // A RestoreItemAction's Execute function will only be invoked on items that match the returned
 // selector. A zero-valued ResourceSelector matches all resources.g
-func (p *RestoreBatchPlugin) AppliesTo() (velero.ResourceSelector, error) {
+func (p *RestoreRadixBatchPlugin) AppliesTo() (velero.ResourceSelector, error) {
 	return velero.ResourceSelector{
 		IncludedResources: []string{"radixbatches.radix.equinor.com"},
 	}, nil
@@ -30,7 +30,7 @@ func (p *RestoreBatchPlugin) AppliesTo() (velero.ResourceSelector, error) {
 
 // Execute allows the RestorePlugin to perform arbitrary logic with the item being restored,
 // in this case, setting a custom annotation on the item being restored.
-func (p *RestoreBatchPlugin) Execute(input *velero.RestoreItemActionExecuteInput) (*velero.RestoreItemActionExecuteOutput, error) {
+func (p *RestoreRadixBatchPlugin) Execute(input *velero.RestoreItemActionExecuteInput) (*velero.RestoreItemActionExecuteOutput, error) {
 	metadata, err := meta.Accessor(input.Item)
 	if err != nil {
 		return &velero.RestoreItemActionExecuteOutput{}, err

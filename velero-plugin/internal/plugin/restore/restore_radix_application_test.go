@@ -103,6 +103,10 @@ func (s *restoreRadixApplicationPluginTest) Test_Execute_RadixRegistrationExist(
 	source := radixv1.RadixApplication{
 		ObjectMeta: v1.ObjectMeta{
 			Name: appName,
+			Labels: map[string]string{
+				"label-foo": "label-bar",
+			},
+			Annotations: map[string]string{"annotation-foo": "annotation-bar"},
 		},
 		Spec: radixv1.RadixApplicationSpec{
 			Environments: []radixv1.Environment{

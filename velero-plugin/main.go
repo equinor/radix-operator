@@ -53,7 +53,7 @@ func main() {
 			}, nil
 		}).
 		RegisterRestoreItemAction("equinor.com/restore-batch-plugin", func(logger logrus.FieldLogger) (any, error) {
-			return &restore.RestoreBatchPlugin{
+			return &restore.RestoreRadixBatchPlugin{
 				Log:  logger,
 				Kube: kubeUtil,
 			}, nil

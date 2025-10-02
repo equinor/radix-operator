@@ -2,8 +2,10 @@ package restore_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -19,39 +21,39 @@ import (
 	clienttesting "k8s.io/client-go/testing"
 )
 
-type restoreRadixAlertPluginTest struct {
+type restoreRadixBatchPluginTest struct {
 	suite.Suite
 	kubeClient  *fake.Clientset
 	radixClient *fakeradix.Clientset
 	kubeUtil    *kube.Kube
 }
 
-func TestRestoreRadixAlertPlugin(t *testing.T) {
-	suite.Run(t, new(restoreRadixAlertPluginTest))
+func TestRestoreRadixBatchPlugin(t *testing.T) {
+	suite.Run(t, new(restoreRadixBatchPluginTest))
 }
 
-func (s *restoreRadixAlertPluginTest) SetupTest() {
+func (s *restoreRadixBatchPluginTest) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, nil, nil)
 }
 
-func (s *restoreRadixAlertPluginTest) Test_AppliesTo() {
-	expected := velero.ResourceSelector{IncludedResources: []string{"radixalerts.radix.equinor.com"}}
-	plugin := restore.RestoreAlertPlugin{}
+func (s *restoreRadixBatchPluginTest) Test_AppliesTo() {
+	expected := velero.ResourceSelector{IncludedResources: []string{"radixbatches.radix.equinor.com"}}
+	plugin := restore.RestoreRadixBatchPlugin{}
 	actual, err := plugin.AppliesTo()
 	s.NoError(err)
 	s.Equal(expected, actual)
 }
 
-func (s *restoreRadixAlertPluginTest) Test_Execute_RadixClientError() {
+func (s *restoreRadixBatchPluginTest) Test_Execute_RadixClientError() {
 	getError := errors.New("any error")
 	s.radixClient.PrependReactor("get", "radixregistrations", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, getError
 
 	})
 
-	source := radixv1.RadixAlert{}
+	source := radixv1.RadixBatch{}
 	sourceUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&source)
 	s.Require().NoError(err)
 	input := &velero.RestoreItemActionExecuteInput{
@@ -59,7 +61,7 @@ func (s *restoreRadixAlertPluginTest) Test_Execute_RadixClientError() {
 		ItemFromBackup: &unsturctured.Unstructured{Object: sourceUnstructured},
 	}
 
-	plugin := restore.RestoreAlertPlugin{
+	plugin := restore.RestoreRadixBatchPlugin{
 		Log:  logrus.New(),
 		Kube: s.kubeUtil,
 	}
@@ -68,8 +70,8 @@ func (s *restoreRadixAlertPluginTest) Test_Execute_RadixClientError() {
 	s.ErrorIs(err, getError)
 }
 
-func (s *restoreRadixAlertPluginTest) Test_Execute_RadixRegistrationMissing() {
-	source := radixv1.RadixAlert{
+func (s *restoreRadixBatchPluginTest) Test_Execute_RadixRegistrationMissing() {
+	source := radixv1.RadixBatch{
 		ObjectMeta: v1.ObjectMeta{
 			Labels: map[string]string{
 				kube.RadixAppLabel: "any-app",
@@ -83,7 +85,7 @@ func (s *restoreRadixAlertPluginTest) Test_Execute_RadixRegistrationMissing() {
 		ItemFromBackup: &unsturctured.Unstructured{Object: sourceUnstructured},
 	}
 
-	plugin := restore.RestoreAlertPlugin{
+	plugin := restore.RestoreRadixBatchPlugin{
 		Log:  logrus.New(),
 		Kube: s.kubeUtil,
 	}
@@ -93,7 +95,7 @@ func (s *restoreRadixAlertPluginTest) Test_Execute_RadixRegistrationMissing() {
 	s.True(output.SkipRestore)
 }
 
-func (s *restoreRadixAlertPluginTest) Test_Execute_RadixRegistrationExist() {
+func (s *restoreRadixBatchPluginTest) Test_Execute_RadixRegistrationExist() {
 	const appName = "any-app"
 	rr := &radixv1.RadixRegistration{
 		ObjectMeta: v1.ObjectMeta{
@@ -102,7 +104,7 @@ func (s *restoreRadixAlertPluginTest) Test_Execute_RadixRegistrationExist() {
 	}
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, v1.CreateOptions{})
 	s.Require().NoError(err)
-	source := radixv1.RadixAlert{
+	source := radixv1.RadixBatch{
 		ObjectMeta: v1.ObjectMeta{
 			Labels: map[string]string{
 				kube.RadixAppLabel: appName,
@@ -110,9 +112,36 @@ func (s *restoreRadixAlertPluginTest) Test_Execute_RadixRegistrationExist() {
 			},
 			Annotations: map[string]string{"annotation-foo": "annotation-bar"},
 		},
-		Spec: radixv1.RadixAlertSpec{
-			Alerts: []radixv1.Alert{
-				{Alert: "foo", Receiver: "bar"},
+		Spec: radixv1.RadixBatchSpec{
+			BatchId: "any-id",
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				Job: "any-job",
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{
+					Name:  "any-name",
+					JobId: "any-job-id",
+				},
+			},
+		},
+		Status: radixv1.RadixBatchStatus{
+			Condition: radixv1.RadixBatchCondition{
+				Type:       radixv1.BatchConditionTypeActive,
+				Reason:     "any-reason",
+				Message:    "any-message",
+				ActiveTime: &v1.Time{Time: time.Now()},
+			},
+			JobStatuses: []radixv1.RadixBatchJobStatus{
+				{
+					Name:  "any-name",
+					Phase: radixv1.BatchJobPhaseActive,
+					RadixBatchJobPodStatuses: []radixv1.RadixBatchJobPodStatus{
+						{
+							Name:  "pod-name",
+							Phase: radixv1.PodPending,
+						},
+					},
+				},
 			},
 		},
 	}
@@ -123,7 +152,7 @@ func (s *restoreRadixAlertPluginTest) Test_Execute_RadixRegistrationExist() {
 		ItemFromBackup: &unsturctured.Unstructured{Object: sourceUnstructured},
 	}
 
-	plugin := restore.RestoreAlertPlugin{
+	plugin := restore.RestoreRadixBatchPlugin{
 		Log:  logrus.New(),
 		Kube: s.kubeUtil,
 	}
@@ -131,8 +160,13 @@ func (s *restoreRadixAlertPluginTest) Test_Execute_RadixRegistrationExist() {
 	output, err := plugin.Execute(input)
 	s.Require().NoError(err)
 	s.False(output.SkipRestore)
-	var outputSource radixv1.RadixAlert
+	var outputSource radixv1.RadixBatch
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(output.UpdatedItem.UnstructuredContent(), &outputSource)
 	s.Require().NoError(err)
-	s.Equal(source, outputSource)
+	expectedObjectMeta := source.ObjectMeta.DeepCopy()
+	expectedRestoreAnnotationValue, err := json.Marshal(source.Status)
+	s.Require().NoError(err)
+	expectedObjectMeta.Annotations[kube.RestoredStatusAnnotation] = string(expectedRestoreAnnotationValue)
+	s.Equal(source.Spec, outputSource.Spec)
+	s.Equal(*expectedObjectMeta, outputSource.ObjectMeta)
 }

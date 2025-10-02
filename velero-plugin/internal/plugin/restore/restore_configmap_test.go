@@ -47,6 +47,10 @@ func (s *restoreConfigMapPluginTest) Test_AppliesTo() {
 
 func (s *restoreConfigMapPluginTest) Test_Execute_RadixAppLabelNotSet() {
 	source := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:      map[string]string{"label-foo": "label-bar"},
+			Annotations: map[string]string{"annotation-foo": "annotation-bar"},
+		},
 		Data: map[string]string{"foo": "bar"},
 	}
 	sourceUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&source)
@@ -138,7 +142,9 @@ func (s *restoreConfigMapPluginTest) Test_Execute_RadixRegistrationExist() {
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
 				kube.RadixAppLabel: appName,
+				"label-foo":        "label-bar",
 			},
+			Annotations: map[string]string{"annotation-foo": "annotation-bar"},
 		},
 		Data: map[string]string{"foo": "bar"},
 	}
