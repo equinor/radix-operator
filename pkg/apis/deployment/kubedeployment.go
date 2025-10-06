@@ -305,7 +305,19 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	}
 	desiredDeployment.Spec.Template.Spec.Volumes = volumes
 
-	containerSecurityCtx := securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault), securitycontext.WithReadOnlyRootFileSystem(deployComponent.GetReadOnlyFileSystem()))
+	options := []securitycontext.ContainerOption{
+		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithReadOnlyRootFileSystem(deployComponent.GetReadOnlyFileSystem()),
+	}
+
+	// If securityContext has been defined, add it to options
+	runAsUser := deployComponent.RunAsUser()
+
+	if runAsUser != nil {
+		options = append(options, securitycontext.WithContainerRunAsUser(*runAsUser))
+	}
+
+	containerSecurityCtx := securitycontext.Container(options...)
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways

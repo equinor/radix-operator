@@ -1511,6 +1511,17 @@
                       },
                       "type": "object"
                     },
+                    "securityContext": {
+                      "description": "Define SecurityContext parameters for container security settings\nMore info: https://www.radix.equinor.com/radix-config#securitytontext",
+                      "properties": {
+                        "runAsUser": {
+                          "description": "User ID to run the container as.",
+                          "format": "int64",
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "src": {
                       "description": "Path to the Dockerfile that builds the component.\nMore info: https://www.radix.equinor.com/radix-config#src",
                       "type": "string"
@@ -2915,6 +2926,17 @@
                 },
                 "type": "array"
               },
+              "securityContext": {
+                "description": "Define SecurityContext parameters for container security settings\nMore info: https://www.radix.equinor.com/radix-config#securitytontext",
+                "properties": {
+                  "runAsUser": {
+                    "description": "User ID to run the container as.",
+                    "format": "int64",
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              },
               "src": {
                 "description": "Path to the Dockerfile that builds the component.\nMore info: https://www.radix.equinor.com/radix-config#src",
                 "type": "string"
@@ -3410,6 +3432,17 @@
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
+              },
+              "securityContext": {
+                "description": "Define SecurityContext parameters for container security settings\nMore info: https://www.radix.equinor.com/radix-config#securitytontext",
+                "properties": {
+                  "runAsUser": {
+                    "description": "User ID to run the container as.",
+                    "format": "int64",
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
               },
               "subPipeline": {
                 "description": "SubPipeline configuration.",
@@ -3919,6 +3952,17 @@
                             "type": "object"
                           },
                           "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "securityContext": {
+                      "description": "Define SecurityContext parameters for container security settings\nMore info: https://www.radix.equinor.com/radix-config#securitytontext",
+                      "properties": {
+                        "runAsUser": {
+                          "description": "User ID to run the container as.",
+                          "format": "int64",
+                          "type": "integer"
                         }
                       },
                       "type": "object"
@@ -4558,6 +4602,17 @@
                   "type": "string"
                 },
                 "type": "array"
+              },
+              "securityContext": {
+                "description": "Define SecurityContext parameters for container security settings\nMore info: https://www.radix.equinor.com/radix-config#securitytontext",
+                "properties": {
+                  "runAsUser": {
+                    "description": "User ID to run the container as.",
+                    "format": "int64",
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
               },
               "src": {
                 "description": "Path to the Dockerfile that builds the job.\nMore info: https://www.radix.equinor.com/radix-config#src-2",

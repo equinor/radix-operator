@@ -82,6 +82,7 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		deployComponent.Runtime = componentImage.Runtime
 		deployComponent.Command = radixComponent.GetCommandForEnvironmentConfig(environmentSpecificConfig)
 		deployComponent.Args = radixComponent.GetArgsForEnvironmentConfig(environmentSpecificConfig)
+		deployComponent.SecurityContext.RunAsUser = radixComponent.GetRunAsUserForEnvironmentConfig(environmentSpecificConfig)
 		if deployComponent.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixComponent, environmentSpecificConfig); err != nil {
 			return nil, err
 		}

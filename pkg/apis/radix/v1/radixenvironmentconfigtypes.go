@@ -32,6 +32,7 @@ type RadixCommonEnvironmentConfig interface {
 	GetCommand() *[]string
 	// GetArgs Arguments to the entrypoint.
 	GetArgs() *[]string
+	GetRunAsUser() *int64
 }
 
 func (config *RadixEnvironmentConfig) GetEnvironment() string {
@@ -108,6 +109,10 @@ func (config *RadixEnvironmentConfig) GetArgs() *[]string {
 
 func (config *RadixEnvironmentConfig) getEnabled() *bool {
 	return config.Enabled
+}
+
+func (config *RadixEnvironmentConfig) GetRunAsUser() *int64 {
+	return config.SecurityContext.RunAsUser
 }
 
 func (config *RadixJobComponentEnvironmentConfig) GetEnvironment() string {
@@ -189,4 +194,8 @@ func (config *RadixJobComponentEnvironmentConfig) GetCommand() *[]string {
 
 func (config *RadixJobComponentEnvironmentConfig) GetArgs() *[]string {
 	return config.Args
+}
+
+func (config *RadixJobComponentEnvironmentConfig) GetRunAsUser() *int64 {
+	return config.SecurityContext.RunAsUser
 }

@@ -1587,6 +1587,16 @@ spec:
                                   type: object
                                 type: array
                             type: object
+                          securityContext:
+                            description: |-
+                              Define SecurityContext parameters for container security settings
+                              More info: https://www.radix.equinor.com/radix-config#securitytontext
+                            properties:
+                              runAsUser:
+                                description: User ID to run the container as.
+                                format: int64
+                                type: integer
+                            type: object
                           src:
                             description: |-
                               Path to the Dockerfile that builds the component.
@@ -2977,6 +2987,16 @@ spec:
                       items:
                         type: string
                       type: array
+                    securityContext:
+                      description: |-
+                        Define SecurityContext parameters for container security settings
+                        More info: https://www.radix.equinor.com/radix-config#securitytontext
+                      properties:
+                        runAsUser:
+                          description: User ID to run the container as.
+                          format: int64
+                          type: integer
+                      type: object
                     src:
                       description: |-
                         Path to the Dockerfile that builds the component.
@@ -3448,6 +3468,16 @@ spec:
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
+                    securityContext:
+                      description: |-
+                        Define SecurityContext parameters for container security settings
+                        More info: https://www.radix.equinor.com/radix-config#securitytontext
+                      properties:
+                        runAsUser:
+                          description: User ID to run the container as.
+                          format: int64
+                          type: integer
+                      type: object
                     subPipeline:
                       description: SubPipeline configuration.
                       properties:
@@ -3977,6 +4007,16 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                            type: object
+                          securityContext:
+                            description: |-
+                              Define SecurityContext parameters for container security settings
+                              More info: https://www.radix.equinor.com/radix-config#securitytontext
+                            properties:
+                              runAsUser:
+                                description: User ID to run the container as.
+                                format: int64
+                                type: integer
                             type: object
                           src:
                             description: |-
@@ -4606,6 +4646,16 @@ spec:
                       items:
                         type: string
                       type: array
+                    securityContext:
+                      description: |-
+                        Define SecurityContext parameters for container security settings
+                        More info: https://www.radix.equinor.com/radix-config#securitytontext
+                      properties:
+                        runAsUser:
+                          description: User ID to run the container as.
+                          format: int64
+                          type: integer
+                      type: object
                     src:
                       description: |-
                         Path to the Dockerfile that builds the job.

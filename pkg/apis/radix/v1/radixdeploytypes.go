@@ -146,7 +146,8 @@ type RadixDeployComponent struct {
 	// GetCommand Entrypoint array. Not executed within a shell.
 	Command []string `json:"command,omitempty"`
 	// GetArgs Arguments to the entrypoint.
-	Args []string `json:"args,omitempty"`
+	Args            []string        `json:"args,omitempty"`
+	SecurityContext SecurityContext `json:"securityContext,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetHealthChecks() *RadixHealthChecks {
@@ -291,6 +292,10 @@ func (deployComponent *RadixDeployComponent) GetArgs() []string {
 	return deployComponent.Args
 }
 
+func (deployComponent *RadixDeployComponent) RunAsUser() *int64 {
+	return deployComponent.SecurityContext.RunAsUser
+}
+
 func (deployComponent *RadixDeployComponent) HasZeroReplicas() bool {
 	return deployComponent.GetReplicas() != nil && *deployComponent.GetReplicas() == 0
 }
@@ -426,6 +431,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetArgs() []string {
 	return deployJobComponent.Args
 }
 
+func (deployJobComponent *RadixDeployJobComponent) RunAsUser() *int64 {
+	return deployJobComponent.SecurityContext.RunAsUser
+}
+
 func (deployJobComponent *RadixDeployJobComponent) HasZeroReplicas() bool {
 	return deployJobComponent.GetReplicas() != nil && *deployJobComponent.GetReplicas() == 0
 }
@@ -476,7 +485,8 @@ type RadixDeployJobComponent struct {
 	// GetCommand Entrypoint array. Not executed within a shell.
 	Command []string `json:"command,omitempty"`
 	// GetArgs Arguments to the entrypoint.
-	Args []string `json:"args,omitempty"`
+	Args            []string        `json:"args,omitempty"`
+	SecurityContext SecurityContext `json:"securityContext,omitempty"`
 }
 
 func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {
@@ -528,6 +538,7 @@ type RadixCommonDeployComponent interface {
 	GetArgs() []string
 	// HasZeroReplicas returns true if the component has zero replicas
 	HasZeroReplicas() bool
+	RunAsUser() *int64
 }
 
 // IsActive The RadixDeployment is active
