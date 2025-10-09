@@ -198,6 +198,11 @@ type Environment struct {
 	// SubPipeline configuration.
 	// +optional
 	SubPipeline *SubPipeline `json:"subPipeline"`
+
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // EnvBuild contains configuration used to determine how to build an environment.
@@ -546,6 +551,11 @@ type RadixComponent struct {
 	// +optional
 	// +listType=atomic
 	Args []string `json:"args,omitempty"`
+
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
@@ -678,6 +688,11 @@ type RadixEnvironmentConfig struct {
 	// +optional
 	// +listType=atomic
 	Args *[]string `json:"args,omitempty"`
+
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -844,6 +859,11 @@ type RadixJobComponent struct {
 	// +optional
 	// +listType=atomic
 	Args []string `json:"args,omitempty"`
+
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixJobComponentFailurePolicyRuleOnExitCodesOperator specifies the relationship between a job replica's exit code
@@ -1043,6 +1063,11 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +optional
 	// +listType=atomic
 	Args *[]string `json:"args,omitempty"`
+
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -1926,6 +1951,7 @@ type RadixCommonComponent interface {
 	GetCommand() []string
 	// GetArgs Arguments to the entrypoint.
 	GetArgs() []string
+	GetRunAsUser() *int64
 	// GetCommandForEnvironment Entrypoint array for the environment. Not executed within a shell.
 	GetCommandForEnvironment(environment string) []string
 	// GetArgsForEnvironment Arguments to the entrypoint for the environment.
@@ -1934,6 +1960,7 @@ type RadixCommonComponent interface {
 	GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
 	// GetArgsForEnvironmentConfig Arguments to the entrypoint for the environment config
 	GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
+	GetRunAsUserForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) *int64
 }
 
 func (component *RadixComponent) GetName() string {
@@ -2066,6 +2093,10 @@ func (component *RadixComponent) GetArgs() []string {
 	return component.Args
 }
 
+func (component *RadixComponent) GetRunAsUser() *int64 {
+	return component.RunAsUser
+}
+
 func (component *RadixComponent) GetCommandForEnvironment(environment string) []string {
 	return getCommandForEnvironment(component, environment)
 }
@@ -2080,6 +2111,10 @@ func (component *RadixComponent) GetCommandForEnvironmentConfig(envConfig RadixC
 
 func (component *RadixComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
 	return getArgsForEnvironmentConfig(component, envConfig)
+}
+
+func (component *RadixComponent) GetRunAsUserForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) *int64 {
+	return getRunAsUserForEnvironmentConfig(component, envConfig)
 }
 
 func (component *RadixJobComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
@@ -2228,6 +2263,10 @@ func (component *RadixJobComponent) GetArgs() []string {
 	return component.Args
 }
 
+func (component *RadixJobComponent) GetRunAsUser() *int64 {
+	return component.RunAsUser
+}
+
 func (component *RadixJobComponent) GetCommandForEnvironment(environment string) []string {
 	return getCommandForEnvironment(component, environment)
 }
@@ -2242,6 +2281,10 @@ func (component *RadixJobComponent) GetCommandForEnvironmentConfig(envConfig Rad
 
 func (component *RadixJobComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
 	return getArgsForEnvironmentConfig(component, envConfig)
+}
+
+func (component *RadixJobComponent) GetRunAsUserForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) *int64 {
+	return getRunAsUserForEnvironmentConfig(component, envConfig)
 }
 
 // GetOAuth2 Returns OAuth2 if exist
@@ -2438,4 +2481,14 @@ func getArgsForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig
 		return *envConfig.GetArgs()
 	}
 	return commonComponent.GetArgs()
+}
+
+func getRunAsUserForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) *int64 {
+	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+		return commonComponent.GetRunAsUser()
+	}
+	if runAsUser := envConfig.GetRunAsUser(); runAsUser != nil {
+		return envConfig.GetRunAsUser()
+	}
+	return commonComponent.GetRunAsUser()
 }

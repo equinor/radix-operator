@@ -489,6 +489,11 @@ func (in *Environment) DeepCopyInto(out *Environment) {
 		*out = new(SubPipeline)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.RunAsUser != nil {
+		in, out := &in.RunAsUser, &out.RunAsUser
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 
@@ -1666,6 +1671,11 @@ func (in *RadixComponent) DeepCopyInto(out *RadixComponent) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.RunAsUser != nil {
+		in, out := &in.RunAsUser, &out.RunAsUser
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 
@@ -1877,6 +1887,11 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.RunAsUser != nil {
+		in, out := &in.RunAsUser, &out.RunAsUser
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 
@@ -1998,6 +2013,11 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 		in, out := &in.Args, &out.Args
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.RunAsUser != nil {
+		in, out := &in.RunAsUser, &out.RunAsUser
+		*out = new(int64)
+		**out = **in
 	}
 	return
 }
@@ -2309,6 +2329,11 @@ func (in *RadixEnvironmentConfig) DeepCopyInto(out *RadixEnvironmentConfig) {
 			*out = make([]string, len(*in))
 			copy(*out, *in)
 		}
+	}
+	if in.RunAsUser != nil {
+		in, out := &in.RunAsUser, &out.RunAsUser
+		*out = new(int64)
+		**out = **in
 	}
 	return
 }
@@ -2834,6 +2859,11 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.RunAsUser != nil {
+		in, out := &in.RunAsUser, &out.RunAsUser
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 
@@ -2936,6 +2966,11 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 			*out = make([]string, len(*in))
 			copy(*out, *in)
 		}
+	}
+	if in.RunAsUser != nil {
+		in, out := &in.RunAsUser, &out.RunAsUser
+		*out = new(int64)
+		**out = **in
 	}
 	return
 }
