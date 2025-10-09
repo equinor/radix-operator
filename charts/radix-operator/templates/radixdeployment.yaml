@@ -1218,6 +1218,9 @@ spec:
                             that is explicitly specified, otherwise to an implementation-defined value.
                           type: object
                       type: object
+                    runAsUser:
+                      format: int64
+                      type: integer
                     runtime:
                       description: Runtime defines the component or job's target runtime
                         requirements
@@ -1880,6 +1883,9 @@ spec:
                             that is explicitly specified, otherwise to an implementation-defined value.
                           type: object
                       type: object
+                    runAsUser:
+                      format: int64
+                      type: integer
                     runtime:
                       description: Runtime defines the component or job's target runtime
                         requirements

@@ -146,8 +146,8 @@ type RadixDeployComponent struct {
 	// GetCommand Entrypoint array. Not executed within a shell.
 	Command []string `json:"command,omitempty"`
 	// GetArgs Arguments to the entrypoint.
-	Args            []string        `json:"args,omitempty"`
-	SecurityContext SecurityContext `json:"securityContext,omitempty"`
+	Args      []string `json:"args,omitempty"`
+	RunAsUser *int64   `json:"runAsUser,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetHealthChecks() *RadixHealthChecks {
@@ -292,8 +292,8 @@ func (deployComponent *RadixDeployComponent) GetArgs() []string {
 	return deployComponent.Args
 }
 
-func (deployComponent *RadixDeployComponent) RunAsUser() *int64 {
-	return deployComponent.SecurityContext.RunAsUser
+func (deployComponent *RadixDeployComponent) GetRunAsUser() *int64 {
+	return deployComponent.RunAsUser
 }
 
 func (deployComponent *RadixDeployComponent) HasZeroReplicas() bool {
@@ -431,8 +431,8 @@ func (deployJobComponent *RadixDeployJobComponent) GetArgs() []string {
 	return deployJobComponent.Args
 }
 
-func (deployJobComponent *RadixDeployJobComponent) RunAsUser() *int64 {
-	return deployJobComponent.SecurityContext.RunAsUser
+func (deployJobComponent *RadixDeployJobComponent) GetRunAsUser() *int64 {
+	return deployJobComponent.RunAsUser
 }
 
 func (deployJobComponent *RadixDeployJobComponent) HasZeroReplicas() bool {
@@ -485,8 +485,8 @@ type RadixDeployJobComponent struct {
 	// GetCommand Entrypoint array. Not executed within a shell.
 	Command []string `json:"command,omitempty"`
 	// GetArgs Arguments to the entrypoint.
-	Args            []string        `json:"args,omitempty"`
-	SecurityContext SecurityContext `json:"securityContext,omitempty"`
+	Args      []string `json:"args,omitempty"`
+	RunAsUser *int64   `json:"runAsUser,omitempty"`
 }
 
 func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {
@@ -538,7 +538,7 @@ type RadixCommonDeployComponent interface {
 	GetArgs() []string
 	// HasZeroReplicas returns true if the component has zero replicas
 	HasZeroReplicas() bool
-	RunAsUser() *int64
+	GetRunAsUser() *int64
 }
 
 // IsActive The RadixDeployment is active

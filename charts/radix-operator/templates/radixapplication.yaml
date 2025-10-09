@@ -1465,6 +1465,12 @@ spec:
                                   that is explicitly specified, otherwise to an implementation-defined value.
                                 type: object
                             type: object
+                          runAsUser:
+                            description: |-
+                              User ID to run the container as
+                              More info: https://www.radix.equinor.com/radix-config#runasuser
+                            format: int64
+                            type: integer
                           runtime:
                             description: Runtime defines environment specific target
                               runtime requirements for the component
@@ -1586,16 +1592,6 @@ spec:
                                   - name
                                   type: object
                                 type: array
-                            type: object
-                          securityContext:
-                            description: |-
-                              Define SecurityContext parameters for container security settings
-                              More info: https://www.radix.equinor.com/radix-config#securitytontext
-                            properties:
-                              runAsUser:
-                                description: User ID to run the container as.
-                                format: int64
-                                type: integer
                             type: object
                           src:
                             description: |-
@@ -2861,6 +2857,12 @@ spec:
                             that is explicitly specified, otherwise to an implementation-defined value.
                           type: object
                       type: object
+                    runAsUser:
+                      description: |-
+                        User ID to run the container as
+                        More info: https://www.radix.equinor.com/radix-config#runasuser
+                      format: int64
+                      type: integer
                     runtime:
                       description: Runtime defines the target runtime requirements
                         for the component
@@ -2987,16 +2989,6 @@ spec:
                       items:
                         type: string
                       type: array
-                    securityContext:
-                      description: |-
-                        Define SecurityContext parameters for container security settings
-                        More info: https://www.radix.equinor.com/radix-config#securitytontext
-                      properties:
-                        runAsUser:
-                          description: User ID to run the container as.
-                          format: int64
-                          type: integer
-                      type: object
                     src:
                       description: |-
                         Path to the Dockerfile that builds the component.
@@ -3468,16 +3460,12 @@ spec:
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
-                    securityContext:
+                    runAsUser:
                       description: |-
-                        Define SecurityContext parameters for container security settings
-                        More info: https://www.radix.equinor.com/radix-config#securitytontext
-                      properties:
-                        runAsUser:
-                          description: User ID to run the container as.
-                          format: int64
-                          type: integer
-                      type: object
+                        User ID to run the container as
+                        More info: https://www.radix.equinor.com/radix-config#runasuser
+                      format: int64
+                      type: integer
                     subPipeline:
                       description: SubPipeline configuration.
                       properties:
@@ -3886,6 +3874,12 @@ spec:
                                   that is explicitly specified, otherwise to an implementation-defined value.
                                 type: object
                             type: object
+                          runAsUser:
+                            description: |-
+                              User ID to run the container as
+                              More info: https://www.radix.equinor.com/radix-config#runasuser
+                            format: int64
+                            type: integer
                           runtime:
                             description: Runtime defines environment specific target
                               runtime requirements for the job
@@ -4007,16 +4001,6 @@ spec:
                                   - name
                                   type: object
                                 type: array
-                            type: object
-                          securityContext:
-                            description: |-
-                              Define SecurityContext parameters for container security settings
-                              More info: https://www.radix.equinor.com/radix-config#securitytontext
-                            properties:
-                              runAsUser:
-                                description: User ID to run the container as.
-                                format: int64
-                                type: integer
                             type: object
                           src:
                             description: |-
@@ -4512,6 +4496,12 @@ spec:
                             that is explicitly specified, otherwise to an implementation-defined value.
                           type: object
                       type: object
+                    runAsUser:
+                      description: |-
+                        User ID to run the container as
+                        More info: https://www.radix.equinor.com/radix-config#runasuser
+                      format: int64
+                      type: integer
                     runtime:
                       description: Runtime defines target runtime requirements for
                         the job
@@ -4646,16 +4636,6 @@ spec:
                       items:
                         type: string
                       type: array
-                    securityContext:
-                      description: |-
-                        Define SecurityContext parameters for container security settings
-                        More info: https://www.radix.equinor.com/radix-config#securitytontext
-                      properties:
-                        runAsUser:
-                          description: User ID to run the container as.
-                          format: int64
-                          type: integer
-                      type: object
                     src:
                       description: |-
                         Path to the Dockerfile that builds the job.

@@ -310,10 +310,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 		securitycontext.WithReadOnlyRootFileSystem(deployComponent.GetReadOnlyFileSystem()),
 	}
 
-	// If securityContext has been defined, add it to options
-	runAsUser := deployComponent.RunAsUser()
-
-	if runAsUser != nil {
+	if runAsUser := deployComponent.GetRunAsUser(); runAsUser != nil {
 		options = append(options, securitycontext.WithContainerRunAsUser(*runAsUser))
 	}
 

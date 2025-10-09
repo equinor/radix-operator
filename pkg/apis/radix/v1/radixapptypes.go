@@ -199,10 +199,10 @@ type Environment struct {
 	// +optional
 	SubPipeline *SubPipeline `json:"subPipeline"`
 
-	// Define SecurityContext parameters for container security settings
-	// More info: https://www.radix.equinor.com/radix-config#securitytontext
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
 	// +optional
-	SecurityContext SecurityContext `json:"securityContext,omitempty"`
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // EnvBuild contains configuration used to determine how to build an environment.
@@ -552,10 +552,10 @@ type RadixComponent struct {
 	// +listType=atomic
 	Args []string `json:"args,omitempty"`
 
-	// Define SecurityContext parameters for container security settings
-	// More info: https://www.radix.equinor.com/radix-config#securitytontext
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
 	// +optional
-	SecurityContext SecurityContext `json:"securityContext,omitempty"`
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
@@ -689,17 +689,8 @@ type RadixEnvironmentConfig struct {
 	// +listType=atomic
 	Args *[]string `json:"args,omitempty"`
 
-	// Define SecurityContext parameters for container security settings
-	// More info: https://www.radix.equinor.com/radix-config#securitytontext
-	// +optional
-	SecurityContext SecurityContext `json:"securityContext,omitempty"`
-}
-
-// SecurityContext defines security settings for a container, such as user and group IDs, privilege level,
-// capabilities, seccomp profiles, and filesystem access controls.
-// These settings determine how the container runs and interacts with the host system and other resources.
-type SecurityContext struct {
-	// User ID to run the container as.
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
 	// +optional
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
@@ -869,10 +860,10 @@ type RadixJobComponent struct {
 	// +listType=atomic
 	Args []string `json:"args,omitempty"`
 
-	// Define SecurityContext parameters for container security settings
-	// More info: https://www.radix.equinor.com/radix-config#securitytontext
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
 	// +optional
-	SecurityContext SecurityContext `json:"securityContext,omitempty"`
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixJobComponentFailurePolicyRuleOnExitCodesOperator specifies the relationship between a job replica's exit code
@@ -1073,10 +1064,10 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +listType=atomic
 	Args *[]string `json:"args,omitempty"`
 
-	// Define SecurityContext parameters for container security settings
-	// More info: https://www.radix.equinor.com/radix-config#securitytontext
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
 	// +optional
-	SecurityContext SecurityContext `json:"securityContext,omitempty"`
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -2103,7 +2094,7 @@ func (component *RadixComponent) GetArgs() []string {
 }
 
 func (component *RadixComponent) GetRunAsUser() *int64 {
-	return component.SecurityContext.RunAsUser
+	return component.RunAsUser
 }
 
 func (component *RadixComponent) GetCommandForEnvironment(environment string) []string {
@@ -2273,7 +2264,7 @@ func (component *RadixJobComponent) GetArgs() []string {
 }
 
 func (component *RadixJobComponent) GetRunAsUser() *int64 {
-	return component.SecurityContext.RunAsUser
+	return component.RunAsUser
 }
 
 func (component *RadixJobComponent) GetCommandForEnvironment(environment string) []string {

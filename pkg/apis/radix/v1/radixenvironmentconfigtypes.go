@@ -112,7 +112,7 @@ func (config *RadixEnvironmentConfig) getEnabled() *bool {
 }
 
 func (config *RadixEnvironmentConfig) GetRunAsUser() *int64 {
-	return config.SecurityContext.RunAsUser
+	return config.RunAsUser
 }
 
 func (config *RadixJobComponentEnvironmentConfig) GetEnvironment() string {
@@ -197,5 +197,5 @@ func (config *RadixJobComponentEnvironmentConfig) GetArgs() *[]string {
 }
 
 func (config *RadixJobComponentEnvironmentConfig) GetRunAsUser() *int64 {
-	return config.SecurityContext.RunAsUser
+	return config.RunAsUser
 }

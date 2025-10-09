@@ -1390,6 +1390,11 @@
                       },
                       "type": "object"
                     },
+                    "runAsUser": {
+                      "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                      "format": "int64",
+                      "type": "integer"
+                    },
                     "runtime": {
                       "description": "Runtime defines environment specific target runtime requirements for the component",
                       "properties": {
@@ -1507,17 +1512,6 @@
                             "type": "object"
                           },
                           "type": "array"
-                        }
-                      },
-                      "type": "object"
-                    },
-                    "securityContext": {
-                      "description": "Define SecurityContext parameters for container security settings\nMore info: https://www.radix.equinor.com/radix-config#securitytontext",
-                      "properties": {
-                        "runAsUser": {
-                          "description": "User ID to run the container as.",
-                          "format": "int64",
-                          "type": "integer"
                         }
                       },
                       "type": "object"
@@ -2798,6 +2792,11 @@
                 },
                 "type": "object"
               },
+              "runAsUser": {
+                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                "format": "int64",
+                "type": "integer"
+              },
               "runtime": {
                 "description": "Runtime defines the target runtime requirements for the component",
                 "properties": {
@@ -2925,17 +2924,6 @@
                   "type": "string"
                 },
                 "type": "array"
-              },
-              "securityContext": {
-                "description": "Define SecurityContext parameters for container security settings\nMore info: https://www.radix.equinor.com/radix-config#securitytontext",
-                "properties": {
-                  "runAsUser": {
-                    "description": "User ID to run the container as.",
-                    "format": "int64",
-                    "type": "integer"
-                  }
-                },
-                "type": "object"
               },
               "src": {
                 "description": "Path to the Dockerfile that builds the component.\nMore info: https://www.radix.equinor.com/radix-config#src",
@@ -3433,16 +3421,10 @@
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
-              "securityContext": {
-                "description": "Define SecurityContext parameters for container security settings\nMore info: https://www.radix.equinor.com/radix-config#securitytontext",
-                "properties": {
-                  "runAsUser": {
-                    "description": "User ID to run the container as.",
-                    "format": "int64",
-                    "type": "integer"
-                  }
-                },
-                "type": "object"
+              "runAsUser": {
+                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                "format": "int64",
+                "type": "integer"
               },
               "subPipeline": {
                 "description": "SubPipeline configuration.",
@@ -3835,6 +3817,11 @@
                       },
                       "type": "object"
                     },
+                    "runAsUser": {
+                      "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                      "format": "int64",
+                      "type": "integer"
+                    },
                     "runtime": {
                       "description": "Runtime defines environment specific target runtime requirements for the job",
                       "properties": {
@@ -3952,17 +3939,6 @@
                             "type": "object"
                           },
                           "type": "array"
-                        }
-                      },
-                      "type": "object"
-                    },
-                    "securityContext": {
-                      "description": "Define SecurityContext parameters for container security settings\nMore info: https://www.radix.equinor.com/radix-config#securitytontext",
-                      "properties": {
-                        "runAsUser": {
-                          "description": "User ID to run the container as.",
-                          "format": "int64",
-                          "type": "integer"
                         }
                       },
                       "type": "object"
@@ -4468,6 +4444,11 @@
                 },
                 "type": "object"
               },
+              "runAsUser": {
+                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                "format": "int64",
+                "type": "integer"
+              },
               "runtime": {
                 "description": "Runtime defines target runtime requirements for the job",
                 "properties": {
@@ -4602,17 +4583,6 @@
                   "type": "string"
                 },
                 "type": "array"
-              },
-              "securityContext": {
-                "description": "Define SecurityContext parameters for container security settings\nMore info: https://www.radix.equinor.com/radix-config#securitytontext",
-                "properties": {
-                  "runAsUser": {
-                    "description": "User ID to run the container as.",
-                    "format": "int64",
-                    "type": "integer"
-                  }
-                },
-                "type": "object"
               },
               "src": {
                 "description": "Path to the Dockerfile that builds the job.\nMore info: https://www.radix.equinor.com/radix-config#src-2",
