@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.102.0](https://github.com/equinor/radix-operator/compare/v1.101.0..v1.102.0) - 2025-10-09
+
+### 🚀 Features
+
+- Integrate code from radix-velero-plugin repo - ([e724ebc](https://github.com/equinor/radix-operator/commit/e724ebc0783b50bdb7bf019062adfa4ffd4f5d28)) by @nilsgstrabo in [#1454](https://github.com/equinor/radix-operator/pull/1454)
+
+
+### 🐛 Bug Fixes
+
+- Set zerolog default context logger to prevent silent nil pointer panic - ([2854226](https://github.com/equinor/radix-operator/commit/2854226ffa4186dec87e03ea29cc293e9ec3d87b)) by @nilsgstrabo in [#1458](https://github.com/equinor/radix-operator/pull/1458)
+
+
 ## [1.101.0](https://github.com/equinor/radix-operator/compare/v1.100.0..v1.101.0) - 2025-09-18
 
 ### 🚀 Features
