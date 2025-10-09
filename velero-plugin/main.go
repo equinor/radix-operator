@@ -5,21 +5,19 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	internalconfig "github.com/equinor/radix-operator/velero-plugin/internal/config"
 	"github.com/equinor/radix-operator/velero-plugin/internal/plugin/restore"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/sirupsen/logrus"
 	veleroplugin "github.com/vmware-tanzu/velero/pkg/plugin/framework"
 )
 
 func main() {
-	c := internalconfig.ParseConfig()
-	logger := initLogger(c)
 	kubeUtil, err := initKube()
 	if err != nil {
-		logger.Fatalf("unable to init Kube util: %s", err)
+		logrus.Fatalf("unable to init Kube util: %s", err)
 	}
 
-	logger.WithField("config", c).Info("Configuration")
 	veleroplugin.NewServer().
 		RegisterRestoreItemAction("equinor.com/restore-application-plugin", func(logger logrus.FieldLogger) (any, error) {
 			return &restore.RestoreRadixApplicationPlugin{
@@ -73,28 +71,7 @@ func main() {
 }
 
 func initKube() (*kube.Kube, error) {
+	zerolog.DefaultContextLogger = &log.Logger
 	kubeClient, radixClient, _, _, _, _, _ := utils.GetKubernetesClient(context.Background())
 	return kube.New(kubeClient, radixClient, nil, nil)
-}
-
-func initLogger(cfg internalconfig.Config) logrus.FieldLogger {
-	logLevelStr := cfg.LogLevel
-	if len(logLevelStr) == 0 {
-		logLevelStr = logrus.InfoLevel.String()
-	}
-	logLevel, err := logrus.ParseLevel(logLevelStr)
-	if err != nil {
-		logLevel = logrus.InfoLevel
-		logrus.Infof("Invalid log level '%s', fallback to '%s'", logLevelStr, logLevel.String())
-	}
-
-	var formatter logrus.Formatter = &logrus.JSONFormatter{}
-	if cfg.LogPrettyPrint {
-		formatter = &logrus.TextFormatter{}
-	}
-
-	logger := logrus.New()
-	logger.Formatter = formatter
-	logger.Level = logLevel
-	return logger
 }
