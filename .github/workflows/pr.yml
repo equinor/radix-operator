@@ -81,9 +81,9 @@ jobs:
       with:
         go-version-file: 'go.mod'
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v8
       with:
-        version: v1.64.3
+        version: v2.5.0
 
   verify-code-generation:
     name: Verify Code Generation
