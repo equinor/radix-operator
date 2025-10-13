@@ -236,8 +236,9 @@ radixBuildKitImageBuilder:
 
 radixJobScheduler:
   image:
-    repository: radixdev.azurecr.io/radix-job-scheduler
-    tag: main-latest
+    repository: ghcr.io/equinor/radix/job-scheduler
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
 
 radixWebhook:
   enabled: false
