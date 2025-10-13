@@ -140,6 +140,15 @@ CUSTOM_RESOURCE_VERSION=v1
 vendor:
 	go mod vendor
 
+.PHONY: swagger
+swagger: swagger-job-scheduler
+
+.PHONY: swagger-job-scheduler
+swagger-job-scheduler: SHELL:=/bin/bash
+swagger-job-scheduler: bootstrap
+	swagger generate spec -w ./job-scheduler/ -o ./job-scheduler/swaggerui/html/swagger.json --scan-models --exclude-deps
+	swagger validate ./job-scheduler/swaggerui/html/swagger.json
+
 .PHONY: code-gen
 code-gen: bootstrap
 	./hack/update-codegen.sh
@@ -187,7 +196,7 @@ lint: bootstrap
 	golangci-lint run
 
 .PHONY: generate
-generate: bootstrap code-gen helmresources mocks
+generate: bootstrap code-gen helmresources mocks swagger
 
 .PHONY: verify-generate
 verify-generate: bootstrap tidy generate
@@ -205,11 +214,12 @@ apply-rb: bootstrap
 apply-rd: bootstrap
 	kubectl apply -f ./charts/radix-operator/templates/radixdeployment.yaml
 
-HAS_GOLANGCI_LINT := $(shell command -v golangci-lint;)
-HAS_MOCKGEN       := $(shell command -v mockgen;)
+HAS_GOLANGCI_LINT  := $(shell command -v golangci-lint;)
+HAS_MOCKGEN        := $(shell command -v mockgen;)
 HAS_CONTROLLER_GEN := $(shell command -v controller-gen;)
-HAS_YQ := $(shell command -v yq;)
-HAS_KUBECTL := $(shell command -v kubectl;)
+HAS_YQ             := $(shell command -v yq;)
+HAS_KUBECTL        := $(shell command -v kubectl;)
+HAS_SWAGGER        := $(shell command -v swagger;)
 
 .PHONY: bootstrap
 bootstrap: vendor
@@ -227,4 +237,7 @@ ifndef HAS_YQ
 endif
 ifndef HAS_KUBECTL
 	go install k8s.io/kubernetes/cmd/kubectl@latest
+endif
+ifndef HAS_SWAGGER
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0
 endif
