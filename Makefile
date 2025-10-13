@@ -97,6 +97,11 @@ mocks: bootstrap
 	mockgen -source ./pipeline-runner/steps/preparepipeline/internal/radix_config_reader.go -destination ./pipeline-runner/steps/preparepipeline/internal/radix_config_reader_mock.go -package internal
 	mockgen -source ./pipeline-runner/steps/internal/ownerreferences/owner_references.go -destination ./pipeline-runner/steps/internal/ownerreferences/owner_references_mock.go -package ownerreferences
 	mockgen -source ./pipeline-runner/utils/git/git.go -destination ./pipeline-runner/utils/git/git_mock.go -package git
+	mockgen -source ./job-scheduler/api/v1/handlers/jobs/job_handler.go -destination ./job-scheduler/api/v1/handlers/jobs/mock/job_mock.go -package mock
+	mockgen -source ./job-scheduler/api/v1/handlers/batches/batch_handler.go -destination ./job-scheduler/api/v1/handlers/batches/mock/batch_mock.go -package mock
+	mockgen -source ./job-scheduler/pkg/notifications/notifier.go -destination ./job-scheduler/pkg/notifications/notifier_mock.go -package notifications
+	mockgen -source ./job-scheduler/pkg/batch/history.go -destination ./job-scheduler/pkg/batch/history_mock.go -package batch
+
 
 .PHONY: tidy
 tidy:
