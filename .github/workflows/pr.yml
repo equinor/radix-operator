@@ -49,7 +49,15 @@ jobs:
         platforms: |
           linux/amd64
           linux/arm64          
-
+    - name: Build radix-job-scheduler
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: ./job-scheduler.Dockerfile
+        push: false
+        platforms: |
+          linux/amd64
+          linux/arm64  
 
   unit-test:
     name: Unit tests
