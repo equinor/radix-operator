@@ -290,7 +290,7 @@ func setPodStatusByPodCondition(pod *corev1.Pod, podStatus *radixv1.RadixBatchJo
 	}
 	conditions := pod.Status.Conditions
 	sort.Slice(conditions, func(i, j int) bool {
-		if conditions[i].LastTransitionTime.Time == conditions[j].LastTransitionTime.Time {
+		if conditions[i].LastTransitionTime.Time.Equal(conditions[j].LastTransitionTime.Time) {
 			return i < j
 		}
 		return conditions[i].LastTransitionTime.After(conditions[j].LastTransitionTime.Time)

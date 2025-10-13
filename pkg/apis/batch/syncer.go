@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -40,7 +39,7 @@ func WithClock(clock commonutils.Clock) SyncerOption {
 }
 
 // NewSyncer Constructor os RadixBatches Syncer
-func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *v1.RadixRegistration, radixBatch *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
+func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *radixv1.RadixRegistration, radixBatch *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
 	syncer := &syncer{
 		kubeClient:    kubeclient,
 		kubeUtil:      kubeUtil,
@@ -64,7 +63,7 @@ type syncer struct {
 	kubeUtil      *kube.Kube
 	radixClient   radixclient.Interface
 	radixBatch    *radixv1.RadixBatch
-	registration  *v1.RadixRegistration
+	registration  *radixv1.RadixRegistration
 	config        *config.Config
 	restartedJobs map[string]radixv1.RadixBatchJob
 	clock         commonutils.Clock
