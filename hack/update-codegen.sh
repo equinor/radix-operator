@@ -25,6 +25,8 @@ source "${CODEGEN_PKG}/kube_codegen.sh"
 
 THIS_PKG="github.com/equinor/radix-operator"
 
+# Code generation for Radix CRDs
+
 kube::codegen::gen_helpers \
     --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
     "${SCRIPT_ROOT}/pkg/apis"
@@ -35,3 +37,9 @@ kube::codegen::gen_client \
     --output-pkg "${THIS_PKG}/pkg/client" \
     --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
     "${SCRIPT_ROOT}/pkg/apis"
+
+# Code generation for job-scheduler models
+
+kube::codegen::gen_helpers \
+    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+    "${SCRIPT_ROOT}/job-scheduler/models/common"    
