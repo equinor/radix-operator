@@ -150,29 +150,6 @@ type RadixJobTestSuite struct {
 	RadixJobTestSuiteBase
 }
 
-func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
-
-	appName := "anyApp"
-	completedJobStatus := utils.ACompletedJobStatus()
-
-	// Test
-	job, _, err := s.applyJobWithSync(
-		utils.ARadixRegistration().WithName(appName),
-		utils.NewJobBuilder().
-			WithRadixApplication(utils.ARadixApplication().WithAppName(appName)).
-			WithStatusOnAnnotation(completedJobStatus).
-			WithAppName(appName).
-			WithJobName("anyJob"),
-		config)
-
-	s.Require().NoError(err)
-
-	expectedStatus := completedJobStatus.Build()
-	actualStatus := job.Status
-	s.assertStatusEqual(expectedStatus, actualStatus)
-}
-
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appID := ulid.Make()
 	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"

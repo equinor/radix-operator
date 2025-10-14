@@ -2,7 +2,6 @@ package dnsalias
 
 import (
 	"context"
-	"fmt"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
@@ -57,11 +56,8 @@ func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient
 func (s *syncer) OnSync(ctx context.Context) error {
 	ctx = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixDNSAlias).Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
-
 	log.Ctx(ctx).Debug().Msgf("OnSync application %s, environment %s, component %s", s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment, s.radixDNSAlias.Spec.Component)
-	if err := s.restoreStatus(ctx); err != nil {
-		return fmt.Errorf("failed to update status on DNS alias %s: %v", s.radixDNSAlias.GetName(), err)
-	}
+
 	if s.radixDNSAlias.ObjectMeta.DeletionTimestamp != nil {
 		return s.handleDeletedRadixDNSAlias(ctx)
 	}
