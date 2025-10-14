@@ -30,9 +30,5 @@ linters:
 issues:
   max-same-issues: 0
 formatters:
-  exclusions:
-    generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+  enable:
+    - gofmt
