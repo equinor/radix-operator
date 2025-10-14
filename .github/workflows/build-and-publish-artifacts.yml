@@ -49,8 +49,6 @@ jobs:
             repository: /equinor/radix/pipeline
           - file: webhook.Dockerfile
             repository: /equinor/radix/webhook
-          - file: veleroplugin.Dockerfile
-            repository: /equinor/radix/velero-plugin
           - file: job-scheduler.Dockerfile
             repository: /equinor/radix/job-scheduler
     steps:

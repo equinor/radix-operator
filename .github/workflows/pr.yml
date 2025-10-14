@@ -15,7 +15,6 @@ jobs:
           - operator.Dockerfile
           - pipeline.Dockerfile
           - webhook.Dockerfile
-          - veleroplugin.Dockerfile
           - job-scheduler.Dockerfile
     steps:
     - uses: actions/checkout@v4
