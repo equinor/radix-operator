@@ -12,11 +12,11 @@ jobs:
     strategy:
       matrix:
         file:
-          - ./operator.Dockerfile
-          - ./pipeline.Dockerfile
-          - ./webhook.Dockerfile
-          - ./veleroplugin.Dockerfile
-          - ./job-scheduler.Dockerfile
+          - operator.Dockerfile
+          - pipeline.Dockerfile
+          - webhook.Dockerfile
+          - veleroplugin.Dockerfile
+          - job-scheduler.Dockerfile
     steps:
     - uses: actions/checkout@v4
     - name: Set up Docker Buildx
