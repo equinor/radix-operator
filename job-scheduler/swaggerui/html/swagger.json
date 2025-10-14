@@ -1,0 +1,1370 @@
+{
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "swagger": "2.0",
+  "info": {
+    "description": "This is the API Server for the Radix job scheduler server.",
+    "title": "Radix job scheduler server.",
+    "contact": {
+      "url": "https://equinor.slack.com/messages/CBKM6N2JY"
+    },
+    "version": "1.0.0"
+  },
+  "basePath": "/api/v1",
+  "paths": {
+    "/batches": {
+      "post": {
+        "tags": [
+          "Batch"
+        ],
+        "summary": "Create batch",
+        "operationId": "createBatch",
+        "parameters": [
+          {
+            "description": "Batch to create",
+            "name": "batchCreation",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/BatchScheduleDescription"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful create batch",
+            "schema": {
+              "$ref": "#/definitions/BatchStatus"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "422": {
+            "description": "Invalid data in request",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/batches/": {
+      "get": {
+        "tags": [
+          "Batch"
+        ],
+        "summary": "Gets batches",
+        "operationId": "getBatches",
+        "responses": {
+          "200": {
+            "description": "Successful get batches",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/BatchStatus"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/batches/stop": {
+      "post": {
+        "tags": [
+          "Batch"
+        ],
+        "summary": "Stop all batches",
+        "operationId": "stopAllBatches",
+        "responses": {
+          "200": {
+            "description": "Successfully stopped batches",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/batches/{batchName}": {
+      "get": {
+        "tags": [
+          "Batch"
+        ],
+        "summary": "Gets batch",
+        "operationId": "getBatch",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name of batch",
+            "name": "batchName",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful get batch",
+            "schema": {
+              "$ref": "#/definitions/BatchStatus"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Batch"
+        ],
+        "summary": "Delete batch",
+        "operationId": "deleteBatch",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name of batch",
+            "name": "batchName",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful delete batch",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/batches/{batchName}/jobs/{jobName}": {
+      "get": {
+        "tags": [
+          "Batch"
+        ],
+        "summary": "Gets batch job",
+        "operationId": "getBatchJob",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name of batch",
+            "name": "batchName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Name of job",
+            "name": "jobName",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful get job",
+            "schema": {
+              "$ref": "#/definitions/JobStatus"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/batches/{batchName}/jobs/{jobName}/stop": {
+      "post": {
+        "tags": [
+          "Batch"
+        ],
+        "summary": "Stop batch job",
+        "operationId": "stopBatchJob",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name of batch",
+            "name": "batchName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Name of job",
+            "name": "jobName",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful stop batch job",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/batches/{batchName}/stop": {
+      "post": {
+        "tags": [
+          "Batch"
+        ],
+        "summary": "Stop batch",
+        "operationId": "stopBatch",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name of batch",
+            "name": "batchName",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful stop batch",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/jobs": {
+      "post": {
+        "tags": [
+          "Job"
+        ],
+        "summary": "Create job",
+        "operationId": "createJob",
+        "parameters": [
+          {
+            "description": "Job to create",
+            "name": "jobCreation",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/JobScheduleDescription"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful create job",
+            "schema": {
+              "$ref": "#/definitions/JobStatus"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "422": {
+            "description": "Invalid data in request",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/jobs/": {
+      "get": {
+        "tags": [
+          "Job"
+        ],
+        "summary": "Gets jobs",
+        "operationId": "getJobs",
+        "responses": {
+          "200": {
+            "description": "Successful get jobs",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/JobStatus"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/jobs/stop": {
+      "post": {
+        "tags": [
+          "Job"
+        ],
+        "summary": "Stop all jobs",
+        "operationId": "stopAllJobs",
+        "responses": {
+          "200": {
+            "description": "Successfully stopped jobs",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{jobName}": {
+      "get": {
+        "tags": [
+          "Job"
+        ],
+        "summary": "Gets job",
+        "operationId": "getJob",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name of job",
+            "name": "jobName",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful get job",
+            "schema": {
+              "$ref": "#/definitions/JobStatus"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Job"
+        ],
+        "summary": "Delete job",
+        "operationId": "deleteJob",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name of job",
+            "name": "jobName",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful delete job",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{jobName}/stop": {
+      "post": {
+        "tags": [
+          "Job"
+        ],
+        "summary": "Stop job",
+        "operationId": "stopJob",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name of job",
+            "name": "jobName",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful delete job",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/Status"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "BatchEvent": {
+      "description": "BatchEvent holds general information about batch event on change of status",
+      "type": "object",
+      "required": [
+        "name",
+        "event"
+      ],
+      "properties": {
+        "DeploymentName": {
+          "description": "DeploymentName for this batch",
+          "type": "string"
+        },
+        "batchId": {
+          "description": "Defines a user defined ID of the batch.",
+          "type": "string",
+          "x-go-name": "BatchId",
+          "example": "'batch-id-1'"
+        },
+        "batchName": {
+          "description": "BatchName Optional Batch ID of a job",
+          "type": "string",
+          "x-go-name": "BatchName",
+          "example": "'batch1'"
+        },
+        "batchType": {
+          "description": "BatchType Single job or multiple jobs batch",
+          "type": "string",
+          "x-go-name": "BatchType",
+          "example": "\"job\""
+        },
+        "created": {
+          "description": "Created timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Created"
+        },
+        "ended": {
+          "description": "Ended timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Ended"
+        },
+        "event": {
+          "$ref": "#/definitions/Event"
+        },
+        "failed": {
+          "description": "The number of times the container for the job has failed.\n+optional",
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Failed"
+        },
+        "jobId": {
+          "description": "JobId Optional ID of a job",
+          "type": "string",
+          "x-go-name": "JobId",
+          "example": "'job1'"
+        },
+        "jobStatuses": {
+          "description": "JobStatuses of the jobs in the batch",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/JobStatus"
+          },
+          "x-go-name": "JobStatuses"
+        },
+        "message": {
+          "description": "Message, if any, of the job",
+          "type": "string",
+          "x-go-name": "Message",
+          "example": "\"Error occurred\""
+        },
+        "name": {
+          "description": "Name of the job",
+          "type": "string",
+          "x-go-name": "Name",
+          "example": "calculator"
+        },
+        "podStatuses": {
+          "description": "PodStatuses for each pod of the job",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PodStatus"
+          },
+          "x-go-name": "PodStatuses"
+        },
+        "restart": {
+          "description": "Timestamp of the job restart, if applied.\n+optional",
+          "type": "string",
+          "x-go-name": "Restart"
+        },
+        "started": {
+          "description": "Started timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Started"
+        },
+        "status": {
+          "description": "Status of the job\nRunning = Job is running\nSucceeded = Job has succeeded\nFailed = Job has failed\nWaiting = Job is waiting\nStopping = Job is stopping\nStopped = Job has been stopped\nActive = Job is active\nCompleted = Job is completed",
+          "type": "string",
+          "enum": [
+            "Running",
+            "Succeeded",
+            "Failed",
+            "Waiting",
+            "Stopping",
+            "Stopped",
+            "Active",
+            "Completed"
+          ],
+          "x-go-name": "Status",
+          "example": "Waiting"
+        },
+        "updated": {
+          "description": "Updated timestamp when the status was updated",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Updated"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/v1/events"
+    },
+    "BatchScheduleDescription": {
+      "description": "BatchScheduleDescription holds description about batch scheduling job",
+      "type": "object",
+      "required": [
+        "jobScheduleDescriptions"
+      ],
+      "properties": {
+        "batchId": {
+          "description": "Defines a user defined ID of the batch.",
+          "type": "string",
+          "x-go-name": "BatchId",
+          "example": "'batch-id-1'"
+        },
+        "defaultRadixJobComponentConfig": {
+          "$ref": "#/definitions/RadixJobComponentConfig"
+        },
+        "jobScheduleDescriptions": {
+          "description": "JobScheduleDescriptions descriptions of jobs to schedule within the batch",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/JobScheduleDescription"
+          },
+          "x-go-name": "JobScheduleDescriptions"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "BatchStatus": {
+      "description": "BatchStatus holds general information about batch status",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "DeploymentName": {
+          "description": "DeploymentName for this batch",
+          "type": "string"
+        },
+        "batchId": {
+          "description": "Defines a user defined ID of the batch.",
+          "type": "string",
+          "x-go-name": "BatchId",
+          "example": "'batch-id-1'"
+        },
+        "batchName": {
+          "description": "BatchName Optional Batch ID of a job",
+          "type": "string",
+          "x-go-name": "BatchName",
+          "example": "'batch1'"
+        },
+        "batchType": {
+          "description": "BatchType Single job or multiple jobs batch",
+          "type": "string",
+          "x-go-name": "BatchType",
+          "example": "\"job\""
+        },
+        "created": {
+          "description": "Created timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Created"
+        },
+        "ended": {
+          "description": "Ended timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Ended"
+        },
+        "failed": {
+          "description": "The number of times the container for the job has failed.\n+optional",
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Failed"
+        },
+        "jobId": {
+          "description": "JobId Optional ID of a job",
+          "type": "string",
+          "x-go-name": "JobId",
+          "example": "'job1'"
+        },
+        "jobStatuses": {
+          "description": "JobStatuses of the jobs in the batch",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/JobStatus"
+          },
+          "x-go-name": "JobStatuses"
+        },
+        "message": {
+          "description": "Message, if any, of the job",
+          "type": "string",
+          "x-go-name": "Message",
+          "example": "\"Error occurred\""
+        },
+        "name": {
+          "description": "Name of the job",
+          "type": "string",
+          "x-go-name": "Name",
+          "example": "calculator"
+        },
+        "podStatuses": {
+          "description": "PodStatuses for each pod of the job",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PodStatus"
+          },
+          "x-go-name": "PodStatuses"
+        },
+        "restart": {
+          "description": "Timestamp of the job restart, if applied.\n+optional",
+          "type": "string",
+          "x-go-name": "Restart"
+        },
+        "started": {
+          "description": "Started timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Started"
+        },
+        "status": {
+          "description": "Status of the job\nRunning = Job is running\nSucceeded = Job has succeeded\nFailed = Job has failed\nWaiting = Job is waiting\nStopping = Job is stopping\nStopped = Job has been stopped\nActive = Job is active\nCompleted = Job is completed",
+          "type": "string",
+          "enum": [
+            "Running",
+            "Succeeded",
+            "Failed",
+            "Waiting",
+            "Stopping",
+            "Stopped",
+            "Active",
+            "Completed"
+          ],
+          "x-go-name": "Status",
+          "example": "Waiting"
+        },
+        "updated": {
+          "description": "Updated timestamp when the status was updated",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Updated"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/v1"
+    },
+    "EnvVars": {
+      "type": "object",
+      "title": "EnvVars Map of environment variables in the form '\u003cenvvarname\u003e: \u003cvalue\u003e'",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "Event": {
+      "type": "string",
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/v1/events"
+    },
+    "FailurePolicy": {
+      "type": "object",
+      "title": "FailurePolicy describes how failed job replicas influence the backoffLimit.",
+      "required": [
+        "rules"
+      ],
+      "properties": {
+        "rules": {
+          "description": "A list of failure policy rules. The rules are evaluated in order.\nOnce a rule matches a job replica failure, the remaining of the rules are ignored.\nWhen no rule matches the failure, the default handling applies - the\ncounter of failures is incremented and it is checked against\nthe backoffLimit.",
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/definitions/FailurePolicyRule"
+          },
+          "x-go-name": "Rules"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "FailurePolicyRule": {
+      "type": "object",
+      "title": "FailurePolicyRule describes how a job replica failure is handled when the onExitCodes rules are met.",
+      "required": [
+        "action",
+        "onExitCodes"
+      ],
+      "properties": {
+        "action": {
+          "description": "Specifies the action taken on a job replica failure when the onExitCodes requirements are satisfied.\nFailJob FailurePolicyRuleActionFailJob  This is an action which might be taken on a job replica failure - mark the  job as Failed and terminate all running pods.\nIgnore FailurePolicyRuleActionIgnore  This is an action which might be taken on a job replica failure - the counter towards  .backoffLimit is not incremented and a replacement replica is created.\nCount FailurePolicyRuleActionCount  This is an action which might be taken on a job replica failure - the replica failure  is handled in the default way - the counter towards .backoffLimit is incremented.",
+          "type": "string",
+          "enum": [
+            "FailJob",
+            "Ignore",
+            "Count"
+          ],
+          "x-go-enum-desc": "FailJob FailurePolicyRuleActionFailJob  This is an action which might be taken on a job replica failure - mark the  job as Failed and terminate all running pods.\nIgnore FailurePolicyRuleActionIgnore  This is an action which might be taken on a job replica failure - the counter towards  .backoffLimit is not incremented and a replacement replica is created.\nCount FailurePolicyRuleActionCount  This is an action which might be taken on a job replica failure - the replica failure  is handled in the default way - the counter towards .backoffLimit is incremented.",
+          "x-go-name": "Action"
+        },
+        "onExitCodes": {
+          "$ref": "#/definitions/FailurePolicyRuleOnExitCodes"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "FailurePolicyRuleOnExitCodes": {
+      "description": "FailurePolicyRuleOnExitCodes describes the requirement for handling\na failed job replica based on its exit code.",
+      "type": "object",
+      "required": [
+        "operator",
+        "values"
+      ],
+      "properties": {
+        "operator": {
+          "description": "Represents the relationship between the job replica's exit code and the\nspecified values. Replicas completed with success (exit code 0) are\nexcluded from the requirement check.\nIn FailurePolicyRuleOnExitCodesOpIn  The requirement is satisfied if the job replica's exit code is in the set of specified values.\nNotIn FailurePolicyRuleOnExitCodesOpNotIn  The requirement is satisfied if the job replica's exit code is not in the set of specified values.",
+          "type": "string",
+          "enum": [
+            "In",
+            "NotIn"
+          ],
+          "x-go-enum-desc": "In FailurePolicyRuleOnExitCodesOpIn  The requirement is satisfied if the job replica's exit code is in the set of specified values.\nNotIn FailurePolicyRuleOnExitCodesOpNotIn  The requirement is satisfied if the job replica's exit code is not in the set of specified values.",
+          "x-go-name": "Operator"
+        },
+        "values": {
+          "description": "Specifies the set of values. The job replica's exit code is checked against this set of\nvalues with respect to the operator. The list must not contain duplicates.\nValue '0' cannot be used for the In operator.",
+          "type": "array",
+          "minimum": 0,
+          "maxItems": 255,
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "x-go-name": "Values"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "JobScheduleDescription": {
+      "description": "JobScheduleDescription holds description about scheduling job",
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Arguments to the entrypoint.\nThe container image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional\n+listType=atomic",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Args"
+        },
+        "backoffLimit": {
+          "description": "BackoffLimit defines attempts to restart job if it fails. Corresponds to BackoffLimit in K8s.",
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "BackoffLimit"
+        },
+        "command": {
+          "description": "Entrypoint array. Not executed within a shell.\nThe container image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional\n+listType=atomic",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Command"
+        },
+        "failurePolicy": {
+          "$ref": "#/definitions/FailurePolicy"
+        },
+        "image": {
+          "description": "Name of an existing container image to use when running the job. Overrides an image in the RadixDeployment\nMore info: https://www.radix.equinor.com/radix-config#image-2\n+optional",
+          "type": "string",
+          "x-go-name": "Image"
+        },
+        "imageTagName": {
+          "description": "ImageTagName defines the image tag name to use for the job image",
+          "type": "string",
+          "x-go-name": "ImageTagName"
+        },
+        "jobId": {
+          "description": "JobId Optional ID of a job",
+          "type": "string",
+          "x-go-name": "JobId",
+          "example": "'job1'"
+        },
+        "node": {
+          "$ref": "#/definitions/Node"
+        },
+        "payload": {
+          "description": "Payload holding json data to be mapped to component",
+          "type": "string",
+          "x-go-name": "Payload",
+          "example": "{'data':'value'}"
+        },
+        "resources": {
+          "$ref": "#/definitions/Resources"
+        },
+        "runtime": {
+          "$ref": "#/definitions/Runtime"
+        },
+        "timeLimitSeconds": {
+          "description": "TimeLimitSeconds defines maximum job run time. Corresponds to ActiveDeadlineSeconds in K8s.",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TimeLimitSeconds"
+        },
+        "variables": {
+          "$ref": "#/definitions/EnvVars"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "JobStatus": {
+      "description": "JobStatus holds general information about job status",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "DeploymentName": {
+          "description": "DeploymentName for this batch",
+          "type": "string"
+        },
+        "batchId": {
+          "description": "Defines a user defined ID of the batch.",
+          "type": "string",
+          "x-go-name": "BatchId",
+          "example": "'batch-id-1'"
+        },
+        "batchName": {
+          "description": "BatchName Optional Batch ID of a job",
+          "type": "string",
+          "x-go-name": "BatchName",
+          "example": "'batch1'"
+        },
+        "created": {
+          "description": "Created timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Created"
+        },
+        "ended": {
+          "description": "Ended timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Ended"
+        },
+        "failed": {
+          "description": "The number of times the container for the job has failed.\n+optional",
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Failed"
+        },
+        "jobId": {
+          "description": "JobId Optional ID of a job",
+          "type": "string",
+          "x-go-name": "JobId",
+          "example": "'job1'"
+        },
+        "message": {
+          "description": "Message, if any, of the job",
+          "type": "string",
+          "x-go-name": "Message",
+          "example": "\"Error occurred\""
+        },
+        "name": {
+          "description": "Name of the job",
+          "type": "string",
+          "x-go-name": "Name",
+          "example": "calculator"
+        },
+        "podStatuses": {
+          "description": "PodStatuses for each pod of the job",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PodStatus"
+          },
+          "x-go-name": "PodStatuses"
+        },
+        "restart": {
+          "description": "Timestamp of the job restart, if applied.\n+optional",
+          "type": "string",
+          "x-go-name": "Restart"
+        },
+        "started": {
+          "description": "Started timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Started"
+        },
+        "status": {
+          "description": "Status of the job\nRunning = Job is running\nSucceeded = Job has succeeded\nFailed = Job has failed\nWaiting = Job is waiting\nStopping = Job is stopping\nStopped = Job has been stopped\nActive = Job is active\nCompleted = Job is completed",
+          "type": "string",
+          "enum": [
+            "Running",
+            "Succeeded",
+            "Failed",
+            "Waiting",
+            "Stopping",
+            "Stopped",
+            "Active",
+            "Completed"
+          ],
+          "x-go-name": "Status",
+          "example": "Waiting"
+        },
+        "updated": {
+          "description": "Updated timestamp when the status was updated",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Updated"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/v1"
+    },
+    "Node": {
+      "description": "Node defines node attributes, where container should be scheduled",
+      "type": "object",
+      "properties": {
+        "gpu": {
+          "description": "Defines rules for allowed GPU types.",
+          "type": "string",
+          "x-go-name": "Gpu"
+        },
+        "gpuCount": {
+          "description": "Defines minimum number of required GPUs.",
+          "type": "string",
+          "x-go-name": "GpuCount"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "PodStatus": {
+      "type": "object",
+      "title": "PodStatus contains details for the current status of the job's pods.",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "containerStarted": {
+          "description": "Container started timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "ContainerStarted"
+        },
+        "created": {
+          "description": "Created timestamp",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Created"
+        },
+        "endTime": {
+          "description": "The time at which the batch job's pod finishedAt.",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "EndTime"
+        },
+        "exitCode": {
+          "description": "Exit status from the last termination of the container",
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "ExitCode"
+        },
+        "image": {
+          "description": "The image the container is running.",
+          "type": "string",
+          "x-go-name": "Image",
+          "example": "radixdev.azurecr.io/app-server:cdgkg"
+        },
+        "imageId": {
+          "description": "ImageID of the container's image.",
+          "type": "string",
+          "x-go-name": "ImageId",
+          "example": "radixdev.azurecr.io/app-server@sha256:d40cda01916ef63da3607c03785efabc56eb2fc2e0dab0726b1a843e9ded093f"
+        },
+        "name": {
+          "description": "Pod name",
+          "type": "string",
+          "x-go-name": "Name",
+          "example": "server-78fc8857c4-hm76l"
+        },
+        "podIndex": {
+          "description": "The index of the pod in the re-starts",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "PodIndex"
+        },
+        "reason": {
+          "description": "A brief CamelCase message indicating details about why the job is in this phase",
+          "type": "string",
+          "x-go-name": "Reason"
+        },
+        "replicaStatus": {
+          "$ref": "#/definitions/ReplicaStatus"
+        },
+        "restartCount": {
+          "description": "RestartCount count of restarts of a component container inside a pod",
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "RestartCount"
+        },
+        "startTime": {
+          "description": "The time at which the batch job's pod startedAt",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "StartTime"
+        },
+        "statusMessage": {
+          "description": "StatusMessage provides message describing the status of a component container inside a pod",
+          "type": "string",
+          "x-go-name": "StatusMessage"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/v1"
+    },
+    "RadixJobComponentConfig": {
+      "description": "RadixJobComponentConfig holds description of RadixJobComponent",
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Arguments to the entrypoint.\nThe container image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional\n+listType=atomic",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Args"
+        },
+        "backoffLimit": {
+          "description": "BackoffLimit defines attempts to restart job if it fails. Corresponds to BackoffLimit in K8s.",
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "BackoffLimit"
+        },
+        "command": {
+          "description": "Entrypoint array. Not executed within a shell.\nThe container image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional\n+listType=atomic",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Command"
+        },
+        "failurePolicy": {
+          "$ref": "#/definitions/FailurePolicy"
+        },
+        "image": {
+          "description": "Name of an existing container image to use when running the job. Overrides an image in the RadixDeployment\nMore info: https://www.radix.equinor.com/radix-config#image-2\n+optional",
+          "type": "string",
+          "x-go-name": "Image"
+        },
+        "imageTagName": {
+          "description": "ImageTagName defines the image tag name to use for the job image",
+          "type": "string",
+          "x-go-name": "ImageTagName"
+        },
+        "node": {
+          "$ref": "#/definitions/Node"
+        },
+        "resources": {
+          "$ref": "#/definitions/Resources"
+        },
+        "runtime": {
+          "$ref": "#/definitions/Runtime"
+        },
+        "timeLimitSeconds": {
+          "description": "TimeLimitSeconds defines maximum job run time. Corresponds to ActiveDeadlineSeconds in K8s.",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "TimeLimitSeconds"
+        },
+        "variables": {
+          "$ref": "#/definitions/EnvVars"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "ReplicaStatus": {
+      "description": "ReplicaStatus describes the status of a component container inside a pod",
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "description": "Status of the container\nPending = Container in Waiting state and the reason is ContainerCreating\nFailed = Container is failed\nFailing = Container is failed\nRunning = Container in Running state\nSucceeded = Container in Succeeded state\nTerminated = Container in Terminated state\nStopped = Job has been stopped",
+          "type": "string",
+          "enum": [
+            "Pending",
+            "Succeeded",
+            "Failing",
+            "Failed",
+            "Running",
+            "Terminated",
+            "Starting",
+            "Stopped"
+          ],
+          "x-go-name": "Status",
+          "example": "Running"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/v1"
+    },
+    "ResourceList": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "Resources": {
+      "type": "object",
+      "title": "Resources describes the compute resource requirements.",
+      "properties": {
+        "limits": {
+          "$ref": "#/definitions/ResourceList"
+        },
+        "requests": {
+          "$ref": "#/definitions/ResourceList"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "Runtime": {
+      "description": "Runtime defines the component or job's target runtime requirements",
+      "type": "object",
+      "properties": {
+        "architecture": {
+          "description": "CPU architecture",
+          "type": "string",
+          "x-go-name": "Architecture",
+          "example": "amd64"
+        },
+        "nodeType": {
+          "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype\n+kubebuilder:validation:MaxLength=120\n+kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$\n+optional",
+          "type": "string",
+          "x-go-name": "NodeType"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "Status": {
+      "description": "Status is a return value for calls that don't return other objects or when a request returns an error",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "Suggested HTTP return code for this status, 0 if not set.",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Code",
+          "example": 404
+        },
+        "message": {
+          "description": "A human-readable description of the status of this operation.",
+          "type": "string",
+          "x-go-name": "Message",
+          "example": "job job123 is not found"
+        },
+        "reason": {
+          "$ref": "#/definitions/StatusReason"
+        },
+        "status": {
+          "description": "Status of the operation.\nOne of: \"Success\" or \"Failure\".",
+          "type": "string",
+          "x-go-name": "Status",
+          "example": "Failure"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    },
+    "StatusReason": {
+      "type": "string",
+      "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/common"
+    }
+  }
+}
