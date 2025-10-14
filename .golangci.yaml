@@ -26,3 +26,6 @@ issues:
 formatters:
   enable:
     - gofmt
+  exclusions:
+    paths:
+      - job-scheduler/docs/docs.go
