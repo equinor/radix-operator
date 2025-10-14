@@ -19,16 +19,8 @@ linters:
       - linters:
           - staticcheck
         text: "QF1001:"        
-    generated: lax
     presets:
-      - comments
-      - common-false-positives
-      - legacy
       - std-error-handling
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
 issues:
   max-same-issues: 0
 formatters:
