@@ -1529,26 +1529,6 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 	s.Empty(job.Status.TargetEnvs)
 }
 
-func (s *RadixJobTestSuite) assertStatusEqual(expectedStatus, actualStatus radixv1.RadixJobStatus) {
-	getTimestamp := func(t time.Time) string {
-		return t.Format(time.RFC3339)
-	}
-
-	s.Equal(getTimestamp(expectedStatus.Started.Time), getTimestamp(actualStatus.Started.Time))
-	s.Equal(getTimestamp(expectedStatus.Ended.Time), getTimestamp(actualStatus.Ended.Time))
-	s.Equal(expectedStatus.Condition, actualStatus.Condition)
-	s.Equal(expectedStatus.TargetEnvs, actualStatus.TargetEnvs)
-
-	for index, expectedStep := range expectedStatus.Steps {
-		s.Equal(expectedStep.Name, actualStatus.Steps[index].Name)
-		s.Equal(expectedStep.Condition, actualStatus.Steps[index].Condition)
-		s.Equal(getTimestamp(expectedStep.Started.Time), getTimestamp(actualStatus.Steps[index].Started.Time))
-		s.Equal(getTimestamp(expectedStep.Ended.Time), getTimestamp(actualStatus.Steps[index].Ended.Time))
-		s.Equal(expectedStep.Components, actualStatus.Steps[index].Components)
-		s.Equal(expectedStep.PodName, actualStatus.Steps[index].PodName)
-	}
-}
-
 func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 	dnsConfig := dnsalias.DNSConfig{
 		DNSZone:               "dev.radix.equinor.com",
