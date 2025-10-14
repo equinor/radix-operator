@@ -361,35 +361,6 @@ func AStartedJobStatus() JobStatusBuilder {
 	return builder
 }
 
-// ACompletedJobStatus Constructor for a completed job
-func ACompletedJobStatus() JobStatusBuilder {
-	started := time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)
-	ended := started.Add(5 * time.Minute)
-	builder := NewJobStatusBuilder().
-		WithCondition(v1.JobSucceeded).
-		WithStarted(started).
-		WithEnded(ended).
-		WithSteps(
-			ACloneConfigStep().
-				WithCondition(v1.JobSucceeded).
-				WithStarted(started).
-				WithEnded(ended),
-			ARadixPipelineStep().
-				WithCondition(v1.JobRunning).
-				WithStarted(started).
-				WithEnded(ended),
-			ACloneStep().
-				WithCondition(v1.JobSucceeded).
-				WithStarted(started).
-				WithEnded(ended),
-			ABuildAppStep().
-				WithCondition(v1.JobRunning).
-				WithStarted(started).
-				WithEnded(ended))
-
-	return builder
-}
-
 // JobStepBuilder Handles construction of job status step
 type JobStepBuilder interface {
 	WithCondition(v1.RadixJobCondition) JobStepBuilder
