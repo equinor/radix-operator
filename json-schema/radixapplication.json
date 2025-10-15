@@ -1390,6 +1390,11 @@
                       },
                       "type": "object"
                     },
+                    "runAsUser": {
+                      "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                      "format": "int64",
+                      "type": "integer"
+                    },
                     "runtime": {
                       "description": "Runtime defines environment specific target runtime requirements for the component",
                       "properties": {
@@ -2787,6 +2792,11 @@
                 },
                 "type": "object"
               },
+              "runAsUser": {
+                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                "format": "int64",
+                "type": "integer"
+              },
               "runtime": {
                 "description": "Runtime defines the target runtime requirements for the component",
                 "properties": {
@@ -3411,6 +3421,11 @@
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
               },
+              "runAsUser": {
+                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                "format": "int64",
+                "type": "integer"
+              },
               "subPipeline": {
                 "description": "SubPipeline configuration.",
                 "properties": {
@@ -3801,6 +3816,11 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "runAsUser": {
+                      "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                      "format": "int64",
+                      "type": "integer"
                     },
                     "runtime": {
                       "description": "Runtime defines environment specific target runtime requirements for the job",
@@ -4423,6 +4443,11 @@
                   }
                 },
                 "type": "object"
+              },
+              "runAsUser": {
+                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                "format": "int64",
+                "type": "integer"
               },
               "runtime": {
                 "description": "Runtime defines target runtime requirements for the job",

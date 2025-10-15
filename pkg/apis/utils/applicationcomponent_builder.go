@@ -39,6 +39,7 @@ type RadixApplicationComponentBuilder interface {
 	WithReplicas(replicas *int) RadixApplicationComponentBuilder
 	WithCommand(command []string) RadixApplicationComponentBuilder
 	WithArgs(args []string) RadixApplicationComponentBuilder
+	WithRunAsUser(runAsUser *int64) RadixApplicationComponentBuilder
 	BuildComponent() radixv1.RadixComponent
 }
 
@@ -74,6 +75,7 @@ type radixApplicationComponentBuilder struct {
 	replicas             *int
 	command              []string
 	args                 []string
+	runAsUser            *int64
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -254,6 +256,11 @@ func (rcb *radixApplicationComponentBuilder) WithArgs(args []string) RadixApplic
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithRunAsUser(runAsUser *int64) RadixApplicationComponentBuilder {
+	rcb.runAsUser = runAsUser
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixComponent {
 	var environmentConfig = make([]radixv1.RadixEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -291,6 +298,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixCompo
 		Replicas:                rcb.replicas,
 		Command:                 rcb.command,
 		Args:                    rcb.args,
+		RunAsUser:               rcb.runAsUser,
 	}
 }
 

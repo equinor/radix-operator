@@ -219,7 +219,7 @@ func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment,
 	}
 
 	image := getJobImage(jobComponent, batchJob)
-	securityContext := securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault), securitycontext.WithReadOnlyRootFileSystem(jobComponent.GetReadOnlyFileSystem()))
+	securityContext := securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault), securitycontext.WithReadOnlyRootFileSystem(jobComponent.GetReadOnlyFileSystem()), securitycontext.WithRunAsUser(jobComponent.GetRunAsUser()))
 	container := corev1.Container{
 		Name:            jobComponent.Name,
 		Image:           image,

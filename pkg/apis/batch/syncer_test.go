@@ -946,6 +946,61 @@ func (s *syncerTestSuite) Test_ReadOnlyFileSystem() {
 	}
 }
 
+func (s *syncerTestSuite) Test_RunAsUser() {
+	appName, batchName, namespace, rdName := "any-app", "any-job", "any-ns", "any-rd"
+	type scenarioSpec struct {
+		runAsUser         *int64
+		expectedRunAsUser *int64
+	}
+	usr1000 := pointers.Ptr(int64(1000))
+	usr1001 := pointers.Ptr(int64(1001))
+	tests := map[string]scenarioSpec{
+		"notSet": {runAsUser: nil, expectedRunAsUser: nil},
+		"false":  {runAsUser: usr1001, expectedRunAsUser: usr1001},
+		"true":   {runAsUser: usr1000, expectedRunAsUser: usr1000},
+	}
+	for name, test := range tests {
+		s.Run(name, func() {
+			batch := &radixv1.RadixBatch{
+				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Spec: radixv1.RadixBatchSpec{
+					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+						Job:                  "anyjob",
+					},
+					Jobs: []radixv1.RadixBatchJob{
+						{Name: "any"},
+					},
+				},
+			}
+
+			rd := &radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: rdName},
+				Spec: radixv1.RadixDeploymentSpec{
+					AppName: appName,
+					Jobs: []radixv1.RadixDeployJobComponent{
+						{
+							Name:      "anyjob",
+							RunAsUser: test.runAsUser,
+						},
+					},
+				},
+			}
+			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
+			sut := s.createSyncer(batch, nil)
+			s.Require().NoError(sut.OnSync(context.Background()))
+			jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+			s.Require().Len(jobs.Items, 1)
+			job1 := jobs.Items[0]
+			s.Equal(test.expectedRunAsUser, job1.Spec.Template.Spec.Containers[0].SecurityContext.RunAsUser)
+		})
+	}
+}
+
 func (s *syncerTestSuite) Test_JobWithResources() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"

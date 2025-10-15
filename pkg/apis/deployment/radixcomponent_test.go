@@ -272,11 +272,11 @@ func TestGetRadixComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 		{"Env controls when readOnlyFileSystem is nil, set to true", nil, pointers.Ptr(true), pointers.Ptr(true)},
 		{"Env controls when readOnlyFileSystem is nil, set to false", nil, pointers.Ptr(false), pointers.Ptr(false)},
 		{"readOnlyFileSystem set to true, no env config", pointers.Ptr(true), nil, pointers.Ptr(true)},
-		{"Both readOnlyFileSystem and monitoringEnv set to true", pointers.Ptr(true), pointers.Ptr(true), pointers.Ptr(true)},
+		{"Both readOnlyFileSystem and readOnlyFileSystemEnv set to true", pointers.Ptr(true), pointers.Ptr(true), pointers.Ptr(true)},
 		{"Env overrides to false when both is set", pointers.Ptr(true), pointers.Ptr(false), pointers.Ptr(false)},
 		{"readOnlyFileSystem set to false, no env config", pointers.Ptr(false), nil, pointers.Ptr(false)},
 		{"Env overrides to true when both is set", pointers.Ptr(false), pointers.Ptr(true), pointers.Ptr(true)},
-		{"Both readOnlyFileSystem and monitoringEnv set to false", pointers.Ptr(false), pointers.Ptr(false), pointers.Ptr(false)},
+		{"Both readOnlyFileSystem and readOnlyFileSystemEnv set to false", pointers.Ptr(false), pointers.Ptr(false), pointers.Ptr(false)},
 	}
 
 	for _, testCase := range testCases {
@@ -296,6 +296,58 @@ func TestGetRadixComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 
 			deployComponent, _ := GetRadixComponentsForEnv(context.Background(), ra, nil, env, componentImages, envVarsMap, nil)
 			assert.Equal(t, testCase.expectedReadOnlyFilesystem, deployComponent[0].ReadOnlyFileSystem)
+		})
+	}
+}
+
+func TestGetRadixComponentsForEnv_RunAsUser(t *testing.T) {
+	componentName := "comp"
+	env := "dev"
+	anyImagePath := "imagepath"
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: anyImagePath}
+	envVarsMap := make(radixv1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+	usr1000 := pointers.Ptr(int64(1000))
+	usr1001 := pointers.Ptr(int64(1001))
+
+	// Test cases with different values for RunAsUser
+	testCases := []struct {
+		description  string
+		runAsUser    *int64
+		runAsUserEnv *int64
+
+		expectedRunAsUser *int64
+	}{
+		{"No configuration set", nil, nil, nil},
+		{"Env takes precedence when runAsUser is nil, set to 1000", nil, usr1000, usr1000},
+		{"Env takes precedence when runAsUser is nil, set to 1001", nil, usr1001, usr1001},
+		{"runAsUser set to 1000, no env config", usr1000, nil, usr1000},
+		{"Both runAsUser and runAsUserEnv set to 1000", usr1000, usr1000, usr1000},
+		{"Env overrides to 1001 when both is set", usr1000, usr1001, usr1001},
+		{"runAsUser set to 1001, no env config", usr1001, nil, usr1001},
+		{"Env overrides to 1000 when both is set", usr1001, usr1000, usr1000},
+		{"Both runAsUser and runAsUserEnv set to 1001", usr1001, usr1001, usr1001},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			ra := utils.ARadixApplication().
+				WithComponents(
+					utils.NewApplicationComponentBuilder().
+						WithName(componentName).
+						WithRunAsUser(testCase.runAsUser).
+						WithEnvironmentConfigs(
+							utils.AnEnvironmentConfig().
+								WithEnvironment(env).
+								WithRunAsUser(testCase.runAsUserEnv),
+							utils.AnEnvironmentConfig().
+								WithEnvironment("prod").WithRunAsUser(usr1001),
+						)).BuildRA()
+
+			deployComponent, _ := GetRadixComponentsForEnv(context.Background(), ra, nil, env, componentImages, envVarsMap, nil)
+			assert.Equal(t, testCase.expectedRunAsUser, deployComponent[0].RunAsUser)
 		})
 	}
 }

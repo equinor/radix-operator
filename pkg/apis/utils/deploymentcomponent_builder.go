@@ -41,6 +41,7 @@ type DeployComponentBuilder interface {
 	WithRuntime(*v1.Runtime) DeployComponentBuilder
 	WithCommand(command []string) DeployComponentBuilder
 	WithArgs(args []string) DeployComponentBuilder
+	WithRunAsUser(*int64) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
 }
 
@@ -77,6 +78,7 @@ type deployComponentBuilder struct {
 	healthChecks       *v1.RadixHealthChecks
 	command            []string
 	args               []string
+	runAsUser          *int64
 }
 
 func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployComponentBuilder {
@@ -264,6 +266,11 @@ func (dcb *deployComponentBuilder) WithArgs(args []string) DeployComponentBuilde
 	return dcb
 }
 
+func (dcb *deployComponentBuilder) WithRunAsUser(runAsUser *int64) DeployComponentBuilder {
+	dcb.runAsUser = runAsUser
+	return dcb
+}
+
 func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 	return v1.RadixDeployComponent{
 		Image:                   dcb.image,
@@ -294,6 +301,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Runtime:                 dcb.runtime,
 		Command:                 dcb.command,
 		Args:                    dcb.args,
+		RunAsUser:               dcb.runAsUser,
 	}
 }
 

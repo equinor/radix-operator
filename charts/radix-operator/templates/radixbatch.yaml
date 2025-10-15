@@ -233,6 +233,12 @@ spec:
                         - the job is running - the job is stopped and started again.
                         This timestamp set to the job's status.restart.
                       type: string
+                    runAsUser:
+                      description: |-
+                        User ID to run the container as
+                        More info: https://www.radix.equinor.com/radix-config#runasuser
+                      format: int64
+                      type: integer
                     runtime:
                       description: Runtime defines the target runtime requirements
                         for the batch job

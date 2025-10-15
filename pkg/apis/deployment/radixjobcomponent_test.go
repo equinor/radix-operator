@@ -806,6 +806,60 @@ func TestGetRadixJobComponentsForEnv_ReadOnlyFileSystem(t *testing.T) {
 	}
 }
 
+func TestGetRadixJobComponentsForEnv_RunAsUser(t *testing.T) {
+	const (
+		environment = "dev"
+	)
+	usr1000 := pointers.Ptr(int64(1000))
+	usr1001 := pointers.Ptr(int64(1001))
+
+	// Test cases with different values for RunAsUser
+	testCases := []struct {
+		name         string
+		runAsUser    *int64
+		runAsUserEnv *int64
+
+		expectedRunAsUser *int64
+	}{
+		{"No configuration set", nil, nil, nil},
+		{"Env takes precedence when runAsUser is nil, set to 1000", nil, usr1000, usr1000},
+		{"Env takes precedence when runAsUser is nil, set to 1001", nil, usr1001, usr1001},
+		{"runAsUser set to 1000, no env config", usr1000, nil, usr1000},
+		{"Both runAsUser and monitoringEnv set to 1000", usr1000, usr1000, usr1000},
+		{"Env overrides to 1001 when both is set", usr1000, usr1001, usr1001},
+		{"runAsUser set to 1001, no env config", usr1001, nil, usr1001},
+		{"Env overrides to 1000 when both is set", usr1001, usr1000, usr1000},
+		{"Both runAsUser and monitoringEnv set to 1001", usr1001, usr1001, usr1001},
+	}
+
+	for _, ts := range testCases {
+		t.Run(ts.name, func(t *testing.T) {
+			componentImages := make(pipeline.DeployComponentImages)
+			var componentBuilders []utils.RadixApplicationJobComponentBuilder
+
+			componentBuilder := utils.NewApplicationJobComponentBuilder().
+				WithName("jobComponentName").
+				WithRunAsUser(ts.runAsUser).
+				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().
+					WithEnvironment(environment).
+					WithRunAsUser(ts.runAsUserEnv))
+			componentBuilders = append(componentBuilders, componentBuilder)
+
+			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithJobComponents(componentBuilders...).BuildRA()
+
+			deployComponents, err := NewJobComponentsBuilder(ra, environment, componentImages, make(radixv1.EnvVarsMap), nil).JobComponents(context.Background())
+			assert.NoError(t, err)
+			deployComponent, exists := slice.FindFirst(deployComponents, func(component radixv1.RadixDeployJobComponent) bool {
+				return component.Name == "jobComponentName"
+			})
+			require.True(t, exists)
+
+			assert.Equal(t, ts.expectedRunAsUser, deployComponent.RunAsUser)
+
+		})
+	}
+}
+
 func Test_GetRadixJobComponentAndEnv_Monitoring(t *testing.T) {
 	componentName := "comp"
 	env := "dev"
