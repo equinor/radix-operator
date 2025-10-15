@@ -345,37 +345,37 @@ All notable changes to this project will be documented in this file.
 
 - Disable runAsNonRoot and runAsUser, ruined webconsole - ([d7306dd](https://github.com/equinor/radix-operator/commit/d7306dd7342fe596103ce41065d77c26370af047)) by @kjellerik
 
-- Clone app wildcard (#157) - ([ed7c39f](https://github.com/equinor/radix-operator/commit/ed7c39f3ea8076e72d2b24ce4ed3c4f6ec21c680)) by @ingeknudsen
+- Clone app wildcard (#157) - ([ed7c39f](https://github.com/equinor/radix-operator/commit/ed7c39f3ea8076e72d2b24ce4ed3c4f6ec21c680)) by @ingeknudsen in [#157](https://github.com/equinor/radix-operator/pull/157)
 
 - Force ssl redirect on ingresses - ([d4c220f](https://github.com/equinor/radix-operator/commit/d4c220f9f180047e25a8f7035a16ee406ea8d6c6)) by @kjellerik
 
 - Fix app alias certificate - ([282a4ed](https://github.com/equinor/radix-operator/commit/282a4ed9618e8b2aadd0637aaa95761237a0ba8a)) by @kjellerik
 
-- Network policy appied on deploy - ([25f7584](https://github.com/equinor/radix-operator/commit/25f758494dadd75142dadf65cb8fdfde06294b7e)) by @keaaa
+- Network policy appied on deploy - ([25f7584](https://github.com/equinor/radix-operator/commit/25f758494dadd75142dadf65cb8fdfde06294b7e)) by @keaaa in [#206](https://github.com/equinor/radix-operator/pull/206)
 
-- Build and build-deploy pipeline - ([ba1040b](https://github.com/equinor/radix-operator/commit/ba1040b45a95d7cc779ac37adddf2fde8e41d0d6)) by @keaaa
+- Build and build-deploy pipeline - ([ba1040b](https://github.com/equinor/radix-operator/commit/ba1040b45a95d7cc779ac37adddf2fde8e41d0d6)) by @keaaa in [#218](https://github.com/equinor/radix-operator/pull/218)
 
-- Deny users creating k8s jobs - ([39f7d4b](https://github.com/equinor/radix-operator/commit/39f7d4b524d94ada51267c98f4962abad475f0ff)) by @keaaa
+- Deny users creating k8s jobs - ([39f7d4b](https://github.com/equinor/radix-operator/commit/39f7d4b524d94ada51267c98f4962abad475f0ff)) by @keaaa in [#222](https://github.com/equinor/radix-operator/pull/222)
 
-- Pipeline watches instead of pulling build status - ([f876b1b](https://github.com/equinor/radix-operator/commit/f876b1b377dcbaec5e0790140e58c9019d511944)) by @keaaa
+- Pipeline watches instead of pulling build status - ([f876b1b](https://github.com/equinor/radix-operator/commit/f876b1b377dcbaec5e0790140e58c9019d511944)) by @keaaa in [#228](https://github.com/equinor/radix-operator/pull/228)
 
-- Measure requests and latency towards k8s api - ([731c5a3](https://github.com/equinor/radix-operator/commit/731c5a3d906f724994fdcd4891c6239d0658c724)) by @keaaa
+- Measure requests and latency towards k8s api - ([731c5a3](https://github.com/equinor/radix-operator/commit/731c5a3d906f724994fdcd4891c6239d0658c724)) by @keaaa in [#229](https://github.com/equinor/radix-operator/pull/229)
 
 - Fixed issue when config was not set - ([3372aa4](https://github.com/equinor/radix-operator/commit/3372aa46dab46374a6ea16d1397aca5751a30c57)) by @kjellerik
 
-- Remove unused clusterroles - ([4126557](https://github.com/equinor/radix-operator/commit/412655752fb1222be6a901f885d68c89a565ff1e)) by @keaaa
+- Remove unused clusterroles - ([4126557](https://github.com/equinor/radix-operator/commit/412655752fb1222be6a901f885d68c89a565ff1e)) by @keaaa in [#248](https://github.com/equinor/radix-operator/pull/248)
 
-- Radix operator with own role - ([6a5500a](https://github.com/equinor/radix-operator/commit/6a5500a8b4d770ba848f0e58fb8f8e65bbdbacb3)) by @keaaa
+- Radix operator with own role - ([6a5500a](https://github.com/equinor/radix-operator/commit/6a5500a8b4d770ba848f0e58fb8f8e65bbdbacb3)) by @keaaa in [#256](https://github.com/equinor/radix-operator/pull/256)
 
-- Expose active cluster url as env var (#266) - ([d66ff2e](https://github.com/equinor/radix-operator/commit/d66ff2e3bb26254da61b3c88f3e67f70d97a52c5)) by @keaaa
+- Expose active cluster url as env var (#266) - ([d66ff2e](https://github.com/equinor/radix-operator/commit/d66ff2e3bb26254da61b3c88f3e67f70d97a52c5)) by @keaaa in [#266](https://github.com/equinor/radix-operator/pull/266)
 
-- Introduce status on radix deployment (#269) - ([338c698](https://github.com/equinor/radix-operator/commit/338c698111b198f6e3a22ea523cfd215b6735112)) by @keaaa
+- Introduce status on radix deployment (#269) - ([338c698](https://github.com/equinor/radix-operator/commit/338c698111b198f6e3a22ea523cfd215b6735112)) by @keaaa in [#269](https://github.com/equinor/radix-operator/pull/269)
 
-- Dns alias handled on promotion (#270) - ([460fe05](https://github.com/equinor/radix-operator/commit/460fe055ad1dee634716e6679ecb2bee7cc08182)) by @keaaa
+- Dns alias handled on promotion (#270) - ([460fe05](https://github.com/equinor/radix-operator/commit/460fe055ad1dee634716e6679ecb2bee7cc08182)) by @keaaa in [#270](https://github.com/equinor/radix-operator/pull/270)
 
-- Deny users creating k8s jobs - ([4f3f580](https://github.com/equinor/radix-operator/commit/4f3f58089230daceab5d8b28e115e1179a63d9d2)) by @keaaa
+- Deny users creating k8s jobs - ([4f3f580](https://github.com/equinor/radix-operator/commit/4f3f58089230daceab5d8b28e115e1179a63d9d2)) by @keaaa in [#223](https://github.com/equinor/radix-operator/pull/223)
 
-- Remove unused clusterroles - ([9bcab06](https://github.com/equinor/radix-operator/commit/9bcab06783d3182fe3c9f22f3bd8a8ab0ae1c9dc)) by @keaaa
+- Remove unused clusterroles - ([9bcab06](https://github.com/equinor/radix-operator/commit/9bcab06783d3182fe3c9f22f3bd8a8ab0ae1c9dc)) by @keaaa in [#249](https://github.com/equinor/radix-operator/pull/249)
 
 - Set resource request/limits in chart (#320) - ([211220f](https://github.com/equinor/radix-operator/commit/211220ff1d83a6a506f27921c38329b043fc8bc9)) by @keaaa in [#320](https://github.com/equinor/radix-operator/pull/320)
 
@@ -386,9 +386,9 @@ All notable changes to this project will be documented in this file.
 
 ## New Contributors ❤️
 
-* @jonaspetersorensen made their first contribution
+* @jonaspetersorensen made their first contribution in [#43](https://github.com/equinor/radix-operator/pull/43)
 * @thezultimate made their first contribution
-* @ made their first contribution
+* @ made their first contribution in [#42](https://github.com/equinor/radix-operator/pull/42)
 * @FrodeHus made their first contribution
 * @nemzes made their first contribution
 <!-- generated by git-cliff -->
