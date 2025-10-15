@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -24,7 +23,6 @@ type JobBuilder interface {
 	WithPushImage(bool) JobBuilder
 	WithImageTag(string) JobBuilder
 	WithDeploymentName(string) JobBuilder
-	WithStatusOnAnnotation(JobStatusBuilder) JobBuilder
 	WithEmptyStatus() JobBuilder
 	WithStatus(JobStatusBuilder) JobBuilder
 	WithCreated(time.Time) JobBuilder
@@ -40,7 +38,6 @@ type JobBuilderStruct struct {
 	appName               string
 	jobName               string
 	pipeline              v1.RadixPipelineType
-	restoredStatus        string
 	emptyStatus           bool
 	status                v1.RadixJobStatus
 	branch                string
@@ -140,13 +137,6 @@ func (jb *JobBuilderStruct) WithDeploymentName(deploymentName string) JobBuilder
 	return jb
 }
 
-// WithStatusOnAnnotation Emulates velero plugin
-func (jb *JobBuilderStruct) WithStatusOnAnnotation(jobStatus JobStatusBuilder) JobBuilder {
-	restoredStatus, _ := json.Marshal(jobStatus.Build())
-	jb.restoredStatus = string(restoredStatus)
-	return jb
-}
-
 // WithEmptyStatus Indicates that the RJ has no reconciled status
 func (jb *JobBuilderStruct) WithEmptyStatus() JobBuilder {
 	jb.emptyStatus = true
@@ -203,7 +193,6 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 				kube.RadixBranchAnnotation:     jb.branch,
 				kube.RadixGitRefAnnotation:     jb.gitRef,
 				kube.RadixGitRefTypeAnnotation: jb.gitRefType,
-				kube.RestoredStatusAnnotation:  jb.restoredStatus,
 			},
 			CreationTimestamp: metav1.Time{Time: jb.created},
 		},
@@ -368,35 +357,6 @@ func AStartedJobStatus() JobStatusBuilder {
 			ABuildAppStep().
 				WithCondition(v1.JobRunning).
 				WithStarted(time.Now()))
-
-	return builder
-}
-
-// ACompletedJobStatus Constructor for a completed job
-func ACompletedJobStatus() JobStatusBuilder {
-	started := time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)
-	ended := started.Add(5 * time.Minute)
-	builder := NewJobStatusBuilder().
-		WithCondition(v1.JobSucceeded).
-		WithStarted(started).
-		WithEnded(ended).
-		WithSteps(
-			ACloneConfigStep().
-				WithCondition(v1.JobSucceeded).
-				WithStarted(started).
-				WithEnded(ended),
-			ARadixPipelineStep().
-				WithCondition(v1.JobRunning).
-				WithStarted(started).
-				WithEnded(ended),
-			ACloneStep().
-				WithCondition(v1.JobSucceeded).
-				WithStarted(started).
-				WithEnded(ended),
-			ABuildAppStep().
-				WithCondition(v1.JobRunning).
-				WithStarted(started).
-				WithEnded(ended))
 
 	return builder
 }

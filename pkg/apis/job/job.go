@@ -68,8 +68,6 @@ func (job *Job) OnSync(ctx context.Context) error {
 		Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
 
-	job.restoreStatus(ctx)
-
 	appName := job.radixJob.Spec.AppName
 	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.GetNamespace()).Get(ctx, appName, metav1.GetOptions{})
 	if err != nil {
@@ -108,32 +106,6 @@ func (job *Job) OnSync(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
-func (job *Job) restoreStatus(ctx context.Context) {
-	if restoredStatus, ok := job.radixJob.Annotations[kube.RestoredStatusAnnotation]; ok && len(restoredStatus) > 0 {
-		if job.radixJob.Status.Condition == "" {
-			var status v1.RadixJobStatus
-			err := json.Unmarshal([]byte(restoredStatus), &status)
-			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Msg("Unable to get status from annotation")
-				return
-			}
-			err = job.updateRadixJobStatusWithMetrics(ctx, job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
-				currStatus.Condition = status.Condition
-				currStatus.Created = status.Created
-				currStatus.Started = status.Started
-				currStatus.Ended = status.Ended
-				currStatus.TargetEnvs = status.TargetEnvs
-				currStatus.Steps = status.Steps
-			})
-			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Msg("Unable to restore status")
-				return
-			}
-		}
-	}
 }
 
 func (job *Job) syncStatuses(ctx context.Context, ra *v1.RadixApplication) (stopReconciliation bool, err error) {

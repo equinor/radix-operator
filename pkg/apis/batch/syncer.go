@@ -74,10 +74,6 @@ func (s *syncer) OnSync(ctx context.Context) error {
 	ctx = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixBatch).Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
 
-	if err := s.restoreStatus(ctx); err != nil {
-		return err
-	}
-
 	if s.isBatchDone() && !s.isRestartRequestedForAnyBatchJob() {
 		return nil
 	}

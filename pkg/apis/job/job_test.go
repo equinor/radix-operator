@@ -150,29 +150,6 @@ type RadixJobTestSuite struct {
 	RadixJobTestSuiteBase
 }
 
-func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
-
-	appName := "anyApp"
-	completedJobStatus := utils.ACompletedJobStatus()
-
-	// Test
-	job, _, err := s.applyJobWithSync(
-		utils.ARadixRegistration().WithName(appName),
-		utils.NewJobBuilder().
-			WithRadixApplication(utils.ARadixApplication().WithAppName(appName)).
-			WithStatusOnAnnotation(completedJobStatus).
-			WithAppName(appName).
-			WithJobName("anyJob"),
-		config)
-
-	s.Require().NoError(err)
-
-	expectedStatus := completedJobStatus.Build()
-	actualStatus := job.Status
-	s.assertStatusEqual(expectedStatus, actualStatus)
-}
-
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appID := ulid.Make()
 	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
@@ -1550,26 +1527,6 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 	// Master maps to Test env
 	s.Equal(job.Spec.Build.GetGitRefOrDefault(), "master")
 	s.Empty(job.Status.TargetEnvs)
-}
-
-func (s *RadixJobTestSuite) assertStatusEqual(expectedStatus, actualStatus radixv1.RadixJobStatus) {
-	getTimestamp := func(t time.Time) string {
-		return t.Format(time.RFC3339)
-	}
-
-	s.Equal(getTimestamp(expectedStatus.Started.Time), getTimestamp(actualStatus.Started.Time))
-	s.Equal(getTimestamp(expectedStatus.Ended.Time), getTimestamp(actualStatus.Ended.Time))
-	s.Equal(expectedStatus.Condition, actualStatus.Condition)
-	s.Equal(expectedStatus.TargetEnvs, actualStatus.TargetEnvs)
-
-	for index, expectedStep := range expectedStatus.Steps {
-		s.Equal(expectedStep.Name, actualStatus.Steps[index].Name)
-		s.Equal(expectedStep.Condition, actualStatus.Steps[index].Condition)
-		s.Equal(getTimestamp(expectedStep.Started.Time), getTimestamp(actualStatus.Steps[index].Started.Time))
-		s.Equal(getTimestamp(expectedStep.Ended.Time), getTimestamp(actualStatus.Steps[index].Ended.Time))
-		s.Equal(expectedStep.Components, actualStatus.Steps[index].Components)
-		s.Equal(expectedStep.PodName, actualStatus.Steps[index].PodName)
-	}
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
