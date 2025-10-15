@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.102.0](https://github.com/equinor/radix-operator/compare/v1.101.0..v1.102.0) - 2025-10-15
+
+### 🚀 Features
+
+- Integrate code from radix-velero-plugin repo - ([e724ebc](https://github.com/equinor/radix-operator/commit/e724ebc0783b50bdb7bf019062adfa4ffd4f5d28)) by @nilsgstrabo in [#1454](https://github.com/equinor/radix-operator/pull/1454)
+
+- Integrate code from radix-job-scheduler - ([490054d](https://github.com/equinor/radix-operator/commit/490054d1fe5655121ae8fe83b0df640fe69a1161)) by @nilsgstrabo in [#1461](https://github.com/equinor/radix-operator/pull/1461)
+
+- Remove restored status handling from various components (#1467) - ([c392160](https://github.com/equinor/radix-operator/commit/c3921602d388297a52fc02e9f2ceef1432991164)) by @nilsgstrabo in [#1467](https://github.com/equinor/radix-operator/pull/1467)
+
+
+### 🐛 Bug Fixes
+
+- Set zerolog default context logger to prevent silent nil pointer panic - ([2854226](https://github.com/equinor/radix-operator/commit/2854226ffa4186dec87e03ea29cc293e9ec3d87b)) by @nilsgstrabo in [#1458](https://github.com/equinor/radix-operator/pull/1458)
+
+- Remove velero-plugin package - ([06c820e](https://github.com/equinor/radix-operator/commit/06c820eead22be3a2f587c471dee6e44527583a2)) by @nilsgstrabo in [#1465](https://github.com/equinor/radix-operator/pull/1465)
+
+
 ## [1.101.0](https://github.com/equinor/radix-operator/compare/v1.100.0..v1.101.0) - 2025-09-18
 
 ### 🚀 Features
