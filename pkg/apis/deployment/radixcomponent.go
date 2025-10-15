@@ -82,7 +82,7 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		deployComponent.Runtime = componentImage.Runtime
 		deployComponent.Command = radixComponent.GetCommandForEnvironmentConfig(environmentSpecificConfig)
 		deployComponent.Args = radixComponent.GetArgsForEnvironmentConfig(environmentSpecificConfig)
-		deployComponent.RunAsUser = radixComponent.GetRunAsUserForEnvironmentConfig(environmentSpecificConfig)
+		deployComponent.RunAsUser = getRadixCommonComponentRunAsUser(&radixComponent, environmentSpecificConfig)
 		if deployComponent.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixComponent, environmentSpecificConfig); err != nil {
 			return nil, err
 		}
@@ -153,6 +153,13 @@ func getRadixCommonComponentReadOnlyFileSystem(radixComponent radixv1.RadixCommo
 		return environmentSpecificConfig.GetReadOnlyFileSystem()
 	}
 	return radixComponent.GetReadOnlyFileSystem()
+}
+
+func getRadixCommonComponentRunAsUser(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *int64 {
+	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetRunAsUser() != nil {
+		return environmentSpecificConfig.GetRunAsUser()
+	}
+	return radixComponent.GetRunAsUser()
 }
 
 func getRadixCommonComponentMonitoring(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) bool {

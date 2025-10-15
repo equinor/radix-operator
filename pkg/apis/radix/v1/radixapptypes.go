@@ -1960,7 +1960,6 @@ type RadixCommonComponent interface {
 	GetCommandForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
 	// GetArgsForEnvironmentConfig Arguments to the entrypoint for the environment config
 	GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string
-	GetRunAsUserForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) *int64
 }
 
 func (component *RadixComponent) GetName() string {
@@ -2111,10 +2110,6 @@ func (component *RadixComponent) GetCommandForEnvironmentConfig(envConfig RadixC
 
 func (component *RadixComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
 	return getArgsForEnvironmentConfig(component, envConfig)
-}
-
-func (component *RadixComponent) GetRunAsUserForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) *int64 {
-	return getRunAsUserForEnvironmentConfig(component, envConfig)
 }
 
 func (component *RadixJobComponent) GetEnabledForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) bool {
@@ -2281,10 +2276,6 @@ func (component *RadixJobComponent) GetCommandForEnvironmentConfig(envConfig Rad
 
 func (component *RadixJobComponent) GetArgsForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) []string {
 	return getArgsForEnvironmentConfig(component, envConfig)
-}
-
-func (component *RadixJobComponent) GetRunAsUserForEnvironmentConfig(envConfig RadixCommonEnvironmentConfig) *int64 {
-	return getRunAsUserForEnvironmentConfig(component, envConfig)
 }
 
 // GetOAuth2 Returns OAuth2 if exist
@@ -2481,14 +2472,4 @@ func getArgsForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig
 		return *envConfig.GetArgs()
 	}
 	return commonComponent.GetArgs()
-}
-
-func getRunAsUserForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) *int64 {
-	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
-		return commonComponent.GetRunAsUser()
-	}
-	if runAsUser := envConfig.GetRunAsUser(); runAsUser != nil {
-		return envConfig.GetRunAsUser()
-	}
-	return commonComponent.GetRunAsUser()
 }

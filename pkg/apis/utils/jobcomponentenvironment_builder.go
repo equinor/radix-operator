@@ -27,6 +27,7 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithRuntime(*v1.Runtime) RadixJobComponentEnvironmentConfigBuilder
 	WithCommand(strings []string) RadixJobComponentEnvironmentConfigBuilder
 	WithArgs(strings []string) RadixJobComponentEnvironmentConfigBuilder
+	WithRunAsUser(runAsUser *int64) RadixJobComponentEnvironmentConfigBuilder
 	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
@@ -54,6 +55,7 @@ type radixJobComponentEnvironmentConfigBuilder struct {
 	failurePolicy      *v1.RadixJobComponentFailurePolicy
 	command            *[]string
 	args               *[]string
+	runAsUser          *int64
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
@@ -167,6 +169,11 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithArgs(args []string) Ra
 	return ceb
 }
 
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithRunAsUser(runAsUser *int64) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.runAsUser = runAsUser
+	return ceb
+}
+
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithFailurePolicy(failurePolicy *v1.RadixJobComponentFailurePolicy) RadixJobComponentEnvironmentConfigBuilder {
 	ceb.failurePolicy = failurePolicy
 	return ceb
@@ -195,6 +202,7 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		FailurePolicy:      ceb.failurePolicy,
 		Command:            ceb.command,
 		Args:               ceb.args,
+		RunAsUser:          ceb.runAsUser,
 	}
 }
 
