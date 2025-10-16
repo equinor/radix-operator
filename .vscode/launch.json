@@ -12,8 +12,8 @@
 				"REQUIRE_CONFIGURATION_ITEM": "true",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
-				"CERTS_DIR": "${workspaceFolder}/local/certs",
-			},
+				"CERTS_DIR": "${workspaceFolder}/local/certs"
+			}
 		},
 		{
 			"name": "Launch-build-deploy-pipeline",
@@ -156,8 +156,8 @@
 				"RADIX_APP_CONTAINER_REGISTRY": "radixdevapp.azurecr.io",
 				"RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL": "https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0",
 				"RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.9.0",
-                "RADIX_OAUTH_REDIS_IMAGE": "docker.io/library/redis:8.0",
-                "RADIXOPERATOR_TENANT_ID": "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",
+				"RADIX_OAUTH_REDIS_IMAGE": "docker.io/library/redis:8.0",
+				"RADIXOPERATOR_TENANT_ID": "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",
 				"KUBERNETES_SERVICE_PORT": "443",
 				"REGISTRATION_CONTROLLER_THREADS": "10",
 				"APPLICATION_CONTROLLER_THREADS": "10",
@@ -193,6 +193,22 @@
 				"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE": "docker.io/alpine/git:2.45.2"
 			},
 			"args": ["--useOutClusterClient=false"]
+		},
+		{
+			"name": "Launch Job Scheduler",
+			"type": "go",
+			"request": "launch",
+			"mode": "auto",
+			"program": "${workspaceFolder}/job-scheduler/main.go",
+			"env": {
+				"USE_SWAGGER": "true",
+				"LOG_LEVEL": "info",
+				"LOG_PRETTY": "true",
+				"RADIX_APP": "rihag",
+				"RADIX_COMPONENT": "compute",
+				"RADIX_PORTS": "8080",
+
+			}
 		},
 		{
 			"name": "Test RadixEnvironment",

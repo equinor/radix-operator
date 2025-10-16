@@ -2,6 +2,7 @@ version: "2"
 linters:
   enable:
     - zerologlint
+    - godox # find todos, fixmes and other markers
   exclusions:
     rules:
       - linters:
@@ -18,7 +19,7 @@ linters:
         text: "QF1011:"
       - linters:
           - staticcheck
-        text: "QF1001:"        
+        text: "QF1001:"
     presets:
       - std-error-handling
 issues:

@@ -72,8 +72,6 @@ type RadixApplicationValidator func(radixApplication *radixv1.RadixApplication) 
 func CanRadixApplicationBeInserted(ctx context.Context, radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig, additionalValidators ...RadixApplicationValidator) error {
 
 	validators := append(requiredRadixApplicationValidators,
-		validateDoesRRExistFactory(ctx, radixClient),
-		validateDNSAliasFactory(ctx, radixClient, dnsAliasConfig),
 	)
 	validators = append(validators, additionalValidators...)
 
@@ -121,47 +119,6 @@ func validateAppName(appName string) error {
 	return validateRequiredResourceName("app name", appName, 253)
 }
 
-func validateRequiredResourceName(resourceName, value string, maxLength int) error {
-	if len(value) > maxLength {
-		return InvalidStringValueMaxLengthErrorWithMessage(resourceName, value, maxLength)
-	}
-
-	if value == "" {
-		return ResourceNameCannotBeEmptyErrorWithMessage(resourceName)
-	}
-
-	re := regexp.MustCompile(resourceNameTemplate)
-
-	isValid := re.MatchString(value)
-	if !isValid {
-		return InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage(resourceName, value)
-	}
-
-	return nil
-}
-
-func validateDoesRRExistFactory(ctx context.Context, client radixclient.Interface) RadixApplicationValidator {
-	return func(radixApplication *radixv1.RadixApplication) error {
-		return validateDoesRRExist(ctx, client, radixApplication.Name)
-	}
-}
-
-func validateDoesRRExist(ctx context.Context, client radixclient.Interface, appName string) error {
-	_, err := client.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return NoRegistrationExistsForApplicationErrorWithMessage(appName)
-		}
-		return err
-	}
-	return nil
-}
-
-func validateDNSAliasFactory(ctx context.Context, client radixclient.Interface, dnsAliasConfig *dnsalias.DNSConfig) RadixApplicationValidator {
-	return func(radixApplication *radixv1.RadixApplication) error {
-		return validateDNSAlias(ctx, client, radixApplication, dnsAliasConfig)
-	}
-}
 
 func validatePrivateImageHubs(app *radixv1.RadixApplication) error {
 	var errs []error
@@ -188,113 +145,6 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) error {
 	return validateDNSAppAliasComponentAndEnvironmentAvailable(app)
 }
 
-func validateDNSAlias(ctx context.Context, radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig) error {
-	var errs []error
-	radixDNSAliasMap, err := kube.GetRadixDNSAliasMap(ctx, radixClient)
-	if err != nil {
-		return err
-	}
-	uniqueAliasNames := make(map[string]struct{})
-	for _, dnsAlias := range app.Spec.DNSAlias {
-		if _, ok := uniqueAliasNames[dnsAlias.Alias]; ok {
-			errs = append(errs, DuplicateAliasForDNSAliasError(dnsAlias.Alias))
-		} else if err = validateRequiredResourceName("dnsAlias alias", dnsAlias.Alias, 63); err != nil {
-			errs = append(errs, err)
-		}
-		uniqueAliasNames[dnsAlias.Alias] = struct{}{}
-		componentNameIsValid, environmentNameIsValid := true, true
-		if err = validateRequiredResourceName("dnsAlias component", dnsAlias.Component, 63); err != nil {
-			errs = append(errs, err)
-			componentNameIsValid = false
-		}
-		if err = validateRequiredResourceName("dnsAlias environment", dnsAlias.Environment, 63); err != nil {
-			errs = append(errs, err)
-			environmentNameIsValid = false
-		}
-		if !componentNameIsValid || !environmentNameIsValid {
-			continue
-		}
-		if err = validateDNSAliasComponentAndEnvironmentAvailable(app, dnsAlias.Component, dnsAlias.Environment); err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		if !doesComponentHaveAPublicPort(app, dnsAlias.Component) {
-			errs = append(errs, ComponentForDNSAliasIsNotMarkedAsPublicError(dnsAlias.Component))
-			continue
-		}
-		if radixDNSAlias, ok := radixDNSAliasMap[dnsAlias.Alias]; ok && radixDNSAlias.Spec.AppName != app.Name {
-			errs = append(errs, RadixDNSAliasAlreadyUsedByAnotherApplicationError(dnsAlias.Alias))
-		}
-		if reservingAppName, aliasReserved := dnsAliasConfig.ReservedAppDNSAliases[dnsAlias.Alias]; aliasReserved && reservingAppName != app.Name {
-			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformApplicationError(dnsAlias.Alias))
-		}
-		if slice.Any(dnsAliasConfig.ReservedDNSAliases, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Alias }) {
-			errs = append(errs, RadixDNSAliasIsReservedForRadixPlatformServiceError(dnsAlias.Alias))
-		}
-	}
-	return errors.Join(errs...)
-}
-
-func validateDNSAppAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication) error {
-	alias := app.Spec.DNSAppAlias
-	if alias.Component == "" && alias.Environment == "" {
-		return nil
-	}
-
-	var errs []error
-	if !doesEnvExist(app, alias.Environment) {
-		errs = append(errs, EnvForDNSAppAliasNotDefinedErrorWithMessage(alias.Environment))
-	}
-	if !doesComponentExistInEnvironment(app, alias.Component, alias.Environment) {
-		errs = append(errs, ComponentForDNSAppAliasNotDefinedErrorWithMessage(alias.Component))
-	}
-	return errors.Join(errs...)
-}
-
-func validateDNSAliasComponentAndEnvironmentAvailable(app *radixv1.RadixApplication, component string, environment string) error {
-	if !doesEnvExist(app, environment) {
-		return EnvForDNSAliasNotDefinedError(environment)
-	}
-	if !doesComponentExistInEnvironment(app, component, environment) {
-		return ComponentForDNSAliasNotDefinedError(component)
-	}
-	return nil
-}
-
-func validateDNSExternalAlias(app *radixv1.RadixApplication) error {
-	errs := []error{}
-
-	distinctAlias := make(map[string]bool)
-
-	for _, externalAlias := range app.Spec.DNSExternalAlias {
-		if externalAlias.Alias == "" && externalAlias.Component == "" && externalAlias.Environment == "" {
-			return nil
-		}
-
-		distinctAlias[externalAlias.Alias] = true
-
-		if externalAlias.Alias == "" {
-			errs = append(errs, ErrExternalAliasCannotBeEmpty)
-		}
-
-		if !doesEnvExist(app, externalAlias.Environment) {
-			errs = append(errs, EnvForDNSExternalAliasNotDefinedErrorWithMessage(externalAlias.Environment))
-		}
-		if !doesComponentExistInEnvironment(app, externalAlias.Component, externalAlias.Environment) {
-			errs = append(errs, ComponentForDNSExternalAliasNotDefinedErrorWithMessage(externalAlias.Component))
-		}
-
-		if !doesComponentHaveAPublicPort(app, externalAlias.Component) {
-			errs = append(errs, ComponentForDNSExternalAliasIsNotMarkedAsPublicErrorWithMessage(externalAlias.Component))
-		}
-	}
-
-	if len(distinctAlias) < len(app.Spec.DNSExternalAlias) {
-		errs = append(errs, DuplicateExternalAliasErrorWithMessage())
-	}
-
-	return errors.Join(errs...)
-}
 
 func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) error {
 	names := make(map[string]int)
@@ -1821,38 +1671,8 @@ func validateRuntime(runtime *radixv1.Runtime) error {
 	return nil
 }
 
-func doesComponentExistInEnvironment(app *radixv1.RadixApplication, componentName string, environment string) bool {
-	for _, component := range app.Spec.Components {
-		if component.Name == componentName {
-			environmentConfig := component.GetEnvironmentConfigByName(environment)
-			return component.GetEnabledForEnvironmentConfig(environmentConfig)
-		}
-	}
-	return false
-}
 
-func doesEnvExist(app *radixv1.RadixApplication, name string) bool {
-	return getEnv(app, name) != nil
-}
 
-func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
-	for _, env := range app.Spec.Environments {
-		if env.Name == name {
-			return &env
-		}
-	}
-	return nil
-}
-
-func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {
-	for _, component := range app.Spec.Components {
-		if component.Name == name {
-			//nolint:staticcheck
-			return component.Public || component.PublicPort != ""
-		}
-	}
-	return false
-}
 
 func validateComponentName(componentName, componentType string) error {
 	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName, 50); err != nil {

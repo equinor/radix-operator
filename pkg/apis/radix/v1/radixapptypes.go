@@ -328,18 +328,21 @@ type DNSAlias struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`
+	// +required
 	Alias string `json:"alias"`
 
 	// Name of the environment for the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +required
 	Environment string `json:"environment"`
 
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +required
 	Component string `json:"component"`
 }
 
