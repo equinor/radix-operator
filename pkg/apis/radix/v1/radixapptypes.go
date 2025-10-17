@@ -33,7 +33,6 @@ const DynamicTagNameInEnvironmentConfig = "{imageTagName}"
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=radixapplications,shortName=ra
-
 // RadixApplication describes an application
 type RadixApplication struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -86,6 +85,7 @@ func (ra *RadixApplication) GetEnvironmentByName(name string) (Environment, bool
 }
 
 // RadixApplicationSpec is the specification for an application.
+// +kubebuilder:validation:XValidation:rule="self.jobs.all(j, !(j.name in self.components.map(c, c.name)))",message="component and job names must be unique across both lists"
 type RadixApplicationSpec struct {
 	// Build contains configuration used by pipeline jobs.
 	// More info: https://www.radix.equinor.com/radix-config#build
@@ -101,15 +101,23 @@ type RadixApplicationSpec struct {
 
 	// List of job specification for the application.
 	// More info: https://www.radix.equinor.com/radix-config#jobs
+	//
+	// internal: MaxItems required to limit CEL complexity
+	//
 	// +listType=map
 	// +listMapKey=name
+	// +kubebuilder:validation:MaxItems=100
 	// +optional
 	Jobs []RadixJobComponent `json:"jobs,omitempty"`
 
 	// List of component specification for the application.
 	// More info: https://www.radix.equinor.com/radix-config#components
+	//
+	// internal: MaxItems required to limit CEL complexity
+	//
 	// +listType=map
 	// +listMapKey=name
+	// +kubebuilder:validation:MaxItems=100
 	// +optional
 	Components []RadixComponent `json:"components,omitempty"`
 

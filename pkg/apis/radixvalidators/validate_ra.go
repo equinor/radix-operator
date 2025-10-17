@@ -11,14 +11,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
@@ -27,9 +25,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -44,7 +40,6 @@ var (
 		radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata: struct{}{}, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk: struct{}{}}
 
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
-		validateRadixApplicationAppName,
 		validateComponents,
 		validateJobComponents,
 		validateNoDuplicateComponentAndJobNames,
@@ -53,8 +48,6 @@ var (
 		validateVariables,
 		validateSecrets,
 		validateBranchNames,
-		validateDNSAppAlias,
-		validateDNSExternalAlias,
 		validatePrivateImageHubs,
 		validateHorizontalScalingConfigForRA,
 		validateVolumeMountConfigForRA,
@@ -71,9 +64,7 @@ type RadixApplicationValidator func(radixApplication *radixv1.RadixApplication) 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
 func CanRadixApplicationBeInserted(ctx context.Context, radixClient radixclient.Interface, app *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig, additionalValidators ...RadixApplicationValidator) error {
 
-	validators := append(requiredRadixApplicationValidators,
-	)
-	validators = append(validators, additionalValidators...)
+	validators := append(requiredRadixApplicationValidators, additionalValidators...)
 
 	return validateRadixApplication(app, validators...)
 }
@@ -82,17 +73,6 @@ func CanRadixApplicationBeInserted(ctx context.Context, radixClient radixclient.
 func IsRadixApplicationValid(app *radixv1.RadixApplication, additionalValidators ...RadixApplicationValidator) error {
 	validators := append(requiredRadixApplicationValidators, additionalValidators...)
 	return validateRadixApplication(app, validators...)
-}
-
-// IsApplicationNameLowercase checks if the application name has any uppercase letters
-func IsApplicationNameLowercase(appName string) (bool, error) {
-	for _, r := range appName {
-		if unicode.IsUpper(r) && unicode.IsLetter(r) {
-			return false, ApplicationNameNotLowercaseErrorWithMessage(appName)
-		}
-	}
-
-	return true, nil
 }
 
 func duplicatePathForAzureKeyVault(path, azureKeyVaultName, component string) error {
@@ -110,15 +90,6 @@ func validateRadixApplication(radixApplication *radixv1.RadixApplication, valida
 
 	return errors.Join(errs...)
 }
-
-func validateRadixApplicationAppName(app *radixv1.RadixApplication) error {
-	return validateAppName(app.Name)
-}
-
-func validateAppName(appName string) error {
-	return validateRequiredResourceName("app name", appName, 253)
-}
-
 
 func validatePrivateImageHubs(app *radixv1.RadixApplication) error {
 	var errs []error
@@ -140,11 +111,6 @@ func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
 	}
 	return false
 }
-
-func validateDNSAppAlias(app *radixv1.RadixApplication) error {
-	return validateDNSAppAliasComponentAndEnvironmentAvailable(app)
-}
-
 
 func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) error {
 	names := make(map[string]int)
@@ -1670,9 +1636,6 @@ func validateRuntime(runtime *radixv1.Runtime) error {
 	}
 	return nil
 }
-
-
-
 
 func validateComponentName(componentName, componentType string) error {
 	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName, 50); err != nil {
