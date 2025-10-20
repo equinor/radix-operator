@@ -18,4 +18,8 @@ var (
 	ErrExternalAliasEnvironmentNotDefined      = errors.New("environment for external alias is not defined in radix application")
 	ErrExternalAliasComponentNotDefined        = errors.New("component for external alias is not defined or not enabled in radix application")
 	ErrExternalAliasComponentNotMarkedAsPublic = errors.New("component for external alias is not marked as public")
+	ErrRequestedResourceExceedsLimit           = errors.New("requested resource exceeds defined limit")
+	ErrNoPublicPortMarkedForComponent          = errors.New("no public port marked for component")
+	ErrMonitoringNamedPortNotFound             = errors.New("monitoring named port not found in component ports")
+	ErrMonitoringNoPortsDefined                = errors.New("no ports defined for component with monitoring enabled")
 )

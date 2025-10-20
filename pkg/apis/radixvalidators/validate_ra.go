@@ -25,7 +25,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -42,13 +41,11 @@ var (
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
 		validateComponents,
 		validateJobComponents,
-		validateNoDuplicateComponentAndJobNames,
 		validateEnvNames,
 		validateEnvironmentEgressRules,
 		validateVariables,
 		validateSecrets,
 		validateBranchNames,
-		validatePrivateImageHubs,
 		validateHorizontalScalingConfigForRA,
 		validateVolumeMountConfigForRA,
 		ValidateNotificationsForRA,
@@ -91,48 +88,6 @@ func validateRadixApplication(radixApplication *radixv1.RadixApplication, valida
 	return errors.Join(errs...)
 }
 
-func validatePrivateImageHubs(app *radixv1.RadixApplication) error {
-	var errs []error
-	for server, config := range app.Spec.PrivateImageHubs {
-		if config.Username == "" {
-			errs = append(errs, MissingPrivateImageHubUsernameErrorWithMessage(server))
-		}
-	}
-	return errors.Join(errs...)
-}
-
-// RAContainsOldPublic Checks to see if the radix config is using the deprecated config for public port
-func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
-	for _, component := range app.Spec.Components {
-		//nolint:staticcheck
-		if component.Public {
-			return true
-		}
-	}
-	return false
-}
-
-func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) error {
-	names := make(map[string]int)
-	for _, component := range app.Spec.Components {
-		names[component.Name]++
-	}
-	for _, job := range app.Spec.Jobs {
-		names[job.Name]++
-	}
-
-	var duplicates []string
-	for k, v := range names {
-		if v > 1 {
-			duplicates = append(duplicates, k)
-		}
-	}
-	if len(duplicates) > 0 {
-		return DuplicateComponentOrJobNameErrorWithMessage(duplicates)
-	}
-	return nil
-}
-
 func validateComponents(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, component := range app.Spec.Components {
@@ -150,27 +105,6 @@ func validateComponent(app *radixv1.RadixApplication, component radixv1.RadixCom
 	if component.Image != "" &&
 		(component.SourceFolder != "" || component.DockerfileName != "") {
 		errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(component.Name))
-	}
-
-	if err := validateComponentName(component.Name, "component"); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validatePorts(component.Ports); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validatePublicPort(component); err != nil {
-		errs = append(errs, err)
-	}
-
-	// Common resource requirements
-	if err := validateResourceRequirements(&component.Resources); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateMonitoring(&component); err != nil {
-		errs = append(errs, err)
 	}
 
 	errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
@@ -261,22 +195,12 @@ func validateJobComponent(app *radixv1.RadixApplication, job radixv1.RadixJobCom
 		errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(job.Name))
 	}
 
-	if err := validateComponentName(job.Name, "job"); err != nil {
-		errs = append(errs, err)
-	}
-
 	if err := validateJobSchedulerPort(&job); err != nil {
 		errs = append(errs, err)
 	}
 
 	if err := validateJobPayload(&job); err != nil {
 		errs = append(errs, err)
-	}
-
-	if len(job.Ports) > 0 {
-		if err := validatePorts(job.Ports); err != nil {
-			errs = append(errs, err)
-		}
 	}
 
 	// Common resource requirements
@@ -409,150 +333,12 @@ func validateAuthentication(component *radixv1.RadixComponent, environments []ra
 	return errs
 }
 
-func validateClientCertificate(clientCertificate *radixv1.ClientCertificate) error {
-	if clientCertificate == nil {
-		return nil
-	}
-
-	return validateVerificationType(clientCertificate.Verification)
-}
-
-func validateVerificationType(verificationType *radixv1.VerificationType) error {
-	if verificationType == nil {
-		return nil
-	}
-
-	validValues := []string{
-		string(radixv1.VerificationTypeOff),
-		string(radixv1.VerificationTypeOn),
-		string(radixv1.VerificationTypeOptional),
-		string(radixv1.VerificationTypeOptionalNoCa),
-	}
-
-	actualValue := string(*verificationType)
-	if !commonUtils.ContainsString(validValues, actualValue) {
-		return InvalidVerificationTypeWithMessage(actualValue)
-	} else {
-		return nil
-	}
-}
-
 func componentHasPublicPort(component *radixv1.RadixComponent) bool {
 	return slice.Any(component.GetPorts(),
 		func(p radixv1.ComponentPort) bool {
 			//nolint:staticcheck
 			return len(p.Name) > 0 && (p.Name == component.PublicPort || component.Public)
 		})
-}
-
-func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, environmentName string) (errors []error) {
-	if oauth == nil {
-		return
-	}
-
-	oauthWithDefaults, err := defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()).MergeWith(oauth)
-	if err != nil {
-		errors = append(errors, err)
-		return
-	}
-	componentName := component.Name
-	// Validate ClientID
-	if len(strings.TrimSpace(oauthWithDefaults.ClientID)) == 0 {
-		errors = append(errors, OAuthClientIdEmptyErrorWithMessage(componentName, environmentName))
-	} else if !componentHasPublicPort(component) {
-		errors = append(errors, OAuthRequiresPublicPortErrorWithMessage(componentName, environmentName))
-	}
-
-	// Validate ProxyPrefix
-	if len(strings.TrimSpace(oauthWithDefaults.ProxyPrefix)) == 0 {
-		errors = append(errors, OAuthProxyPrefixEmptyErrorWithMessage(componentName, environmentName))
-	} else if oauthutil.SanitizePathPrefix(oauthWithDefaults.ProxyPrefix) == "/" {
-		errors = append(errors, OAuthProxyPrefixIsRootErrorWithMessage(componentName, environmentName))
-	}
-
-	// Validate SessionStoreType
-	if !commonUtils.ContainsString(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
-		errors = append(errors, OAuthSessionStoreTypeInvalidErrorWithMessage(componentName, environmentName, oauthWithDefaults.SessionStoreType))
-	}
-
-	// Validate RedisStore
-	if oauthWithDefaults.IsSessionStoreTypeIsManuallyConfiguredRedis() {
-		if redisStore := oauthWithDefaults.RedisStore; redisStore == nil {
-			errors = append(errors, OAuthRedisStoreEmptyErrorWithMessage(componentName, environmentName))
-		} else if len(strings.TrimSpace(redisStore.ConnectionURL)) == 0 {
-			errors = append(errors, OAuthRedisStoreConnectionURLEmptyErrorWithMessage(componentName, environmentName))
-		}
-	}
-
-	// Validate OIDC config
-	if oidc := oauthWithDefaults.OIDC; oidc == nil {
-		errors = append(errors, OAuthOidcEmptyErrorWithMessage(componentName, environmentName))
-	} else {
-		if oidc.SkipDiscovery == nil {
-			errors = append(errors, OAuthOidcSkipDiscoveryEmptyErrorWithMessage(componentName, environmentName))
-		} else if *oidc.SkipDiscovery {
-			// Validate URLs when SkipDiscovery=true
-			if len(strings.TrimSpace(oidc.JWKSURL)) == 0 {
-				errors = append(errors, OAuthOidcJwksUrlEmptyErrorWithMessage(componentName, environmentName))
-			}
-			if len(strings.TrimSpace(oauthWithDefaults.LoginURL)) == 0 {
-				errors = append(errors, OAuthLoginUrlEmptyErrorWithMessage(componentName, environmentName))
-			}
-			if len(strings.TrimSpace(oauthWithDefaults.RedeemURL)) == 0 {
-				errors = append(errors, OAuthRedeemUrlEmptyErrorWithMessage(componentName, environmentName))
-			}
-		}
-	}
-
-	// Validate Cookie
-	if cookie := oauthWithDefaults.Cookie; cookie == nil {
-		errors = append(errors, OAuthCookieEmptyErrorWithMessage(componentName, environmentName))
-	} else {
-		if len(strings.TrimSpace(cookie.Name)) == 0 {
-			errors = append(errors, OAuthCookieNameEmptyErrorWithMessage(componentName, environmentName))
-		}
-		if !commonUtils.ContainsString(validOAuthCookieSameSites, string(cookie.SameSite)) {
-			errors = append(errors, OAuthCookieSameSiteInvalidErrorWithMessage(componentName, environmentName, cookie.SameSite))
-		}
-
-		// Validate Expire and Refresh
-		expireValid, refreshValid := true, true
-
-		expire, err := time.ParseDuration(cookie.Expire)
-		if err != nil || expire < 0 {
-			errors = append(errors, OAuthCookieExpireInvalidErrorWithMessage(componentName, environmentName, cookie.Expire))
-			expireValid = false
-		}
-		refresh, err := time.ParseDuration(cookie.Refresh)
-		if err != nil || refresh < 0 {
-			errors = append(errors, OAuthCookieRefreshInvalidErrorWithMessage(componentName, environmentName, cookie.Refresh))
-			refreshValid = false
-		}
-		if expireValid && refreshValid && !(refresh < expire) {
-			errors = append(errors, OAuthCookieRefreshMustBeLessThanExpireErrorWithMessage(componentName, environmentName))
-		}
-
-		// Validate required settings when sessionStore=cookie and cookieStore.minimal=true
-		if oauthWithDefaults.SessionStoreType == radixv1.SessionStoreCookie && oauthWithDefaults.CookieStore != nil && oauthWithDefaults.CookieStore.Minimal != nil && *oauthWithDefaults.CookieStore.Minimal {
-			// Refresh must be 0
-			if refreshValid && refresh != 0 {
-				errors = append(errors, OAuthCookieStoreMinimalIncorrectCookieRefreshIntervalErrorWithMessage(componentName, environmentName))
-			}
-			// SetXAuthRequestHeaders must be false
-			if oauthWithDefaults.SetXAuthRequestHeaders == nil || *oauthWithDefaults.SetXAuthRequestHeaders {
-				errors = append(errors, OAuthCookieStoreMinimalIncorrectSetXAuthRequestHeadersErrorWithMessage(componentName, environmentName))
-			}
-			// SetAuthorizationHeader must be false
-			if oauthWithDefaults.SetAuthorizationHeader == nil || *oauthWithDefaults.SetAuthorizationHeader {
-				errors = append(errors, OAuthCookieStoreMinimalIncorrectSetAuthorizationHeaderErrorWithMessage(componentName, environmentName))
-			}
-		}
-	}
-
-	if err = validateSkipAuthRoutes(oauthWithDefaults.SkipAuthRoutes); err != nil {
-		errors = append(errors, OAuthSkipAuthRoutesErrorWithMessage(err, componentName, environmentName))
-	}
-	return
 }
 
 func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, componentImage string) bool {
@@ -576,118 +362,6 @@ func validateJobPayload(job *radixv1.RadixJobComponent) error {
 
 	return nil
 }
-
-func validatePorts(ports []radixv1.ComponentPort) error {
-	errs := []error{}
-
-	for _, port := range ports {
-		if len(port.Name) > maxPortNameLength {
-			errs = append(errs, InvalidPortNameLengthErrorWithMessage(port.Name))
-		}
-
-		if err := validateRequiredResourceName("port name", port.Name, 15); err != nil {
-			errs = append(errs, err)
-		}
-
-		if port.Port < minimumPortNumber || port.Port > maximumPortNumber {
-			errs = append(errs, InvalidPortNumberErrorWithMessage(port.Port))
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-func validatePublicPort(component radixv1.RadixComponent) error {
-	errs := []error{}
-
-	publicPortName := component.PublicPort
-	if publicPortName != "" {
-		matchingPortName := 0
-		for _, port := range component.Ports {
-			if strings.EqualFold(port.Name, publicPortName) {
-				matchingPortName++
-			}
-		}
-		if matchingPortName < 1 {
-			errs = append(errs, PortNameIsRequiredForPublicComponentErrorWithMessage(publicPortName, component.Name))
-		}
-		if matchingPortName > 1 {
-			errs = append(errs, MultipleMatchingPortNamesErrorWithMessage(matchingPortName, publicPortName, component.Name))
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-func validateMonitoring(component radixv1.RadixCommonComponent) error {
-	monitoringConfig := component.GetMonitoringConfig()
-	if monitoringConfig.PortName != "" {
-		ports := component.GetPorts()
-		isValidPort := false
-		for i := range ports {
-			if strings.EqualFold(ports[i].Name, monitoringConfig.PortName) {
-				isValidPort = true
-				break
-			}
-		}
-
-		if !isValidPort {
-			return MonitoringPortNameIsNotFoundComponentErrorWithMessage(monitoringConfig.PortName, component.GetName())
-		}
-	}
-	return nil
-}
-
-func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirements) error {
-	var errs []error
-	if resourceRequirements == nil {
-		return nil
-	}
-	limitQuantities := make(map[string]resource.Quantity)
-	for name, value := range resourceRequirements.Limits {
-		if len(value) > 0 {
-			q, err := validateQuantity(name, value)
-			if err != nil {
-				errs = append(errs, err)
-			}
-			limitQuantities[name] = q
-		}
-	}
-	for name, value := range resourceRequirements.Requests {
-		q, err := validateQuantity(name, value)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if limit, limitExist := limitQuantities[name]; limitExist && q.Cmp(limit) == 1 {
-			errs = append(errs, ResourceRequestOverLimitErrorWithMessage(name, value, limit.String()))
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-func validateQuantity(name, value string) (resource.Quantity, error) {
-	var quantity resource.Quantity
-	var err error
-	if name == "memory" {
-		quantity, err = resource.ParseQuantity(value)
-		if err != nil {
-			return quantity, MemoryResourceRequirementFormatErrorWithMessage(value)
-		}
-	} else if name == "cpu" {
-		quantity, err = resource.ParseQuantity(value)
-		re := regexp.MustCompile(cpuRegex)
-		isValid := re.MatchString(value)
-		if err != nil || !isValid {
-			return quantity, CPUResourceRequirementFormatErrorWithMessage(value)
-		}
-	} else {
-		return quantity, InvalidResourceErrorWithMessage(name)
-	}
-
-	return quantity, nil
-}
-
 func validateSecrets(app *radixv1.RadixApplication) error {
 	if app.Spec.Build != nil {
 		if err := validateSecretNames("build secret name", app.Spec.Build.Secrets); err != nil {

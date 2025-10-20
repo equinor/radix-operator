@@ -106,7 +106,7 @@ type RadixApplicationSpec struct {
 	//
 	// +listType=map
 	// +listMapKey=name
-	// +kubebuilder:validation:MaxItems=100
+	// +kubebuilder:validation:MaxItems=10
 	// +optional
 	Jobs []RadixJobComponent `json:"jobs,omitempty"`
 
@@ -117,7 +117,7 @@ type RadixApplicationSpec struct {
 	//
 	// +listType=map
 	// +listMapKey=name
-	// +kubebuilder:validation:MaxItems=100
+	// +kubebuilder:validation:MaxItems=10
 	// +optional
 	Components []RadixComponent `json:"components,omitempty"`
 
@@ -1411,9 +1411,10 @@ type RadixNode struct {
 
 // MonitoringConfig Monitoring configuration
 type MonitoringConfig struct {
-	// Defines which port in the ports list where metrics is served.
+	// Defines which port in the ports list where metrics is served. If not specified, the first port is used.
 	// +kubebuilder:validation:MaxLength=15
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +optional
 	PortName string `json:"portName,omitempty"`
 
 	// Defines the path where metrics is served.

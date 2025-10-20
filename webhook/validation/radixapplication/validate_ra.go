@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/rs/zerolog/log"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -27,6 +28,8 @@ var _ genericvalidator.Validator[*radixv1.RadixApplication] = &Validator{}
 func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) *Validator {
 	return &Validator{
 		validators: []validatorFunc{
+			checkDeprecatedPublicUsage,
+			createComponentValidator(),
 			createExternalDNSAliasValidator(),
 			createDNSAliasValidator(),
 			createRRExistValidator(client),
@@ -38,6 +41,8 @@ func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) 
 func CreateOfflineValidator() Validator {
 	return Validator{
 		validators: []validatorFunc{
+			checkDeprecatedPublicUsage,
+			createComponentValidator(),
 			createExternalDNSAliasValidator(),
 			createDNSAliasValidator(),
 		},
@@ -154,6 +159,72 @@ func validateDNSAliasComponentAndEnvironmentAvailable(ra *radixv1.RadixApplicati
 	return nil
 }
 
+func checkDeprecatedPublicUsage(_ context.Context, ra *radixv1.RadixApplication) (string, error) {
+	for _, component := range ra.Spec.Components {
+		//nolint:staticcheck
+		if component.Public {
+			return fmt.Sprintf("component %s is using deprecated public field. use publicPort and ports.name instead", component.Name), nil
+		}
+	}
+	return "", nil
+}
+
+func createComponentValidator() validatorFunc {
+	return func(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+		var wrns []string
+		var errs []error
+		for _, component := range app.Spec.Components {
+
+			if component.Image != "" && (component.SourceFolder != "" || component.DockerfileName != "") {
+				wrns = append(wrns, fmt.Sprintf("component %s: component image will take precedens. src and dockerfile will be ignored.", component.Name))
+			}
+
+			if err := validatePublicPort(component); err != nil {
+				errs = append(errs, err)
+			}
+
+			// Common resource requirements
+			if err := validateResourceRequirements(component.Resources); err != nil {
+				errs = append(errs, err)
+			}
+
+			if err := validateMonitoring(&component); err != nil {
+				errs = append(errs, err)
+			}
+
+			errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
+
+			if err := validateIdentity(component.Identity); err != nil {
+				errs = append(errs, err)
+			}
+
+			if err := validateRuntime(component.Runtime); err != nil {
+				errs = append(errs, err)
+			}
+
+			if err := validateNetwork(component.Network); err != nil {
+				errs = append(errs, fmt.Errorf("invalid network configuration: %w", err))
+			}
+
+			if err := validateHealthChecks(component.HealthChecks); err != nil {
+				errs = append(errs, fmt.Errorf("invalid health check configuration: %w", err))
+			}
+
+			for _, environment := range component.EnvironmentConfig {
+				if err := validateComponentEnvironment(app, component, environment); err != nil {
+					errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
+				}
+			}
+
+			if err := validateComponent(app, component); err != nil {
+				errs = append(errs, fmt.Errorf("invalid configuration for component %s: %w", component.Name, err))
+			}
+		}
+
+		return "", errors.Join(errs...)
+	}
+}
+
 func doesEnvExistInRA(app *radixv1.RadixApplication, name string) bool {
 	return slice.Any(app.Spec.Environments, func(e radixv1.Environment) bool { return e.Name == name })
 }
@@ -176,4 +247,67 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 		}
 	}
 	return false
+}
+
+func validateResourceRequirements(resourceRequirements radixv1.ResourceRequirements) error {
+	var errs []error
+	limitQuantities := make(map[string]resource.Quantity)
+	for name, value := range resourceRequirements.Limits {
+		if len(value) > 0 {
+			q, err := resource.ParseQuantity(value)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("resource %s has invalid limit quantity %s: %w", name, value, err))
+			} else {
+				limitQuantities[name] = q
+			}
+		}
+	}
+	for name, value := range resourceRequirements.Requests {
+		q, err := resource.ParseQuantity(value)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("resource %s has invalid requested quantity %s: %w", name, value, err))
+		}
+		if limit, limitExist := limitQuantities[name]; limitExist && q.Cmp(limit) == 1 {
+			errs = append(errs, fmt.Errorf("resource %s (req: %s, limit: %s): %w", name, q.String(), limit.String(), ErrRequestedResourceExceedsLimit))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func validatePublicPort(component radixv1.RadixComponent) error {
+	if component.PublicPort == "" {
+		return nil
+	}
+
+	for _, port := range component.Ports {
+		if port.Name == component.PublicPort {
+			return nil // we found a match
+		}
+	}
+
+	return fmt.Errorf("component %s: %w", component.Name, ErrNoPublicPortMarkedForComponent)
+}
+
+func validateMonitoring(component radixv1.RadixCommonComponent) error {
+	if component.GetMonitoring() == nil || *component.GetMonitoring() == false {
+		return nil // monitoring disabled
+	}
+
+	if len(component.GetPorts()) == 0 {
+		return fmt.Errorf("component %s: %w", component.GetName(), ErrMonitoringNoPortsDefined)
+	}
+
+	monitoringConfig := component.GetMonitoringConfig()
+	if monitoringConfig.PortName == "" {
+		return nil // first port will be used
+	}
+
+	for _, p := range component.GetPorts() {
+		if monitoringConfig.PortName == p.Name {
+			return nil // we found a match
+		}
+	}
+
+	return fmt.Errorf("component %s: %w", component.GetName(), ErrMonitoringNamedPortNotFound)
 }

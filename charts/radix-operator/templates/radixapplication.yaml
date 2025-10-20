@@ -1457,7 +1457,12 @@ spec:
                                   type: string
                                 description: Limits describes the maximum amount of
                                   compute resources allowed.
+                                maxProperties: 5
                                 type: object
+                                x-kubernetes-validations:
+                                - message: All resource values must be valid Kubernetes
+                                    quantity
+                                  rule: self.all(key, isQuantity(self[key]))
                               requests:
                                 additionalProperties:
                                   type: string
@@ -1465,7 +1470,12 @@ spec:
                                   Requests describes the minimum amount of compute resources required.
                                   If Requests is omitted for a container, it defaults to Limits if
                                   that is explicitly specified, otherwise to an implementation-defined value.
+                                maxProperties: 5
                                 type: object
+                                x-kubernetes-validations:
+                                - message: All resource values must be valid Kubernetes
+                                    quantity
+                                  rule: self.all(key, isQuantity(self[key]))
                             type: object
                           runtime:
                             description: Runtime defines environment specific target
@@ -2843,7 +2853,12 @@ spec:
                             type: string
                           description: Limits describes the maximum amount of compute
                             resources allowed.
+                          maxProperties: 5
                           type: object
+                          x-kubernetes-validations:
+                          - message: All resource values must be valid Kubernetes
+                              quantity
+                            rule: self.all(key, isQuantity(self[key]))
                         requests:
                           additionalProperties:
                             type: string
@@ -2851,7 +2866,12 @@ spec:
                             Requests describes the minimum amount of compute resources required.
                             If Requests is omitted for a container, it defaults to Limits if
                             that is explicitly specified, otherwise to an implementation-defined value.
+                          maxProperties: 5
                           type: object
+                          x-kubernetes-validations:
+                          - message: All resource values must be valid Kubernetes
+                              quantity
+                            rule: self.all(key, isQuantity(self[key]))
                       type: object
                     runtime:
                       description: Runtime defines the target runtime requirements
@@ -3248,7 +3268,7 @@ spec:
                   required:
                   - name
                   type: object
-                maxItems: 100
+                maxItems: 10
                 type: array
                 x-kubernetes-list-map-keys:
                 - name
@@ -3851,7 +3871,12 @@ spec:
                                   type: string
                                 description: Limits describes the maximum amount of
                                   compute resources allowed.
+                                maxProperties: 5
                                 type: object
+                                x-kubernetes-validations:
+                                - message: All resource values must be valid Kubernetes
+                                    quantity
+                                  rule: self.all(key, isQuantity(self[key]))
                               requests:
                                 additionalProperties:
                                   type: string
@@ -3859,7 +3884,12 @@ spec:
                                   Requests describes the minimum amount of compute resources required.
                                   If Requests is omitted for a container, it defaults to Limits if
                                   that is explicitly specified, otherwise to an implementation-defined value.
+                                maxProperties: 5
                                 type: object
+                                x-kubernetes-validations:
+                                - message: All resource values must be valid Kubernetes
+                                    quantity
+                                  rule: self.all(key, isQuantity(self[key]))
                             type: object
                           runtime:
                             description: Runtime defines environment specific target
@@ -4467,7 +4497,12 @@ spec:
                             type: string
                           description: Limits describes the maximum amount of compute
                             resources allowed.
+                          maxProperties: 5
                           type: object
+                          x-kubernetes-validations:
+                          - message: All resource values must be valid Kubernetes
+                              quantity
+                            rule: self.all(key, isQuantity(self[key]))
                         requests:
                           additionalProperties:
                             type: string
@@ -4475,7 +4510,12 @@ spec:
                             Requests describes the minimum amount of compute resources required.
                             If Requests is omitted for a container, it defaults to Limits if
                             that is explicitly specified, otherwise to an implementation-defined value.
+                          maxProperties: 5
                           type: object
+                          x-kubernetes-validations:
+                          - message: All resource values must be valid Kubernetes
+                              quantity
+                            rule: self.all(key, isQuantity(self[key]))
                       type: object
                     runtime:
                       description: Runtime defines target runtime requirements for
@@ -4886,7 +4926,7 @@ spec:
                   required:
                   - name
                   type: object
-                maxItems: 100
+                maxItems: 10
                 type: array
                 x-kubernetes-list-map-keys:
                 - name

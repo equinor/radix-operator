@@ -1378,14 +1378,28 @@
                             "type": "string"
                           },
                           "description": "Limits describes the maximum amount of compute resources allowed.",
-                          "type": "object"
+                          "maxProperties": 5,
+                          "type": "object",
+                          "x-kubernetes-validations": [
+                            {
+                              "message": "All resource values must be valid Kubernetes quantity",
+                              "rule": "self.all(key, isQuantity(self[key]))"
+                            }
+                          ]
                         },
                         "requests": {
                           "additionalProperties": {
                             "type": "string"
                           },
                           "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if\nthat is explicitly specified, otherwise to an implementation-defined value.",
-                          "type": "object"
+                          "maxProperties": 5,
+                          "type": "object",
+                          "x-kubernetes-validations": [
+                            {
+                              "message": "All resource values must be valid Kubernetes quantity",
+                              "rule": "self.all(key, isQuantity(self[key]))"
+                            }
+                          ]
                         }
                       },
                       "type": "object"
@@ -2775,14 +2789,28 @@
                       "type": "string"
                     },
                     "description": "Limits describes the maximum amount of compute resources allowed.",
-                    "type": "object"
+                    "maxProperties": 5,
+                    "type": "object",
+                    "x-kubernetes-validations": [
+                      {
+                        "message": "All resource values must be valid Kubernetes quantity",
+                        "rule": "self.all(key, isQuantity(self[key]))"
+                      }
+                    ]
                   },
                   "requests": {
                     "additionalProperties": {
                       "type": "string"
                     },
                     "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if\nthat is explicitly specified, otherwise to an implementation-defined value.",
-                    "type": "object"
+                    "maxProperties": 5,
+                    "type": "object",
+                    "x-kubernetes-validations": [
+                      {
+                        "message": "All resource values must be valid Kubernetes quantity",
+                        "rule": "self.all(key, isQuantity(self[key]))"
+                      }
+                    ]
                   }
                 },
                 "type": "object"
@@ -3191,7 +3219,7 @@
             ],
             "type": "object"
           },
-          "maxItems": 100,
+          "maxItems": 10,
           "type": "array",
           "x-kubernetes-list-map-keys": [
             "name"
@@ -3791,14 +3819,28 @@
                             "type": "string"
                           },
                           "description": "Limits describes the maximum amount of compute resources allowed.",
-                          "type": "object"
+                          "maxProperties": 5,
+                          "type": "object",
+                          "x-kubernetes-validations": [
+                            {
+                              "message": "All resource values must be valid Kubernetes quantity",
+                              "rule": "self.all(key, isQuantity(self[key]))"
+                            }
+                          ]
                         },
                         "requests": {
                           "additionalProperties": {
                             "type": "string"
                           },
                           "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if\nthat is explicitly specified, otherwise to an implementation-defined value.",
-                          "type": "object"
+                          "maxProperties": 5,
+                          "type": "object",
+                          "x-kubernetes-validations": [
+                            {
+                              "message": "All resource values must be valid Kubernetes quantity",
+                              "rule": "self.all(key, isQuantity(self[key]))"
+                            }
+                          ]
                         }
                       },
                       "type": "object"
@@ -4413,14 +4455,28 @@
                       "type": "string"
                     },
                     "description": "Limits describes the maximum amount of compute resources allowed.",
-                    "type": "object"
+                    "maxProperties": 5,
+                    "type": "object",
+                    "x-kubernetes-validations": [
+                      {
+                        "message": "All resource values must be valid Kubernetes quantity",
+                        "rule": "self.all(key, isQuantity(self[key]))"
+                      }
+                    ]
                   },
                   "requests": {
                     "additionalProperties": {
                       "type": "string"
                     },
                     "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if\nthat is explicitly specified, otherwise to an implementation-defined value.",
-                    "type": "object"
+                    "maxProperties": 5,
+                    "type": "object",
+                    "x-kubernetes-validations": [
+                      {
+                        "message": "All resource values must be valid Kubernetes quantity",
+                        "rule": "self.all(key, isQuantity(self[key]))"
+                      }
+                    ]
                   }
                 },
                 "type": "object"
@@ -4841,7 +4897,7 @@
             ],
             "type": "object"
           },
-          "maxItems": 100,
+          "maxItems": 10,
           "type": "array",
           "x-kubernetes-list-map-keys": [
             "name"
