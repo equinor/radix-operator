@@ -10,17 +10,13 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
-	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
@@ -297,48 +293,6 @@ func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.
 	}
 
 	return errors.Join(errs...)
-}
-
-func validateAuthentication(component *radixv1.RadixComponent, environments []radixv1.Environment) []error {
-	componentAuth := component.Authentication
-	envAuthConfigGetter := func(name string) *radixv1.Authentication {
-		for _, envConfig := range component.EnvironmentConfig {
-			if envConfig.Environment == name {
-				return envConfig.Authentication
-			}
-		}
-		return nil
-	}
-
-	var errs []error
-	for _, environment := range environments {
-		environmentAuth := envAuthConfigGetter(environment.Name)
-		if componentAuth == nil && environmentAuth == nil {
-			continue
-		}
-		combinedAuth, err := deployment.GetAuthenticationForComponent(componentAuth, environmentAuth)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if combinedAuth == nil {
-			continue
-		}
-
-		if err := validateClientCertificate(combinedAuth.ClientCertificate); err != nil {
-			errs = append(errs, err)
-		}
-
-		errs = append(errs, validateOAuth(combinedAuth.OAuth2, component, environment.Name)...)
-	}
-	return errs
-}
-
-func componentHasPublicPort(component *radixv1.RadixComponent) bool {
-	return slice.Any(component.GetPorts(),
-		func(p radixv1.ComponentPort) bool {
-			//nolint:staticcheck
-			return len(p.Name) > 0 && (p.Name == component.PublicPort || component.Public)
-		})
 }
 
 func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, componentImage string) bool {
