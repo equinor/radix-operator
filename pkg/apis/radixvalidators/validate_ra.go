@@ -47,7 +47,6 @@ var (
 		ValidateNotificationsForRA,
 	}
 
-	ipOrCidrRegExp           = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`)
 	storageAccountNameRegExp = regexp.MustCompile(`^[a-z0-9]{3,24}$`)
 )
 
@@ -103,71 +102,10 @@ func validateComponent(app *radixv1.RadixApplication, component radixv1.RadixCom
 		errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(component.Name))
 	}
 
-	errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
-
-	if err := validateIdentity(component.Identity); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateRuntime(component.Runtime); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateNetwork(component.Network); err != nil {
-		errs = append(errs, fmt.Errorf("invalid network configuration: %w", err))
-	}
-
-	if err := validateHealthChecks(component.HealthChecks); err != nil {
-		errs = append(errs, fmt.Errorf("invalid health check configuration: %w", err))
-	}
-
 	for _, environment := range component.EnvironmentConfig {
 		if err := validateComponentEnvironment(app, component, environment); err != nil {
 			errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
 		}
-	}
-
-	return errors.Join(errs...)
-}
-
-func validateComponentEnvironment(app *radixv1.RadixApplication, component radixv1.RadixComponent, environment radixv1.RadixEnvironmentConfig) error {
-	var errs []error
-
-	if !doesEnvExist(app, environment.Environment) {
-		errs = append(errs, EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, component.Name))
-	}
-
-	if err := validateReplica(component.Replicas, "component replicas"); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateReplica(environment.Replicas, "environment replicas"); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateResourceRequirements(&environment.Resources); err != nil {
-		errs = append(errs, err)
-	}
-
-	if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, component.Image) {
-		errs = append(errs,
-			ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage(component.Name, environment.Environment))
-	}
-
-	if err := validateIdentity(environment.Identity); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateRuntime(environment.Runtime); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateNetwork(environment.Network); err != nil {
-		errs = append(errs, fmt.Errorf("invalid network configuration: %w", err))
-	}
-
-	if err := validateHealthChecks(environment.HealthChecks); err != nil {
-		errs = append(errs, fmt.Errorf("invalid health check configuration: %w", err))
 	}
 
 	return errors.Join(errs...)
@@ -370,65 +308,6 @@ func validateRadixComponentSecrets(component radixv1.RadixCommonComponent, app *
 	}
 
 	return validateConflictingEnvironmentAndSecretRefsNames(component, envsEnvVarsMap)
-}
-
-func validateHealthChecks(healthChecks *radixv1.RadixHealthChecks) error {
-	if healthChecks == nil {
-		return nil
-	}
-
-	var errs []error
-
-	if err := validateProbe(healthChecks.StartupProbe); err != nil {
-		errs = append(errs, fmt.Errorf("probe StartupProbe is invalid: %w", err))
-	}
-	if err := validateProbe(healthChecks.ReadinessProbe); err != nil {
-		errs = append(errs, fmt.Errorf("probe ReadinessProbe is invalid: %w", err))
-	}
-	if err := validateProbe(healthChecks.LivenessProbe); err != nil {
-		errs = append(errs, fmt.Errorf("probe LivenessProbe is invalid: %w", err))
-	}
-
-	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
-	if healthChecks.StartupProbe != nil && healthChecks.StartupProbe.SuccessThreshold > 1 {
-		errs = append(errs, fmt.Errorf("probe StartupProbe is invalid: %w", ErrSuccessThresholdMustBeOne))
-	}
-
-	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
-	if healthChecks.LivenessProbe != nil && healthChecks.LivenessProbe.SuccessThreshold > 1 {
-		errs = append(errs, fmt.Errorf("probe LivenessProbe is invalid: %w", ErrSuccessThresholdMustBeOne))
-	}
-
-	return errors.Join(errs...)
-}
-
-func validateProbe(probe *radixv1.RadixProbe) error {
-	if probe == nil {
-		return nil
-	}
-
-	definedProbes := 0
-	if probe.HTTPGet != nil {
-		definedProbes++
-	}
-
-	if probe.TCPSocket != nil {
-		definedProbes++
-	}
-
-	if probe.Exec != nil {
-		definedProbes++
-	}
-
-	if probe.GRPC != nil {
-		definedProbes++
-	}
-
-	if definedProbes > 1 {
-		return ErrInvalidHealthCheckProbe
-	}
-
-	return nil
 }
 
 func getEnvVarNameMap(componentEnvVarsMap radixv1.EnvVarsMap, envsEnvVarsMap radixv1.EnvVarsMap) map[string]bool {
@@ -1224,47 +1103,6 @@ func validateVolumeMountEmptyDir(emptyDir *radixv1.RadixEmptyDirVolumeMount) err
 	return nil
 }
 
-func validateIdentity(identity *radixv1.Identity) error {
-	if identity == nil {
-		return nil
-	}
-
-	return validateAzureIdentity(identity.Azure)
-}
-
-func validateAzureIdentity(azureIdentity *radixv1.AzureIdentity) error {
-
-	if azureIdentity == nil {
-		return nil
-	}
-
-	return validateExpectedAzureIdentity(*azureIdentity)
-}
-
-func validateExpectedAzureIdentity(azureIdentity radixv1.AzureIdentity) error {
-	if len(strings.TrimSpace(azureIdentity.ClientId)) == 0 {
-		return ResourceNameCannotBeEmptyErrorWithMessage(azureClientIdResourceName)
-	}
-	if err := uuid.Validate(azureIdentity.ClientId); err != nil {
-		return InvalidUUIDErrorWithMessage(azureClientIdResourceName, azureIdentity.ClientId)
-	}
-	return nil
-}
-
-func validateRuntime(runtime *radixv1.Runtime) error {
-	if runtime == nil {
-		return nil
-	}
-
-	if !slices.Contains([]radixv1.RuntimeArchitecture{radixv1.RuntimeArchitectureAmd64, radixv1.RuntimeArchitectureArm64, ""}, runtime.Architecture) {
-		return ErrInvalidRuntimeArchitecture
-	}
-	if runtime.Architecture != "" && runtime.NodeType != nil {
-		return ErrInvalidRuntimeArchitectureWithNodeType
-	}
-	return nil
-}
-
 func validateComponentName(componentName, componentType string) error {
 	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName, 50); err != nil {
 		return err
@@ -1278,50 +1116,6 @@ func validateComponentName(componentName, componentType string) error {
 	return nil
 }
 
-func validateNetwork(network *radixv1.Network) error {
-	if network == nil {
-		return nil
-	}
-
-	if err := validateNetworkIngress(network.Ingress); err != nil {
-		return fmt.Errorf("invalid ingress configuration: %w", err)
-	}
-
-	return nil
-}
-
-func validateNetworkIngress(ingress *radixv1.Ingress) error {
-	if ingress == nil {
-		return nil
-	}
-	if err := validateNetworkIngressPublic(ingress.Public); err != nil {
-		return fmt.Errorf("invalid public configuration: %w", err)
-	}
-
-	return nil
-}
-
-func validateNetworkIngressPublic(public *radixv1.IngressPublic) error {
-	var errs []error
-
-	if allow := public.Allow; allow != nil {
-		for _, ipOrCidr := range *allow {
-			if err := validateIPOrCIDR(ipOrCidr); err != nil {
-				errs = append(errs, fmt.Errorf("invalid value '%s' in allow list: %w", ipOrCidr, err))
-			}
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-func validateIPOrCIDR(ipOrCidr radixv1.IPOrCIDR) error {
-	if !ipOrCidrRegExp.Match([]byte(ipOrCidr)) {
-		return ErrInvalidIPv4OrCIDR
-	}
-
-	return nil
-}
 
 func validateSkipAuthRoutes(skipAuthRoutes []string) error {
 	var invalidRegexes []string

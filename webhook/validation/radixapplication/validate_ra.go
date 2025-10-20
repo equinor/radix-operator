@@ -26,6 +26,7 @@ import (
 var (
 	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
 	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
+	ipOrCidrRegExp              = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`)
 )
 
 // validatorFunc defines a validatorFunc function for a RadixApplication
@@ -146,7 +147,7 @@ func createExternalDNSAliasValidator() validatorFunc {
 		var errs []error
 
 		for _, externalAlias := range ra.Spec.DNSExternalAlias {
-			if !doesEnvExistInRA(ra, externalAlias.Environment) {
+			if !doesEnvExist(ra, externalAlias.Environment) {
 				errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasEnvironmentNotDefined))
 			}
 			if !doesComponentExistAndEnabled(ra, externalAlias.Component, externalAlias.Environment) {
@@ -162,7 +163,7 @@ func createExternalDNSAliasValidator() validatorFunc {
 }
 
 func validateDNSAliasComponentAndEnvironmentAvailable(ra *radixv1.RadixApplication, dnsAlias, component, environment string) error {
-	if !doesEnvExistInRA(ra, environment) {
+	if !doesEnvExist(ra, environment) {
 		return fmt.Errorf("%s: %w", dnsAlias, ErrDNSAliasEnvironmentNotDefined)
 	}
 	if !doesComponentExistAndEnabled(ra, component, environment) {
@@ -196,7 +197,7 @@ func createComponentValidator() validatorFunc {
 			}
 
 			// Common resource requirements
-			if err := validateResourceRequirements(component.Resources); err != nil {
+			if err := validateResourceRequirements(&component); err != nil {
 				errs = append(errs, err)
 			}
 
@@ -206,38 +207,31 @@ func createComponentValidator() validatorFunc {
 
 			errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
 
-			// if err := validateIdentity(component.Identity); err != nil {
-			// 	errs = append(errs, err)
-			// }
+			if err := validateRuntime(&component); err != nil {
+				errs = append(errs, err)
+			}
 
-			// if err := validateRuntime(component.Runtime); err != nil {
-			// 	errs = append(errs, err)
-			// }
+			if err := validateHealthChecks(component); err != nil {
+				errs = append(errs, fmt.Errorf("invalid health check configuration: %w", err))
+			}
 
-			// if err := validateNetwork(component.Network); err != nil {
-			// 	errs = append(errs, fmt.Errorf("invalid network configuration: %w", err))
-			// }
-
-			// if err := validateHealthChecks(component.HealthChecks); err != nil {
-			// 	errs = append(errs, fmt.Errorf("invalid health check configuration: %w", err))
-			// }
-
-			// for _, environment := range component.EnvironmentConfig {
-			// 	if err := validateComponentEnvironment(app, component, environment); err != nil {
-			// 		errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
-			// 	}
-			// }
+			for _, environment := range component.EnvironmentConfig {
+				if err := validateComponentEnvironment(app, component, environment); err != nil {
+					errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
+				}
+			}
 
 			// if err := validateComponent(app, component); err != nil {
 			// 	errs = append(errs, fmt.Errorf("invalid configuration for component %s: %w", component.Name, err))
 			// }
 		}
 
-		return "", errors.Join(errs...)
+		// TODO: Can wrns contain newline?
+		return strings.Join(wrns, "\n"), errors.Join(errs...)
 	}
 }
 
-func doesEnvExistInRA(app *radixv1.RadixApplication, name string) bool {
+func doesEnvExist(app *radixv1.RadixApplication, name string) bool {
 	return slice.Any(app.Spec.Environments, func(e radixv1.Environment) bool { return e.Name == name })
 }
 
@@ -261,26 +255,26 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 	return false
 }
 
-func validateResourceRequirements(resourceRequirements radixv1.ResourceRequirements) error {
+func validateResourceRequirements(component radixv1.RadixCommonComponent) error {
 	var errs []error
 	limitQuantities := make(map[string]resource.Quantity)
-	for name, value := range resourceRequirements.Limits {
+	for name, value := range component.GetResources().Limits {
 		if len(value) > 0 {
 			q, err := resource.ParseQuantity(value)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("resource %s has invalid limit quantity %s: %w", name, value, err))
+				errs = append(errs, fmt.Errorf("component %s has invalid limit resource %s quantity %s: %w", component.GetName(), name, value, err))
 			} else {
 				limitQuantities[name] = q
 			}
 		}
 	}
-	for name, value := range resourceRequirements.Requests {
+	for name, value := range component.GetResources().Requests {
 		q, err := resource.ParseQuantity(value)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("resource %s has invalid requested quantity %s: %w", name, value, err))
+			errs = append(errs, fmt.Errorf("component %s has invalid requested resource %s quantity %s: %w", component.GetName(), name, value, err))
 		}
 		if limit, limitExist := limitQuantities[name]; limitExist && q.Cmp(limit) == 1 {
-			errs = append(errs, fmt.Errorf("resource %s (req: %s, limit: %s): %w", name, q.String(), limit.String(), ErrRequestedResourceExceedsLimit))
+			errs = append(errs, fmt.Errorf("component %s has resource %s (req: %s, limit: %s): %w", component.GetName(), name, q.String(), limit.String(), ErrRequestedResourceExceedsLimit))
 		}
 	}
 
@@ -537,4 +531,76 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 		errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, fmt.Errorf("%w: %w", ErrOAuthSkipAuthRoutesInvalid, err)))
 	}
 	return
+}
+
+func validateRuntime(component radixv1.RadixCommonComponent) error {
+	runtime := component.GetRuntime()
+	if runtime == nil {
+		return nil
+	}
+
+	if runtime.Architecture != "" && runtime.NodeType != nil {
+		return ErrRuntimeArchitectureWithNodeType
+	}
+	return nil
+}
+
+func validateHealthChecks(component radixv1.RadixComponent) error {
+	healthChecks := component.HealthChecks
+	if healthChecks == nil {
+		return nil
+	}
+
+	var errs []error
+
+	if err := validateProbe(healthChecks.StartupProbe); err != nil {
+		errs = append(errs, fmt.Errorf("component %s probe StartupProbe is invalid: %w", component.GetName(), err))
+	}
+	if err := validateProbe(healthChecks.ReadinessProbe); err != nil {
+		errs = append(errs, fmt.Errorf("component %s probe ReadinessProbe is invalid: %w", component.GetName(), err))
+	}
+	if err := validateProbe(healthChecks.LivenessProbe); err != nil {
+		errs = append(errs, fmt.Errorf("component %s probe LivenessProbe is invalid: %w", component.GetName(), err))
+	}
+
+	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+	if healthChecks.StartupProbe != nil && healthChecks.StartupProbe.SuccessThreshold > 1 {
+		errs = append(errs, fmt.Errorf("component %s probe StartupProbe is invalid: %w", component.GetName(), ErrSuccessThresholdMustBeOne))
+	}
+
+	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+	if healthChecks.LivenessProbe != nil && healthChecks.LivenessProbe.SuccessThreshold > 1 {
+		errs = append(errs, fmt.Errorf("component %s probe LivenessProbe is invalid: %w", component.GetName(), ErrSuccessThresholdMustBeOne))
+	}
+
+	return errors.Join(errs...)
+}
+
+func validateProbe(probe *radixv1.RadixProbe) error {
+	if probe == nil {
+		return nil
+	}
+
+	definedProbes := 0
+	if probe.HTTPGet != nil {
+		definedProbes++
+	}
+
+	if probe.TCPSocket != nil {
+		definedProbes++
+	}
+
+	if probe.Exec != nil {
+		definedProbes++
+	}
+
+	if probe.GRPC != nil {
+		definedProbes++
+	}
+
+	if definedProbes > 1 {
+		return ErrInvalidHealthCheckProbe
+	}
+
+	return nil
 }

@@ -70,6 +70,7 @@ spec:
                                 description: Defines the Client ID for a user defined
                                   managed identity or application ID for an application
                                   registration.
+                                format: uuid
                                 type: string
                             required:
                             - clientId
@@ -1080,6 +1081,7 @@ spec:
                                                         ID for a user defined managed
                                                         identity or application ID
                                                         for an application registration.
+                                                      format: uuid
                                                       type: string
                                                   required:
                                                   - clientId
@@ -1193,6 +1195,7 @@ spec:
                                                         ID for a user defined managed
                                                         identity or application ID
                                                         for an application registration.
+                                                      format: uuid
                                                       type: string
                                                   required:
                                                   - clientId
@@ -1343,6 +1346,7 @@ spec:
                                     description: Defines the Client ID for a user
                                       defined managed identity or application ID for
                                       an application registration.
+                                    format: uuid
                                     type: string
                                 required:
                                 - clientId
@@ -1457,12 +1461,7 @@ spec:
                                   type: string
                                 description: Limits describes the maximum amount of
                                   compute resources allowed.
-                                maxProperties: 5
                                 type: object
-                                x-kubernetes-validations:
-                                - message: All resource values must be valid Kubernetes
-                                    quantity
-                                  rule: self.all(key, isQuantity(self[key]))
                               requests:
                                 additionalProperties:
                                   type: string
@@ -1470,12 +1469,7 @@ spec:
                                   Requests describes the minimum amount of compute resources required.
                                   If Requests is omitted for a container, it defaults to Limits if
                                   that is explicitly specified, otherwise to an implementation-defined value.
-                                maxProperties: 5
                                 type: object
-                                x-kubernetes-validations:
-                                - message: All resource values must be valid Kubernetes
-                                    quantity
-                                  rule: self.all(key, isQuantity(self[key]))
                             type: object
                           runtime:
                             description: Runtime defines environment specific target
@@ -2424,6 +2418,7 @@ spec:
                                                   for a user defined managed identity
                                                   or application ID for an application
                                                   registration.
+                                                format: uuid
                                                 type: string
                                             required:
                                             - clientId
@@ -2533,6 +2528,7 @@ spec:
                                                   for a user defined managed identity
                                                   or application ID for an application
                                                   registration.
+                                                format: uuid
                                                 type: string
                                             required:
                                             - clientId
@@ -2675,6 +2671,7 @@ spec:
                               description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
                                 registration.
+                              format: uuid
                               type: string
                           required:
                           - clientId
@@ -2715,7 +2712,8 @@ spec:
                           type: string
                         portName:
                           description: Defines which port in the ports list where
-                            metrics is served.
+                            metrics is served. If not specified, the first port is
+                            used.
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
@@ -2853,12 +2851,7 @@ spec:
                             type: string
                           description: Limits describes the maximum amount of compute
                             resources allowed.
-                          maxProperties: 5
                           type: object
-                          x-kubernetes-validations:
-                          - message: All resource values must be valid Kubernetes
-                              quantity
-                            rule: self.all(key, isQuantity(self[key]))
                         requests:
                           additionalProperties:
                             type: string
@@ -2866,12 +2859,7 @@ spec:
                             Requests describes the minimum amount of compute resources required.
                             If Requests is omitted for a container, it defaults to Limits if
                             that is explicitly specified, otherwise to an implementation-defined value.
-                          maxProperties: 5
                           type: object
-                          x-kubernetes-validations:
-                          - message: All resource values must be valid Kubernetes
-                              quantity
-                            rule: self.all(key, isQuantity(self[key]))
                       type: object
                     runtime:
                       description: Runtime defines the target runtime requirements
@@ -3486,6 +3474,7 @@ spec:
                                   description: Defines the Client ID for a user defined
                                     managed identity or application ID for an application
                                     registration.
+                                  format: uuid
                                   type: string
                               required:
                               - clientId
@@ -3810,6 +3799,7 @@ spec:
                                     description: Defines the Client ID for a user
                                       defined managed identity or application ID for
                                       an application registration.
+                                    format: uuid
                                     type: string
                                 required:
                                 - clientId
@@ -3871,12 +3861,7 @@ spec:
                                   type: string
                                 description: Limits describes the maximum amount of
                                   compute resources allowed.
-                                maxProperties: 5
                                 type: object
-                                x-kubernetes-validations:
-                                - message: All resource values must be valid Kubernetes
-                                    quantity
-                                  rule: self.all(key, isQuantity(self[key]))
                               requests:
                                 additionalProperties:
                                   type: string
@@ -3884,12 +3869,7 @@ spec:
                                   Requests describes the minimum amount of compute resources required.
                                   If Requests is omitted for a container, it defaults to Limits if
                                   that is explicitly specified, otherwise to an implementation-defined value.
-                                maxProperties: 5
                                 type: object
-                                x-kubernetes-validations:
-                                - message: All resource values must be valid Kubernetes
-                                    quantity
-                                  rule: self.all(key, isQuantity(self[key]))
                             type: object
                           runtime:
                             description: Runtime defines environment specific target
@@ -4376,6 +4356,7 @@ spec:
                               description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
                                 registration.
+                              format: uuid
                               type: string
                           required:
                           - clientId
@@ -4409,7 +4390,8 @@ spec:
                           type: string
                         portName:
                           description: Defines which port in the ports list where
-                            metrics is served.
+                            metrics is served. If not specified, the first port is
+                            used.
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
@@ -4497,12 +4479,7 @@ spec:
                             type: string
                           description: Limits describes the maximum amount of compute
                             resources allowed.
-                          maxProperties: 5
                           type: object
-                          x-kubernetes-validations:
-                          - message: All resource values must be valid Kubernetes
-                              quantity
-                            rule: self.all(key, isQuantity(self[key]))
                         requests:
                           additionalProperties:
                             type: string
@@ -4510,12 +4487,7 @@ spec:
                             Requests describes the minimum amount of compute resources required.
                             If Requests is omitted for a container, it defaults to Limits if
                             that is explicitly specified, otherwise to an implementation-defined value.
-                          maxProperties: 5
                           type: object
-                          x-kubernetes-validations:
-                          - message: All resource values must be valid Kubernetes
-                              quantity
-                            rule: self.all(key, isQuantity(self[key]))
                       type: object
                     runtime:
                       description: Runtime defines target runtime requirements for

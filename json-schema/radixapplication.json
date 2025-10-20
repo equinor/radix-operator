@@ -36,6 +36,7 @@
                       "properties": {
                         "clientId": {
                           "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                          "format": "uuid",
                           "type": "string"
                         }
                       },
@@ -1016,6 +1017,7 @@
                                             "properties": {
                                               "clientId": {
                                                 "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                                "format": "uuid",
                                                 "type": "string"
                                               }
                                             },
@@ -1117,6 +1119,7 @@
                                             "properties": {
                                               "clientId": {
                                                 "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                                "format": "uuid",
                                                 "type": "string"
                                               }
                                             },
@@ -1273,6 +1276,7 @@
                           "properties": {
                             "clientId": {
                               "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                              "format": "uuid",
                               "type": "string"
                             }
                           },
@@ -1378,28 +1382,14 @@
                             "type": "string"
                           },
                           "description": "Limits describes the maximum amount of compute resources allowed.",
-                          "maxProperties": 5,
-                          "type": "object",
-                          "x-kubernetes-validations": [
-                            {
-                              "message": "All resource values must be valid Kubernetes quantity",
-                              "rule": "self.all(key, isQuantity(self[key]))"
-                            }
-                          ]
+                          "type": "object"
                         },
                         "requests": {
                           "additionalProperties": {
                             "type": "string"
                           },
                           "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if\nthat is explicitly specified, otherwise to an implementation-defined value.",
-                          "maxProperties": 5,
-                          "type": "object",
-                          "x-kubernetes-validations": [
-                            {
-                              "message": "All resource values must be valid Kubernetes quantity",
-                              "rule": "self.all(key, isQuantity(self[key]))"
-                            }
-                          ]
+                          "type": "object"
                         }
                       },
                       "type": "object"
@@ -2355,6 +2345,7 @@
                                       "properties": {
                                         "clientId": {
                                           "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                          "format": "uuid",
                                           "type": "string"
                                         }
                                       },
@@ -2456,6 +2447,7 @@
                                       "properties": {
                                         "clientId": {
                                           "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                          "format": "uuid",
                                           "type": "string"
                                         }
                                       },
@@ -2612,6 +2604,7 @@
                     "properties": {
                       "clientId": {
                         "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                        "format": "uuid",
                         "type": "string"
                       }
                     },
@@ -2650,7 +2643,7 @@
                     "type": "string"
                   },
                   "portName": {
-                    "description": "Defines which port in the ports list where metrics is served.",
+                    "description": "Defines which port in the ports list where metrics is served. If not specified, the first port is used.",
                     "maxLength": 15,
                     "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
@@ -2789,28 +2782,14 @@
                       "type": "string"
                     },
                     "description": "Limits describes the maximum amount of compute resources allowed.",
-                    "maxProperties": 5,
-                    "type": "object",
-                    "x-kubernetes-validations": [
-                      {
-                        "message": "All resource values must be valid Kubernetes quantity",
-                        "rule": "self.all(key, isQuantity(self[key]))"
-                      }
-                    ]
+                    "type": "object"
                   },
                   "requests": {
                     "additionalProperties": {
                       "type": "string"
                     },
                     "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if\nthat is explicitly specified, otherwise to an implementation-defined value.",
-                    "maxProperties": 5,
-                    "type": "object",
-                    "x-kubernetes-validations": [
-                      {
-                        "message": "All resource values must be valid Kubernetes quantity",
-                        "rule": "self.all(key, isQuantity(self[key]))"
-                      }
-                    ]
+                    "type": "object"
                   }
                 },
                 "type": "object"
@@ -3451,6 +3430,7 @@
                         "properties": {
                           "clientId": {
                             "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                            "format": "uuid",
                             "type": "string"
                           }
                         },
@@ -3758,6 +3738,7 @@
                           "properties": {
                             "clientId": {
                               "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                              "format": "uuid",
                               "type": "string"
                             }
                           },
@@ -3819,28 +3800,14 @@
                             "type": "string"
                           },
                           "description": "Limits describes the maximum amount of compute resources allowed.",
-                          "maxProperties": 5,
-                          "type": "object",
-                          "x-kubernetes-validations": [
-                            {
-                              "message": "All resource values must be valid Kubernetes quantity",
-                              "rule": "self.all(key, isQuantity(self[key]))"
-                            }
-                          ]
+                          "type": "object"
                         },
                         "requests": {
                           "additionalProperties": {
                             "type": "string"
                           },
                           "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if\nthat is explicitly specified, otherwise to an implementation-defined value.",
-                          "maxProperties": 5,
-                          "type": "object",
-                          "x-kubernetes-validations": [
-                            {
-                              "message": "All resource values must be valid Kubernetes quantity",
-                              "rule": "self.all(key, isQuantity(self[key]))"
-                            }
-                          ]
+                          "type": "object"
                         }
                       },
                       "type": "object"
@@ -4325,6 +4292,7 @@
                     "properties": {
                       "clientId": {
                         "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                        "format": "uuid",
                         "type": "string"
                       }
                     },
@@ -4356,7 +4324,7 @@
                     "type": "string"
                   },
                   "portName": {
-                    "description": "Defines which port in the ports list where metrics is served.",
+                    "description": "Defines which port in the ports list where metrics is served. If not specified, the first port is used.",
                     "maxLength": 15,
                     "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
@@ -4455,28 +4423,14 @@
                       "type": "string"
                     },
                     "description": "Limits describes the maximum amount of compute resources allowed.",
-                    "maxProperties": 5,
-                    "type": "object",
-                    "x-kubernetes-validations": [
-                      {
-                        "message": "All resource values must be valid Kubernetes quantity",
-                        "rule": "self.all(key, isQuantity(self[key]))"
-                      }
-                    ]
+                    "type": "object"
                   },
                   "requests": {
                     "additionalProperties": {
                       "type": "string"
                     },
                     "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if\nthat is explicitly specified, otherwise to an implementation-defined value.",
-                    "maxProperties": 5,
-                    "type": "object",
-                    "x-kubernetes-validations": [
-                      {
-                        "message": "All resource values must be valid Kubernetes quantity",
-                        "rule": "self.all(key, isQuantity(self[key]))"
-                      }
-                    ]
+                    "type": "object"
                   }
                 },
                 "type": "object"

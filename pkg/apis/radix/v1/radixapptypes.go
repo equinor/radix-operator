@@ -1725,6 +1725,8 @@ type Identity struct {
 // AzureIdentity properties for Azure AD Workload Identity
 type AzureIdentity struct {
 	// Defines the Client ID for a user defined managed identity or application ID for an application registration.
+	// +kubebuilder:validation:Format=uuid
+	// +required
 	ClientId string `json:"clientId"`
 }
 

@@ -47,4 +47,9 @@ var (
 	ErrOAuthCookieStoreMinimalIncorrectSetAuthorizationHeader = errors.New("oauth2 setAuthorizationHeader must be false when cookieStore minimal is true")
 	ErrOAuthSkipAuthRoutesInvalid                             = errors.New("oauth2 skipAuthRoutes contains invalid route")
 	ErrInvalidVerificationType                                = errors.New("invalid verification type")
+
+	ErrRuntimeArchitectureWithNodeType = errors.New("runtime architecture cannot be set when nodeType is set")
+
+	ErrInvalidHealthCheckProbe   = errors.New("probe configuration error, only one action allowed")
+	ErrSuccessThresholdMustBeOne = errors.New("success threshold must be equal to one")
 )

@@ -27,7 +27,7 @@ var (
 	ErrCPUResourceRequirementFormat                                        = errors.New("cpu resource requirement format")
 	ErrInvalidVerificationType                                             = errors.New("invalid verification")
 	ErrInvalidHealthCheckProbe                                             = errors.New("probe configuration error, only one action allowed")
-	ErrSuccessThresholdMustBeOne                                           = errors.New("success threshold must be equal to one")
+
 	ErrResourceRequestOverLimit                                            = errors.New("resource request over limit")
 	ErrInvalidResource                                                     = errors.New("invalid resource")
 	ErrDuplicateExternalAlias                                              = errors.New("duplicate external alias")
