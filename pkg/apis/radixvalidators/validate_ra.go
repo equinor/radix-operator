@@ -18,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -35,7 +34,6 @@ var (
 		radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata: struct{}{}, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk: struct{}{}}
 
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
-		validateComponents,
 		validateJobComponents,
 		validateEnvNames,
 		validateEnvironmentEgressRules,
@@ -77,34 +75,6 @@ func validateRadixApplication(radixApplication *radixv1.RadixApplication, valida
 	for _, v := range validators {
 		if err := v(radixApplication); err != nil {
 			errs = append(errs, err)
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-func validateComponents(app *radixv1.RadixApplication) error {
-	var errs []error
-	for _, component := range app.Spec.Components {
-		if err := validateComponent(app, component); err != nil {
-			errs = append(errs, fmt.Errorf("invalid configuration for component %s: %w", component.Name, err))
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-func validateComponent(app *radixv1.RadixApplication, component radixv1.RadixComponent) error {
-	var errs []error
-
-	if component.Image != "" &&
-		(component.SourceFolder != "" || component.DockerfileName != "") {
-		errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(component.Name))
-	}
-
-	for _, environment := range component.EnvironmentConfig {
-		if err := validateComponentEnvironment(app, component, environment); err != nil {
-			errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
 		}
 	}
 
@@ -1115,7 +1085,6 @@ func validateComponentName(componentName, componentType string) error {
 	}
 	return nil
 }
-
 
 func validateSkipAuthRoutes(skipAuthRoutes []string) error {
 	var invalidRegexes []string

@@ -23,10 +23,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
+const (
+	minReplica = 0 // default is 1
+
+	// MaxReplica Max number of replicas a deployment is allowed to have
+	MaxReplica = 64
+)
+
 var (
 	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
 	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
-	ipOrCidrRegExp              = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`)
 )
 
 // validatorFunc defines a validatorFunc function for a RadixApplication
@@ -197,8 +203,8 @@ func createComponentValidator() validatorFunc {
 			}
 
 			// Common resource requirements
-			if err := validateResourceRequirements(&component); err != nil {
-				errs = append(errs, err)
+			if err := validateResourceRequirements(component.GetResources()); err != nil {
+				errs = append(errs, fmt.Errorf("component %s: %w", component.Name, err))
 			}
 
 			if err := validateMonitoring(&component); err != nil {
@@ -207,12 +213,12 @@ func createComponentValidator() validatorFunc {
 
 			errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
 
-			if err := validateRuntime(&component); err != nil {
+			if err := validateRuntime(component.GetRuntime()); err != nil {
 				errs = append(errs, err)
 			}
 
-			if err := validateHealthChecks(component); err != nil {
-				errs = append(errs, fmt.Errorf("invalid health check configuration: %w", err))
+			if err := validateHealthChecks(component.HealthChecks); err != nil {
+				errs = append(errs, fmt.Errorf("component %s: %w", component.Name, err))
 			}
 
 			for _, environment := range component.EnvironmentConfig {
@@ -220,15 +226,51 @@ func createComponentValidator() validatorFunc {
 					errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
 				}
 			}
-
-			// if err := validateComponent(app, component); err != nil {
-			// 	errs = append(errs, fmt.Errorf("invalid configuration for component %s: %w", component.Name, err))
-			// }
 		}
 
 		// TODO: Can wrns contain newline?
 		return strings.Join(wrns, "\n"), errors.Join(errs...)
 	}
+}
+
+func validateComponentEnvironment(app *radixv1.RadixApplication, component radixv1.RadixComponent, environment radixv1.RadixEnvironmentConfig) error {
+	var errs []error
+
+	if !doesEnvExist(app, environment.Environment) {
+		errs = append(errs, fmt.Errorf("environment %s referenced by component %s: %w", environment.Environment, component.Name, ErrEnvironmentReferencedByComponentDoesNotExist))
+	}
+
+	if err := validateReplica(component.Replicas); err != nil {
+		errs = append(errs, fmt.Errorf("component %s replicas is invalid: %w", component.Name, err))
+	}
+
+	if err := validateReplica(environment.Replicas); err != nil {
+		errs = append(errs, fmt.Errorf("component %s environment %s replicas is invalid: %w", component.Name, environment.Environment, err))
+	}
+
+	if err := validateResourceRequirements(environment.Resources); err != nil {
+		errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, environment.Environment, err))
+	}
+
+	if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, component.Image) {
+		errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, environment.Environment, ErrComponentWithDynamicTagRequiresImageTag))
+	}
+
+	if err := validateRuntime(environment.Runtime); err != nil {
+		errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, environment.Environment, err))
+	}
+
+	if err := validateHealthChecks(environment.HealthChecks); err != nil {
+		errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, environment.Environment, err))
+	}
+
+	return errors.Join(errs...)
+}
+
+func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, componentImage string) bool {
+	return environmentImageTag != "" &&
+		(componentImage == "" ||
+			!strings.HasSuffix(componentImage, radixv1.DynamicTagNameInEnvironmentConfig))
 }
 
 func doesEnvExist(app *radixv1.RadixApplication, name string) bool {
@@ -255,26 +297,26 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 	return false
 }
 
-func validateResourceRequirements(component radixv1.RadixCommonComponent) error {
+func validateResourceRequirements(resources radixv1.ResourceRequirements) error {
 	var errs []error
 	limitQuantities := make(map[string]resource.Quantity)
-	for name, value := range component.GetResources().Limits {
+	for name, value := range resources.Limits {
 		if len(value) > 0 {
 			q, err := resource.ParseQuantity(value)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("component %s has invalid limit resource %s quantity %s: %w", component.GetName(), name, value, err))
+				errs = append(errs, fmt.Errorf("invalid limit resource %s quantity %s: %w", name, value, err))
 			} else {
 				limitQuantities[name] = q
 			}
 		}
 	}
-	for name, value := range component.GetResources().Requests {
+	for name, value := range resources.Requests {
 		q, err := resource.ParseQuantity(value)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("component %s has invalid requested resource %s quantity %s: %w", component.GetName(), name, value, err))
+			errs = append(errs, fmt.Errorf("invalid requested resource %s quantity %s: %w", name, value, err))
 		}
 		if limit, limitExist := limitQuantities[name]; limitExist && q.Cmp(limit) == 1 {
-			errs = append(errs, fmt.Errorf("component %s has resource %s (req: %s, limit: %s): %w", component.GetName(), name, q.String(), limit.String(), ErrRequestedResourceExceedsLimit))
+			errs = append(errs, fmt.Errorf("resource %s (req: %s, limit: %s): %w", name, q.String(), limit.String(), ErrRequestedResourceExceedsLimit))
 		}
 	}
 
@@ -533,8 +575,7 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 	return
 }
 
-func validateRuntime(component radixv1.RadixCommonComponent) error {
-	runtime := component.GetRuntime()
+func validateRuntime(runtime *radixv1.Runtime) error {
 	if runtime == nil {
 		return nil
 	}
@@ -545,8 +586,18 @@ func validateRuntime(component radixv1.RadixCommonComponent) error {
 	return nil
 }
 
-func validateHealthChecks(component radixv1.RadixComponent) error {
-	healthChecks := component.HealthChecks
+func validateReplica(replica *int) error {
+	if replica == nil {
+		return nil
+	}
+	replicaValue := *replica
+	if replicaValue > MaxReplica || replicaValue < minReplica {
+		return ErrInvalidNumberOfReplicas
+	}
+	return nil
+}
+
+func validateHealthChecks(healthChecks *radixv1.RadixHealthChecks) error {
 	if healthChecks == nil {
 		return nil
 	}
@@ -554,23 +605,23 @@ func validateHealthChecks(component radixv1.RadixComponent) error {
 	var errs []error
 
 	if err := validateProbe(healthChecks.StartupProbe); err != nil {
-		errs = append(errs, fmt.Errorf("component %s probe StartupProbe is invalid: %w", component.GetName(), err))
+		errs = append(errs, fmt.Errorf("probe StartupProbe is invalid: %w", err))
 	}
 	if err := validateProbe(healthChecks.ReadinessProbe); err != nil {
-		errs = append(errs, fmt.Errorf("component %s probe ReadinessProbe is invalid: %w", component.GetName(), err))
+		errs = append(errs, fmt.Errorf("probe ReadinessProbe is invalid: %w", err))
 	}
 	if err := validateProbe(healthChecks.LivenessProbe); err != nil {
-		errs = append(errs, fmt.Errorf("component %s probe LivenessProbe is invalid: %w", component.GetName(), err))
+		errs = append(errs, fmt.Errorf("probe LivenessProbe is invalid: %w", err))
 	}
 
 	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
 	if healthChecks.StartupProbe != nil && healthChecks.StartupProbe.SuccessThreshold > 1 {
-		errs = append(errs, fmt.Errorf("component %s probe StartupProbe is invalid: %w", component.GetName(), ErrSuccessThresholdMustBeOne))
+		errs = append(errs, fmt.Errorf("probe StartupProbe is invalid: %w", ErrSuccessThresholdMustBeOne))
 	}
 
-	// SuccessTreshold must be 0 (unset) or 1 for Startup Probe
+	// SuccessTreshold must be 0 (unset) or 1 for Liveness Probe
 	if healthChecks.LivenessProbe != nil && healthChecks.LivenessProbe.SuccessThreshold > 1 {
-		errs = append(errs, fmt.Errorf("component %s probe LivenessProbe is invalid: %w", component.GetName(), ErrSuccessThresholdMustBeOne))
+		errs = append(errs, fmt.Errorf("probe LivenessProbe is invalid: %w", ErrSuccessThresholdMustBeOne))
 	}
 
 	return errors.Join(errs...)
