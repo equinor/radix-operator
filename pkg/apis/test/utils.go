@@ -307,7 +307,7 @@ func SetRequiredEnvironmentVariables() {
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscriptionId string) error {
+func (tu *Utils) CreateClusterPrerequisites(clustername, subscriptionId string) error {
 	SetRequiredEnvironmentVariables()
 
 	var errs []error
@@ -334,9 +334,8 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 				Namespace: corev1.NamespaceDefault,
 			},
 			Data: map[string]string{
-				"clustername":            clustername,
-				"clusterActiveEgressIps": egressIps,
-				"subscriptionId":         subscriptionId,
+				"clustername":    clustername,
+				"subscriptionId": subscriptionId,
 			},
 		},
 		metav1.CreateOptions{})

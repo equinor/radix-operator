@@ -35,7 +35,7 @@ func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *fak
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(client, radixClient, kedaClient, secretproviderclient)
-	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "anysubid")
 	require.NoError(t, err)
 	prometheusClient := prometheusfake.NewSimpleClientset()
 	certClient := certfake.NewSimpleClientset()

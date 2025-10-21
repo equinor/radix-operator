@@ -61,7 +61,6 @@ import (
 
 const (
 	testClusterName = "AnyClusterName"
-	testEgressIps   = "0.0.0.0"
 )
 
 var testConfig = config.Config{
@@ -92,7 +91,7 @@ func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 		secretProviderClient,
 	)
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, kedaClient, secretProviderClient)
-	err := handlerTestUtils.CreateClusterPrerequisites(testClusterName, testEgressIps, "anysubid")
+	err := handlerTestUtils.CreateClusterPrerequisites(testClusterName, "anysubid")
 	require.NoError(t, err)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, kedaClient, prometheusClient, secretProviderClient, certClient
 }
@@ -249,7 +248,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, "app", pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 				assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
-				assert.Equal(t, 13, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 12, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, os.Getenv(defaults.ContainerRegistryEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, defaults.ClusternameEnvironmentVariable, componentNameApp, deployments))
@@ -258,7 +257,6 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(kubeclient, defaults.CanonicalEndpointEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixAppEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, componentNameApp, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixComponentEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, testEgressIps, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixActiveClusterEgressIpsEnvironmentVariable, componentNameApp, deployments))
 
 				if !componentsExist {
 					assert.Equal(t, "(8080)", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, componentNameApp, deployments))
@@ -289,7 +287,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.Equal(t, int32(1), *getDeploymentByName(componentNameRedis, deployments).Spec.Replicas, "number of replicas was unexpected")
 				}
 
-				assert.Equal(t, 11, len(getContainerByName(componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 10, len(getContainerByName(componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.True(t, envVariableByNameExistOnDeployment("a_variable", componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRedis, deployments))
@@ -629,7 +627,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, int32(1), *getDeploymentByName(jobName, deployments).Spec.Replicas, "number of replicas was unexpected")
 
 				envVars := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers).Env
-				assert.Equal(t, 14, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 13, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, "a_value", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", jobName, deployments))
 				assert.Equal(t, os.Getenv(defaults.ContainerRegistryEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
@@ -640,7 +638,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, "300M", getEnvVariableByNameOnDeployment(kubeclient, defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, "("+defaults.RadixJobSchedulerPortName+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortNamesEnvironmentVariable, jobName, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, testEgressIps, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixActiveClusterEgressIpsEnvironmentVariable, jobName, deployments))
 
 				if jobsExist {
 					assert.Equal(t, "("+fmt.Sprint(schedulerPortUpdate)+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, jobName, deployments))
@@ -1867,7 +1864,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		cm, _ := client.CoreV1().ConfigMaps(envNamespace).Get(context.Background(), kube.GetEnvVarsConfigMapName(container.Name), metav1.GetOptions{})
 
 		templateSpecEnv := container.Env
-		assert.Equal(t, 9, len(templateSpecEnv), "Should only have default environment variables")
+		assert.Equal(t, 8, len(templateSpecEnv), "Should only have default environment variables")
 		assert.True(t, envVariableByNameExist(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.ClusternameEnvironmentVariable, templateSpecEnv))
@@ -1875,7 +1872,6 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		assert.True(t, envVariableByNameExist(defaults.RadixAppEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixComponentEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
-		assert.True(t, envVariableByNameExist(defaults.RadixActiveClusterEgressIpsEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
 		assert.Equal(t, os.Getenv(defaults.ContainerRegistryEnvironmentVariable), getEnvVariableByName(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv, nil))
 		assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv, cm))

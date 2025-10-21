@@ -50,7 +50,7 @@ func (s *jobTestSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(fake.NewSimpleClientset(), fakeradix.NewSimpleClientset(), kedaClient, secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.tu = test.NewTestUtils(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), kedaClient, secretProviderClient)
-	err := s.tu.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	err := s.tu.CreateClusterPrerequisites("AnyClusterName", "anysubid")
 	s.Require().NoError(err)
 }
 
