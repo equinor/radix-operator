@@ -455,7 +455,7 @@ type RadixDeployJobComponent struct {
 	MonitoringConfig        MonitoringConfig          `json:"monitoringConfig,omitempty"`
 	Resources               ResourceRequirements      `json:"resources,omitempty"`
 	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty"`
-	SchedulerPort           *int32                    `json:"schedulerPort,omitempty"`
+	SchedulerPort           int32                     `json:"schedulerPort,omitempty"`
 	Payload                 *RadixJobComponentPayload `json:"payload,omitempty"`
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy"`
 	// Deprecated: use Runtime.NodeType instead.

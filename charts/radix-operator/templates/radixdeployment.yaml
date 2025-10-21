@@ -813,6 +813,7 @@ spec:
                                                   for a user defined managed identity
                                                   or application ID for an application
                                                   registration.
+                                                format: uuid
                                                 type: string
                                             required:
                                             - clientId
@@ -922,6 +923,7 @@ spec:
                                                   for a user defined managed identity
                                                   or application ID for an application
                                                   registration.
+                                                format: uuid
                                                 type: string
                                             required:
                                             - clientId
@@ -1063,6 +1065,7 @@ spec:
                               description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
                                 registration.
+                              format: uuid
                               type: string
                           required:
                           - clientId
@@ -1084,7 +1087,8 @@ spec:
                           type: string
                         portName:
                           description: Defines which port in the ports list where
-                            metrics is served.
+                            metrics is served. If not specified, the first port is
+                            used.
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
@@ -1777,6 +1781,7 @@ spec:
                               description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
                                 registration.
+                              format: uuid
                               type: string
                           required:
                           - clientId
@@ -1794,7 +1799,8 @@ spec:
                           type: string
                         portName:
                           description: Defines which port in the ports list where
-                            metrics is served.
+                            metrics is served. If not specified, the first port is
+                            used.
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string

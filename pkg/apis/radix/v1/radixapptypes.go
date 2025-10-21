@@ -724,12 +724,12 @@ type RadixJobComponent struct {
 	// More info: https://www.radix.equinor.com/radix-config#schedulerport
 	// +kubebuilder:validation:Minimum=1024
 	// +kubebuilder:validation:Maximum=65535
-	// +optional
-	SchedulerPort *int32 `json:"schedulerPort,omitempty"`
+	// +required
+	SchedulerPort int32 `json:"schedulerPort"`
 
 	// Defines the path where the job payload is mounted.
 	// More info: https://www.radix.equinor.com/radix-config#payload
-	// +optional
+	// +required
 	Payload *RadixJobComponentPayload `json:"payload,omitempty"`
 
 	// List of ports that the job binds to.
@@ -1061,6 +1061,7 @@ type RadixJobComponentEnvironmentConfig struct {
 type RadixJobComponentPayload struct {
 	// Path to the folder where payload is mounted
 	// +kubebuilder:validation:MinLength=1
+	// +required
 	Path string `json:"path"`
 }
 

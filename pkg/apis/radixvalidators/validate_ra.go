@@ -81,149 +81,19 @@ func validateRadixApplication(radixApplication *radixv1.RadixApplication, valida
 	return errors.Join(errs...)
 }
 
-func validateJobComponents(app *radixv1.RadixApplication) error {
-	var errs []error
-	for _, job := range app.Spec.Jobs {
-		if err := validateJobComponent(app, job); err != nil {
-			errs = append(errs, fmt.Errorf("invalid configuration for job %s: %w", job.Name, err))
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
 func validateJobComponent(app *radixv1.RadixApplication, job radixv1.RadixJobComponent) error {
 	var errs []error
 
-	if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
-		errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSetWithMessage(job.Name))
-	}
 
-	if err := validateJobSchedulerPort(&job); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateJobPayload(&job); err != nil {
-		errs = append(errs, err)
-	}
-
-	// Common resource requirements
-	if err := validateResourceRequirements(&job.Resources); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateMonitoring(&job); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateIdentity(job.Identity); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateRuntime(job.Runtime); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateFailurePolicy(job.FailurePolicy); err != nil {
-		errs = append(errs, fmt.Errorf("invalid failurePolicy configuration: %w", err))
-	}
-
-	for _, environment := range job.EnvironmentConfig {
-		if err := validateJobComponentEnvironment(app, job, environment); err != nil {
-			errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
-		}
-	}
 
 	return errors.Join(errs...)
 }
-
-func validateFailurePolicy(failurePolicy *radixv1.RadixJobComponentFailurePolicy) error {
-	if failurePolicy == nil {
-		return nil
-	}
-
-	if len(failurePolicy.Rules) > 0 {
-		var errs []error
-		for _, rule := range failurePolicy.Rules {
-			errs = append(errs, validateFailurePolicyRule(rule))
-		}
-		if err := errors.Join(errs...); err != nil {
-			return fmt.Errorf("invalid rules configuration: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func validateFailurePolicyRule(rule radixv1.RadixJobComponentFailurePolicyRule) error {
-	if err := validateFailurePolicyRuleOnExitCodes(rule.OnExitCodes); err != nil {
-		return fmt.Errorf("invalid onExitCodes configuration: %w", err)
-	}
-
-	return nil
-}
-
-func validateFailurePolicyRuleOnExitCodes(onExitCodes radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes) error {
-	if onExitCodes.Operator == radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn &&
-		slices.Contains(onExitCodes.Values, 0) {
-		return ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator
-	}
-
-	return nil
-}
-
-func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.RadixJobComponent, environment radixv1.RadixJobComponentEnvironmentConfig) error {
-	var errs []error
-
-	if !doesEnvExist(app, environment.Environment) {
-		errs = append(errs, EnvironmentReferencedByComponentDoesNotExistErrorWithMessage(environment.Environment, job.Name))
-	}
-
-	if err := validateResourceRequirements(&environment.Resources); err != nil {
-		errs = append(errs, err)
-	}
-
-	if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, job.Image) {
-		errs = append(errs,
-			ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTagWithMessage(job.Name, environment.Environment))
-	}
-
-	if err := validateIdentity(environment.Identity); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateRuntime(environment.Runtime); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateFailurePolicy(environment.FailurePolicy); err != nil {
-		errs = append(errs, fmt.Errorf("invalid failurePolicy configuration: %w", err))
-	}
-
-	return errors.Join(errs...)
-}
-
 func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, componentImage string) bool {
 	return environmentImageTag != "" &&
 		(componentImage == "" ||
 			!strings.HasSuffix(componentImage, radixv1.DynamicTagNameInEnvironmentConfig))
 }
 
-func validateJobSchedulerPort(job *radixv1.RadixJobComponent) error {
-	if job.SchedulerPort == nil {
-		return SchedulerPortCannotBeEmptyForJobErrorWithMessage(job.Name)
-	}
-
-	return nil
-}
-
-func validateJobPayload(job *radixv1.RadixJobComponent) error {
-	if job.Payload != nil && job.Payload.Path == "" {
-		return PayloadPathCannotBeEmptyForJobErrorWithMessage(job.Name)
-	}
-
-	return nil
-}
 func validateSecrets(app *radixv1.RadixApplication) error {
 	if app.Spec.Build != nil {
 		if err := validateSecretNames("build secret name", app.Spec.Build.Secrets); err != nil {

@@ -4847,7 +4847,9 @@
               }
             },
             "required": [
-              "name"
+              "name",
+              "payload",
+              "schedulerPort"
             ],
             "type": "object"
           },

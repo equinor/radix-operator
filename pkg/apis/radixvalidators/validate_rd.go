@@ -135,7 +135,7 @@ func validateHPAConfigForRD(component *radixv1.RadixDeployComponent, environment
 }
 
 func validateDeployJobSchedulerPort(job *radixv1.RadixDeployJobComponent) error {
-	if job.SchedulerPort == nil {
+	if job.SchedulerPort == 0 {
 		return SchedulerPortCannotBeEmptyForJobErrorWithMessage(job.Name)
 	}
 

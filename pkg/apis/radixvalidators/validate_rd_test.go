@@ -56,7 +56,7 @@ func Test_invalid_rd_returns_false(t *testing.T) {
 			rd.Spec.Jobs[0].Name = "invalid,char.appname"
 		}},
 		{"job scheduler port is not set", func(rd *v1.RadixDeployment) {
-			rd.Spec.Jobs[0].SchedulerPort = nil
+			rd.Spec.Jobs[0].SchedulerPort = 0
 		}},
 		{"job payload path is not set", func(rd *v1.RadixDeployment) {
 			rd.Spec.Jobs[1].Payload.Path = ""

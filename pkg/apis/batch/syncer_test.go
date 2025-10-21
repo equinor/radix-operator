@@ -2457,7 +2457,7 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 			s.SetupTest()
 
 			job1Builder := utils.AnApplicationJobComponent().WithName(jobComponentName).
-				WithImage("radixdev.azurecr.io/job:imagetag").WithSchedulerPort(numbers.Int32Ptr(8080)).
+				WithImage("radixdev.azurecr.io/job:imagetag").WithSchedulerPort(8080).
 				WithCommand(ts.command).WithArgs(ts.args)
 			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
 				WithEnvironment(env1, "master").WithJobComponents(job1Builder)
@@ -2470,7 +2470,7 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 				WithJobComponent(utils.NewDeployJobComponentBuilder().
 					WithName(jobComponentName).
 					WithImage("radixdev.azurecr.io/job:imagetag").
-					WithSchedulerPort(numbers.Int32Ptr(8080)).
+					WithSchedulerPort(8080).
 					WithCommand(ts.command).WithArgs(ts.args)).
 				BuildRD()
 

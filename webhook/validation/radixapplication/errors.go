@@ -50,4 +50,9 @@ var (
 	ErrEnvironmentReferencedByComponentDoesNotExist           = errors.New("environment referenced by component is not defined in spec.environments")
 	ErrInvalidNumberOfReplicas                                = errors.New("number of replicas is invalid, must be positive and less than 64")
 	ErrComponentWithDynamicTagRequiresImageTag                = errors.New("component with image tag set on environment config requires dynamic tag on image setting")
+
+	ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator         = errors.New("value 0 cannot be used for the In operator")
+	ErrPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage = errors.New("component cannot have neither 'src' nor 'Dockerfile' set when image is defined")
+	ErrSchedulerPortCannotBeEmptyForJob                             = errors.New("scheduler port cannot be empty for job")
+	ErrPayloadPathCannotBeEmptyForJob                               = errors.New("payload path cannot be empty for job")
 )

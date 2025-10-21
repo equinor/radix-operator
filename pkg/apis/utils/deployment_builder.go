@@ -7,7 +7,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -304,7 +303,7 @@ func ARadixDeploymentWithComponentModifier(m func(builder DeployComponentBuilder
 		WithJobComponent(NewDeployJobComponentBuilder().
 			WithName("job").
 			WithImage("radixdev.azurecr.io/job:imagetag").
-			WithSchedulerPort(numbers.Int32Ptr(8080)))
+			WithSchedulerPort(8080))
 	return builder
 }
 

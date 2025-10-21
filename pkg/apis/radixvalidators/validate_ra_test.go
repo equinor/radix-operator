@@ -420,7 +420,7 @@ func Test_invalid_ra(t *testing.T) {
 			}
 		}},
 		{"scheduler port is not set", radixvalidators.SchedulerPortCannotBeEmptyForJobErrorWithMessage(validRAFirstJobName), func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].SchedulerPort = nil
+			ra.Spec.Jobs[0].SchedulerPort = 0
 		}},
 		{"payload is empty struct", radixvalidators.PayloadPathCannotBeEmptyForJobErrorWithMessage(validRAFirstJobName), func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Payload = &radixv1.RadixJobComponentPayload{}

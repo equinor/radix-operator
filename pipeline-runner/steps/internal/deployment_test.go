@@ -279,7 +279,6 @@ func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
 			utils.AnApplicationJobComponent().WithName("job1").WithImage("job1-image:tag1"),
 			utils.AnApplicationJobComponent().WithName("job2").WithImage("job2-image:tag1"),
 		)
-	schedulerPort := pointers.Ptr(int32(8080))
 	const (
 		commit1 = "commit1"
 		commit2 = "commit2"
@@ -295,10 +294,10 @@ func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
 		WithComponent(utils.NewDeployComponentBuilder().WithName("comp2").WithImage("comp2-image:tag1").
 			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
 			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1)).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job1").WithImage("job1-image:tag1").WithSchedulerPort(schedulerPort).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job1").WithImage("job1-image:tag1").WithSchedulerPort(8080).
 			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
 			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1)).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job2").WithImage("job2-image:tag1").WithSchedulerPort(schedulerPort).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job2").WithImage("job2-image:tag1").WithSchedulerPort(8080).
 			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
 			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1))
 	ra := rdBuilder.GetApplicationBuilder().BuildRA()

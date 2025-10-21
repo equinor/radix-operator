@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -49,6 +50,7 @@ func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) 
 		validators: []validatorFunc{
 			checkDeprecatedPublicUsage,
 			createComponentValidator(),
+			createJobValidator(),
 			createExternalDNSAliasValidator(),
 			createDNSAliasValidator(),
 			createRRExistValidator(client),
@@ -62,6 +64,7 @@ func CreateOfflineValidator() Validator {
 		validators: []validatorFunc{
 			checkDeprecatedPublicUsage,
 			createComponentValidator(),
+			createJobValidator(),
 			createExternalDNSAliasValidator(),
 			createDNSAliasValidator(),
 		},
@@ -186,6 +189,70 @@ func checkDeprecatedPublicUsage(_ context.Context, ra *radixv1.RadixApplication)
 		}
 	}
 	return "", nil
+}
+
+func createJobValidator() validatorFunc {
+	return func(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+		var wrns []string
+		var errs []error
+		for _, job := range app.Spec.Jobs {
+
+			if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
+				errs = append(errs, fmt.Errorf("job %s: %w", job.Name, ErrPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage))
+			}
+
+			// Common resource requirements
+			if err := validateResourceRequirements(job.Resources); err != nil {
+				errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+			}
+
+			if err := validateMonitoring(&job); err != nil {
+				errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+			}
+
+			if err := validateRuntime(job.Runtime); err != nil {
+				errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+			}
+
+			if err := validateFailurePolicy(job.FailurePolicy); err != nil {
+				errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+			}
+
+			for _, environment := range job.EnvironmentConfig {
+				if err := validateJobComponentEnvironment(app, job, environment); err != nil {
+					errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
+				}
+			}
+
+		}
+		return strings.Join(wrns, "\n"), errors.Join(errs...)
+	}
+}
+
+func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.RadixJobComponent, environment radixv1.RadixJobComponentEnvironmentConfig) error {
+	var errs []error
+
+	if !doesEnvExist(app, environment.Environment) {
+		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, ErrEnvironmentReferencedByComponentDoesNotExist))
+	}
+
+	if err := validateResourceRequirements(environment.Resources); err != nil {
+		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, err))
+	}
+
+	if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, job.Image) {
+		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, ErrComponentWithDynamicTagRequiresImageTag))
+	}
+
+	if err := validateRuntime(environment.Runtime); err != nil {
+		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, err))
+	}
+
+	if err := validateFailurePolicy(environment.FailurePolicy); err != nil {
+		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, err))
+	}
+
+	return errors.Join(errs...)
 }
 
 func createComponentValidator() validatorFunc {
@@ -651,6 +718,30 @@ func validateProbe(probe *radixv1.RadixProbe) error {
 
 	if definedProbes > 1 {
 		return ErrInvalidHealthCheckProbe
+	}
+
+	return nil
+}
+
+func validateFailurePolicy(failurePolicy *radixv1.RadixJobComponentFailurePolicy) error {
+	if failurePolicy == nil || len(failurePolicy.Rules) == 0 {
+		return nil
+	}
+
+	var errs []error
+	for _, rule := range failurePolicy.Rules {
+		if err := validateFailurePolicyRuleOnExitCodes(rule.OnExitCodes); err != nil {
+			errs = append(errs, fmt.Errorf("invalid failure policy onExitCodes configuration: %w", err))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func validateFailurePolicyRuleOnExitCodes(onExitCodes radixv1.RadixJobComponentFailurePolicyRuleOnExitCodes) error {
+	if onExitCodes.Operator == radixv1.RadixJobComponentFailurePolicyRuleOnExitCodesOpIn &&
+		slices.Contains(onExitCodes.Values, 0) {
+		return ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator
 	}
 
 	return nil
