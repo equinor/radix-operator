@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.102.2](https://github.com/equinor/radix-operator/compare/v1.102.1..v1.102.2) - 2025-10-21
+
+### 🐛 Bug Fixes
+
+- Remove clusterActiveEgressIps handling from configuration and tests (#1481) - ([d5397e4](https://github.com/equinor/radix-operator/commit/d5397e4d1a79a81e574a4a4181392b0e519afd87)) by @nilsgstrabo in [#1481](https://github.com/equinor/radix-operator/pull/1481)
+
+
 ## [1.102.1](https://github.com/equinor/radix-operator/compare/v1.102.0..v1.102.1) - 2025-10-21
 
 ### 🐛 Bug Fixes
