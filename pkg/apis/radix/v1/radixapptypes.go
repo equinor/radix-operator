@@ -102,22 +102,22 @@ type RadixApplicationSpec struct {
 	// List of job specification for the application.
 	// More info: https://www.radix.equinor.com/radix-config#jobs
 	//
-	// internal: MaxItems required to limit CEL complexity
+	// internal: MaxItems only required to limit CEL complexity
 	//
 	// +listType=map
 	// +listMapKey=name
-	// +kubebuilder:validation:MaxItems=10
+	// +kubebuilder:validation:MaxItems=100
 	// +optional
 	Jobs []RadixJobComponent `json:"jobs,omitempty"`
 
 	// List of component specification for the application.
 	// More info: https://www.radix.equinor.com/radix-config#components
 	//
-	// internal: MaxItems required to limit CEL complexity
+	// internal: MaxItems only required to limit CEL complexity
 	//
 	// +listType=map
 	// +listMapKey=name
-	// +kubebuilder:validation:MaxItems=10
+	// +kubebuilder:validation:MaxItems=100
 	// +optional
 	Components []RadixComponent `json:"components,omitempty"`
 
@@ -163,6 +163,8 @@ type EnvVarsMap map[string]string
 type BuildSpec struct {
 	// Defines a list of secrets that will be passed as ARGs when building Dockerfile.
 	// The secrets can also be accessed in sub-pipelines.
+	// +kubebuilder:validation:items:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
+	// +listType=set
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -456,6 +458,8 @@ type RadixComponent struct {
 
 	// List of secret environment variable names.
 	// More info: https://www.radix.equinor.com/radix-config#secrets
+	// +kubebuilder:validation:items:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
+	// +listType=set
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -752,6 +756,8 @@ type RadixJobComponent struct {
 
 	// List of secret environment variable names.
 	// More info: https://www.radix.equinor.com/radix-config#secrets-2
+	// +kubebuilder:validation:items:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
+	// +listType=set
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -1434,6 +1440,8 @@ const (
 // RadixSecretRefs defines secret vault
 type RadixSecretRefs struct {
 	// List of Azure Key Vaults to get secrets from.
+	// +listType=map
+	// +listMapKey=name
 	// +optional
 	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults,omitempty"`
 }
@@ -1486,9 +1494,11 @@ type RadixAzureKeyVaultItem struct {
 	// Name of a secret, key or certificate in the keyvault.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=127
+	// +kubebuilder:validation:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
 	Name string `json:"name"`
 
 	// Defines the name of the environment variable that will contain the value of the secret, key or certificate.
+	// +kubebuilder:validation:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
 	// +optional
 	EnvVar string `json:"envVar,omitempty"`
 
@@ -1499,6 +1509,7 @@ type RadixAzureKeyVaultItem struct {
 
 	// Alias overrides the default file name used when mounting the secret, key or certificate.
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
 	// +optional
 	Alias *string `json:"alias,omitempty"`
 

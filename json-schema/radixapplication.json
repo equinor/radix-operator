@@ -21,9 +21,11 @@
             "secrets": {
               "description": "Defines a list of secrets that will be passed as ARGs when building Dockerfile.\nThe secrets can also be accessed in sub-pipelines.",
               "items": {
+                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                 "type": "string"
               },
-              "type": "array"
+              "type": "array",
+              "x-kubernetes-list-type": "set"
             },
             "subPipeline": {
               "description": "SubPipeline common configuration for all environments.",
@@ -77,7 +79,7 @@
           "type": "object"
         },
         "components": {
-          "description": "List of component specification for the application.\nMore info: https://www.radix.equinor.com/radix-config#components\n\ninternal: MaxItems required to limit CEL complexity",
+          "description": "List of component specification for the application.\nMore info: https://www.radix.equinor.com/radix-config#components\n\ninternal: MaxItems only required to limit CEL complexity",
           "items": {
             "description": "RadixComponent defines a component.",
             "properties": {
@@ -1431,6 +1433,7 @@
                                     "alias": {
                                       "description": "Alias overrides the default file name used when mounting the secret, key or certificate.",
                                       "minLength": 1,
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "encoding": {
@@ -1442,6 +1445,7 @@
                                     },
                                     "envVar": {
                                       "description": "Defines the name of the environment variable that will contain the value of the secret, key or certificate.",
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "format": {
@@ -1464,6 +1468,7 @@
                                       "description": "Name of a secret, key or certificate in the keyvault.",
                                       "maxLength": 127,
                                       "minLength": 1,
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "type": {
@@ -1510,7 +1515,11 @@
                             ],
                             "type": "object"
                           },
-                          "type": "array"
+                          "type": "array",
+                          "x-kubernetes-list-map-keys": [
+                            "name"
+                          ],
+                          "x-kubernetes-list-type": "map"
                         }
                       },
                       "type": "object"
@@ -2831,6 +2840,7 @@
                               "alias": {
                                 "description": "Alias overrides the default file name used when mounting the secret, key or certificate.",
                                 "minLength": 1,
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "encoding": {
@@ -2842,6 +2852,7 @@
                               },
                               "envVar": {
                                 "description": "Defines the name of the environment variable that will contain the value of the secret, key or certificate.",
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "format": {
@@ -2864,6 +2875,7 @@
                                 "description": "Name of a secret, key or certificate in the keyvault.",
                                 "maxLength": 127,
                                 "minLength": 1,
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "type": {
@@ -2910,7 +2922,11 @@
                       ],
                       "type": "object"
                     },
-                    "type": "array"
+                    "type": "array",
+                    "x-kubernetes-list-map-keys": [
+                      "name"
+                    ],
+                    "x-kubernetes-list-type": "map"
                   }
                 },
                 "type": "object"
@@ -2918,9 +2934,11 @@
               "secrets": {
                 "description": "List of secret environment variable names.\nMore info: https://www.radix.equinor.com/radix-config#secrets",
                 "items": {
+                  "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                   "type": "string"
                 },
-                "type": "array"
+                "type": "array",
+                "x-kubernetes-list-type": "set"
               },
               "src": {
                 "description": "Path to the Dockerfile that builds the component.\nMore info: https://www.radix.equinor.com/radix-config#src",
@@ -3198,7 +3216,7 @@
             ],
             "type": "object"
           },
-          "maxItems": 10,
+          "maxItems": 100,
           "type": "array",
           "x-kubernetes-list-map-keys": [
             "name"
@@ -3466,7 +3484,7 @@
           "x-kubernetes-list-type": "map"
         },
         "jobs": {
-          "description": "List of job specification for the application.\nMore info: https://www.radix.equinor.com/radix-config#jobs\n\ninternal: MaxItems required to limit CEL complexity",
+          "description": "List of job specification for the application.\nMore info: https://www.radix.equinor.com/radix-config#jobs\n\ninternal: MaxItems only required to limit CEL complexity",
           "items": {
             "description": "RadixJobComponent defines a single job component within a RadixApplication\nThe job component is used by the radix-job-scheduler to create Kubernetes Job objects",
             "properties": {
@@ -3849,6 +3867,7 @@
                                     "alias": {
                                       "description": "Alias overrides the default file name used when mounting the secret, key or certificate.",
                                       "minLength": 1,
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "encoding": {
@@ -3860,6 +3879,7 @@
                                     },
                                     "envVar": {
                                       "description": "Defines the name of the environment variable that will contain the value of the secret, key or certificate.",
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "format": {
@@ -3882,6 +3902,7 @@
                                       "description": "Name of a secret, key or certificate in the keyvault.",
                                       "maxLength": 127,
                                       "minLength": 1,
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "type": {
@@ -3928,7 +3949,11 @@
                             ],
                             "type": "object"
                           },
-                          "type": "array"
+                          "type": "array",
+                          "x-kubernetes-list-map-keys": [
+                            "name"
+                          ],
+                          "x-kubernetes-list-type": "map"
                         }
                       },
                       "type": "object"
@@ -4479,6 +4504,7 @@
                               "alias": {
                                 "description": "Alias overrides the default file name used when mounting the secret, key or certificate.",
                                 "minLength": 1,
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "encoding": {
@@ -4490,6 +4516,7 @@
                               },
                               "envVar": {
                                 "description": "Defines the name of the environment variable that will contain the value of the secret, key or certificate.",
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "format": {
@@ -4512,6 +4539,7 @@
                                 "description": "Name of a secret, key or certificate in the keyvault.",
                                 "maxLength": 127,
                                 "minLength": 1,
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "type": {
@@ -4558,7 +4586,11 @@
                       ],
                       "type": "object"
                     },
-                    "type": "array"
+                    "type": "array",
+                    "x-kubernetes-list-map-keys": [
+                      "name"
+                    ],
+                    "x-kubernetes-list-type": "map"
                   }
                 },
                 "type": "object"
@@ -4566,9 +4598,11 @@
               "secrets": {
                 "description": "List of secret environment variable names.\nMore info: https://www.radix.equinor.com/radix-config#secrets-2",
                 "items": {
+                  "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                   "type": "string"
                 },
-                "type": "array"
+                "type": "array",
+                "x-kubernetes-list-type": "set"
               },
               "src": {
                 "description": "Path to the Dockerfile that builds the job.\nMore info: https://www.radix.equinor.com/radix-config#src-2",
@@ -4853,7 +4887,7 @@
             ],
             "type": "object"
           },
-          "maxItems": 10,
+          "maxItems": 100,
           "type": "array",
           "x-kubernetes-list-map-keys": [
             "name"

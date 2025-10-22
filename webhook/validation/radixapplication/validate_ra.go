@@ -7,15 +7,12 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"time"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/rs/zerolog/log"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,6 +31,7 @@ const (
 var (
 	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
 	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
+	propertyNameRegex           = regexp.MustCompile(`^(([A-Za-z0-9][-._A-Za-z0-9.]*)?[A-Za-z0-9])?$`)
 )
 
 // validatorFunc defines a validatorFunc function for a RadixApplication
@@ -67,6 +65,7 @@ func CreateOfflineValidator() Validator {
 			createJobValidator(),
 			createExternalDNSAliasValidator(),
 			createDNSAliasValidator(),
+			createSecretValidator(),
 		},
 	}
 }
@@ -101,84 +100,6 @@ func createRRExistValidator(kubeClient client.Client) validatorFunc {
 
 		return "", nil
 	}
-}
-
-func createDNSAliasAvailableValidator(kubeClient client.Client, dnsAliasConfig *dnsalias.DNSConfig) validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
-		var errs []error
-		list := radixv1.RadixDNSAliasList{}
-		err := kubeClient.List(ctx, &list)
-		if err != nil {
-			return "", err
-		}
-
-		for _, dnsAlias := range ra.Spec.DNSAlias {
-
-			existingAliasForDifferentApp := slice.Any(list.Items, func(item radixv1.RadixDNSAlias) bool {
-				return item.Spec.AppName != ra.Name && item.Name == dnsAlias.Alias
-			})
-			if existingAliasForDifferentApp {
-				errs = append(errs, fmt.Errorf("dns alias %s is already used. %w", dnsAlias.Alias, ErrDNSAliasAlreadyUsedByAnotherApplication))
-			}
-
-			if reservingAppName, aliasReserved := dnsAliasConfig.ReservedAppDNSAliases[dnsAlias.Alias]; aliasReserved && reservingAppName != ra.Name {
-				errs = append(errs, fmt.Errorf("dns alias %s is reserved. %w", dnsAlias.Alias, ErrDNSAliasReservedForRadixPlatformApplication))
-			}
-
-			if slice.Any(dnsAliasConfig.ReservedDNSAliases, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Alias }) {
-				errs = append(errs, fmt.Errorf("dns alias %s is reserved. %w", dnsAlias.Alias, ErrDNSAliasReservedForRadixPlatformService))
-			}
-		}
-		return "", errors.Join(errs...)
-	}
-}
-
-func createDNSAliasValidator() validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
-		var errs []error
-
-		for _, dnsAlias := range ra.Spec.DNSAlias {
-			if err := validateDNSAliasComponentAndEnvironmentAvailable(ra, dnsAlias.Alias, dnsAlias.Component, dnsAlias.Environment); err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			if !doesComponentHaveAPublicPort(ra, dnsAlias.Component) {
-				errs = append(errs, fmt.Errorf("component %s is not public. %w", dnsAlias.Component, ErrDNSAliasComponentIsNotMarkedAsPublic))
-				continue
-			}
-		}
-		return "", errors.Join(errs...)
-	}
-}
-
-func createExternalDNSAliasValidator() validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
-		var errs []error
-
-		for _, externalAlias := range ra.Spec.DNSExternalAlias {
-			if !doesEnvExist(ra, externalAlias.Environment) {
-				errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasEnvironmentNotDefined))
-			}
-			if !doesComponentExistAndEnabled(ra, externalAlias.Component, externalAlias.Environment) {
-				errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasComponentNotDefined))
-			}
-
-			if !doesComponentHaveAPublicPort(ra, externalAlias.Component) {
-				errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasComponentNotMarkedAsPublic))
-			}
-		}
-		return "", errors.Join(errs...)
-	}
-}
-
-func validateDNSAliasComponentAndEnvironmentAvailable(ra *radixv1.RadixApplication, dnsAlias, component, environment string) error {
-	if !doesEnvExist(ra, environment) {
-		return fmt.Errorf("%s: %w", dnsAlias, ErrDNSAliasEnvironmentNotDefined)
-	}
-	if !doesComponentExistAndEnabled(ra, component, environment) {
-		return fmt.Errorf("%s: %w", dnsAlias, ErrDNSAliasComponentNotDefinedOrDisabled)
-	}
-	return nil
 }
 
 func checkDeprecatedPublicUsage(_ context.Context, ra *radixv1.RadixApplication) (string, error) {
@@ -506,140 +427,6 @@ func componentHasPublicPort(component *radixv1.RadixComponent) bool {
 	}
 
 	return false
-}
-
-func validateSkipAuthRoutes(skipAuthRoutes []string) error {
-	var invalidRegexes []string
-	for _, route := range skipAuthRoutes {
-		if strings.Contains(route, ",") {
-			return fmt.Errorf("comma is not allowed in route: %s", route)
-		}
-		var regex string
-		parts := strings.SplitN(route, "=", 2)
-		if len(parts) == 1 {
-			regex = parts[0]
-		} else {
-			regex = parts[1]
-		}
-		_, err := regexp.Compile(regex)
-		if err != nil {
-			invalidRegexes = append(invalidRegexes, regex)
-		}
-	}
-	if len(invalidRegexes) > 0 {
-		return fmt.Errorf("invalid regex(es): %s", strings.Join(invalidRegexes, ","))
-	}
-	return nil
-}
-
-func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, environmentName string) (errors []error) {
-	if oauth == nil {
-		return
-	}
-
-	oauthWithDefaults, err := defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()).MergeWith(oauth)
-	if err != nil {
-		errors = append(errors, err)
-		return
-	}
-	componentName := component.Name
-	// Validate ClientID
-	if len(strings.TrimSpace(oauthWithDefaults.ClientID)) == 0 {
-		errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthClientIdEmpty))
-	} else if !componentHasPublicPort(component) {
-		errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthRequiresPublicPort))
-	}
-
-	// Validate ProxyPrefix
-	if len(strings.TrimSpace(oauthWithDefaults.ProxyPrefix)) == 0 {
-		errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthProxyPrefixEmpty))
-	} else if oauthutil.SanitizePathPrefix(oauthWithDefaults.ProxyPrefix) == "/" {
-		errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthProxyPrefixIsRoot))
-	}
-
-	// Validate SessionStoreType
-	if !commonUtils.ContainsString(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
-		errors = append(errors, fmt.Errorf("component %s in environment %s: sessionStoreType '%s': %w", componentName, environmentName, oauthWithDefaults.SessionStoreType, ErrOAuthSessionStoreTypeInvalid))
-	}
-
-	// Validate RedisStore
-	if oauthWithDefaults.IsSessionStoreTypeIsManuallyConfiguredRedis() {
-		if redisStore := oauthWithDefaults.RedisStore; redisStore == nil {
-			errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthRedisStoreEmpty))
-		} else if len(strings.TrimSpace(redisStore.ConnectionURL)) == 0 {
-			errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthRedisStoreConnectionURLEmpty))
-		}
-	}
-
-	// Validate OIDC config
-	if oidc := oauthWithDefaults.OIDC; oidc == nil {
-		errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthOidcEmpty))
-	} else {
-		if oidc.SkipDiscovery == nil {
-			errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthOidcSkipDiscoveryEmpty))
-		} else if *oidc.SkipDiscovery {
-			// Validate URLs when SkipDiscovery=true
-			if len(strings.TrimSpace(oidc.JWKSURL)) == 0 {
-				errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthOidcJwksUrlEmpty))
-			}
-			if len(strings.TrimSpace(oauthWithDefaults.LoginURL)) == 0 {
-				errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthLoginUrlEmpty))
-			}
-			if len(strings.TrimSpace(oauthWithDefaults.RedeemURL)) == 0 {
-				errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthRedeemUrlEmpty))
-			}
-		}
-	}
-
-	// Validate Cookie
-	if cookie := oauthWithDefaults.Cookie; cookie == nil {
-		errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthCookieEmpty))
-	} else {
-		if len(strings.TrimSpace(cookie.Name)) == 0 {
-			errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthCookieNameEmpty))
-		}
-		if !commonUtils.ContainsString(validOAuthCookieSameSites, string(cookie.SameSite)) {
-			errors = append(errors, fmt.Errorf("component %s in environment %s: sameSite '%s': %w", componentName, environmentName, cookie.SameSite, ErrOAuthCookieSameSiteInvalid))
-		}
-
-		// Validate Expire and Refresh
-		expireValid, refreshValid := true, true
-
-		expire, err := time.ParseDuration(cookie.Expire)
-		if err != nil || expire < 0 {
-			errors = append(errors, fmt.Errorf("component %s in environment %s: expire '%s': %w", componentName, environmentName, cookie.Expire, ErrOAuthCookieExpireInvalid))
-			expireValid = false
-		}
-		refresh, err := time.ParseDuration(cookie.Refresh)
-		if err != nil || refresh < 0 {
-			errors = append(errors, fmt.Errorf("component %s in environment %s: refresh '%s': %w", componentName, environmentName, cookie.Refresh, ErrOAuthCookieRefreshInvalid))
-			refreshValid = false
-		}
-		if expireValid && refreshValid && !(refresh < expire) {
-			errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthCookieRefreshMustBeLessThanExpire))
-		}
-
-		// Validate required settings when sessionStore=cookie and cookieStore.minimal=true
-		if oauthWithDefaults.SessionStoreType == radixv1.SessionStoreCookie && oauthWithDefaults.CookieStore != nil && oauthWithDefaults.CookieStore.Minimal != nil && *oauthWithDefaults.CookieStore.Minimal {
-			// Refresh must be 0
-			if refreshValid && refresh != 0 {
-				errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthCookieStoreMinimalIncorrectCookieRefreshInterval))
-			}
-			// SetXAuthRequestHeaders must be false
-			if oauthWithDefaults.SetXAuthRequestHeaders == nil || *oauthWithDefaults.SetXAuthRequestHeaders {
-				errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthCookieStoreMinimalIncorrectSetXAuthRequestHeaders))
-			}
-			// SetAuthorizationHeader must be false
-			if oauthWithDefaults.SetAuthorizationHeader == nil || *oauthWithDefaults.SetAuthorizationHeader {
-				errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthCookieStoreMinimalIncorrectSetAuthorizationHeader))
-			}
-		}
-	}
-
-	if err = validateSkipAuthRoutes(oauthWithDefaults.SkipAuthRoutes); err != nil {
-		errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, fmt.Errorf("%w: %w", ErrOAuthSkipAuthRoutesInvalid, err)))
-	}
-	return
 }
 
 func validateRuntime(runtime *radixv1.Runtime) error {
