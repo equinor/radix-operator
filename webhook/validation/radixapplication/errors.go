@@ -62,4 +62,5 @@ var (
 	ErrDuplicateAlias                                               = errors.New("duplicate alias in Azure Key vault secret references")
 	ErrSecretRefEnvVarNameConflictsWithEnvironmentVariable          = errors.New("secret reference environment variable name conflicts with environment variable")
 	ErrDuplicatePathForAzureKeyVault                                = errors.New("duplicate path for Azure Key vault")
+	ErrInvalidEnvironmentNameLength                                 = errors.New("combined app-name and environment name length must be between 2 and 62 characters")
 )

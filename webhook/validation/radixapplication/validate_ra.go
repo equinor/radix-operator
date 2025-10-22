@@ -263,7 +263,7 @@ func createEnvNameValidator() validatorFunc {
 	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
 		for _, env := range ra.Spec.Environments {
 			if len(ra.Name)+len(env.Name) > 62 {
-				return "", fmt.Errorf("summary length of app name and environment together should not exceed 62 characters")
+				return "", fmt.Errorf("environment %s: %w", env.Name, ErrInvalidEnvironmentNameLength)
 			}
 		}
 		return "", nil
