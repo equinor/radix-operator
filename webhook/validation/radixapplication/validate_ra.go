@@ -219,8 +219,7 @@ func createComponentValidator() validatorFunc {
 			}
 		}
 
-		// TODO: Can wrns contain newline?
-		return strings.Join(wrns, "\n"), errors.Join(errs...)
+		return strings.Join(wrns, ", "), errors.Join(errs...)
 	}
 }
 
