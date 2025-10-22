@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -19,12 +17,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/robfig/cron/v3"
-	corev1 "k8s.io/api/core/v1"
 )
 
 const (
-	maximumNumberOfEgressRules = 1000
-	azureClientIdResourceName  = "identity.azure.clientId"
+	azureClientIdResourceName = "identity.azure.clientId"
 )
 
 var (
@@ -34,7 +30,6 @@ var (
 		radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata: struct{}{}, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk: struct{}{}}
 
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
-		validateEnvironmentEgressRules,
 		validateVariables,
 		validateBranchNames,
 		validateHorizontalScalingConfigForRA,
@@ -140,68 +135,6 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 	return nil
 }
 
-func validateEnvironmentEgressRules(app *radixv1.RadixApplication) error {
-	var errs []error
-	for _, env := range app.Spec.Environments {
-		if len(env.Egress.Rules) > maximumNumberOfEgressRules {
-			errs = append(errs, fmt.Errorf("number of egress rules for env %s exceeds max nr %d", env.Name, maximumNumberOfEgressRules))
-			continue
-		}
-		for _, egressRule := range env.Egress.Rules {
-			if len(egressRule.Destinations) < 1 {
-				errs = append(errs, fmt.Errorf("egress rule must contain at least one destination"))
-			}
-			for _, ipMask := range egressRule.Destinations {
-				err := validateEgressRuleIpMask(string(ipMask))
-				if err != nil {
-					errs = append(errs, err)
-				}
-			}
-			for _, port := range egressRule.Ports {
-				err := validateEgressRulePortProtocol(port.Protocol)
-				if err != nil {
-					errs = append(errs, err)
-				}
-				err = validateEgressRulePort(port.Port)
-				if err != nil {
-					errs = append(errs, err)
-				}
-			}
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-func validateEgressRulePort(port int32) error {
-	if port < 1 || port > maximumPortNumber {
-		return fmt.Errorf("%d must be equal to or greater than 1 and lower than or equal to %d", port, maximumPortNumber)
-	}
-	return nil
-}
-
-func validateEgressRulePortProtocol(protocol string) error {
-	upperCaseProtocol := strings.ToUpper(protocol)
-	validProtocols := []string{string(corev1.ProtocolTCP), string(corev1.ProtocolUDP)}
-	if commonUtils.ContainsString(validProtocols, upperCaseProtocol) {
-		return nil
-	} else {
-		return InvalidEgressPortProtocolErrorWithMessage(protocol, validProtocols)
-	}
-}
-
-func validateEgressRuleIpMask(ipMask string) error {
-	ipAddr, _, err := net.ParseCIDR(ipMask)
-	if err != nil {
-		return NotValidCidrErrorWithMessage(err.Error())
-	}
-	ipV4Addr := ipAddr.To4()
-	if ipV4Addr == nil {
-		return NotValidIPv4CidrErrorWithMessage(ipMask)
-	}
-
-	return nil
-}
 func validateIllegalPrefixInVariableName(resourceName string, value string) error {
 	if utils.IsRadixEnvVar(value) {
 		return fmt.Errorf("%s %s can not start with prefix reserved for platform", resourceName, value)

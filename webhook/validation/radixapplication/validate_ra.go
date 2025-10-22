@@ -55,6 +55,7 @@ func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) 
 			createDNSAliasAvailableValidator(client, dnsConfig),
 			createSecretValidator(),
 			createEnvNameValidator(),
+			createEnvironmentEgressValidator(),
 		},
 	}
 }
@@ -69,6 +70,7 @@ func CreateOfflineValidator() Validator {
 			createDNSAliasValidator(),
 			createSecretValidator(),
 			createEnvNameValidator(),
+			createEnvironmentEgressValidator(),
 		},
 	}
 }
