@@ -34,7 +34,6 @@ var (
 		radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata: struct{}{}, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk: struct{}{}}
 
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
-		validateEnvNames,
 		validateEnvironmentEgressRules,
 		validateVariables,
 		validateBranchNames,
@@ -137,23 +136,6 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 		if !isValid {
 			return InvalidBranchNameErrorWithMessage(env.Build.From)
 		}
-	}
-	return nil
-}
-
-func validateEnvNames(app *radixv1.RadixApplication) error {
-	for _, env := range app.Spec.Environments {
-		err := validateMaxNameLengthForAppAndEnv(app.Name, env.Name)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func validateMaxNameLengthForAppAndEnv(appName, envName string) error {
-	if len(appName)+len(envName) > 62 {
-		return fmt.Errorf("summary length of app name and environment together should not exceed 62 characters")
 	}
 	return nil
 }

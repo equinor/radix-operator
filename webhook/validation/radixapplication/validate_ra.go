@@ -54,6 +54,7 @@ func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) 
 			createRRExistValidator(client),
 			createDNSAliasAvailableValidator(client, dnsConfig),
 			createSecretValidator(),
+			createEnvNameValidator(),
 		},
 	}
 }
@@ -67,6 +68,7 @@ func CreateOfflineValidator() Validator {
 			createExternalDNSAliasValidator(),
 			createDNSAliasValidator(),
 			createSecretValidator(),
+			createEnvNameValidator(),
 		},
 	}
 }
@@ -255,6 +257,17 @@ func validateComponentEnvironment(app *radixv1.RadixApplication, component radix
 	}
 
 	return errors.Join(errs...)
+}
+
+func createEnvNameValidator() validatorFunc {
+	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+		for _, env := range ra.Spec.Environments {
+			if len(ra.Name)+len(env.Name) > 62 {
+				return "", fmt.Errorf("summary length of app name and environment together should not exceed 62 characters")
+			}
+		}
+		return "", nil
+	}
 }
 
 func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, componentImage string) bool {
