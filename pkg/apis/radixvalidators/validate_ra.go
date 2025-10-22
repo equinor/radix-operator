@@ -13,7 +13,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/robfig/cron/v3"
@@ -30,7 +29,6 @@ var (
 		radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata: struct{}{}, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk: struct{}{}}
 
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
-		validateVariables,
 		validateBranchNames,
 		validateHorizontalScalingConfigForRA,
 		validateVolumeMountConfigForRA,
@@ -68,55 +66,6 @@ func validateRadixApplication(radixApplication *radixv1.RadixApplication, valida
 	return errors.Join(errs...)
 }
 
-func validateJobComponent(app *radixv1.RadixApplication, job radixv1.RadixJobComponent) error {
-	var errs []error
-
-	return errors.Join(errs...)
-}
-
-func validateVariables(app *radixv1.RadixApplication) error {
-	for _, component := range app.Spec.Components {
-		err := validateRadixComponentVariables(&component)
-		if err != nil {
-			return err
-		}
-	}
-	for _, job := range app.Spec.Jobs {
-		err := validateRadixComponentVariables(&job)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func validateRadixComponentVariables(component radixv1.RadixCommonComponent) error {
-	if err := validateVariableNames("environment variable name", component.GetVariables()); err != nil {
-		return err
-	}
-
-	for _, envConfig := range component.GetEnvironmentConfig() {
-		if err := validateVariableNames("environment variable name", envConfig.GetVariables()); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func validateVariableNames(resourceName string, variables radixv1.EnvVarsMap) error {
-	existingVariableName := make(map[string]bool)
-	for envVarName := range variables {
-		if _, exists := existingVariableName[envVarName]; exists {
-			return duplicateEnvVarNameWithMessage(envVarName)
-		}
-		existingVariableName[envVarName] = true
-		if err := validateVariableName(resourceName, envVarName); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func validateBranchNames(app *radixv1.RadixApplication) error {
 	for _, env := range app.Spec.Environments {
 		if env.Build.From == "" {
@@ -133,27 +82,6 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 		}
 	}
 	return nil
-}
-
-func validateIllegalPrefixInVariableName(resourceName string, value string) error {
-	if utils.IsRadixEnvVar(value) {
-		return fmt.Errorf("%s %s can not start with prefix reserved for platform", resourceName, value)
-	}
-	return nil
-}
-
-func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {
-	if len(value) > 253 {
-		return InvalidStringValueMaxLengthErrorWithMessage(resourceName, value, 253)
-	}
-
-	re := regexp.MustCompile(regexpExpression)
-
-	isValid := re.MatchString(value)
-	if isValid {
-		return nil
-	}
-	return InvalidResourceNameErrorWithMessage(resourceName, value)
 }
 
 func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {

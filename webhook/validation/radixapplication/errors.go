@@ -69,4 +69,7 @@ var (
 	ErrNotValidCidr                                                 = errors.New("not a valid CIDR")
 	ErrNotValidIPv4Cidr                                             = errors.New("not a valid IPv4 CIDR")
 	ErrEgressRulesExceedMaxNumber                                   = errors.New("number of egress rules exceeds maximum allowed")
+	ErrVariableNameCannotStartWithReservedPrefix                    = errors.New("variable name cannot start with reserved prefix RADIX_ or RADIXOPERATOR_")
+	ErrVariableNameCannotContainIllegalCharacters                   = errors.New("variable name cannot contain illegal characters")
+	ErrVariableNameCannotExceedMaxLength                            = errors.New("variable name cannot exceed maximum length of 253 characters")
 )
