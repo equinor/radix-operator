@@ -13,7 +13,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/robfig/cron/v3"
 )
@@ -29,7 +28,6 @@ var (
 		radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata: struct{}{}, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk: struct{}{}}
 
 	requiredRadixApplicationValidators = []RadixApplicationValidator{
-		validateBranchNames,
 		validateHorizontalScalingConfigForRA,
 		validateVolumeMountConfigForRA,
 		ValidateNotificationsForRA,
@@ -64,24 +62,6 @@ func validateRadixApplication(radixApplication *radixv1.RadixApplication, valida
 	}
 
 	return errors.Join(errs...)
-}
-
-func validateBranchNames(app *radixv1.RadixApplication) error {
-	for _, env := range app.Spec.Environments {
-		if env.Build.From == "" {
-			continue
-		}
-
-		if len(env.Build.From) > 253 {
-			return InvalidStringValueMaxLengthErrorWithMessage("branch from", env.Build.From, 253)
-		}
-
-		isValid := branch.IsValidPattern(env.Build.From)
-		if !isValid {
-			return InvalidBranchNameErrorWithMessage(env.Build.From)
-		}
-	}
-	return nil
 }
 
 func validateHorizontalScalingConfigForRA(app *radixv1.RadixApplication) error {

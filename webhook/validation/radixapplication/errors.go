@@ -72,4 +72,6 @@ var (
 	ErrVariableNameCannotStartWithReservedPrefix                    = errors.New("variable name cannot start with reserved prefix RADIX_ or RADIXOPERATOR_")
 	ErrVariableNameCannotContainIllegalCharacters                   = errors.New("variable name cannot contain illegal characters")
 	ErrVariableNameCannotExceedMaxLength                            = errors.New("variable name cannot exceed maximum length of 253 characters")
+	ErrBranchFromTooLong                                            = errors.New("branch from exceeds maximum length of 253 characters")
+	ErrInvalidBranchName                                            = errors.New("invalid branch name pattern")
 )

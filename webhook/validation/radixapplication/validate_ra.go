@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/rs/zerolog/log"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -57,6 +58,7 @@ func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) 
 			createEnvNameValidator(),
 			createEnvironmentEgressValidator(),
 			createVariableValidator(),
+			createBranchNameValidator(),
 		},
 	}
 }
@@ -73,6 +75,7 @@ func CreateOfflineValidator() Validator {
 			createEnvNameValidator(),
 			createEnvironmentEgressValidator(),
 			createVariableValidator(),
+			createBranchNameValidator(),
 		},
 	}
 }
@@ -115,6 +118,26 @@ func createDeprecatedPublicUsageValidator() validatorFunc {
 			//nolint:staticcheck
 			if component.Public {
 				return fmt.Sprintf("component %s is using deprecated public field. use publicPort and ports.name instead", component.Name), nil
+			}
+		}
+		return "", nil
+	}
+}
+
+func createBranchNameValidator() validatorFunc {
+	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+		for _, env := range ra.Spec.Environments {
+			if env.Build.From == "" {
+				continue
+			}
+
+			if len(env.Build.From) > 253 {
+				return "", fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrBranchFromTooLong)
+			}
+
+			isValid := branch.IsValidPattern(env.Build.From)
+			if !isValid {
+				return "", fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrInvalidBranchName)
 			}
 		}
 		return "", nil
