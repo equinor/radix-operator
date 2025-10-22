@@ -46,13 +46,14 @@ var _ genericvalidator.Validator[*radixv1.RadixApplication] = &Validator{}
 func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) *Validator {
 	return &Validator{
 		validators: []validatorFunc{
-			checkDeprecatedPublicUsage,
+			createDeprecatedPublicUsageValidator(),
 			createComponentValidator(),
 			createJobValidator(),
 			createExternalDNSAliasValidator(),
 			createDNSAliasValidator(),
 			createRRExistValidator(client),
 			createDNSAliasAvailableValidator(client, dnsConfig),
+			createSecretValidator(),
 		},
 	}
 }
@@ -60,7 +61,7 @@ func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) 
 func CreateOfflineValidator() Validator {
 	return Validator{
 		validators: []validatorFunc{
-			checkDeprecatedPublicUsage,
+			createDeprecatedPublicUsageValidator(),
 			createComponentValidator(),
 			createJobValidator(),
 			createExternalDNSAliasValidator(),
@@ -102,14 +103,16 @@ func createRRExistValidator(kubeClient client.Client) validatorFunc {
 	}
 }
 
-func checkDeprecatedPublicUsage(_ context.Context, ra *radixv1.RadixApplication) (string, error) {
-	for _, component := range ra.Spec.Components {
-		//nolint:staticcheck
-		if component.Public {
-			return fmt.Sprintf("component %s is using deprecated public field. use publicPort and ports.name instead", component.Name), nil
+func createDeprecatedPublicUsageValidator() validatorFunc {
+	return func(_ context.Context, ra *radixv1.RadixApplication) (string, error) {
+		for _, component := range ra.Spec.Components {
+			//nolint:staticcheck
+			if component.Public {
+				return fmt.Sprintf("component %s is using deprecated public field. use publicPort and ports.name instead", component.Name), nil
+			}
 		}
+		return "", nil
 	}
-	return "", nil
 }
 
 func createJobValidator() validatorFunc {
