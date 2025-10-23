@@ -29,8 +29,20 @@ const (
 )
 
 var (
-	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
-	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
+	offlineValidators = []validatorFunc{
+		deprecatedPublicUsageValidator,
+		componentValidator,
+		jobValidator,
+		externalDNSAliasValidator,
+		dnsAliasValidator,
+		secretValidator,
+		envNameValidator,
+		environmentEgressValidator,
+		variableValidator,
+		branchNameValidator,
+		horizontalScalingValidator,
+		volumeMountValidator,
+		notificationValidator}
 )
 
 // validatorFunc defines a validatorFunc function for a RadixApplication
@@ -43,44 +55,19 @@ type Validator struct {
 var _ genericvalidator.Validator[*radixv1.RadixApplication] = &Validator{}
 
 func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, reservedDNSAppAliases map[string]string) *Validator {
+	onlineValidators := []validatorFunc{
+		createRRExistValidator(client),
+		createDNSAliasAvailableValidator(client, reservedDNSAliases, reservedDNSAppAliases),
+	}
+
 	return &Validator{
-		validators: []validatorFunc{
-			createDeprecatedPublicUsageValidator(),
-			createComponentValidator(),
-			createJobValidator(),
-			createExternalDNSAliasValidator(),
-			createDNSAliasValidator(),
-			createRRExistValidator(client),
-			createDNSAliasAvailableValidator(client, reservedDNSAliases, reservedDNSAppAliases),
-			createSecretValidator(),
-			createEnvNameValidator(),
-			createEnvironmentEgressValidator(),
-			createVariableValidator(),
-			createBranchNameValidator(),
-			createHorizontalScalingValidator(),
-			createVolumeMountValidator(),
-			createNotificationValidator(),
-		},
+		validators: append(onlineValidators, offlineValidators...),
 	}
 }
 
 func CreateOfflineValidator() Validator {
 	return Validator{
-		validators: []validatorFunc{
-			createDeprecatedPublicUsageValidator(),
-			createComponentValidator(),
-			createJobValidator(),
-			createExternalDNSAliasValidator(),
-			createDNSAliasValidator(),
-			createSecretValidator(),
-			createEnvNameValidator(),
-			createEnvironmentEgressValidator(),
-			createVariableValidator(),
-			createBranchNameValidator(),
-			createHorizontalScalingValidator(),
-			createVolumeMountValidator(),
-			createNotificationValidator(),
-		},
+		validators: offlineValidators,
 	}
 }
 
@@ -116,74 +103,68 @@ func createRRExistValidator(kubeClient client.Client) validatorFunc {
 	}
 }
 
-func createDeprecatedPublicUsageValidator() validatorFunc {
-	return func(_ context.Context, ra *radixv1.RadixApplication) (string, error) {
-		for _, component := range ra.Spec.Components {
-			//nolint:staticcheck
-			if component.Public {
-				return fmt.Sprintf("component %s is using deprecated public field. use publicPort and ports.name instead", component.Name), nil
-			}
+func deprecatedPublicUsageValidator(_ context.Context, ra *radixv1.RadixApplication) (string, error) {
+	for _, component := range ra.Spec.Components {
+		//nolint:staticcheck
+		if component.Public {
+			return fmt.Sprintf("component %s is using deprecated public field. use publicPort and ports.name instead", component.Name), nil
 		}
-		return "", nil
 	}
+	return "", nil
 }
 
-func createBranchNameValidator() validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
-		for _, env := range ra.Spec.Environments {
-			if env.Build.From == "" {
-				continue
-			}
-
-			if len(env.Build.From) > 253 {
-				return "", fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrBranchFromTooLong)
-			}
-
-			isValid := branch.IsValidPattern(env.Build.From)
-			if !isValid {
-				return "", fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrInvalidBranchName)
-			}
+func branchNameValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+	for _, env := range ra.Spec.Environments {
+		if env.Build.From == "" {
+			continue
 		}
-		return "", nil
+
+		if len(env.Build.From) > 253 {
+			return "", fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrBranchFromTooLong)
+		}
+
+		isValid := branch.IsValidPattern(env.Build.From)
+		if !isValid {
+			return "", fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrInvalidBranchName)
+		}
 	}
+	return "", nil
 }
 
-func createJobValidator() validatorFunc {
-	return func(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
-		var wrns []string
-		var errs []error
-		for _, job := range app.Spec.Jobs {
+func jobValidator(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+	var wrns []string
+	var errs []error
+	for _, job := range app.Spec.Jobs {
 
-			if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
-				errs = append(errs, fmt.Errorf("job %s: %w", job.Name, ErrPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage))
-			}
-
-			// Common resource requirements
-			if err := validateResourceRequirements(job.Resources); err != nil {
-				errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
-			}
-
-			if err := validateMonitoring(&job); err != nil {
-				errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
-			}
-
-			if err := validateRuntime(job.Runtime); err != nil {
-				errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
-			}
-
-			if err := validateFailurePolicy(job.FailurePolicy); err != nil {
-				errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
-			}
-
-			for _, environment := range job.EnvironmentConfig {
-				if err := validateJobComponentEnvironment(app, job, environment); err != nil {
-					errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
-				}
-			}
-
+		if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
+			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, ErrPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage))
 		}
-		return strings.Join(wrns, "\n"), errors.Join(errs...)
+
+		// Common resource requirements
+		if err := validateResourceRequirements(job.Resources); err != nil {
+			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+		}
+
+		if err := validateMonitoring(&job); err != nil {
+			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+		}
+
+		if err := validateRuntime(job.Runtime); err != nil {
+			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+		}
+
+		if err := validateFailurePolicy(job.FailurePolicy); err != nil {
+			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+		}
+
+		for _, environment := range job.EnvironmentConfig {
+			if err := validateJobComponentEnvironment(app, job, environment); err != nil {
+				errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
+			}
+		}
+
 	}
+	return strings.Join(wrns, "\n"), errors.Join(errs...)
 }
 
 func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.RadixJobComponent, environment radixv1.RadixJobComponentEnvironmentConfig) error {
@@ -212,48 +193,46 @@ func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.
 	return errors.Join(errs...)
 }
 
-func createComponentValidator() validatorFunc {
-	return func(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
-		var wrns []string
-		var errs []error
-		for _, component := range app.Spec.Components {
+func componentValidator(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+	var wrns []string
+	var errs []error
+	for _, component := range app.Spec.Components {
 
-			if component.Image != "" && (component.SourceFolder != "" || component.DockerfileName != "") {
-				wrns = append(wrns, fmt.Sprintf("component %s: component image will take precedens. src and dockerfile will be ignored.", component.Name))
-			}
-
-			if err := validatePublicPort(component); err != nil {
-				errs = append(errs, err)
-			}
-
-			// Common resource requirements
-			if err := validateResourceRequirements(component.GetResources()); err != nil {
-				errs = append(errs, fmt.Errorf("component %s: %w", component.Name, err))
-			}
-
-			if err := validateMonitoring(&component); err != nil {
-				errs = append(errs, err)
-			}
-
-			errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
-
-			if err := validateRuntime(component.GetRuntime()); err != nil {
-				errs = append(errs, err)
-			}
-
-			if err := validateHealthChecks(component.HealthChecks); err != nil {
-				errs = append(errs, fmt.Errorf("component %s: %w", component.Name, err))
-			}
-
-			for _, environment := range component.EnvironmentConfig {
-				if err := validateComponentEnvironment(app, component, environment); err != nil {
-					errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
-				}
-			}
+		if component.Image != "" && (component.SourceFolder != "" || component.DockerfileName != "") {
+			wrns = append(wrns, fmt.Sprintf("component %s: component image will take precedens. src and dockerfile will be ignored.", component.Name))
 		}
 
-		return strings.Join(wrns, ", "), errors.Join(errs...)
+		if err := validatePublicPort(component); err != nil {
+			errs = append(errs, err)
+		}
+
+		// Common resource requirements
+		if err := validateResourceRequirements(component.GetResources()); err != nil {
+			errs = append(errs, fmt.Errorf("component %s: %w", component.Name, err))
+		}
+
+		if err := validateMonitoring(&component); err != nil {
+			errs = append(errs, err)
+		}
+
+		errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
+
+		if err := validateRuntime(component.GetRuntime()); err != nil {
+			errs = append(errs, err)
+		}
+
+		if err := validateHealthChecks(component.HealthChecks); err != nil {
+			errs = append(errs, fmt.Errorf("component %s: %w", component.Name, err))
+		}
+
+		for _, environment := range component.EnvironmentConfig {
+			if err := validateComponentEnvironment(app, component, environment); err != nil {
+				errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
+			}
+		}
 	}
+
+	return strings.Join(wrns, ", "), errors.Join(errs...)
 }
 
 func validateComponentEnvironment(app *radixv1.RadixApplication, component radixv1.RadixComponent, environment radixv1.RadixEnvironmentConfig) error {
@@ -290,15 +269,13 @@ func validateComponentEnvironment(app *radixv1.RadixApplication, component radix
 	return errors.Join(errs...)
 }
 
-func createEnvNameValidator() validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
-		for _, env := range ra.Spec.Environments {
-			if len(ra.Name)+len(env.Name) > 62 {
-				return "", fmt.Errorf("environment %s: %w", env.Name, ErrInvalidEnvironmentNameLength)
-			}
+func envNameValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+	for _, env := range ra.Spec.Environments {
+		if len(ra.Name)+len(env.Name) > 62 {
+			return "", fmt.Errorf("environment %s: %w", env.Name, ErrInvalidEnvironmentNameLength)
 		}
-		return "", nil
 	}
+	return "", nil
 }
 
 func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, componentImage string) bool {

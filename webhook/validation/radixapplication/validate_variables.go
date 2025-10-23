@@ -13,23 +13,21 @@ var (
 	validNameRegex = regexp.MustCompile(`^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$`)
 )
 
-func createVariableValidator() validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+func variableValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
 
-		for _, component := range ra.Spec.Components {
-			err := validateRadixComponentVariables(&component)
-			if err != nil {
-				return "", err
-			}
+	for _, component := range ra.Spec.Components {
+		err := validateRadixComponentVariables(&component)
+		if err != nil {
+			return "", err
 		}
-		for _, job := range ra.Spec.Jobs {
-			err := validateRadixComponentVariables(&job)
-			if err != nil {
-				return "", err
-			}
-		}
-		return "", nil
 	}
+	for _, job := range ra.Spec.Jobs {
+		err := validateRadixComponentVariables(&job)
+		if err != nil {
+			return "", err
+		}
+	}
+	return "", nil
 }
 
 func validateRadixComponentVariables(component radixv1.RadixCommonComponent) error {

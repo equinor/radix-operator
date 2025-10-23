@@ -13,31 +13,29 @@ import (
 var validAzureEventHubTriggerCheckpoints = map[radixv1.AzureEventHubTriggerCheckpointStrategy]any{radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction: struct{}{},
 	radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata: struct{}{}, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk: struct{}{}}
 
-func createHorizontalScalingValidator() validatorFunc {
-	return func(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
-		var errs []error
+func horizontalScalingValidator(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+	var errs []error
 
-		for _, component := range app.Spec.Components {
-			if component.HorizontalScaling != nil {
-				err := validateHorizontalScalingPart(component.HorizontalScaling)
-				if err != nil {
-					errs = append(errs, fmt.Errorf("error validating horizontal scaling for component: %s: %w", component.Name, err))
-				}
-			}
-			for _, envConfig := range component.EnvironmentConfig {
-				if envConfig.HorizontalScaling == nil {
-					continue
-				}
-
-				err := validateHorizontalScalingPart(envConfig.HorizontalScaling)
-				if err != nil {
-					errs = append(errs, fmt.Errorf("error validating horizontal scaling for environment %s in component %s: %w", envConfig.Environment, component.Name, err))
-				}
+	for _, component := range app.Spec.Components {
+		if component.HorizontalScaling != nil {
+			err := validateHorizontalScalingPart(component.HorizontalScaling)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("error validating horizontal scaling for component: %s: %w", component.Name, err))
 			}
 		}
+		for _, envConfig := range component.EnvironmentConfig {
+			if envConfig.HorizontalScaling == nil {
+				continue
+			}
 
-		return "", errors.Join(errs...)
+			err := validateHorizontalScalingPart(envConfig.HorizontalScaling)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("error validating horizontal scaling for environment %s in component %s: %w", envConfig.Environment, component.Name, err))
+			}
+		}
 	}
+
+	return "", errors.Join(errs...)
 }
 
 func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error {

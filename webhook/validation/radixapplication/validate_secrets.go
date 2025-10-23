@@ -7,20 +7,18 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-func createSecretValidator() validatorFunc {
-	return func(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
-		for _, component := range app.Spec.Components {
-			if err := validateRadixComponentSecrets(&component, app); err != nil {
-				return "", err
-			}
+func secretValidator(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+	for _, component := range app.Spec.Components {
+		if err := validateRadixComponentSecrets(&component, app); err != nil {
+			return "", err
 		}
-		for _, job := range app.Spec.Jobs {
-			if err := validateRadixComponentSecrets(&job, app); err != nil {
-				return "", err
-			}
-		}
-		return "", nil
 	}
+	for _, job := range app.Spec.Jobs {
+		if err := validateRadixComponentSecrets(&job, app); err != nil {
+			return "", err
+		}
+	}
+	return "", nil
 }
 
 func validateRadixComponentSecrets(component radixv1.RadixCommonComponent, app *radixv1.RadixApplication) error {

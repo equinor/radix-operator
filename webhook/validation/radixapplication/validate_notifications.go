@@ -10,21 +10,19 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-func createNotificationValidator() validatorFunc {
-	return func(_ context.Context, ra *radixv1.RadixApplication) (string, error) {
-		var errs []error
-		for _, job := range ra.Spec.Jobs {
-			if err := validateNotifications(ra, job.Notifications, job.GetName(), ""); err != nil {
+func notificationValidator(_ context.Context, ra *radixv1.RadixApplication) (string, error) {
+	var errs []error
+	for _, job := range ra.Spec.Jobs {
+		if err := validateNotifications(ra, job.Notifications, job.GetName(), ""); err != nil {
+			errs = append(errs, err)
+		}
+		for _, envConfig := range job.EnvironmentConfig {
+			if err := validateNotifications(ra, envConfig.Notifications, job.GetName(), envConfig.Environment); err != nil {
 				errs = append(errs, err)
 			}
-			for _, envConfig := range job.EnvironmentConfig {
-				if err := validateNotifications(ra, envConfig.Notifications, job.GetName(), envConfig.Environment); err != nil {
-					errs = append(errs, err)
-				}
-			}
 		}
-		return "", errors.Join(errs...)
 	}
+	return "", errors.Join(errs...)
 }
 
 func validateNotifications(ra *radixv1.RadixApplication, notifications *radixv1.Notifications, jobComponentName string, environment string) error {

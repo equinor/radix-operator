@@ -17,40 +17,38 @@ const (
 	maximumNumberOfEgressRules = 1000
 )
 
-func createEnvironmentEgressValidator() validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+func environmentEgressValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
 
-		var errs []error
-		for _, env := range ra.Spec.Environments {
-			if len(env.Egress.Rules) > maximumNumberOfEgressRules {
-				errs = append(errs, fmt.Errorf("environment %s: %w (max: %d)", env.Name, ErrEgressRulesExceedMaxNumber, maximumNumberOfEgressRules))
-				continue
+	var errs []error
+	for _, env := range ra.Spec.Environments {
+		if len(env.Egress.Rules) > maximumNumberOfEgressRules {
+			errs = append(errs, fmt.Errorf("environment %s: %w (max: %d)", env.Name, ErrEgressRulesExceedMaxNumber, maximumNumberOfEgressRules))
+			continue
+		}
+		for _, egressRule := range env.Egress.Rules {
+			if len(egressRule.Destinations) < 1 {
+				errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, ErrEgressRuleMustContainAtLeastOneDestination))
 			}
-			for _, egressRule := range env.Egress.Rules {
-				if len(egressRule.Destinations) < 1 {
-					errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, ErrEgressRuleMustContainAtLeastOneDestination))
+			for _, ipMask := range egressRule.Destinations {
+				err := validateEgressRuleIpMask(string(ipMask))
+				if err != nil {
+					errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, err))
 				}
-				for _, ipMask := range egressRule.Destinations {
-					err := validateEgressRuleIpMask(string(ipMask))
-					if err != nil {
-						errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, err))
-					}
+			}
+			for _, port := range egressRule.Ports {
+				err := validateEgressRulePortProtocol(port.Protocol)
+				if err != nil {
+					errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, err))
 				}
-				for _, port := range egressRule.Ports {
-					err := validateEgressRulePortProtocol(port.Protocol)
-					if err != nil {
-						errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, err))
-					}
-					err = validateEgressRulePort(port.Port)
-					if err != nil {
-						errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, err))
-					}
+				err = validateEgressRulePort(port.Port)
+				if err != nil {
+					errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, err))
 				}
 			}
 		}
-
-		return "", errors.Join(errs...)
 	}
+
+	return "", errors.Join(errs...)
 }
 
 func validateEgressRulePort(port int32) error {

@@ -16,54 +16,52 @@ var (
 	storageAccountNameRegExp = regexp.MustCompile(`^[a-z0-9]{3,24}$`)
 )
 
-func createVolumeMountValidator() validatorFunc {
-	return func(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
-		var errs []error
-		var wrns []string
+func volumeMountValidator(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+	var errs []error
+	var wrns []string
 
-		for _, component := range app.Spec.Components {
-			hasComponentIdentityAzureClientId := len(component.Identity.GetAzure().GetClientId()) > 0
-			wrn, err := validateVolumeMounts(component.VolumeMounts, hasComponentIdentityAzureClientId)
+	for _, component := range app.Spec.Components {
+		hasComponentIdentityAzureClientId := len(component.Identity.GetAzure().GetClientId()) > 0
+		wrn, err := validateVolumeMounts(component.VolumeMounts, hasComponentIdentityAzureClientId)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed volumeMount validation for component %s. %w", component.Name, err))
+		}
+		if wrn != "" {
+			wrns = append(wrns, fmt.Sprintf("component %s: %s", component.Name, wrn))
+		}
+		for _, envConfig := range component.EnvironmentConfig {
+			hasEnvIdentityAzureClientId := hasComponentIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
+			wrn, err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("failed volumeMount validation for component %s. %w", component.Name, err))
+				errs = append(errs, fmt.Errorf("failed volumeMount validation for component %s in environment %s. %w", component.Name, envConfig.Environment, err))
 			}
 			if wrn != "" {
-				wrns = append(wrns, fmt.Sprintf("component %s: %s", component.Name, wrn))
-			}
-			for _, envConfig := range component.EnvironmentConfig {
-				hasEnvIdentityAzureClientId := hasComponentIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
-				wrn, err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId)
-				if err != nil {
-					errs = append(errs, fmt.Errorf("failed volumeMount validation for component %s in environment %s. %w", component.Name, envConfig.Environment, err))
-				}
-				if wrn != "" {
-					wrns = append(wrns, fmt.Sprintf("component %s in env %s: %s", component.Name, envConfig.Environment, wrn))
-				}
+				wrns = append(wrns, fmt.Sprintf("component %s in env %s: %s", component.Name, envConfig.Environment, wrn))
 			}
 		}
-		for _, job := range app.Spec.Jobs {
-			hasJobIdentityAzureClientId := len(job.Identity.GetAzure().GetClientId()) > 0
-			wrn, err := validateVolumeMounts(job.VolumeMounts, hasJobIdentityAzureClientId)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("failed volumeMount validation for job %s. %w", job.Name, err))
-			}
-			if wrn != "" {
-				wrns = append(wrns, fmt.Sprintf("component %s: %s", job.Name, wrn))
-			}
-			for _, envConfig := range job.EnvironmentConfig {
-				hasEnvIdentityAzureClientId := hasJobIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
-				wrn, err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId)
-				if err != nil {
-					errs = append(errs, fmt.Errorf("failed volumeMount validation for job %s in environment %s. %w", job.Name, envConfig.Environment, err))
-				}
-				if wrn != "" {
-					wrns = append(wrns, fmt.Sprintf("component %s in env %s: %s", job.Name, envConfig.Environment, wrn))
-				}
-			}
-		}
-
-		return strings.Join(wrns, "\n"), errors.Join(errs...)
 	}
+	for _, job := range app.Spec.Jobs {
+		hasJobIdentityAzureClientId := len(job.Identity.GetAzure().GetClientId()) > 0
+		wrn, err := validateVolumeMounts(job.VolumeMounts, hasJobIdentityAzureClientId)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed volumeMount validation for job %s. %w", job.Name, err))
+		}
+		if wrn != "" {
+			wrns = append(wrns, fmt.Sprintf("component %s: %s", job.Name, wrn))
+		}
+		for _, envConfig := range job.EnvironmentConfig {
+			hasEnvIdentityAzureClientId := hasJobIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
+			wrn, err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed volumeMount validation for job %s in environment %s. %w", job.Name, envConfig.Environment, err))
+			}
+			if wrn != "" {
+				wrns = append(wrns, fmt.Sprintf("component %s in env %s: %s", job.Name, envConfig.Environment, wrn))
+			}
+		}
+	}
+
+	return strings.Join(wrns, "\n"), errors.Join(errs...)
 }
 
 func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount, hasIdentityAzureClientId bool) (string, error) {

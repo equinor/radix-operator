@@ -40,42 +40,38 @@ func createDNSAliasAvailableValidator(kubeClient client.Client, reservedDNSAlias
 	}
 }
 
-func createDNSAliasValidator() validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
-		var errs []error
+func dnsAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+	var errs []error
 
-		for _, dnsAlias := range ra.Spec.DNSAlias {
-			if err := validateDNSAliasComponentAndEnvironmentAvailable(ra, dnsAlias.Alias, dnsAlias.Component, dnsAlias.Environment); err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			if !doesComponentHaveAPublicPort(ra, dnsAlias.Component) {
-				errs = append(errs, fmt.Errorf("component %s is not public. %w", dnsAlias.Component, ErrDNSAliasComponentIsNotMarkedAsPublic))
-				continue
-			}
+	for _, dnsAlias := range ra.Spec.DNSAlias {
+		if err := validateDNSAliasComponentAndEnvironmentAvailable(ra, dnsAlias.Alias, dnsAlias.Component, dnsAlias.Environment); err != nil {
+			errs = append(errs, err)
+			continue
 		}
-		return "", errors.Join(errs...)
+		if !doesComponentHaveAPublicPort(ra, dnsAlias.Component) {
+			errs = append(errs, fmt.Errorf("component %s is not public. %w", dnsAlias.Component, ErrDNSAliasComponentIsNotMarkedAsPublic))
+			continue
+		}
 	}
+	return "", errors.Join(errs...)
 }
 
-func createExternalDNSAliasValidator() validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
-		var errs []error
+func externalDNSAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+	var errs []error
 
-		for _, externalAlias := range ra.Spec.DNSExternalAlias {
-			if !doesEnvExist(ra, externalAlias.Environment) {
-				errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasEnvironmentNotDefined))
-			}
-			if !doesComponentExistAndEnabled(ra, externalAlias.Component, externalAlias.Environment) {
-				errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasComponentNotDefined))
-			}
-
-			if !doesComponentHaveAPublicPort(ra, externalAlias.Component) {
-				errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasComponentNotMarkedAsPublic))
-			}
+	for _, externalAlias := range ra.Spec.DNSExternalAlias {
+		if !doesEnvExist(ra, externalAlias.Environment) {
+			errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasEnvironmentNotDefined))
 		}
-		return "", errors.Join(errs...)
+		if !doesComponentExistAndEnabled(ra, externalAlias.Component, externalAlias.Environment) {
+			errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasComponentNotDefined))
+		}
+
+		if !doesComponentHaveAPublicPort(ra, externalAlias.Component) {
+			errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasComponentNotMarkedAsPublic))
+		}
 	}
+	return "", errors.Join(errs...)
 }
 
 func validateDNSAliasComponentAndEnvironmentAvailable(ra *radixv1.RadixApplication, dnsAlias, component, environment string) error {
