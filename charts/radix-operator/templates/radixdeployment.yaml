@@ -1263,6 +1263,7 @@ spec:
                                         name used when mounting the secret, key or
                                         certificate.
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     encoding:
                                       description: |-
@@ -1275,6 +1276,7 @@ spec:
                                       description: Defines the name of the environment
                                         variable that will contain the value of the
                                         secret, key or certificate.
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     format:
                                       description: |-
@@ -1298,6 +1300,7 @@ spec:
                                         in the keyvault.
                                       maxLength: 127
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     type:
                                       description: Type of item in the keyvault referenced
@@ -1338,6 +1341,9 @@ spec:
                             - name
                             type: object
                           type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                       type: object
                     secrets:
                       items:
@@ -1930,6 +1936,7 @@ spec:
                                         name used when mounting the secret, key or
                                         certificate.
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     encoding:
                                       description: |-
@@ -1942,6 +1949,7 @@ spec:
                                       description: Defines the name of the environment
                                         variable that will contain the value of the
                                         secret, key or certificate.
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     format:
                                       description: |-
@@ -1965,6 +1973,7 @@ spec:
                                         in the keyvault.
                                       maxLength: 127
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     type:
                                       description: Type of item in the keyvault referenced
@@ -2005,6 +2014,9 @@ spec:
                             - name
                             type: object
                           type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                       type: object
                     secrets:
                       items:

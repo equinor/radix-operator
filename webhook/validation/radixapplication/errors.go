@@ -55,7 +55,7 @@ var (
 	ErrPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage = errors.New("component cannot have neither 'src' nor 'Dockerfile' set when image is defined")
 	ErrSchedulerPortCannotBeEmptyForJob                             = errors.New("scheduler port cannot be empty for job")
 	ErrPayloadPathCannotBeEmptyForJob                               = errors.New("payload path cannot be empty for job")
-	ErrSecretNameConflictsWithEnvironmentVariable                   = errors.New("secret name conflicts with environment variable")
+	ErrSecretNameConflictsWithVariable                              = errors.New("secret name conflicts with variable")
 	ErrDuplicateAzureKeyVaultName                                   = errors.New("duplicate Azure Key vault name")
 	ErrMissingAzureIdentityForAzureKeyVault                         = errors.New("missing Azure identity for Azure Key vault with useAzureIdentity enabled")
 	ErrDuplicateEnvVarName                                          = errors.New("duplicate environment variable name in Azure Key vault secret references")
@@ -74,6 +74,13 @@ var (
 	ErrVariableNameCannotExceedMaxLength                            = errors.New("variable name cannot exceed maximum length of 253 characters")
 	ErrBranchFromTooLong                                            = errors.New("branch from exceeds maximum length of 253 characters")
 	ErrInvalidBranchName                                            = errors.New("invalid branch name pattern")
+
+	ErrInvalidWebhookUrl                   = errors.New("invalid webhook URL")
+	ErrNotAllowedSchemeInWebhookUrl        = errors.New("webhook URL scheme not allowed, must be http or https")
+	ErrMissingPortInWebhookUrl             = errors.New("webhook URL must include a port")
+	ErrOnlyAppComponentAllowedInWebhookUrl = errors.New("webhook URL hostname must reference a component defined in the application")
+	ErrInvalidPortInWebhookUrl             = errors.New("webhook URL port does not match any port defined in the target component")
+	ErrInvalidUseOfPublicPortInWebhookUrl  = errors.New("webhook URL cannot use the public port of the target component")
 
 	ErrNoDefinitionInTrigger                                       = errors.New("no definition in trigger")
 	ErrMoreThanOneDefinitionInTrigger                              = errors.New("each trigger must contain only one definition")

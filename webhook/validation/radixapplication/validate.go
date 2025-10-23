@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
@@ -32,7 +31,6 @@ const (
 var (
 	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis), string(radixv1.SessionStoreSystemManaged)}
 	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
-	propertyNameRegex           = regexp.MustCompile(`^(([A-Za-z0-9][-._A-Za-z0-9.]*)?[A-Za-z0-9])?$`)
 )
 
 // validatorFunc defines a validatorFunc function for a RadixApplication
@@ -44,7 +42,7 @@ type Validator struct {
 
 var _ genericvalidator.Validator[*radixv1.RadixApplication] = &Validator{}
 
-func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) *Validator {
+func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, reservedDNSAppAliases map[string]string) *Validator {
 	return &Validator{
 		validators: []validatorFunc{
 			createDeprecatedPublicUsageValidator(),
@@ -53,7 +51,7 @@ func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) 
 			createExternalDNSAliasValidator(),
 			createDNSAliasValidator(),
 			createRRExistValidator(client),
-			createDNSAliasAvailableValidator(client, dnsConfig),
+			createDNSAliasAvailableValidator(client, reservedDNSAliases, reservedDNSAppAliases),
 			createSecretValidator(),
 			createEnvNameValidator(),
 			createEnvironmentEgressValidator(),
@@ -61,6 +59,7 @@ func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) 
 			createBranchNameValidator(),
 			createHorizontalScalingValidator(),
 			createVolumeMountValidator(),
+			createNotificationValidator(),
 		},
 	}
 }
@@ -80,6 +79,7 @@ func CreateOfflineValidator() Validator {
 			createBranchNameValidator(),
 			createHorizontalScalingValidator(),
 			createVolumeMountValidator(),
+			createNotificationValidator(),
 		},
 	}
 }
@@ -577,5 +577,28 @@ func validateFailurePolicyRuleOnExitCodes(onExitCodes radixv1.RadixJobComponentF
 		return ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator
 	}
 
+	return nil
+}
+
+func getRadixCommonComponentByName(ra *radixv1.RadixApplication, componentName string) (*radixv1.RadixComponent, *radixv1.RadixJobComponent) {
+	for _, radixComponent := range ra.Spec.Components {
+		if strings.EqualFold(radixComponent.GetName(), componentName) {
+			return &radixComponent, nil
+		}
+	}
+	for _, radixJobComponent := range ra.Spec.Jobs {
+		if strings.EqualFold(radixJobComponent.GetName(), componentName) {
+			return nil, &radixJobComponent
+		}
+	}
+	return nil, nil
+}
+
+func getComponentPort(radixComponent radixv1.RadixCommonComponent, port string) *radixv1.ComponentPort {
+	for _, componentPort := range radixComponent.GetPorts() {
+		if strings.EqualFold(strconv.Itoa(int(componentPort.Port)), port) {
+			return &componentPort
+		}
+	}
 	return nil
 }

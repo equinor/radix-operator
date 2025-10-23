@@ -163,10 +163,6 @@ spec:
               value: {{ .Values.gitClone.image.repository }}:{{ .Values.gitClone.image.tag | default "latest" }}
             - name: RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE # deprecated issue #1388
               value: {{ .Values.gitCloneBashImage }}
-            - name: RADIX_RESERVED_APP_DNS_ALIASES
-              value: {{ include "helm-toolkit.utils.joinMapWithComma" .Values.reservedAppDNSAlias | quote }}
-            - name: RADIX_RESERVED_DNS_ALIASES
-              value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.reservedDNSAlias | quote }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER
               value: {{ .Values.ingress.certificate.automation.clusterIssuer }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION

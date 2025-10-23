@@ -22,20 +22,6 @@ gitCloneNsLookupImage: "" # deprecated issue #1388 # Image containing nslookup, 
 gitCloneGitImage: "" # deprecated issue #1388 # Image containing git, e.g. "alpine/git:2.45.2". Defaults to "alpine/git:latest" if not set
 gitCloneBashImage: "" # deprecated issue #1388 # Image containing bash, e.g. "bash:5.2". Defaults to "bash:latest" if not set
 
-reservedAppDNSAlias:
-  api: radix-api
-  canary: radix-canary-golang
-  console: radix-web-console
-  cost-api: radix-cost-allocation-api
-  webhook: radix-github-webhook
-reservedDNSAlias:
-  - grafana
-  - prometheus
-  - www
-  - app
-  - playground
-  - dev
-
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
@@ -225,7 +211,7 @@ radixPipelineRunner:
     tag: ""
 
 radixImageBuilder:
-  image: 
+  image:
     repository: ghcr.io/equinor/radix/image-builder
     tag: latest
 
@@ -241,14 +227,28 @@ radixJobScheduler:
     tag: ""
 
 radixWebhook:
-  enabled: false
+  enabled: true
 
   logLevel: info
   logPretty: false
   requireAdGroups: true
   requireConfigurationItem: true
 
-  image: 
+  reservedAppDNSAliases:
+    api: radix-api
+    canary: radix-canary-golang
+    console: radix-web-console
+    cost-api: radix-cost-allocation-api
+    webhook: radix-github-webhook
+  reservedDNSAliases:
+    - grafana
+    - prometheus
+    - www
+    - app
+    - playground
+    - dev
+
+  image:
     repository: ghcr.io/equinor/radix/webhook
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""

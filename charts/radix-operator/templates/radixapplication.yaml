@@ -4927,7 +4927,6 @@ spec:
                       type: array
                   required:
                   - name
-                  - payload
                   - schedulerPort
                   type: object
                 maxItems: 100

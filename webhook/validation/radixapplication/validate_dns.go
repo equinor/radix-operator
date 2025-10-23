@@ -6,12 +6,11 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func createDNSAliasAvailableValidator(kubeClient client.Client, dnsAliasConfig *dnsalias.DNSConfig) validatorFunc {
+func createDNSAliasAvailableValidator(kubeClient client.Client, reservedDNSAliases []string, reservedDNSAppAliases map[string]string) validatorFunc {
 	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
 		var errs []error
 		list := radixv1.RadixDNSAliasList{}
@@ -29,11 +28,11 @@ func createDNSAliasAvailableValidator(kubeClient client.Client, dnsAliasConfig *
 				errs = append(errs, fmt.Errorf("dns alias %s is already used. %w", dnsAlias.Alias, ErrDNSAliasAlreadyUsedByAnotherApplication))
 			}
 
-			if reservingAppName, aliasReserved := dnsAliasConfig.ReservedAppDNSAliases[dnsAlias.Alias]; aliasReserved && reservingAppName != ra.Name {
+			if reservingAppName, aliasReserved := reservedDNSAppAliases[dnsAlias.Alias]; aliasReserved && reservingAppName != ra.Name {
 				errs = append(errs, fmt.Errorf("dns alias %s is reserved. %w", dnsAlias.Alias, ErrDNSAliasReservedForRadixPlatformApplication))
 			}
 
-			if slice.Any(dnsAliasConfig.ReservedDNSAliases, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Alias }) {
+			if slice.Any(reservedDNSAliases, func(reservedAlias string) bool { return reservedAlias == dnsAlias.Alias }) {
 				errs = append(errs, fmt.Errorf("dns alias %s is reserved. %w", dnsAlias.Alias, ErrDNSAliasReservedForRadixPlatformService))
 			}
 		}

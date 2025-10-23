@@ -733,7 +733,7 @@ type RadixJobComponent struct {
 
 	// Defines the path where the job payload is mounted.
 	// More info: https://www.radix.equinor.com/radix-config#payload
-	// +required
+	// +optional
 	Payload *RadixJobComponentPayload `json:"payload,omitempty"`
 
 	// List of ports that the job binds to.

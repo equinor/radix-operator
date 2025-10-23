@@ -4882,7 +4882,6 @@
             },
             "required": [
               "name",
-              "payload",
               "schedulerPort"
             ],
             "type": "object"

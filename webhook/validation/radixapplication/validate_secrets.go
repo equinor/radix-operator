@@ -60,7 +60,7 @@ func validateConflictingEnvironmentAndSecretNames(componentName string, secrets 
 	for _, secret := range secrets {
 		for _, envVarMap := range envsEnvVarMap {
 			if _, contains := envVarMap[secret]; contains {
-				return fmt.Errorf("component %s, secret %s: %w", componentName, secret, ErrSecretNameConflictsWithEnvironmentVariable)
+				return fmt.Errorf("component %s, secret %s: %w", componentName, secret, ErrSecretNameConflictsWithVariable)
 			}
 		}
 	}

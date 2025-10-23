@@ -8,11 +8,14 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/webhook/main.go",
 			"env": {
-				"REQUIRE_AD_GROUPS": "true",
-				"REQUIRE_CONFIGURATION_ITEM": "true",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
-				"CERTS_DIR": "${workspaceFolder}/local/certs"
+				"CERTS_DIR": "${workspaceFolder}/local/certs",
+
+				"REQUIRE_AD_GROUPS": "true",
+				"REQUIRE_CONFIGURATION_ITEM": "true",
+				"RADIX_RESERVED_APP_DNS_ALIASES": "api:radix-api,canary:radix-canary-golang,console:radix-web-console,cost-api:radix-cost-allocation-api,webhook:radix-github-webhook",
+				"RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www,app,playground,dev"
 			}
 		},
 		{
@@ -118,8 +121,6 @@
 				"--RADIX_ZONE=dev",
 				"--RADIX_CLUSTERNAME=weekly-43",
 				"--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
-				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
-				"--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
 				"--APPLY_CONFIG_DEPLOY_EXTERNALDNS=true",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
@@ -206,8 +207,7 @@
 				"LOG_PRETTY": "true",
 				"RADIX_APP": "rihag",
 				"RADIX_COMPONENT": "compute",
-				"RADIX_PORTS": "8080",
-
+				"RADIX_PORTS": "8080"
 			}
 		},
 		{
