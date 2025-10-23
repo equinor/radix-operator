@@ -112,7 +112,6 @@ var (
 	ErrInvalidRuntimeArchitectureWithNodeType                              = errors.New("runtime architecture and nodeType cannot be defined at the same time")
 	ErrInvalidIPv4OrCIDR                                                   = errors.New("invalid IPv4 or CIDR")
 	ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator                = errors.New("value 0 cannot be used for the In operator")
-	ErrInvalidBlobFuse2BlockCachePrefetchCount                             = errors.New("prefetchCount must be 0 or greater than 10")
 )
 
 // DuplicateAliasForDNSAliasError Error when aliases are duplicate
@@ -262,38 +261,6 @@ func MaxReplicasForHPANotSetOrZeroInEnvironmentErrorWithMessage(component, envir
 // MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage Indicates that minReplicas is greater than maxReplicas
 func MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage(component, environment string) error {
 	return errors.WithMessagef(ErrMinReplicasGreaterThanMaxReplicas, "minReplicas is greater than maxReplicas for component %s in environment %s", component, environment)
-}
-
-func volumeMountValidationError(name string, cause error) error {
-	return fmt.Errorf("volumeMount %s failed validation. %w", name, cause)
-}
-
-func volumeMountValidationFailedForComponentInEnvironment(volumeMountName, envName string, cause error) error {
-	return fmt.Errorf("failed volumeMount validation for component %s in environment %s. %w", volumeMountName, envName, cause)
-}
-
-func volumeMountValidationFailedForJobComponentInEnvironment(volumeMountName, envName string, cause error) error {
-	return fmt.Errorf("failed volumeMount validation for job %s in environment %s. %w", volumeMountName, envName, cause)
-}
-
-func volumeMountValidationFailedForComponent(volumeMountName string, cause error) error {
-	return fmt.Errorf("failed volumeMount validation for component %s. %w", volumeMountName, cause)
-}
-
-func volumeMountValidationFailedForJobComponent(volumeMountName string, cause error) error {
-	return fmt.Errorf("failed volumeMount validation for job %s. %w", volumeMountName, cause)
-}
-
-func volumeMountDeprecatedSourceValidationError(cause error) error {
-	return fmt.Errorf("deprecated arguments failed validation. %w", cause)
-}
-
-func volumeMountBlobFuse2ValidationError(cause error) error {
-	return fmt.Errorf("blobFuse2 failed validation. %w", cause)
-}
-
-func volumeMountEmptyDirValidationError(cause error) error {
-	return fmt.Errorf("emptyDir failed validation. %w", cause)
 }
 
 // ApplicationNameNotLowercaseErrorWithMessage Indicates that application name contains upper case letters

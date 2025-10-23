@@ -60,6 +60,7 @@ func CreateOnlineValidator(client client.Client, dnsConfig *dnsalias.DNSConfig) 
 			createVariableValidator(),
 			createBranchNameValidator(),
 			createHorizontalScalingValidator(),
+			createVolumeMountValidator(),
 		},
 	}
 }
@@ -78,6 +79,7 @@ func CreateOfflineValidator() Validator {
 			createVariableValidator(),
 			createBranchNameValidator(),
 			createHorizontalScalingValidator(),
+			createVolumeMountValidator(),
 		},
 	}
 }
