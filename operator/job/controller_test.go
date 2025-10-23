@@ -7,7 +7,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
@@ -135,11 +134,7 @@ func (s *jobTestSuite) createHandler(hasSynced func(syncedOk bool), opts ...hand
 
 func createConfig() *config.Config {
 	return &config.Config{
-		DNSConfig: &dnsalias.DNSConfig{
-			DNSZone:               "dev.radix.equinor.com",
-			ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
-			ReservedDNSAliases:    []string{"grafana"},
-		},
+		DNSZone: "dev.radix.equinor.com",
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:          3,
 			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),

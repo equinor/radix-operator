@@ -1094,6 +1094,9 @@ spec:
                           type: string
                       type: object
                     name:
+                      maxLength: 50
+                      minLength: 1
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     network:
                       description: |-
@@ -1609,6 +1612,9 @@ spec:
                   type: object
                 type: array
               environment:
+                maxLength: 63
+                minLength: 1
+                pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                 type: string
               imagePullSecrets:
                 items:

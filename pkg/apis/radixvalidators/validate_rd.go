@@ -44,10 +44,6 @@ func GitTagsContainIllegalChars(gitTags string) error {
 func CanRadixDeploymentBeInserted(deploy *radixv1.RadixDeployment) error {
 	// todo! ensure that all rules are valid
 	errs := []error{}
-	err := validateAppName(deploy.Name)
-	if err != nil {
-		errs = append(errs, err)
-	}
 
 	if err := validateDeployComponents(deploy); len(err) > 0 {
 		errs = append(errs, err...)
@@ -57,21 +53,12 @@ func CanRadixDeploymentBeInserted(deploy *radixv1.RadixDeployment) error {
 		errs = append(errs, err...)
 	}
 
-	err = validateRequiredResourceName("env name", deploy.Spec.Environment, 253)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
 	return stderrors.Join(errs...)
 }
 
 func validateDeployComponents(deployment *radixv1.RadixDeployment) []error {
 	errs := make([]error, 0)
 	for _, component := range deployment.Spec.Components {
-		if err := validateRequiredResourceName("component name", component.Name, 253); err != nil {
-			errs = append(errs, err)
-		}
-
 		if err := validateReplica(component.Replicas, "component replicas"); err != nil {
 			errs = append(errs, err)
 		}
@@ -91,9 +78,6 @@ func validateDeployComponents(deployment *radixv1.RadixDeployment) []error {
 func validateDeployJobComponents(deployment *radixv1.RadixDeployment) []error {
 	errs := make([]error, 0)
 	for _, job := range deployment.Spec.Jobs {
-		if err := validateRequiredResourceName("job name", job.Name, 253); err != nil {
-			errs = append(errs, err)
-		}
 
 		if err := validateDeployJobPayload(&job); err != nil {
 			errs = append(errs, err)

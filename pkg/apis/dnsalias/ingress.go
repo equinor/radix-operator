@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -41,7 +40,7 @@ func GetDNSAliasHost(alias, dnsZone string) string {
 
 func (s *syncer) syncIngress(ctx context.Context, namespace string, radixDeployComponent radixv1.RadixCommonDeployComponent) (*networkingv1.Ingress, error) {
 	ingressName := GetDNSAliasIngressName(s.radixDNSAlias.GetName())
-	newIngress, err := buildIngress(radixDeployComponent, s.radixDNSAlias, s.dnsConfig, s.oauth2DefaultConfig, s.ingressConfiguration)
+	newIngress, err := buildIngress(radixDeployComponent, s.radixDNSAlias, s.dnsZone, s.oauth2DefaultConfig, s.ingressConfiguration)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +107,7 @@ func (s *syncer) deleteIngresses(ctx context.Context, selector labels.Set) error
 	return s.kubeUtil.DeleteIngresses(ctx, ingresses.Items...)
 }
 
-func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsConfig *dnsalias.DNSConfig, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
+func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsZone string, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
 	publicPort := getComponentPublicPort(radixDeployComponent)
 	if publicPort == nil {
 		return nil, radixvalidators.ComponentForDNSAliasIsNotMarkedAsPublicError(radixDeployComponent.GetName())
@@ -116,7 +115,7 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 	aliasName := radixDNSAlias.GetName()
 	aliasSpec := radixDNSAlias.Spec
 	ingressName := GetDNSAliasIngressName(aliasName)
-	hostName := GetDNSAliasHost(aliasName, dnsConfig.DNSZone)
+	hostName := GetDNSAliasHost(aliasName, dnsZone)
 	ingressSpec := ingress.GetIngressSpec(hostName, aliasSpec.Component, defaults.TLSSecretName, publicPort.Port)
 
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)

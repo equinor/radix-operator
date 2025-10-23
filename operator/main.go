@@ -257,7 +257,7 @@ func (a *App) createApplicationController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		a.config.DNSConfig,
+		a.config.DNSZone,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
@@ -292,7 +292,7 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		a.config.DNSConfig,
+		a.config.DNSZone,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 		dnsalias.WithIngressConfiguration(a.ingressConfiguration),
 		dnsalias.WithOAuth2DefaultConfig(a.oauthDefaultConfig),

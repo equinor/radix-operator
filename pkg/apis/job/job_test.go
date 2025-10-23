@@ -11,7 +11,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -215,7 +214,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_CONTAINER_REGISTRY=%s", s.config.registry),
 				fmt.Sprintf("--RADIX_APP_CONTAINER_REGISTRY=%s", s.config.appRegistry),
 				fmt.Sprintf("--AZURE_SUBSCRIPTION_ID=%s", s.config.subscriptionID),
-				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api",
 				"--RADIX_RESERVED_DNS_ALIASES=grafana",
 				"--RADIX_GITHUB_WORKSPACE=/workspace",
 				"--RADIX_FILE_NAME=some-radixconfig.yaml",
@@ -1530,11 +1528,6 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
-	dnsConfig := dnsalias.DNSConfig{
-		DNSZone:               "dev.radix.equinor.com",
-		ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
-		ReservedDNSAliases:    []string{"grafana"},
-	}
 	scenarios := []struct {
 		name                                      string
 		config                                    *config.Config
@@ -1547,7 +1540,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		{
 			name: "Configured AppBuilderResources",
 			config: &config.Config{
-				DNSConfig: &dnsConfig,
+				DNSZone: "dev.radix.equinor.com",
 				PipelineJobConfig: &pipelinejob.Config{
 					PipelineJobsHistoryLimit:          3,
 					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
@@ -1567,7 +1560,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		{
 			name: "Missing config for ResourcesRequestsCPU",
 			config: &config.Config{
-				DNSConfig: &dnsConfig,
+				DNSZone: "dev.radix.equinor.com",
 				PipelineJobConfig: &pipelinejob.Config{
 					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
 					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
@@ -1579,7 +1572,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		{
 			name: "Missing config for ResourcesRequestsMemory",
 			config: &config.Config{
-				DNSConfig: &dnsConfig,
+				DNSZone: "dev.radix.equinor.com",
 				PipelineJobConfig: &pipelinejob.Config{
 					AppBuilderResourcesRequestsCPU:  pointers.Ptr(resource.MustParse("123m")),
 					AppBuilderResourcesLimitsMemory: pointers.Ptr(resource.MustParse("2345Mi")),
@@ -1591,7 +1584,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		{
 			name: "Missing config for ResourcesLimitsMemory",
 			config: &config.Config{
-				DNSConfig: &dnsConfig,
+				DNSZone: "dev.radix.equinor.com",
 				PipelineJobConfig: &pipelinejob.Config{
 					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
 					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
@@ -1645,11 +1638,7 @@ func getJobContainerArgument(container corev1.Container, variableName string) st
 
 func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 	return &config.Config{
-		DNSConfig: &dnsalias.DNSConfig{
-			DNSZone:               "dev.radix.equinor.com",
-			ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
-			ReservedDNSAliases:    []string{"grafana"},
-		},
+		DNSZone: "dev.radix.equinor.com",
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:          historyLimit,
 			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),

@@ -9,37 +9,32 @@ import (
 )
 
 var (
-	ErrMissingPrivateImageHubUsername                                      = errors.New("missing private image hub username")
-	ErrEnvForDNSAppAliasNotDefined                                         = errors.New("env for dns app alias not defined")
-	ErrComponentForDNSAppAliasNotDefined                                   = errors.New("component for dns app alias not defined")
-	ErrExternalAliasCannotBeEmpty                                          = errors.New("external alias cannot be empty")
-	ErrEnvForDNSExternalAliasNotDefined                                    = errors.New("env for dns external alias not defined")
-	ErrComponentForDNSExternalAliasNotDefined                              = errors.New("component for dns external alias not defined")
-	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic                     = errors.New("component for dns external alias is not marked as public")
-	ErrEnvironmentReferencedByComponentDoesNotExist                        = errors.New("environment referenced by component does not exist")
-	ErrInvalidPortNameLength                                               = errors.New("invalid port name length")
-	ErrPortNameIsRequiredForPublicComponent                                = errors.New("port name is required for public component")
-	ErrMonitoringPortNameIsNotFoundComponent                               = errors.New("monitoring port name is not found component")
-	ErrMultipleMatchingPortNames                                           = errors.New("multiple matching port names")
-	ErrSchedulerPortCannotBeEmptyForJob                                    = errors.New("scheduler port cannot be empty for job")
-	ErrPayloadPathCannotBeEmptyForJob                                      = errors.New("payload path cannot be empty for job")
-	ErrMemoryResourceRequirementFormat                                     = errors.New("memory resource requirement format")
-	ErrCPUResourceRequirementFormat                                        = errors.New("cpu resource requirement format")
-	ErrInvalidVerificationType                                             = errors.New("invalid verification")
-	ErrInvalidHealthCheckProbe                                             = errors.New("probe configuration error, only one action allowed")
+	ErrMissingPrivateImageHubUsername                  = errors.New("missing private image hub username")
+	ErrEnvForDNSAppAliasNotDefined                     = errors.New("env for dns app alias not defined")
+	ErrComponentForDNSAppAliasNotDefined               = errors.New("component for dns app alias not defined")
+	ErrExternalAliasCannotBeEmpty                      = errors.New("external alias cannot be empty")
+	ErrEnvForDNSExternalAliasNotDefined                = errors.New("env for dns external alias not defined")
+	ErrComponentForDNSExternalAliasNotDefined          = errors.New("component for dns external alias not defined")
+	ErrComponentForDNSExternalAliasIsNotMarkedAsPublic = errors.New("component for dns external alias is not marked as public")
+	ErrEnvironmentReferencedByComponentDoesNotExist    = errors.New("environment referenced by component does not exist")
+	ErrInvalidPortNameLength                           = errors.New("invalid port name length")
+	ErrPortNameIsRequiredForPublicComponent            = errors.New("port name is required for public component")
+	ErrMonitoringPortNameIsNotFoundComponent           = errors.New("monitoring port name is not found component")
+	ErrMultipleMatchingPortNames                       = errors.New("multiple matching port names")
+	ErrSchedulerPortCannotBeEmptyForJob                = errors.New("scheduler port cannot be empty for job")
+	ErrPayloadPathCannotBeEmptyForJob                  = errors.New("payload path cannot be empty for job")
+	ErrMemoryResourceRequirementFormat                 = errors.New("memory resource requirement format")
+	ErrCPUResourceRequirementFormat                    = errors.New("cpu resource requirement format")
+	ErrInvalidVerificationType                         = errors.New("invalid verification")
+	ErrInvalidHealthCheckProbe                         = errors.New("probe configuration error, only one action allowed")
 
-	ErrResourceRequestOverLimit                                            = errors.New("resource request over limit")
-	ErrInvalidResource                                                     = errors.New("invalid resource")
-	ErrDuplicateExternalAlias                                              = errors.New("duplicate external alias")
-	ErrInvalidBranchName                                                   = errors.New("invalid branch name")
-	
-	
-	
-	
-	
-	
-	
-	
+	ErrResourceRequestOverLimit          = errors.New("resource request over limit")
+	ErrInvalidResource                   = errors.New("invalid resource")
+	ErrDuplicateExternalAlias            = errors.New("duplicate external alias")
+	ErrInvalidBranchName                 = errors.New("invalid branch name")
+	ErrMaxReplicasForHPANotSetOrZero     = errors.New("max replicas for hpa not set or zero")
+	ErrMinReplicasGreaterThanMaxReplicas = errors.New("min replicas greater than max replicas")
+
 	ErrVolumeMountMissingType                                              = errors.New("no types defined")
 	ErrVolumeMountInvalidType                                              = errors.New("invalid type")
 	ErrVolumeMountMultipleTypes                                            = errors.New("multiple types defined")

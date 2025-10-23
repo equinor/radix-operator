@@ -1,16 +1,17 @@
 //nolint:staticcheck
-package radixvalidators_test
+package radixapplication_test
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
-	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline/application"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -26,6 +27,33 @@ import (
 )
 
 type updateRAFunc func(rr *radixv1.RadixApplication)
+
+func Test_ParseRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing.T) {
+	const (
+		sampleApp = "./testdata/radixconfig.yaml"
+	)
+
+	radixClient := radixfake.NewSimpleClientset()
+	appName := "testapp"
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	require.NoError(t, err)
+	configFileContent, err := os.ReadFile(sampleApp)
+	require.NoError(t, err)
+	ra, err := application.ParseRadixApplication(context.Background(), radixClient, appName, configFileContent)
+	require.NoError(t, err)
+	assert.Equal(t, "100Mi", ra.Spec.Components[0].Resources.Requests["memory"], "server1 invalid resource requests memory")
+	assert.Equal(t, "100Mi", ra.Spec.Components[0].Resources.Limits["memory"], "server1 invalid resource limits memory")
+	assert.Equal(t, "100Mi", ra.Spec.Components[1].Resources.Requests["memory"], "server2 invalid resource requests memory")
+	assert.Equal(t, "200Mi", ra.Spec.Components[1].Resources.Limits["memory"], "server2 invalid resource limits memory")
+	assert.Equal(t, "200Mi", ra.Spec.Components[2].Resources.Requests["memory"], "server3 invalid resource requests memory")
+	assert.Equal(t, "200Mi", ra.Spec.Components[2].Resources.Limits["memory"], "server3 invalid resource limits memory")
+	assert.Equal(t, "200Mi", ra.Spec.Components[3].Resources.Requests["memory"], "server4 invalid resource requests memory")
+	assert.Equal(t, "200Mi", ra.Spec.Components[3].Resources.Limits["memory"], "server4 invalid resource limits memory")
+
+	err = validate.CanRadixApplicationBeInserted(context.Background(), radixClient, ra, nil)
+	assert.NoError(t, err)
+}
 
 func Test_valid_ra_returns_true(t *testing.T) {
 	_, client := validRASetup()
@@ -2295,6 +2323,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 }
 
 func Test_EgressConfig(t *testing.T) {
+	dnsZone := "dev.radix.equinor.com"
 	var testScenarios = []struct {
 		name     string
 		updateRA updateRAFunc
@@ -2457,7 +2486,7 @@ func Test_EgressConfig(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
 			testcase.updateRA(validRA)
-			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, getDNSAliasConfig())
+			err := radixvalidators.CanRadixApplicationBeInserted(context.Background(), client, validRA, dnsZone)
 
 			if testcase.isValid {
 				assert.NoError(t, err)
@@ -2610,12 +2639,8 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 		someComponentName = "component-abc"
 		alias1            = "alias1"
 		alias2            = "alias2"
+		dnsZone           = "dev.radix.equinor.com"
 	)
-	dnsConfig := &dnsaliasconfig.DNSConfig{
-		DNSZone:               "dev.radix.equinor.com",
-		ReservedAppDNSAliases: dnsaliasconfig.AppReservedDNSAlias{"api": "radix-api"},
-		ReservedDNSAliases:    []string{"grafana"},
-	}
 	var testScenarios = []struct {
 		name                    string
 		applicationBuilder      utils.ApplicationBuilder
@@ -2685,7 +2710,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 			require.NoError(t, err)
 			ra := ts.applicationBuilder.BuildRA()
 
-			actualValidationErr := radixvalidators.CanRadixApplicationBeInserted(context.Background(), radixClient, ra, dnsConfig)
+			actualValidationErr := radixvalidators.CanRadixApplicationBeInserted(context.Background(), radixClient, ra, dnsZone)
 
 			if ts.expectedValidationError == nil {
 				require.NoError(t, actualValidationErr)
@@ -2711,12 +2736,4 @@ func validRASetup() (kubernetes.Interface, radixclient.Interface) {
 	client := radixfake.NewSimpleClientset(validRR)
 
 	return kubeclient, client
-}
-
-func getDNSAliasConfig() *dnsaliasconfig.DNSConfig {
-	return &dnsaliasconfig.DNSConfig{
-		DNSZone:               "dev.radix.equinor.com",
-		ReservedAppDNSAliases: dnsaliasconfig.AppReservedDNSAlias{"api": "radix-api"},
-		ReservedDNSAliases:    []string{"grafana"},
-	}
 }
