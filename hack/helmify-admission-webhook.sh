@@ -27,6 +27,7 @@ sed -i 's/^  name: validating-webhook-configuration/  name: radix-webhook-config
 sed -i 's/^      name: webhook-service/      name: radix-webhook/' "$file"
 sed -i 's/^      namespace: system/      namespace: {{ .Release.Namespace }}/' "$file"
 sed -i '/^      path: \/radix\/v1\/radixregistration\/validation/a \\      port: 443' "$file"
+sed -i '/^      path: \/radix\/v1\/radixapplication\/validation/a \\      port: 443' "$file"
 
 # Add matchPolicy after failurePolicy
 sed -i '/^  failurePolicy: Fail/a \\  matchPolicy: Equivalent' "$file"

@@ -41,14 +41,14 @@ func (js *JobSchedulerComponent) HasZeroReplicas() bool {
 }
 
 func (js *JobSchedulerComponent) GetPorts() []radixv1.ComponentPort {
-	if js.RadixDeployJobComponent.SchedulerPort == nil {
+	if js.RadixDeployJobComponent.SchedulerPort == 0 {
 		return nil
 	}
 
 	return []radixv1.ComponentPort{
 		{
 			Name: defaults.RadixJobSchedulerPortName,
-			Port: *js.RadixDeployJobComponent.SchedulerPort,
+			Port: js.RadixDeployJobComponent.SchedulerPort,
 		},
 	}
 }

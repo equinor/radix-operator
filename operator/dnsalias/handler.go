@@ -5,7 +5,6 @@ import (
 
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
-	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -34,7 +33,7 @@ type handler struct {
 	radixClient          radixclient.Interface
 	syncerFactory        internal.SyncerFactory
 	hasSynced            common.HasSynced
-	dnsConfig            *dnsalias2.DNSConfig
+	dnsZone              string
 	ingressConfiguration ingress.IngressConfiguration
 	oauth2DefaultConfig  defaults.OAuth2Config
 }
@@ -44,7 +43,7 @@ func NewHandler(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
-	dnsConfig *dnsalias2.DNSConfig,
+	dnsZone string,
 	hasSynced common.HasSynced,
 	options ...HandlerConfigOption) common.Handler {
 	h := &handler{
@@ -52,7 +51,7 @@ func NewHandler(
 		kubeUtil:    kubeUtil,
 		radixClient: radixClient,
 		hasSynced:   hasSynced,
-		dnsConfig:   dnsConfig,
+		dnsZone:     dnsZone,
 	}
 	configureDefaultSyncerFactory(h)
 	for _, option := range options {
@@ -99,7 +98,7 @@ func (h *handler) Sync(ctx context.Context, _, name string, eventRecorder record
 
 	syncingAlias := radixDNSAlias.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)
-	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
+	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsZone, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?

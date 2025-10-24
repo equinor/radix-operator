@@ -79,9 +79,13 @@ const (
 
 // RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
-	AppName          string                        `json:"appname"`
-	Components       []RadixDeployComponent        `json:"components,omitempty"`
-	Jobs             []RadixDeployJobComponent     `json:"jobs,omitempty"`
+	AppName    string                    `json:"appname"`
+	Components []RadixDeployComponent    `json:"components,omitempty"`
+	Jobs       []RadixDeployJobComponent `json:"jobs,omitempty"`
+
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Environment      string                        `json:"environment"`
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
@@ -111,6 +115,9 @@ type RadixDeployExternalDNS struct {
 
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=50
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name             string          `json:"name"`
 	Image            string          `json:"image"`
 	Ports            []ComponentPort `json:"ports,omitempty"`
@@ -455,7 +462,7 @@ type RadixDeployJobComponent struct {
 	MonitoringConfig        MonitoringConfig          `json:"monitoringConfig,omitempty"`
 	Resources               ResourceRequirements      `json:"resources,omitempty"`
 	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty"`
-	SchedulerPort           *int32                    `json:"schedulerPort,omitempty"`
+	SchedulerPort           int32                     `json:"schedulerPort,omitempty"`
 	Payload                 *RadixJobComponentPayload `json:"payload,omitempty"`
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy"`
 	// Deprecated: use Runtime.NodeType instead.

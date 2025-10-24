@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
@@ -40,7 +39,7 @@ type syncerTestSuite struct {
 	kedaClient    *kedafake.Clientset
 	kubeUtil      *kube.Kube
 	promClient    *prometheusfake.Clientset
-	dnsConfig     *dnsalias2.DNSConfig
+	dnsZone       string
 	oauthConfig   defaults.OAuth2Config
 	ingressConfig ingress.IngressConfiguration
 }
@@ -54,7 +53,7 @@ func (s *syncerTestSuite) SetupTest() {
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.kedaClient = kedafake.NewSimpleClientset()
-	s.dnsConfig = &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
+	s.dnsZone = "dev.radix.equinor.com"
 	s.oauthConfig = defaults.NewOAuth2Config()
 	s.ingressConfig = ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
 
@@ -62,7 +61,7 @@ func (s *syncerTestSuite) SetupTest() {
 }
 
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
-	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsConfig, s.ingressConfig, s.oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), radixDNSAlias)
+	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.ingressConfig, s.oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), radixDNSAlias)
 }
 
 type testIngress struct {

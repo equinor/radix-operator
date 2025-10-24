@@ -5,7 +5,6 @@ import (
 
 	"github.com/equinor/radix-operator/operator/common"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
@@ -31,18 +30,18 @@ type Handler struct {
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 	hasSynced   common.HasSynced
-	dnsConfig   *dnsalias.DNSConfig
+	dnsZone     string
 }
 
 // NewHandler Constructor
-func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, hasSynced common.HasSynced) Handler {
+func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, dnsZone string, hasSynced common.HasSynced) Handler {
 
 	handler := Handler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
 		kubeutil:    kubeutil,
 		hasSynced:   hasSynced,
-		dnsConfig:   dnsConfig,
+		dnsZone:     dnsZone,
 	}
 
 	return handler
@@ -77,7 +76,7 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 	syncApplication := radixApplication.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync application %s", syncApplication.Name)
-	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsConfig)
+	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsZone)
 	err = applicationConfig.OnSync(ctx)
 	if err != nil {
 		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?

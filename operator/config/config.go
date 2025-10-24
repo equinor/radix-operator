@@ -2,15 +2,12 @@ package config
 
 import (
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils/maps"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
 	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/config/task"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -62,14 +59,6 @@ func getDNSZone() string {
 	return viper.GetString(defaults.OperatorDNSZoneEnvironmentVariable)
 }
 
-func getDNSAliasAppReserved() map[string]string {
-	return maps.FromString(viper.GetString(defaults.RadixReservedAppDNSAliasesEnvironmentVariable))
-}
-
-func getDNSAliasReserved() []string {
-	return strings.Split(viper.GetString(defaults.RadixReservedDNSAliasesEnvironmentVariable), ",")
-}
-
 func getIntFromEnvVar(envVarName string, defaultValue int) int {
 	val, err := strconv.Atoi(viper.GetString(envVarName))
 	if err != nil {
@@ -84,11 +73,7 @@ func NewConfig() *apiconfig.Config {
 	return &apiconfig.Config{
 		LogLevel:  viper.GetString(defaults.LogLevel),
 		LogPretty: viper.GetBool("LOG_PRETTY"),
-		DNSConfig: &dnsalias.DNSConfig{
-			DNSZone:               getDNSZone(),
-			ReservedAppDNSAliases: getDNSAliasAppReserved(),
-			ReservedDNSAliases:    getDNSAliasReserved(),
-		},
+		DNSZone:   getDNSZone(),
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),
 			PipelineJobsHistoryPeriodLimit:        getPipelineJobsHistoryPeriodLimit(),

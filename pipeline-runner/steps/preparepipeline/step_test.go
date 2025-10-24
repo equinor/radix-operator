@@ -20,7 +20,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -1027,7 +1026,6 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 					GitRefType:      string(radixv1.GitRefBranch),
 					PipelineType:    string(radixPipelineType),
 					ToEnvironment:   internalTest.Env1,
-					DNSConfig:       &dnsalias.DNSConfig{},
 					RadixConfigFile: sampleAppRadixConfigFileName,
 					GitWorkspace:    sampleAppWorkspace,
 				},
@@ -1311,7 +1309,6 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 					GitRef:               branchName,
 					GitRefType:           string(radixv1.GitRefBranch),
 					PipelineType:         string(radixPipelineType),
-					DNSConfig:            &dnsalias.DNSConfig{},
 					RadixConfigFile:      sampleAppRadixConfigFileName,
 					GitWorkspace:         sampleAppWorkspace,
 					TriggeredFromWebhook: ts.triggeredFromWebhook,

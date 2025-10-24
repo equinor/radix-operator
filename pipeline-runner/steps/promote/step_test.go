@@ -15,7 +15,6 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -264,7 +263,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 					WithJobComponents(
 						utils.AnApplicationJobComponent().
 							WithName("job").
-							WithSchedulerPort(numbers.Int32Ptr(8888)).
+							WithSchedulerPort(8888).
 							WithPayloadPath(utils.StringPtr("/path")).
 							WithSecrets("JOBSECRET1", "JOBSECRET2").
 							WithCommonEnvironmentVariable("COMMON1", "common1").
@@ -356,7 +355,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "prod1", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["COMMON1"])
 	assert.Equal(t, "common2", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["COMMON2"])
 	assert.Equal(t, "prod3", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["PROD3"])
-	assert.Equal(t, numbers.Int32Ptr(8888), rds.Items[0].Spec.Jobs[0].SchedulerPort)
+	assert.Equal(t, 8888, rds.Items[0].Spec.Jobs[0].SchedulerPort)
 	assert.Equal(t, "/path", rds.Items[0].Spec.Jobs[0].Payload.Path)
 	assert.Len(t, rds.Items[0].Spec.Jobs[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYJOBSECRET", rds.Items[0].Spec.Jobs[0].Secrets[0])
@@ -407,7 +406,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 					WithJobComponents(
 						utils.AnApplicationJobComponent().
 							WithName("job").
-							WithSchedulerPort(numbers.Int32Ptr(8888)).
+							WithSchedulerPort(8888).
 							WithCommonResource(map[string]string{
 								"memory": "11Mi",
 								"cpu":    "22m",
@@ -598,7 +597,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 					WithJobComponents(
 						utils.AnApplicationJobComponent().
 							WithName("job").
-							WithSchedulerPort(numbers.Int32Ptr(8888)).
+							WithSchedulerPort(8888).
 							WithCommonResource(
 								map[string]string{
 									"memory": "11Mi",
@@ -791,7 +790,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 								utils.AnApplicationJobComponent().
 									WithName("job1").
 									WithIdentity(scenario.commonConfig).
-									WithSchedulerPort(numbers.Int32Ptr(8888)).
+									WithSchedulerPort(8888).
 									WithPayloadPath(utils.StringPtr("/path")).
 									WithEnvironmentConfigs(jobEnvironmentConfigs...),
 							)),
@@ -913,8 +912,8 @@ func TestPromote_Runtime_KeepFromSourceRD(t *testing.T) {
 			utils.NewApplicationComponentBuilder().WithName(comp2).WithRuntime(&v1.Runtime{Architecture: "commonarch"}).WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envProd).WithRuntime(&v1.Runtime{Architecture: "prodarch"})),
 		).
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithName(job1).WithSchedulerPort(&schedulerPort).WithRuntime(&v1.Runtime{Architecture: "commonarch"}),
-			utils.NewApplicationJobComponentBuilder().WithName(job2).WithSchedulerPort(&schedulerPort).WithRuntime(&v1.Runtime{Architecture: "commonarch"}).WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envProd).WithRuntime(&v1.Runtime{Architecture: "prodarch"})),
+			utils.NewApplicationJobComponentBuilder().WithName(job1).WithSchedulerPort(schedulerPort).WithRuntime(&v1.Runtime{Architecture: "commonarch"}),
+			utils.NewApplicationJobComponentBuilder().WithName(job2).WithSchedulerPort(schedulerPort).WithRuntime(&v1.Runtime{Architecture: "commonarch"}).WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envProd).WithRuntime(&v1.Runtime{Architecture: "prodarch"})),
 		)
 
 	_, err := commonTestUtils.ApplyApplication(ra)

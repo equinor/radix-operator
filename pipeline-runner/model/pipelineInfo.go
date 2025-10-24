@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -147,7 +146,6 @@ type PipelineArguments struct {
 	LogLevel      string
 	AppName       string
 	Builder       Builder
-	DNSConfig     *dnsaliasconfig.DNSConfig
 
 	// Name of secret with .dockerconfigjson key containing docker auths. Optional.
 	// Used to authenticate external container registries when using buildkit to build dockerfiles.
@@ -278,11 +276,6 @@ func (p *PipelineInfo) GetRadixImageTag() string {
 // GetRadixPipelineJobName Get radix pipeline job name
 func (p *PipelineInfo) GetRadixPipelineJobName() string {
 	return p.PipelineArguments.JobName
-}
-
-// GetDNSConfig Get DNS config
-func (p *PipelineInfo) GetDNSConfig() *dnsaliasconfig.DNSConfig {
-	return p.PipelineArguments.DNSConfig
 }
 
 // GetRadixDeployToEnvironment Get radix deploy to environment
