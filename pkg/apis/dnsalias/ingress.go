@@ -10,10 +10,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
+	"github.com/equinor/radix-operator/webhook/validation/radixapplication"
 	"github.com/rs/zerolog/log"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -110,7 +110,7 @@ func (s *syncer) deleteIngresses(ctx context.Context, selector labels.Set) error
 func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsZone string, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
 	publicPort := getComponentPublicPort(radixDeployComponent)
 	if publicPort == nil {
-		return nil, radixvalidators.ComponentForDNSAliasIsNotMarkedAsPublicError(radixDeployComponent.GetName())
+		return nil, fmt.Errorf("rd component %s: %w", radixDeployComponent.GetName(), radixapplication.ErrPublicPortNotFound)
 	}
 	aliasName := radixDNSAlias.GetName()
 	aliasSpec := radixDNSAlias.Spec

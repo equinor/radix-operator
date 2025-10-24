@@ -164,6 +164,7 @@ type BuildSpec struct {
 	// Defines a list of secrets that will be passed as ARGs when building Dockerfile.
 	// The secrets can also be accessed in sub-pipelines.
 	// +kubebuilder:validation:items:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
+	// +kubebuilder:validation:items:MaxLength=253
 	// +listType=set
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`

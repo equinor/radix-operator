@@ -23,9 +23,12 @@ import (
 
 const (
 	minReplica = 0 // default is 1
-
 	// MaxReplica Max number of replicas a deployment is allowed to have
 	MaxReplica = 64
+)
+
+var (
+	validResourceTypes = []string{"memory", "cpu"}
 )
 
 var (
@@ -308,32 +311,6 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 	return false
 }
 
-func validateResourceRequirements(resources radixv1.ResourceRequirements) error {
-	var errs []error
-	limitQuantities := make(map[string]resource.Quantity)
-	for name, value := range resources.Limits {
-		if len(value) > 0 {
-			q, err := resource.ParseQuantity(value)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("invalid limit resource %s quantity %s: %w", name, value, err))
-			} else {
-				limitQuantities[name] = q
-			}
-		}
-	}
-	for name, value := range resources.Requests {
-		q, err := resource.ParseQuantity(value)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("invalid requested resource %s quantity %s: %w", name, value, err))
-		}
-		if limit, limitExist := limitQuantities[name]; limitExist && q.Cmp(limit) == 1 {
-			errs = append(errs, fmt.Errorf("resource %s (req: %s, limit: %s): %w", name, q.String(), limit.String(), ErrRequestedResourceExceedsLimit))
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
 func validatePublicPort(component radixv1.RadixComponent) error {
 	if component.PublicPort == "" {
 		return nil
@@ -578,4 +555,48 @@ func getComponentPort(radixComponent radixv1.RadixCommonComponent, port string) 
 		}
 	}
 	return nil
+}
+
+func validateResourceRequirements(resources radixv1.ResourceRequirements) error {
+	var errs []error
+	limitQuantities := make(map[string]resource.Quantity)
+	for name, value := range resources.Limits {
+		if len(value) > 0 {
+			q, err := resource.ParseQuantity(value)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("invalid limit resource %s quantity %s: %w", name, value, err))
+			}
+			if name == "memory" && q.Cmp(resource.MustParse("20Mb")) == -1 {
+				errs = append(errs, fmt.Errorf("memory limit %s must be over 20Mb: %w", value, ErrMemoryResourceRequirementFormat))
+			}
+			if name == "cpu" && q.Cmp(resource.MustParse("1k")) == 1 {
+				errs = append(errs, fmt.Errorf("cpu limit %s is invalid, check node type for available core count: %w", value, ErrCPUResourceRequirementFormat))
+			}
+			if !slices.Contains(validResourceTypes, name) {
+				errs = append(errs, fmt.Errorf("resource limit %s is invalid, only cpu or memory is allowed: %w", value, ErrInvalidResourceType))
+			}
+			limitQuantities[name] = q
+		}
+	}
+	for name, value := range resources.Requests {
+		q, err := resource.ParseQuantity(value)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("invalid requested resource %s quantity %s: %w", name, value, err))
+		}
+		if limit, limitExist := limitQuantities[name]; limitExist && q.Cmp(limit) == 1 {
+			errs = append(errs, fmt.Errorf("resource %s (req: %s, limit: %s): %w", name, q.String(), limit.String(), ErrRequestedResourceExceedsLimit))
+		}
+
+		if name == "memory" && q.Cmp(resource.MustParse("20Mb")) == -1 {
+			errs = append(errs, fmt.Errorf("memory request %s must be over 20Mb: %w", value, ErrMemoryResourceRequirementFormat))
+		}
+		if name == "cpu" && q.Cmp(resource.MustParse("1k")) == 1 {
+			errs = append(errs, fmt.Errorf("cpu request %s is invalid, check node type for available core count: %w", value, ErrCPUResourceRequirementFormat))
+		}
+		if !slices.Contains(validResourceTypes, name) {
+			errs = append(errs, fmt.Errorf("resource request %s is invalid, only cpu or memory is allowed: %w", value, ErrInvalidResourceType))
+		}
+	}
+
+	return errors.Join(errs...)
 }
