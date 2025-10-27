@@ -138,10 +138,6 @@ func (js *JobSchedulerComponent) GetAuthentication() *radixv1.Authentication {
 	return js.radixJob.GetAuthentication()
 }
 
-func (js *JobSchedulerComponent) SetVolumeMounts(mounts []radixv1.RadixVolumeMount) {
-	js.radixJob.SetVolumeMounts(mounts)
-}
-
 func (js *JobSchedulerComponent) GetIdentity() *radixv1.Identity {
 	return js.radixJob.GetIdentity()
 }
