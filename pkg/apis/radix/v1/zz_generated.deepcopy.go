@@ -489,11 +489,6 @@ func (in *Environment) DeepCopyInto(out *Environment) {
 		*out = new(SubPipeline)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.RunAsUser != nil {
-		in, out := &in.RunAsUser, &out.RunAsUser
-		*out = new(int64)
-		**out = **in
-	}
 	return
 }
 
