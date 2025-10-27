@@ -39,6 +39,7 @@ var (
 		jobValidator,
 		externalDNSAliasValidator,
 		dnsAliasValidator,
+		dnsAppAliasValidator,
 		secretValidator,
 		envNameValidator,
 		environmentEgressValidator,

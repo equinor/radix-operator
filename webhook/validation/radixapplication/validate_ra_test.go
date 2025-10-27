@@ -122,7 +122,7 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[1].Variables[conflictingVariableName] = "Any value"
 			ra.Spec.Components[1].Secrets[0] = conflictingVariableName
 		}},
-		{"conflicting_common_variable_and_secret_name_when_not_environment_config", radixapplication.ErrSecretRefEnvVarNameConflictsWithEnvironmentVariable, func(ra *radixv1.RadixApplication) {
+		{"conflicting common variable and secret name when not environment config", radixapplication.ErrSecretNameConflictsWithVariable, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[1].Variables[conflictingVariableName] = "Any value"
 			ra.Spec.Components[1].Secrets[0] = conflictingVariableName
 			ra.Spec.Components[1].EnvironmentConfig = nil

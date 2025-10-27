@@ -56,6 +56,20 @@ func dnsAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) (strin
 	return "", errors.Join(errs...)
 }
 
+func dnsAppAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+	if ra.Spec.DNSAppAlias.Component == "" && ra.Spec.DNSAppAlias.Environment == "" {
+		return "", nil
+	}
+
+	if err := validateDNSAliasComponentAndEnvironmentAvailable(ra, ra.Name, ra.Spec.DNSAppAlias.Component, ra.Spec.DNSAppAlias.Environment); err != nil {
+		return "", err
+	}
+	if !doesComponentHaveAPublicPort(ra, ra.Spec.DNSAppAlias.Component) {
+		return "", fmt.Errorf("component %s is not public. %w", ra.Spec.DNSAppAlias.Component, ErrDNSAliasComponentIsNotMarkedAsPublic)
+	}
+	return "", nil
+}
+
 func externalDNSAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
 	var errs []error
 
