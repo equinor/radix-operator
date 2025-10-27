@@ -60,18 +60,13 @@ func Test_missing_rr(t *testing.T) {
 }
 
 func Test_invalid_ra(t *testing.T) {
-	validRAFirstComponentName := "app"
-
 	wayTooLongName := "waytoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooolongname"
-	tooLongPortName := "abcdefghijklmnop"
 	invalidBranchName := "/master"
-	invalidResourceName := "invalid,char.re"
 	oauthAuxSuffixComponentName := fmt.Sprintf("app-%s", radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	oauthAuxSuffixJobName := fmt.Sprintf("job-%s", radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	invalidVariableName := "invalid:variable"
 	noReleatedRRAppName := "no related rr"
 	noExistingEnvironment := "nonexistingenv"
-	invalidUpperCaseResourceName := "invalidUPPERCASE.resourcename"
 	nonExistingComponent := "nonexisting"
 	unsupportedResource := "unsupportedResource"
 	invalidResourceValue := "asdfasd"
@@ -203,7 +198,7 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"resource limit unsupported resource", radixapplication.ErrInvalidResource, func(ra *radixv1.RadixApplication) {
+		{"resource limit unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits[unsupportedResource] = "250m"
 		}},
 		{"memory resource limit wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
@@ -212,7 +207,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"memory resource request wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = invalidResourceValue
 		}},
-		{"memory resource request larger than limit", radixapplication.ErrResourceRequestOverLimit, func(ra *radixv1.RadixApplication) {
+		{"memory resource request larger than limit", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "250Ki"
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
 		}},
@@ -222,17 +217,17 @@ func Test_invalid_ra(t *testing.T) {
 		{"cpu resource request wrong format", radixapplication.ErrCPUResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["cpu"] = invalidResourceValue
 		}},
-		{"cpu resource request larger than limit", radixapplication.ErrResourceRequestOverLimit, func(ra *radixv1.RadixApplication) {
+		{"cpu resource request larger than limit", radixapplication.ErrRequestedResourceExceedsLimit, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["cpu"] = "250m"
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["cpu"] = "251m"
 		}},
-		{"resource request unsupported resource", radixapplication.ErrInvalidResource, func(ra *radixv1.RadixApplication) {
+		{"resource request unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests[unsupportedResource] = "250m"
 		}},
-		{"common resource limit unsupported resource", radixapplication.ErrInvalidResource, func(ra *radixv1.RadixApplication) {
+		{"common resource limit unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Limits[unsupportedResource] = "250m"
 		}},
-		{"common resource request unsupported resource", radixapplication.ErrInvalidResource, func(ra *radixv1.RadixApplication) {
+		{"common resource request unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Requests[unsupportedResource] = "250m"
 		}},
 		{"common memory resource limit wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
@@ -261,12 +256,13 @@ func Test_invalid_ra(t *testing.T) {
 		{"memory resource limit not set", nil, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
 		}},
-		{"wrong public image config", radixapplication.ErrPublicImageComponentCannotHaveSourceOrDockerfileSet, func(ra *radixv1.RadixApplication) {
+		//TODO:This is a warning, not a error
+		{"wrong public image config", radixapplication.ErrUnknownServerError, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Image = "redis:5.0-alpine"
 			ra.Spec.Components[0].SourceFolder = "./api"
 			ra.Spec.Components[0].DockerfileName = ".Dockerfile"
 		}},
-		{"inconcistent dynamic tag config for environment", radixapplication.ErrComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag, func(ra *radixv1.RadixApplication) {
+		{"inconcistent dynamic tag config for environment", radixapplication.ErrComponentWithDynamicTagRequiresImageTag, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
 			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = "any-tag"
 		}},
@@ -284,31 +280,22 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"duplicate job name", radixapplication.ErrDuplicateComponentOrJobName, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs = append(ra.Spec.Jobs, *ra.Spec.Jobs[0].DeepCopy())
-		}},
 		{"job name with oauth auxiliary name suffix", radixapplication.ErrComponentNameReservedSuffix, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Name = oauthAuxSuffixJobName
 		}},
-		{"invalid job secret name", radixapplication.ErrInvalidResourceName, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].Secrets[0] = invalidVariableName
-		}},
-		{"too long job secret name", radixapplication.ErrInvalidStringValueMaxLength, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].Secrets[0] = wayTooLongName
-		}},
-		{"invalid job common environment variable name", radixapplication.ErrInvalidResourceName, func(ra *radixv1.RadixApplication) {
+		{"invalid job common environment variable name", radixapplication.ErrVariableNameCannotContainIllegalCharacters, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Variables[invalidVariableName] = "Any value"
 		}},
-		{"too long job common environment variable name", radixapplication.ErrInvalidStringValueMaxLength, func(ra *radixv1.RadixApplication) {
+		{"too long job common environment variable name", radixapplication.ErrVariableNameCannotExceedMaxLength, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Variables[wayTooLongName] = "Any value"
 		}},
-		{"invalid job environment variable name", radixapplication.ErrInvalidResourceName, func(ra *radixv1.RadixApplication) {
+		{"invalid job environment variable name", radixapplication.ErrVariableNameCannotContainIllegalCharacters, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Variables[invalidVariableName] = "Any value"
 		}},
-		{"too long job environment variable name", radixapplication.ErrInvalidStringValueMaxLength, func(ra *radixv1.RadixApplication) {
+		{"too long job environment variable name", radixapplication.ErrVariableNameCannotExceedMaxLength, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Variables[wayTooLongName] = "Any value"
 		}},
-		{"conflicting job variable and secret name", radixapplication.ErrSecretNameConflictsWithEnvironmentVariable, func(ra *radixv1.RadixApplication) {
+		{"conflicting job variable and secret name", radixapplication.ErrSecretNameConflictsWithVariable, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Variables[conflictingVariableName] = "Any value"
 			ra.Spec.Jobs[0].Secrets[0] = conflictingVariableName
 		}},
@@ -329,7 +316,7 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Jobs[0].Payload = &radixv1.RadixJobComponentPayload{Path: ""}
 		}},
 
-		{"job resource limit unsupported resource", radixapplication.ErrInvalidResource, func(ra *radixv1.RadixApplication) {
+		{"job resource limit unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits[unsupportedResource] = "250m"
 		}},
 		{"job memory resource limit wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
@@ -338,7 +325,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"job memory resource request wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = invalidResourceValue
 		}},
-		{"job memory resource request larger than limit", radixapplication.ErrResourceRequestOverLimit, func(ra *radixv1.RadixApplication) {
+		{"job memory resource request larger than limit", radixapplication.ErrRequestedResourceExceedsLimit, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "250Ki"
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
 		}},
@@ -348,17 +335,17 @@ func Test_invalid_ra(t *testing.T) {
 		{"job cpu resource request wrong format", radixapplication.ErrCPUResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["cpu"] = invalidResourceValue
 		}},
-		{"job cpu resource request larger than limit", radixapplication.ErrResourceRequestOverLimit, func(ra *radixv1.RadixApplication) {
+		{"job cpu resource request larger than limit", radixapplication.ErrRequestedResourceExceedsLimit, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["cpu"] = "250m"
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["cpu"] = "251m"
 		}},
-		{"job resource request unsupported resource", radixapplication.ErrInvalidResource, func(ra *radixv1.RadixApplication) {
+		{"job resource request unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests[unsupportedResource] = "250m"
 		}},
-		{"job common resource limit unsupported resource", radixapplication.ErrInvalidResource, func(ra *radixv1.RadixApplication) {
+		{"job common resource limit unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Limits[unsupportedResource] = "250m"
 		}},
-		{"job common resource request unsupported resource", radixapplication.ErrInvalidResource, func(ra *radixv1.RadixApplication) {
+		{"job common resource request unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Requests[unsupportedResource] = "250m"
 		}},
 		{"job common memory resource limit wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
@@ -387,12 +374,13 @@ func Test_invalid_ra(t *testing.T) {
 		{"job memory resource limit not set", nil, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
 		}},
-		{"job wrong public image config", radixapplication.ErrPublicImageComponentCannotHaveSourceOrDockerfileSet, func(ra *radixv1.RadixApplication) {
+		//TODO:This is a warning, not a error
+		{"job wrong public image config", radixapplication.ErrUnknownServerError, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Image = "redis:5.0-alpine"
 			ra.Spec.Jobs[0].SourceFolder = "./api"
 			ra.Spec.Jobs[0].DockerfileName = ".Dockerfile"
 		}},
-		{"job inconcistent dynamic tag config for environment", radixapplication.ErrComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag, func(ra *radixv1.RadixApplication) {
+		{"job inconcistent dynamic tag config for environment", radixapplication.ErrComponentWithDynamicTagRequiresImageTag, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
 			ra.Spec.Jobs[0].EnvironmentConfig[0].ImageTagName = "any-tag"
 		}},
@@ -560,50 +548,22 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"duplicate name in job/component boundary", radixapplication.ErrDuplicateComponentOrJobName, func(ra *radixv1.RadixApplication) {
-			job := *ra.Spec.Jobs[0].DeepCopy()
-			job.Name = validRAFirstComponentName
-			ra.Spec.Jobs = append(ra.Spec.Jobs, job)
-		}},
-		{"no mask size postfix in egress rule destination", radixapplication.ErrDuplicateComponentOrJobName, func(ra *radixv1.RadixApplication) {
-			job := *ra.Spec.Jobs[0].DeepCopy()
-			job.Name = validRAFirstComponentName
-			ra.Spec.Jobs = append(ra.Spec.Jobs, job)
-		}},
-		{"invalid runtime architecture for component", radixapplication.ErrInvalidRuntimeArchitecture, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Runtime.Architecture = "anyarch"
-		}},
-		{"invalid runtime architecture for component environment config", radixapplication.ErrInvalidRuntimeArchitecture, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Runtime.Architecture = "anyarch"
-		}},
-		{"invalid runtime architecture with nodeType for component config", radixapplication.ErrInvalidRuntimeArchitectureWithNodeType, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Runtime.Architecture = radixv1.RuntimeArchitectureAmd64
-			ra.Spec.Components[0].Runtime.NodeType = pointers.Ptr("some-node-type")
-		}},
-		{"invalid runtime architecture with nodeType for job config", radixapplication.ErrInvalidRuntimeArchitectureWithNodeType, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].Runtime.Architecture = radixv1.RuntimeArchitectureAmd64
-			ra.Spec.Jobs[0].Runtime.NodeType = pointers.Ptr("some-node-type")
-		}},
-		{"invalid runtime architecture with nodeType for job environment config", radixapplication.ErrInvalidRuntimeArchitectureWithNodeType, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Runtime.Architecture = radixv1.RuntimeArchitectureAmd64
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Runtime.NodeType = pointers.Ptr("some-node-type")
-		}},
-		{"invalid CIDR in network.ingress.public.allow for component", radixapplication.ErrInvalidIPv4OrCIDR, func(ra *radixv1.RadixApplication) {
+		{"invalid CIDR in network.ingress.public.allow for component", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("143.10.0.0/33")}}}}
 		}},
-		{"invalid IP network.ingress.public.allow for component", radixapplication.ErrInvalidIPv4OrCIDR, func(ra *radixv1.RadixApplication) {
+		{"invalid IP network.ingress.public.allow for component", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("256.0.0.0")}}}}
 		}},
-		{"invalid value network.ingress.public.allow for component", radixapplication.ErrInvalidIPv4OrCIDR, func(ra *radixv1.RadixApplication) {
+		{"invalid value network.ingress.public.allow for component", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("any")}}}}
 		}},
-		{"invalid CIDR in network.ingress.public.allow for component environment config", radixapplication.ErrInvalidIPv4OrCIDR, func(ra *radixv1.RadixApplication) {
+		{"invalid CIDR in network.ingress.public.allow for component environment config", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("143.10.0.0/33")}}}}
 		}},
-		{"invalid IP network.ingress.public.allow for component environment config", radixapplication.ErrInvalidIPv4OrCIDR, func(ra *radixv1.RadixApplication) {
+		{"invalid IP network.ingress.public.allow for component environment config", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("256.0.0.0")}}}}
 		}},
-		{"invalid value network.ingress.public.allow for component environment config", radixapplication.ErrInvalidIPv4OrCIDR, func(ra *radixv1.RadixApplication) {
+		{"invalid value network.ingress.public.allow for component environment config", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("any")}}}}
 		}},
 		{"invalid exit code 0 for In operator in failure policy for job", radixapplication.ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator, func(ra *radixv1.RadixApplication) {

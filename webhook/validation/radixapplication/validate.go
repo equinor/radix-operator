@@ -28,7 +28,8 @@ const (
 )
 
 var (
-	validResourceTypes = []string{"memory", "cpu"}
+	validResourceTypes       = []string{"memory", "cpu"}
+	minimumMemoryRequirement = resource.MustParse("20Mi")
 )
 
 var (
@@ -139,6 +140,10 @@ func jobValidator(ctx context.Context, app *radixv1.RadixApplication) (string, e
 	var errs []error
 	for _, job := range app.Spec.Jobs {
 
+		if err := validateComponentOrJobName(job.GetName(), "job"); err != nil {
+			errs = append(errs, err)
+		}
+
 		if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
 			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, ErrPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage))
 		}
@@ -200,6 +205,10 @@ func componentValidator(ctx context.Context, app *radixv1.RadixApplication) (str
 	var wrns []string
 	var errs []error
 	for _, component := range app.Spec.Components {
+
+		if err := validateComponentOrJobName(component.GetName(), "component"); err != nil {
+			errs = append(errs, err)
+		}
 
 		if component.Image != "" && (component.SourceFolder != "" || component.DockerfileName != "") {
 			wrns = append(wrns, fmt.Sprintf("component %s: component image will take precedens. src and dockerfile will be ignored.", component.Name))
@@ -279,6 +288,15 @@ func envNameValidator(ctx context.Context, ra *radixv1.RadixApplication) (string
 		}
 	}
 	return "", nil
+}
+
+func validateComponentOrJobName(componentName, componentType string) error {
+	for _, aux := range []string{radixv1.OAuthProxyAuxiliaryComponentSuffix} {
+		if strings.HasSuffix(componentName, fmt.Sprintf("-%s", aux)) {
+			return fmt.Errorf("%s %s has invalid suffix %s: %w", componentType, componentName, aux, ErrComponentNameReservedSuffix)
+		}
+	}
+	return nil
 }
 
 func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, componentImage string) bool {
@@ -566,7 +584,7 @@ func validateResourceRequirements(resources radixv1.ResourceRequirements) error 
 			if err != nil {
 				errs = append(errs, fmt.Errorf("invalid limit resource %s quantity %s: %w", name, value, err))
 			}
-			if name == "memory" && q.Cmp(resource.MustParse("20Mb")) == -1 {
+			if name == "memory" && q.Cmp(resource.MustParse("20Mi")) == -1 {
 				errs = append(errs, fmt.Errorf("memory limit %s must be over 20Mb: %w", value, ErrMemoryResourceRequirementFormat))
 			}
 			if name == "cpu" && q.Cmp(resource.MustParse("1k")) == 1 {
@@ -587,7 +605,7 @@ func validateResourceRequirements(resources radixv1.ResourceRequirements) error 
 			errs = append(errs, fmt.Errorf("resource %s (req: %s, limit: %s): %w", name, q.String(), limit.String(), ErrRequestedResourceExceedsLimit))
 		}
 
-		if name == "memory" && q.Cmp(resource.MustParse("20Mb")) == -1 {
+		if name == "memory" && q.Cmp(minimumMemoryRequirement) == -1 {
 			errs = append(errs, fmt.Errorf("memory request %s must be over 20Mb: %w", value, ErrMemoryResourceRequirementFormat))
 		}
 		if name == "cpu" && q.Cmp(resource.MustParse("1k")) == 1 {
