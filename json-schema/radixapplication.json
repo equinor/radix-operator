@@ -2793,7 +2793,7 @@
                 "type": "object"
               },
               "runAsUser": {
-                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser-detailed",
                 "format": "int64",
                 "type": "integer"
               },
@@ -3422,7 +3422,7 @@
                 "type": "string"
               },
               "runAsUser": {
-                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                "description": "User ID to run the container as",
                 "format": "int64",
                 "type": "integer"
               },
@@ -3818,7 +3818,7 @@
                       "type": "object"
                     },
                     "runAsUser": {
-                      "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                      "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser-1",
                       "format": "int64",
                       "type": "integer"
                     },
@@ -4445,7 +4445,7 @@
                 "type": "object"
               },
               "runAsUser": {
-                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
+                "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser-2",
                 "format": "int64",
                 "type": "integer"
               },
