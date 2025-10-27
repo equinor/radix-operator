@@ -272,10 +272,6 @@ func (deployComponent *RadixDeployComponent) GetNetwork() *Network {
 	return deployComponent.Network
 }
 
-func (deployComponent *RadixDeployComponent) SetName(name string) {
-	deployComponent.Name = name
-}
-
 func (deployComponent *RadixDeployComponent) SetVolumeMounts(mounts []RadixVolumeMount) {
 	deployComponent.VolumeMounts = mounts
 }
@@ -411,10 +407,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetNetwork() *Network {
 	return nil
 }
 
-func (deployJobComponent *RadixDeployJobComponent) SetName(name string) {
-	deployJobComponent.Name = name
-}
-
 func (deployJobComponent *RadixDeployJobComponent) SetVolumeMounts(mounts []RadixVolumeMount) {
 	deployJobComponent.VolumeMounts = mounts
 }
@@ -525,7 +517,6 @@ type RadixCommonDeployComponent interface {
 	GetIngressConfiguration() []string
 	GetNode() *RadixNode
 	GetAuthentication() *Authentication
-	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)
 	GetIdentity() *Identity
 	GetReadOnlyFileSystem() *bool
