@@ -54,6 +54,7 @@ var (
 	ErrMemoryResourceRequirementFormat                              = errors.New("memory resource requirement format")
 	ErrCPUResourceRequirementFormat                                 = errors.New("cpu resource requirement format")
 	ErrInvalidResourceType                                          = errors.New("invalid resource type")
+	ErrInvalidResourceFormat                                        = errors.New("invalid resource format")
 	ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator         = errors.New("value 0 cannot be used for the In operator")
 	ErrPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage = errors.New("component cannot have neither 'src' nor 'Dockerfile' set when image is defined")
 	ErrSchedulerPortCannotBeEmptyForJob                             = errors.New("scheduler port cannot be empty for job")

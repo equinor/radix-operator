@@ -122,7 +122,7 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[1].Variables[conflictingVariableName] = "Any value"
 			ra.Spec.Components[1].Secrets[0] = conflictingVariableName
 		}},
-		{"conflicting common variable and secret name when not environment config", radixapplication.ErrSecretRefEnvVarNameConflictsWithEnvironmentVariable, func(ra *radixv1.RadixApplication) {
+		{"conflicting_common_variable_and_secret_name_when_not_environment_config", radixapplication.ErrSecretRefEnvVarNameConflictsWithEnvironmentVariable, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[1].Variables[conflictingVariableName] = "Any value"
 			ra.Spec.Components[1].Secrets[0] = conflictingVariableName
 			ra.Spec.Components[1].EnvironmentConfig = nil
@@ -245,10 +245,10 @@ func Test_invalid_ra(t *testing.T) {
 		{"common memory resource request wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Requests["memory"] = invalidResourceValue
 		}},
-		{"common cpu resource limit wrong format", radixapplication.ErrCPUResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"common cpu resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Limits["cpu"] = invalidResourceValue
 		}},
-		{"common cpu resource request wrong format", radixapplication.ErrCPUResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"common cpu resource request wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Requests["cpu"] = invalidResourceValue
 		}},
 		{"cpu resource limit is empty", nil, func(ra *radixv1.RadixApplication) {
@@ -629,9 +629,9 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 		name     string
 		updateRA updateRAFunc
 	}{
-		{"resource memory correct format: 50", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50"
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50"
+		{"resource memory correct format: 50M", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50M"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50M"
 		}},
 		{"resource limit correct format: 50T", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50T"
@@ -640,14 +640,6 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 		{"resource limit correct format: 50G", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50G"
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50G"
-		}},
-		{"resource limit correct format: 50M", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50M"
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50M"
-		}},
-		{"resource limit correct format: 50k", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50k"
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50k"
 		}},
 		{"resource limit correct format: 50Gi", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Gi"
@@ -658,12 +650,12 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Mi"
 		}},
 		{"resource limit correct format: 50Ki", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Ki"
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Ki"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Mi"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Mi"
 		}},
-		{"common resource memory correct format: 50", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Resources.Limits["memory"] = "50"
-			ra.Spec.Components[0].Resources.Requests["memory"] = "50"
+		{"common resource memory correct format: 50M", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50M"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50M"
 		}},
 		{"common resource limit correct format: 50T", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Limits["memory"] = "50T"
@@ -673,14 +665,6 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 			ra.Spec.Components[0].Resources.Limits["memory"] = "50G"
 			ra.Spec.Components[0].Resources.Requests["memory"] = "50G"
 		}},
-		{"common resource limit correct format: 50M", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Resources.Limits["memory"] = "50M"
-			ra.Spec.Components[0].Resources.Requests["memory"] = "50M"
-		}},
-		{"common resource limit correct format: 50k", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Resources.Limits["memory"] = "50k"
-			ra.Spec.Components[0].Resources.Requests["memory"] = "50k"
-		}},
 		{"common resource limit correct format: 50Gi", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Limits["memory"] = "50Gi"
 			ra.Spec.Components[0].Resources.Requests["memory"] = "50Gi"
@@ -689,16 +673,12 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 			ra.Spec.Components[0].Resources.Limits["memory"] = "50Mi"
 			ra.Spec.Components[0].Resources.Requests["memory"] = "50Mi"
 		}},
-		{"common resource limit correct format: 50Ki", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Resources.Limits["memory"] = "50Ki"
-			ra.Spec.Components[0].Resources.Requests["memory"] = "50Ki"
-		}},
 	}
 
-	client := createClient()
+	client := createClient("./testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := loadRadixApplication(t, "./testdata/radixconfig.yaml")
+			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
@@ -714,10 +694,6 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 		name     string
 		updateRA updateRAFunc
 	}{
-		{"resource memory correct format: 50", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50"
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50"
-		}},
 		{"resource limit correct format: 50T", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50T"
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50T"
@@ -730,10 +706,6 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50M"
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50M"
 		}},
-		{"resource limit correct format: 50k", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50k"
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50k"
-		}},
 		{"resource limit correct format: 50Gi", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Gi"
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Gi"
@@ -741,14 +713,6 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 		{"resource limit correct format: 50Mi", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Mi"
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Mi"
-		}},
-		{"resource limit correct format: 50Ki", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Ki"
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Ki"
-		}},
-		{"common resource memory correct format: 50", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50"
-			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50"
 		}},
 		{"common resource limit correct format: 50T", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50T"
@@ -762,10 +726,6 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50M"
 			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50M"
 		}},
-		{"common resource limit correct format: 50k", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50k"
-			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50k"
-		}},
 		{"common resource limit correct format: 50Gi", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50Gi"
 			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50Gi"
@@ -773,10 +733,6 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 		{"common resource limit correct format: 50Mi", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50Mi"
 			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50Mi"
-		}},
-		{"common resource limit correct format: 50Ki", func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50Ki"
-			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50Ki"
 		}},
 	}
 

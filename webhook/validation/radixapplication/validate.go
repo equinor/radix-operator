@@ -582,7 +582,7 @@ func validateResourceRequirements(resources radixv1.ResourceRequirements) error 
 		if len(value) > 0 {
 			q, err := resource.ParseQuantity(value)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("invalid limit resource %s quantity %s: %w", name, value, err))
+				errs = append(errs, fmt.Errorf("invalid limit resource %s quantity %s: %w", name, value, ErrInvalidResourceFormat))
 			}
 			if name == "memory" && q.Cmp(resource.MustParse("20Mi")) == -1 {
 				errs = append(errs, fmt.Errorf("memory limit %s must be over 20Mb: %w", value, ErrMemoryResourceRequirementFormat))
@@ -599,7 +599,7 @@ func validateResourceRequirements(resources radixv1.ResourceRequirements) error 
 	for name, value := range resources.Requests {
 		q, err := resource.ParseQuantity(value)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("invalid requested resource %s quantity %s: %w", name, value, err))
+			errs = append(errs, fmt.Errorf("invalid requested resource %s quantity %s: %w", name, value, ErrInvalidResourceFormat))
 		}
 		if limit, limitExist := limitQuantities[name]; limitExist && q.Cmp(limit) == 1 {
 			errs = append(errs, fmt.Errorf("resource %s (req: %s, limit: %s): %w", name, q.String(), limit.String(), ErrRequestedResourceExceedsLimit))
