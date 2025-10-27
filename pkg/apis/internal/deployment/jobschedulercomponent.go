@@ -178,7 +178,7 @@ func (js *JobSchedulerComponent) HasZeroReplicas() bool {
 }
 
 func (js *JobSchedulerComponent) GetRunAsUser() *int64 {
-	return nil
+	return js.radixJob.GetRunAsUser()
 }
 
 // IsDeployComponentJobSchedulerDeployment Checks if deployComponent is a JobScheduler deployment

@@ -200,7 +200,6 @@ type Environment struct {
 	SubPipeline *SubPipeline `json:"subPipeline"`
 
 	// User ID to run the container as
-	// More info: https://www.radix.equinor.com/radix-config#runasuser
 	// +optional
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
@@ -553,7 +552,7 @@ type RadixComponent struct {
 	Args []string `json:"args,omitempty"`
 
 	// User ID to run the container as
-	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// More info: https://www.radix.equinor.com/radix-config#runasuser-detailed
 	// +optional
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
@@ -861,7 +860,7 @@ type RadixJobComponent struct {
 	Args []string `json:"args,omitempty"`
 
 	// User ID to run the container as
-	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// More info: https://www.radix.equinor.com/radix-config#runasuser-2
 	// +optional
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
@@ -1065,7 +1064,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	Args *[]string `json:"args,omitempty"`
 
 	// User ID to run the container as
-	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// More info: https://www.radix.equinor.com/radix-config#runasuser-1
 	// +optional
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
