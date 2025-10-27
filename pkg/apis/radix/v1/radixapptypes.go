@@ -198,10 +198,6 @@ type Environment struct {
 	// SubPipeline configuration.
 	// +optional
 	SubPipeline *SubPipeline `json:"subPipeline"`
-
-	// User ID to run the container as
-	// +optional
-	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // EnvBuild contains configuration used to determine how to build an environment.
