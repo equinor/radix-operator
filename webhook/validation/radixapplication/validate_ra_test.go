@@ -254,16 +254,6 @@ func Test_invalid_ra(t *testing.T) {
 		{"memory resource limit not set", nil, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
 		}},
-		//TODO:This is a warning, not a error
-		{"wrong public image config", radixapplication.ErrUnknownServerError, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Image = "redis:5.0-alpine"
-			ra.Spec.Components[0].SourceFolder = "./api"
-			ra.Spec.Components[0].DockerfileName = ".Dockerfile"
-		}},
-		{"inconcistent dynamic tag config for environment", radixapplication.ErrComponentWithDynamicTagRequiresImageTag, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
-			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = "any-tag"
-		}},
 		{"invalid verificationType for component", radixapplication.ErrInvalidVerificationType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Authentication = &radixv1.Authentication{
 				ClientCertificate: &radixv1.ClientCertificate{
@@ -371,16 +361,6 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"job memory resource limit not set", nil, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
-		}},
-		//TODO:This is a warning, not a error
-		{"job wrong public image config", radixapplication.ErrUnknownServerError, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].Image = "redis:5.0-alpine"
-			ra.Spec.Jobs[0].SourceFolder = "./api"
-			ra.Spec.Jobs[0].DockerfileName = ".Dockerfile"
-		}},
-		{"job inconcistent dynamic tag config for environment", radixapplication.ErrComponentWithDynamicTagRequiresImageTag, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
-			ra.Spec.Jobs[0].EnvironmentConfig[0].ImageTagName = "any-tag"
 		}},
 		{"too long app name together with env name", fmt.Errorf("summary length of app name and environment together should not exceed 62 characters"), func(ra *radixv1.RadixApplication) {
 			ra.Name = name50charsLong
@@ -604,12 +584,45 @@ func Test_invalid_ra(t *testing.T) {
 	}
 }
 
-func assertErrorCauseIs(t *testing.T, err error, expectedError error, msgAndArgs ...interface{}) {
-	assert.Contains(t, err.Error(), expectedError.Error(), msgAndArgs...)
+func Test_RA_WithWarnings(t *testing.T) {
 
-	// If expecedError exposes a Cause method, lets check if the return error has the same cause error
-	if x, ok := expectedError.(interface{ Cause() error }); ok {
-		assert.ErrorIs(t, err, x.Cause(), msgAndArgs...)
+	var testScenarios = []struct {
+		name            string
+		expectedWarning string
+		updateRA        updateRAFunc
+	}{
+		{"wrong public image config", radixapplication.WarnPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Image = "redis:5.0-alpine"
+			ra.Spec.Components[0].SourceFolder = "./api"
+			ra.Spec.Components[0].DockerfileName = ".Dockerfile"
+		}},
+		{"inconcistent dynamic tag config for environment", radixapplication.WarnComponentWithDynamicTagRequiresImageTag, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
+			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = "any-tag"
+		}},
+
+		{"job inconcistent dynamic tag config for environment", radixapplication.WarnPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].ImageTagName = "any-tag"
+		}},
+	}
+	client := createClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			testcase.updateRA(validRA)
+			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			wnrs, err := validator.Validate(context.Background(), validRA)
+			assert.NoError(t, err)
+
+			if testcase.expectedWarning == "" {
+				assert.Empty(t, wnrs)
+			} else {
+				// TODO: Upgrade validation infrastructure to natively support multiple warnings
+				wrns := []string(wnrs)[0]
+				assert.Contains(t, wrns, testcase.expectedWarning)
+			}
+		})
 	}
 }
 

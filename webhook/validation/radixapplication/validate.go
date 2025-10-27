@@ -146,7 +146,7 @@ func jobValidator(ctx context.Context, app *radixv1.RadixApplication) (string, e
 		}
 
 		if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
-			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, ErrPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage))
+			wrns = append(wrns, fmt.Sprintf("job %s: %s", job.Name, WarnPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage))
 		}
 
 		// Common resource requirements
@@ -167,8 +167,12 @@ func jobValidator(ctx context.Context, app *radixv1.RadixApplication) (string, e
 		}
 
 		for _, environment := range job.EnvironmentConfig {
-			if err := validateJobComponentEnvironment(app, job, environment); err != nil {
+			wrn, err := validateJobComponentEnvironment(app, job, environment)
+			if err != nil {
 				errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
+			}
+			if wrn != "" {
+				wrns = append(wrns, wrn)
 			}
 		}
 
@@ -176,8 +180,9 @@ func jobValidator(ctx context.Context, app *radixv1.RadixApplication) (string, e
 	return strings.Join(wrns, "\n"), errors.Join(errs...)
 }
 
-func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.RadixJobComponent, environment radixv1.RadixJobComponentEnvironmentConfig) error {
+func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.RadixJobComponent, environment radixv1.RadixJobComponentEnvironmentConfig) (string, error) {
 	var errs []error
+	var wrns []string
 
 	if !doesEnvExist(app, environment.Environment) {
 		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, ErrEnvironmentReferencedByComponentDoesNotExist))
@@ -188,7 +193,7 @@ func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.
 	}
 
 	if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, job.Image) {
-		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, ErrComponentWithDynamicTagRequiresImageTag))
+		wrns = append(wrns, fmt.Sprintf("job %s in environment %s: %s", job.Name, environment.Environment, WarnComponentWithDynamicTagRequiresImageTag))
 	}
 
 	if err := validateRuntime(environment.Runtime); err != nil {
@@ -199,7 +204,7 @@ func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.
 		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, err))
 	}
 
-	return errors.Join(errs...)
+	return strings.Join(wrns, "\n"), errors.Join(errs...)
 }
 
 func componentValidator(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
@@ -212,7 +217,7 @@ func componentValidator(ctx context.Context, app *radixv1.RadixApplication) (str
 		}
 
 		if component.Image != "" && (component.SourceFolder != "" || component.DockerfileName != "") {
-			wrns = append(wrns, fmt.Sprintf("component %s: component image will take precedens. src and dockerfile will be ignored.", component.Name))
+			wrns = append(wrns, fmt.Sprintf("component %s: %s", component.Name, WarnPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage))
 		}
 
 		if err := validatePublicPort(component); err != nil {
@@ -239,17 +244,22 @@ func componentValidator(ctx context.Context, app *radixv1.RadixApplication) (str
 		}
 
 		for _, environment := range component.EnvironmentConfig {
-			if err := validateComponentEnvironment(app, component, environment); err != nil {
+			wrn, err := validateComponentEnvironment(app, component, environment)
+			if err != nil {
 				errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
+			}
+			if wrn != "" {
+				wrns = append(wrns, wrn)
 			}
 		}
 	}
 
-	return strings.Join(wrns, ", "), errors.Join(errs...)
+	return strings.Join(wrns, "\n"), errors.Join(errs...)
 }
 
-func validateComponentEnvironment(app *radixv1.RadixApplication, component radixv1.RadixComponent, environment radixv1.RadixEnvironmentConfig) error {
+func validateComponentEnvironment(app *radixv1.RadixApplication, component radixv1.RadixComponent, environment radixv1.RadixEnvironmentConfig) (string, error) {
 	var errs []error
+	var wrns []string
 
 	if !doesEnvExist(app, environment.Environment) {
 		errs = append(errs, fmt.Errorf("environment %s referenced by component %s: %w", environment.Environment, component.Name, ErrEnvironmentReferencedByComponentDoesNotExist))
@@ -268,7 +278,7 @@ func validateComponentEnvironment(app *radixv1.RadixApplication, component radix
 	}
 
 	if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, component.Image) {
-		errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, environment.Environment, ErrComponentWithDynamicTagRequiresImageTag))
+		wrns = append(wrns, fmt.Sprintf("component %s in environment %s: %s", component.Name, environment.Environment, WarnComponentWithDynamicTagRequiresImageTag))
 	}
 
 	if err := validateRuntime(environment.Runtime); err != nil {
@@ -279,7 +289,7 @@ func validateComponentEnvironment(app *radixv1.RadixApplication, component radix
 		errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, environment.Environment, err))
 	}
 
-	return errors.Join(errs...)
+	return strings.Join(wrns, "\n"), errors.Join(errs...)
 }
 
 func envNameValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
