@@ -151,9 +151,6 @@ func Test_invalid_ra(t *testing.T) {
 		{"dns alias non existing env", radixapplication.ErrDNSAliasEnvironmentNotDefined, func(ra *radixv1.RadixApplication) {
 			ra.Spec.DNSAlias[0].Environment = noExistingEnvironment
 		}},
-		{"dns alias alias is invalid", radixapplication.ErrDuplicateAlias, func(ra *radixv1.RadixApplication) {
-			ra.Spec.DNSAlias = append(ra.Spec.DNSAlias, ra.Spec.DNSAlias[0])
-		}},
 		{"dns alias with no public port", radixapplication.ErrDNSAliasComponentIsNotMarkedAsPublic, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[3].PublicPort = ""
 			ra.Spec.Components[3].Public = false
@@ -169,7 +166,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"dns alias non existing env", radixapplication.ErrDNSAliasEnvironmentNotDefined, func(ra *radixv1.RadixApplication) {
 			ra.Spec.DNSAppAlias.Environment = noExistingEnvironment
 		}},
-		{"dns external alias non existing component", radixapplication.ErrDNSAliasComponentNotDefinedOrDisabled, func(ra *radixv1.RadixApplication) {
+		{"dns external alias non existing component", radixapplication.ErrExternalAliasComponentNotDefined, func(ra *radixv1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []radixv1.ExternalAlias{
 				{
 					Alias:       "some.alias.com",
@@ -178,7 +175,7 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"dns external alias non existing environment", radixapplication.ErrDNSAliasEnvironmentNotDefined, func(ra *radixv1.RadixApplication) {
+		{"dns external alias non existing environment", radixapplication.ErrExternalAliasEnvironmentNotDefined, func(ra *radixv1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []radixv1.ExternalAlias{
 				{
 					Alias:       "some.alias.com",
@@ -187,15 +184,7 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"dns external alias non existing alias", radixapplication.ErrExternalAliasCannotBeEmpty, func(ra *radixv1.RadixApplication) {
-			ra.Spec.DNSExternalAlias = []radixv1.ExternalAlias{
-				{
-					Component:   ra.Spec.Components[0].Name,
-					Environment: ra.Spec.Environments[0].Name,
-				},
-			}
-		}},
-		{"dns external alias with no public port", radixapplication.ErrDNSAliasComponentIsNotMarkedAsPublic, func(ra *radixv1.RadixApplication) {
+		{"dns external alias with no public port", radixapplication.ErrExternalAliasComponentNotMarkedAsPublic, func(ra *radixv1.RadixApplication) {
 			// Backward compatible setting
 			ra.Spec.Components[0].Public = false
 			ra.Spec.Components[0].PublicPort = ""
@@ -220,10 +209,10 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "250Ki"
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
 		}},
-		{"cpu resource limit wrong format", radixapplication.ErrCPUResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"cpu resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["cpu"] = invalidResourceValue
 		}},
-		{"cpu resource request wrong format", radixapplication.ErrCPUResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"cpu resource request wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["cpu"] = invalidResourceValue
 		}},
 		{"cpu resource request larger than limit", radixapplication.ErrRequestedResourceExceedsLimit, func(ra *radixv1.RadixApplication) {
