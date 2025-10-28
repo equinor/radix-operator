@@ -12,15 +12,6 @@ alertControllerThreads: 1
 kubeClientRateLimitBurst: 5
 kubeClientRateLimitQPS: 5
 
-imageBuilder: radix-image-builder:master-latest # deprecated issue #1388
-buildKitImageBuilder: radix-buildkit-builder:main-latest # deprecated issue #1388 # TODO: Configure in radix-flux
-jobScheduler: radix-job-scheduler:main-latest # deprecated issue #1388
-
-# Images used by git clone init containers in pipeline
-gitCloneNsLookupImage: "" # deprecated issue #1388 # Image containing nslookup, e.g. "alpine:3.20". Defaults to "alpine:latest" if not set
-gitCloneGitImage: "" # deprecated issue #1388 # Image containing git, e.g. "alpine/git:2.45.2". Defaults to "alpine/git:latest" if not set
-gitCloneBashImage: "" # deprecated issue #1388 # Image containing bash, e.g. "bash:5.2". Defaults to "bash:latest" if not set
-
 reservedAppDNSAlias:
   api: radix-api
   canary: radix-canary-golang
@@ -151,8 +142,6 @@ volumes: []
 # Additional volume mounts to add to the radix-cost-allocation container.
 volumeMounts: []
 
-prometheusName: kube-prometheus # TODO: Remove as it is no longer used
-
 clusterType: development
 
 rbac:
@@ -162,7 +151,6 @@ rbac:
 deploymentsPerEnvironmentHistoryLimit: 10
 pipelineJobsHistoryLimit: 5
 pipelineJobsHistoryPeriodLimit: "720h"
-pipelineImageTag: master-latest # deprecated issue #1388
 logLevel: "INFO"
 logPretty: false
 oauthProxyDefaultIssuerUrl: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0

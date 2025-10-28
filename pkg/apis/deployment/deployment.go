@@ -30,10 +30,6 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-const (
-	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
-)
-
 // DeploymentSyncer defines interface for syncing a RadixDeployment
 type DeploymentSyncer interface {
 	OnSync(ctx context.Context) error
