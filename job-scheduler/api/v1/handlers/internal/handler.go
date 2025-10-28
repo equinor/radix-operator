@@ -394,6 +394,7 @@ func buildRadixBatchJob(jobScheduleDescription *common.JobScheduleDescription, d
 		FailurePolicy:    jobScheduleDescription.FailurePolicy.MapToRadixFailurePolicy(),
 		Command:          jobScheduleDescription.Command,
 		Args:             jobScheduleDescription.Args,
+		RunAsUser:        jobScheduleDescription.RunAsUser,
 	}
 	return &batchJob, nil
 }
