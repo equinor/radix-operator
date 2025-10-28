@@ -30,7 +30,7 @@ func setupTest(t *testing.T) (kubernetes.Interface, *kube.Kube, radixclient.Inte
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(client, radixClient, kedaClient, secretproviderclient)
-	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "anysubid")
 	require.NoError(t, err)
 	return client, kubeUtil, radixClient
 }

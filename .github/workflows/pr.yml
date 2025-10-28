@@ -5,42 +5,30 @@ on:
     - master
 jobs:
   build:
-    name: pull-request-check
+    name: Build container images
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      matrix:
+        file:
+          - operator.Dockerfile
+          - pipeline.Dockerfile
+          - webhook.Dockerfile
+          - job-scheduler.Dockerfile
     steps:
     - uses: actions/checkout@v4
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-    - name: Build radix-operator
+    - name: Build container
       uses: docker/build-push-action@v6
       with:
         context: .
-        file: ./operator.Dockerfile
+        file: ${{ matrix.file }}
         push: false
         platforms: |
           linux/amd64
           linux/arm64
-    - name: Build pipeline-runner
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ./pipeline.Dockerfile
-        push: false
-        platforms: |
-          linux/amd64
-          linux/arm64
-    - name: Build radix-webhook
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ./webhook.Dockerfile
-        push: false
-        platforms: |
-          linux/amd64
-          linux/arm64
-
 
   unit-test:
     name: Unit tests
@@ -59,7 +47,7 @@ jobs:
       run: |
         go test -cover `go list ./...`
 
-  radix-operator-lint:
+  go-lint:
     name: Lint
     runs-on: ubuntu-latest
     permissions:
@@ -72,9 +60,9 @@ jobs:
       with:
         go-version-file: 'go.mod'
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v8
       with:
-        version: v1.64.3
+        version: v2.5.0
 
   verify-code-generation:
     name: Verify Code Generation

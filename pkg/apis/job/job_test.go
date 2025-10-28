@@ -41,7 +41,6 @@ type RadixJobTestSuiteBase struct {
 	radixClient radixclient.Interface
 	config      struct {
 		clusterName    string
-		egressIps      string
 		builderImage   string
 		buildkitImage  string
 		buildahSecComp string
@@ -57,7 +56,6 @@ type RadixJobTestSuiteBase struct {
 func (s *RadixJobTestSuiteBase) SetupSuite() {
 	s.config = struct {
 		clusterName    string
-		egressIps      string
 		builderImage   string
 		buildkitImage  string
 		buildahSecComp string
@@ -69,7 +67,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		subscriptionID string
 	}{
 		clusterName:    "AnyClusterName",
-		egressIps:      "0.0.0.0",
 		builderImage:   "docker.io/builder:any",
 		buildkitImage:  "docker.io/buildkit:any",
 		buildahSecComp: "anyseccomp",
@@ -94,7 +91,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
-	err := handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.egressIps, s.config.subscriptionID)
+	err := handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.subscriptionID)
 	s.Require().NoError(err)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient
 
@@ -148,29 +145,6 @@ func TestRadixJobTestSuite(t *testing.T) {
 
 type RadixJobTestSuite struct {
 	RadixJobTestSuiteBase
-}
-
-func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
-
-	appName := "anyApp"
-	completedJobStatus := utils.ACompletedJobStatus()
-
-	// Test
-	job, _, err := s.applyJobWithSync(
-		utils.ARadixRegistration().WithName(appName),
-		utils.NewJobBuilder().
-			WithRadixApplication(utils.ARadixApplication().WithAppName(appName)).
-			WithStatusOnAnnotation(completedJobStatus).
-			WithAppName(appName).
-			WithJobName("anyJob"),
-		config)
-
-	s.Require().NoError(err)
-
-	expectedStatus := completedJobStatus.Build()
-	actualStatus := job.Status
-	s.assertStatusEqual(expectedStatus, actualStatus)
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
@@ -267,7 +241,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 			Resources: corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("1000Mi"),
+					corev1.ResourceMemory: resource.MustParse("2000Mi"),
 				},
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -1550,26 +1524,6 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 	// Master maps to Test env
 	s.Equal(job.Spec.Build.GetGitRefOrDefault(), "master")
 	s.Empty(job.Status.TargetEnvs)
-}
-
-func (s *RadixJobTestSuite) assertStatusEqual(expectedStatus, actualStatus radixv1.RadixJobStatus) {
-	getTimestamp := func(t time.Time) string {
-		return t.Format(time.RFC3339)
-	}
-
-	s.Equal(getTimestamp(expectedStatus.Started.Time), getTimestamp(actualStatus.Started.Time))
-	s.Equal(getTimestamp(expectedStatus.Ended.Time), getTimestamp(actualStatus.Ended.Time))
-	s.Equal(expectedStatus.Condition, actualStatus.Condition)
-	s.Equal(expectedStatus.TargetEnvs, actualStatus.TargetEnvs)
-
-	for index, expectedStep := range expectedStatus.Steps {
-		s.Equal(expectedStep.Name, actualStatus.Steps[index].Name)
-		s.Equal(expectedStep.Condition, actualStatus.Steps[index].Condition)
-		s.Equal(getTimestamp(expectedStep.Started.Time), getTimestamp(actualStatus.Steps[index].Started.Time))
-		s.Equal(getTimestamp(expectedStep.Ended.Time), getTimestamp(actualStatus.Steps[index].Ended.Time))
-		s.Equal(expectedStep.Components, actualStatus.Steps[index].Components)
-		s.Equal(expectedStep.PodName, actualStatus.Steps[index].PodName)
-	}
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
