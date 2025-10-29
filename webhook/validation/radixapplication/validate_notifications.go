@@ -2,7 +2,6 @@ package radixapplication
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -10,7 +9,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-func notificationValidator(_ context.Context, ra *radixv1.RadixApplication) (string, error) {
+func notificationValidator(_ context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 	var errs []error
 	for _, job := range ra.Spec.Jobs {
 		if err := validateNotifications(ra, job.Notifications, job.GetName(), ""); err != nil {
@@ -22,7 +21,7 @@ func notificationValidator(_ context.Context, ra *radixv1.RadixApplication) (str
 			}
 		}
 	}
-	return "", errors.Join(errs...)
+	return nil, errs
 }
 
 func validateNotifications(ra *radixv1.RadixApplication, notifications *radixv1.Notifications, jobComponentName string, environment string) error {

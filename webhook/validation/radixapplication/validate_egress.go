@@ -2,7 +2,6 @@ package radixapplication
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -17,7 +16,7 @@ const (
 	maximumNumberOfEgressRules = 1000
 )
 
-func environmentEgressValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+func environmentEgressValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 
 	var errs []error
 	for _, env := range ra.Spec.Environments {
@@ -48,7 +47,7 @@ func environmentEgressValidator(ctx context.Context, ra *radixv1.RadixApplicatio
 		}
 	}
 
-	return "", errors.Join(errs...)
+	return nil, errs
 }
 
 func validateEgressRulePort(port int32) error {

@@ -51,7 +51,7 @@ var (
 )
 
 // validatorFunc defines a validatorFunc function for a RadixApplication
-type validatorFunc func(ctx context.Context, radixApplication *radixv1.RadixApplication) (string, error)
+type validatorFunc func(ctx context.Context, radixApplication *radixv1.RadixApplication) ([]string, []error)
 
 type Validator struct {
 	validators []validatorFunc
@@ -81,11 +81,11 @@ func (validator *Validator) Validate(ctx context.Context, ra *radixv1.RadixAppli
 	var wrns admission.Warnings
 	for _, v := range validator.validators {
 		wrn, err := v(ctx, ra)
-		if err != nil {
-			errs = append(errs, err)
+		if len(err) > 0 {
+			errs = append(errs, err...)
 		}
-		if wrn != "" {
-			wrns = append(wrns, wrn)
+		if len(wrn) > 0 {
+			wrns = append(wrns, wrn...)
 		}
 	}
 
@@ -93,50 +93,50 @@ func (validator *Validator) Validate(ctx context.Context, ra *radixv1.RadixAppli
 }
 
 func createRRExistValidator(kubeClient client.Client) validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+	return func(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 		err := kubeClient.Get(ctx, client.ObjectKey{Name: ra.Name}, &radixv1.RadixRegistration{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				return "", ErrNoRadixApplication
+				return nil, []error{ErrNoRadixApplication}
 			}
 
 			log.Ctx(ctx).Error().Err(err).Msg("failed to list existing RadixRegistrations")
-			return "", err // Something went wrong while listing existing RadixRegistrations, let the user try again
+			return nil, []error{err} // Something went wrong while listing existing RadixRegistrations, let the user try again
 		}
 
-		return "", nil
+		return nil, nil
 	}
 }
 
-func deprecatedPublicUsageValidator(_ context.Context, ra *radixv1.RadixApplication) (string, error) {
+func deprecatedPublicUsageValidator(_ context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 	for _, component := range ra.Spec.Components {
 		//nolint:staticcheck
 		if component.Public {
-			return fmt.Sprintf("component %s is using deprecated public field. use publicPort and ports.name instead", component.Name), nil
+			return []string{fmt.Sprintf("component %s is using deprecated public field. use publicPort and ports.name instead", component.Name)}, nil
 		}
 	}
-	return "", nil
+	return nil, nil
 }
 
-func branchNameValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+func branchNameValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 	for _, env := range ra.Spec.Environments {
 		if env.Build.From == "" {
 			continue
 		}
 
 		if len(env.Build.From) > 253 {
-			return "", fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrBranchFromTooLong)
+			return nil, []error{fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrBranchFromTooLong)}
 		}
 
 		isValid := branch.IsValidPattern(env.Build.From)
 		if !isValid {
-			return "", fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrInvalidBranchName)
+			return nil, []error{fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrInvalidBranchName)}
 		}
 	}
-	return "", nil
+	return nil, nil
 }
 
-func jobValidator(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+func jobValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string, []error) {
 	var wrns []string
 	var errs []error
 	for _, job := range app.Spec.Jobs {
@@ -171,16 +171,16 @@ func jobValidator(ctx context.Context, app *radixv1.RadixApplication) (string, e
 			if err != nil {
 				errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
 			}
-			if wrn != "" {
-				wrns = append(wrns, wrn)
+			if len(wrn) > 0 {
+				wrns = append(wrns, wrn...)
 			}
 		}
 
 	}
-	return strings.Join(wrns, "\n"), errors.Join(errs...)
+	return wrns, errs
 }
 
-func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.RadixJobComponent, environment radixv1.RadixJobComponentEnvironmentConfig) (string, error) {
+func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.RadixJobComponent, environment radixv1.RadixJobComponentEnvironmentConfig) ([]string, error) {
 	var errs []error
 	var wrns []string
 
@@ -204,10 +204,10 @@ func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.
 		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, err))
 	}
 
-	return strings.Join(wrns, "\n"), errors.Join(errs...)
+	return wrns, errors.Join(errs...)
 }
 
-func componentValidator(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+func componentValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string, []error) {
 	var wrns []string
 	var errs []error
 	for _, component := range app.Spec.Components {
@@ -248,16 +248,16 @@ func componentValidator(ctx context.Context, app *radixv1.RadixApplication) (str
 			if err != nil {
 				errs = append(errs, fmt.Errorf("invalid configuration for environment %s: %w", environment.Environment, err))
 			}
-			if wrn != "" {
-				wrns = append(wrns, wrn)
+			if len(wrn) > 0 {
+				wrns = append(wrns, wrn...)
 			}
 		}
 	}
 
-	return strings.Join(wrns, "\n"), errors.Join(errs...)
+	return wrns, errs
 }
 
-func validateComponentEnvironment(app *radixv1.RadixApplication, component radixv1.RadixComponent, environment radixv1.RadixEnvironmentConfig) (string, error) {
+func validateComponentEnvironment(app *radixv1.RadixApplication, component radixv1.RadixComponent, environment radixv1.RadixEnvironmentConfig) ([]string, error) {
 	var errs []error
 	var wrns []string
 
@@ -289,16 +289,16 @@ func validateComponentEnvironment(app *radixv1.RadixApplication, component radix
 		errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, environment.Environment, err))
 	}
 
-	return strings.Join(wrns, "\n"), errors.Join(errs...)
+	return wrns, errors.Join(errs...)
 }
 
-func envNameValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+func envNameValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 	for _, env := range ra.Spec.Environments {
 		if len(ra.Name)+len(env.Name) > 62 {
-			return "", fmt.Errorf("environment %s: %w", env.Name, ErrInvalidEnvironmentNameLength)
+			return nil, []error{fmt.Errorf("environment %s: %w", env.Name, ErrInvalidEnvironmentNameLength)}
 		}
 	}
-	return "", nil
+	return nil, nil
 }
 
 func validateComponentOrJobName(componentName, componentType string) error {

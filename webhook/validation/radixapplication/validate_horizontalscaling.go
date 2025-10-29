@@ -13,7 +13,7 @@ import (
 var validAzureEventHubTriggerCheckpoints = map[radixv1.AzureEventHubTriggerCheckpointStrategy]any{radixv1.AzureEventHubTriggerCheckpointStrategyAzureFunction: struct{}{},
 	radixv1.AzureEventHubTriggerCheckpointStrategyBlobMetadata: struct{}{}, radixv1.AzureEventHubTriggerCheckpointStrategyGoSdk: struct{}{}}
 
-func horizontalScalingValidator(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+func horizontalScalingValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string, []error) {
 	var errs []error
 
 	for _, component := range app.Spec.Components {
@@ -35,7 +35,7 @@ func horizontalScalingValidator(ctx context.Context, app *radixv1.RadixApplicati
 		}
 	}
 
-	return "", errors.Join(errs...)
+	return nil, errs
 }
 
 func validateHorizontalScalingPart(config *radixv1.RadixHorizontalScaling) error {

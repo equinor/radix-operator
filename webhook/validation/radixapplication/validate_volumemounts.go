@@ -2,7 +2,6 @@ package radixapplication
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -16,7 +15,7 @@ var (
 	storageAccountNameRegExp = regexp.MustCompile(`^[a-z0-9]{3,24}$`)
 )
 
-func volumeMountValidator(ctx context.Context, app *radixv1.RadixApplication) (string, error) {
+func volumeMountValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string, []error) {
 	var errs []error
 	var wrns []string
 
@@ -61,7 +60,7 @@ func volumeMountValidator(ctx context.Context, app *radixv1.RadixApplication) (s
 		}
 	}
 
-	return strings.Join(wrns, "\n"), errors.Join(errs...)
+	return wrns, errs
 }
 
 func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount, hasIdentityAzureClientId bool) (string, error) {

@@ -2,7 +2,6 @@ package radixapplication
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -11,12 +10,12 @@ import (
 )
 
 func createDNSAliasAvailableValidator(kubeClient client.Client, reservedDNSAliases []string, reservedDNSAppAliases map[string]string) validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+	return func(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 		var errs []error
 		list := radixv1.RadixDNSAliasList{}
 		err := kubeClient.List(ctx, &list)
 		if err != nil {
-			return "", err
+			return nil, []error{err}
 		}
 
 		for _, dnsAlias := range ra.Spec.DNSAlias {
@@ -36,11 +35,11 @@ func createDNSAliasAvailableValidator(kubeClient client.Client, reservedDNSAlias
 				errs = append(errs, fmt.Errorf("dns alias %s is reserved. %w", dnsAlias.Alias, ErrDNSAliasReservedForRadixPlatformService))
 			}
 		}
-		return "", errors.Join(errs...)
+		return nil, errs
 	}
 }
 
-func dnsAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+func dnsAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 	var errs []error
 
 	for _, dnsAlias := range ra.Spec.DNSAlias {
@@ -53,24 +52,24 @@ func dnsAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) (strin
 			continue
 		}
 	}
-	return "", errors.Join(errs...)
+	return nil, errs
 }
 
-func dnsAppAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+func dnsAppAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 	if ra.Spec.DNSAppAlias.Component == "" && ra.Spec.DNSAppAlias.Environment == "" {
-		return "", nil
+		return nil, nil
 	}
 
 	if err := validateDNSAliasComponentAndEnvironmentAvailable(ra, ra.Name, ra.Spec.DNSAppAlias.Component, ra.Spec.DNSAppAlias.Environment); err != nil {
-		return "", err
+		return nil, []error{err}
 	}
 	if !doesComponentHaveAPublicPort(ra, ra.Spec.DNSAppAlias.Component) {
-		return "", fmt.Errorf("component %s is not public. %w", ra.Spec.DNSAppAlias.Component, ErrDNSAliasComponentIsNotMarkedAsPublic)
+		return nil, []error{fmt.Errorf("component %s is not public. %w", ra.Spec.DNSAppAlias.Component, ErrDNSAliasComponentIsNotMarkedAsPublic)}
 	}
-	return "", nil
+	return nil, nil
 }
 
-func externalDNSAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+func externalDNSAliasValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 	var errs []error
 
 	for _, externalAlias := range ra.Spec.DNSExternalAlias {
@@ -85,7 +84,7 @@ func externalDNSAliasValidator(ctx context.Context, ra *radixv1.RadixApplication
 			errs = append(errs, fmt.Errorf("%s: %w", externalAlias.Alias, ErrExternalAliasComponentNotMarkedAsPublic))
 		}
 	}
-	return "", errors.Join(errs...)
+	return nil, errs
 }
 
 func validateDNSAliasComponentAndEnvironmentAvailable(ra *radixv1.RadixApplication, dnsAlias, component, environment string) error {

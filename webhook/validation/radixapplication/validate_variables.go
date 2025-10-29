@@ -13,48 +13,52 @@ var (
 	validNameRegex = regexp.MustCompile(`^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$`)
 )
 
-func variableValidator(ctx context.Context, ra *radixv1.RadixApplication) (string, error) {
+func variableValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
+	var errs []error
 
 	for _, component := range ra.Spec.Components {
 		err := validateRadixComponentVariables(&component)
-		if err != nil {
-			return "", err
+		if len(err) > 0 {
+			errs = append(errs, err...)
 		}
 	}
 	for _, job := range ra.Spec.Jobs {
 		err := validateRadixComponentVariables(&job)
-		if err != nil {
-			return "", err
+		if len(err) > 0 {
+			errs = append(errs, err...)
 		}
 	}
-	return "", nil
+	return nil, errs
 }
 
-func validateRadixComponentVariables(component radixv1.RadixCommonComponent) error {
+func validateRadixComponentVariables(component radixv1.RadixCommonComponent) []error {
+	var errs []error
 	if err := validateVariableNames(component.GetVariables()); err != nil {
-		return err
+		errs = append(errs, err...)
 	}
 
 	for _, envConfig := range component.GetEnvironmentConfig() {
 		if err := validateVariableNames(envConfig.GetVariables()); err != nil {
-			return err
+			errs = append(errs, err...)
 		}
 	}
-	return nil
+	return errs
 }
 
-func validateVariableNames(variables radixv1.EnvVarsMap) error {
+func validateVariableNames(variables radixv1.EnvVarsMap) []error {
+	var errs []error
+
 	for envVarName := range variables {
 		if len(envVarName) > 253 {
-			return fmt.Errorf("variable %s: %w", envVarName, ErrVariableNameCannotExceedMaxLength)
+			errs = append(errs, fmt.Errorf("variable %s: %w", envVarName, ErrVariableNameCannotExceedMaxLength))
 		}
 
 		if !validNameRegex.MatchString(envVarName) {
-			return fmt.Errorf("variable %s: %w", envVarName, ErrVariableNameCannotContainIllegalCharacters)
+			errs = append(errs, fmt.Errorf("variable %s: %w", envVarName, ErrVariableNameCannotContainIllegalCharacters))
 		}
 		if utils.IsRadixEnvVar(envVarName) {
-			return fmt.Errorf("variable %s: %w", envVarName, ErrVariableNameCannotStartWithReservedPrefix)
+			errs = append(errs, fmt.Errorf("variable %s: %w", envVarName, ErrVariableNameCannotStartWithReservedPrefix))
 		}
 	}
-	return nil
+	return errs
 }
