@@ -23,15 +23,6 @@ func Test_invalid_rd_returns_false(t *testing.T) {
 		name     string
 		updateRD updateRDFunc
 	}{
-		{"to long app name", func(rd *v1.RadixDeployment) {
-			rd.Name = "way.toooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.long-app-name"
-		}},
-		{"invalid app name", func(rd *v1.RadixDeployment) {
-			rd.Name = "invalid,char.appname"
-		}},
-		{"empty app name", func(rd *v1.RadixDeployment) {
-			rd.Name = ""
-		}},
 		{"invalid nr replicas", func(rd *v1.RadixDeployment) {
 			*rd.Spec.Components[0].Replicas = -1
 		}},

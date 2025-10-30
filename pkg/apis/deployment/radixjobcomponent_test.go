@@ -38,7 +38,7 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 	assert.Equal(t, "job1", jobs[0].Name)
-	assert.Equal(t, 8888, jobs[0].SchedulerPort)
+	assert.Equal(t, int32(8888), jobs[0].SchedulerPort)
 	assert.Equal(t, "/path/to/payload", jobs[0].Payload.Path)
 	assert.Equal(t, "job2", jobs[1].Name)
 	assert.Nil(t, jobs[1].SchedulerPort)

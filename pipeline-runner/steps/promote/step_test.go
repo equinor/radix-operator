@@ -355,7 +355,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "prod1", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["COMMON1"])
 	assert.Equal(t, "common2", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["COMMON2"])
 	assert.Equal(t, "prod3", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["PROD3"])
-	assert.Equal(t, 8888, rds.Items[0].Spec.Jobs[0].SchedulerPort)
+	assert.Equal(t, int32(8888), rds.Items[0].Spec.Jobs[0].SchedulerPort)
 	assert.Equal(t, "/path", rds.Items[0].Spec.Jobs[0].Payload.Path)
 	assert.Len(t, rds.Items[0].Spec.Jobs[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYJOBSECRET", rds.Items[0].Spec.Jobs[0].Secrets[0])
