@@ -172,6 +172,58 @@ func Test_CreateBatch(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "batch with runAsUser and a jobs, jobs without runAsUser should use batch, jobs with runAsUser should take precedence",
+			batchDescription: common.BatchScheduleDescription{
+				JobScheduleDescriptions: []common.JobScheduleDescription{
+					{
+						JobId: "job1",
+						RadixJobComponentConfig: common.RadixJobComponentConfig{
+							RunAsUser: pointers.Ptr(int64(1001)),
+						},
+					},
+					{
+						JobId: "job2",
+						RadixJobComponentConfig: common.RadixJobComponentConfig{
+							RunAsUser: pointers.Ptr(int64(1002)),
+						},
+					},
+					{
+						JobId:                   "job3",
+						RadixJobComponentConfig: common.RadixJobComponentConfig{},
+					},
+					{
+						JobId:                   "job4",
+						RadixJobComponentConfig: common.RadixJobComponentConfig{},
+					},
+				},
+				DefaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
+					RunAsUser: pointers.Ptr(int64(1000)),
+				},
+			},
+			expectedBatchType: kube.RadixBatchTypeBatch,
+			expectedError:     false,
+			expectedRadixBatchSpec: &radixv1.RadixBatchSpec{
+				Jobs: []radixv1.RadixBatchJob{
+					{
+						JobId:     "job1",
+						RunAsUser: pointers.Ptr(int64(1001)),
+					},
+					{
+						JobId:     "job2",
+						RunAsUser: pointers.Ptr(int64(1002)),
+					},
+					{
+						JobId:     "job3",
+						RunAsUser: pointers.Ptr(int64(1000)),
+					},
+					{
+						JobId:     "job4",
+						RunAsUser: pointers.Ptr(int64(1000)),
+					},
+				},
+			},
+		},
 	}
 
 	for _, ts := range scenarios {
@@ -243,6 +295,13 @@ func Test_CreateBatch(t *testing.T) {
 					}
 				} else {
 					assert.Nil(t, scheduledBatch.Spec.Jobs[i].Args, "expected no args in batch job #%d", i)
+				}
+				if ts.expectedRadixBatchSpec.Jobs[i].RunAsUser != nil {
+					if assert.NotNil(t, scheduledBatch.Spec.Jobs[i].RunAsUser, "expected runAsUser in batch job #%d", i) {
+						assert.Equal(t, *ts.expectedRadixBatchSpec.Jobs[i].RunAsUser, *scheduledBatch.Spec.Jobs[i].RunAsUser, "mismatched runAsUser in batch job #%d", i)
+					}
+				} else {
+					assert.Nil(t, scheduledBatch.Spec.Jobs[i].RunAsUser, "expected no runAsUser in batch job #%d", i)
 				}
 			}
 		})
@@ -706,6 +765,32 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: pointers.Ptr([]string{}),
 				Args:    pointers.Ptr([]string{}),
+			},
+		},
+		"job runAsUser is set, component runAsUser is set, job should take precedence": {
+			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
+				RunAsUser: pointers.Ptr(int64(1002)),
+			},
+			jobScheduleDescription: &common.JobScheduleDescription{
+				RadixJobComponentConfig: common.RadixJobComponentConfig{
+					RunAsUser: pointers.Ptr(int64(1003)),
+				},
+			},
+			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
+				RunAsUser: pointers.Ptr(int64(1003)),
+			},
+		},
+		"job runAsUser is nil, component runAsUser is set, component should be used": {
+			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
+				RunAsUser: pointers.Ptr(int64(1002)),
+			},
+			jobScheduleDescription: &common.JobScheduleDescription{
+				RadixJobComponentConfig: common.RadixJobComponentConfig{
+					RunAsUser: nil,
+				},
+			},
+			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
+				RunAsUser: pointers.Ptr(int64(1002)),
 			},
 		},
 	}

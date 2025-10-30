@@ -991,6 +991,12 @@
         "resources": {
           "$ref": "#/definitions/Resources"
         },
+        "runAsUser": {
+          "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser\n+optional",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "RunAsUser"
+        },
         "runtime": {
           "$ref": "#/definitions/Runtime"
         },
@@ -1253,6 +1259,12 @@
         },
         "resources": {
           "$ref": "#/definitions/Resources"
+        },
+        "runAsUser": {
+          "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser\n+optional",
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "RunAsUser"
         },
         "runtime": {
           "$ref": "#/definitions/Runtime"

@@ -900,19 +900,65 @@ func TestObjectSynced_ReadOnlyFileSystem(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 			defer TeardownTest()
-			envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+			appName := "any-app"
+			envName := "any-env"
+			componentName := "readOnlyFileSystem-app"
+			envNamespace := utils.GetEnvironmentNamespace(appName, envName)
 			_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-				WithAppName("any-app").
-				WithEnvironment("any-env").
+				WithAppName(appName).
+				WithEnvironment(envName).
 				WithComponents(
 					utils.NewDeployComponentBuilder().
-						WithName("app").
+						WithName(componentName).
 						WithReadOnlyFileSystem(test.readOnlyFileSystem)))
 
 			assert.NoError(t, err)
-			deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
+			deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "radix-component=" + componentName})
+
+			assert.NotEmpty(t, deployments.Items)
+
 			for _, deployment := range deployments.Items {
 				assert.Equal(t, test.expectedReadOnlyFileSystem, deployment.Spec.Template.Spec.Containers[0].SecurityContext.ReadOnlyRootFilesystem)
+			}
+		})
+	}
+}
+
+func TestObjectSynced_RunAsUser(t *testing.T) {
+	type scenarioSpec struct {
+		runAsUser         *int64
+		expectedRunAsUser *int64
+	}
+
+	tests := map[string]scenarioSpec{
+		"notSet": {runAsUser: nil, expectedRunAsUser: nil},
+		"1000":   {runAsUser: pointers.Ptr(int64(1000)), expectedRunAsUser: pointers.Ptr(int64(1000))},
+		"1001":   {runAsUser: pointers.Ptr(int64(1001)), expectedRunAsUser: pointers.Ptr(int64(1001))},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+			defer TeardownTest()
+			appName := "any-app"
+			envName := "any-env"
+			componentName := "runAsUser-app"
+			envNamespace := utils.GetEnvironmentNamespace(appName, envName)
+			_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+				WithAppName(appName).
+				WithEnvironment(envName).
+				WithComponents(
+					utils.NewDeployComponentBuilder().
+						WithName(componentName).
+						WithRunAsUser(test.runAsUser)))
+
+			assert.NoError(t, err)
+			deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "radix-component=" + componentName})
+
+			assert.NotEmpty(t, deployments.Items)
+
+			for _, deployment := range deployments.Items {
+				assert.Equal(t, test.expectedRunAsUser, deployment.Spec.Template.Spec.Containers[0].SecurityContext.RunAsUser)
 			}
 		})
 	}
