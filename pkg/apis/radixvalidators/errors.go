@@ -5,10 +5,13 @@ import (
 )
 
 var (
-	ErrSchedulerPortCannotBeEmptyForJob  = errors.New("scheduler port cannot be empty for job")
-	ErrPayloadPathCannotBeEmptyForJob    = errors.New("payload path cannot be empty for job")
-	ErrMaxReplicasForHPANotSetOrZero     = errors.New("max replicas for hpa not set or zero")
-	ErrMinReplicasGreaterThanMaxReplicas = errors.New("min replicas greater than max replicas")
+	ErrSchedulerPortCannotBeEmptyForJob             = errors.New("scheduler port cannot be empty for job")
+	ErrPayloadPathCannotBeEmptyForJob               = errors.New("payload path cannot be empty for job")
+	ErrMaxReplicasForHPANotSetOrZero                = errors.New("max replicas for hpa not set or zero")
+	ErrMinReplicasGreaterThanMaxReplicas            = errors.New("min replicas greater than max replicas")
+	ErrInvalidStringValueMaxLength                  = errors.New("invalid string value max length")
+	ErrResourceNameCannotBeEmpty                    = errors.New("resource name cannot be empty")
+	ErrInvalidLowerCaseAlphaNumericDashResourceName = errors.New("invalid lower case alpha numeric dash resource name")
 )
 
 // SchedulerPortCannotBeEmptyForJobErrorWithMessage Scheduler port cannot be empty for job
@@ -29,4 +32,19 @@ func MaxReplicasForHPANotSetOrZeroInEnvironmentErrorWithMessage(component, envir
 // MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage Indicates that minReplicas is greater than maxReplicas
 func MinReplicasGreaterThanMaxReplicasInEnvironmentErrorWithMessage(component, environment string) error {
 	return errors.WithMessagef(ErrMinReplicasGreaterThanMaxReplicas, "minReplicas is greater than maxReplicas for component %s in environment %s", component, environment)
+}
+
+// InvalidStringValueMaxLengthErrorWithMessage Invalid string value max length
+func InvalidStringValueMaxLengthErrorWithMessage(resourceName, value string, maxValue int) error {
+	return errors.WithMessagef(ErrInvalidStringValueMaxLength, "%s (\"%s\") max length is %d", resourceName, value, maxValue)
+}
+
+// ResourceNameCannotBeEmptyErrorWithMessage Resource name cannot be left empty
+func ResourceNameCannotBeEmptyErrorWithMessage(resourceName string) error {
+	return errors.WithMessagef(ErrResourceNameCannotBeEmpty, "%s is empty", resourceName)
+}
+
+// InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage Invalid lower case alphanumeric, dash resource name error
+func InvalidLowerCaseAlphaNumericDashResourceNameErrorWithMessage(resourceName, value string) error {
+	return errors.WithMessagef(ErrInvalidLowerCaseAlphaNumericDashResourceName, "%s %s can only consist of lower case alphanumeric characters and '-'", resourceName, value)
 }
