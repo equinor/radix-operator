@@ -5,7 +5,6 @@ import (
 )
 
 var (
-	ErrUnknownServerError                                            = errors.New("server error, please try again later")
 	ErrNoRadixApplication                                            = errors.New("no corresponding radix application found. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console")
 	ErrDNSAliasComponentIsNotMarkedAsPublic                          = errors.New("component for dns alias is not marked as public")
 	ErrDNSAliasAlreadyUsedByAnotherApplication                       = errors.New("dns alias is already used by another application")
@@ -57,10 +56,10 @@ var (
 	ErrInvalidResourceFormat                                         = errors.New("invalid resource format")
 	ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator          = errors.New("value 0 cannot be used for the In operator")
 	WarnPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage = "job or component cannot have 'src' or 'Dockerfile' set when image is defined"
+	WarnDeprecatedFieldPublicUsed                                    = "deprecated: set publicPort to name of port instead of using public: true"
 	ErrSchedulerPortCannotBeEmptyForJob                              = errors.New("scheduler port cannot be empty for job")
 	ErrPayloadPathCannotBeEmptyForJob                                = errors.New("payload path cannot be empty for job")
 	ErrSecretNameConflictsWithVariable                               = errors.New("secret name conflicts with variable")
-	ErrDuplicateAzureKeyVaultName                                    = errors.New("duplicate Azure Key vault name")
 	ErrMissingAzureIdentityForAzureKeyVault                          = errors.New("missing Azure identity for Azure Key vault with useAzureIdentity enabled")
 	ErrDuplicateEnvVarName                                           = errors.New("duplicate environment variable name in Azure Key vault secret references")
 	ErrDuplicateAlias                                                = errors.New("duplicate alias in Azure Key vault secret references")

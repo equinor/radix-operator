@@ -109,13 +109,15 @@ func createRRExistValidator(kubeClient client.Client) validatorFunc {
 }
 
 func deprecatedPublicUsageValidator(_ context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
+	var warns []string
+
 	for _, component := range ra.Spec.Components {
 		//nolint:staticcheck
 		if component.Public {
-			return []string{fmt.Sprintf("component %s is using deprecated public field. use publicPort and ports.name instead", component.Name)}, nil
+			warns = append(warns, fmt.Sprintf("component %s is using deprecated field public: %s", component.Name, WarnDeprecatedFieldPublicUsed))
 		}
 	}
-	return nil, nil
+	return warns, nil
 }
 
 func branchNameValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {

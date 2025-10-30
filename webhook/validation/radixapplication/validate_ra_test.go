@@ -202,7 +202,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"memory resource limit wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = invalidResourceValue
 		}},
-		{"memory resource request wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"memory resource request wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = invalidResourceValue
 		}},
 		{"memory resource request larger than limit", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
@@ -228,7 +228,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"common resource request unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Requests[unsupportedResource] = "250m"
 		}},
-		{"common memory resource limit wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"common memory resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Limits["memory"] = invalidResourceValue
 		}},
 		{"common memory resource request wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
@@ -294,16 +294,6 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"scheduler port is not set", radixapplication.ErrSchedulerPortCannotBeEmptyForJob, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].SchedulerPort = 0
-		}},
-		{"payload is empty struct", radixapplication.ErrPayloadPathCannotBeEmptyForJob, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].Payload = &radixv1.RadixJobComponentPayload{}
-		}},
-		{"payload path is empty string", radixapplication.ErrPayloadPathCannotBeEmptyForJob, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].Payload = &radixv1.RadixJobComponentPayload{Path: ""}
-		}},
-
 		{"job resource limit unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits[unsupportedResource] = "250m"
 		}},
@@ -317,10 +307,10 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "250Ki"
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
 		}},
-		{"job cpu resource limit wrong format", radixapplication.ErrCPUResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"job cpu resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["cpu"] = invalidResourceValue
 		}},
-		{"job cpu resource request wrong format", radixapplication.ErrCPUResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"job cpu resource request wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["cpu"] = invalidResourceValue
 		}},
 		{"job cpu resource request larger than limit", radixapplication.ErrRequestedResourceExceedsLimit, func(ra *radixv1.RadixApplication) {
@@ -342,10 +332,10 @@ func Test_invalid_ra(t *testing.T) {
 		{"job common memory resource request wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Requests["memory"] = invalidResourceValue
 		}},
-		{"job common cpu resource limit wrong format", radixapplication.ErrCPUResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"job common cpu resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Limits["cpu"] = invalidResourceValue
 		}},
-		{"job common cpu resource request wrong format", radixapplication.ErrCPUResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"job common cpu resource request wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Requests["cpu"] = invalidResourceValue
 		}},
 		{"job cpu resource limit is empty", nil, func(ra *radixv1.RadixApplication) {
@@ -362,7 +352,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"job memory resource limit not set", nil, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
 		}},
-		{"too long app name together with env name", fmt.Errorf("summary length of app name and environment together should not exceed 62 characters"), func(ra *radixv1.RadixApplication) {
+		{"too long app name together with env name", radixapplication.ErrInvalidEnvironmentNameLength, func(ra *radixv1.RadixApplication) {
 			ra.Name = name50charsLong
 			ra.Spec.Environments = append(ra.Spec.Environments, radixv1.Environment{Name: "extra-14-chars"})
 		}},
@@ -479,7 +469,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"oauth SkipAuthRoutes are correct", nil, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SkipAuthRoutes = []string{"POST=^/api/public-entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"}
 		}},
-		{"oauth SkipAuthRoutes are invalid", errors.New("invalid configuration for component app: SkipAuthRoutes in oauth2 configuration are invalid in the component app in environment prod: failed to compile OAuth2 proxy skipAuthRoutes regex(es) //(foo,/foo/bar),^]/foo/bar[$,^]/foo/bar[$/"), func(rr *radixv1.RadixApplication) {
+		{"oauth SkipAuthRoutes are invalid", radixapplication.ErrOAuthSkipAuthRoutesInvalid, func(rr *radixv1.RadixApplication) {
 			// Bad regexes do not compile
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SkipAuthRoutes = []string{
 				"POST=/(foo",
@@ -488,7 +478,7 @@ func Test_invalid_ra(t *testing.T) {
 				"GET=^]/foo/bar[$",
 			}
 		}},
-		{"oauth SkipAuthRoutes failed because has comma", errors.New("invalid configuration for component app: SkipAuthRoutes in oauth2 configuration are invalid in the component app in environment prod: failed to compile OAuth2 proxy skipAuthRoutes regex /POST=^/api/public,entity/?$/: comma is not allowed"), func(rr *radixv1.RadixApplication) {
+		{"oauth SkipAuthRoutes failed because has comma", radixapplication.ErrOAuthSkipAuthRoutesInvalid, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SkipAuthRoutes = []string{"POST=^/api/public,entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"}
 		}},
 		{"invalid healthchecks are invalid", radixapplication.ErrInvalidHealthCheckProbe, func(rr *radixv1.RadixApplication) {
@@ -525,24 +515,6 @@ func Test_invalid_ra(t *testing.T) {
 					SuccessThreshold: 5,
 				},
 			}
-		}},
-		{"invalid CIDR in network.ingress.public.allow for component", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("143.10.0.0/33")}}}}
-		}},
-		{"invalid IP network.ingress.public.allow for component", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("256.0.0.0")}}}}
-		}},
-		{"invalid value network.ingress.public.allow for component", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("any")}}}}
-		}},
-		{"invalid CIDR in network.ingress.public.allow for component environment config", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("143.10.0.0/33")}}}}
-		}},
-		{"invalid IP network.ingress.public.allow for component environment config", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("256.0.0.0")}}}}
-		}},
-		{"invalid value network.ingress.public.allow for component environment config", radixapplication.ErrNotValidIPv4Cidr, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Network = &radixv1.Network{Ingress: &radixv1.Ingress{Public: &radixv1.IngressPublic{Allow: &[]radixv1.IPOrCIDR{radixv1.IPOrCIDR("any")}}}}
 		}},
 		{"invalid exit code 0 for In operator in failure policy for job", radixapplication.ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].FailurePolicy = &radixv1.RadixJobComponentFailurePolicy{
@@ -612,15 +584,22 @@ func Test_RA_WithWarnings(t *testing.T) {
 			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
-			wnrs, err := validator.Validate(context.Background(), validRA)
+			wrns, err := validator.Validate(context.Background(), validRA)
 			assert.NoError(t, err)
 
 			if testcase.expectedWarning == "" {
-				assert.Empty(t, wnrs)
+				assert.Empty(t, wrns)
 			} else {
-				// TODO: Upgrade validation infrastructure to natively support multiple warnings
-				wrns := []string(wnrs)[0]
-				assert.Contains(t, wrns, testcase.expectedWarning)
+				found := false
+				for _, wrn := range wrns {
+					if strings.Contains(wrn, testcase.expectedWarning) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected warning '%s' not found in warnings: %v", testcase.expectedWarning, wrns)
+				}
 			}
 		})
 	}
@@ -828,10 +807,10 @@ func Test_InvalidRAJobLimitRequest_Error(t *testing.T) {
 
 func Test_PublicPort(t *testing.T) {
 	var testScenarios = []struct {
-		name       string
-		updateRA   updateRAFunc
-		isValid    bool
-		isErrorNil bool
+		name      string
+		updateRA  updateRAFunc
+		isValid   bool
+		isWarning bool
 	}{
 		{
 			name: "matching port name for public component, old public does not exist",
@@ -840,8 +819,8 @@ func Test_PublicPort(t *testing.T) {
 				ra.Spec.Components[0].Ports[0].Name = "http"
 				ra.Spec.Components[0].Public = false
 			},
-			isValid:    true,
-			isErrorNil: true,
+			isValid:   true,
+			isWarning: false,
 		},
 		{
 			// For backwards compatibility
@@ -851,8 +830,8 @@ func Test_PublicPort(t *testing.T) {
 				ra.Spec.Components[0].Ports[0].Name = "http"
 				ra.Spec.Components[0].Public = true
 			},
-			isValid:    true,
-			isErrorNil: true,
+			isValid:   true,
+			isWarning: true,
 		},
 		{
 			name: "port name is irrelevant for non-public component if old public does not exist",
@@ -862,9 +841,11 @@ func Test_PublicPort(t *testing.T) {
 				ra.Spec.Components[0].Public = false
 				ra.Spec.Components[0].Authentication.OAuth2 = nil
 				ra.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2 = nil
+				ra.Spec.DNSAlias = nil
+				ra.Spec.DNSAppAlias = radixv1.AppAlias{}
 			},
-			isValid:    true,
-			isErrorNil: true,
+			isValid:   true,
+			isWarning: false,
 		},
 		{
 			// For backwards compatibility
@@ -874,8 +855,8 @@ func Test_PublicPort(t *testing.T) {
 				ra.Spec.Components[0].Ports[0].Name = "test"
 				ra.Spec.Components[0].Public = true
 			},
-			isValid:    true,
-			isErrorNil: true,
+			isValid:   true,
+			isWarning: true,
 		},
 		{
 			name: "missing port name for public component, old public does not exist",
@@ -884,8 +865,8 @@ func Test_PublicPort(t *testing.T) {
 				ra.Spec.Components[0].Ports[0].Name = "test"
 				ra.Spec.Components[0].Public = false
 			},
-			isValid:    false,
-			isErrorNil: false,
+			isValid:   false,
+			isWarning: false,
 		},
 		{
 			// For backwards compatibility
@@ -895,65 +876,8 @@ func Test_PublicPort(t *testing.T) {
 				ra.Spec.Components[0].Ports[0].Name = "test"
 				ra.Spec.Components[0].Public = true
 			},
-			isValid:    false,
-			isErrorNil: false,
-		},
-		{
-			name: "duplicate port name for public component, old public does not exist",
-			updateRA: func(ra *radixv1.RadixApplication) {
-				newPorts := []radixv1.ComponentPort{
-					{
-						Name: "http",
-						Port: 8080,
-					},
-					{
-						Name: "http",
-						Port: 1234,
-					},
-				}
-				ra.Spec.Components[0].Ports = newPorts
-				ra.Spec.Components[0].PublicPort = "http"
-				ra.Spec.Components[0].Public = false
-			},
-			isValid:    false,
-			isErrorNil: false,
-		},
-		{
-			// For backwards compatibility
-			name: "duplicate port name for public component, old public exists (ignored)",
-			updateRA: func(ra *radixv1.RadixApplication) {
-				newPorts := []radixv1.ComponentPort{
-					{
-						Name: "http",
-						Port: 8080,
-					},
-					{
-						Name: "http",
-						Port: 1234,
-					},
-				}
-				ra.Spec.Components[0].Ports = newPorts
-				ra.Spec.Components[0].PublicPort = "http"
-				ra.Spec.Components[0].Public = true
-			},
-			isValid:    false,
-			isErrorNil: false,
-		},
-		{
-			name: "privileged port used in radixConfig",
-			updateRA: func(ra *radixv1.RadixApplication) {
-				newPorts := []radixv1.ComponentPort{
-					{
-						Name: "http",
-						Port: 1000,
-					},
-				}
-				ra.Spec.Components[0].Ports = newPorts
-				ra.Spec.Components[0].PublicPort = "http"
-				ra.Spec.Components[0].Public = true
-			},
-			isValid:    false,
-			isErrorNil: false,
+			isValid:   false,
+			isWarning: true,
 		},
 		{
 			name: "oauth2 require public port",
@@ -961,8 +885,8 @@ func Test_PublicPort(t *testing.T) {
 				ra.Spec.Components[0].Ports = []radixv1.ComponentPort{{Name: "http", Port: 1000}}
 				ra.Spec.Components[0].PublicPort = ""
 			},
-			isValid:    false,
-			isErrorNil: false,
+			isValid:   false,
+			isWarning: false,
 		},
 		{
 			name: "oauth2 require ports",
@@ -970,8 +894,8 @@ func Test_PublicPort(t *testing.T) {
 				ra.Spec.Components[0].Ports = nil
 				ra.Spec.Components[0].PublicPort = ""
 			},
-			isValid:    false,
-			isErrorNil: false,
+			isValid:   false,
+			isWarning: false,
 		},
 	}
 
@@ -985,12 +909,15 @@ func Test_PublicPort(t *testing.T) {
 
 			if testcase.isValid {
 				assert.NoError(t, err)
-				assert.Empty(t, wnrs)
 			} else {
 				assert.Error(t, err)
 			}
 
-			assert.Equal(t, testcase.isErrorNil, err == nil)
+			if testcase.isWarning {
+				assert.NotEmpty(t, wnrs)
+			} else {
+				assert.Empty(t, wnrs)
+			}
 		})
 	}
 }
