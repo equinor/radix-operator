@@ -146,8 +146,12 @@ type RadixDeployComponent struct {
 	// GetCommand Entrypoint array. Not executed within a shell.
 	Command []string `json:"command,omitempty"`
 	// GetArgs Arguments to the entrypoint.
-	Args      []string `json:"args,omitempty"`
-	RunAsUser *int64   `json:"runAsUser,omitempty"`
+	Args []string `json:"args,omitempty"`
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetHealthChecks() *RadixHealthChecks {
@@ -469,8 +473,12 @@ type RadixDeployJobComponent struct {
 	// GetCommand Entrypoint array. Not executed within a shell.
 	Command []string `json:"command,omitempty"`
 	// GetArgs Arguments to the entrypoint.
-	Args      []string `json:"args,omitempty"`
-	RunAsUser *int64   `json:"runAsUser,omitempty"`
+	Args []string `json:"args,omitempty"`
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {
