@@ -148,6 +148,7 @@ type RadixBatchJob struct {
 	// User ID to run the container as
 	// More info: https://www.radix.equinor.com/radix-config#runasuser
 	// +optional
+	// +kubebuilder:validation:Minimum=1
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 

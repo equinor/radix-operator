@@ -550,6 +550,7 @@ type RadixComponent struct {
 	// User ID to run the container as
 	// More info: https://www.radix.equinor.com/radix-config#runasuser-detailed
 	// +optional
+	// +kubebuilder:validation:Minimum=1
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
@@ -687,6 +688,7 @@ type RadixEnvironmentConfig struct {
 	// User ID to run the container as
 	// More info: https://www.radix.equinor.com/radix-config#runasuser
 	// +optional
+	// +kubebuilder:validation:Minimum=1
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
@@ -858,6 +860,7 @@ type RadixJobComponent struct {
 	// User ID to run the container as
 	// More info: https://www.radix.equinor.com/radix-config#runasuser-2
 	// +optional
+	// +kubebuilder:validation:Minimum=1
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
@@ -1062,6 +1065,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	// User ID to run the container as
 	// More info: https://www.radix.equinor.com/radix-config#runasuser-1
 	// +optional
+	// +kubebuilder:validation:Minimum=1
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
