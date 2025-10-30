@@ -13,11 +13,9 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/webhook/validation/radixapplication"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -2361,7 +2359,7 @@ func Test_validateNotificationsRA(t *testing.T) {
 
 func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 	const (
-		raAppName         = "anyapp"
+		raAppName         = "testapp"
 		otherAppName      = "anyapp2"
 		raEnv             = "test"
 		raComponentName   = "app"
@@ -2374,52 +2372,41 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 	var testScenarios = []struct {
 		name                    string
 		applicationBuilder      utils.ApplicationBuilder
-		existingRadixDNSAliases map[string]commonTest.DNSAlias
 		expectedValidationError error
 	}{
 		{
 			name:                    "No dns aliases",
-			applicationBuilder:      utils.ARadixApplication(),
+			applicationBuilder:      utils.ARadixApplication().WithAppName("testapp"),
 			expectedValidationError: nil,
 		},
 		{
 			name:                    "Added dns aliases",
-			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
+			applicationBuilder:      utils.ARadixApplication().WithAppName("testapp").WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
 			expectedValidationError: nil,
 		},
 		{
-			name:               "Existing dns aliases for the app",
-			applicationBuilder: utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
-			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: raAppName, Environment: raEnv, Component: raComponentName},
-			},
+			name:                    "Existing dns aliases for the app",
+			applicationBuilder:      utils.ARadixApplication().WithAppName("testapp").WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
 			expectedValidationError: nil,
 		},
 		{
-			name:               "Existing dns aliases for the app and another app",
-			applicationBuilder: utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
-			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: raAppName, Environment: raEnv, Component: raComponentName},
-				alias2: {AppName: otherAppName, Environment: someEnv, Component: someComponentName},
-			},
+			name:                    "Existing dns aliases for the app and another app",
+			applicationBuilder:      utils.ARadixApplication().WithAppName("testapp").WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
 			expectedValidationError: nil,
 		},
 		{
-			name:               "Same alias exists in dns alias for another app",
-			applicationBuilder: utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Alias: alias1, Environment: raEnv, Component: raComponentName}),
-			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
-				alias1: {AppName: otherAppName, Environment: someEnv, Component: someComponentName},
-			},
+			name:                    "Same alias exists in dns alias for another app",
+			applicationBuilder:      utils.ARadixApplication().WithAppName("testapp").WithDNSAlias(radixv1.DNSAlias{Alias: alias2, Environment: raEnv, Component: raComponentName}),
 			expectedValidationError: radixapplication.ErrDNSAliasAlreadyUsedByAnotherApplication,
 		},
 		{
 			name:                    "Reserved alias api for another app",
-			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Alias: "api", Environment: raEnv, Component: raComponentName}),
+			applicationBuilder:      utils.ARadixApplication().WithAppName("testapp").WithDNSAlias(radixv1.DNSAlias{Alias: "api", Environment: raEnv, Component: raComponentName}),
 			expectedValidationError: radixapplication.ErrDNSAliasReservedForRadixPlatformApplication,
 		},
 		{
 			name:                    "Reserved alias api for another service",
-			applicationBuilder:      utils.ARadixApplication().WithDNSAlias(radixv1.DNSAlias{Alias: "grafana", Environment: raEnv, Component: raComponentName}),
+			applicationBuilder:      utils.ARadixApplication().WithAppName("testapp").WithDNSAlias(radixv1.DNSAlias{Alias: "grafana", Environment: raEnv, Component: raComponentName}),
 			expectedValidationError: radixapplication.ErrDNSAliasReservedForRadixPlatformService,
 		},
 		{
@@ -2431,24 +2418,24 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 
 	for _, ts := range testScenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			client := createClient("testdata/radixregistration.yaml")
+			client := createClient(
+				"testdata/radixregistration.yaml",
+				"testdata/radixregistration.radix-api.yaml",
+				"testdata/radixregistration.anyapp2.yaml",
+				"testdata/dnsalias.anyapp1.yaml",
+				"testdata/dnsalias.anyapp2.yaml",
+			)
 
-			// TODO: Fix client type mismatch
-			// err := commonTest.RegisterRadixDNSAliases(context.Background(), client, ts.existingRadixDNSAliases)
-			// require.NoError(t, err)
-			// rr := ts.applicationBuilder.GetRegistrationBuilder().BuildRR()
-			// _, err = client.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-			// require.NoError(t, err)
 			ra := ts.applicationBuilder.BuildRA()
 
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			wnrs, actualValidationErr := validator.Validate(context.Background(), ra)
 
 			if ts.expectedValidationError == nil {
-				require.NoError(t, actualValidationErr)
-				require.Empty(t, wnrs)
+				assert.NoError(t, actualValidationErr)
+				assert.Empty(t, wnrs)
 			} else {
-				require.EqualError(t, actualValidationErr, ts.expectedValidationError.Error(), "missing or unexpected error")
+				assert.ErrorIs(t, actualValidationErr, ts.expectedValidationError)
 			}
 		})
 	}
