@@ -1028,9 +1028,10 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 	setComponentAndJobsVolumeMounts := []setVolumeMountsFunc{setRaComponentVolumeMounts, setRaJobsVolumeMounts}
 
 	var testScenarios = map[string]struct {
-		volumeMounts  volumeMountsFunc
-		updateRA      []setVolumeMountsFunc
-		expectedError error
+		volumeMounts    volumeMountsFunc
+		updateRA        []setVolumeMountsFunc
+		expectedError   error
+		expectedWarning string
 	}{
 		"name not set": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1121,8 +1122,9 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 
 				return volumeMounts
 			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: nil,
+			updateRA:        setComponentAndJobsVolumeMounts,
+			expectedError:   nil,
+			expectedWarning: radixapplication.WarnDeprecatedFieldVolumeMountTypeUsed,
 		},
 		"deprecated azure-blob: missing container": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1136,8 +1138,9 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 
 				return volumeMounts
 			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixapplication.ErrVolumeMountMissingStorage,
+			updateRA:        setComponentAndJobsVolumeMounts,
+			expectedError:   radixapplication.ErrVolumeMountMissingStorage,
+			expectedWarning: radixapplication.WarnDeprecatedFieldVolumeMountTypeUsed,
 		},
 		"deprecated common: invalid type": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1151,8 +1154,9 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 
 				return volumeMounts
 			},
-			updateRA:      setComponentAndJobsVolumeMounts,
-			expectedError: radixapplication.ErrVolumeMountInvalidType,
+			updateRA:        setComponentAndJobsVolumeMounts,
+			expectedError:   radixapplication.ErrVolumeMountInvalidType,
+			expectedWarning: radixapplication.WarnDeprecatedFieldVolumeMountTypeUsed,
 		},
 		"blobfuse2: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1520,9 +1524,23 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				wnrs, err := validator.Validate(context.Background(), validRA)
 				if test.expectedError == nil {
 					assert.NoError(t, err)
-					assert.Empty(t, wnrs)
 				} else {
 					assert.ErrorIs(t, err, test.expectedError)
+				}
+
+				if test.expectedWarning == "" {
+					assert.Empty(t, wnrs)
+				} else {
+					found := false
+					for _, wrn := range wnrs {
+						if strings.Contains(wrn, test.expectedWarning) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						assert.Failf(t, "expected warning '%s' not found in '%s'", test.expectedWarning, strings.Join(wnrs, ", "))
+					}
 				}
 			}
 		})

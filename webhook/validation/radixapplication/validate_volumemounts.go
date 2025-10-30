@@ -67,7 +67,6 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount, hasIdentityAz
 	if len(volumeMounts) == 0 {
 		return "", nil
 	}
-	wrns := []string{}
 
 	for _, v := range volumeMounts {
 		if len(strings.TrimSpace(v.Name)) == 0 {
@@ -99,9 +98,15 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount, hasIdentityAz
 
 		switch {
 		case v.HasDeprecatedVolume():
-			if wrn := validateVolumeMountDeprecatedSource(&v); wrn != "" {
-				wrns = append(wrns, fmt.Sprintf("volumeMount %s failed validation. %s", v.Name, wrn))
+			wrn, err := validateVolumeMountDeprecatedSource(&v)
+			if wrn != "" {
+				wrn = fmt.Sprintf("volumeMount %s failed validation. %s", v.Name, wrn)
 			}
+			if err != nil {
+				err = fmt.Errorf("volumeMount %s failed validation. %w", v.Name, err)
+			}
+			return wrn, err
+
 		case v.HasBlobFuse2():
 			if err := validateVolumeMountBlobFuse2(v.BlobFuse2, hasIdentityAzureClientId); err != nil {
 				return "", fmt.Errorf("volumeMount %s failed validation. %w", v.Name, err)
@@ -113,19 +118,25 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount, hasIdentityAz
 		}
 	}
 
-	return strings.Join(wrns, "\n"), nil
+	return "", nil
 }
 
-func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) string {
+func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) (string, error) {
+	var warning string
+	if v.Type != "" {
+		warning = WarnDeprecatedFieldVolumeMountTypeUsed
+
+	}
+
 	//nolint:staticcheck
 	if v.Type != radixv1.MountTypeBlobFuse2FuseCsiAzure {
-		return fmt.Sprintf("deprecated arguments failed validation. %s", ErrVolumeMountInvalidType)
+		return warning, fmt.Errorf("deprecated arguments failed validation. %w", ErrVolumeMountInvalidType)
 	}
 	//nolint:staticcheck
 	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Storage) == 0 {
-		return fmt.Sprintf("deprecated arguments failed validation. %s", ErrVolumeMountMissingStorage)
+		return warning, fmt.Errorf("deprecated arguments failed validation. %w", ErrVolumeMountMissingStorage)
 	}
-	return ""
+	return warning, nil
 }
 
 func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount, hasIdentityAzureClientId bool) error {
