@@ -20,6 +20,9 @@ linters:
       - linters:
           - staticcheck
         text: "QF1001:"
+      - linters:
+          - godox
+        text: "Line contains TODO/BUG/FIXME:"
     presets:
       - std-error-handling
 issues:

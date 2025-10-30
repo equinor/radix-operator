@@ -123,6 +123,7 @@ func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount, hasIdentityAz
 
 func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) (string, error) {
 	var warning string
+	//nolint:staticcheck
 	if v.Type != "" {
 		warning = WarnDeprecatedFieldVolumeMountTypeUsed
 
