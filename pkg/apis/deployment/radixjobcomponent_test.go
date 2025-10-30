@@ -41,7 +41,7 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 	assert.Equal(t, int32(8888), jobs[0].SchedulerPort)
 	assert.Equal(t, "/path/to/payload", jobs[0].Payload.Path)
 	assert.Equal(t, "job2", jobs[1].Name)
-	assert.Nil(t, jobs[1].SchedulerPort)
+	assert.Equal(t, 0, jobs[1].SchedulerPort)
 	assert.Nil(t, jobs[1].Payload)
 }
 
