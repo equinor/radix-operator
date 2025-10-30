@@ -57,7 +57,7 @@ func (t RadixComponentName) CommonDeployComponentHasPorts(rd *v1.RadixDeployment
 	}
 	for _, job := range rd.Spec.Jobs {
 		if strings.EqualFold(job.Name, string(t)) {
-			return len(job.GetPorts()) > 0 || job.SchedulerPort != nil
+			return len(job.GetPorts()) > 0 || job.SchedulerPort != 0
 		}
 	}
 	return false

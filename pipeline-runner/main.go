@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
-	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -32,9 +31,7 @@ var overrideUseBuildCache, refreshBuildCache model.BoolPtr
 // - a secret radix-snyk-service-account with access token to SNYK service account
 
 func main() {
-	pipelineArgs := &model.PipelineArguments{
-		DNSConfig: &dnsaliasconfig.DNSConfig{ReservedAppDNSAliases: make(map[string]string)},
-	}
+	pipelineArgs := &model.PipelineArguments{}
 	logger.InitLogger(pipelineArgs.LogLevel)
 
 	cmd := &cobra.Command{
@@ -131,8 +128,6 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	var debug string
 	cmd.Flags().StringVar(&debug, "DEBUG", "false", "Debug information")
 	cmd.Flags().StringToStringVar(&pipelineArgs.ImageTagNames, defaults.RadixImageTagNameEnvironmentVariable, make(map[string]string), "Image tag names for components (optional)")
-	cmd.Flags().StringToStringVar(&pipelineArgs.DNSConfig.ReservedAppDNSAliases, defaults.RadixReservedAppDNSAliasesEnvironmentVariable, make(map[string]string), "The list of DNS aliases, reserved for Radix platform Radix application")
-	cmd.Flags().StringSliceVar(&pipelineArgs.DNSConfig.ReservedDNSAliases, defaults.RadixReservedDNSAliasesEnvironmentVariable, make([]string, 0), "The list of DNS aliases, reserved for Radix platform services")
 	cmd.Flags().StringSliceVar(&pipelineArgs.ComponentsToDeploy, defaults.RadixComponentsToDeployVariable, make([]string, 0), "The list of components to deploy (optional)")
 	// Git clone init container images
 	cmd.Flags().StringVar(&pipelineArgs.GitCloneGitImage, defaults.RadixGitCloneGitImageEnvironmentVariable, "alpine/git:latest", "Container image with git used by git clone init containers")
@@ -143,12 +138,6 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
 		return fmt.Errorf("failed to parse command arguments. Error: %v", err)
-	}
-	if len(pipelineArgs.DNSConfig.ReservedAppDNSAliases) == 0 {
-		return fmt.Errorf("missing DNS aliases, reserved for Radix platform Radix application")
-	}
-	if len(pipelineArgs.DNSConfig.ReservedDNSAliases) == 0 {
-		return fmt.Errorf("missing DNS aliases, reserved for Radix platform services")
 	}
 	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)
 	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(radixv1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push

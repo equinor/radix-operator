@@ -62,7 +62,7 @@ Utility function to take list to comma separated dictionary
 */}}
 {{- define "helm-toolkit.utils.joinMapWithComma" -}}
 {{- $local := dict "first" true -}}
-{{- range $k, $v := . -}}{{- if not $local.first -}},{{- end -}}{{ $k }}={{ $v }}{{- $_ := set $local "first" false -}}{{- end -}}
+{{- range $k, $v := . -}}{{- if not $local.first -}},{{- end -}}{{ $k }}:{{ $v }}{{- $_ := set $local "first" false -}}{{- end -}}
 {{- end -}}
 
 {{/*

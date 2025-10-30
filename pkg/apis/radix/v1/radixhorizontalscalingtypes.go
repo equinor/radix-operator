@@ -10,6 +10,8 @@ const (
 )
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler.
+// +kubebuilder:validation:XValidation:rule="self.maxReplicas > 0",message="maxReplicas must be greater than 0"
+// +kubebuilder:validation:XValidation:rule="!has(self.minReplicas) || self.minReplicas <= self.maxReplicas",message="minReplicas must be less than or equal to maxReplicas"
 type RadixHorizontalScaling struct {
 	// Defines the minimum number of replicas.
 	// +optional
@@ -19,6 +21,7 @@ type RadixHorizontalScaling struct {
 
 	// Defines the maximum number of replicas.
 	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=64
 	MaxReplicas int32 `json:"maxReplicas"`
 
 	// PollingInterval configures how often to check each trigger on. Defaults to 30sec
