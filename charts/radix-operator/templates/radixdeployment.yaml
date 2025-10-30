@@ -1219,7 +1219,11 @@ spec:
                           type: object
                       type: object
                     runAsUser:
+                      description: |-
+                        User ID to run the container as
+                        More info: https://www.radix.equinor.com/radix-config#runasuser
                       format: int64
+                      minimum: 1
                       type: integer
                     runtime:
                       description: Runtime defines the component or job's target runtime
@@ -1884,7 +1888,11 @@ spec:
                           type: object
                       type: object
                     runAsUser:
+                      description: |-
+                        User ID to run the container as
+                        More info: https://www.radix.equinor.com/radix-config#runasuser
                       format: int64
+                      minimum: 1
                       type: integer
                     runtime:
                       description: Runtime defines the component or job's target runtime

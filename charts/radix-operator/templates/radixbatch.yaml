@@ -238,6 +238,7 @@ spec:
                         User ID to run the container as
                         More info: https://www.radix.equinor.com/radix-config#runasuser
                       format: int64
+                      minimum: 1
                       type: integer
                     runtime:
                       description: Runtime defines the target runtime requirements
