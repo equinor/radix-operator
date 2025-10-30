@@ -17,10 +17,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/webhook/validation/radixapplication"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -632,18 +632,18 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 
 	scenarios := []struct {
 		name          string
-		expectedError string
+		expectedError error
 		hasPublicPort bool
 	}{
 		{
 			name:          "error, because the component has no public port",
 			hasPublicPort: false,
-			expectedError: "component component1 referred to by dnsAlias is not marked as public",
+			expectedError: radixapplication.ErrPublicPortNotFound,
 		},
 		{
 			name:          "no error",
 			hasPublicPort: true,
-			expectedError: "",
+			expectedError: nil,
 		},
 	}
 	for _, ts := range scenarios {
@@ -671,11 +671,10 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 			syncer := s.createSyncer(radixDNSAlias)
 			err := syncer.OnSync(context.Background())
 
-			if len(ts.expectedError) > 0 {
-				require.Error(t, err)
-				require.EqualError(t, err, ts.expectedError)
+			if ts.expectedError != nil {
+				assert.ErrorIs(t, err, ts.expectedError)
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 		})
 	}
