@@ -72,6 +72,11 @@ type RadixJobComponentConfig struct {
 	// +optional
 	// +listType=atomic
 	Args *[]string `json:"args,omitempty"`
+
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // JobScheduleDescription holds description about scheduling job

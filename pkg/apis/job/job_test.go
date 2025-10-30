@@ -40,7 +40,6 @@ type RadixJobTestSuiteBase struct {
 	radixClient radixclient.Interface
 	config      struct {
 		clusterName    string
-		egressIps      string
 		builderImage   string
 		buildkitImage  string
 		buildahSecComp string
@@ -56,7 +55,6 @@ type RadixJobTestSuiteBase struct {
 func (s *RadixJobTestSuiteBase) SetupSuite() {
 	s.config = struct {
 		clusterName    string
-		egressIps      string
 		builderImage   string
 		buildkitImage  string
 		buildahSecComp string
@@ -68,7 +66,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		subscriptionID string
 	}{
 		clusterName:    "AnyClusterName",
-		egressIps:      "0.0.0.0",
 		builderImage:   "docker.io/builder:any",
 		buildkitImage:  "docker.io/buildkit:any",
 		buildahSecComp: "anyseccomp",
@@ -93,7 +90,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
-	err := handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.egressIps, s.config.subscriptionID)
+	err := handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.subscriptionID)
 	s.Require().NoError(err)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient
 
@@ -241,7 +238,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 			Resources: corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("1000Mi"),
+					corev1.ResourceMemory: resource.MustParse("2000Mi"),
 				},
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("100m"),

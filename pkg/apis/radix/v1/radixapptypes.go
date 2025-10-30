@@ -562,6 +562,12 @@ type RadixComponent struct {
 	// +optional
 	// +listType=atomic
 	Args []string `json:"args,omitempty"`
+
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser-detailed
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for component.
@@ -694,6 +700,12 @@ type RadixEnvironmentConfig struct {
 	// +optional
 	// +listType=atomic
 	Args *[]string `json:"args,omitempty"`
+
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -862,6 +874,12 @@ type RadixJobComponent struct {
 	// +optional
 	// +listType=atomic
 	Args []string `json:"args,omitempty"`
+
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser-2
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixJobComponentFailurePolicyRuleOnExitCodesOperator specifies the relationship between a job replica's exit code
@@ -1061,6 +1079,12 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +optional
 	// +listType=atomic
 	Args *[]string `json:"args,omitempty"`
+
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser-1
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -1953,6 +1977,7 @@ type RadixCommonComponent interface {
 	GetCommand() []string
 	// GetArgs Arguments to the entrypoint.
 	GetArgs() []string
+	GetRunAsUser() *int64
 	// GetCommandForEnvironment Entrypoint array for the environment. Not executed within a shell.
 	GetCommandForEnvironment(environment string) []string
 	// GetArgsForEnvironment Arguments to the entrypoint for the environment.
@@ -2091,6 +2116,10 @@ func (component *RadixComponent) GetCommand() []string {
 
 func (component *RadixComponent) GetArgs() []string {
 	return component.Args
+}
+
+func (component *RadixComponent) GetRunAsUser() *int64 {
+	return component.RunAsUser
 }
 
 func (component *RadixComponent) GetCommandForEnvironment(environment string) []string {
@@ -2253,6 +2282,10 @@ func (component *RadixJobComponent) GetCommand() []string {
 
 func (component *RadixJobComponent) GetArgs() []string {
 	return component.Args
+}
+
+func (component *RadixJobComponent) GetRunAsUser() *int64 {
+	return component.RunAsUser
 }
 
 func (component *RadixJobComponent) GetCommandForEnvironment(environment string) []string {

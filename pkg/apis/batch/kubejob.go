@@ -218,8 +218,17 @@ func (s *syncer) getContainers(ctx context.Context, rd *radixv1.RadixDeployment,
 		return nil, err
 	}
 
+	options := []securitycontext.ContainerOption{
+		securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithReadOnlyRootFileSystem(jobComponent.GetReadOnlyFileSystem()),
+	}
+
+	if runAsUser := getJobRunAsUser(jobComponent, batchJob); runAsUser != nil {
+		options = append(options, securitycontext.WithContainerRunAsUser(*runAsUser))
+	}
+
 	image := getJobImage(jobComponent, batchJob)
-	securityContext := securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault), securitycontext.WithReadOnlyRootFileSystem(jobComponent.GetReadOnlyFileSystem()))
+	securityContext := securitycontext.Container(options...)
 	container := corev1.Container{
 		Name:            jobComponent.Name,
 		Image:           image,
@@ -248,6 +257,13 @@ func getJobCommand(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radi
 		return *batchJob.Command
 	}
 	return jobComponent.Command
+}
+
+func getJobRunAsUser(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob) *int64 {
+	if batchJob.RunAsUser != nil {
+		return batchJob.RunAsUser
+	}
+	return jobComponent.RunAsUser
 }
 
 func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob) string {

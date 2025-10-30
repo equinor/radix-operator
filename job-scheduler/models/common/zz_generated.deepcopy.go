@@ -230,6 +230,11 @@ func (in *RadixJobComponentConfig) DeepCopyInto(out *RadixJobComponentConfig) {
 			copy(*out, *in)
 		}
 	}
+	if in.RunAsUser != nil {
+		in, out := &in.RunAsUser, &out.RunAsUser
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 

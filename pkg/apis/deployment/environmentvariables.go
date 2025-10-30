@@ -21,7 +21,6 @@ type environmentVariablesSourceDecorator interface {
 	getContainerRegistry() (string, error)
 	getDnsZone() (string, error)
 	getClusterType() (string, error)
-	getClusterActiveEgressIps(ctx context.Context) (string, error)
 }
 
 type radixApplicationEnvironmentVariablesSourceDecorator struct{}
@@ -43,10 +42,6 @@ func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getDns
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterType() (string, error) {
 	return defaults.GetEnvVar(defaults.RadixClusterTypeEnvironmentVariable)
-}
-
-func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps(_ context.Context) (string, error) {
-	return defaults.GetEnvVar(defaults.RadixActiveClusterEgressIpsEnvironmentVariable)
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterName(ctx context.Context) (string, error) {
@@ -71,14 +66,6 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getDnsZon
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterType() (string, error) {
 	return defaults.GetEnvVar(defaults.OperatorClusterTypeEnvironmentVariable)
-}
-
-func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps(ctx context.Context) (string, error) {
-	egressIps, err := envVarsSource.kubeutil.GetClusterActiveEgressIps(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get cluster egress IPs from ConfigMap: %v", err)
-	}
-	return egressIps, nil
 }
 
 // GetEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
@@ -231,14 +218,6 @@ func appendDefaultEnvVars(ctx context.Context, envVars []corev1.EnvVar, envVarsS
 		envVarSet.Add(defaults.RadixPortsEnvironmentVariable, portNumbers)
 		envVarSet.Add(defaults.RadixPortNamesEnvironmentVariable, portNames)
 	}
-
-	activeClusterEgressIps, err := envVarsSource.getClusterActiveEgressIps(ctx)
-	if err != nil {
-		// TODO: Should the error be returned to caller
-		logger.Error().Err(err).Msg("Failed to get active egress IP addresses")
-		return envVarSet.Items()
-	}
-	envVarSet.Add(defaults.RadixActiveClusterEgressIpsEnvironmentVariable, activeClusterEgressIps)
 
 	return envVarSet.Items()
 }

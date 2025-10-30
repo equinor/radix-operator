@@ -128,7 +128,7 @@ func getPipelineRunnerResources() corev1.ResourceRequirements {
 	return corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse("500m"),
-			corev1.ResourceMemory: resource.MustParse("1000Mi"),
+			corev1.ResourceMemory: resource.MustParse("2000Mi"),
 		},
 		Requests: corev1.ResourceList{
 			corev1.ResourceCPU:    resource.MustParse("100m"),

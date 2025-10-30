@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -70,12 +69,6 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec(ctx contex
 }
 
 func (deploy *Deployment) isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor *monitoringv1.ServiceMonitor, componentName RadixComponentName) bool {
-	// Handle servicemonitors with prometheus=radix_stage1 label only for backward compatibility
-	// Code can be removed when all servicemonitors has radix-component label
-	labelValue, ok := serviceMonitor.Labels["prometheus"]
-	if ok && labelValue == os.Getenv(prometheusInstanceLabel) && len(serviceMonitor.Labels) == 1 {
-		return true
-	}
 	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
 }
 

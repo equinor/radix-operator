@@ -230,6 +230,11 @@ type RadixDeployComponent struct {
 	// GetArgs Arguments to the entrypoint.
 	// +optional
 	Args []string `json:"args,omitempty"`
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetHealthChecks() *RadixHealthChecks {
@@ -354,14 +359,6 @@ func (deployComponent *RadixDeployComponent) GetNetwork() *Network {
 	return deployComponent.Network
 }
 
-func (deployComponent *RadixDeployComponent) SetName(name string) {
-	deployComponent.Name = name
-}
-
-func (deployComponent *RadixDeployComponent) SetVolumeMounts(mounts []RadixVolumeMount) {
-	deployComponent.VolumeMounts = mounts
-}
-
 func (deployComponent *RadixDeployComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
 	deployComponent.EnvironmentVariables = envVars
 }
@@ -372,6 +369,10 @@ func (deployComponent *RadixDeployComponent) GetCommand() []string {
 
 func (deployComponent *RadixDeployComponent) GetArgs() []string {
 	return deployComponent.Args
+}
+
+func (deployComponent *RadixDeployComponent) GetRunAsUser() *int64 {
+	return deployComponent.RunAsUser
 }
 
 func (deployComponent *RadixDeployComponent) HasZeroReplicas() bool {
@@ -485,14 +486,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetNetwork() *Network {
 	return nil
 }
 
-func (deployJobComponent *RadixDeployJobComponent) SetName(name string) {
-	deployJobComponent.Name = name
-}
-
-func (deployJobComponent *RadixDeployJobComponent) SetVolumeMounts(mounts []RadixVolumeMount) {
-	deployJobComponent.VolumeMounts = mounts
-}
-
 func (deployJobComponent *RadixDeployJobComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
 	deployJobComponent.EnvironmentVariables = envVars
 }
@@ -503,6 +496,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetCommand() []string {
 
 func (deployJobComponent *RadixDeployJobComponent) GetArgs() []string {
 	return deployJobComponent.Args
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetRunAsUser() *int64 {
+	return deployJobComponent.RunAsUser
 }
 
 func (deployJobComponent *RadixDeployJobComponent) HasZeroReplicas() bool {
@@ -609,6 +606,11 @@ type RadixDeployJobComponent struct {
 	// GetArgs Arguments to the entrypoint.
 	// +optional
 	Args []string `json:"args,omitempty"`
+	// User ID to run the container as
+	// More info: https://www.radix.equinor.com/radix-config#runasuser
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
 func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {
@@ -647,8 +649,6 @@ type RadixCommonDeployComponent interface {
 	GetIngressConfiguration() []string
 	GetNode() *RadixNode
 	GetAuthentication() *Authentication
-	SetName(name string)
-	SetVolumeMounts(mounts []RadixVolumeMount)
 	GetIdentity() *Identity
 	GetReadOnlyFileSystem() *bool
 	GetRuntime() *Runtime
@@ -660,6 +660,7 @@ type RadixCommonDeployComponent interface {
 	GetArgs() []string
 	// HasZeroReplicas returns true if the component has zero replicas
 	HasZeroReplicas() bool
+	GetRunAsUser() *int64
 }
 
 // IsActive The RadixDeployment is active

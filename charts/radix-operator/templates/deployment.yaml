@@ -31,8 +31,6 @@ spec:
               containerPort: {{ .Values.service.internalPort }}
               protocol: TCP
           env:
-            - name: LABEL_PROMETHEUS_INSTANCE
-              value: {{ .Values.prometheusName }}
             - name: DNS_ZONE
               value: {{ .Values.dnsZone }}
             - name: RADIX_ZONE
@@ -83,12 +81,8 @@ spec:
               value: {{ .Values.pipelineJobsHistoryLimit | quote }}
             - name: RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT
               value: {{ .Values.pipelineJobsHistoryPeriodLimit | quote }}
-            - name: RADIX_IMAGE_BUILDER # deprecated issue #1388
-              value: {{ .Values.imageBuilder }}
             - name: RADIX_IMAGE_BUILDER_IMAGE
               value: {{ .Values.radixImageBuilder.image.repository }}:{{ .Values.radixImageBuilder.image.tag | default "master-latest" }}
-            - name: RADIXOPERATOR_JOB_SCHEDULER # deprecated issue #1388
-              value: {{ .Values.jobScheduler }}
             - name: RADIXOPERATOR_JOB_SCHEDULER_IMAGE
               value: {{ .Values.radixJobScheduler.image.repository }}:{{ .Values.radixJobScheduler.image.tag | default .Chart.AppVersion }}
             - name: LOG_LEVEL
@@ -153,16 +147,10 @@ spec:
             {{- end }}
             - name: SECCOMP_PROFILE_FILENAME
               value: {{ .Values.seccompProfile.fileNameOnNode }}
-            - name: RADIX_BUILDKIT_IMAGE_BUILDER # deprecated issue #1388
-              value: {{ .Values.buildKitImageBuilder }}
             - name: RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE
               value: {{ .Values.radixBuildKitImageBuilder.image.repository }}:{{ .Values.radixBuildKitImageBuilder.image.tag | default "main-latest" }}
-            - name: RADIX_PIPELINE_GIT_CLONE_NSLOOKUP_IMAGE # deprecated issue #1388
-              value: {{ .Values.gitCloneNsLookupImage }}
             - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE
               value: {{ .Values.gitClone.image.repository }}:{{ .Values.gitClone.image.tag | default "latest" }}
-            - name: RADIX_PIPELINE_GIT_CLONE_BASH_IMAGE # deprecated issue #1388
-              value: {{ .Values.gitCloneBashImage }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER
               value: {{ .Values.ingress.certificate.automation.clusterIssuer }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION
@@ -175,8 +163,6 @@ spec:
               value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
             - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
               value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
-            - name: RADIXOPERATOR_PIPELINE_IMAGE_TAG # deprecated issue #1388
-              value: {{ .Values.pipelineImageTag }}
             - name: RADIXOPERATOR_PIPELINE_IMAGE
               value: {{ .Values.radixPipelineRunner.image.repository }}:{{ .Values.radixPipelineRunner.image.tag | default .Chart.AppVersion }}
           livenessProbe:

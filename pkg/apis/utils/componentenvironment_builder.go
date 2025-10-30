@@ -30,6 +30,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithNetwork(*radixv1.Network) RadixEnvironmentConfigBuilder
 	WithCommand(strings []string) RadixEnvironmentConfigBuilder
 	WithArgs(strings []string) RadixEnvironmentConfigBuilder
+	WithRunAsUser(runAsUser *int64) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
@@ -56,6 +57,7 @@ type radixEnvironmentConfigBuilder struct {
 	healthChecks            *radixv1.RadixHealthChecks
 	command                 *[]string
 	args                    *[]string
+	runAsUser               *int64
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithHorizontalScaling(scaling *radixv1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder {
@@ -179,6 +181,11 @@ func (ceb *radixEnvironmentConfigBuilder) WithArgs(args []string) RadixEnvironme
 	return ceb
 }
 
+func (ceb *radixEnvironmentConfigBuilder) WithRunAsUser(runAsUser *int64) RadixEnvironmentConfigBuilder {
+	ceb.runAsUser = runAsUser
+	return ceb
+}
+
 func (ceb *radixEnvironmentConfigBuilder) WithNetwork(network *radixv1.Network) RadixEnvironmentConfigBuilder {
 	ceb.network = network
 	return ceb
@@ -209,6 +216,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() radixv1.Radix
 		Network:                 ceb.network,
 		Command:                 ceb.command,
 		Args:                    ceb.args,
+		RunAsUser:               ceb.runAsUser,
 	}
 }
 

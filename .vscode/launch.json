@@ -186,24 +186,25 @@
 				"RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON": "0 0 * * *",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
-				"RADIXOPERATOR_PIPELINE_IMAGE": "radixdev.azurecr.io/radix-pipeline:1388-manage-image-tags-dev",
+				"RADIXOPERATOR_PIPELINE_IMAGE": "radixdev.azurecr.io/radix-pipeline:feature-run-as-user-dev",
 				"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE": "docker.io/alpine/git:2.45.2"
 			},
 			"args": ["--useOutClusterClient=false"]
 		},
 		{
-			"name": "Launch Job Scheduler",
+			"name": "Launch-job-scheduler",
 			"type": "go",
 			"request": "launch",
 			"mode": "auto",
 			"program": "${workspaceFolder}/job-scheduler/main.go",
 			"env": {
 				"USE_SWAGGER": "true",
-				"LOG_LEVEL": "info",
-				"LOG_PRETTY": "true",
-				"RADIX_APP": "rihag",
-				"RADIX_COMPONENT": "compute",
-				"RADIX_PORTS": "8080"
+				"USE_PROFILER": "false",
+				"RADIX_APP": "jacob-dev",
+				"RADIX_ENVIRONMENT": "dev",
+				"RADIX_COMPONENT": "run-as-user",
+				"RADIX_DEPLOYMENT": "dev-a4ee1-skkn8ioj",
+				"RADIX_PORTS": "3000"
 			}
 		},
 		{
