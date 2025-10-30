@@ -937,6 +937,7 @@
                         "maxReplicas": {
                           "description": "Defines the maximum number of replicas.",
                           "format": "int32",
+                          "maximum": 64,
                           "minimum": 1,
                           "type": "integer"
                         },
@@ -1269,7 +1270,17 @@
                       "required": [
                         "maxReplicas"
                       ],
-                      "type": "object"
+                      "type": "object",
+                      "x-kubernetes-validations": [
+                        {
+                          "message": "maxReplicas must be greater than 0",
+                          "rule": "self.maxReplicas > 0"
+                        },
+                        {
+                          "message": "minReplicas must be less than or equal to maxReplicas",
+                          "rule": "!has(self.minReplicas) || self.minReplicas <= self.maxReplicas"
+                        }
+                      ]
                     },
                     "identity": {
                       "description": "Environment specific configuration for workload identity (federated credentials).\nMore info: https://www.radix.equinor.com/radix-config#identity",
@@ -2272,6 +2283,7 @@
                   "maxReplicas": {
                     "description": "Defines the maximum number of replicas.",
                     "format": "int32",
+                    "maximum": 64,
                     "minimum": 1,
                     "type": "integer"
                   },
@@ -2604,7 +2616,17 @@
                 "required": [
                   "maxReplicas"
                 ],
-                "type": "object"
+                "type": "object",
+                "x-kubernetes-validations": [
+                  {
+                    "message": "maxReplicas must be greater than 0",
+                    "rule": "self.maxReplicas > 0"
+                  },
+                  {
+                    "message": "minReplicas must be less than or equal to maxReplicas",
+                    "rule": "!has(self.minReplicas) || self.minReplicas <= self.maxReplicas"
+                  }
+                ]
               },
               "identity": {
                 "description": "Configuration for workload identity (federated credentials).\nMore info: https://www.radix.equinor.com/radix-config#identity",

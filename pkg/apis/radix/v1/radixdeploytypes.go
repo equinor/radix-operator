@@ -79,14 +79,25 @@ const (
 
 // RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
-	AppName    string                    `json:"appname"`
-	Components []RadixDeployComponent    `json:"components,omitempty"`
-	Jobs       []RadixDeployJobComponent `json:"jobs,omitempty"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	AppName string `json:"appname"`
 
+	// +optional
+	Components []RadixDeployComponent `json:"components,omitempty"`
+
+	// +optional
+	Jobs []RadixDeployJobComponent `json:"jobs,omitempty"`
+
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
-	Environment      string                        `json:"environment"`
+	Environment string `json:"environment"`
+
+	// +optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
@@ -102,6 +113,7 @@ type RadixDeploymentList struct {
 // RadixDeployExternalDNS is the spec for an external DNS alias
 type RadixDeployExternalDNS struct {
 	// Fully qualified domain name (FQDN), e.g. myapp.example.com.
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=4
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:Pattern=`^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$`
@@ -115,44 +127,108 @@ type RadixDeployExternalDNS struct {
 
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
-	Name             string          `json:"name"`
-	Image            string          `json:"image"`
-	Ports            []ComponentPort `json:"ports,omitempty"`
-	Replicas         *int            `json:"replicas,omitempty"`
-	ReplicasOverride *int            `json:"replicasOverride,omitempty"`
+	Name string `json:"name"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Image string `json:"image"`
+
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	Ports []ComponentPort `json:"ports,omitempty"`
+
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=64
+	// +optional
+	Replicas *int `json:"replicas,omitempty"`
+
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=64
+	// +optional
+	ReplicasOverride *int `json:"replicasOverride,omitempty"`
+
 	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
-	Public               bool                     `json:"public"`
-	PublicPort           string                   `json:"publicPort,omitempty"`
-	EnvironmentVariables EnvVarsMap               `json:"environmentVariables,omitempty"`
-	Secrets              []string                 `json:"secrets,omitempty"`
-	SecretRefs           RadixSecretRefs          `json:"secretRefs,omitempty"`
-	IngressConfiguration []string                 `json:"ingressConfiguration,omitempty"`
-	DNSAppAlias          bool                     `json:"dnsAppAlias,omitempty"`
-	ExternalDNS          []RadixDeployExternalDNS `json:"externalDNS,omitempty"`
+	// +optional
+	Public bool `json:"public"`
+
+	// +optional
+	PublicPort string `json:"publicPort,omitempty"`
+
+	// +optional
+	EnvironmentVariables EnvVarsMap `json:"environmentVariables,omitempty"`
+
+	// +optional
+	Secrets []string `json:"secrets,omitempty"`
+
+	// +optional
+	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
+
+	// +optional
+	IngressConfiguration []string `json:"ingressConfiguration,omitempty"`
+
+	// +optional
+	DNSAppAlias bool `json:"dnsAppAlias,omitempty"`
+
+	// +optional
+	ExternalDNS []RadixDeployExternalDNS `json:"externalDNS,omitempty"`
+
 	// Deprecated: For backward compatibility we must still support this field. New code should use ExternalDNS instead.
-	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty"`
-	HealthChecks            *RadixHealthChecks      `json:"healthChecks,omitempty"`
-	Monitoring              bool                    `json:"monitoring"`
-	MonitoringConfig        MonitoringConfig        `json:"monitoringConfig,omitempty"`
-	Resources               ResourceRequirements    `json:"resources,omitempty"`
-	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
-	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy"`
-	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty"`
+	// +optional
+	DNSExternalAlias []string `json:"dnsExternalAlias,omitempty"`
+
+	// +optional
+	HealthChecks *RadixHealthChecks `json:"healthChecks,omitempty"`
+
+	// +optional
+	Monitoring bool `json:"monitoring"`
+
+	// +optional
+	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
+
+	// +optional
+	Resources ResourceRequirements `json:"resources,omitempty"`
+
+	// +optional
+	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
+
+	// +optional
+	AlwaysPullImageOnDeploy bool `json:"alwaysPullImageOnDeploy"`
+
+	// +optional
+	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
+
 	// Deprecated: use Runtime.NodeType instead.
 	// Defines GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/radix-config#node
-	Node               RadixNode       `json:"node,omitempty"`
-	Authentication     *Authentication `json:"authentication,omitempty"`
-	Identity           *Identity       `json:"identity,omitempty"`
-	ReadOnlyFileSystem *bool           `json:"readOnlyFileSystem,omitempty"`
-	Runtime            *Runtime        `json:"runtime,omitempty"`
-	Network            *Network        `json:"network,omitempty"`
+	// +optional
+	Node RadixNode `json:"node,omitempty"`
+
+	// +optional
+	Authentication *Authentication `json:"authentication,omitempty"`
+
+	// +optional
+	Identity *Identity `json:"identity,omitempty"`
+
+	// +optional
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
+
+	// +optional
+	Runtime *Runtime `json:"runtime,omitempty"`
+
+	// +optional
+	Network *Network `json:"network,omitempty"`
+
 	// GetCommand Entrypoint array. Not executed within a shell.
+	// +optional
 	Command []string `json:"command,omitempty"`
+
 	// GetArgs Arguments to the entrypoint.
+	// +optional
 	Args []string `json:"args,omitempty"`
 }
 
@@ -346,10 +422,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetVolumeMounts() []RadixVolu
 	return deployJobComponent.VolumeMounts
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetEnvironment() string {
-	return deployJobComponent.Environment
-}
-
 func (deployJobComponent *RadixDeployJobComponent) IsAlwaysPullImageOnDeploy() bool {
 	return deployJobComponent.AlwaysPullImageOnDeploy
 }
@@ -451,28 +523,77 @@ func (deployComponent *RadixDeployComponent) GetNrOfReplicas() int32 {
 // RadixDeployJobComponent defines a single job component within a RadixDeployment
 // The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
-	Name                    string                    `json:"name"`
-	Environment             string                    `json:"environment"`
-	Image                   string                    `json:"image"`
-	Ports                   []ComponentPort           `json:"ports,omitempty"`
-	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty"`
-	Secrets                 []string                  `json:"secrets,omitempty"`
-	SecretRefs              RadixSecretRefs           `json:"secretRefs,omitempty"`
-	Monitoring              bool                      `json:"monitoring"`
-	MonitoringConfig        MonitoringConfig          `json:"monitoringConfig,omitempty"`
-	Resources               ResourceRequirements      `json:"resources,omitempty"`
-	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty"`
-	SchedulerPort           int32                     `json:"schedulerPort,omitempty"`
-	Payload                 *RadixJobComponentPayload `json:"payload,omitempty"`
-	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	Name string `json:"name"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Image string `json:"image"`
+
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	Ports []ComponentPort `json:"ports,omitempty"`
+
+	// +optional
+	EnvironmentVariables EnvVarsMap `json:"environmentVariables,omitempty"`
+
+	// +optional
+	Secrets []string `json:"secrets,omitempty"`
+
+	// +optional
+	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
+
+	// +optional
+	Monitoring bool `json:"monitoring"`
+
+	// +optional
+	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
+
+	// +optional
+	Resources ResourceRequirements `json:"resources,omitempty"`
+
+	// +optional
+	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Minimum=1024
+	// +kubebuilder:validation:Maximum=65535
+	SchedulerPort int32 `json:"schedulerPort"`
+
+	// +optional
+	Payload *RadixJobComponentPayload `json:"payload,omitempty"`
+
+	// +optional
+	AlwaysPullImageOnDeploy bool `json:"alwaysPullImageOnDeploy"`
+
 	// Deprecated: use Runtime.NodeType instead.
-	Node               RadixNode      `json:"node,omitempty"`
-	TimeLimitSeconds   *int64         `json:"timeLimitSeconds,omitempty"`
-	BackoffLimit       *int32         `json:"backoffLimit,omitempty"`
-	Identity           *Identity      `json:"identity,omitempty"`
-	Notifications      *Notifications `json:"notifications,omitempty"`
-	ReadOnlyFileSystem *bool          `json:"readOnlyFileSystem,omitempty"`
-	Runtime            *Runtime       `json:"runtime,omitempty"`
+	// +optional
+	Node RadixNode `json:"node,omitempty"`
+
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
+
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
+
+	// +optional
+	Identity *Identity `json:"identity,omitempty"`
+
+	// +optional
+	Notifications *Notifications `json:"notifications,omitempty"`
+
+	// +optional
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
+
+	// +optional
+	Runtime *Runtime `json:"runtime,omitempty"`
+
 	// BatchStatusRules Rules define how a batch status is set corresponding to batch job statuses
 	// +optional
 	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`
@@ -480,9 +601,13 @@ type RadixDeployJobComponent struct {
 	// FailurePolicy specifies the policy of handling failed job replicas
 	// +optional
 	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
+
 	// GetCommand Entrypoint array. Not executed within a shell.
+	// +optional
 	Command []string `json:"command,omitempty"`
+
 	// GetArgs Arguments to the entrypoint.
+	// +optional
 	Args []string `json:"args,omitempty"`
 }
 

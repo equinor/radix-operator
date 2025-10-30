@@ -63,6 +63,9 @@ spec:
             description: RadixDeploymentSpec is the spec for a deployment
             properties:
               appname:
+                maxLength: 253
+                minLength: 1
+                pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                 type: string
               components:
                 items:
@@ -723,6 +726,7 @@ spec:
                         maxReplicas:
                           description: Defines the maximum number of replicas.
                           format: int32
+                          maximum: 64
                           minimum: 1
                           type: integer
                         minReplicas:
@@ -1054,6 +1058,11 @@ spec:
                       required:
                       - maxReplicas
                       type: object
+                      x-kubernetes-validations:
+                      - message: maxReplicas must be greater than 0
+                        rule: self.maxReplicas > 0
+                      - message: minReplicas must be less than or equal to maxReplicas
+                        rule: '!has(self.minReplicas) || self.minReplicas <= self.maxReplicas'
                     identity:
                       description: Identity configuration for federation with external
                         identity providers.
@@ -1072,6 +1081,7 @@ spec:
                           type: object
                       type: object
                     image:
+                      minLength: 1
                       type: string
                     ingressConfiguration:
                       items:
@@ -1193,6 +1203,9 @@ spec:
                         - port
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     public:
                       description: 'Deprecated: For backwards compatibility Public
                         is still supported, new code should use PublicPort instead'
@@ -1202,8 +1215,12 @@ spec:
                     readOnlyFileSystem:
                       type: boolean
                     replicas:
+                      maximum: 64
+                      minimum: 0
                       type: integer
                     replicasOverride:
+                      maximum: 64
+                      minimum: 0
                       type: integer
                     resources:
                       description: |-
@@ -1604,11 +1621,8 @@ spec:
                         type: object
                       type: array
                   required:
-                  - alwaysPullImageOnDeploy
                   - image
-                  - monitoring
                   - name
-                  - public
                   type: object
                 type: array
               environment:
@@ -1649,6 +1663,7 @@ spec:
                       type: array
                     backoffLimit:
                       format: int32
+                      minimum: 0
                       type: integer
                     batchStatusRules:
                       description: BatchStatusRules Rules define how a batch status
@@ -1710,8 +1725,6 @@ spec:
                       items:
                         type: string
                       type: array
-                    environment:
-                      type: string
                     environmentVariables:
                       additionalProperties:
                         type: string
@@ -1800,6 +1813,7 @@ spec:
                           type: object
                       type: object
                     image:
+                      minLength: 1
                       type: string
                     monitoring:
                       type: boolean
@@ -1818,6 +1832,9 @@ spec:
                           type: string
                       type: object
                     name:
+                      maxLength: 253
+                      minLength: 1
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     node:
                       description: 'Deprecated: use Runtime.NodeType instead.'
@@ -1876,6 +1893,9 @@ spec:
                         - port
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     readOnlyFileSystem:
                       type: boolean
                     resources:
@@ -1921,6 +1941,8 @@ spec:
                       type: object
                     schedulerPort:
                       format: int32
+                      maximum: 65535
+                      minimum: 1024
                       type: integer
                     secretRefs:
                       description: RadixSecretRefs defines secret vault
@@ -2030,6 +2052,7 @@ spec:
                       type: array
                     timeLimitSeconds:
                       format: int64
+                      minimum: 1
                       type: integer
                     volumeMounts:
                       items:
@@ -2283,11 +2306,9 @@ spec:
                         type: object
                       type: array
                   required:
-                  - alwaysPullImageOnDeploy
-                  - environment
                   - image
-                  - monitoring
                   - name
+                  - schedulerPort
                   type: object
                 type: array
             required:
