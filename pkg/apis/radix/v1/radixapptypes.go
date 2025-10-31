@@ -1109,7 +1109,7 @@ type RadixVolumeMount struct {
 	// Type defines the storage type.
 	// +kubebuilder:validation:Enum=azure-blob;""
 	// +optional
-	Type MountType `json:"type"`
+	Type MountType `json:"type,omitempty"`
 
 	// User-defined name of the volume mount.
 	// Must be unique for the component.
