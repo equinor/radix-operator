@@ -2274,7 +2274,6 @@ spec:
                       type: array
                   required:
                   - alwaysPullImageOnDeploy
-                  - environment
                   - image
                   - monitoring
                   - name
