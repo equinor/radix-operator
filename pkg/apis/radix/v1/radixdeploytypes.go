@@ -442,7 +442,7 @@ func (deployComponent *RadixDeployComponent) GetNrOfReplicas() int32 {
 // The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
 	Name                    string                    `json:"name"`
-	Environment             string                    `json:"environment"`
+	Environment             string                    `json:"environment,omitempty"`
 	Image                   string                    `json:"image"`
 	Ports                   []ComponentPort           `json:"ports,omitempty"`
 	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty"`
