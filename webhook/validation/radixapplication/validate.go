@@ -29,7 +29,7 @@ const (
 
 var (
 	validResourceTypes       = []string{"memory", "cpu"}
-	minimumMemoryRequirement = resource.MustParse("20Mi")
+	minimumMemoryRequirement = resource.MustParse("20M")
 )
 
 var (

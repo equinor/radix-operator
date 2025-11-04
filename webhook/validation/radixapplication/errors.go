@@ -56,7 +56,7 @@ var (
 	ErrInvalidResourceFormat                                         = errors.New("invalid resource format")
 	ErrFailurePolicyRuleExitCodeZeroNotAllowedForInOperator          = errors.New("value 0 cannot be used for the In operator")
 	WarnPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage = "job or component cannot have 'src' or 'Dockerfile' set when image is defined"
-	WarnDeprecatedFieldPublicUsed                                    = "deprecated: set publicPort to name of port instead of using public: true"
+	WarnDeprecatedFieldPublicUsed                                    = "deprecated: instead of using spec.components.public: true, set publicPort to name of port"
 	ErrSchedulerPortCannotBeEmptyForJob                              = errors.New("scheduler port cannot be empty for job")
 	ErrPayloadPathCannotBeEmptyForJob                                = errors.New("payload path cannot be empty for job")
 	ErrSecretNameConflictsWithVariable                               = errors.New("secret name conflicts with variable")
