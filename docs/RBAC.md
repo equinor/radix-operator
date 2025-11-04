@@ -189,7 +189,7 @@ application|`application`-machine-user|`application`-machine-user-token|role|app
 ||AD-groups|radix-private-image-hubs|role|application|radix-private-image-hubs|rolebinding
 ||AD-groups|radix-app-admin-build-secrets|role|application|radix-app-admin-build-secrets|rolebinding
 ||AD-groups|`application`-machine-user-token|role|application|`application`-machine-user-token|rolebinding
-||radixGroups.user|radix-platform-user|clusterrole|global|radix-platform-user-binding|clusterrolebinding
+||rbac.createApp.groups|radix-platform-user|clusterrole|global|radix-platform-user-binding|clusterrolebinding
 environment|radix-api|radix-api|clusterrole|global|`environment`-radix-api|clusterrolebinding
 application|radix-tekton|radix-tekton|role|application|radix-tekton|rolebinding
 environment|radix-github-webhook|radix-webhook|clusterrole|global|`environment`-radix-github-webhook|clusterrolebinding
@@ -198,8 +198,6 @@ application|radix-pipeline|radix-pipeline-app|role|application|radix-pipeline-ap
 application|radix-pipeline|radix-pipeline-rr-`application`|clusterrole|global|radix-pipeline-rr-`application`|clusterrolebinding
 application|radix-pipeline|radix-pipeline-env|clusterrole|environment|radix-pipeline-env|rolebinding
 application|radix-pipeline|pipeline-build-secrets|role|application|pipeline-build-secrets|rolebinding
-
-**NOTE:** radix users `radixGroups.user` will be granted `radix-platform-user` on registration, before any application is created. On creation, the application scoped roles will be bound to the provided AD-group along with the service-account.
 
 #### Table 1.2 Source map
 

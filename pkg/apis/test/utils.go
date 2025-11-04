@@ -292,7 +292,6 @@ func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder utils.EnvironmentBuil
 // SetRequiredEnvironmentVariables  Sets the required environment
 // variables needed for the operator to run properly
 func SetRequiredEnvironmentVariables() {
-	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
 	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
 	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
@@ -308,7 +307,7 @@ func SetRequiredEnvironmentVariables() {
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscriptionId string) error {
+func (tu *Utils) CreateClusterPrerequisites(clustername, subscriptionId string) error {
 	SetRequiredEnvironmentVariables()
 
 	var errs []error
@@ -335,9 +334,8 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps, subscription
 				Namespace: corev1.NamespaceDefault,
 			},
 			Data: map[string]string{
-				"clustername":            clustername,
-				"clusterActiveEgressIps": egressIps,
-				"subscriptionId":         subscriptionId,
+				"clustername":    clustername,
+				"subscriptionId": subscriptionId,
 			},
 		},
 		metav1.CreateOptions{})

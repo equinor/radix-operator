@@ -190,16 +190,6 @@ func (s *syncerTestSuite) Test_OnSync_ingresses() {
 	}
 	for _, ts := range scenarios {
 		s.Run(ts.name, func() {
-
-			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
-			defer s.T().Cleanup(func() {
-				if len(defaultUserGroupID) > 0 {
-					err := os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultUserGroupID)
-					s.Require().NoError(err)
-				}
-			})
-			s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, testDefaultUserGroupID)
-
 			s.SetupTest()
 			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
 				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component}}
@@ -316,14 +306,14 @@ func (s *syncerTestSuite) Test_OnSync_IngressesWithOAuth2() {
 	for _, ts := range scenarios {
 		s.T().Run(ts.name, func(t *testing.T) {
 
-			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
+			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable)
 			defer s.T().Cleanup(func() {
 				if len(defaultUserGroupID) > 0 {
-					err := os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultUserGroupID)
+					err := os.Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, defaultUserGroupID)
 					s.Require().NoError(err)
 				}
 			})
-			s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, testDefaultUserGroupID)
+			s.T().Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, testDefaultUserGroupID)
 
 			s.SetupTest()
 			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
@@ -531,14 +521,14 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 	}
 	for _, ts := range scenarios {
 		s.T().Run(ts.name, func(t *testing.T) {
-			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
+			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable)
 			defer s.T().Cleanup(func() {
 				if len(defaultUserGroupID) > 0 {
-					err := os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultUserGroupID)
+					err := os.Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, defaultUserGroupID)
 					s.Require().NoError(err)
 				}
 			})
-			s.T().Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, testDefaultUserGroupID)
+			s.T().Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, testDefaultUserGroupID)
 
 			s.SetupTest()
 

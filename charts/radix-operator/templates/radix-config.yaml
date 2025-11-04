@@ -8,4 +8,3 @@ metadata:
 data:
   clustername: {{ .Values.clusterName }}
   subscriptionId: {{ .Values.subscriptionId }}
-  clusterActiveEgressIps: {{ .Values.clusterActiveEgressIps }}

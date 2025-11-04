@@ -2,10 +2,7 @@ package batch
 
 import (
 	"context"
-	"encoding/json"
 	stdErrors "errors"
-	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -290,7 +287,7 @@ func setPodStatusByPodCondition(pod *corev1.Pod, podStatus *radixv1.RadixBatchJo
 	}
 	conditions := pod.Status.Conditions
 	sort.Slice(conditions, func(i, j int) bool {
-		if conditions[i].LastTransitionTime.Time == conditions[j].LastTransitionTime.Time {
+		if conditions[i].LastTransitionTime.Time.Equal(conditions[j].LastTransitionTime.Time) {
 			return i < j
 		}
 		return conditions[i].LastTransitionTime.After(conditions[j].LastTransitionTime.Time)
@@ -314,22 +311,4 @@ func getPodStatusMap(status *radixv1.RadixBatchJobStatus) map[string]*radixv1.Ra
 		podStatusMap[status.RadixBatchJobPodStatuses[i].Name] = &status.RadixBatchJobPodStatuses[i]
 	}
 	return podStatusMap
-}
-
-func (s *syncer) restoreStatus(ctx context.Context) error {
-	if restoredStatus, ok := s.radixBatch.Annotations[kube.RestoredStatusAnnotation]; ok && len(restoredStatus) > 0 {
-		if reflect.ValueOf(s.radixBatch.Status).IsZero() {
-			var status radixv1.RadixBatchStatus
-
-			if err := json.Unmarshal([]byte(restoredStatus), &status); err != nil {
-				return fmt.Errorf("unable to restore status for batch %s.%s from annotation: %w", s.radixBatch.GetNamespace(), s.radixBatch.GetName(), err)
-			}
-
-			return s.updateStatus(ctx, func(currStatus *radixv1.RadixBatchStatus) {
-				*currStatus = status
-			})
-		}
-	}
-
-	return nil
 }

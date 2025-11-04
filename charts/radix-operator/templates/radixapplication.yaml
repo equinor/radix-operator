@@ -1465,6 +1465,13 @@ spec:
                                   that is explicitly specified, otherwise to an implementation-defined value.
                                 type: object
                             type: object
+                          runAsUser:
+                            description: |-
+                              User ID to run the container as
+                              More info: https://www.radix.equinor.com/radix-config#runasuser
+                            format: int64
+                            minimum: 1
+                            type: integer
                           runtime:
                             description: Runtime defines environment specific target
                               runtime requirements for the component
@@ -2851,6 +2858,13 @@ spec:
                             that is explicitly specified, otherwise to an implementation-defined value.
                           type: object
                       type: object
+                    runAsUser:
+                      description: |-
+                        User ID to run the container as
+                        More info: https://www.radix.equinor.com/radix-config#runasuser-detailed
+                      format: int64
+                      minimum: 1
+                      type: integer
                     runtime:
                       description: Runtime defines the target runtime requirements
                         for the component
@@ -3856,6 +3870,13 @@ spec:
                                   that is explicitly specified, otherwise to an implementation-defined value.
                                 type: object
                             type: object
+                          runAsUser:
+                            description: |-
+                              User ID to run the container as
+                              More info: https://www.radix.equinor.com/radix-config#runasuser-1
+                            format: int64
+                            minimum: 1
+                            type: integer
                           runtime:
                             description: Runtime defines environment specific target
                               runtime requirements for the job
@@ -4472,6 +4493,13 @@ spec:
                             that is explicitly specified, otherwise to an implementation-defined value.
                           type: object
                       type: object
+                    runAsUser:
+                      description: |-
+                        User ID to run the container as
+                        More info: https://www.radix.equinor.com/radix-config#runasuser-2
+                      format: int64
+                      minimum: 1
+                      type: integer
                     runtime:
                       description: Runtime defines target runtime requirements for
                         the job

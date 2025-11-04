@@ -139,7 +139,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().BoolVar(&pipelineArgs.ApplyConfigOptions.DeployExternalDNS, defaults.RadixPipelineApplyConfigDeployExternalDNSFlag, false, "Deploy changes to External DNS configuration with the 'apply-config' pipeline")
 	cmd.Flags().StringVar(&pipelineArgs.GitWorkspace, defaults.RadixGithubWorkspaceEnvironmentVariable, git.Workspace, fmt.Sprintf("(Optional) Workspace path to the cloned GitHub repository. Default %s", git.Workspace))
 	cmd.Flags().BoolVar(&pipelineArgs.TriggeredFromWebhook, defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, false, "Indicates if the pipeline was triggered from a webhook")
-	
+
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
 		return fmt.Errorf("failed to parse command arguments. Error: %v", err)

@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -29,10 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
-)
-
-const (
-	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
 )
 
 // DeploymentSyncer defines interface for syncing a RadixDeployment
@@ -99,17 +94,9 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 	ctx = log.Ctx(ctx).With().Str("resource_kind", v1.KindRadixDeployment).Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
 
-	requeue := deploy.restoreStatus(ctx)
-
 	if IsRadixDeploymentInactive(deploy.radixDeployment) {
 		log.Ctx(ctx).Debug().Msg("Ignoring RadixDeployment as it is inactive")
 		return nil
-	}
-
-	if requeue {
-		// If this is an active deployment restored from status, it is important that the other inactive RDs are restored
-		// before this is reprocessed, as the code will now skip OnSync if only a status has changed on the RD
-		return fmt.Errorf("requeue, status was restored for active deployment, %s, and we need to trigger a new sync", deploy.getName())
 	}
 
 	stopReconciliation, err := deploy.syncStatuses(ctx)
@@ -142,36 +129,6 @@ func (deploy *Deployment) getNamespace() string {
 // getName gets the name of radixDeployment
 func (deploy *Deployment) getName() string {
 	return deploy.radixDeployment.GetName()
-}
-
-// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
-func (deploy *Deployment) restoreStatus(ctx context.Context) bool {
-	requeue := false
-
-	if restoredStatus, ok := deploy.radixDeployment.Annotations[kube.RestoredStatusAnnotation]; ok {
-		if deploy.radixDeployment.Status.Condition == "" {
-			var status v1.RadixDeployStatus
-			err := json.Unmarshal([]byte(restoredStatus), &status)
-			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Msg("Unable to get status from annotation")
-				return false
-			}
-
-			err = deploy.updateRadixDeploymentStatus(ctx, deploy.radixDeployment, func(currStatus *v1.RadixDeployStatus) {
-				currStatus.Condition = status.Condition
-				currStatus.ActiveFrom = status.ActiveFrom
-				currStatus.ActiveTo = status.ActiveTo
-			})
-			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Msg("Unable to restore status")
-				return false
-			}
-			// Need to requeue
-			requeue = true
-		}
-	}
-
-	return requeue
 }
 
 func (deploy *Deployment) syncStatuses(ctx context.Context) (stopReconciliation bool, err error) {

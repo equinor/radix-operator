@@ -15,22 +15,17 @@ import (
 )
 
 func (app *Application) applyRbacAppNamespace(ctx context.Context) error {
-	k := app.kubeutil
 	registration := app.registration
-
 	appNamespace := utils.GetAppNamespace(registration.Name)
-	subjects, err := utils.GetAppAdminRbacSubjects(registration)
-	if err != nil {
-		return err
-	}
+
+	subjects := utils.GetAppAdminRbacSubjects(registration)
 	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppAdminRoleName, subjects)
 
 	readerSubjects := utils.GetAppReaderRbacSubjects(registration)
 	readerRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppReaderRoleName, readerSubjects)
 
 	for _, roleBinding := range []*rbacv1.RoleBinding{adminRoleBinding, readerRoleBinding} {
-		err = k.ApplyRoleBinding(ctx, appNamespace, roleBinding)
-		if err != nil {
+		if err := app.kubeutil.ApplyRoleBinding(ctx, appNamespace, roleBinding); err != nil {
 			return err
 		}
 	}
@@ -45,10 +40,7 @@ func (app *Application) applyRbacRadixRegistration(ctx context.Context) error {
 	// Admin RBAC
 	clusterRoleName := fmt.Sprintf("radix-platform-user-rr-%s", appName)
 	adminClusterRole := app.buildRRClusterRole(ctx, clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"})
-	appAdminSubjects, err := utils.GetAppAdminRbacSubjects(rr)
-	if err != nil {
-		return err
-	}
+	appAdminSubjects := utils.GetAppAdminRbacSubjects(rr)
 	adminClusterRoleBinding := app.rrClusterRoleBinding(ctx, adminClusterRole, appAdminSubjects)
 
 	// Reader RBAC

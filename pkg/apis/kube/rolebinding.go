@@ -18,26 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
-// GetRoleBindingSubjects Get subjects for list of ad groups
-func GetRoleBindingSubjects(groups, users []string) []rbacv1.Subject {
-	var subjects []rbacv1.Subject
-	for _, group := range groups {
-		subjects = append(subjects, rbacv1.Subject{
-			Kind:     rbacv1.GroupKind,
-			Name:     group,
-			APIGroup: rbacv1.GroupName,
-		})
-	}
-	for _, user := range users {
-		subjects = append(subjects, rbacv1.Subject{
-			Kind:     rbacv1.UserKind,
-			Name:     user,
-			APIGroup: rbacv1.GroupName,
-		})
-	}
-	return subjects
-}
-
 // GetRolebindingToRoleWithLabelsForSubjects Get rolebinding object with subjects as input
 func GetRolebindingToRoleWithLabelsForSubjects(roleName string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
 	return getRoleBindingForSubjects(roleName, k8s.KindRole, subjects, labels)

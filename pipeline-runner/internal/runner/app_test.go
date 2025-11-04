@@ -25,7 +25,7 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *radix.Clientset, *kedafake
 	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := testUtils.CreateClusterPrerequisites("AnyClusterName", "0.0.0.0", "anysubid")
+	err := testUtils.CreateClusterPrerequisites("AnyClusterName", "anysubid")
 	require.NoError(t, err)
 	return kubeclient, radixclient, kedaClient, secretproviderclient, testUtils
 }

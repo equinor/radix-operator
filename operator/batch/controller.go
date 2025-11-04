@@ -44,7 +44,7 @@ func NewController(ctx context.Context,
 		WorkQueue:            common.NewRateLimitedWorkQueue(ctx, crType),
 		Handler:              handler,
 		Recorder:             recorder,
-		LockKeyAndIdentifier: common.NamespacePartitionKey,
+		LockKey:              common.NamespacePartitionKey,
 	}
 
 	logger.Info().Msg("Setting up event handlers")

@@ -104,11 +104,7 @@ func GrantAppAdminAccessToSecret(ctx context.Context, kubeutil *kube.Kube, regis
 	}
 
 	// create rolebinding
-	subjects, err := GetAppAdminRbacSubjects(registration)
-	if err != nil {
-		return err
-	}
-
+	subjects := GetAppAdminRbacSubjects(registration)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }

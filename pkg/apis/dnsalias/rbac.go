@@ -32,10 +32,7 @@ func (s *syncer) syncRbac(ctx context.Context) error {
 }
 
 func (s *syncer) syncAppAdminRbac(ctx context.Context, rr *radixv1.RadixRegistration) error {
-	subjects, err := utils.GetAppAdminRbacSubjects(rr)
-	if err != nil {
-		return err
-	}
+	subjects := utils.GetAppAdminRbacSubjects(rr)
 	roleName := s.getClusterRoleNameForAdmin()
 	return s.syncClusterRoleAndBinding(ctx, roleName, subjects)
 }
