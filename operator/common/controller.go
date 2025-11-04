@@ -168,14 +168,15 @@ func (c *Controller) syncHandler(ctx context.Context, key cache.ObjectName) erro
 // Enqueue takes a resource and converts it into a namespace/name
 // string which is then put onto the work queue
 func (c *Controller) Enqueue(obj interface{}) (requeued bool, err error) {
-	if objRef, err := cache.ObjectToName(obj); err != nil {
+	objRef, err := cache.ObjectToName(obj)
+	if err != nil {
 		metrics.OperatorError(c.HandlerOf, "enqueue", "object_to_name")
 		return requeued, err
-	} else {
-		requeued = c.WorkQueue.NumRequeues(objRef) > 0
-		c.WorkQueue.AddRateLimited(objRef)
-		return requeued, nil
 	}
+
+	requeued = c.WorkQueue.NumRequeues(objRef) > 0
+	c.WorkQueue.AddRateLimited(objRef)
+	return requeued, nil
 }
 
 // HandleObject ensures that when anything happens to object which any
