@@ -1701,8 +1701,6 @@ spec:
                       items:
                         type: string
                       type: array
-                    environment:
-                      type: string
                     environmentVariables:
                       additionalProperties:
                         type: string
