@@ -9,10 +9,12 @@ import (
 )
 
 // NewRecorder Creates an event recorder for controller
-func NewRecorder(controllerAgentName string, events typedcorev1.EventInterface) record.EventRecorder {
+func NewRecorder(controllerAgentName string, events typedcorev1.EventInterface) (record.EventRecorder, error) {
 	scheme := runtime.NewScheme()
-	v1.AddToScheme(scheme)
+	if err := v1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: events})
-	return eventBroadcaster.NewRecorder(scheme, corev1.EventSource{Component: controllerAgentName})
+	return eventBroadcaster.NewRecorder(scheme, corev1.EventSource{Component: controllerAgentName}), nil
 }

@@ -116,7 +116,10 @@ func initializeApp(ctx context.Context) (*App, error) {
 	app.rateLimitConfig = utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
 	app.warningHandler = utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
 	app.client, app.radixClient, app.kedaClient, app.prometheusOperatorClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(ctx, app.rateLimitConfig, app.warningHandler)
-	app.eventRecorder = event.NewRecorder("Radix controller", app.client.CoreV1().Events(""))
+	app.eventRecorder, err = event.NewRecorder("Radix controller", app.client.CoreV1().Events(""))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create event recorder: %w", err)
+	}
 	app.kubeInformerFactory = kubeinformers.NewSharedInformerFactory(app.client, resyncPeriod)
 	app.radixInformerFactory = radixinformers.NewSharedInformerFactory(app.radixClient, resyncPeriod)
 	app.kubeUtil, _ = kube.NewWithListers(
