@@ -47,7 +47,7 @@ func NewController(ctx context.Context, kubeClient kubernetes.Interface,
 		WorkQueue:            common.NewRateLimitedWorkQueue(ctx, radixv1.KindRadixDNSAlias),
 		Handler:              handler,
 		Recorder:             recorder,
-		LockKeyAndIdentifier: common.NamePartitionKey,
+		LockKey:              common.NamePartitionKey,
 	}
 
 	logger.Info().Msg("Setting up event handlers")
