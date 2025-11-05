@@ -136,7 +136,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 }
 
 func startRegistrationController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler common.Handler) error {
-	controller := NewController(ctx, client, radixClient, handler, kubeInformerFactory, radixInformerFactory, &record.FakeRecorder{})
+	controller := NewController(ctx, client, radixClient, handler, kubeInformerFactory, radixInformerFactory)
 	kubeInformerFactory.Start(ctx.Done())
 	radixInformerFactory.Start(ctx.Done())
 	return controller.Run(ctx, 5)

@@ -78,7 +78,7 @@ func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOp
 }
 
 // Sync is called by kubernetes after the Controller Enqueues a work-item
-func (h *handler) Sync(ctx context.Context, _, name string, eventRecorder record.EventRecorder) error {
+func (h *handler) Sync(ctx context.Context, _, name string) error {
 	radixDNSAlias, err := h.kubeUtil.GetRadixDNSAlias(ctx, name)
 	if err != nil {
 		if errors.IsNotFound(err) {

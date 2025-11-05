@@ -117,7 +117,7 @@ func (s *handlerSuite) Test_Sync() {
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.promClient, s.certClient, s.eventRecorder, s.config)
-		err := h.Sync(context.Background(), namespace, nonExistingRdName, s.eventRecorder)
+		err := h.Sync(context.Background(), namespace, nonExistingRdName)
 		s.NoError(err)
 	})
 	s.Run("inactive RD should not call factory method", func() {
@@ -129,7 +129,7 @@ func (s *handlerSuite) Test_Sync() {
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.promClient, s.certClient, s.eventRecorder, s.config)
-		err := h.Sync(context.Background(), namespace, inactiveRdName, s.eventRecorder)
+		err := h.Sync(context.Background(), namespace, inactiveRdName)
 		s.NoError(err)
 	})
 	s.Run("active RD with missing RR should not call factory method", func() {
@@ -141,7 +141,7 @@ func (s *handlerSuite) Test_Sync() {
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.promClient, s.certClient, s.eventRecorder, s.config)
-		err := h.Sync(context.Background(), namespace, activeRdMissingRrName, s.eventRecorder)
+		err := h.Sync(context.Background(), namespace, activeRdMissingRrName)
 		s.NoError(err)
 	})
 	s.Run("active RD with existing RR calls factory with expected args", func() {
@@ -176,7 +176,7 @@ func (s *handlerSuite) Test_Sync() {
 			Return(syncer).
 			Times(1)
 		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.promClient, s.certClient, s.eventRecorder, s.config, WithDeploymentSyncerFactory(factory), WithOAuth2ProxyDockerImage(oauthProxyImage), WithOAuth2RedisDockerImage(oauthRedisImage), WithOAuth2DefaultConfig(oauthConfig), WithIngressConfiguration(ingressConfig))
-		err := h.Sync(context.Background(), namespace, activeRdName, s.eventRecorder)
+		err := h.Sync(context.Background(), namespace, activeRdName)
 		s.NoError(err)
 	})
 	s.Run("active RD with exiting RR calls factory with non-root false", func() {
@@ -191,7 +191,7 @@ func (s *handlerSuite) Test_Sync() {
 			Return(syncer).
 			Times(1)
 		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.promClient, s.certClient, s.eventRecorder, s.config, WithDeploymentSyncerFactory(factory))
-		err := h.Sync(context.Background(), namespace, activeRdName, s.eventRecorder)
+		err := h.Sync(context.Background(), namespace, activeRdName)
 		s.NoError(err)
 	})
 }

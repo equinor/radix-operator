@@ -49,7 +49,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
 
-	err := handler.Sync(context.Background(), "", alias1, s.EventRecorder)
+	err := handler.Sync(context.Background(), "", alias1)
 	s.Require().NoError(err)
 }
 
@@ -61,7 +61,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
 
-	actualError := handler.Sync(context.Background(), "", alias1, s.EventRecorder)
+	actualError := handler.Sync(context.Background(), "", alias1)
 	s.Equal(expectedError, actualError)
 }
 
@@ -72,6 +72,6 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
 
-	err := handler.Sync(context.Background(), "", alias1, s.EventRecorder)
+	err := handler.Sync(context.Background(), "", alias1)
 	s.Require().Nil(err)
 }

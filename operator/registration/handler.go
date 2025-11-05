@@ -43,7 +43,7 @@ func NewHandler(
 }
 
 // Sync Is created on sync of resource
-func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	registration, err := t.kubeutil.GetRegistration(ctx, name)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop

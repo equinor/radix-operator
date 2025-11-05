@@ -156,8 +156,7 @@ func createConfig() *config.Config {
 func (s *jobTestSuite) startJobController(ctx context.Context, handler Handler) error {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
 	radixInformerFactory := informers.NewSharedInformerFactory(s.kubeUtil.RadixClient(), 0)
-	eventRecorder := &record.FakeRecorder{}
-	controller := NewController(ctx, s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), handler, kubeInformerFactory, radixInformerFactory, eventRecorder)
+	controller := NewController(ctx, s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), handler, kubeInformerFactory, radixInformerFactory)
 	kubeInformerFactory.Start(ctx.Done())
 	radixInformerFactory.Start(ctx.Done())
 	return controller.Run(ctx, 4)

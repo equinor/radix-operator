@@ -43,7 +43,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 }
 
 // Sync Is created on sync of resource
-func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	radixApplication, err := t.radixclient.RadixV1().RadixApplications(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		// The Application resource may no longer exist, in which case we stop

@@ -59,7 +59,7 @@ func (s *handlerTestSuite) Test_RadixAlertNotFound() {
 	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, s.eventRecorder, WithAlertSyncerFactory(s.syncerFactory))
 	s.syncerFactory.EXPECT().CreateAlertSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
-	err := sut.Sync(context.Background(), "any-ns", "any-alert", s.eventRecorder)
+	err := sut.Sync(context.Background(), "any-ns", "any-alert")
 	s.Nil(err)
 }
 
@@ -72,7 +72,7 @@ func (s *handlerTestSuite) Test_RadixAlertExist_AlertSyncerReturnError() {
 	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, s.eventRecorder, WithAlertSyncerFactory(s.syncerFactory))
 	s.syncerFactory.EXPECT().CreateAlertSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, alert).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
-	actualError := sut.Sync(context.Background(), namespace, alertName, s.eventRecorder)
+	actualError := sut.Sync(context.Background(), namespace, alertName)
 	s.Equal(expectedError, actualError)
 }
 
@@ -84,6 +84,6 @@ func (s *handlerTestSuite) Test_RadixAlertExist_AlertSyncerReturnNil() {
 	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, s.eventRecorder, WithAlertSyncerFactory(s.syncerFactory))
 	s.syncerFactory.EXPECT().CreateAlertSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, alert).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
-	err := sut.Sync(context.Background(), namespace, alertName, s.eventRecorder)
+	err := sut.Sync(context.Background(), namespace, alertName)
 	s.Nil(err)
 }

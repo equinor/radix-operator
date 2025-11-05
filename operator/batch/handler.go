@@ -61,7 +61,7 @@ func NewHandler(
 	return h
 }
 
-func (h *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (h *handler) Sync(ctx context.Context, namespace, name string) error {
 	radixBatch, err := h.radixclient.RadixV1().RadixBatches(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		// The resource may no longer exist, in which case we stop

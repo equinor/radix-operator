@@ -26,7 +26,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	namespace := utils.GetAppNamespace(appName)
 	appNamespace := test.CreateAppNamespace(s.KubeClient, appName)
 
-	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, s.EventRecorder)
+	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory)
 	s.RadixInformerFactory.Start(s.Ctx.Done())
 	s.KubeInformerFactory.Start(s.Ctx.Done())
 
@@ -39,7 +39,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	_, err := s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.Background(), ra, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("added app")
 }
 
@@ -53,7 +53,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_Reader_C
 		s.Require().NoError(err)
 	}
 
-	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, s.EventRecorder)
+	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory)
 	s.RadixInformerFactory.Start(s.Ctx.Done())
 	s.KubeInformerFactory.Start(s.Ctx.Done())
 
@@ -66,20 +66,20 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_Reader_C
 	_, err = s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.Background(), ra, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("added app")
 
 	rr.Spec.AdGroups = []string{"another-admin-group"}
 	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("AdGroups changed")
 
 	rr.Spec.ReaderAdGroups = []string{"another-reader-group"}
 	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, appName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("ReaderAdGroups changed")
 }

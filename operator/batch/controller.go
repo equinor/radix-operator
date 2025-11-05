@@ -14,7 +14,6 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 )
 
 const (
@@ -28,8 +27,7 @@ func NewController(ctx context.Context,
 	radixClient radixclient.Interface,
 	handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	radixInformerFactory informers.SharedInformerFactory,
-	recorder record.EventRecorder) *common.Controller {
+	radixInformerFactory informers.SharedInformerFactory) *common.Controller {
 	logger := log.With().Str("controller", controllerAgentName).Logger()
 	batchInformer := radixInformerFactory.Radix().V1().RadixBatches()
 	jobInformer := kubeInformerFactory.Batch().V1().Jobs()
@@ -43,7 +41,6 @@ func NewController(ctx context.Context,
 		RadixInformerFactory: radixInformerFactory,
 		WorkQueue:            common.NewRateLimitedWorkQueue(ctx, crType),
 		Handler:              handler,
-		Recorder:             recorder,
 		LockKey:              common.NamespacePartitionKey,
 	}
 

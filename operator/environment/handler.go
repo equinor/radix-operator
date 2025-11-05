@@ -49,7 +49,7 @@ func NewHandler(
 
 // Sync is called by kubernetes after the Controller Enqueues a work-item
 // and collects components and determines whether state must be reconciled.
-func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	envConfig, err := t.radixclient.RadixV1().RadixEnvironments().Get(ctx, name, meta.GetOptions{})
 	if err != nil {
 		// The Environment resource may no longer exist, in which case we stop
