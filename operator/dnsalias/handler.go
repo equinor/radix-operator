@@ -23,7 +23,7 @@ type handler struct {
 	kubeUtil             *kube.Kube
 	radixClient          radixclient.Interface
 	syncerFactory        internal.SyncerFactory
-	events               common.SyncedEventRecorder
+	events               common.SyncEventRecorder
 	dnsConfig            *dnsalias2.DNSConfig
 	ingressConfiguration ingress.IngressConfiguration
 	oauth2DefaultConfig  defaults.OAuth2Config
@@ -43,7 +43,7 @@ func NewHandler(
 		kubeUtil:      kubeUtil,
 		radixClient:   radixClient,
 		syncerFactory: internal.SyncerFactoryFunc(dnsalias.NewSyncer),
-		events:        common.SyncedEventRecorder{EventRecorder: eventRecorder},
+		events:        common.SyncEventRecorder{EventRecorder: eventRecorder},
 		dnsConfig:     dnsConfig,
 	}
 

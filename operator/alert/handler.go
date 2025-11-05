@@ -32,7 +32,7 @@ type handler struct {
 	prometheusperatorclient monitoring.Interface
 	kubeutil                *kube.Kube
 	alertSyncerFactory      alert.AlertSyncerFactory
-	events                  common.SyncedEventRecorder
+	events                  common.SyncEventRecorder
 }
 
 // NewHandler Constructor
@@ -49,7 +49,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		prometheusperatorclient: prometheusperatorclient,
 		kubeutil:                kubeutil,
 		alertSyncerFactory:      alert.AlertSyncerFactoryFunc(alert.New),
-		events:                  common.SyncedEventRecorder{EventRecorder: eventRecorder},
+		events:                  common.SyncEventRecorder{EventRecorder: eventRecorder},
 	}
 
 	for _, option := range options {

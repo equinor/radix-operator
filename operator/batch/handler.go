@@ -33,7 +33,7 @@ type handler struct {
 	radixclient   radixclient.Interface
 	kubeutil      *kube.Kube
 	syncerFactory internal.SyncerFactory
-	events        common.SyncedEventRecorder
+	events        common.SyncEventRecorder
 	config        *config.Config
 }
 
@@ -50,7 +50,7 @@ func NewHandler(
 		kubeutil:      kubeutil,
 		radixclient:   radixclient,
 		syncerFactory: internal.SyncerFactoryFunc(batch.NewSyncer),
-		events:        common.SyncedEventRecorder{EventRecorder: eventRecorder},
+		events:        common.SyncEventRecorder{EventRecorder: eventRecorder},
 		config:        config,
 	}
 

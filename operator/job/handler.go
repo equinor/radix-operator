@@ -27,7 +27,7 @@ type handler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
-	events      common.SyncedEventRecorder
+	events      common.SyncEventRecorder
 	hasSynced   common.HasSynced
 	config      *apiconfig.Config
 	jobHistory  job.History
@@ -48,7 +48,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeclient:  kubeclient,
 		radixclient: radixClient,
 		kubeutil:    kubeUtil,
-		events:      common.SyncedEventRecorder{EventRecorder: eventRecorder},
+		events:      common.SyncEventRecorder{EventRecorder: eventRecorder},
 		hasSynced:   hasSynced,
 		config:      config,
 		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.PipelineJobConfig.PipelineJobsHistoryLimit, config.PipelineJobConfig.PipelineJobsHistoryPeriodLimit),

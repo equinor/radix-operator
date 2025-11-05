@@ -19,7 +19,7 @@ type handler struct {
 	kubeclient  kubernetes.Interface
 	kubeutil    *kube.Kube
 	radixclient radixclient.Interface
-	events      common.SyncedEventRecorder
+	events      common.SyncEventRecorder
 	hasSynced   common.HasSynced
 }
 
@@ -35,7 +35,7 @@ func NewHandler(
 		kubeclient:  kubeclient,
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
-		events:      common.SyncedEventRecorder{EventRecorder: eventRecorder},
+		events:      common.SyncEventRecorder{EventRecorder: eventRecorder},
 		hasSynced:   hasSynced,
 	}
 

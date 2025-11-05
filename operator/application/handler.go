@@ -21,7 +21,7 @@ type handler struct {
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 	dnsConfig   *dnsalias.DNSConfig
-	events      common.SyncedEventRecorder
+	events      common.SyncEventRecorder
 }
 
 // NewHandler Constructor
@@ -35,7 +35,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
 		kubeutil:    kubeutil,
-		events:      common.SyncedEventRecorder{EventRecorder: eventRecorder},
+		events:      common.SyncEventRecorder{EventRecorder: eventRecorder},
 		dnsConfig:   dnsConfig,
 	}
 

@@ -75,7 +75,7 @@ type handler struct {
 	prometheusperatorclient monitoring.Interface
 	certClient              certclient.Interface
 	kedaClient              kedav2.Interface
-	events                  common.SyncedEventRecorder
+	events                  common.SyncEventRecorder
 	kubeutil                *kube.Kube
 	hasSynced               common.HasSynced
 	oauth2DefaultConfig     defaults.OAuth2Config
@@ -106,7 +106,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeutil:                kubeutil,
 		hasSynced:               hasSyncedNoop,
 		deploymentSyncerFactory: deployment.DeploymentSyncerFactoryFunc(deployment.NewDeploymentSyncer),
-		events:                  common.SyncedEventRecorder{EventRecorder: eventRecorder},
+		events:                  common.SyncEventRecorder{EventRecorder: eventRecorder},
 		config:                  config,
 	}
 

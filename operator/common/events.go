@@ -6,14 +6,14 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-type SyncedEventRecorder struct {
+type SyncEventRecorder struct {
 	EventRecorder record.EventRecorder
 }
 
-func (r SyncedEventRecorder) RecordSyncSuccessEvent(obj runtime.Object) {
+func (r SyncEventRecorder) RecordSyncSuccessEvent(obj runtime.Object) {
 	r.EventRecorder.Event(obj, corev1.EventTypeNormal, "Synced", "Successfully synced")
 }
 
-func (r SyncedEventRecorder) RecordSyncErrorEvent(obj runtime.Object, err error) {
+func (r SyncEventRecorder) RecordSyncErrorEvent(obj runtime.Object, err error) {
 	r.EventRecorder.Eventf(obj, corev1.EventTypeWarning, "SyncFailed", "Failed to sync: %s", err.Error())
 }
