@@ -62,11 +62,11 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
 	err = application.OnSync(ctx)
 	if err != nil {
-		t.events.RecordFailedEvent(syncRegistration, err)
+		t.events.RecordSyncErrorEvent(syncRegistration, err)
 		return err
 	}
 
 	t.hasSynced(true)
-	t.events.RecordSuccessEvent(syncRegistration)
+	t.events.RecordSyncSuccessEvent(syncRegistration)
 	return nil
 }

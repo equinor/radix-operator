@@ -92,12 +92,12 @@ func (t *handler) Sync(ctx context.Context, namespace, jobName string) error {
 
 	syncer := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, syncJob, t.config)
 	if err = syncer.OnSync(ctx); err != nil {
-		t.events.RecordFailedEvent(syncJob, err)
+		t.events.RecordSyncErrorEvent(syncJob, err)
 		return err
 	}
 
 	t.hasSynced(true)
-	t.events.RecordSuccessEvent(syncJob)
+	t.events.RecordSyncSuccessEvent(syncJob)
 	return nil
 }
 

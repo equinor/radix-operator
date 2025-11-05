@@ -94,10 +94,10 @@ func (h *handler) Sync(ctx context.Context, _, name string) error {
 	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
 	err = syncer.OnSync(ctx)
 	if err != nil {
-		h.events.RecordFailedEvent(syncingAlias, err)
+		h.events.RecordSyncErrorEvent(syncingAlias, err)
 		return err
 	}
 
-	h.events.RecordSuccessEvent(syncingAlias)
+	h.events.RecordSyncSuccessEvent(syncingAlias)
 	return nil
 }

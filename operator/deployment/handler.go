@@ -163,7 +163,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
 	err = deployment.OnSync(ctx)
 	if err != nil {
-		t.events.RecordFailedEvent(syncRD, err)
+		t.events.RecordSyncErrorEvent(syncRD, err)
 		return err
 	}
 
@@ -171,6 +171,6 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 		t.hasSynced(true)
 	}
 
-	t.events.RecordSuccessEvent(syncRD)
+	t.events.RecordSyncSuccessEvent(syncRD)
 	return nil
 }

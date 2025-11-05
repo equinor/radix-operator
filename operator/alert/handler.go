@@ -80,10 +80,10 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, syncRAL)
 	err = alertSyncer.OnSync(ctx)
 	if err != nil {
-		t.events.RecordFailedEvent(syncRAL, err)
+		t.events.RecordSyncErrorEvent(syncRAL, err)
 		return err
 	}
 
-	t.events.RecordSuccessEvent(syncRAL)
+	t.events.RecordSyncSuccessEvent(syncRAL)
 	return nil
 }

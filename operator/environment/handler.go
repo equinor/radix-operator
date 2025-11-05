@@ -92,11 +92,11 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 
 	err = env.OnSync(ctx, meta.NewTime(time.Now().UTC()))
 	if err != nil {
-		t.events.RecordFailedEvent(syncEnvironment, err)
+		t.events.RecordSyncErrorEvent(syncEnvironment, err)
 		return err
 	}
 
 	t.hasSynced(true)
-	t.events.RecordSuccessEvent(syncEnvironment)
+	t.events.RecordSyncSuccessEvent(syncEnvironment)
 	return nil
 }

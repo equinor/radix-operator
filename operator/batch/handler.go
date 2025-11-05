@@ -97,10 +97,10 @@ func (h *handler) Sync(ctx context.Context, namespace, name string) error {
 	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, radixRegistration, syncBatch, h.config)
 	err = syncer.OnSync(ctx)
 	if err != nil {
-		h.events.RecordFailedEvent(syncBatch, err)
+		h.events.RecordSyncErrorEvent(syncBatch, err)
 		return err
 	}
 
-	h.events.RecordSuccessEvent(syncBatch)
+	h.events.RecordSyncSuccessEvent(syncBatch)
 	return nil
 }

@@ -10,10 +10,10 @@ type SyncedEventRecorder struct {
 	EventRecorder record.EventRecorder
 }
 
-func (r SyncedEventRecorder) RecordSuccessEvent(obj runtime.Object) {
+func (r SyncedEventRecorder) RecordSyncSuccessEvent(obj runtime.Object) {
 	r.EventRecorder.Event(obj, corev1.EventTypeNormal, "Synced", "Successfully synced")
 }
 
-func (r SyncedEventRecorder) RecordFailedEvent(obj runtime.Object, err error) {
+func (r SyncedEventRecorder) RecordSyncErrorEvent(obj runtime.Object, err error) {
 	r.EventRecorder.Eventf(obj, corev1.EventTypeWarning, "SyncFailed", "Failed to sync: %s", err.Error())
 }
