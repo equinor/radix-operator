@@ -1,6 +1,6 @@
 package validation
 
-import "github.com/pkg/errors"
+import "errors"
 
 var (
 	ErrEmptyStepList             = errors.New("step list is empty")

@@ -134,7 +134,7 @@ func (deploy *Deployment) getName() string {
 func (deploy *Deployment) syncStatuses(ctx context.Context) (stopReconciliation bool, err error) {
 	allRDs, err := deploy.kubeutil.ListRadixDeployments(ctx, deploy.getNamespace())
 	if err != nil {
-		err = fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)
+		err = fmt.Errorf("failed to get all RadixDeployments: %w", err)
 	}
 
 	if deploy.isLatestInTheEnvironment(allRDs) {

@@ -47,7 +47,7 @@ func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClu
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterName(ctx context.Context) (string, error) {
 	clusterName, err := envVarsSource.kubeutil.GetClusterName(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to get cluster name from ConfigMap: %v", err)
+		return "", fmt.Errorf("failed to get cluster name from ConfigMap: %w", err)
 	}
 	return clusterName, nil
 }
@@ -55,7 +55,7 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCluste
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getContainerRegistry() (string, error) {
 	containerRegistry, err := defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
 	if err != nil {
-		return "", fmt.Errorf("failed to get container registry from ConfigMap: %v", err)
+		return "", fmt.Errorf("failed to get container registry from ConfigMap: %w", err)
 	}
 	return containerRegistry, nil
 }

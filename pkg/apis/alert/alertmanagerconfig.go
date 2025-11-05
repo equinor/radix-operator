@@ -63,7 +63,7 @@ func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespac
 		if errors.IsNotFound(err) {
 			created, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Create(ctx, alertManagerConfig, metav1.CreateOptions{})
 			if err != nil {
-				return fmt.Errorf("failed to create AlertManagerConfig object: %v", err)
+				return fmt.Errorf("failed to create AlertManagerConfig object: %w", err)
 			}
 
 			log.Ctx(ctx).Debug().Msgf("Created AlertManagerConfig: %s in namespace %s", created.Name, namespace)
@@ -74,7 +74,7 @@ func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespac
 
 	oldConfigJSON, err := json.Marshal(oldConfig)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old AlertManagerConfig object: %v", err)
+		return fmt.Errorf("failed to marshal old AlertManagerConfig object: %w", err)
 	}
 
 	// Avoid uneccessary patching
@@ -86,19 +86,19 @@ func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespac
 
 	newConfigJSON, err := json.Marshal(newConfig)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new AlertManagerConfig object: %v", err)
+		return fmt.Errorf("failed to marshal new AlertManagerConfig object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldConfigJSON, newConfigJSON, v1alpha1.AlertmanagerConfig{})
 	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch AlertManagerConfig objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch AlertManagerConfig objects: %w", err)
 	}
 
 	if !kube.IsEmptyPatch(patchBytes) {
 		// Will perform update as patching does not work
 		updatedConfig, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Update(ctx, newConfig, metav1.UpdateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to update AlertManagerConfig object: %v", err)
+			return fmt.Errorf("failed to update AlertManagerConfig object: %w", err)
 		}
 
 		log.Ctx(ctx).Debug().Msgf("Updated AlertManagerConfig: %s ", updatedConfig.Name)

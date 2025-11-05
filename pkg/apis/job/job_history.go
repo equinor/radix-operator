@@ -178,7 +178,7 @@ func (h *history) getRadixJobsMapToRadixDeployments(ctx context.Context, appName
 			envNamespace := utils.GetEnvironmentNamespace(appName, env.Name)
 			envRdList, err := h.radixClient.RadixV1().RadixDeployments(envNamespace).List(ctx, metav1.ListOptions{})
 			if err != nil {
-				return nil, fmt.Errorf("failed to get RadixDeployments from the environment %s. Error: %w", env.Name, err)
+				return nil, fmt.Errorf("failed to get RadixDeployments from the environment %s: %w", env.Name, err)
 			}
 			for _, rd := range envRdList.Items {
 				rd := rd

@@ -91,12 +91,12 @@ func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Con
 	if err != nil {
 		if kubeerrors.IsNotFound(err) {
 			if _, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Create(ctx, ra, metav1.CreateOptions{}); err != nil {
-				return fmt.Errorf("failed to create radix application. %v", err)
+				return fmt.Errorf("failed to create radix application: %w", err)
 			}
 			log.Ctx(ctx).Info().Msgf("RadixApplication %s created", ra.Name)
 			return nil
 		}
-		return fmt.Errorf("failed to get radix application. %v", err)
+		return fmt.Errorf("failed to get radix application: %w", err)
 	}
 
 	log.Ctx(ctx).Debug().Msgf("RadixApplication %s exists in namespace %s", ra.Name, namespace)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -36,14 +36,14 @@ func (kubeutil *Kube) ListRadixBatches(ctx context.Context, namespace string) ([
 	if kubeutil.RbLister != nil {
 		rbs, err := kubeutil.RbLister.RadixBatches(namespace).List(labels.NewSelector())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get all RadixBatches. Error was %v", err)
+			return nil, fmt.Errorf("failed to get all RadixBatches: %w", err)
 		}
 		return rbs, nil
 	}
 
 	rbs, err := kubeutil.radixclient.RadixV1().RadixBatches(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get all RadixBatches. Error was %v", err)
+		return nil, fmt.Errorf("failed to get all RadixBatches: %w", err)
 	}
 
 	return slice.PointersOf(rbs.Items).([]*v1.RadixBatch), nil

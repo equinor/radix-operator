@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -35,7 +35,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
-	"github.com/pkg/errors"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
@@ -149,7 +148,7 @@ func (a *App) createSchedulers(ctx context.Context) ([]scheduler.TaskScheduler, 
 		taskSchedulers = append(taskSchedulers, envCleanupTask)
 		log.Ctx(ctx).Info().Msgf("Created schedule %s for the task RadixEnvironments cleanup task", a.config.TaskConfig.OrphanedEnvironmentsCleanupCron)
 	}
-	return taskSchedulers, stderrors.Join(errs...)
+	return taskSchedulers, errors.Join(errs...)
 }
 
 func (a *App) Run(ctx context.Context) error {
@@ -233,7 +232,7 @@ func getInitParams() (Options, error) {
 		alertControllerThreads:        alertControllerThreads,
 		kubeClientRateLimitBurst:      kubeClientRateLimitBurst,
 		kubeClientRateLimitQPS:        kubeClientRateLimitQPS,
-	}, stderrors.Join(regErr, appErr, envErr, depErr, jobErr, aleErr, burstErr, qpsErr)
+	}, errors.Join(regErr, appErr, envErr, depErr, jobErr, aleErr, burstErr, qpsErr)
 }
 
 func (a *App) createRegistrationController(ctx context.Context) *common.Controller {

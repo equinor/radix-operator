@@ -142,7 +142,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
-		return fmt.Errorf("failed to parse command arguments. Error: %v", err)
+		return fmt.Errorf("failed to parse command arguments: %w", err)
 	}
 	if len(pipelineArgs.DNSConfig.ReservedAppDNSAliases) == 0 {
 		return fmt.Errorf("missing DNS aliases, reserved for Radix platform Radix application")

@@ -57,7 +57,7 @@ func (notifier *webhookNotifier) Notify(event events.Event, radixBatch *radixv1.
 	log.Trace().Msg(string(statusesJson))
 	buf := bytes.NewReader(statusesJson)
 	if _, err = http.Post(notifier.webhookURL, "application/json", buf); err != nil {
-		return fmt.Errorf("failed to notify on BatchStatus object create or change %s: %v", radixBatch.GetName(), err)
+		return fmt.Errorf("failed to notify on BatchStatus object create or change %s: %w", radixBatch.GetName(), err)
 	}
 	return nil
 }

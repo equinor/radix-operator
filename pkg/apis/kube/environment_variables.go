@@ -99,7 +99,7 @@ func SetEnvVarsMetadataMapToConfigMap(configMap *corev1.ConfigMap, envVarsMetada
 func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx context.Context, namespace, appName, componentName string) (*corev1.ConfigMap, *corev1.ConfigMap, error) {
 	envVarConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsConfigMap(ctx, namespace, appName, componentName)
 	if err != nil {
-		err := fmt.Errorf("failed to create config-map for environment variables methadata: %w", err)
+		err := fmt.Errorf("failed to create config-map for environment variables metadata: %w", err)
 		return nil, nil, err
 	}
 	if envVarConfigMap.Data == nil {
@@ -107,7 +107,7 @@ func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx context.Cont
 	}
 	envVarMetadataConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsMetadataConfigMap(ctx, namespace, appName, componentName)
 	if err != nil {
-		err := fmt.Errorf("failed to create config-map for environment variables methadata: %w", err)
+		err := fmt.Errorf("failed to create config-map for environment variables metadata: %w", err)
 		return nil, nil, err
 	}
 	if envVarMetadataConfigMap.Data == nil {

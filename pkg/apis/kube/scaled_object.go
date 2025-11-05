@@ -29,11 +29,11 @@ func (kubeutil *Kube) ApplyScaledObject(ctx context.Context, namespace string, s
 	if err != nil && errors.IsNotFound(err) {
 		_, err := kubeutil.kedaClient.KedaV1alpha1().ScaledObjects(namespace).Create(ctx, scaledObject, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create ScaledObject object: %v", err)
+			return fmt.Errorf("failed to create ScaledObject object: %w", err)
 		}
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get ScaledObject object: %v", err)
+		return fmt.Errorf("failed to get ScaledObject object: %w", err)
 	}
 
 	log.Ctx(ctx).Debug().Msgf("ScaledObject object %s already exists in namespace %s, updating the object now", scalerName, namespace)
@@ -59,27 +59,27 @@ func (kubeutil *Kube) PatchScaledObject(ctx context.Context, namespace string, o
 	log.Ctx(ctx).Debug().Msgf("patch an ScaledObject %s in the namespace %s", scalerName, namespace)
 	oldScalerJSON, err := json.Marshal(oldScaledObject)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal old ScaledObject object: %v", err)
+		return nil, fmt.Errorf("failed to marshal old ScaledObject object: %w", err)
 	}
 
 	newScalerJSON, err := json.Marshal(newScaledObject)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal new ScaledObject object: %v", err)
+		return nil, fmt.Errorf("failed to marshal new ScaledObject object: %w", err)
 	}
 
 	mergepatch, err := jsonmergepatch.CreateThreeWayJSONMergePatch(oldScalerJSON, newScalerJSON, oldScalerJSON)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create json merge patch ScaledObject objects: %v: %v", err, mergepatch)
+		return nil, fmt.Errorf("failed to create json merge patch ScaledObject objects: %w", err)
 	}
 
 	if IsEmptyPatch(mergepatch) {
-		log.Ctx(ctx).Debug().Msgf("No need to patch ScaledObject: %s ", scalerName)
+		log.Ctx(ctx).Debug().Msgf("No need to patch ScaledObject: %s", scalerName)
 		return oldScaledObject, nil
 	}
 
 	patchedScaler, err := kubeutil.kedaClient.KedaV1alpha1().ScaledObjects(namespace).Patch(ctx, scalerName, types.MergePatchType, mergepatch, metav1.PatchOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to patch ScaledObject object: %v", err)
+		return nil, fmt.Errorf("failed to patch ScaledObject object: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msgf("Patched ScaledObject: %s in namespace %s", patchedScaler.Name, namespace)
 
