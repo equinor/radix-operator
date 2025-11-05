@@ -127,6 +127,7 @@ func (s *jobTestSuite) createHandler(hasSynced func(syncedOk bool), opts ...hand
 		s.kubeUtil.KubeClient(),
 		s.kubeUtil,
 		s.kubeUtil.RadixClient(),
+		&record.FakeRecorder{},
 		createConfig(),
 		hasSynced,
 		opts...,

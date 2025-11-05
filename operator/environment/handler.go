@@ -13,27 +13,18 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 
-	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
 
-const (
-	// SuccessSynced is used as part of the Event 'reason' when a Environment is synced
-	SuccessSynced = "Synced"
-
-	// MessageResourceSynced is the message used for an Event fired when a Environment
-	// is synced successfully
-	MessageResourceSynced = "Radix Environment synced successfully"
-)
-
-// Handler Handler for radix environments
-type Handler struct {
+// handler handler for radix environments
+type handler struct {
 	kubeclient  kubernetes.Interface
 	kubeutil    *kube.Kube
 	radixclient radixclient.Interface
+	events      common.SyncedEventRecorder
 	hasSynced   common.HasSynced
 }
 
@@ -42,12 +33,14 @@ func NewHandler(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	hasSynced common.HasSynced) Handler {
+	eventRecorder record.EventRecorder,
+	hasSynced common.HasSynced) common.Handler {
 
-	handler := Handler{
+	handler := &handler{
 		kubeclient:  kubeclient,
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
+		events:      common.SyncedEventRecorder{EventRecorder: eventRecorder},
 		hasSynced:   hasSynced,
 	}
 
@@ -56,7 +49,7 @@ func NewHandler(
 
 // Sync is called by kubernetes after the Controller Enqueues a work-item
 // and collects components and determines whether state must be reconciled.
-func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
 	envConfig, err := t.radixclient.RadixV1().RadixEnvironments().Get(ctx, name, meta.GetOptions{})
 	if err != nil {
 		// The Environment resource may no longer exist, in which case we stop
@@ -99,11 +92,11 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 	err = env.OnSync(ctx, meta.NewTime(time.Now().UTC()))
 	if err != nil {
-		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
+		t.events.RecordFailedEvent(syncEnvironment, err)
 		return err
 	}
 
 	t.hasSynced(true)
-	eventRecorder.Event(env.GetConfig(), core.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	t.events.RecordSuccessEvent(syncEnvironment)
 	return nil
 }

@@ -10,20 +10,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
-)
-
-const (
-	// SuccessSynced is used as part of the Event 'reason' when a Job is synced
-	SuccessSynced = "Synced"
-
-	// MessageResourceSynced is the message used for an Event fired when a Job
-	// is synced successfully
-	MessageResourceSynced = "Radix Job synced successfully"
 )
 
 // Handler Common handler interface
@@ -37,6 +27,7 @@ type handler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
+	events      common.SyncedEventRecorder
 	hasSynced   common.HasSynced
 	config      *apiconfig.Config
 	jobHistory  job.History
@@ -45,19 +36,27 @@ type handler struct {
 type handlerOpts func(*handler)
 
 // NewHandler Constructor
-func NewHandler(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, config *apiconfig.Config, hasSynced common.HasSynced, opts ...handlerOpts) Handler {
-	handler := handler{
+func NewHandler(kubeclient kubernetes.Interface,
+	kubeUtil *kube.Kube,
+	radixClient radixclient.Interface,
+	eventRecorder record.EventRecorder,
+	config *apiconfig.Config,
+	hasSynced common.HasSynced,
+	opts ...handlerOpts) Handler {
+
+	handler := &handler{
 		kubeclient:  kubeclient,
 		radixclient: radixClient,
 		kubeutil:    kubeUtil,
+		events:      common.SyncedEventRecorder{EventRecorder: eventRecorder},
 		hasSynced:   hasSynced,
 		config:      config,
 		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.PipelineJobConfig.PipelineJobsHistoryLimit, config.PipelineJobConfig.PipelineJobsHistoryPeriodLimit),
 	}
 	for _, opt := range opts {
-		opt(&handler)
+		opt(handler)
 	}
-	return &handler
+	return handler
 }
 
 // Sync Is created on sync of resource
@@ -93,13 +92,12 @@ func (t *handler) Sync(ctx context.Context, namespace, jobName string, eventReco
 
 	syncer := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, syncJob, t.config)
 	if err = syncer.OnSync(ctx); err != nil {
-		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
-		// Put back on queue
+		t.events.RecordFailedEvent(syncJob, err)
 		return err
 	}
 
 	t.hasSynced(true)
-	eventRecorder.Event(syncJob, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	t.events.RecordSuccessEvent(syncJob)
 	return nil
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -93,6 +94,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		kedaClient,
 		prometheusclient,
 		certClient,
+		&record.FakeRecorder{},
 		&config.Config{},
 		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)
@@ -161,12 +163,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	teardownTest()
 }
 
-func startDeploymentController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler *Handler) error {
-
-	eventRecorder := &record.FakeRecorder{}
-
-	controller := NewController(ctx, client, radixClient, handler, kubeInformerFactory, radixInformerFactory, eventRecorder)
-
+func startDeploymentController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler common.Handler) error {
+	controller := NewController(ctx, client, radixClient, handler, kubeInformerFactory, radixInformerFactory, &record.FakeRecorder{})
 	kubeInformerFactory.Start(ctx.Done())
 	radixInformerFactory.Start(ctx.Done())
 	return controller.Run(ctx, 4)
