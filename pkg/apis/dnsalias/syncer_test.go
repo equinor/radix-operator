@@ -2,6 +2,7 @@ package dnsalias_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -17,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-operator/webhook/validation/radixapplication"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -638,7 +638,7 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 		{
 			name:          "error, because the component has no public port",
 			hasPublicPort: false,
-			expectedError: radixapplication.ErrPublicPortNotFound,
+			expectedError: errors.New("rd component component1: no public port found"),
 		},
 		{
 			name:          "no error",
@@ -672,7 +672,7 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 			err := syncer.OnSync(context.Background())
 
 			if ts.expectedError != nil {
-				assert.ErrorIs(t, err, ts.expectedError)
+				assert.ErrorContains(t, err, ts.expectedError.Error())
 			} else {
 				assert.NoError(t, err)
 			}
