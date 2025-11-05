@@ -50,7 +50,7 @@ func NewHandler(
 		kubeutil:      kubeutil,
 		radixclient:   radixclient,
 		syncerFactory: internal.SyncerFactoryFunc(batch.NewSyncer),
-		events:        common.SyncEventRecorder{EventRecorder: eventRecorder},
+		events:        common.NewSyncEventRecorder(eventRecorder),
 		config:        config,
 	}
 

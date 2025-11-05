@@ -35,7 +35,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
 		kubeutil:    kubeutil,
-		events:      common.SyncEventRecorder{EventRecorder: eventRecorder},
+		events:      common.NewSyncEventRecorder(eventRecorder),
 		dnsConfig:   dnsConfig,
 	}
 

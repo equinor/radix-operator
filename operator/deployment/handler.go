@@ -106,7 +106,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeutil:                kubeutil,
 		hasSynced:               hasSyncedNoop,
 		deploymentSyncerFactory: deployment.DeploymentSyncerFactoryFunc(deployment.NewDeploymentSyncer),
-		events:                  common.SyncEventRecorder{EventRecorder: eventRecorder},
+		events:                  common.NewSyncEventRecorder(eventRecorder),
 		config:                  config,
 	}
 

@@ -40,7 +40,7 @@ func NewHandler(
 		kubeclient:  kubeclient,
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
-		events:      common.SyncEventRecorder{EventRecorder: eventRecorder},
+		events:      common.NewSyncEventRecorder(eventRecorder),
 		hasSynced:   hasSynced,
 	}
 

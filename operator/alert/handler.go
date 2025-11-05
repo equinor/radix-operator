@@ -49,7 +49,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		prometheusperatorclient: prometheusperatorclient,
 		kubeutil:                kubeutil,
 		alertSyncerFactory:      alert.AlertSyncerFactoryFunc(alert.New),
-		events:                  common.SyncEventRecorder{EventRecorder: eventRecorder},
+		events:                  common.NewSyncEventRecorder(eventRecorder),
 	}
 
 	for _, option := range options {

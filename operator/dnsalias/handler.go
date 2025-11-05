@@ -43,7 +43,7 @@ func NewHandler(
 		kubeUtil:      kubeUtil,
 		radixClient:   radixClient,
 		syncerFactory: internal.SyncerFactoryFunc(dnsalias.NewSyncer),
-		events:        common.SyncEventRecorder{EventRecorder: eventRecorder},
+		events:        common.NewSyncEventRecorder(eventRecorder),
 		dnsConfig:     dnsConfig,
 	}
 
