@@ -2320,7 +2320,6 @@ spec:
                         type: object
                       type: array
                   required:
-                  - alwaysPullImageOnDeploy
                   - image
                   - name
                   - schedulerPort
