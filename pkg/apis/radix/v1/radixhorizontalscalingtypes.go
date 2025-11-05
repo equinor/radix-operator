@@ -171,7 +171,7 @@ type RadixHorizontalScalingAzureServiceBusTrigger struct {
 
 	// Azure Service Bus requires Workload Identity configured with a ClientID
 	// +optional
-	Authentication RadixHorizontalScalingAuthentication `json:"authentication,omitempty"`
+	Authentication RadixHorizontalScalingAuthentication `json:"authentication,omitzero"`
 }
 
 type AzureEventHubTriggerCheckpointStrategy string

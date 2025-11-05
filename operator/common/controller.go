@@ -26,12 +26,12 @@ type Controller struct {
 	HandlerOf            string
 	KubeClient           kubernetes.Interface
 	RadixClient          radixclient.Interface
-	WorkQueue            workqueue.TypedRateLimitingInterface[string]
+	WorkQueue            workqueue.TypedRateLimitingInterface[cache.ObjectName]
 	KubeInformerFactory  kubeinformers.SharedInformerFactory
 	RadixInformerFactory informers.SharedInformerFactory
 	Handler              Handler
 	Recorder             record.EventRecorder
-	LockKeyAndIdentifier LockKeyAndIdentifierFunc
+	LockKey              LockKeyFunc
 	locker               resourceLocker
 }
 
@@ -39,8 +39,8 @@ type Controller struct {
 func (c *Controller) Run(ctx context.Context, threadiness int) error {
 	defer utilruntime.HandleCrash()
 
-	if c.LockKeyAndIdentifier == nil {
-		return errors.New("LockKeyAndIdentifier must be set")
+	if c.LockKey == nil {
+		return errors.New("LockKey must be set")
 	}
 
 	// Start the informer factories to begin populating the informer caches
@@ -103,31 +103,19 @@ func (c *Controller) processNext(ctx context.Context, errorGroup *errgroup.Group
 			c.WorkQueue.Done(workItem)
 		}()
 
-		if workItem == "" {
-			return nil
-		}
-
-		lockKey, identifier, err := c.LockKeyAndIdentifier(workItem)
-		if err != nil {
-			c.WorkQueue.Forget(workItem)
-			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
-			log.Ctx(ctx).Error().Err(err).Msg("Failed to get lock key and identifier")
-			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
-			return nil
-		}
-
+		lockKey := c.LockKey(workItem)
 		if !locker.TryGetLock(lockKey) {
-			log.Ctx(ctx).Debug().Msgf("Lock for %s was busy, requeuing %s", lockKey, identifier)
+			log.Ctx(ctx).Debug().Msgf("Lock for %s was busy, requeuing %s", lockKey, workItem)
 			// Use AddAfter instead of AddRateLimited. AddRateLimited can potentially cause a delay of 1000 seconds
-			c.WorkQueue.AddAfter(identifier, 100*time.Millisecond)
+			c.WorkQueue.AddAfter(workItem, 100*time.Millisecond)
 			return nil
 		}
 		defer func() {
 			locker.ReleaseLock(lockKey)
-			log.Ctx(ctx).Debug().Msgf("Released lock for %s after processing %s", lockKey, identifier)
+			log.Ctx(ctx).Debug().Msgf("Released lock for %s after processing %s", lockKey, workItem)
 		}()
 
-		log.Ctx(ctx).Debug().Msgf("Acquired lock for %s, processing %s", lockKey, identifier)
+		log.Ctx(ctx).Debug().Msgf("Acquired lock for %s, processing %s", lockKey, workItem)
 		c.processWorkItem(workCtx, workItem)
 		return nil
 	})
@@ -135,8 +123,8 @@ func (c *Controller) processNext(ctx context.Context, errorGroup *errgroup.Group
 	return true
 }
 
-func (c *Controller) processWorkItem(ctx context.Context, workItem string) {
-	err := func(workItem string) error {
+func (c *Controller) processWorkItem(ctx context.Context, workItem cache.ObjectName) {
+	err := func(workItem cache.ObjectName) error {
 		if err := c.syncHandler(ctx, workItem); err != nil {
 			c.WorkQueue.AddRateLimited(workItem)
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
@@ -157,9 +145,9 @@ func (c *Controller) processWorkItem(ctx context.Context, workItem string) {
 	}
 }
 
-func (c *Controller) syncHandler(ctx context.Context, key string) error {
+func (c *Controller) syncHandler(ctx context.Context, key cache.ObjectName) error {
 	start := time.Now()
-	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	namespace, name := key.Namespace, key.Name
 	ctx = log.Ctx(ctx).With().Str("resource_namespace", namespace).Str("resource_name", name).Logger().WithContext(ctx)
 
 	defer func() {
@@ -168,13 +156,7 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 		log.Ctx(ctx).Debug().Dur("elapsed_ms", duration).Msg("Reconciliation duration")
 	}()
 
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msgf("invalid resource key: %s", key)
-		metrics.OperatorError(c.HandlerOf, "split_meta_namespace_key", "invalid_resource_key")
-		return nil
-	}
-
-	err = c.Handler.Sync(ctx, namespace, name, c.Recorder)
+	err := c.Handler.Sync(ctx, namespace, name, c.Recorder)
 	if err != nil {
 		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
 		return err
@@ -186,14 +168,14 @@ func (c *Controller) syncHandler(ctx context.Context, key string) error {
 // Enqueue takes a resource and converts it into a namespace/name
 // string which is then put onto the work queue
 func (c *Controller) Enqueue(obj interface{}) (requeued bool, err error) {
-	var key string
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		metrics.OperatorError(c.HandlerOf, "enqueue", fmt.Sprintf("problems_sync_%s", key))
+	objRef, err := cache.ObjectToName(obj)
+	if err != nil {
+		metrics.OperatorError(c.HandlerOf, "enqueue", "object_to_name")
 		return requeued, err
 	}
 
-	requeued = c.WorkQueue.NumRequeues(key) > 0
-	c.WorkQueue.AddRateLimited(key)
+	requeued = c.WorkQueue.NumRequeues(objRef) > 0
+	c.WorkQueue.AddRateLimited(objRef)
 	return requeued, nil
 }
 
