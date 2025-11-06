@@ -240,16 +240,16 @@ func (a *App) createRegistrationController(ctx context.Context) *common.Controll
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.eventRecorder,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
 	return registration.NewController(ctx,
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil.RadixClient(),
-		&handler,
+		handler,
 		a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func (a *App) createApplicationController(ctx context.Context) *common.Controller {
@@ -257,17 +257,16 @@ func (a *App) createApplicationController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.eventRecorder,
 		a.config.DNSConfig,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
 	return application.NewController(ctx,
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil.RadixClient(),
-		&handler,
+		handler,
 		a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func (a *App) createEnvironmentController(ctx context.Context) *common.Controller {
@@ -275,16 +274,16 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.eventRecorder,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
 	return environment.NewController(ctx,
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil.RadixClient(),
-		&handler,
+		handler,
 		a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller {
@@ -292,8 +291,8 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.eventRecorder,
 		a.config.DNSConfig,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 		dnsalias.WithIngressConfiguration(a.ingressConfiguration),
 		dnsalias.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 	)
@@ -304,8 +303,7 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.kubeUtil.RadixClient(),
 		handler,
 		a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func (a *App) createDeploymentController(ctx context.Context) *common.Controller {
@@ -324,6 +322,7 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.kedaClient,
 		a.prometheusOperatorClient,
 		a.certClient,
+		a.eventRecorder,
 		a.config,
 		deployment.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 		deployment.WithIngressConfiguration(a.ingressConfiguration),
@@ -336,8 +335,7 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.kubeUtil.RadixClient(),
 		handler,
 		a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func (a *App) createJobController(ctx context.Context) *common.Controller {
@@ -345,10 +343,11 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.eventRecorder,
 		a.config,
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced
 
-	return job.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
+	return job.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory)
 }
 
 func (a *App) createAlertController(ctx context.Context) *common.Controller {
@@ -357,9 +356,10 @@ func (a *App) createAlertController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.prometheusOperatorClient,
+		a.eventRecorder,
 	)
 
-	return alert.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
+	return alert.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory)
 }
 
 func (a *App) createBatchController(ctx context.Context) *common.Controller {
@@ -367,6 +367,7 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.eventRecorder,
 		a.config,
 	)
 
@@ -374,8 +375,7 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil.RadixClient(),
 		handler, a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func loadIngressConfigFromMap(ctx context.Context, kubeutil *kube.Kube) (ingress.IngressConfiguration, error) {
