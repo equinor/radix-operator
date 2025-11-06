@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -59,6 +60,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		client,
 		kubeUtil,
 		radixClient,
+		&record.FakeRecorder{},
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
@@ -133,12 +135,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	}
 }
 
-func startRegistrationController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler) error {
-
-	eventRecorder := &record.FakeRecorder{}
-
-	controller := NewController(ctx, client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, eventRecorder)
-
+func startRegistrationController(ctx context.Context, client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler common.Handler) error {
+	controller := NewController(ctx, client, radixClient, handler, kubeInformerFactory, radixInformerFactory)
 	kubeInformerFactory.Start(ctx.Done())
 	radixInformerFactory.Start(ctx.Done())
 	return controller.Run(ctx, 5)

@@ -58,10 +58,10 @@ func (s *handlerTestSuite) TearDownTest() {
 }
 
 func (s *handlerTestSuite) Test_RadixScheduleJobNotFound() {
-	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, &config.Config{}, WithSyncerFactory(s.syncerFactory))
+	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.eventRecorder, &config.Config{}, WithSyncerFactory(s.syncerFactory))
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
-	err := sut.Sync(context.Background(), "any-ns", "any-job", s.eventRecorder)
+	err := sut.Sync(context.Background(), "any-ns", "any-job")
 	s.Nil(err)
 }
 
@@ -75,10 +75,10 @@ func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerError() {
 	expectedError := fmt.Errorf("error")
 	cfg := &config.Config{}
 
-	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, cfg, WithSyncerFactory(s.syncerFactory))
+	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.eventRecorder, cfg, WithSyncerFactory(s.syncerFactory))
 	s.syncerFactory.EXPECT().CreateSyncer(s.kubeClient, s.kubeUtil, s.radixClient, rr, job, cfg).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
-	actualError := sut.Sync(context.Background(), namespace, jobName, s.eventRecorder)
+	actualError := sut.Sync(context.Background(), namespace, jobName)
 	s.Equal(expectedError, actualError)
 }
 
@@ -92,9 +92,9 @@ func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerNoError() {
 	job, _ = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 	cfg := &config.Config{}
 
-	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, cfg, WithSyncerFactory(s.syncerFactory))
+	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.eventRecorder, cfg, WithSyncerFactory(s.syncerFactory))
 	s.syncerFactory.EXPECT().CreateSyncer(s.kubeClient, s.kubeUtil, s.radixClient, rr, job, cfg).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
-	err = sut.Sync(context.Background(), namespace, jobName, s.eventRecorder)
+	err = sut.Sync(context.Background(), namespace, jobName)
 	s.Nil(err)
 }

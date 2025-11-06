@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 )
 
 type mockResourceLocker struct {
@@ -89,7 +88,7 @@ func (s *commonControllerTestSuite) Test_SyncSuccess() {
 	queue.On("ShuttingDown").Return(false).Times(1)
 	queue.On("Forget", item).Times(1)
 	queue.On("Done", item).Times(1).Run(func(args mock.Arguments) { close(doneCh) })
-	s.Handler.EXPECT().Sync(gomock.Any(), "ns", "item", gomock.Any()).Return(nil).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), "ns", "item").Return(nil).Times(1)
 	queue.getCh <- item
 	queue.shutdownCh <- false
 
@@ -134,7 +133,7 @@ func (s *commonControllerTestSuite) Test_RequeueWhenSyncError() {
 	queue.On("ShuttingDown").Return(false).Times(1)
 	queue.On("AddRateLimited", item).Times(1)
 	queue.On("Done", item).Times(1).Run(func(args mock.Arguments) { close(doneCh) })
-	s.Handler.EXPECT().Sync(gomock.Any(), "ns", "item", gomock.Any()).Return(errors.New("any error")).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), "ns", "item").Return(errors.New("any error")).Times(1)
 	queue.getCh <- item
 	queue.shutdownCh <- false
 
@@ -321,7 +320,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 			}
 		})
 		queue.On("Forget", item).Times(1)
-		s.Handler.EXPECT().Sync(gomock.Any(), item.Namespace, item.Name, gomock.Any()).Times(1).DoAndReturn(func(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+		s.Handler.EXPECT().Sync(gomock.Any(), item.Namespace, item.Name).Times(1).DoAndReturn(func(ctx context.Context, namespace, name string) error {
 			n := atomic.AddInt32(&active, 1)
 
 			// Set new number of active threads if it exceeds previous value

@@ -12,19 +12,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
-)
-
-const (
-	// SuccessSynced is used as part of the Event 'reason' when a DNSAlias is synced
-	SuccessSynced = "Synced"
-
-	// MessageResourceSynced is the message used for an Event fired when a DNSAlias
-	// is synced successfully
-	MessageResourceSynced = "RadixDNSAlias synced successfully"
 )
 
 // Handler Handler for radix dns aliases
@@ -33,7 +23,7 @@ type handler struct {
 	kubeUtil             *kube.Kube
 	radixClient          radixclient.Interface
 	syncerFactory        internal.SyncerFactory
-	hasSynced            common.HasSynced
+	events               common.SyncEventRecorder
 	dnsConfig            *dnsalias2.DNSConfig
 	ingressConfiguration ingress.IngressConfiguration
 	oauth2DefaultConfig  defaults.OAuth2Config
@@ -44,17 +34,19 @@ func NewHandler(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
+	eventRecorder record.EventRecorder,
 	dnsConfig *dnsalias2.DNSConfig,
-	hasSynced common.HasSynced,
 	options ...HandlerConfigOption) common.Handler {
+
 	h := &handler{
-		kubeClient:  kubeClient,
-		kubeUtil:    kubeUtil,
-		radixClient: radixClient,
-		hasSynced:   hasSynced,
-		dnsConfig:   dnsConfig,
+		kubeClient:    kubeClient,
+		kubeUtil:      kubeUtil,
+		radixClient:   radixClient,
+		syncerFactory: internal.SyncerFactoryFunc(dnsalias.NewSyncer),
+		events:        common.NewSyncEventRecorder(eventRecorder),
+		dnsConfig:     dnsConfig,
 	}
-	configureDefaultSyncerFactory(h)
+
 	for _, option := range options {
 		option(h)
 	}
@@ -86,7 +78,7 @@ func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOp
 }
 
 // Sync is called by kubernetes after the Controller Enqueues a work-item
-func (h *handler) Sync(ctx context.Context, _, name string, eventRecorder record.EventRecorder) error {
+func (h *handler) Sync(ctx context.Context, _, name string) error {
 	radixDNSAlias, err := h.kubeUtil.GetRadixDNSAlias(ctx, name)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -102,15 +94,10 @@ func (h *handler) Sync(ctx context.Context, _, name string, eventRecorder record
 	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
 	err = syncer.OnSync(ctx)
 	if err != nil {
-		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
+		h.events.RecordSyncErrorEvent(syncingAlias, err)
 		return err
 	}
 
-	h.hasSynced(true)
-	eventRecorder.Event(syncingAlias, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	h.events.RecordSyncSuccessEvent(syncingAlias)
 	return nil
-}
-
-func configureDefaultSyncerFactory(h *handler) {
-	WithSyncerFactory(internal.SyncerFactoryFunc(dnsalias.NewSyncer))(h)
 }
