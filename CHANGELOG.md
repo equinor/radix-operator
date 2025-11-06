@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.103.1](https://github.com/equinor/radix-operator/compare/v1.103.0..v1.103.1) - 2025-11-06
+
+### 🐛 Bug Fixes
+
+- *(operator)* Record k8s warning event when reconcile fails (#1502) - ([4f46bda](https://github.com/equinor/radix-operator/commit/4f46bda01f54393b8988156535ea661a896b63fc)) by @nilsgstrabo in [#1502](https://github.com/equinor/radix-operator/pull/1502)
+
+- *(refactor)* Change generic type for controller queue (#1495) - ([b089542](https://github.com/equinor/radix-operator/commit/b089542e4e89af3edde1b5cef0175e037932f408)) by @nilsgstrabo in [#1495](https://github.com/equinor/radix-operator/pull/1495)
+
+- Refactor error messages to use %w for wrapping errors (#1504) - ([4887c8e](https://github.com/equinor/radix-operator/commit/4887c8e6398da0ea090e03953223caa33f0064b3)) by @nilsgstrabo in [#1504](https://github.com/equinor/radix-operator/pull/1504)
+
+
 ## [1.103.0](https://github.com/equinor/radix-operator/compare/v1.102.2..v1.103.0) - 2025-11-04
 
 ### 🚀 Features
