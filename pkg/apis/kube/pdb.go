@@ -34,17 +34,17 @@ func MergePodDisruptionBudgets(existingPdb *v1.PodDisruptionBudget, generatedPdb
 
 	oldPdbJSON, err := json.Marshal(existingPdb)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal old PDB object: %v", err)
+		return nil, fmt.Errorf("failed to marshal old PDB object: %w", err)
 	}
 
 	newPdbJSON, err := json.Marshal(newPdb)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal new PDB object: %v", err)
+		return nil, fmt.Errorf("failed to marshal new PDB object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldPdbJSON, newPdbJSON, v1.PodDisruptionBudget{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create two way merge PDB objects: %v", err)
+		return nil, fmt.Errorf("failed to create two way merge PDB objects: %w", err)
 	}
 
 	return patchBytes, nil

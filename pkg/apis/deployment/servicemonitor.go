@@ -48,8 +48,7 @@ func (deploy *Deployment) deleteServiceMonitorForComponent(ctx context.Context, 
 func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec(ctx context.Context) error {
 	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		fmt.Printf("Failed to get ServiceMonitors. Error: %v", err)
-		return err
+		return fmt.Errorf("failed to get ServiceMonitors: %w", err)
 	}
 
 	for _, serviceMonitor := range serviceMonitors.Items {
@@ -118,13 +117,13 @@ func (deploy *Deployment) applyServiceMonitor(ctx context.Context, namespace str
 	if err != nil && errors.IsNotFound(err) {
 		createdServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(ctx, serviceMonitor, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create ServiceMonitor object: %v", err)
+			return fmt.Errorf("failed to create ServiceMonitor object: %w", err)
 		}
 
 		log.Ctx(ctx).Debug().Msgf("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get ServiceMonitor object: %v", err)
+		return fmt.Errorf("failed to get ServiceMonitor object: %w", err)
 	}
 
 	newServiceMonitor := oldServiceMonitor.DeepCopy()
@@ -135,7 +134,7 @@ func (deploy *Deployment) applyServiceMonitor(ctx context.Context, namespace str
 
 	_, err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(ctx, newServiceMonitor, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to update ServiceMonitor object: %v", err)
+		return fmt.Errorf("failed to update ServiceMonitor object: %w", err)
 	}
 
 	return nil

@@ -52,12 +52,12 @@ func (notifier *webhookNotifier) Notify(event events.Event, radixBatch *radixv1.
 	batchStatus := getRadixBatchEventFromRadixBatch(event, radixBatch, updatedJobStatuses, notifier.radixDeployJobComponent)
 	statusesJson, err := json.Marshal(batchStatus)
 	if err != nil {
-		return fmt.Errorf("failed serialize updated JobStatuses %v", err)
+		return fmt.Errorf("failed serialize updated JobStatuses: %w", err)
 	}
 	log.Trace().Msg(string(statusesJson))
 	buf := bytes.NewReader(statusesJson)
 	if _, err = http.Post(notifier.webhookURL, "application/json", buf); err != nil {
-		return fmt.Errorf("failed to notify on BatchStatus object create or change %s: %v", radixBatch.GetName(), err)
+		return fmt.Errorf("failed to notify on BatchStatus object create or change %s: %w", radixBatch.GetName(), err)
 	}
 	return nil
 }

@@ -137,7 +137,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
-		return fmt.Errorf("failed to parse command arguments. Error: %v", err)
+		return fmt.Errorf("failed to parse command arguments: %w", err)
 	}
 	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)
 	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(radixv1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push

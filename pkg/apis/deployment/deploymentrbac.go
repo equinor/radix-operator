@@ -40,15 +40,15 @@ func configureRbacForRadixAPI(ctx context.Context, deploy *Deployment) Configure
 	return func() error {
 		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(ctx, deploy.radixDeployment.Namespace, defaults.RadixAPIRoleName)
 		if err != nil {
-			return fmt.Errorf("error creating Service account for radix api. %v", err)
+			return fmt.Errorf("error creating Service account for radix api: %w", err)
 		}
 		err = deploy.kubeutil.ApplyClusterRoleBindingToServiceAccount(ctx, defaults.RadixAPIRoleName, serviceAccount, ownerReference)
 		if err != nil {
-			return fmt.Errorf("error applying cluster role %s to service account for radix api. %v", defaults.RadixAPIRoleName, err)
+			return fmt.Errorf("error applying cluster role %s to service account for radix api: %w", defaults.RadixAPIRoleName, err)
 		}
 		err = deploy.kubeutil.ApplyRoleBindingToServiceAccount(ctx, k8s.KindClusterRole, defaults.RadixAccessValidationRoleName, deploy.radixDeployment.Namespace, serviceAccount, ownerReference)
 		if err != nil {
-			return fmt.Errorf("error applying role %s to service account for radix api. %v", defaults.RadixAccessValidationRoleName, err)
+			return fmt.Errorf("error applying role %s to service account for radix api: %w", defaults.RadixAccessValidationRoleName, err)
 		}
 		return nil
 	}
@@ -60,11 +60,11 @@ func configureRbacForRadixGithubWebhook(ctx context.Context, deploy *Deployment)
 	return func() error {
 		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(ctx, deploy.radixDeployment.Namespace, defaults.RadixGithubWebhookServiceAccountName)
 		if err != nil {
-			return fmt.Errorf("service account for running radix github webhook not made. %v", err)
+			return fmt.Errorf("failed to create service account for radix github webhook: %w", err)
 		}
 		err = deploy.kubeutil.ApplyClusterRoleBindingToServiceAccount(ctx, defaults.RadixGithubWebhookRoleName, serviceAccount, ownerReference)
 		if err != nil {
-			return fmt.Errorf("error applying cluster role %s to service account for radix github webhook. %v", defaults.RadixGithubWebhookRoleName, err)
+			return fmt.Errorf("error applying cluster role %s to service account for radix github webhook: %w", defaults.RadixGithubWebhookRoleName, err)
 		}
 		return err
 	}
@@ -77,7 +77,7 @@ func configureRbacForRadixJobComponents(ctx context.Context, deploy *Deployment)
 	return func() error {
 		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(ctx, namespace, defaults.RadixJobSchedulerServiceName)
 		if err != nil {
-			return fmt.Errorf("error creating Service account for radix job scheduler. %v", err)
+			return fmt.Errorf("failed to create service account for radix job scheduler: %w", err)
 		}
 		subjects := []rbacv1.Subject{
 			{

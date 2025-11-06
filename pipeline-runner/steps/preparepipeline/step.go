@@ -546,13 +546,13 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 	}
 	err = step.createSubPipelineTasks(taskMap)
 	if err != nil {
-		return fmt.Errorf("tasks have not been created. Error: %w", err)
+		return fmt.Errorf("tasks have not been created: %w", err)
 	}
 	log.Info().Msgf("Created %d task(s) for environment %s", len(taskMap), envName)
 
 	_, err = step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(pipelineInfo.GetAppName())).Create(context.Background(), pipeline, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("pipeline %s has not been created. Error: %w", pipeline.Name, err)
+		return fmt.Errorf("pipeline %s has not been created: %w", pipeline.Name, err)
 	}
 	log.Info().Msgf("Created pipeline %s for environment %s", pipeline.Name, envName)
 	return nil
@@ -565,7 +565,7 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineTasks(taskMap m
 		_, err := step.GetTektonClient().TektonV1().Tasks(namespace).Create(context.Background(), &task,
 			metav1.CreateOptions{})
 		if err != nil {
-			errs = append(errs, fmt.Errorf("task %s has not been created. Error: %w", task.Name, err))
+			errs = append(errs, fmt.Errorf("task %s has not been created: %w", task.Name, err))
 		}
 	}
 	return errors.Join(errs...)

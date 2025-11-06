@@ -10,23 +10,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
-)
-
-const (
-	// Synced is the Event reason when a RadixBatch is synced without errors
-	Synced = "Synced"
-
-	// SyncFailed is the Event reason when an error occurs while syncing a RadixBatch
-	SyncFailed = "SyncFailed"
-
-	// MessageResourceSynced is the message used for an Event fired when a RadixBatch
-	// is synced successfully
-	MessageResourceSynced = "RadixBatch synced successfully"
 )
 
 var _ common.Handler = &handler{}
@@ -46,6 +33,7 @@ type handler struct {
 	radixclient   radixclient.Interface
 	kubeutil      *kube.Kube
 	syncerFactory internal.SyncerFactory
+	events        common.SyncEventRecorder
 	config        *config.Config
 }
 
@@ -53,17 +41,18 @@ func NewHandler(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
+	eventRecorder record.EventRecorder,
 	config *config.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	h := &handler{
-		kubeclient:  kubeclient,
-		kubeutil:    kubeutil,
-		radixclient: radixclient,
-		config:      config,
+		kubeclient:    kubeclient,
+		kubeutil:      kubeutil,
+		radixclient:   radixclient,
+		syncerFactory: internal.SyncerFactoryFunc(batch.NewSyncer),
+		events:        common.NewSyncEventRecorder(eventRecorder),
+		config:        config,
 	}
-
-	configureDefaultSyncerFactory(h)
 
 	for _, option := range options {
 		option(h)
@@ -72,7 +61,7 @@ func NewHandler(
 	return h
 }
 
-func (h *handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (h *handler) Sync(ctx context.Context, namespace, name string) error {
 	radixBatch, err := h.radixclient.RadixV1().RadixBatches(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		// The resource may no longer exist, in which case we stop
@@ -108,15 +97,10 @@ func (h *handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, radixRegistration, syncBatch, h.config)
 	err = syncer.OnSync(ctx)
 	if err != nil {
-		eventRecorder.Event(syncBatch, corev1.EventTypeWarning, SyncFailed, err.Error())
-		// Put back on queue
+		h.events.RecordSyncErrorEvent(syncBatch, err)
 		return err
 	}
 
-	eventRecorder.Event(syncBatch, corev1.EventTypeNormal, Synced, MessageResourceSynced)
+	h.events.RecordSyncSuccessEvent(syncBatch)
 	return nil
-}
-
-func configureDefaultSyncerFactory(h *handler) {
-	WithSyncerFactory(internal.SyncerFactoryFunc(batch.NewSyncer))(h)
 }

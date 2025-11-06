@@ -304,7 +304,7 @@ func (job *Job) getRadixJobResult(ctx context.Context) (*radixv1.RadixJobResult,
 	jobName := job.radixJob.GetName()
 	configMaps, err := job.kubeutil.ListConfigMapsWithSelector(ctx, namespace, getRadixPipelineJobResultConfigMapSelector(jobName))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get ConfigMaps while garbage collecting config-maps in %s. Error: %w", namespace, err)
+		return nil, fmt.Errorf("failed to get ConfigMaps while garbage collecting config-maps in %s: %w", namespace, err)
 	}
 	if len(configMaps) > 1 {
 		return nil, fmt.Errorf("unexpected multiple Radix pipeline result ConfigMaps for the job %s in %s", jobName, job.radixJob.GetNamespace())

@@ -36,14 +36,14 @@ func (kubeutil *Kube) ListRadixDeployments(ctx context.Context, namespace string
 	if kubeutil.RdLister != nil {
 		rds, err := kubeutil.RdLister.RadixDeployments(namespace).List(labels.NewSelector())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)
+			return nil, fmt.Errorf("failed to get all RadixDeployments: %w", err)
 		}
 		return rds, nil
 	}
 
 	rds, err := kubeutil.radixclient.RadixV1().RadixDeployments(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)
+		return nil, fmt.Errorf("failed to get all RadixDeployments: %w", err)
 	}
 
 	return slice.PointersOf(rds.Items).([]*v1.RadixDeployment), nil

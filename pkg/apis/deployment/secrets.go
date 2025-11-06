@@ -80,7 +80,7 @@ func (deploy *Deployment) syncComponentSecrets(ctx context.Context, component ra
 
 	err = deploy.grantAccessToComponentRuntimeSecrets(ctx, component, secretsToManage)
 	if err != nil {
-		return fmt.Errorf("failed to grant access to secrets. %v", err)
+		return fmt.Errorf("failed to grant access to secrets: %w", err)
 	}
 
 	if len(secretsToManage) == 0 {

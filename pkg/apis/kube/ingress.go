@@ -29,11 +29,11 @@ func (kubeutil *Kube) ApplyIngress(ctx context.Context, namespace string, ingres
 	if err != nil && errors.IsNotFound(err) {
 		_, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Create(ctx, ingress, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create Ingress object: %v", err)
+			return fmt.Errorf("failed to create Ingress object: %w", err)
 		}
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get Ingress object: %v", err)
+		return fmt.Errorf("failed to get Ingress object: %w", err)
 	}
 
 	log.Ctx(ctx).Debug().Msgf("Ingress object %s already exists in namespace %s, updating the object now", ingressName, namespace)
@@ -52,17 +52,17 @@ func (kubeutil *Kube) PatchIngress(ctx context.Context, namespace string, oldIng
 	log.Ctx(ctx).Debug().Msgf("patch an ingress %s in the namespace %s", ingressName, namespace)
 	oldIngressJSON, err := json.Marshal(oldIngress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal old Ingress object: %v", err)
+		return nil, fmt.Errorf("failed to marshal old Ingress object: %w", err)
 	}
 
 	newIngressJSON, err := json.Marshal(newIngress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal new Ingress object: %v", err)
+		return nil, fmt.Errorf("failed to marshal new Ingress object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldIngressJSON, newIngressJSON, networkingv1.Ingress{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create two way merge patch Ingess objects: %v", err)
+		return nil, fmt.Errorf("failed to create two way merge patch Ingess objects: %w", err)
 	}
 
 	if IsEmptyPatch(patchBytes) {
@@ -71,7 +71,7 @@ func (kubeutil *Kube) PatchIngress(ctx context.Context, namespace string, oldIng
 	}
 	patchedIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Patch(ctx, ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to patch Ingress object: %v", err)
+		return nil, fmt.Errorf("failed to patch Ingress object: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msgf("Patched Ingress: %s in namespace %s", patchedIngress.Name, namespace)
 

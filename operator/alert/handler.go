@@ -3,44 +3,36 @@ package alert
 import (
 	"context"
 
+	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/alert"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
 
-const (
-	// SuccessSynced is used as part of the Event 'reason' when a Alert is synced
-	SuccessSynced = "Synced"
-
-	// MessageResourceSynced is the message used for an Event fired when a Alert
-	// is synced successfully
-	MessageResourceSynced = "Radix Alert synced successfully"
-)
-
 // HandlerConfigOption defines a configuration function used for additional configuration of Handler
-type HandlerConfigOption func(*Handler)
+type HandlerConfigOption func(*handler)
 
 // WithAlertSyncerFactory configures the alertSyncerFactory for the Handler
 func WithAlertSyncerFactory(factory alert.AlertSyncerFactory) HandlerConfigOption {
-	return func(h *Handler) {
+	return func(h *handler) {
 		h.alertSyncerFactory = factory
 	}
 }
 
-// Handler Instance variables
-type Handler struct {
+// handler Instance variables
+type handler struct {
 	kubeclient              kubernetes.Interface
 	radixclient             radixclient.Interface
 	prometheusperatorclient monitoring.Interface
 	kubeutil                *kube.Kube
 	alertSyncerFactory      alert.AlertSyncerFactory
+	events                  common.SyncEventRecorder
 }
 
 // NewHandler Constructor
@@ -48,16 +40,17 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	prometheusperatorclient monitoring.Interface,
-	options ...HandlerConfigOption) *Handler {
+	eventRecorder record.EventRecorder,
+	options ...HandlerConfigOption) common.Handler {
 
-	handler := &Handler{
+	handler := &handler{
 		kubeclient:              kubeclient,
 		radixclient:             radixclient,
 		prometheusperatorclient: prometheusperatorclient,
 		kubeutil:                kubeutil,
+		alertSyncerFactory:      alert.AlertSyncerFactoryFunc(alert.New),
+		events:                  common.NewSyncEventRecorder(eventRecorder),
 	}
-
-	configureDefaultAlertSyncerFactory(handler)
 
 	for _, option := range options {
 		option(handler)
@@ -67,7 +60,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 }
 
 // Sync Is created on sync of resource
-func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	alert, err := t.kubeutil.GetRadixAlert(ctx, namespace, name)
 	if err != nil {
 		// The Alert resource may no longer exist, in which case we stop processing.
@@ -87,15 +80,10 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, syncRAL)
 	err = alertSyncer.OnSync(ctx)
 	if err != nil {
-		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
-		// Put back on queue
+		t.events.RecordSyncErrorEvent(syncRAL, err)
 		return err
 	}
 
-	eventRecorder.Event(syncRAL, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	t.events.RecordSyncSuccessEvent(syncRAL)
 	return nil
-}
-
-func configureDefaultAlertSyncerFactory(h *Handler) {
-	WithAlertSyncerFactory(alert.AlertSyncerFactoryFunc(alert.New))(h)
 }

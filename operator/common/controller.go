@@ -16,7 +16,6 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -30,7 +29,6 @@ type Controller struct {
 	KubeInformerFactory  kubeinformers.SharedInformerFactory
 	RadixInformerFactory informers.SharedInformerFactory
 	Handler              Handler
-	Recorder             record.EventRecorder
 	LockKey              LockKeyFunc
 	locker               resourceLocker
 }
@@ -156,7 +154,7 @@ func (c *Controller) syncHandler(ctx context.Context, key cache.ObjectName) erro
 		log.Ctx(ctx).Debug().Dur("elapsed_ms", duration).Msg("Reconciliation duration")
 	}()
 
-	err := c.Handler.Sync(ctx, namespace, name, c.Recorder)
+	err := c.Handler.Sync(ctx, namespace, name)
 	if err != nil {
 		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
 		return err

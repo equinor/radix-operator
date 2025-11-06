@@ -122,7 +122,7 @@ func (job *Job) syncStatuses(ctx context.Context, ra *v1.RadixApplication) (stop
 
 	existingRadixJobs, err := job.getRadixJobs(ctx)
 	if err != nil {
-		err = fmt.Errorf("failed to get all RadixJobs: %v", err)
+		err = fmt.Errorf("failed to get all RadixJobs: %w", err)
 		return false, err
 	}
 	if job.isOtherJobRunningOnBranchOrEnvironment(ra, existingRadixJobs) {
