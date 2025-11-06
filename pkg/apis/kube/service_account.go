@@ -84,10 +84,10 @@ func (kubeutil *Kube) DeleteServiceAccount(ctx context.Context, namespace, name 
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get service account object: %v", err)
+		return fmt.Errorf("failed to get service account object: %w", err)
 	}
 	if err = kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
-		return fmt.Errorf("failed to delete ServiceAccount object: %v", err)
+		return fmt.Errorf("failed to delete ServiceAccount object: %w", err)
 	}
 	return nil
 }

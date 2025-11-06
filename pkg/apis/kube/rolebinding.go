@@ -91,14 +91,14 @@ func (kubeutil *Kube) ApplyRoleBinding(ctx context.Context, namespace string, ro
 	if err != nil && errors.IsNotFound(err) {
 		createdRoleBinding, err := kubeutil.kubeClient.RbacV1().RoleBindings(namespace).Create(ctx, role, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create role binding object: %v", err)
+			return fmt.Errorf("failed to create role binding object: %w", err)
 		}
 
 		logger.Debug().Msgf("Created role binding: %s in namespace %s", createdRoleBinding.Name, namespace)
 		return nil
 
 	} else if err != nil {
-		return fmt.Errorf("failed to get role binding object: %v", err)
+		return fmt.Errorf("failed to get role binding object: %w", err)
 	}
 
 	logger.Debug().Msgf("Role binding object %s already exists in namespace %s, updating the object now", role.GetName(), namespace)
@@ -110,27 +110,27 @@ func (kubeutil *Kube) ApplyRoleBinding(ctx context.Context, namespace string, ro
 
 	oldRoleBindingJSON, err := json.Marshal(oldRoleBinding)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old role binding object: %v", err)
+		return fmt.Errorf("failed to marshal old role binding object: %w", err)
 	}
 
 	newRoleBindingJSON, err := json.Marshal(newRoleBinding)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new role binding object: %v", err)
+		return fmt.Errorf("failed to marshal new role binding object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleBindingJSON, newRoleBindingJSON, rbacv1.RoleBinding{})
 	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch role binding objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch role binding objects: %w", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		patchedRoleBinding, err := kubeutil.kubeClient.RbacV1().RoleBindings(namespace).Patch(ctx, role.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to patch role binding object: %v", err)
+			return fmt.Errorf("failed to patch role binding object: %w", err)
 		}
 		logger.Debug().Msgf("Patched role binding: %s in namespace %s", patchedRoleBinding.Name, namespace)
 	} else {
-		logger.Debug().Msgf("No need to patch role binding: %s ", role.GetName())
+		logger.Debug().Msgf("No need to patch role binding: %s", role.GetName())
 	}
 
 	return nil
@@ -144,14 +144,14 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(ctx context.Context, clusterrolebi
 	if err != nil && errors.IsNotFound(err) {
 		createdClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Create(ctx, clusterrolebinding, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create cluster role binding object: %v", err)
+			return fmt.Errorf("failed to create cluster role binding object: %w", err)
 		}
 
 		logger.Debug().Msgf("Created cluster role binding: %s", createdClusterRoleBinding.Name)
 		return nil
 
 	} else if err != nil {
-		return fmt.Errorf("failed to get cluster role binding object: %v", err)
+		return fmt.Errorf("failed to get cluster role binding object: %w", err)
 	}
 
 	logger.Debug().Msgf("Role binding object %s already exists, updating the object now", clusterrolebinding.GetName())
@@ -163,27 +163,27 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(ctx context.Context, clusterrolebi
 
 	oldClusterRoleBindingJSON, err := json.Marshal(oldClusterRoleBinding)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old cluster role binding object: %v", err)
+		return fmt.Errorf("failed to marshal old cluster role binding object: %w", err)
 	}
 
 	newClusterRoleBindingJSON, err := json.Marshal(newClusterRoleBinding)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new cluster role binding object: %v", err)
+		return fmt.Errorf("failed to marshal new cluster role binding object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleBindingJSON, newClusterRoleBindingJSON, rbacv1.ClusterRoleBinding{})
 	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch cluster role binding objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch cluster role binding objects: %w", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		patchedClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Patch(ctx, clusterrolebinding.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to patch cluster role binding object: %v", err)
+			return fmt.Errorf("failed to patch cluster role binding object: %w", err)
 		}
-		logger.Debug().Msgf("Patched cluster role binding: %s ", patchedClusterRoleBinding.Name)
+		logger.Debug().Msgf("Patched cluster role binding: %s", patchedClusterRoleBinding.Name)
 	} else {
-		logger.Debug().Msgf("No need to patch cluster role binding: %s ", clusterrolebinding.GetName())
+		logger.Debug().Msgf("No need to patch cluster role binding: %s", clusterrolebinding.GetName())
 	}
 
 	return nil
@@ -332,11 +332,11 @@ func (kubeutil *Kube) DeleteClusterRoleBinding(ctx context.Context, name string)
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get clusterrolebinding object: %v", err)
+		return fmt.Errorf("failed to get clusterrolebinding object: %w", err)
 	}
 	err = kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to delete clusterrolebinding object: %v", err)
+		return fmt.Errorf("failed to delete clusterrolebinding object: %w", err)
 	}
 	return nil
 }
@@ -347,11 +347,11 @@ func (kubeutil *Kube) DeleteRoleBinding(ctx context.Context, namespace, name str
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get rolebinding object: %v", err)
+		return fmt.Errorf("failed to get rolebinding object: %w", err)
 	}
 	err = kubeutil.kubeClient.RbacV1().RoleBindings(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to delete rolebinding object: %v", err)
+		return fmt.Errorf("failed to delete rolebinding object: %w", err)
 	}
 	return nil
 }

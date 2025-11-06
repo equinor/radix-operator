@@ -48,14 +48,14 @@ func (kubeutil *Kube) ListRadixDNSAliasWithSelector(ctx context.Context, labelSe
 		}
 		aliases, err := kubeutil.RadixDNSAliasLister.List(selector)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get all RadixDNSAliases. Error was %v", err)
+			return nil, fmt.Errorf("failed to get all RadixDNSAliases: %w", err)
 		}
 		return aliases, nil
 	}
 
 	aliasList, err := kubeutil.GetRadixDNSAliasWithSelector(ctx, labelSelectorString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get all RadixDNSAliases. Error was %v", err)
+		return nil, fmt.Errorf("failed to get all RadixDNSAliases: %w", err)
 	}
 	return slice.PointersOf(aliasList.Items).([]*radixv1.RadixDNSAlias), nil
 }

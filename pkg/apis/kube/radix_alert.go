@@ -35,14 +35,14 @@ func (kubeutil *Kube) ListRadixAlert(ctx context.Context, namespace string) ([]*
 	if kubeutil.RadixAlertLister != nil {
 		alerts, err := kubeutil.RadixAlertLister.RadixAlerts(namespace).List(labels.NewSelector())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get all RadixAlerts. Error was %v", err)
+			return nil, fmt.Errorf("failed to get all RadixAlerts: %w", err)
 		}
 		return alerts, nil
 	}
 
 	rds, err := kubeutil.radixclient.RadixV1().RadixAlerts(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get all RadixAlerts. Error was %v", err)
+		return nil, fmt.Errorf("failed to get all RadixAlerts: %w", err)
 	}
 
 	return slice.PointersOf(rds.Items).([]*v1.RadixAlert), nil

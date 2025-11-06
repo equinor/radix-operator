@@ -62,15 +62,15 @@ func (syncer *alertSyncer) OnSync(ctx context.Context) error {
 
 func (syncer *alertSyncer) syncAlert(ctx context.Context) error {
 	if err := syncer.createOrUpdateSecret(ctx); err != nil {
-		return fmt.Errorf("failed to sync secrets: %v", err)
+		return fmt.Errorf("failed to sync secrets: %w", err)
 	}
 
 	if err := syncer.configureRbac(ctx); err != nil {
-		return fmt.Errorf("failed to configure RBAC: %v", err)
+		return fmt.Errorf("failed to configure RBAC: %w", err)
 	}
 
 	if err := syncer.createOrUpdateAlertManagerConfig(ctx); err != nil {
-		return fmt.Errorf("failed to sync alertmanagerconfigs: %v", err)
+		return fmt.Errorf("failed to sync alertmanagerconfigs: %w", err)
 	}
 
 	return nil
@@ -82,7 +82,7 @@ func (syncer *alertSyncer) syncStatus(ctx context.Context) error {
 		currStatus.Reconciled = &syncCompleteTime
 	})
 	if err != nil {
-		return fmt.Errorf("failed to sync status: %v", err)
+		return fmt.Errorf("failed to sync status: %w", err)
 	}
 
 	return nil

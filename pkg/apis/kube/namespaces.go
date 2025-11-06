@@ -42,23 +42,23 @@ func (kubeutil *Kube) ApplyNamespace(ctx context.Context, name string, labels ma
 
 	oldNamespaceJSON, err := json.Marshal(oldNamespace)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old namespace object: %v", err)
+		return fmt.Errorf("failed to marshal old namespace object: %w", err)
 	}
 
 	newNamespaceJSON, err := json.Marshal(newNamespace)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new namespace object: %v", err)
+		return fmt.Errorf("failed to marshal new namespace object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldNamespaceJSON, newNamespaceJSON, corev1.Namespace{})
 	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch namespace objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch namespace objects: %w", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		patchedNamespace, err := kubeutil.kubeClient.CoreV1().Namespaces().Patch(ctx, name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to patch namespace object: %v", err)
+			return fmt.Errorf("failed to patch namespace object: %w", err)
 		}
 
 		logger.Debug().Msgf("Patched namespace: %s ", patchedNamespace.Name)
