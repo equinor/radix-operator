@@ -340,10 +340,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetVolumeMounts() []RadixVolu
 	return deployJobComponent.VolumeMounts
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetEnvironment() string {
-	return deployJobComponent.Environment
-}
-
 func (deployJobComponent *RadixDeployJobComponent) IsAlwaysPullImageOnDeploy() bool {
 	return deployJobComponent.AlwaysPullImageOnDeploy
 }
@@ -442,7 +438,6 @@ func (deployComponent *RadixDeployComponent) GetNrOfReplicas() int32 {
 // The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
 	Name                    string                    `json:"name"`
-	Environment             string                    `json:"environment,omitempty"`
 	Image                   string                    `json:"image"`
 	Ports                   []ComponentPort           `json:"ports,omitempty"`
 	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty"`
