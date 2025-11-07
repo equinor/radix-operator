@@ -117,7 +117,7 @@ func NewFromKubernetesAPIStatus(apiStatus k8sErrors.APIStatus) *StatusError {
 	case metav1.StatusReasonNotFound:
 		return NewNotFound(apiStatus.Status().Details.Kind, apiStatus.Status().Details.Name)
 	case metav1.StatusReasonInvalid:
-		return NewInvalid(apiStatus.Status().Details.Name)
+		return NewInvalidWithReason(apiStatus.Status().Details.Name, apiStatus.Status().Message)
 	default:
 		return NewUnknown(errors.New(apiStatus.Status().Message))
 	}
