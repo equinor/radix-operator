@@ -6,8 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"runtime/debug"
-	"strings"
-	"time"
 )
 
 // HelmInstaller handles Helm chart installation
@@ -32,11 +30,15 @@ func NewHelmInstaller(kubeConfigPath string) *HelmInstaller {
 
 // InstallRadixOperator installs the radix-operator Helm chart
 func (h *HelmInstaller) InstallRadixOperator(ctx context.Context, config HelmInstallConfig) error {
-	// Build helm command
+	// Build helm install command
 	args := []string{
-		"template",
+		"install",
 		config.ReleaseName,
 		config.ChartPath,
+		"--namespace", config.Namespace,
+		"--create-namespace",
+		"--wait",
+		"--timeout", "5m",
 	}
 
 	// Add additional values
@@ -44,75 +46,17 @@ func (h *HelmInstaller) InstallRadixOperator(ctx context.Context, config HelmIns
 		args = append(args, "--set", fmt.Sprintf("%s=%v", key, value))
 	}
 
-	// Generate Helm template
+	// Install Helm chart
 	cmd := exec.CommandContext(ctx, "helm", args...)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", h.KubeConfigPath))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-	manifestBytes, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("helm template failed: %w, stderr: %s", err, string(exitErr.Stderr))
-		}
-		return fmt.Errorf("helm template failed: %w", err)
-	}
-
-	// Apply manifests using kubectl
-	applyCmd := exec.CommandContext(ctx, "kubectl", "apply", "-f", "-")
-	applyCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", h.KubeConfigPath))
-	applyCmd.Stdin = strings.NewReader(string(manifestBytes))
-	applyCmd.Stdout = os.Stdout
-	applyCmd.Stderr = os.Stderr
-
-	if err := applyCmd.Run(); err != nil {
-		return fmt.Errorf("kubectl apply failed: %w", err)
-	}
-
-	// Wait for deployment to be ready
-	if err := h.waitForDeployment(ctx, "radix-operator", config.Namespace); err != nil {
-		return fmt.Errorf("deployment not ready: %w", err)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("helm install failed: %w", err)
 	}
 
 	return nil
-}
-
-// waitForDeployment waits for a deployment to be ready
-func (h *HelmInstaller) waitForDeployment(ctx context.Context, name, namespace string) error {
-	timeout := 5 * time.Minute
-	deadline := time.Now().Add(timeout)
-
-	for time.Now().Before(deadline) {
-		args := []string{
-			"--kubeconfig", h.KubeConfigPath,
-			"get", "deployment",
-			name,
-			"-n", namespace,
-		}
-
-		cmd := exec.CommandContext(ctx, "kubectl", args...)
-		if err := cmd.Run(); err == nil {
-			// Check if deployment is ready
-			rolloutArgs := []string{
-				"--kubeconfig", h.KubeConfigPath,
-				"rollout", "status",
-				"deployment/" + name,
-				"-n", namespace,
-				"--timeout=10s",
-			}
-			rolloutCmd := exec.CommandContext(ctx, "kubectl", rolloutArgs...)
-			if err := rolloutCmd.Run(); err == nil {
-				return nil
-			}
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(5 * time.Second):
-			continue
-		}
-	}
-
-	return fmt.Errorf("deployment %s not ready after %v", name, timeout)
 }
 
 // getPrometheusOperatorVersion gets the version from build info
