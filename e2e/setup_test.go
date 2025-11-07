@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/e2e/internal"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -14,7 +15,7 @@ import (
 var (
 	kubeClient  kubernetes.Interface
 	kubeConfig  *rest.Config
-	testCluster *KindCluster
+	testCluster *internal.KindCluster
 	testContext context.Context
 	testCancel  context.CancelFunc
 )
@@ -28,7 +29,7 @@ func TestMain(m *testing.M) {
 	defer testCancel()
 
 	// Create Kind cluster
-	testCluster, err = NewKindCluster(testContext, KindClusterConfig{
+	testCluster, err = internal.NewKindCluster(testContext, internal.KindClusterConfig{
 		Name:       "radix-operator-e2e",
 		KubeConfig: "",
 	})
@@ -56,14 +57,14 @@ func TestMain(m *testing.M) {
 	}
 
 	// Install Prometheus Operator CRDs first
-	helmInstaller := NewHelmInstaller(testCluster.KubeConfigPath)
+	helmInstaller := internal.NewHelmInstaller(testCluster.KubeConfigPath)
 	err = helmInstaller.InstallPrometheusOperatorCRDs(testContext)
 	if err != nil {
 		panic("failed to install Prometheus Operator CRDs: " + err.Error())
 	}
 
 	// Install Helm chart
-	err = helmInstaller.InstallRadixOperator(testContext, HelmInstallConfig{
+	err = helmInstaller.InstallRadixOperator(testContext, internal.HelmInstallConfig{
 		ChartPath:   "../charts/radix-operator",
 		ReleaseName: "radix-operator",
 		Namespace:   "default",

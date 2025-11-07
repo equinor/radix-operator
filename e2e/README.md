@@ -47,17 +47,20 @@ go test -v -race -timeout 30m ./...
 
 The e2e test suite consists of several components:
 
-### Core Files
+### Test Files (Main Package)
 
-- **`setup_test.go`**: Test suite setup and teardown, including cluster creation and Helm installation
-- **`kind_cluster.go`**: Kind cluster management utilities
-- **`helm_installer.go`**: Helm chart installation and management
-- **`clients.go`**: Kubernetes and Radix client setup
-- **`test_helpers.go`**: Utility functions for test assertions and resource management
-
-### Test Files
-
+- **`setup_test.go`**: Test suite setup and teardown using TestMain
 - **`radix_registration_test.go`**: Tests for RadixRegistration CRD validation and CRUD operations
+- **`example_test.go`**: Example test demonstrating best practices
+
+### Internal Package (`internal/`)
+
+Infrastructure and helper code used by tests:
+
+- **`kind_cluster.go`**: Kind cluster lifecycle management
+- **`helm_installer.go`**: Helm chart installation with Prometheus Operator CRD setup
+- **`clients.go`**: Kubernetes and Radix client initialization
+- **`test_helpers.go`**: Utility functions for test assertions and resource management
 
 ## Test Flow
 
@@ -107,9 +110,10 @@ This is set via: `--set "rbac.createApp.groups[0]=123"`
 To add new e2e tests:
 
 1. Create a new test file in the `e2e` directory (e.g., `my_feature_test.go`)
-2. Use the helper functions from `test_helpers.go`
-3. Access clients via `getKubeClient(t)`, `getKubeConfig(t)`, or create new clients with `NewClients()`
-4. Use the test context from `getTestContext(t)`
+2. Import the internal package: `"github.com/equinor/radix-operator/e2e/internal"`
+3. Use helper functions from `internal.NewTestHelpers()`
+4. Access clients via `getKubeClient(t)`, `getKubeConfig(t)`, or create new clients with `internal.NewClients()`
+5. Use the test context from `getTestContext(t)`
 
 Example:
 
@@ -118,6 +122,7 @@ package e2e
 
 import (
     "testing"
+    "github.com/equinor/radix-operator/e2e/internal"
     "github.com/stretchr/testify/require"
 )
 
@@ -125,10 +130,10 @@ func TestMyFeature(t *testing.T) {
     ctx := getTestContext(t)
     config := getKubeConfig(t)
     
-    clients, err := NewClients(config)
+    clients, err := internal.NewClients(config)
     require.NoError(t, err)
     
-    helpers := NewTestHelpers(clients)
+    helpers := internal.NewTestHelpers(clients)
     
     // Your test logic here
 }

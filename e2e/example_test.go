@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/e2e/internal"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,11 +23,11 @@ func TestExample(t *testing.T) {
 	config := getKubeConfig(t)
 
 	// Create clients
-	clients, err := NewClients(config)
+	clients, err := internal.NewClients(config)
 	require.NoError(t, err, "failed to create clients")
 
 	// Create test helpers
-	helpers := NewTestHelpers(clients)
+	helpers := internal.NewTestHelpers(clients)
 
 	t.Run("create and delete RadixRegistration", func(t *testing.T) {
 		// Define the RadixRegistration spec

@@ -6,42 +6,15 @@ Successfully created a comprehensive end-to-end (e2e) testing framework for the 
 
 ## Files Created
 
-### Core Infrastructure
+### Test Files (Main e2e Package)
 
 1. **`e2e/setup_test.go`** (2.3 KB)
    - Test suite entry point with `TestMain`
    - Manages Kind cluster lifecycle (creation and cleanup)
-   - Installs Helm chart with test configuration
+   - Installs Prometheus Operator CRDs and Helm chart
    - Provides helper functions for accessing clients and context
 
-2. **`e2e/kind_cluster.go`** (3.3 KB)
-   - Kind cluster management utilities
-   - Creates and deletes Kind clusters programmatically
-   - Manages kubeconfig generation and storage
-   - Implements cluster readiness waiting
-
-3. **`e2e/helm_installer.go`** (4.2 KB)
-   - Helm chart installation using `helm template` + `kubectl apply`
-   - Configures chart with: `--set "rbac.createApp.groups[0]=123"`
-   - Waits for deployment readiness
-   - Supports custom values and namespace configuration
-
-4. **`e2e/clients.go`** (913 bytes)
-   - Kubernetes and Radix client initialization
-   - Provides typed access to both client types
-   - Encapsulates client creation logic
-
-### Test Utilities
-
-5. **`e2e/test_helpers.go`** (4.0 KB)
-   - Utility functions for RadixRegistration operations
-   - CRUD operations: Create, Get, Update, List, Delete
-   - Wait functions with timeout for resource availability
-   - Cleanup helpers for test teardown
-
-### Test Files
-
-6. **`e2e/radix_registration_test.go`** (4.4 KB)
+2. **`e2e/radix_registration_test.go`** (4.4 KB)
    - **TestRadixRegistrationWebhook**: Tests admission webhook validation
      - Tests rejection of invalid RadixRegistration (missing fields)
      - Tests rejection of invalid CloneURL format
@@ -49,11 +22,38 @@ Successfully created a comprehensive end-to-end (e2e) testing framework for the 
    - **TestRadixRegistrationCRUD**: Tests basic CRUD operations
      - Tests listing RadixRegistrations
 
-7. **`e2e/example_test.go`** (2.3 KB)
+3. **`e2e/example_test.go`** (2.3 KB)
    - Example test demonstrating how to use the test framework
    - Shows best practices for writing e2e tests
    - Demonstrates context management and cleanup patterns
    - Skipped by default (for documentation purposes)
+
+### Infrastructure Code (Internal Package)
+
+4. **`e2e/internal/kind_cluster.go`** (3.3 KB)
+   - Kind cluster management utilities
+   - Creates and deletes Kind clusters programmatically
+   - Manages kubeconfig generation and storage
+   - Implements cluster readiness waiting
+
+5. **`e2e/internal/helm_installer.go`** (4.2 KB)
+   - Helm chart installation using `helm template` + `kubectl apply`
+   - Dynamically determines Prometheus Operator version from go.mod
+   - Installs Prometheus Operator CRDs automatically
+   - Configures chart with: `rbac.createApp.groups[0]=123`
+   - Waits for deployment readiness
+   - Supports custom values and namespace configuration
+
+6. **`e2e/internal/clients.go`** (913 bytes)
+   - Kubernetes and Radix client initialization
+   - Provides typed access to both client types
+   - Encapsulates client creation logic
+
+7. **`e2e/internal/test_helpers.go`** (4.0 KB)
+   - Utility functions for RadixRegistration operations
+   - CRUD operations: Create, Get, Update, List, Delete
+   - Wait functions with timeout for resource availability
+   - Cleanup helpers for test teardown
 
 ### Documentation and Configuration
 
@@ -78,13 +78,31 @@ Successfully created a comprehensive end-to-end (e2e) testing framework for the 
 
 ```
 TestMain (setup_test.go)
-├── Create Kind Cluster (kind_cluster.go)
-├── Install Helm Chart (helm_installer.go)
-├── Initialize Clients (clients.go)
+├── Create Kind Cluster (internal/kind_cluster.go)
+├── Install Prometheus Operator CRDs (internal/helm_installer.go)
+├── Install Helm Chart (internal/helm_installer.go)
+├── Initialize Clients (internal/clients.go)
 ├── Run Tests
 │   ├── TestRadixRegistrationWebhook (radix_registration_test.go)
 │   └── TestRadixRegistrationCRUD (radix_registration_test.go)
 └── Cleanup (delete Kind cluster)
+```
+
+## Directory Structure
+
+```
+e2e/
+├── setup_test.go              # Test suite setup and teardown
+├── radix_registration_test.go # RadixRegistration tests
+├── example_test.go            # Example test patterns
+├── README.md                  # User documentation
+├── IMPLEMENTATION.md          # Implementation details
+├── .gitignore                 # Git ignore rules
+└── internal/                  # Infrastructure code (not part of public API)
+    ├── kind_cluster.go        # Kind cluster management
+    ├── helm_installer.go      # Helm and CRD installation
+    ├── clients.go             # Client initialization
+    └── test_helpers.go        # Test utility functions
 ```
 
 ## Key Features

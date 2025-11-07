@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/e2e/internal"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,7 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 	config := getKubeConfig(t)
 
 	// Create clients
-	clients, err := NewClients(config)
+	clients, err := internal.NewClients(config)
 	require.NoError(t, err, "failed to create clients")
 
 	t.Run("should reject invalid RadixRegistration", func(t *testing.T) {
@@ -133,7 +134,7 @@ func TestRadixRegistrationCRUD(t *testing.T) {
 	config := getKubeConfig(t)
 
 	// Create clients
-	clients, err := NewClients(config)
+	clients, err := internal.NewClients(config)
 	require.NoError(t, err, "failed to create clients")
 
 	t.Run("should list RadixRegistrations", func(t *testing.T) {
