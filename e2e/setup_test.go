@@ -133,7 +133,7 @@ func initLogr(logger zerolog.Logger) logr.Logger {
 
 // WaitForDeploymentReady waits for a deployment to be ready using controller-runtime client
 func WaitForDeploymentReady(ctx context.Context, c client.Client, namespace, name string) error {
-	return wait.PollUntilContextTimeout(ctx, 2*time.Second, 10*time.Minute, true, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextCancel(ctx, 2*time.Second, true, func(ctx context.Context) (bool, error) {
 		deployment := &appsv1.Deployment{}
 		err := c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, deployment)
 		if err != nil {
