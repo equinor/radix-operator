@@ -45,8 +45,9 @@ Successfully created a comprehensive end-to-end (e2e) testing framework for the 
    - Supports custom values and namespace configuration
 
 6. **`e2e/internal/clients.go`** (913 bytes)
-   - Kubernetes and Radix client initialization
-   - Provides typed access to both client types
+   - Manager-based client initialization (following webhook pattern)
+   - Uses controller-runtime client from Manager
+   - Provides typed Radix client for CRD operations
    - Encapsulates client creation logic
 
 7. **`e2e/internal/test_helpers.go`** (4.0 KB)
@@ -171,9 +172,11 @@ This is applied via: `--set "rbac.createApp.groups[0]=123"`
 ### Design Decisions
 
 1. **Single Cluster for All Tests**: Uses `TestMain` to create one cluster shared across all tests for efficiency
-2. **Helm Template Approach**: Uses `helm template` + `kubectl apply` instead of `helm install` for better control
-3. **Context Propagation**: All operations use context for proper timeout and cancellation handling
-4. **Helper Functions**: Centralized utilities reduce code duplication and improve test maintainability
+2. **Manager-Based Architecture**: Uses controller-runtime Manager pattern (similar to webhook) instead of raw kubernetes.Interface
+3. **Helm Template Approach**: Uses `helm template` + `kubectl apply` instead of `helm install` for better control
+4. **Context Propagation**: All operations use context for proper timeout and cancellation handling
+5. **Helper Functions**: Centralized utilities reduce code duplication and improve test maintainability
+6. **Dynamic CRD Versioning**: Prometheus Operator CRD version automatically determined from go.mod dependencies
 
 ### Future Enhancements
 

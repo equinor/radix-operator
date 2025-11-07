@@ -20,7 +20,7 @@ type HelmInstallConfig struct {
 	ChartPath   string
 	ReleaseName string
 	Namespace   string
-	Values      map[string]interface{}
+	Values      map[string]string
 }
 
 // NewHelmInstaller creates a new Helm installer
@@ -37,30 +37,11 @@ func (h *HelmInstaller) InstallRadixOperator(ctx context.Context, config HelmIns
 		"template",
 		config.ReleaseName,
 		config.ChartPath,
-		"--set", "rbac.createApp.groups[0]=123",
 	}
 
 	// Add additional values
 	for key, value := range config.Values {
-		if nestedMap, ok := value.(map[string]interface{}); ok {
-			for nestedKey, nestedValue := range nestedMap {
-				if nestedNestedMap, ok := nestedValue.(map[string]interface{}); ok {
-					for nestedNestedKey, nestedNestedValue := range nestedNestedMap {
-						if arr, ok := nestedNestedValue.([]string); ok {
-							for i, v := range arr {
-								args = append(args, "--set", fmt.Sprintf("%s.%s.%s[%d]=%s", key, nestedKey, nestedNestedKey, i, v))
-							}
-						} else {
-							args = append(args, "--set", fmt.Sprintf("%s.%s.%s=%v", key, nestedKey, nestedNestedKey, nestedNestedValue))
-						}
-					}
-				} else {
-					args = append(args, "--set", fmt.Sprintf("%s.%s=%v", key, nestedKey, nestedValue))
-				}
-			}
-		} else {
-			args = append(args, "--set", fmt.Sprintf("%s=%v", key, value))
-		}
+		args = append(args, "--set", fmt.Sprintf("%s=%v", key, value))
 	}
 
 	// Generate Helm template

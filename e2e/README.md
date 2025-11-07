@@ -112,7 +112,7 @@ To add new e2e tests:
 1. Create a new test file in the `e2e` directory (e.g., `my_feature_test.go`)
 2. Import the internal package: `"github.com/equinor/radix-operator/e2e/internal"`
 3. Use helper functions from `internal.NewTestHelpers()`
-4. Access clients via `getKubeClient(t)`, `getKubeConfig(t)`, or create new clients with `internal.NewClients()`
+4. Access the manager via `getManager(t)`, client via `getClient(t)`, or config via `getKubeConfig(t)`
 5. Use the test context from `getTestContext(t)`
 
 Example:
@@ -128,9 +128,10 @@ import (
 
 func TestMyFeature(t *testing.T) {
     ctx := getTestContext(t)
+    client := getClient(t)
     config := getKubeConfig(t)
     
-    clients, err := internal.NewClients(config)
+    clients, err := internal.NewClients(client, config)
     require.NoError(t, err)
     
     helpers := internal.NewTestHelpers(clients)

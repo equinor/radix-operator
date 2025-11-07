@@ -1,25 +1,16 @@
 package e2e
 
 import (
-	"context"
 	"testing"
-	"time"
 
-	"github.com/equinor/radix-operator/e2e/internal"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // TestRadixRegistrationWebhook tests that the admission webhook validates RadixRegistration resources
 func TestRadixRegistrationWebhook(t *testing.T) {
-	ctx := getTestContext(t)
-	config := getKubeConfig(t)
-
-	// Create clients
-	clients, err := internal.NewClients(config)
-	require.NoError(t, err, "failed to create clients")
+	c := getClient(t)
 
 	t.Run("should reject invalid RadixRegistration", func(t *testing.T) {
 		// Create an invalid RadixRegistration (missing required fields)
@@ -33,16 +24,8 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 			},
 		}
 
-		// Create a timeout context for this operation
-		createCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-
 		// Attempt to create the RadixRegistration
-		_, err := clients.RadixClient.RadixV1().RadixRegistrations().Create(
-			createCtx,
-			invalidRR,
-			metav1.CreateOptions{},
-		)
+		err := c.Create(t.Context(), invalidRR)
 
 		// We expect this to fail due to validation webhook
 		assert.Error(t, err, "expected validation error for invalid RadixRegistration")
@@ -65,16 +48,8 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 			},
 		}
 
-		// Create a timeout context for this operation
-		createCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-
 		// Attempt to create the RadixRegistration
-		_, err := clients.RadixClient.RadixV1().RadixRegistrations().Create(
-			createCtx,
-			invalidRR,
-			metav1.CreateOptions{},
-		)
+		err := c.Create(t.Context(), invalidRR)
 
 		// We expect this to fail due to validation webhook
 		assert.Error(t, err, "expected validation error for invalid CloneURL")
@@ -97,33 +72,18 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 			},
 		}
 
-		// Create a timeout context for this operation
-		createCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-
 		// Attempt to create the RadixRegistration
-		created, err := clients.RadixClient.RadixV1().RadixRegistrations().Create(
-			createCtx,
-			validRR,
-			metav1.CreateOptions{},
-		)
+		err := c.Create(t.Context(), validRR)
 
 		// This might fail if webhook validation is strict or CRDs are not installed
 		// For now, we just log the result
 		if err != nil {
 			t.Logf("Creation failed (may be expected if webhook/CRDs not ready): %v", err)
 		} else {
-			t.Logf("Successfully created RadixRegistration: %s", created.Name)
+			t.Logf("Successfully created RadixRegistration: %s", validRR.Name)
 
 			// Clean up
-			deleteCtx, deleteCancel := context.WithTimeout(ctx, 10*time.Second)
-			defer deleteCancel()
-
-			_ = clients.RadixClient.RadixV1().RadixRegistrations().Delete(
-				deleteCtx,
-				created.Name,
-				metav1.DeleteOptions{},
-			)
+			_ = c.Delete(t.Context(), validRR)
 		}
 	})
 }
@@ -131,21 +91,12 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 // TestRadixRegistrationCRUD tests basic CRUD operations for RadixRegistration
 func TestRadixRegistrationCRUD(t *testing.T) {
 	ctx := getTestContext(t)
-	config := getKubeConfig(t)
-
-	// Create clients
-	clients, err := internal.NewClients(config)
-	require.NoError(t, err, "failed to create clients")
+	c := getClient(t)
 
 	t.Run("should list RadixRegistrations", func(t *testing.T) {
-		listCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-
 		// List RadixRegistrations
-		list, err := clients.RadixClient.RadixV1().RadixRegistrations().List(
-			listCtx,
-			metav1.ListOptions{},
-		)
+		var list v1.RadixRegistrationList
+		err := c.List(ctx, &list)
 
 		// This might fail if CRDs are not installed
 		if err != nil {

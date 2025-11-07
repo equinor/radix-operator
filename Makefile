@@ -70,7 +70,7 @@ echo:
 
 .PHONY: test
 test:
-	LOG_LEVEL=warn go test -cover `go list ./... | grep -v 'pkg/client'`
+	LOG_LEVEL=warn go test -cover `go list ./... | grep -v 'github.com/equinor/radix-operator/pkg/client' | grep -v 'github.com/equinor/radix-operator/e2e'`
 
 .PHONY: test-e2e
 test-e2e:
