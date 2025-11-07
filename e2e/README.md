@@ -142,6 +142,13 @@ func TestMyFeature(t *testing.T) {
 
 ## Troubleshooting
 
+### Get kubecontext:
+
+```bash
+kind export kubeconfig --name radix-operator-e2e
+kubectl get deployments -Aw
+```
+
 ### Tests timeout
 
 Increase the timeout when running tests:
