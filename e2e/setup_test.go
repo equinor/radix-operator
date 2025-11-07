@@ -12,8 +12,10 @@ import (
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -110,6 +112,11 @@ func TestMain(m *testing.M) {
 		panic("failed to wait for cache sync")
 	}
 
+	// Wait for webhook deployment to be ready
+	if err := WaitForDeploymentReady(testContext, testManager.GetClient(), "default", "radix-webhook"); err != nil {
+		panic("failed to wait for webhook to be ready: " + err.Error())
+	}
+
 	// Run tests
 	code := m.Run()
 
@@ -145,4 +152,22 @@ func initLogr(logger zerolog.Logger) logr.Logger {
 	siglog.SetLogger(log)
 
 	return log
+}
+
+// WaitForDeploymentReady waits for a deployment to be ready using controller-runtime client
+func WaitForDeploymentReady(ctx context.Context, c client.Client, namespace, name string) error {
+	return wait.PollUntilContextTimeout(ctx, 2*time.Second, 10*time.Minute, true, func(ctx context.Context) (bool, error) {
+		deployment := &appsv1.Deployment{}
+		err := c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, deployment)
+		if err != nil {
+			return false, nil // Deployment doesn't exist yet, keep waiting
+		}
+
+		// Check if deployment is ready
+		if deployment.Status.ReadyReplicas > 0 && deployment.Status.ReadyReplicas == deployment.Status.Replicas {
+			return true, nil
+		}
+
+		return false, nil
+	})
 }

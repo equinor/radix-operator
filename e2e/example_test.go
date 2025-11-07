@@ -25,9 +25,10 @@ func TestExample(t *testing.T) {
 				Name: "test-example-app",
 			},
 			Spec: v1.RadixRegistrationSpec{
-				CloneURL:     "git@github.com:equinor/my-test-app.git",
-				AdGroups:     []string{"123"},
-				ConfigBranch: "main",
+				CloneURL:          "git@github.com:equinor/my-test-app.git",
+				AdGroups:          []string{"123"},
+				ConfigBranch:      "main",
+				ConfigurationItem: "12345",
 			},
 		}
 

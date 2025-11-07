@@ -66,20 +66,20 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 				Name: "test-valid-rr",
 			},
 			Spec: v1.RadixRegistrationSpec{
-				CloneURL:     "git@github.com:equinor/test-app.git",
-				AdGroups:     []string{"123"},
-				ConfigBranch: "main",
+				CloneURL:          "git@github.com:equinor/test-app.git",
+				AdGroups:          []string{"123"},
+				ConfigBranch:      "main",
+				ConfigurationItem: "12345",
 			},
 		}
 
 		// Attempt to create the RadixRegistration
 		err := c.Create(t.Context(), validRR)
 
-		// This might fail if webhook validation is strict or CRDs are not installed
-		// For now, we just log the result
-		if err != nil {
-			t.Logf("Creation failed (may be expected if webhook/CRDs not ready): %v", err)
-		} else {
+		// Webhook should accept this valid RadixRegistration
+		assert.NoError(t, err, "valid RadixRegistration should be accepted by webhook")
+
+		if err == nil {
 			t.Logf("Successfully created RadixRegistration: %s", validRR.Name)
 
 			// Clean up
