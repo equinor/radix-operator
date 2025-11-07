@@ -72,6 +72,10 @@ echo:
 test:
 	LOG_LEVEL=warn go test -cover `go list ./... | grep -v 'pkg/client'`
 
+.PHONY: test-e2e
+test-e2e:
+	cd e2e && go test -v -timeout 30m ./...
+
 .PHONY: mocks
 mocks: bootstrap
 	mockgen -source ./pkg/apis/defaults/oauth2.go -destination ./pkg/apis/defaults/oauth2_mock.go -package defaults
