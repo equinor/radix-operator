@@ -17,7 +17,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	siglog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -25,17 +24,13 @@ import (
 
 var (
 	testManager manager.Manager
-	kubeConfig  *rest.Config
-	testCluster *internal.KindCluster
-	testContext context.Context
-	testCancel  context.CancelFunc
 )
 
 // TestMain is the entry point for e2e tests
 func TestMain(m *testing.M) {
 
 	// Create a context with timeout for the entire test suite
-	testContext, testCancel = context.WithTimeout(context.Background(), 30*time.Minute)
+	testContext, testCancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer testCancel()
 
 	// Create Kind cluster
@@ -48,7 +43,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Get kubeconfig
-	kubeConfig, err = testCluster.GetKubeConfig()
+	kubeConfig, err := testCluster.GetKubeConfig()
 	if err != nil {
 		panic("failed to get kubeconfig: " + err.Error())
 	}
@@ -115,12 +110,6 @@ func TestMain(m *testing.M) {
 func getClient(t *testing.T) client.Client {
 	require.NotNil(t, testManager, "manager not initialized")
 	return testManager.GetClient()
-}
-
-// getTestContext returns the test context
-func getTestContext(t *testing.T) context.Context {
-	require.NotNil(t, testContext, "test context not initialized")
-	return testContext
 }
 
 // initLogger creates a zerolog logger for tests

@@ -90,13 +90,12 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 
 // TestRadixRegistrationCRUD tests basic CRUD operations for RadixRegistration
 func TestRadixRegistrationCRUD(t *testing.T) {
-	ctx := getTestContext(t)
 	c := getClient(t)
 
 	t.Run("should list RadixRegistrations", func(t *testing.T) {
 		// List RadixRegistrations
 		var list v1.RadixRegistrationList
-		err := c.List(ctx, &list)
+		err := c.List(t.Context(), &list)
 
 		// This might fail if CRDs are not installed
 		if err != nil {
