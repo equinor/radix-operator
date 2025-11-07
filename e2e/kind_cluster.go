@@ -60,7 +60,7 @@ func (k *KindCluster) create(ctx context.Context) error {
 	// Check if cluster already exists
 	checkCmd := exec.CommandContext(ctx, "kind", "get", "clusters")
 	output, _ := checkCmd.Output()
-	
+
 	// Delete existing cluster with same name
 	if len(output) > 0 {
 		deleteCmd := exec.CommandContext(ctx, "kind", "delete", "cluster", "--name", k.Name)
@@ -96,7 +96,7 @@ func (k *KindCluster) waitForReady(ctx context.Context) error {
 		if err := cmd.Run(); err == nil {
 			return nil
 		}
-		
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -113,7 +113,7 @@ func (k *KindCluster) Delete(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, "kind", "delete", "cluster", "--name", k.Name)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	
+
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to delete kind cluster: %w", err)
 	}

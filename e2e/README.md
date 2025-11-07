@@ -64,6 +64,7 @@ The e2e test suite consists of several components:
 1. **Setup** (`TestMain`):
    - Creates a Kind cluster named `radix-operator-e2e`
    - Generates a temporary kubeconfig
+   - Installs Prometheus Operator CRDs (required for ServiceMonitor resources)
    - Installs the radix-operator Helm chart with test configuration
    - Initializes Kubernetes and Radix clients
 
@@ -76,6 +77,19 @@ The e2e test suite consists of several components:
    - Cleans up temporary files
 
 ## Configuration
+
+### Prometheus Operator CRDs
+
+The test suite automatically installs the Prometheus Operator CRDs from GitHub. The version is dynamically determined from the `go.mod` dependencies at runtime by inspecting the build information. This ensures the CRD version matches the Prometheus Operator version used by radix-operator.
+
+The CRDs are downloaded from:
+```
+https://github.com/prometheus-operator/prometheus-operator/releases/download/{version}/stripped-down-crds.yaml
+```
+
+This is required because the radix-operator uses ServiceMonitor resources.
+
+### Helm Chart Configuration
 
 The Helm chart is installed with the following configuration:
 

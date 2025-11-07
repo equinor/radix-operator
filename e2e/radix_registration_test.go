@@ -15,7 +15,7 @@ import (
 func TestRadixRegistrationWebhook(t *testing.T) {
 	ctx := getTestContext(t)
 	config := getKubeConfig(t)
-	
+
 	// Create clients
 	clients, err := NewClients(config)
 	require.NoError(t, err, "failed to create clients")
@@ -45,7 +45,7 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 
 		// We expect this to fail due to validation webhook
 		assert.Error(t, err, "expected validation error for invalid RadixRegistration")
-		
+
 		if err != nil {
 			t.Logf("Validation error (expected): %v", err)
 		}
@@ -77,7 +77,7 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 
 		// We expect this to fail due to validation webhook
 		assert.Error(t, err, "expected validation error for invalid CloneURL")
-		
+
 		if err != nil {
 			t.Logf("Validation error (expected): %v", err)
 		}
@@ -113,11 +113,11 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 			t.Logf("Creation failed (may be expected if webhook/CRDs not ready): %v", err)
 		} else {
 			t.Logf("Successfully created RadixRegistration: %s", created.Name)
-			
+
 			// Clean up
 			deleteCtx, deleteCancel := context.WithTimeout(ctx, 10*time.Second)
 			defer deleteCancel()
-			
+
 			_ = clients.RadixClient.RadixV1().RadixRegistrations().Delete(
 				deleteCtx,
 				created.Name,
@@ -131,7 +131,7 @@ func TestRadixRegistrationWebhook(t *testing.T) {
 func TestRadixRegistrationCRUD(t *testing.T) {
 	ctx := getTestContext(t)
 	config := getKubeConfig(t)
-	
+
 	// Create clients
 	clients, err := NewClients(config)
 	require.NoError(t, err, "failed to create clients")

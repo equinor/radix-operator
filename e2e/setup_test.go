@@ -12,17 +12,17 @@ import (
 )
 
 var (
-	kubeClient   kubernetes.Interface
-	kubeConfig   *rest.Config
-	testCluster  *KindCluster
-	testContext  context.Context
-	testCancel   context.CancelFunc
+	kubeClient  kubernetes.Interface
+	kubeConfig  *rest.Config
+	testCluster *KindCluster
+	testContext context.Context
+	testCancel  context.CancelFunc
 )
 
 // TestMain is the entry point for e2e tests
 func TestMain(m *testing.M) {
 	var err error
-	
+
 	// Create a context with timeout for the entire test suite
 	testContext, testCancel = context.WithTimeout(context.Background(), 30*time.Minute)
 	defer testCancel()
@@ -55,8 +55,14 @@ func TestMain(m *testing.M) {
 		panic("failed to create kubernetes client: " + err.Error())
 	}
 
-	// Install Helm chart
+	// Install Prometheus Operator CRDs first
 	helmInstaller := NewHelmInstaller(testCluster.KubeConfigPath)
+	err = helmInstaller.InstallPrometheusOperatorCRDs(testContext)
+	if err != nil {
+		panic("failed to install Prometheus Operator CRDs: " + err.Error())
+	}
+
+	// Install Helm chart
 	err = helmInstaller.InstallRadixOperator(testContext, HelmInstallConfig{
 		ChartPath:   "../charts/radix-operator",
 		ReleaseName: "radix-operator",

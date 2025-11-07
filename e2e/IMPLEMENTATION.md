@@ -177,18 +177,18 @@ $ go test -c ./e2e -o /tmp/e2e-test-binary
 
 ## Files Summary
 
-| File | Size | Purpose |
-|------|------|---------|
-| `setup_test.go` | 2.3 KB | Test suite setup and teardown |
-| `kind_cluster.go` | 3.3 KB | Kind cluster management |
-| `helm_installer.go` | 4.2 KB | Helm chart installation |
-| `clients.go` | 913 B | Client initialization |
-| `test_helpers.go` | 4.0 KB | Test utility functions |
-| `radix_registration_test.go` | 4.4 KB | RadixRegistration tests |
-| `example_test.go` | 2.3 KB | Example test patterns |
-| `README.md` | 4.1 KB | Documentation |
-| `.gitignore` | 179 B | Git ignore rules |
-| **Total** | **~26 KB** | Complete e2e framework |
+| File                         | Size       | Purpose                       |
+| ---------------------------- | ---------- | ----------------------------- |
+| `setup_test.go`              | 2.3 KB     | Test suite setup and teardown |
+| `kind_cluster.go`            | 3.3 KB     | Kind cluster management       |
+| `helm_installer.go`          | 4.2 KB     | Helm chart installation       |
+| `clients.go`                 | 913 B      | Client initialization         |
+| `test_helpers.go`            | 4.0 KB     | Test utility functions        |
+| `radix_registration_test.go` | 4.4 KB     | RadixRegistration tests       |
+| `example_test.go`            | 2.3 KB     | Example test patterns         |
+| `README.md`                  | 4.1 KB     | Documentation                 |
+| `.gitignore`                 | 179 B      | Git ignore rules              |
+| **Total**                    | **~26 KB** | Complete e2e framework        |
 
 ## Next Steps
 

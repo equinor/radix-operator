@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -65,7 +66,7 @@ func (h *HelmInstaller) InstallRadixOperator(ctx context.Context, config HelmIns
 	// Generate Helm template
 	cmd := exec.CommandContext(ctx, "helm", args...)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", h.KubeConfigPath))
-	
+
 	manifestBytes, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -133,10 +134,31 @@ func (h *HelmInstaller) waitForDeployment(ctx context.Context, name, namespace s
 	return fmt.Errorf("deployment %s not ready after %v", name, timeout)
 }
 
+// getPrometheusOperatorVersion gets the version from build info
+func getPrometheusOperatorVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		// Fallback to a default version if build info is not available
+		return "v0.76.0"
+	}
+
+	for _, dep := range info.Deps {
+		if dep.Path == "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring" {
+			return dep.Version
+		}
+	}
+
+	// Fallback to a default version
+	return "v0.76.0"
+}
+
 // InstallPrometheusOperatorCRDs installs the Prometheus Operator CRDs from GitHub
 func (h *HelmInstaller) InstallPrometheusOperatorCRDs(ctx context.Context) error {
-	const crdURL = "https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.86.1/stripped-down-crds.yaml"
-	
+	version := getPrometheusOperatorVersion()
+	crdURL := fmt.Sprintf("https://github.com/prometheus-operator/prometheus-operator/releases/download/%s/stripped-down-crds.yaml", version)
+
+	fmt.Printf("Installing Prometheus Operator CRDs version %s...\n", version)
+
 	// Apply CRDs using kubectl
 	args := []string{
 		"--kubeconfig", h.KubeConfigPath,
@@ -148,7 +170,7 @@ func (h *HelmInstaller) InstallPrometheusOperatorCRDs(ctx context.Context) error
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to install Prometheus Operator CRDs: %w", err)
+		return fmt.Errorf("failed to install Prometheus Operator CRDs from %s: %w", crdURL, err)
 	}
 
 	return nil

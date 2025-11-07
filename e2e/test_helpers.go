@@ -26,7 +26,7 @@ func NewTestHelpers(clients *Clients) *TestHelpers {
 // WaitForRadixRegistration waits for a RadixRegistration to exist
 func (h *TestHelpers) WaitForRadixRegistration(ctx context.Context, name string, timeout time.Duration) (*v1.RadixRegistration, error) {
 	var rr *v1.RadixRegistration
-	
+
 	err := wait.PollUntilContextTimeout(ctx, 2*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 		var err error
 		rr, err = h.RadixClient.RadixV1().RadixRegistrations().Get(ctx, name, metav1.GetOptions{})
@@ -35,11 +35,11 @@ func (h *TestHelpers) WaitForRadixRegistration(ctx context.Context, name string,
 		}
 		return true, nil
 	})
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("timeout waiting for RadixRegistration %s: %w", name, err)
 	}
-	
+
 	return rr, nil
 }
 
@@ -53,11 +53,11 @@ func (h *TestHelpers) WaitForRadixRegistrationDeleted(ctx context.Context, name 
 		}
 		return false, nil
 	})
-	
+
 	if err != nil {
 		return fmt.Errorf("timeout waiting for RadixRegistration %s to be deleted: %w", name, err)
 	}
-	
+
 	return nil
 }
 
@@ -68,7 +68,7 @@ func (h *TestHelpers) CleanupRadixRegistration(ctx context.Context, name string)
 	if err != nil {
 		return fmt.Errorf("failed to delete RadixRegistration %s: %w", name, err)
 	}
-	
+
 	// Wait for it to be deleted
 	return h.WaitForRadixRegistrationDeleted(ctx, name, 30*time.Second)
 }
@@ -81,12 +81,12 @@ func (h *TestHelpers) CreateRadixRegistration(ctx context.Context, name string, 
 		},
 		Spec: spec,
 	}
-	
+
 	created, err := h.RadixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RadixRegistration %s: %w", name, err)
 	}
-	
+
 	return created, nil
 }
 
