@@ -458,7 +458,6 @@ func TestRadixRegistrationImmutableFields(t *testing.T) {
 		// Create the RadixRegistration
 		err := c.Create(t.Context(), rr)
 		require.NoError(t, err, "Should be able to create RadixRegistration")
-		defer c.Delete(t.Context(), rr)
 
 		// Try to update AppID
 		newAppID := v1.ULID{ULID: ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader)}
@@ -471,6 +470,8 @@ func TestRadixRegistrationImmutableFields(t *testing.T) {
 		if err != nil {
 			t.Logf("Got expected error when trying to change AppID: %v", err)
 		}
+		err = c.Delete(t.Context(), rr)
+		require.NoError(t, err)
 	})
 
 	t.Run("Creator is immutable", func(t *testing.T) {
@@ -491,7 +492,6 @@ func TestRadixRegistrationImmutableFields(t *testing.T) {
 		// Create the RadixRegistration
 		err := c.Create(t.Context(), rr)
 		require.NoError(t, err, "Should be able to create RadixRegistration")
-		defer c.Delete(t.Context(), rr)
 
 		// Try to update Creator
 		rr.Spec.Creator = "new@creator.com"
@@ -502,6 +502,8 @@ func TestRadixRegistrationImmutableFields(t *testing.T) {
 		if err != nil {
 			t.Logf("Got expected error when trying to change Creator: %v", err)
 		}
+		err = c.Delete(t.Context(), rr)
+		require.NoError(t, err)
 	})
 
 	t.Run("Mutable fields can be updated", func(t *testing.T) {
@@ -522,7 +524,6 @@ func TestRadixRegistrationImmutableFields(t *testing.T) {
 		// Create the RadixRegistration
 		err := c.Create(t.Context(), rr)
 		require.NoError(t, err, "Should be able to create RadixRegistration")
-		defer c.Delete(t.Context(), rr)
 
 		// Update mutable fields
 		rr.Spec.Owner = "new@owner.com"
@@ -536,6 +537,9 @@ func TestRadixRegistrationImmutableFields(t *testing.T) {
 		if err == nil {
 			t.Log("Successfully updated mutable fields")
 		}
+
+		err = c.Delete(t.Context(), rr)
+		require.NoError(t, err)
 	})
 }
 
@@ -562,7 +566,6 @@ func TestRadixRegistrationUniqueAppID(t *testing.T) {
 
 		err := c.Create(t.Context(), rr1)
 		require.NoError(t, err, "Should be able to create first RadixRegistration")
-		defer c.Delete(t.Context(), rr1)
 
 		// Try to create second RadixRegistration with same AppID
 		rr2 := &v1.RadixRegistration{
@@ -585,6 +588,8 @@ func TestRadixRegistrationUniqueAppID(t *testing.T) {
 		if err != nil {
 			t.Logf("Got expected error when trying to create duplicate AppID: %v", err)
 		}
+		err = c.Delete(t.Context(), rr1)
+		require.NoError(t, err)
 	})
 
 	t.Run("Empty AppID is allowed and not checked for uniqueness", func(t *testing.T) {
@@ -603,7 +608,6 @@ func TestRadixRegistrationUniqueAppID(t *testing.T) {
 
 		err := c.Create(t.Context(), rr1)
 		require.NoError(t, err, "Should be able to create RadixRegistration without AppID")
-		defer c.Delete(t.Context(), rr1)
 
 		rr2 := &v1.RadixRegistration{
 			ObjectMeta: metav1.ObjectMeta{
@@ -620,10 +624,11 @@ func TestRadixRegistrationUniqueAppID(t *testing.T) {
 		err = c.Create(t.Context(), rr2)
 
 		// Should succeed because empty AppID is not checked for uniqueness
-		assert.NoError(t, err, "Should allow multiple RadixRegistrations without AppID")
-		if err == nil {
-			defer c.Delete(t.Context(), rr2)
-			t.Log("Successfully created multiple RadixRegistrations without AppID")
-		}
+		require.NoError(t, err, "Should allow multiple RadixRegistrations without AppID")
+		err = c.Delete(t.Context(), rr2)
+		require.NoError(t, err)
+		err = c.Delete(t.Context(), rr1)
+		require.NoError(t, err)
+		t.Log("Successfully created multiple RadixRegistrations without AppID")
 	})
 }
