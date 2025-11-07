@@ -47,10 +47,10 @@ func NewKindCluster(ctx context.Context, config KindClusterConfig) (*KindCluster
 	}
 
 	// Wait for cluster to be ready
-	// if err := cluster.waitForReady(ctx); err != nil {
-	// 	_ = cluster.Delete(ctx)
-	// 	return nil, fmt.Errorf("cluster not ready: %w", err)
-	// }
+	if err := cluster.waitForReady(ctx); err != nil {
+		_ = cluster.Delete(ctx)
+		return nil, fmt.Errorf("cluster not ready: %w", err)
+	}
 
 	return cluster, nil
 }

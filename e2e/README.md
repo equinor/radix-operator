@@ -22,6 +22,13 @@ Before running the e2e tests, ensure you have the following tools installed:
 
 ## Running the Tests
 
+### Se what is going on:
+
+```bash
+kind export kubeconfig --name radix-operator-e2e
+kubectl get pods -Aw
+```
+
 ### Run all e2e tests
 
 ```bash
@@ -168,13 +175,6 @@ kind delete cluster --name radix-operator-e2e
 The Helm chart should install CRDs automatically. If tests fail due to missing CRDs, verify:
 ```bash
 kubectl --kubeconfig /tmp/kind-kubeconfig-*/kubeconfig get crds
-```
-
-### Webhook not responding
-
-Check if the webhook pod is running:
-```bash
-kubectl --kubeconfig /tmp/kind-kubeconfig-*/kubeconfig get pods -A
 ```
 
 ## Cleanup

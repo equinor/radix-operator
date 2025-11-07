@@ -33,14 +33,13 @@ var (
 
 // TestMain is the entry point for e2e tests
 func TestMain(m *testing.M) {
-	var err error
 
 	// Create a context with timeout for the entire test suite
 	testContext, testCancel = context.WithTimeout(context.Background(), 30*time.Minute)
 	defer testCancel()
 
 	// Create Kind cluster
-	testCluster, err = internal.NewKindCluster(testContext, internal.KindClusterConfig{
+	testCluster, err := internal.NewKindCluster(testContext, internal.KindClusterConfig{
 		Name:       "radix-operator-e2e",
 		KubeConfig: "",
 	})
@@ -64,32 +63,23 @@ func TestMain(m *testing.M) {
 	logrLogger := initLogr(logger)
 
 	// Create manager
-	testManager, err = manager.New(kubeConfig, manager.Options{
+	if testManager, err = manager.New(kubeConfig, manager.Options{
 		Scheme: scheme,
 		Logger: logrLogger,
-	})
-	if err != nil {
+	}); err != nil {
 		panic("failed to create manager: " + err.Error())
 	}
 
 	// Install Prometheus Operator CRDs first
-	helmInstaller := internal.NewHelmInstaller(testCluster.KubeConfigPath)
-	err = helmInstaller.InstallPrometheusOperatorCRDs(testContext)
-	if err != nil {
+	if err = internal.InstallPrometheusOperatorCRDs(testContext, testCluster.KubeConfigPath); err != nil {
 		panic("failed to install Prometheus Operator CRDs: " + err.Error())
 	}
 
 	// Install Helm chart
-	err = helmInstaller.InstallRadixOperator(testContext, internal.HelmInstallConfig{
-		ChartPath:   "../charts/radix-operator",
-		ReleaseName: "radix-operator",
-		Namespace:   "default",
-		Values: map[string]string{
-			"rbac.createApp.groups[0]": "123",
-			"radixWebhook.enabled":     "true",
-		},
-	})
-	if err != nil {
+	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "default", "radix-operator", "../charts/radix-operator", map[string]string{
+		"rbac.createApp.groups[0]": "123",
+		"radixWebhook.enabled":     "true",
+	}); err != nil {
 		panic("failed to install helm chart: " + err.Error())
 	}
 
