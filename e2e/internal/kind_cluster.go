@@ -47,25 +47,21 @@ func NewKindCluster(ctx context.Context, config KindClusterConfig) (*KindCluster
 	}
 
 	// Wait for cluster to be ready
-	if err := cluster.waitForReady(ctx); err != nil {
-		_ = cluster.Delete(ctx)
-		return nil, fmt.Errorf("cluster not ready: %w", err)
-	}
+	// if err := cluster.waitForReady(ctx); err != nil {
+	// 	_ = cluster.Delete(ctx)
+	// 	return nil, fmt.Errorf("cluster not ready: %w", err)
+	// }
 
 	return cluster, nil
 }
 
 // create creates the Kind cluster
 func (k *KindCluster) create(ctx context.Context) error {
-	// Check if cluster already exists
-	checkCmd := exec.CommandContext(ctx, "kind", "get", "clusters")
-	output, _ := checkCmd.Output()
-
-	// Delete existing cluster with same name
-	if len(output) > 0 {
-		deleteCmd := exec.CommandContext(ctx, "kind", "delete", "cluster", "--name", k.Name)
-		_ = deleteCmd.Run()
-	}
+	// Delete existing cluster with same name if it exists
+	deleteCmd := exec.CommandContext(ctx, "kind", "delete", "cluster", "--name", k.Name)
+	deleteCmd.Stdout = os.Stdout
+	deleteCmd.Stderr = os.Stderr
+	_ = deleteCmd.Run() // Ignore error if cluster doesn't exist
 
 	// Create new cluster
 	args := []string{

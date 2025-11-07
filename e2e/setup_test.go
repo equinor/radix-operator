@@ -48,13 +48,6 @@ func TestMain(m *testing.M) {
 		panic("failed to create kind cluster: " + err.Error())
 	}
 
-	// Ensure cleanup
-	defer func() {
-		if testCluster != nil {
-			_ = testCluster.Delete(context.Background())
-		}
-	}()
-
 	// Get kubeconfig
 	kubeConfig, err = testCluster.GetKubeConfig()
 	if err != nil {
@@ -119,6 +112,11 @@ func TestMain(m *testing.M) {
 
 	// Run tests
 	code := m.Run()
+
+	// Cleanup cluster
+	if testCluster != nil {
+		_ = testCluster.Delete(context.Background())
+	}
 
 	os.Exit(code)
 }
