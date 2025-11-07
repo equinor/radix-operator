@@ -227,6 +227,7 @@ radixWebhook:
     console: radix-web-console
     cost-api: radix-cost-allocation-api
     webhook: radix-github-webhook
+
   reservedDNSAliases:
     - grafana
     - prometheus
