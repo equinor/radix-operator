@@ -65,7 +65,8 @@ The e2e test suite consists of several components:
 Infrastructure and helper code used by tests:
 
 - **`kind_cluster.go`**: Kind cluster lifecycle management
-- **`helm_installer.go`**: Helm chart installation with Prometheus Operator CRD setup
+- **`helm_installer.go`**: Helm chart installation
+- **`prometheus_installer.go`**: Prometheus Operator CRD setup
 - **`clients.go`**: Kubernetes and Radix client initialization
 - **`test_helpers.go`**: Utility functions for test assertions and resource management
 
