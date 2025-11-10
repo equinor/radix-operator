@@ -85,7 +85,7 @@ func (ra *RadixApplication) GetEnvironmentByName(name string) (Environment, bool
 }
 
 // RadixApplicationSpec is the specification for an application.
-// +kubebuilder:validation:XValidation:rule="self.jobs.all(j, !(j.name in self.components.map(c, c.name)))",message="component and job names must be unique across both lists"
+// +kubebuilder:validation:XValidation:rule="!has(self.jobs) || self.jobs.all(j, !(j.name in self.components.map(c, c.name)))",message="component and job names must be unique across both lists"
 type RadixApplicationSpec struct {
 	// Build contains configuration used by pipeline jobs.
 	// More info: https://www.radix.equinor.com/radix-config#build

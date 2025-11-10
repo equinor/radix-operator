@@ -50,6 +50,7 @@ var (
 	ErrEnvironmentReferencedByComponentDoesNotExist                  = errors.New("environment referenced by component is not defined in spec.environments")
 	ErrInvalidNumberOfReplicas                                       = errors.New("number of replicas is invalid, must be positive and less than 64")
 	WarnComponentWithDynamicTagRequiresImageTag                      = "component with image tag set on environment config requires dynamic tag on image setting"
+	WarnMemoryResourceBelowRecommendedMinimum                        = "memory resource below recommended minimum of 20M"
 	ErrMemoryResourceRequirementFormat                               = errors.New("memory resource requirement format")
 	ErrCPUResourceRequirementFormat                                  = errors.New("cpu resource requirement format")
 	ErrInvalidResourceType                                           = errors.New("invalid resource type")

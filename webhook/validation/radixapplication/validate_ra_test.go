@@ -575,6 +575,17 @@ func Test_RA_WithWarnings(t *testing.T) {
 			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
 			ra.Spec.Jobs[0].EnvironmentConfig[0].ImageTagName = "any-tag"
 		}},
+		{"component memory limit below minimum", radixapplication.WarnMemoryResourceBelowRecommendedMinimum, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "10M"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "10M"
+		}},
+		{"component memory request below minimum", radixapplication.WarnMemoryResourceBelowRecommendedMinimum, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "15M"
+		}},
+		{"job memory limit below minimum", radixapplication.WarnMemoryResourceBelowRecommendedMinimum, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "10M"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "10M"
+		}},
 	}
 	client := createClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
@@ -651,6 +662,10 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 		{"common resource limit correct format: 50Mi", func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Limits["memory"] = "50Mi"
 			ra.Spec.Components[0].Resources.Requests["memory"] = "50Mi"
+		}},
+		{"memory limit at minimum threshold 20M produces no warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "20M"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "20M"
 		}},
 	}
 

@@ -4970,7 +4970,7 @@
       "x-kubernetes-validations": [
         {
           "message": "component and job names must be unique across both lists",
-          "rule": "self.jobs.all(j, !(j.name in self.components.map(c, c.name)))"
+          "rule": "!has(self.jobs) || self.jobs.all(j, !(j.name in self.components.map(c, c.name)))"
         }
       ]
     }

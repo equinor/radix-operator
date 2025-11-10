@@ -152,8 +152,14 @@ func jobValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string,
 		}
 
 		// Common resource requirements
-		if err := validateResourceRequirements(job.Resources); err != nil {
+		wrn, err := validateResourceRequirements(job.Resources)
+		if err != nil {
 			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+		}
+		if len(wrn) > 0 {
+			for _, w := range wrn {
+				wrns = append(wrns, fmt.Sprintf("job %s: %s", job.Name, w))
+			}
 		}
 
 		if err := validateMonitoring(&job); err != nil {
@@ -190,8 +196,14 @@ func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.
 		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, ErrEnvironmentReferencedByComponentDoesNotExist))
 	}
 
-	if err := validateResourceRequirements(environment.Resources); err != nil {
+	wrn, err := validateResourceRequirements(environment.Resources)
+	if err != nil {
 		errs = append(errs, fmt.Errorf("job %s in environment %s: %w", job.Name, environment.Environment, err))
+	}
+	if len(wrn) > 0 {
+		for _, w := range wrn {
+			wrns = append(wrns, fmt.Sprintf("job %s in environment %s: %s", job.Name, environment.Environment, w))
+		}
 	}
 
 	if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, job.Image) {
@@ -227,8 +239,14 @@ func componentValidator(ctx context.Context, app *radixv1.RadixApplication) ([]s
 		}
 
 		// Common resource requirements
-		if err := validateResourceRequirements(component.GetResources()); err != nil {
+		wrn, err := validateResourceRequirements(component.GetResources())
+		if err != nil {
 			errs = append(errs, fmt.Errorf("component %s: %w", component.Name, err))
+		}
+		if len(wrn) > 0 {
+			for _, w := range wrn {
+				wrns = append(wrns, fmt.Sprintf("component %s: %s", component.Name, w))
+			}
 		}
 
 		if err := validateMonitoring(&component); err != nil {
@@ -275,8 +293,14 @@ func validateComponentEnvironment(app *radixv1.RadixApplication, component radix
 		errs = append(errs, fmt.Errorf("component %s environment %s replicas is invalid: %w", component.Name, environment.Environment, err))
 	}
 
-	if err := validateResourceRequirements(environment.Resources); err != nil {
+	wrn, err := validateResourceRequirements(environment.Resources)
+	if err != nil {
 		errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, environment.Environment, err))
+	}
+	if len(wrn) > 0 {
+		for _, w := range wrn {
+			wrns = append(wrns, fmt.Sprintf("component %s in environment %s: %s", component.Name, environment.Environment, w))
+		}
 	}
 
 	if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, component.Image) {
@@ -588,8 +612,9 @@ func getComponentPort(radixComponent radixv1.RadixCommonComponent, port string) 
 	return nil
 }
 
-func validateResourceRequirements(resources radixv1.ResourceRequirements) error {
+func validateResourceRequirements(resources radixv1.ResourceRequirements) ([]string, error) {
 	var errs []error
+	var wrns []string
 	limitQuantities := make(map[string]resource.Quantity)
 	for name, value := range resources.Limits {
 		if len(value) > 0 {
@@ -597,8 +622,8 @@ func validateResourceRequirements(resources radixv1.ResourceRequirements) error 
 			if err != nil {
 				errs = append(errs, fmt.Errorf("invalid limit resource %s quantity %s: %w", name, value, ErrInvalidResourceFormat))
 			}
-			if name == "memory" && q.Cmp(resource.MustParse("20Mi")) == -1 {
-				errs = append(errs, fmt.Errorf("memory limit %s must be over 20Mb: %w", value, ErrMemoryResourceRequirementFormat))
+			if name == "memory" && q.Cmp(minimumMemoryRequirement) == -1 {
+				wrns = append(wrns, fmt.Sprintf("memory limit %s %s", value, WarnMemoryResourceBelowRecommendedMinimum))
 			}
 			if name == "cpu" && q.Cmp(resource.MustParse("1k")) == 1 {
 				errs = append(errs, fmt.Errorf("cpu limit %s is invalid, check node type for available core count: %w", value, ErrCPUResourceRequirementFormat))
@@ -619,7 +644,7 @@ func validateResourceRequirements(resources radixv1.ResourceRequirements) error 
 		}
 
 		if name == "memory" && q.Cmp(minimumMemoryRequirement) == -1 {
-			errs = append(errs, fmt.Errorf("memory request %s must be over 20Mb: %w", value, ErrMemoryResourceRequirementFormat))
+			wrns = append(wrns, fmt.Sprintf("memory request %s %s", value, WarnMemoryResourceBelowRecommendedMinimum))
 		}
 		if name == "cpu" && q.Cmp(resource.MustParse("1k")) == 1 {
 			errs = append(errs, fmt.Errorf("cpu request %s is invalid, check node type for available core count: %w", value, ErrCPUResourceRequirementFormat))
@@ -629,5 +654,5 @@ func validateResourceRequirements(resources radixv1.ResourceRequirements) error 
 		}
 	}
 
-	return errors.Join(errs...)
+	return wrns, errors.Join(errs...)
 }
