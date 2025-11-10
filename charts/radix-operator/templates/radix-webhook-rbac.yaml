@@ -16,7 +16,7 @@ metadata:
     {{- include "radix-webhook.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["radix.equinor.com"]
-    resources: ["radixregistrations"]
+    resources: ["radixregistrations", "radixdnsaliases"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["admissionregistration.k8s.io"]
     resources: ["validatingwebhookconfigurations"]

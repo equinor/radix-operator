@@ -12,8 +12,8 @@ spec:
     - name: app
       src: .
       ports:
-       - name: http
-         port: 8080
+        - name: http
+          port: 8080
       publicPort: http
       authentication:
         clientCertificate:
@@ -93,10 +93,12 @@ spec:
             azure:
               clientId: 11111111-2222-3333-4444-555555555555
           volumeMounts:
-            - type: azure-blob
-              name: blobvol
+            - name: emptydirvol
               storage: blobcontainer
               path: /path/to/mount
+              emptyDir:
+                sizeLimit: "1Gi"
+
           runtime:
             architecture: amd64
           network:
@@ -135,8 +137,8 @@ spec:
     - name: app2
       src: .
       ports:
-      - name: http
-        port: 8080
+        - name: http
+          port: 8080
       publicPort: http
     - name: compimg1
       image: img:{imageTagName}
@@ -182,11 +184,11 @@ spec:
           - action: FailJob
             onExitCodes:
               operator: In
-              values: [1,2]
+              values: [1, 2]
           - action: FailJob
             onExitCodes:
               operator: NotIn
-              values: [0,1]
+              values: [0, 1]
       environmentConfig:
         - environment: dev
           variables:
@@ -202,10 +204,11 @@ spec:
             azure:
               clientId: 11111111-2222-3333-4444-555555555555
           volumeMounts:
-            - type: azure-blob
-              name: blobvol
+            - name: emptydirvol
               storage: blobcontainer
               path: /path/to/mount
+              emptyDir:
+                sizeLimit: "1Gi"
           runtime:
             architecture: amd64
           failurePolicy:
@@ -213,11 +216,11 @@ spec:
               - action: FailJob
                 onExitCodes:
                   operator: In
-                  values: [1,2]
+                  values: [1, 2]
               - action: FailJob
                 onExitCodes:
                   operator: NotIn
-                  values: [0,1]
+                  values: [0, 1]
     - name: job2
       src: job2/
       schedulerPort: 8888
@@ -242,6 +245,6 @@ spec:
     environment: prod
     component: app
   dnsAlias:
-  - environment: prod
-    component: app2
-    alias: my-alias
+    - environment: prod
+      component: app2
+      alias: my-alias

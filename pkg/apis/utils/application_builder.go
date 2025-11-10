@@ -3,7 +3,6 @@ package utils
 import (
 	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -268,7 +267,7 @@ func ARadixApplication() ApplicationBuilder {
 		WithComponent(AnApplicationComponent().WithPort("http", 8080).WithPublicPort("http")).
 		WithJobComponent(
 			AnApplicationJobComponent().
-				WithSchedulerPort(numbers.Int32Ptr(8888)),
+				WithSchedulerPort(8888),
 		)
 
 	return builder

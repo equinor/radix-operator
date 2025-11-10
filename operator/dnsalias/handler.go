@@ -5,7 +5,6 @@ import (
 
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
-	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -24,7 +23,7 @@ type handler struct {
 	radixClient          radixclient.Interface
 	syncerFactory        internal.SyncerFactory
 	events               common.SyncEventRecorder
-	dnsConfig            *dnsalias2.DNSConfig
+	dnsZone              string
 	ingressConfiguration ingress.IngressConfiguration
 	oauth2DefaultConfig  defaults.OAuth2Config
 }
@@ -35,7 +34,7 @@ func NewHandler(
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
 	eventRecorder record.EventRecorder,
-	dnsConfig *dnsalias2.DNSConfig,
+	dnsZone string,
 	options ...HandlerConfigOption) common.Handler {
 
 	h := &handler{
@@ -44,7 +43,7 @@ func NewHandler(
 		radixClient:   radixClient,
 		syncerFactory: internal.SyncerFactoryFunc(dnsalias.NewSyncer),
 		events:        common.NewSyncEventRecorder(eventRecorder),
-		dnsConfig:     dnsConfig,
+		dnsZone:       dnsZone,
 	}
 
 	for _, option := range options {
@@ -91,7 +90,7 @@ func (h *handler) Sync(ctx context.Context, _, name string) error {
 
 	syncingAlias := radixDNSAlias.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)
-	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsConfig, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
+	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsZone, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		h.events.RecordSyncErrorEvent(syncingAlias, err)

@@ -31,7 +31,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
@@ -514,8 +513,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			appName := "edcradix"
 			jobName := "job"
 			jobName2 := "job2"
-			schedulerPortCreate := int32(8000)
-			schedulerPortUpdate := int32(9000)
 			outdatedSecret := "outdatedSecret"
 			remainingSecret := "remainingSecret"
 			addingSecret := "addingSecret"
@@ -544,7 +541,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 								"memory": "129Mi",
 								"cpu":    "501m",
 							}).
-							WithSchedulerPort(&schedulerPortUpdate).
+							WithSchedulerPort(9000).
 							WithPayloadPath(&payloadPath).
 							WithSecrets([]string{remainingSecret, addingSecret}).
 							WithAlwaysPullImageOnDeploy(false).
@@ -583,13 +580,13 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 									Storage: "some-storage",
 									Path:    "some-path",
 								}).
-							WithSchedulerPort(&schedulerPortCreate).
+							WithSchedulerPort(8000).
 							WithPayloadPath(&payloadPath).
 							WithSecrets([]string{outdatedSecret, remainingSecret}).
 							WithAlwaysPullImageOnDeploy(false).
 							WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
 						utils.NewDeployJobComponentBuilder().
-							WithName(jobName2).WithSchedulerPort(&schedulerPortCreate).WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
+							WithName(jobName2).WithSchedulerPort(8000).WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
 					).
 					WithComponents()
 
@@ -640,9 +637,9 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, jobName, deployments))
 
 				if jobsExist {
-					assert.Equal(t, "("+fmt.Sprint(schedulerPortUpdate)+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, jobName, deployments))
+					assert.Equal(t, "("+fmt.Sprint(9000)+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, jobName, deployments))
 				} else {
-					assert.Equal(t, "("+fmt.Sprint(schedulerPortCreate)+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, jobName, deployments))
+					assert.Equal(t, "("+fmt.Sprint(8000)+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, jobName, deployments))
 				}
 
 				if jobsExist {
@@ -3332,7 +3329,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 		WithJobComponents(
 			utils.NewDeployJobComponentBuilder().
 				WithName("job").
-				WithSchedulerPort(numbers.Int32Ptr(8080))))
+				WithSchedulerPort(8080)))
 	require.NoError(t, err)
 
 	deployments, _ := kubeclient.AppsV1().Deployments("app-env").List(context.Background(), metav1.ListOptions{})
@@ -3355,7 +3352,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 		WithJobComponents(
 			utils.NewDeployJobComponentBuilder().
 				WithName("job").
-				WithSchedulerPort(numbers.Int32Ptr(9090))))
+				WithSchedulerPort(9090)))
 	require.NoError(t, err)
 
 	deployments, _ = kubeclient.AppsV1().Deployments("app-env").List(context.Background(), metav1.ListOptions{})

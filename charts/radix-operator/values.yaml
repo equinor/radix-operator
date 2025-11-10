@@ -12,20 +12,6 @@ alertControllerThreads: 1
 kubeClientRateLimitBurst: 5
 kubeClientRateLimitQPS: 5
 
-reservedAppDNSAlias:
-  api: radix-api
-  canary: radix-canary-golang
-  console: radix-web-console
-  cost-api: radix-cost-allocation-api
-  webhook: radix-github-webhook
-reservedDNSAlias:
-  - grafana
-  - prometheus
-  - www
-  - app
-  - playground
-  - dev
-
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
@@ -212,7 +198,7 @@ radixPipelineRunner:
     tag: ""
 
 radixImageBuilder:
-  image: 
+  image:
     repository: ghcr.io/equinor/radix/image-builder
     tag: latest
 
@@ -228,14 +214,29 @@ radixJobScheduler:
     tag: ""
 
 radixWebhook:
-  enabled: false
+  enabled: true
 
   logLevel: info
   logPretty: false
   requireAdGroups: true
   requireConfigurationItem: true
 
-  image: 
+  reservedAppDNSAliases:
+    api: radix-api
+    canary: radix-canary-golang
+    console: radix-web-console
+    cost-api: radix-cost-allocation-api
+    webhook: radix-github-webhook
+
+  reservedDNSAliases:
+    - grafana
+    - prometheus
+    - www
+    - app
+    - playground
+    - dev
+
+  image:
     repository: ghcr.io/equinor/radix/webhook
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""

@@ -11,11 +11,33 @@ webhooks:
     service:
       name: radix-webhook
       namespace: {{ .Release.Namespace }}
+      path: /radix/v1/radixapplication/validation
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: radixapplication.validate.radix.equinor.com
+  rules:
+  - apiGroups:
+    - radix.equinor.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - radixapplications
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: radix-webhook
+      namespace: {{ .Release.Namespace }}
       path: /radix/v1/radixregistration/validation
       port: 443
   failurePolicy: Fail
   matchPolicy: Equivalent
-  name: validate.radix.equinor.com
+  name: radixregistration.validate.radix.equinor.com
   rules:
   - apiGroups:
     - radix.equinor.com
