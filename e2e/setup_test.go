@@ -48,6 +48,14 @@ func TestMain(m *testing.M) {
 		panic("failed to get kubeconfig: " + err.Error())
 	}
 
+	// Generate image tag and build images
+	imageTag := internal.GenerateImageTag()
+	println("Building images with tag:", imageTag)
+
+	if err = internal.BuildAndLoadImages(testContext, testCluster.Name, imageTag); err != nil {
+		panic("failed to build and load images: " + err.Error())
+	}
+
 	// Create scheme with all required types
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -70,11 +78,19 @@ func TestMain(m *testing.M) {
 		panic("failed to install Prometheus Operator CRDs: " + err.Error())
 	}
 
-	// Install Helm chart
-	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "default", "radix-operator", "../charts/radix-operator", map[string]string{
+	// Prepare Helm values with custom image tags
+	helmValues := map[string]string{
 		"rbac.createApp.groups[0]": "123",
 		"radixWebhook.enabled":     "true",
-	}); err != nil {
+	}
+
+	// Add custom image values
+	for key, value := range internal.GetImageValues(imageTag) {
+		helmValues[key] = value
+	}
+
+	// Install Helm chart with custom image tags
+	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "default", "radix-operator", "../charts/radix-operator", helmValues); err != nil {
 		panic("failed to install helm chart: " + err.Error())
 	}
 
@@ -99,9 +115,9 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Cleanup cluster
-	if testCluster != nil {
-		_ = testCluster.Delete(context.Background())
-	}
+	// if testCluster != nil {
+	// 	_ = testCluster.Delete(context.Background())
+	// }
 
 	os.Exit(code)
 }

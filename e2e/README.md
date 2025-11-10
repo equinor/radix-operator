@@ -1,6 +1,13 @@
 # End-to-End Testing for Radix Operator
 
-This directory contains end-to-end (e2e) integration tests for the Radix Operator. These tests create a Kind cluster, install the Helm chart, and run integration tests against it.
+This directory contains end-to-end (e2e) integration tests for the Radix Operator. These tests create a Kind cluster, build and load Docker images, install the Helm chart, and run integration tests against it.
+
+## Features
+
+- **Automated Image Building**: Builds `radix-operator`, `radix-webhook`, and `radix-job-scheduler` images with unique tags
+- **Image Loading**: Automatically loads built images into the Kind cluster
+- **Custom Image Tags**: Uses dynamically generated tags (e.g., `e2e-20241110-150405-abc1234`) for each test run
+- **Helm Integration**: Installs the Helm chart with custom image tags
 
 ## Prerequisites
 
@@ -22,7 +29,7 @@ Before running the e2e tests, ensure you have the following tools installed:
 
 ## Running the Tests
 
-### See what is going on:
+### Se what is going on:
 
 ```bash
 kind export kubeconfig --name radix-operator-e2e
@@ -65,22 +72,23 @@ The e2e test suite consists of several components:
 Infrastructure and helper code used by tests:
 
 - **`kind_cluster.go`**: Kind cluster lifecycle management
-- **`helm_installer.go`**: Helm chart installation
-- **`prometheus_installer.go`**: Prometheus Operator CRD setup
-- **`clients.go`**: Kubernetes and Radix client initialization
-- **`test_helpers.go`**: Utility functions for test assertions and resource management
+- **`helm_installer.go`**: Helm chart installation with Prometheus Operator CRD setup
+- **`image_builder.go`**: Docker image building and loading into Kind
+- **`prometheus_installer.go`**: Prometheus Operator CRD installation
 
 ## Test Flow
 
 1. **Setup** (`TestMain`):
    - Creates a Kind cluster named `radix-operator-e2e`
    - Generates a temporary kubeconfig
+   - **Builds Docker images** for operator, webhook, and job-scheduler with unique tags (e.g., `e2e-20241110-150405-abc1234`)
+   - **Loads images** into the Kind cluster
    - Installs Prometheus Operator CRDs (required for ServiceMonitor resources)
-   - Installs the radix-operator Helm chart with test configuration
+   - Installs the radix-operator Helm chart with custom image tags
    - Initializes Kubernetes and Radix clients
 
 2. **Test Execution**:
-   - Each test runs against the shared Kind cluster
+   - Each test runs against the shared Kind cluster using the locally built images
    - Tests validate webhook behavior, CRUD operations, and resource state
 
 3. **Teardown** (`TestMain`):
@@ -112,6 +120,36 @@ rbac:
 ```
 
 This is set via: `--set "rbac.createApp.groups[0]=123"`
+
+### Image Building and Tagging
+
+The test suite automatically builds and loads Docker images into the Kind cluster:
+
+1. **Tag Generation**: Each test run generates a unique tag using the format `e2e-{timestamp}-{git-hash}`
+   - Example: `e2e-20241110-150405-abc1234`
+   
+2. **Images Built**:
+   - `ghcr.io/equinor/radix/radix-operator:{tag}`
+   - `ghcr.io/equinor/radix/webhook:{tag}`
+   - `ghcr.io/equinor/radix/job-scheduler:{tag}`
+
+3. **Helm Configuration**: The custom image tags are automatically set in the Helm values:
+   ```yaml
+   radixOperator:
+     image:
+       repository: ghcr.io/equinor/radix/radix-operator
+       tag: e2e-20241110-150405-abc1234
+   radixWebhook:
+     image:
+       repository: ghcr.io/equinor/radix/webhook
+       tag: e2e-20241110-150405-abc1234
+   jobScheduler:
+     image:
+       repository: ghcr.io/equinor/radix/job-scheduler
+       tag: e2e-20241110-150405-abc1234
+   ```
+
+This ensures tests always run against the latest local code changes.
 
 ## Writing New Tests
 
