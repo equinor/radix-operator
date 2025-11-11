@@ -115,9 +115,9 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Cleanup cluster
-	// if testCluster != nil {
-	// 	_ = testCluster.Delete(context.Background())
-	// }
+	if testCluster != nil {
+		_ = testCluster.Delete(context.Background())
+	}
 
 	os.Exit(code)
 }
