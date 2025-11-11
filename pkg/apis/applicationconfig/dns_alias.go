@@ -51,7 +51,7 @@ func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*ra
 	for _, dnsAlias := range app.config.Spec.DNSAlias {
 		if existingAlias, exists := existingAliases[dnsAlias.Alias]; exists {
 			if existingAlias.Spec.AppName != appName {
-				errs = append(errs, fmt.Errorf("DNS Alias %s of the application %s is used by another application", appName, dnsAlias.Alias))
+				errs = append(errs, fmt.Errorf("failed to process dns alias %s: %w", dnsAlias.Alias, ErrDNSAliasUsedByOtherApplication))
 				continue
 			}
 			if existingAlias.Spec.Environment == dnsAlias.Environment {

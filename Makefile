@@ -154,7 +154,7 @@ code-gen: bootstrap
 	./hack/update-codegen.sh
 
 .PHONY: helmresources
-helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixwebhook delete-temp-resources
+helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixalert-crd radixwebhook delete-temp-resources
 
 .PHONY: radixregistration-crd
 radixregistration-crd: temp-resources
@@ -176,6 +176,10 @@ radixdeployment-crd: temp-resources
 .PHONY: radixdnsalias-crd
 radixdnsalias-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdnsaliases.yaml $(CRD_CHART_DIR)radixdnsalias.yaml
+
+.PHONY: radixalert-crd
+radixalert-crd: temp-resources
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixalerts.yaml $(CRD_CHART_DIR)radixalert.yaml
 
 .PHONY: radixwebhook
 radixwebhook: temp-resources

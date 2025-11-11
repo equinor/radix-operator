@@ -2,10 +2,10 @@ package applicationconfig_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -312,7 +312,7 @@ func Test_DNSAliases_ValidDNSAliases(t *testing.T) {
 			existingRadixDNSAliases: map[string]commonTest.DNSAlias{
 				alias1: {AppName: appName2, Environment: env1, Component: component1},
 			},
-			expectedError: errors.New("failed to process DNS aliases: DNS Alias any-app1 of the application alias1 is used by another application"),
+			expectedError: applicationconfig.ErrDNSAliasUsedByOtherApplication,
 		},
 		{
 			name: "exist aliases with same component and port, no error",
@@ -356,14 +356,12 @@ func Test_DNSAliases_ValidDNSAliases(t *testing.T) {
 	for _, ts := range testScenarios {
 		t.Run(ts.name, func(t *testing.T) {
 			tu, kubeClient, kubeUtil, radixClient := setupTest(t)
-
 			require.NoError(t, commonTest.RegisterRadixDNSAliases(context.Background(), radixClient, ts.existingRadixDNSAliases), "create existing RadixDNSAlias")
 			err := applyApplicationWithSync(tu, kubeClient, kubeUtil, radixClient, ts.applicationBuilder)
 			if ts.expectedError != nil {
-				require.Error(t, err)
-				require.EqualError(t, err, ts.expectedError.Error())
+				assert.ErrorIs(t, err, ts.expectedError)
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 		})
 	}

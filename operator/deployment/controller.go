@@ -61,7 +61,7 @@ func NewController(ctx context.Context,
 				return
 			}
 
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
@@ -83,7 +83,7 @@ func NewController(ctx context.Context,
 			if oldRD.Status.Condition != v1.DeploymentActive && newRD.Status.Condition == v1.DeploymentActive {
 				metrics.RadixDeploymentActivated(ctx, newRD)
 			}
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixDeployment informer UpdateFunc")
 			}
 			metrics.CustomResourceUpdated(crType)
@@ -155,7 +155,7 @@ func NewController(ctx context.Context,
 				for _, rd := range rds.Items {
 					if !deployment.IsRadixDeploymentInactive(&rd) {
 						obj := &rd
-						if _, err := controller.Enqueue(obj); err != nil {
+						if err := controller.Enqueue(obj); err != nil {
 							logger.Error().Str("rd", rd.Name).Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
 						}
 					}
