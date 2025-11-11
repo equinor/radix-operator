@@ -163,7 +163,7 @@ radixregistration-crd: temp-resources
 .PHONY: radixapplication-crd
 radixapplication-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixapplications.yaml $(CRD_CHART_DIR)radixapplication.yaml
-	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml > $(JSON_SCHEMA_DIR)radixapplication.json
+	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml | jq 'del(.properties.status)' > $(JSON_SCHEMA_DIR)radixapplication.json
 
 .PHONY: radixbatch-crd
 radixbatch-crd: temp-resources

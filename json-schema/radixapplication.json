@@ -4897,30 +4897,6 @@
         "environments"
       ],
       "type": "object"
-    },
-    "status": {
-      "description": "Status is the observed state of the RadixApplication",
-      "properties": {
-        "message": {
-          "description": "Message provides additional information about the reconciliation state, typically error details when reconciliation fails",
-          "type": "string"
-        },
-        "observedGeneration": {
-          "description": "ObservedGeneration is the generation observed by the controller",
-          "format": "int64",
-          "type": "integer"
-        },
-        "reconcileStatus": {
-          "description": "ReconcileStatus indicates whether the last reconciliation succeeded or failed",
-          "type": "string"
-        },
-        "reconciled": {
-          "description": "Reconciled is the timestamp of the last successful reconciliation",
-          "format": "date-time",
-          "type": "string"
-        }
-      },
-      "type": "object"
     }
   },
   "required": [
