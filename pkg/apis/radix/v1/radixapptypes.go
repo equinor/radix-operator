@@ -42,6 +42,7 @@ type RadixApplication struct {
 	// Specification for an application.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/
 	Spec RadixApplicationSpec `json:"spec"`
+
 	// Status is the observed state of the RadixApplication
 	// +kubebuilder:validation:Optional
 	Status RadixApplicationStatus `json:"status,omitzero"`
@@ -59,12 +60,15 @@ type RadixApplicationStatus struct {
 	// Reconciled is the timestamp of the last successful reconciliation
 	// +kubebuilder:validation:Optional
 	Reconciled metav1.Time `json:"reconciled,omitzero"`
+
 	// ObservedGeneration is the generation observed by the controller
 	// +kubebuilder:validation:Optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
 	// ReconcileStatus indicates whether the last reconciliation succeeded or failed
 	// +kubebuilder:validation:Optional
 	ReconcileStatus RadixApplicationReconcileStatus `json:"reconcileStatus,omitempty"`
+
 	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitempty"`

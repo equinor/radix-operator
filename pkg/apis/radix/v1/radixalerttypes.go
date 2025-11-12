@@ -13,8 +13,10 @@ import (
 type RadixAlert struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
+
 	// Spec is the desired state of the RadixAlert
 	Spec RadixAlertSpec `json:"spec"`
+
 	// Status is the observed state of the RadixAlert
 	// +kubebuilder:validation:Optional
 	Status RadixAlertStatus `json:"status,omitzero"`
@@ -47,12 +49,15 @@ type RadixAlertStatus struct {
 	// Reconciled is the timestamp of the last successful reconciliation
 	// +kubebuilder:validation:Optional
 	Reconciled metav1.Time `json:"reconciled,omitzero"`
+
 	// ObservedGeneration is the generation observed by the controller
 	// +kubebuilder:validation:Optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
 	// ReconcileStatus indicates whether the last reconciliation succeeded or failed
 	// +kubebuilder:validation:Optional
 	ReconcileStatus RadixAlertReconcileStatus `json:"reconcileStatus,omitempty"`
+
 	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitempty"`

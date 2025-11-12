@@ -1477,6 +1477,7 @@ func (in *RadixBatchStatus) DeepCopyInto(out *RadixBatchStatus) {
 		}
 	}
 	in.Condition.DeepCopyInto(&out.Condition)
+	in.Reconciled.DeepCopyInto(&out.Reconciled)
 	return
 }
 
