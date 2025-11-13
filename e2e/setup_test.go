@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -26,6 +28,38 @@ var (
 	testManager manager.Manager
 )
 
+var componentSpecs = []struct {
+	Name         string
+	Dockerfile   string
+	ImageName    string
+	HelmValueKey string
+}{
+	{
+		Name:         "radix-operator",
+		Dockerfile:   "operator.Dockerfile",
+		ImageName:    "local-kind-repo/radix-operator",
+		HelmValueKey: "image",
+	},
+	{
+		Name:         "radix-webhook",
+		Dockerfile:   "webhook.Dockerfile",
+		ImageName:    "local-kind-repo/webhook",
+		HelmValueKey: "radixWebhook.image",
+	},
+	{
+		Name:         "radix-pipeline-runner",
+		Dockerfile:   "pipeline.Dockerfile",
+		ImageName:    "local-kind-repo/pipeline-runner",
+		HelmValueKey: "radixPipelineRunner.image",
+	},
+	{
+		Name:         "radix-job-scheduler",
+		Dockerfile:   "job-scheduler.Dockerfile",
+		ImageName:    "local-kind-repo/job-scheduler",
+		HelmValueKey: "radixJobScheduler.image",
+	},
+}
+
 // TestMain is the entry point for e2e tests
 func TestMain(m *testing.M) {
 
@@ -33,14 +67,40 @@ func TestMain(m *testing.M) {
 	testContext, testCancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer testCancel()
 
-	// Create Kind cluster
-	testCluster, err := internal.NewKindCluster(testContext, internal.KindClusterConfig{
-		Name:       "radix-operator-e2e",
-		KubeConfig: "",
-	})
-	if err != nil {
-		panic("failed to create kind cluster: " + err.Error())
+	// Generate image tag
+	imageTag := internal.GenerateImageTag()
+	println("Starting parallel cluster creation and image builds with tag:", imageTag)
+
+	var testCluster *internal.KindCluster
+
+	var eg errgroup.Group
+
+	// Start building images
+	for _, spec := range componentSpecs {
+		eg.Go(func() error {
+			return internal.BuildImage(testContext, spec.Dockerfile, spec.ImageName, imageTag)
+		})
 	}
+
+	// Start creating Kind cluster
+	eg.Go(func() error {
+		cluster, err := internal.NewKindCluster(testContext, internal.KindClusterConfig{
+			Name:       "radix-operator-e2e",
+			KubeConfig: "",
+		})
+		if err != nil {
+			return err
+		}
+		testCluster = cluster
+		return nil
+	})
+
+	// Wait for both to complete
+	err := eg.Wait()
+	if err != nil {
+		panic("failed to setup cluster or build images: " + err.Error())
+	}
+	println("Cluster and images ready")
 
 	// Get kubeconfig
 	kubeConfig, err := testCluster.GetKubeConfig()
@@ -48,12 +108,12 @@ func TestMain(m *testing.M) {
 		panic("failed to get kubeconfig: " + err.Error())
 	}
 
-	// Generate image tag and build images
-	imageTag := internal.GenerateImageTag()
-	println("Building images with tag:", imageTag)
-
-	if err = internal.BuildAndLoadImages(testContext, testCluster.Name, imageTag); err != nil {
-		panic("failed to build and load images: " + err.Error())
+	// Load images into Kind cluster
+	println("Loading images into Kind cluster...")
+	for _, spec := range componentSpecs {
+		if err = testCluster.LoadImage(testContext, spec.ImageName, imageTag); err != nil {
+			panic("failed to load image: " + err.Error())
+		}
 	}
 
 	// Create scheme with all required types
@@ -78,19 +138,16 @@ func TestMain(m *testing.M) {
 		panic("failed to install Prometheus Operator CRDs: " + err.Error())
 	}
 
-	// Prepare Helm values with custom image tags
+	// Install Helm chart with custom image tags
 	helmValues := map[string]string{
 		"rbac.createApp.groups[0]": "123",
 		"radixWebhook.enabled":     "true",
 		"image.pullPolicy":         "IfNotPresent",
 	}
-
-	// Add custom image values
-	for key, value := range internal.GetImageValues(imageTag) {
-		helmValues[key] = value
+	for _, spec := range componentSpecs {
+		helmValues[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName
+		helmValues[fmt.Sprintf("%s.tag", spec.HelmValueKey)] = imageTag
 	}
-
-	// Install Helm chart with custom image tags
 	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "default", "radix-operator", "../charts/radix-operator", helmValues); err != nil {
 		panic("failed to install helm chart: " + err.Error())
 	}

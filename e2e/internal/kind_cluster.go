@@ -131,3 +131,24 @@ func (k *KindCluster) GetKubeConfig() (*rest.Config, error) {
 	}
 	return config, nil
 }
+
+// LoadImage loads a single Docker image into the Kind cluster
+func (k *KindCluster) LoadImage(ctx context.Context, image, tag string) error {
+	imageName := fmt.Sprintf("%s:%s", image, tag)
+	fmt.Printf("Loading image %s into Kind cluster...\n", imageName)
+
+	// Load the image into Kind
+	loadCmd := exec.CommandContext(ctx, "kind", "load", "docker-image",
+		imageName,
+		"--name", k.Name,
+	)
+	loadCmd.Stdout = os.Stdout
+	loadCmd.Stderr = os.Stderr
+
+	if err := loadCmd.Run(); err != nil {
+		return fmt.Errorf("failed to load %s into kind: %w", imageName, err)
+	}
+
+	fmt.Printf("Successfully loaded %s\n", imageName)
+	return nil
+}
