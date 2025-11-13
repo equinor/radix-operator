@@ -299,7 +299,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	if err != nil {
 		return err
 	}
-	volumes, err := volumemount.GetVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent, deploy.radixDeployment.GetName(), existingVolumes)
+	volumes, err := volumemount.GetVolumes(ctx, deploy.kubeutil, deploy.radixDeployment.Namespace, deployComponent, deploy.radixDeployment.GetName(), existingVolumes)
 	if err != nil {
 		return err
 	}
@@ -357,7 +357,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 
 func (deploy *Deployment) getDeployComponentExistingVolumes(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, deployment *appsv1.Deployment) ([]corev1.Volume, error) {
 	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
-		volumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent.GetName())
+		volumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, deploy.kubeutil, deploy.radixDeployment.Namespace, deployComponent.GetName())
 		if err != nil {
 			return nil, err
 		}

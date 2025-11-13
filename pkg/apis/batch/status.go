@@ -91,10 +91,7 @@ func (s *syncer) updateStatus(ctx context.Context, changeStatusFunc func(currSta
 			return err
 		}
 		changeStatusFunc(&radixBatch.Status)
-		updatedRadixBatch, err := s.radixClient.
-			RadixV1().
-			RadixBatches(radixBatch.GetNamespace()).
-			UpdateStatus(ctx, radixBatch, metav1.UpdateOptions{})
+		updatedRadixBatch, err := s.radixClient.RadixV1().RadixBatches(radixBatch.GetNamespace()).UpdateStatus(ctx, radixBatch, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
