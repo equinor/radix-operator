@@ -29,7 +29,7 @@ Before running the e2e tests, ensure you have the following tools installed:
 
 ## Running the Tests
 
-### Se what is going on:
+### See what is going on:
 
 ```bash
 kind export kubeconfig --name radix-operator-e2e
