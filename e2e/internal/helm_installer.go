@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 // InstallRadixOperator installs the radix-operator Helm chart
@@ -23,7 +22,6 @@ func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releas
 
 	// Add additional values
 	for key, value := range values {
-		key = strings.TrimPrefix(key, ".")
 		args = append(args, "--set", fmt.Sprintf("%s=%v", key, value))
 	}
 

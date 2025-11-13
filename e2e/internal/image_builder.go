@@ -24,25 +24,25 @@ var componentSpecs = map[string]componentSpec{
 		Name:         "radix-operator",
 		Dockerfile:   "operator.Dockerfile",
 		ImageName:    "local-kind-repo/radix-operator",
-		HelmValueKey: "", // image exist on root of values.yaml
+		HelmValueKey: "image",
 	},
 	"webhook": {
 		Name:         "radix-webhook",
 		Dockerfile:   "webhook.Dockerfile",
 		ImageName:    "local-kind-repo/webhook",
-		HelmValueKey: "radixWebhook",
+		HelmValueKey: "radixWebhook.image",
 	},
 	"pipeline-runner": {
 		Name:         "radix-pipeline-runner",
 		Dockerfile:   "pipeline.Dockerfile",
 		ImageName:    "local-kind-repo/pipeline-runner",
-		HelmValueKey: "radixPipelineRunner",
+		HelmValueKey: "radixPipelineRunner.image",
 	},
 	"job-scheduler": {
 		Name:         "radix-job-scheduler",
 		Dockerfile:   "job-scheduler.Dockerfile",
 		ImageName:    "local-kind-repo/job-scheduler",
-		HelmValueKey: "radixJobScheduler",
+		HelmValueKey: "radixJobScheduler.image",
 	},
 }
 
@@ -134,8 +134,8 @@ func GetImageValues(imageTag string) map[string]string {
 	values := make(map[string]string)
 
 	for _, spec := range componentSpecs {
-		values[fmt.Sprintf("%s.image.repository", spec.HelmValueKey)] = spec.ImageName
-		values[fmt.Sprintf("%s.image.tag", spec.HelmValueKey)] = imageTag
+		values[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName
+		values[fmt.Sprintf("%s.tag", spec.HelmValueKey)] = imageTag
 	}
 
 	return values
