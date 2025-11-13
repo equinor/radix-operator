@@ -70,9 +70,6 @@ func TestMain(m *testing.M) {
 	// Generate image tag
 	imageTag := internal.GenerateImageTag()
 	println("Starting parallel cluster creation and image builds with tag:", imageTag)
-
-	var testCluster *internal.KindCluster
-
 	var eg errgroup.Group
 
 	// Start building images
@@ -83,16 +80,11 @@ func TestMain(m *testing.M) {
 	}
 
 	// Start creating Kind cluster
+	var testCluster *internal.KindCluster
 	eg.Go(func() error {
-		cluster, err := internal.NewKindCluster(testContext, internal.KindClusterConfig{
-			Name:       "radix-operator-e2e",
-			KubeConfig: "",
-		})
-		if err != nil {
-			return err
-		}
-		testCluster = cluster
-		return nil
+		var err error
+		testCluster, err = internal.NewKindCluster(testContext)
+		return err
 	})
 
 	// Wait for both to complete

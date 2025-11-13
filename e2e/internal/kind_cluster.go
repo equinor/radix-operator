@@ -18,27 +18,16 @@ type KindCluster struct {
 	KubeConfigPath string
 }
 
-// KindClusterConfig holds configuration for creating a Kind cluster
-type KindClusterConfig struct {
-	Name       string
-	KubeConfig string
-}
-
 // NewKindCluster creates a new Kind cluster
-func NewKindCluster(ctx context.Context, config KindClusterConfig) (*KindCluster, error) {
-	cluster := &KindCluster{
-		Name: config.Name,
+func NewKindCluster(ctx context.Context) (*KindCluster, error) {
+	tmpDir, err := os.MkdirTemp("", "kind-kubeconfig-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 
-	// Set kubeconfig path
-	if config.KubeConfig != "" {
-		cluster.KubeConfigPath = config.KubeConfig
-	} else {
-		tmpDir, err := os.MkdirTemp("", "kind-kubeconfig-*")
-		if err != nil {
-			return nil, fmt.Errorf("failed to create temp dir: %w", err)
-		}
-		cluster.KubeConfigPath = filepath.Join(tmpDir, "kubeconfig")
+	cluster := &KindCluster{
+		Name:           "radix-operator-e2e",
+		KubeConfigPath: filepath.Join(tmpDir, "kubeconfig"),
 	}
 
 	// Create Kind cluster
@@ -64,17 +53,9 @@ func (k *KindCluster) create(ctx context.Context) error {
 	_ = deleteCmd.Run() // Ignore error if cluster doesn't exist
 
 	// Create new cluster
-	args := []string{
-		"create", "cluster",
-		"--name", k.Name,
-		"--kubeconfig", k.KubeConfigPath,
-		"--wait", "5m",
-	}
-
-	cmd := exec.CommandContext(ctx, "kind", args...)
+	cmd := exec.CommandContext(ctx, "kind", "create", "cluster", "--name", k.Name, "--kubeconfig", k.KubeConfigPath, "--wait", "5m")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("kind create cluster failed: %w", err)
 	}
@@ -138,10 +119,7 @@ func (k *KindCluster) LoadImage(ctx context.Context, image, tag string) error {
 	fmt.Printf("Loading image %s into Kind cluster...\n", imageName)
 
 	// Load the image into Kind
-	loadCmd := exec.CommandContext(ctx, "kind", "load", "docker-image",
-		imageName,
-		"--name", k.Name,
-	)
+	loadCmd := exec.CommandContext(ctx, "kind", "load", "docker-image", "--name", k.Name, imageName)
 	loadCmd.Stdout = os.Stdout
 	loadCmd.Stderr = os.Stderr
 
