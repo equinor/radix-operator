@@ -12,11 +12,38 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// ImageConfig holds configuration for building and loading images
-type ImageConfig struct {
-	Registry   string
-	Repository string
-	Tag        string
+type componentSpec struct {
+	Name         string
+	Dockerfile   string
+	ImageName    string
+	HelmValueKey string
+}
+
+var componentSpecs = map[string]componentSpec{
+	"operator": {
+		Name:         "radix-operator",
+		Dockerfile:   "operator.Dockerfile",
+		ImageName:    "local-kind-repo/radix-operator",
+		HelmValueKey: "", // image exist on root of values.yaml
+	},
+	"webhook": {
+		Name:         "radix-webhook",
+		Dockerfile:   "webhook.Dockerfile",
+		ImageName:    "local-kind-repo/webhook",
+		HelmValueKey: "radixWebhook",
+	},
+	"pipeline-runner": {
+		Name:         "radix-pipeline-runner",
+		Dockerfile:   "pipeline.Dockerfile",
+		ImageName:    "local-kind-repo/pipeline-runner",
+		HelmValueKey: "radixPipelineRunner",
+	},
+	"job-scheduler": {
+		Name:         "radix-job-scheduler",
+		Dockerfile:   "job-scheduler.Dockerfile",
+		ImageName:    "local-kind-repo/job-scheduler",
+		HelmValueKey: "radixJobScheduler",
+	},
 }
 
 // GenerateImageTag generates a unique tag for the current build
@@ -46,38 +73,18 @@ func BuildAndLoadImages(ctx context.Context, clusterName string, imageTag string
 	}
 	projectRoot := filepath.Dir(cwd)
 
-	images := []struct {
-		name       string
-		dockerfile string
-		imageName  string
-	}{
-		{
-			name:       "radix-operator",
-			dockerfile: "operator.Dockerfile",
-			imageName:  fmt.Sprintf("ghcr.io/equinor/radix/radix-operator:%s", imageTag),
-		},
-		{
-			name:       "radix-webhook",
-			dockerfile: "webhook.Dockerfile",
-			imageName:  fmt.Sprintf("ghcr.io/equinor/radix/webhook:%s", imageTag),
-		},
-		{
-			name:       "radix-job-scheduler",
-			dockerfile: "job-scheduler.Dockerfile",
-			imageName:  fmt.Sprintf("ghcr.io/equinor/radix/job-scheduler:%s", imageTag),
-		},
-	}
-
 	// Build images in parallel
 	var eg errgroup.Group
-	for _, img := range images {
+	for _, spec := range componentSpecs {
+		spec := spec // capture loop variable
 		eg.Go(func() error {
-			fmt.Printf("Building %s image...\n", img.name)
+			imageName := fmt.Sprintf("%s:%s", spec.ImageName, imageTag)
+			fmt.Printf("Building %s image...\n", spec.Name)
 
 			// Build the Docker image from project root
 			buildCmd := exec.CommandContext(ctx, "docker", "build",
-				"-t", img.imageName,
-				"-f", img.dockerfile,
+				"-t", imageName,
+				"-f", spec.Dockerfile,
 				".",
 			)
 			buildCmd.Dir = projectRoot
@@ -88,7 +95,7 @@ func BuildAndLoadImages(ctx context.Context, clusterName string, imageTag string
 				return err
 			}
 
-			fmt.Printf("Successfully built %s\n", img.name)
+			fmt.Printf("Successfully built %s\n", spec.Name)
 
 			return nil
 		})
@@ -100,22 +107,23 @@ func BuildAndLoadImages(ctx context.Context, clusterName string, imageTag string
 	}
 
 	// Load images sequentially (kind load doesn't benefit much from parallelization)
-	for _, img := range images {
-		fmt.Printf("Loading %s image into Kind cluster...\n", img.name)
+	for _, spec := range componentSpecs {
+		imageName := fmt.Sprintf("%s:%s", spec.ImageName, imageTag)
+		fmt.Printf("Loading %s image into Kind cluster...\n", spec.Name)
 
 		// Load the image into Kind
 		loadCmd := exec.CommandContext(ctx, "kind", "load", "docker-image",
-			img.imageName,
+			imageName,
 			"--name", clusterName,
 		)
 		loadCmd.Stdout = os.Stdout
 		loadCmd.Stderr = os.Stderr
 
 		if err := loadCmd.Run(); err != nil {
-			return fmt.Errorf("failed to load %s into kind: %w", img.name, err)
+			return fmt.Errorf("failed to load %s into kind: %w", spec.Name, err)
 		}
 
-		fmt.Printf("Successfully loaded %s\n", img.name)
+		fmt.Printf("Successfully loaded %s\n", spec.Name)
 	}
 
 	return nil
@@ -123,12 +131,12 @@ func BuildAndLoadImages(ctx context.Context, clusterName string, imageTag string
 
 // GetImageValues returns Helm values for custom image tags
 func GetImageValues(imageTag string) map[string]string {
-	return map[string]string{
-		"radixOperator.image.repository": "ghcr.io/equinor/radix/radix-operator",
-		"radixOperator.image.tag":        imageTag,
-		"radixWebhook.image.repository":  "ghcr.io/equinor/radix/webhook",
-		"radixWebhook.image.tag":         imageTag,
-		"jobScheduler.image.repository":  "ghcr.io/equinor/radix/job-scheduler",
-		"jobScheduler.image.tag":         imageTag,
+	values := make(map[string]string)
+
+	for _, spec := range componentSpecs {
+		values[fmt.Sprintf("%s.image.repository", spec.HelmValueKey)] = spec.ImageName
+		values[fmt.Sprintf("%s.image.tag", spec.HelmValueKey)] = imageTag
 	}
+
+	return values
 }

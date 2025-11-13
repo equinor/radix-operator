@@ -82,6 +82,7 @@ func TestMain(m *testing.M) {
 	helmValues := map[string]string{
 		"rbac.createApp.groups[0]": "123",
 		"radixWebhook.enabled":     "true",
+		"image.pullPolicy":         "IfNotPresent",
 	}
 
 	// Add custom image values
@@ -115,7 +116,8 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Cleanup cluster
-	if testCluster != nil {
+	ignoreDelete := os.Getenv("RADIX_E2E_IGNORE_CLUSTER_DELETE") == "true"
+	if testCluster != nil && !ignoreDelete {
 		_ = testCluster.Delete(context.Background())
 	}
 
