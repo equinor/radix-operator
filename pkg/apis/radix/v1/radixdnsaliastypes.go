@@ -1,6 +1,6 @@
 package v1
 
-import meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // +genclient
 // +genclient:nonNamespaced
@@ -13,19 +13,24 @@ import meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // RadixDNSAlias is a Custom Resource Definition
 type RadixDNSAlias struct {
-	meta.TypeMeta   `json:",inline"`
-	meta.ObjectMeta `json:"metadata"`
-	Spec            RadixDNSAliasSpec   `json:"spec"`
-	Status          RadixDNSAliasStatus `json:"status,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+
+	// Spec is the desired state of the RadixDNSAlias
+	Spec RadixDNSAliasSpec `json:"spec"`
+
+	// Status is the observed state of the RadixDNSAlias
+	// +kubebuilder:validation:Optional
+	Status RadixDNSAliasStatus `json:"status,omitzero"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixDNSAliasList is a list of RadixDNSAliases
 type RadixDNSAliasList struct {
-	meta.TypeMeta `json:",inline"`
-	meta.ListMeta `json:"metadata"`
-	Items         []RadixDNSAlias `json:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []RadixDNSAlias `json:"items"`
 }
 
 // RadixDNSAliasSpec is the spec for an RadixDNSAlias
@@ -52,26 +57,28 @@ type RadixDNSAliasSpec struct {
 	Component string `json:"component"`
 }
 
-// RadixDNSAliasCondition Holds the condition of a RadixDNSAlias
-type RadixDNSAliasCondition string
+type RadixDNSAliasReconcileStatus string
 
-// These are valid conditions of a deployment.
 const (
-	// RadixDNSAliasSucceeded means the RadixDNSAlias has been successfully created or updated
-	RadixDNSAliasSucceeded RadixDNSAliasCondition = "Succeeded"
-	// RadixDNSAliasFailed means the RadixDNSAlias create or update failed
-	RadixDNSAliasFailed RadixDNSAliasCondition = "Failed"
+	RadixDNSAliasReconcileSucceeded RadixDNSAliasReconcileStatus = "Succeeded"
+	RadixDNSAliasReconcileFailed    RadixDNSAliasReconcileStatus = "Failed"
 )
 
-// RadixDNSAliasStatus is the status for an RadixDNSAlias
+// RadixDNSAliasStatus is the observed state of the RadixDNSAlias
 type RadixDNSAliasStatus struct {
-	// Condition of the RadixDNSAlias creating or updating
-	// +optional
-	Condition RadixDNSAliasCondition `json:"condition,omitempty"`
-	// A human-readable message indicating details about the condition.
-	// +optional
+	// Reconciled is the timestamp of the last successful reconciliation
+	// +kubebuilder:validation:Optional
+	Reconciled metav1.Time `json:"reconciled,omitzero"`
+
+	// ObservedGeneration is the generation observed by the controller
+	// +kubebuilder:validation:Optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ReconcileStatus indicates whether the last reconciliation succeeded or failed
+	// +kubebuilder:validation:Optional
+	ReconcileStatus RadixDNSAliasReconcileStatus `json:"reconcileStatus,omitempty"`
+
+	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
+	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitempty"`
-	// Reconciled The timestamp when the RadixDNSAlias was reconciled
-	// +optional
-	Reconciled *meta.Time `json:"reconciled,omitempty"`
 }
