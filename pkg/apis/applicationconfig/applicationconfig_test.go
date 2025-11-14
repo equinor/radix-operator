@@ -53,7 +53,8 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplicationFromFile(sampleApp)
 	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp, nil)
-
+	_, err := radixClient.RadixV1().RadixApplications(radixApp.Namespace).Create(context.Background(), radixApp, metav1.CreateOptions{})
+	require.NoError(t, err)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
 		err := app.OnSync(context.Background())
@@ -116,6 +117,8 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		WithEnvironment("qa", "development").
 		WithEnvironment("prod", "master").
 		BuildRA()
+	_, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Create(context.Background(), ra, metav1.CreateOptions{})
+	require.NoError(t, err)
 
 	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)

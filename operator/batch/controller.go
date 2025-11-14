@@ -47,7 +47,7 @@ func NewController(ctx context.Context,
 	logger.Info().Msg("Setting up event handlers")
 	if _, err := batchInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixBatch informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
@@ -60,7 +60,7 @@ func NewController(ctx context.Context,
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixBatch informer UpdateFunc")
 			}
 		},

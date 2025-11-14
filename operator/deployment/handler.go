@@ -132,34 +132,28 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	}
 	logger := log.Ctx(ctx).With().Str("app_name", rd.Spec.AppName).Logger()
 	ctx = logger.WithContext(ctx)
+	logger.Debug().Msgf("Sync deployment %s", rd.Name)
 
-	if deployment.IsRadixDeploymentInactive(rd) {
-		logger.Debug().Msgf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
-		return nil
-	}
-
-	syncRD := rd.DeepCopy()
-	logger.Debug().Msgf("Sync deployment %s", syncRD.Name)
-
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(ctx, syncRD.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(ctx, rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			logger.Debug().Msgf("RadixRegistration %s no longer exists", syncRD.Spec.AppName)
+			logger.Debug().Msgf("RadixRegistration %s no longer exists", rd.Spec.AppName)
 			return nil
 		}
 
 		return err
 	}
 
-	ingressAnnotations := ingress.GetAnnotationProvider(t.ingressConfiguration, syncRD.Namespace, t.oauth2DefaultConfig)
+	ingressAnnotations := ingress.GetAnnotationProvider(t.ingressConfiguration, rd.Namespace, t.oauth2DefaultConfig)
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-		deployment.NewOAuthRedisResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2RedisDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2RedisDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 	}
 
+	syncRD := rd.DeepCopy()
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
 	err = deployment.OnSync(ctx)
 	if err != nil {

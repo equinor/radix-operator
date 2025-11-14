@@ -53,7 +53,7 @@ func NewController(ctx context.Context,
 
 	if _, err := environmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixEnvironment informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
@@ -68,7 +68,7 @@ func NewController(ctx context.Context,
 				return
 			}
 			logger.Debug().Msgf("update RadixEnvironment %s (from revision %s to %s)", oldRR.GetName(), oldRR.GetResourceVersion(), newRR.GetResourceVersion())
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixEnvironment informer UpdateFunc")
 			}
 			metrics.CustomResourceUpdated(crType)
@@ -146,7 +146,7 @@ func NewController(ctx context.Context,
 			if err == nil {
 				for _, environment := range environments.Items {
 					// Will sync the environment
-					if _, err := controller.Enqueue(&environment); err != nil {
+					if err := controller.Enqueue(&environment); err != nil {
 						logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
 					}
 				}
@@ -169,7 +169,7 @@ func NewController(ctx context.Context,
 				uniqueName := utils.GetEnvironmentNamespace(oldRa.Name, envName)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(ctx, uniqueName, metav1.GetOptions{})
 				if err == nil {
-					if _, err := controller.Enqueue(re); err != nil {
+					if err := controller.Enqueue(re); err != nil {
 						logger.Error().Err(err).Msg("Failed to enqueue object received from RadixApplication informer UpdateFunc")
 					}
 				}
@@ -185,7 +185,7 @@ func NewController(ctx context.Context,
 				uniqueName := utils.GetEnvironmentNamespace(radixApplication.Name, env.Name)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(ctx, uniqueName, metav1.GetOptions{})
 				if err == nil {
-					if _, err := controller.Enqueue(re); err != nil {
+					if err := controller.Enqueue(re); err != nil {
 						logger.Error().Err(err).Msg("Failed to enqueue object received from RadixApplication informer DeleteFunc")
 					}
 				}

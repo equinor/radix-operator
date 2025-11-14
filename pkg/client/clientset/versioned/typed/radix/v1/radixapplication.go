@@ -46,6 +46,8 @@ type RadixApplicationsGetter interface {
 type RadixApplicationInterface interface {
 	Create(ctx context.Context, radixApplication *radixv1.RadixApplication, opts metav1.CreateOptions) (*radixv1.RadixApplication, error)
 	Update(ctx context.Context, radixApplication *radixv1.RadixApplication, opts metav1.UpdateOptions) (*radixv1.RadixApplication, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+	UpdateStatus(ctx context.Context, radixApplication *radixv1.RadixApplication, opts metav1.UpdateOptions) (*radixv1.RadixApplication, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
 	Get(ctx context.Context, name string, opts metav1.GetOptions) (*radixv1.RadixApplication, error)

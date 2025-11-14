@@ -160,8 +160,7 @@ func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.R
 		AddFunc: func(cur interface{}) {
 			alias := cur.(*radixv1.RadixDNSAlias)
 			logger.Debug().Msgf("added RadixDNSAlias %s", alias.GetName())
-			_, err := controller.Enqueue(cur)
-			if err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msgf("failed to enqueue the RadixDNSAlias %s", alias.GetName())
 			}
 			metrics.CustomResourceAdded(radixv1.KindRadixDNSAlias)
@@ -175,8 +174,7 @@ func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.R
 				return
 			}
 			logger.Debug().Msgf("updated RadixDNSAlias %s", newAlias.GetName())
-			_, err := controller.Enqueue(cur)
-			if err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msgf("failed to enqueue the RadixDNSAlias %s", newAlias.GetName())
 			}
 			metrics.CustomResourceUpdated(radixv1.KindRadixDNSAlias)
@@ -212,7 +210,7 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 	for _, radixDNSAlias := range radixDNSAliases {
 		radixDNSAlias := radixDNSAlias
 		logger.Debug().Msgf("re-sync RadixDNSAlias %s", radixDNSAlias.GetName())
-		if _, err := controller.Enqueue(&radixDNSAlias); err != nil {
+		if err := controller.Enqueue(&radixDNSAlias); err != nil {
 			logger.Error().Err(err).Msgf("failed to enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
 		}
 	}
@@ -228,7 +226,7 @@ func enqueueRadixDNSAliasesForAppName(controller *common.Controller, radixClient
 	for _, radixDNSAlias := range radixDNSAliases {
 		radixDNSAlias := radixDNSAlias
 		logger.Debug().Msgf("Enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
-		if _, err := controller.Enqueue(&radixDNSAlias); err != nil {
+		if err := controller.Enqueue(&radixDNSAlias); err != nil {
 			logger.Error().Err(err).Msgf("failed to enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
 		}
 	}

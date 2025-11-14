@@ -7,7 +7,6 @@ import (
 
 	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/operator/common"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -55,13 +54,13 @@ func NewController(ctx context.Context,
 	if _, err := deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixDeployment, _ := cur.(*v1.RadixDeployment)
-			if deployment.IsRadixDeploymentInactive(radixDeployment) {
+			if radixDeployment.Status.Condition == v1.DeploymentInactive {
 				logger.Debug().Msgf("Skip deployment object %s as it is inactive", radixDeployment.GetName())
 				metrics.CustomResourceAddedButSkipped(crType)
 				return
 			}
 
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
@@ -69,7 +68,7 @@ func NewController(ctx context.Context,
 		UpdateFunc: func(old, cur interface{}) {
 			newRD := cur.(*v1.RadixDeployment)
 			oldRD := old.(*v1.RadixDeployment)
-			if deployment.IsRadixDeploymentInactive(newRD) {
+			if newRD.Status.Condition == v1.DeploymentInactive {
 				logger.Debug().Msgf("Skip deployment object %s as it is inactive", newRD.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
@@ -83,7 +82,7 @@ func NewController(ctx context.Context,
 			if oldRD.Status.Condition != v1.DeploymentActive && newRD.Status.Condition == v1.DeploymentActive {
 				metrics.RadixDeploymentActivated(ctx, newRD)
 			}
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixDeployment informer UpdateFunc")
 			}
 			metrics.CustomResourceUpdated(crType)
@@ -153,9 +152,9 @@ func NewController(ctx context.Context,
 			if err == nil && len(rds.Items) > 0 {
 				// Will sync the active RD (there can only be one within each namespace)
 				for _, rd := range rds.Items {
-					if !deployment.IsRadixDeploymentInactive(&rd) {
+					if rd.Status.Condition != v1.DeploymentInactive {
 						obj := &rd
-						if _, err := controller.Enqueue(obj); err != nil {
+						if err := controller.Enqueue(obj); err != nil {
 							logger.Error().Str("rd", rd.Name).Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
 						}
 					}

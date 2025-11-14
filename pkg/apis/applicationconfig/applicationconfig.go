@@ -93,7 +93,10 @@ func GetAllTargetEnvironments(gitRef, gitRefType string, ra *radixv1.RadixApplic
 func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 	ctx = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixApplication).Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
+	return app.syncStatus(ctx, app.reconcile(ctx))
+}
 
+func (app *ApplicationConfig) reconcile(ctx context.Context) error {
 	if err := app.syncEnvironments(ctx); err != nil {
 		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
 	}
@@ -106,7 +109,7 @@ func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 	}
 
 	if err := app.syncDNSAliases(ctx); err != nil {
-		return fmt.Errorf("failed to process DNS aliases: %w", err)
+		return fmt.Errorf("failed to process dns aliases: %w", err)
 	}
 
 	if err := app.syncSubPipelineServiceAccounts(ctx); err != nil {

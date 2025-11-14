@@ -1,7 +1,7 @@
 package v1
 
 import (
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +genclient
@@ -17,15 +17,39 @@ import (
 
 // RadixRegistration describe an application
 type RadixRegistration struct {
-	meta_v1.TypeMeta   `json:",inline"`
-	meta_v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec               RadixRegistrationSpec   `json:"spec"`
-	Status             RadixRegistrationStatus `json:"status,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Spec              RadixRegistrationSpec `json:"spec"`
+
+	// Status is the observed state of the RadixRegistration
+	// +kubebuilder:validation:Optional
+	Status RadixRegistrationStatus `json:"status,omitzero"`
 }
 
-// RadixRegistrationStatus is the status for a rr
+type RadixRegistrationReconcileStatus string
+
+const (
+	RadixRegistrationReconcileSucceeded RadixRegistrationReconcileStatus = "Succeeded"
+	RadixRegistrationReconcileFailed    RadixRegistrationReconcileStatus = "Failed"
+)
+
+// RadixRegistrationStatus is the observed state of the RadixRegistration
 type RadixRegistrationStatus struct {
-	Reconciled meta_v1.Time `json:"reconciled"`
+	// Reconciled is the timestamp of the last successful reconciliation
+	// +kubebuilder:validation:Optional
+	Reconciled metav1.Time `json:"reconciled,omitzero"`
+
+	// ObservedGeneration is the generation observed by the controller
+	// +kubebuilder:validation:Optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ReconcileStatus indicates whether the last reconciliation succeeded or failed
+	// +kubebuilder:validation:Optional
+	ReconcileStatus RadixRegistrationReconcileStatus `json:"reconcileStatus,omitempty"`
+
+	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
+	// +kubebuilder:validation:Optional
+	Message string `json:"message,omitempty"`
 }
 
 // RadixRegistrationSpec is the spec for an application
@@ -92,7 +116,7 @@ type RadixRegistrationSpec struct {
 
 // RadixRegistrationList is a list of Radix applications
 type RadixRegistrationList struct {
-	meta_v1.TypeMeta `json:",inline"`
-	meta_v1.ListMeta `json:"metadata"`
-	Items            []RadixRegistration `json:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []RadixRegistration `json:"items"`
 }

@@ -312,7 +312,7 @@ spec:
             - radixDeploymentJobRef
             type: object
           status:
-            description: RadixBatchStatus represents the current state of a RadixBatch
+            description: Status is the observed state of the RadixBatch
             properties:
               condition:
                 description: The batch is completed when all jobs are in a completed
@@ -473,6 +473,23 @@ spec:
                   - phase
                   type: object
                 type: array
+              message:
+                description: Message provides additional information about the reconciliation
+                  state, typically error details when reconciliation fails
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the generation observed by the
+                  controller
+                format: int64
+                type: integer
+              reconcileStatus:
+                description: ReconcileStatus indicates whether the last reconciliation
+                  succeeded or failed
+                type: string
+              reconciled:
+                description: Reconciled is the timestamp of the last successful reconciliation
+                format: date-time
+                type: string
             type: object
         required:
         - metadata

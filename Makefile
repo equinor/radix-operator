@@ -154,7 +154,7 @@ code-gen: bootstrap
 	./hack/update-codegen.sh
 
 .PHONY: helmresources
-helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixwebhook delete-temp-resources
+helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixalert-crd radixenvironment-crd radixwebhook delete-temp-resources
 
 .PHONY: radixregistration-crd
 radixregistration-crd: temp-resources
@@ -163,7 +163,7 @@ radixregistration-crd: temp-resources
 .PHONY: radixapplication-crd
 radixapplication-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixapplications.yaml $(CRD_CHART_DIR)radixapplication.yaml
-	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml > $(JSON_SCHEMA_DIR)radixapplication.json
+	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml | jq 'del(.properties.status)' > $(JSON_SCHEMA_DIR)radixapplication.json
 
 .PHONY: radixbatch-crd
 radixbatch-crd: temp-resources
@@ -176,6 +176,14 @@ radixdeployment-crd: temp-resources
 .PHONY: radixdnsalias-crd
 radixdnsalias-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdnsaliases.yaml $(CRD_CHART_DIR)radixdnsalias.yaml
+
+.PHONY: radixalert-crd
+radixalert-crd: temp-resources
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixalerts.yaml $(CRD_CHART_DIR)radixalert.yaml
+
+.PHONY: radixenvironment-crd
+radixenvironment-crd: temp-resources
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixenvironments.yaml $(CRD_CHART_DIR)radixenvironment.yaml
 
 .PHONY: radixwebhook
 radixwebhook: temp-resources

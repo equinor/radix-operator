@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
 )
 
@@ -11,7 +12,8 @@ const (
 	limitRangeName = "mem-cpu-limit-range-app"
 )
 
-func (app *Application) createLimitRangeOnAppNamespace(ctx context.Context, namespace string) error {
+func (app *Application) createLimitRangeOnAppNamespace(ctx context.Context) error {
+	namespace := utils.GetAppNamespace(app.registration.Name)
 	defaultMemoryLimit := defaults.GetDefaultMemoryLimitForAppNamespace()
 	defaultCPURequest := defaults.GetDefaultCPURequestForAppNamespace()
 	defaultMemoryRequest := defaults.GetDefaultMemoryRequestForAppNamespace()

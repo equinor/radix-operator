@@ -2,7 +2,6 @@ package environment
 
 import (
 	"context"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	"github.com/rs/zerolog/log"
@@ -90,7 +89,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 		return err
 	}
 
-	err = env.OnSync(ctx, meta.NewTime(time.Now().UTC()))
+	err = env.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncEnvironment, err)
 		return err

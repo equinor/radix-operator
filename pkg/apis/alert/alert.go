@@ -53,14 +53,10 @@ func (syncer *alertSyncer) OnSync(ctx context.Context) error {
 	ctx = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixAlert).Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
 
-	if err := syncer.syncAlert(ctx); err != nil {
-		return err
-	}
-
-	return syncer.syncStatus(ctx)
+	return syncer.syncStatus(ctx, syncer.reconcile(ctx))
 }
 
-func (syncer *alertSyncer) syncAlert(ctx context.Context) error {
+func (syncer *alertSyncer) reconcile(ctx context.Context) error {
 	if err := syncer.createOrUpdateSecret(ctx); err != nil {
 		return fmt.Errorf("failed to sync secrets: %w", err)
 	}
@@ -76,32 +72,36 @@ func (syncer *alertSyncer) syncAlert(ctx context.Context) error {
 	return nil
 }
 
-func (syncer *alertSyncer) syncStatus(ctx context.Context) error {
-	syncCompleteTime := metav1.Now()
-	err := syncer.updateRadixAlertStatus(ctx, func(currStatus *radixv1.RadixAlertStatus) {
-		currStatus.Reconciled = &syncCompleteTime
+func (syncer *alertSyncer) syncStatus(ctx context.Context, reconcileErr error) error {
+	err := syncer.updateStatus(ctx, func(currStatus *radixv1.RadixAlertStatus) {
+		currStatus.Reconciled = metav1.Now()
+		currStatus.ObservedGeneration = syncer.radixAlert.Generation
+
+		if reconcileErr != nil {
+			currStatus.ReconcileStatus = radixv1.RadixAlertReconcileFailed
+			currStatus.Message = reconcileErr.Error()
+		} else {
+			currStatus.ReconcileStatus = radixv1.RadixAlertReconcileSucceeded
+			currStatus.Message = ""
+		}
 	})
 	if err != nil {
 		return fmt.Errorf("failed to sync status: %w", err)
 	}
 
-	return nil
+	return reconcileErr
 }
 
-func (syncer *alertSyncer) updateRadixAlertStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixAlertStatus)) error {
-	ralInterface := syncer.radixClient.RadixV1().RadixAlerts(syncer.radixAlert.GetNamespace())
-
+func (syncer *alertSyncer) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixAlertStatus)) error {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRAL, err := ralInterface.Get(ctx, syncer.radixAlert.GetName(), metav1.GetOptions{})
+		updateObj := syncer.radixAlert.DeepCopy()
+		changeStatusFunc(&updateObj.Status)
+		updateRAL, err := syncer.radixClient.RadixV1().RadixAlerts(syncer.radixAlert.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
-		changeStatusFunc(&currentRAL.Status)
-		updateRAL, err := ralInterface.UpdateStatus(ctx, currentRAL, metav1.UpdateOptions{})
-		if err == nil {
-			syncer.radixAlert = updateRAL
-		}
-		return err
+		syncer.radixAlert = updateRAL
+		return nil
 	})
 	return err
 }
