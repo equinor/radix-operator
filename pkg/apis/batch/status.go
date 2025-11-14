@@ -31,7 +31,7 @@ func (s *syncer) syncStatus(ctx context.Context, reconcileErr error) error {
 	}
 
 	err = s.updateStatus(ctx, func(currStatus *radixv1.RadixBatchStatus) {
-		now := metav1.Time{Time: s.clock.Now()}
+		now := metav1.NewTime(s.clock.Now())
 		currStatus.JobStatuses = jobStatuses
 		currStatus.Condition.Type = conditionType
 		currStatus.Condition.Reason = ""

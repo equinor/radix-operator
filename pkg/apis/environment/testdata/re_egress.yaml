@@ -12,8 +12,8 @@ spec:
         - 195.88.55.16/32
         - 195.88.54.16/31
       ports:
-        - number: 80
+        - port: 80
           protocol: TCP
-        - number: 443
+        - port: 443
           protocol: TCP
   envName: "testenv"

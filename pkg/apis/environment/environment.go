@@ -16,7 +16,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -59,39 +58,41 @@ func NewEnvironment(
 
 // OnSync is called by the handler when changes are applied and must be
 // reconciled with current state.
-func (env *Environment) OnSync(ctx context.Context, time metav1.Time) error {
-	re := env.config
+func (env *Environment) OnSync(ctx context.Context) error {
 
-	if re.ObjectMeta.DeletionTimestamp != nil {
-		return env.handleDeletedRadixEnvironment(ctx, re)
+	if env.config.ObjectMeta.DeletionTimestamp != nil {
+		return env.handleDeletedRadixEnvironment(ctx)
 	}
 
 	if env.regConfig == nil {
 		return nil // RadixRegistration does not exist, possible it was deleted
 	}
 
-	// create a globally unique namespace name
-	namespaceName := utils.GetEnvironmentNamespace(re.Spec.AppName, re.Spec.EnvName)
-
-	if err := env.ApplyNamespace(ctx, namespaceName); err != nil {
-		return fmt.Errorf("failed to apply namespace %s: %w", namespaceName, err)
-	}
-	if err := env.ApplyAdGroupRoleBinding(ctx, namespaceName); err != nil {
-		return fmt.Errorf("failed to apply RBAC on namespace %s: %w", namespaceName, err)
-	}
-	if err := env.ApplyRadixPipelineRunnerRoleBinding(ctx, namespaceName); err != nil {
-		return fmt.Errorf("failed to apply RBAC for radix-pipeline-runner on namespace %s: %w", namespaceName, err)
-	}
-	if err := env.ApplyLimitRange(ctx, namespaceName); err != nil {
-		return fmt.Errorf("failed to apply limit range on namespace %s: %w", namespaceName, err)
-	}
-	if err := env.networkPolicy.UpdateEnvEgressRules(ctx, re.Spec.Egress.Rules, re.Spec.Egress.AllowRadix, re.Spec.EnvName); err != nil {
-		return fmt.Errorf("failed to add egress rules in %s, environment %s: %w", re.Spec.AppName, re.Spec.EnvName, err)
-	}
-	return env.syncStatus(ctx, re, time)
+	return env.syncStatus(ctx, env.reconcile(ctx))
 }
 
-func (env *Environment) handleDeletedRadixEnvironment(ctx context.Context, re *v1.RadixEnvironment) error {
+func (env *Environment) reconcile(ctx context.Context) error {
+	if err := env.applyNamespace(ctx); err != nil {
+		return fmt.Errorf("failed to reconcile environment namespace: %w", err)
+	}
+	if err := env.applyAdGroupRoleBinding(ctx); err != nil {
+		return fmt.Errorf("failed to apply user RBAC: %w", err)
+	}
+	if err := env.applyRadixPipelineRunnerRoleBinding(ctx); err != nil {
+		return fmt.Errorf("failed to apply pipeline RBAC: %w", err)
+	}
+	if err := env.applyLimitRange(ctx); err != nil {
+		return fmt.Errorf("failed to apply limit range: %w", err)
+	}
+	if err := env.networkPolicy.UpdateEnvEgressRules(ctx, env.config.Spec.Egress.Rules, env.config.Spec.Egress.AllowRadix, env.config.Spec.EnvName); err != nil {
+		return fmt.Errorf("failed to add egress rules: %w", err)
+	}
+
+	return nil
+}
+
+func (env *Environment) handleDeletedRadixEnvironment(ctx context.Context) error {
+	re := env.config
 	env.logger.Debug().Msgf("Handle deleted RadixEnvironment %s in the application %s", re.Name, re.Spec.AppName)
 	finalizerIndex := slice.FindIndex(re.ObjectMeta.Finalizers, func(val string) bool {
 		return val == kube.RadixEnvironmentFinalizer
@@ -101,16 +102,10 @@ func (env *Environment) handleDeletedRadixEnvironment(ctx context.Context, re *v
 			kube.RadixEnvironmentFinalizer, re.Name, re.Spec.AppName, len(re.ObjectMeta.Finalizers))
 		return nil
 	}
-	if err := env.handleDeletedRadixEnvironmentDependencies(ctx, re); err != nil {
+	if err := env.handleDeletedRadixEnvironmentDependencies(ctx); err != nil {
 		return err
 	}
-	updatingRE, err := env.radixclient.RadixV1().RadixEnvironments().Get(ctx, re.GetName(), metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
+	updatingRE := re.DeepCopy()
 	updatingRE.ObjectMeta.Finalizers = append(re.ObjectMeta.Finalizers[:finalizerIndex], re.ObjectMeta.Finalizers[finalizerIndex+1:]...)
 	env.logger.Debug().Msgf("Removed finalizer %s from the Radix environment %s in the application %s. Left finalizers: %d",
 		kube.RadixEnvironmentFinalizer, updatingRE.Name, updatingRE.Spec.AppName, len(updatingRE.ObjectMeta.Finalizers))
@@ -122,8 +117,8 @@ func (env *Environment) handleDeletedRadixEnvironment(ctx context.Context, re *v
 	return nil
 }
 
-func (env *Environment) handleDeletedRadixEnvironmentDependencies(ctx context.Context, re *v1.RadixEnvironment) error {
-	radixDNSAliasList, err := env.kubeutil.GetRadixDNSAliasWithSelector(ctx, radixlabels.Merge(radixlabels.ForApplicationName(re.Spec.AppName), radixlabels.ForEnvironmentName(re.Spec.EnvName)).String())
+func (env *Environment) handleDeletedRadixEnvironmentDependencies(ctx context.Context) error {
+	radixDNSAliasList, err := env.kubeutil.GetRadixDNSAliasWithSelector(ctx, radixlabels.Merge(radixlabels.ForApplicationName(env.config.Spec.AppName), radixlabels.ForEnvironmentName(env.config.Spec.EnvName)).String())
 	if err != nil {
 		return err
 	}
@@ -134,9 +129,9 @@ func (env *Environment) handleDeletedRadixEnvironmentDependencies(ctx context.Co
 	return env.kubeutil.DeleteRadixDNSAliases(ctx, dnsAliases...)
 }
 
-// ApplyNamespace sets up namespace metadata and applies configuration to kubernetes
-func (env *Environment) ApplyNamespace(ctx context.Context, name string) error {
-
+// applyNamespace sets up namespace metadata and applies configuration to kubernetes
+func (env *Environment) applyNamespace(ctx context.Context) error {
+	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
 	// get key to use for namespace annotation to pick up private image hubs
 	imagehubKey := fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName)
 	nsLabels := labels.Set{
@@ -150,11 +145,12 @@ func (env *Environment) ApplyNamespace(ctx context.Context, name string) error {
 		kube.RadixEnvLabel:             env.config.Spec.EnvName,
 	}
 	nsLabels = labels.Merge(nsLabels, kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels())
-	return env.kubeutil.ApplyNamespace(ctx, name, nsLabels, env.AsOwnerReference())
+	return env.kubeutil.ApplyNamespace(ctx, namespace, nsLabels, env.AsOwnerReference())
 }
 
-// ApplyAdGroupRoleBinding grants access to environment namespace
-func (env *Environment) ApplyAdGroupRoleBinding(ctx context.Context, namespace string) error {
+// applyAdGroupRoleBinding grants access to environment namespace
+func (env *Environment) applyAdGroupRoleBinding(ctx context.Context) error {
+	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
 	adminSubjects := utils.GetAppAdminRbacSubjects(env.regConfig)
 	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, adminSubjects)
 	adminRoleBinding.SetOwnerReferences(env.AsOwnerReference())
@@ -172,7 +168,8 @@ func (env *Environment) ApplyAdGroupRoleBinding(ctx context.Context, namespace s
 	return nil
 }
 
-func (env *Environment) ApplyRadixPipelineRunnerRoleBinding(ctx context.Context, namespace string) error {
+func (env *Environment) applyRadixPipelineRunnerRoleBinding(ctx context.Context) error {
+	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
 	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
@@ -203,9 +200,9 @@ func (env *Environment) ApplyRadixPipelineRunnerRoleBinding(ctx context.Context,
 
 const limitRangeName = "mem-cpu-limit-range-env"
 
-// ApplyLimitRange sets resource usage limits to provided namespace
-func (env *Environment) ApplyLimitRange(ctx context.Context, namespace string) error {
-
+// applyLimitRange sets resource usage limits to provided namespace
+func (env *Environment) applyLimitRange(ctx context.Context) error {
+	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
 	defaultMemoryLimit := defaults.GetDefaultMemoryLimit()
 	defaultCPURequest := defaults.GetDefaultCPURequest()
 	defaultMemoryRequest := defaults.GetDefaultMemoryRequest()

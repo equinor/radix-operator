@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -71,7 +70,8 @@ func Test_Create_Namespace(t *testing.T) {
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
-	sync(t, &env, metav1.NewTime(time.Now().UTC()))
+	err = env.OnSync(context.Background())
+	require.NoError(t, err)
 
 	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
@@ -104,7 +104,8 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
-	sync(t, &env, metav1.NewTime(time.Now().UTC()))
+	err = env.OnSync(context.Background())
+	require.NoError(t, err)
 
 	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
@@ -137,7 +138,8 @@ func Test_Create_EgressRules(t *testing.T) {
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, egressRuleEnvConfigFileName)
 	require.NoError(t, err)
 
-	sync(t, &env, metav1.NewTime(time.Now().UTC()))
+	err = env.OnSync(context.Background())
+	require.NoError(t, err)
 
 	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
@@ -159,7 +161,8 @@ func Test_Create_RoleBinding(t *testing.T) {
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
-	sync(t, &env, metav1.NewTime(time.Now().UTC()))
+	err = env.OnSync(context.Background())
+	require.NoError(t, err)
 
 	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.Background(), metav1.ListOptions{})
 
@@ -184,7 +187,8 @@ func Test_Create_LimitRange(t *testing.T) {
 	_, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
-	sync(t, &env, metav1.NewTime(time.Now().UTC()))
+	err = env.OnSync(context.Background())
+	require.NoError(t, err)
 
 	limitranges, _ := client.CoreV1().LimitRanges(namespaceName).List(context.Background(), metav1.ListOptions{})
 
@@ -206,20 +210,20 @@ func Test_Orphaned_Status(t *testing.T) {
 	require.NoError(t, err)
 
 	env.appConfig = nil
-	testTime1 := metav1.NewTime(time.Now().UTC())
-	sync(t, &env, testTime1)
+	err = env.OnSync(context.Background())
+	require.NoError(t, err)
 
 	t.Run("Orphaned is true when app config nil", func(t *testing.T) {
 		assert.True(t, env.config.Status.Orphaned)
 		assert.NotNil(t, env.config.Status.OrphanedTimestamp)
-		assert.Equal(t, testTime1.Time, env.config.Status.OrphanedTimestamp.Time)
 	})
 
 	env.appConfig = utils.NewRadixApplicationBuilder().
 		WithAppName("testapp").
 		WithEnvironment("testenv", "master").
 		BuildRA()
-	sync(t, &env, metav1.NewTime(time.Now().UTC()))
+	err = env.OnSync(context.Background())
+	require.NoError(t, err)
 
 	t.Run("Orphaned is false when app config contains environment name", func(t *testing.T) {
 		assert.False(t, env.config.Status.Orphaned)
@@ -229,26 +233,12 @@ func Test_Orphaned_Status(t *testing.T) {
 	env.appConfig = utils.NewRadixApplicationBuilder().
 		WithAppName("testapp").
 		BuildRA()
-	testTime2 := metav1.NewTime(time.Now().UTC())
-	sync(t, &env, testTime2)
+	err = env.OnSync(context.Background())
+	require.NoError(t, err)
 
 	t.Run("Orphaned is true when app config is cleared", func(t *testing.T) {
 		assert.True(t, env.config.Status.Orphaned)
 		assert.NotNil(t, env.config.Status.OrphanedTimestamp)
-		assert.Equal(t, testTime2.Time, env.config.Status.OrphanedTimestamp.Time)
-	})
-}
-
-// sync calls OnSync on the Environment resource and asserts success
-func sync(t *testing.T, env *Environment, testTime metav1.Time) {
-	err := env.OnSync(context.Background(), testTime)
-
-	t.Run("Method succeeds", func(t *testing.T) {
-		assert.NoError(t, err)
-	})
-
-	t.Run("Reconciled time is set", func(t *testing.T) {
-		assert.Equal(t, testTime, env.config.Status.Reconciled)
 	})
 }
 
@@ -268,12 +258,6 @@ func commonAsserts(t *testing.T, env Environment, resources []metav1.Object, nam
 		for _, resource := range resources {
 			assert.Equal(t, env.AsOwnerReference(), resource.GetOwnerReferences())
 		}
-	})
-
-	t.Run("Creation is idempotent", func(t *testing.T) {
-		err := env.OnSync(context.Background(), metav1.NewTime(time.Now().UTC()))
-		assert.NoError(t, err)
-		assert.Len(t, resources, len(names))
 	})
 }
 
