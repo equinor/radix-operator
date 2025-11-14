@@ -33,11 +33,11 @@ func (app *ApplicationConfig) updateStatus(ctx context.Context, changeStatusFunc
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		updateObj := app.config.DeepCopy()
 		changeStatusFunc(&updateObj.Status)
-		updateRAL, err := app.radixclient.RadixV1().RadixApplications(app.config.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+		updateObj, err := app.radixclient.RadixV1().RadixApplications(app.config.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
-		app.config = updateRAL
+		app.config = updateObj
 		return nil
 	})
 	return err
