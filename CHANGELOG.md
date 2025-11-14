@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.104.1](https://github.com/equinor/radix-operator/compare/v1.104.0..v1.104.1) - 2025-11-14
+
+### 🐛 Bug Fixes
+
+- Bug resolve tags for a commit (#1522) - ([05402f9](https://github.com/equinor/radix-operator/commit/05402f96c1b602e5029345d82639ba49b8f184f1)) by @Richard87 in [#1522](https://github.com/equinor/radix-operator/pull/1522)
+
+
 ## [1.104.0](https://github.com/equinor/radix-operator/compare/v1.103.1..v1.104.0) - 2025-11-07
 
 ### 🚀 Features
@@ -363,43 +370,43 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
-- Update chart - ([abf42ef](https://github.com/equinor/radix-operator/commit/abf42ef66bf5b8c746ca4962930e59561d2b01b0)) by @StianOvrevage
+- Update chart - ([abf42ef](https://github.com/equinor/radix-operator/commit/abf42ef66bf5b8c746ca4962930e59561d2b01b0))
 
-- Ra validation on pipeline startup - ([d70b339](https://github.com/equinor/radix-operator/commit/d70b33935d8235e1efc26fe7604bb6e65758f8c3)) by @kjellerik
+- Ra validation on pipeline startup - ([d70b339](https://github.com/equinor/radix-operator/commit/d70b33935d8235e1efc26fe7604bb6e65758f8c3))
 
-- Rename component secret name - ([990a3ad](https://github.com/equinor/radix-operator/commit/990a3ad6c83f89c1370d45ee6bd9a41e470de23f)) by @kjellerik
+- Rename component secret name - ([990a3ad](https://github.com/equinor/radix-operator/commit/990a3ad6c83f89c1370d45ee6bd9a41e470de23f))
 
-- Rename component secret name - ([2551db4](https://github.com/equinor/radix-operator/commit/2551db46d885e2c3591514a098687ba438e22cc7)) by @kjellerik
+- Rename component secret name - ([2551db4](https://github.com/equinor/radix-operator/commit/2551db46d885e2c3591514a098687ba438e22cc7))
 
-- Include dnsappalias to radixconfig - ([bec0b19](https://github.com/equinor/radix-operator/commit/bec0b199edab0ae9c70e45f5a72f3cd8215c301a)) by @kjellerik
+- Include dnsappalias to radixconfig - ([bec0b19](https://github.com/equinor/radix-operator/commit/bec0b199edab0ae9c70e45f5a72f3cd8215c301a))
 
-- App url alias support - ([5256df3](https://github.com/equinor/radix-operator/commit/5256df3f15c662d54db45ed873826436dd6e2870)) by @kjellerik
+- App url alias support - ([5256df3](https://github.com/equinor/radix-operator/commit/5256df3f15c662d54db45ed873826436dd6e2870))
 
-- Adding spec for yaml serializing - ([91edd2b](https://github.com/equinor/radix-operator/commit/91edd2bf7c3b69798b9c3f2e28073d239e606a4f)) by @kjellerik
+- Adding spec for yaml serializing - ([91edd2b](https://github.com/equinor/radix-operator/commit/91edd2bf7c3b69798b9c3f2e28073d239e606a4f))
 
-- Refactored deploy ingress handler - ([60ae902](https://github.com/equinor/radix-operator/commit/60ae9026c9a1a03023b096ec79ead9a8f2c78d6b)) by @kjellerik
+- Refactored deploy ingress handler - ([60ae902](https://github.com/equinor/radix-operator/commit/60ae9026c9a1a03023b096ec79ead9a8f2c78d6b))
 
-- Url app alias moved to env variable - ([3dc3cde](https://github.com/equinor/radix-operator/commit/3dc3cdeccd282721dc43ebaf89254c31ac85e72b)) by @kjellerik
+- Url app alias moved to env variable - ([3dc3cde](https://github.com/equinor/radix-operator/commit/3dc3cdeccd282721dc43ebaf89254c31ac85e72b))
 
-- Incl env variable in helm chart - ([9e6aedc](https://github.com/equinor/radix-operator/commit/9e6aedc8bce742d42a5d106b681e996b810e4e92)) by @kjellerik
+- Incl env variable in helm chart - ([9e6aedc](https://github.com/equinor/radix-operator/commit/9e6aedc8bce742d42a5d106b681e996b810e4e92))
 
-- Fix incorrect prometheusName - ([55c5a8e](https://github.com/equinor/radix-operator/commit/55c5a8e7f893bcb243206443ac60999f505e9e31)) by @StianOvrevage
+- Fix incorrect prometheusName - ([55c5a8e](https://github.com/equinor/radix-operator/commit/55c5a8e7f893bcb243206443ac60999f505e9e31))
 
-- Stricter validation of req resource values - ([192efd0](https://github.com/equinor/radix-operator/commit/192efd089d1dc785b63a9213a02cb9ceb206a234)) by @kjellerik
+- Stricter validation of req resource values - ([192efd0](https://github.com/equinor/radix-operator/commit/192efd089d1dc785b63a9213a02cb9ceb206a234))
 
-- Documentation updated - ([c2b5358](https://github.com/equinor/radix-operator/commit/c2b53580d7d03735bea0d13dbf973859baa72842)) by @kjellerik
+- Documentation updated - ([c2b5358](https://github.com/equinor/radix-operator/commit/c2b53580d7d03735bea0d13dbf973859baa72842))
 
-- Change kaniko shapshotMode - ([9e6e866](https://github.com/equinor/radix-operator/commit/9e6e866ba4016bc1bb532b3a6b079b7dfbe4c02a)) by @kjellerik
+- Change kaniko shapshotMode - ([9e6e866](https://github.com/equinor/radix-operator/commit/9e6e866ba4016bc1bb532b3a6b079b7dfbe4c02a))
 
-- Adds timestamp to build job name - ([83e4bd3](https://github.com/equinor/radix-operator/commit/83e4bd3234ff35c966e892c92fcdf12d9a8e8ed8)) by @kjellerik
+- Adds timestamp to build job name - ([83e4bd3](https://github.com/equinor/radix-operator/commit/83e4bd3234ff35c966e892c92fcdf12d9a8e8ed8))
 
-- Pod security for apps enforced by operator - ([e2900e6](https://github.com/equinor/radix-operator/commit/e2900e625d6b64ce4061dd767a16aa5ce473e605)) by @kjellerik
+- Pod security for apps enforced by operator - ([e2900e6](https://github.com/equinor/radix-operator/commit/e2900e625d6b64ce4061dd767a16aa5ce473e605))
 
-- Fix typos - ([ecc6ada](https://github.com/equinor/radix-operator/commit/ecc6ada41346ed06cf90a382276ab8ae278dd422)) by @kjellerik
+- Fix typos - ([ecc6ada](https://github.com/equinor/radix-operator/commit/ecc6ada41346ed06cf90a382276ab8ae278dd422))
 
-- Disable runAsNonRoot and runAsUser, ruined webconsole - ([d7306dd](https://github.com/equinor/radix-operator/commit/d7306dd7342fe596103ce41065d77c26370af047)) by @kjellerik
+- Disable runAsNonRoot and runAsUser, ruined webconsole - ([d7306dd](https://github.com/equinor/radix-operator/commit/d7306dd7342fe596103ce41065d77c26370af047))
 
-- Clone app wildcard (#157) - ([ed7c39f](https://github.com/equinor/radix-operator/commit/ed7c39f3ea8076e72d2b24ce4ed3c4f6ec21c680)) by @ingeknudsen
+- Clone app wildcard (#157) - ([ed7c39f](https://github.com/equinor/radix-operator/commit/ed7c39f3ea8076e72d2b24ce4ed3c4f6ec21c680))
 
 - Force ssl redirect on ingresses - ([d4c220f](https://github.com/equinor/radix-operator/commit/d4c220f9f180047e25a8f7035a16ee406ea8d6c6)) by @kjellerik
 
@@ -436,13 +443,13 @@ All notable changes to this project will be documented in this file.
 - Set resource request/limits in chart - ([5d2c6d9](https://github.com/equinor/radix-operator/commit/5d2c6d9a5c45df1b41c4203be1e01c175fd58664)) by @keaaa
 
 
-## [/1.0.0] - 2018-07-02
-
 ## New Contributors ❤️
 
+* @kjellerik made their first contribution
 * @jonaspetersorensen made their first contribution
-* @thezultimate made their first contribution
 * @ made their first contribution
-* @FrodeHus made their first contribution
 * @nemzes made their first contribution
+* @StianOvrevage made their first contribution
+## [/1.0.0] - 2018-07-02
+
 <!-- generated by git-cliff -->
