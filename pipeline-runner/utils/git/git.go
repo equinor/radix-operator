@@ -142,8 +142,10 @@ func (r *repository) ResolveTagsForCommit(commitHash string) ([]string, error) {
 	// List all tags, both lightweight tags and annotated tags and see if any tags point commitHash.
 	err = tags.ForEach(func(t *plumbing.Reference) error {
 		tagHash := t.Hash()
-		var i int
-		for i = range 100 {
+		for i := range 100 {
+			if i == 99 {
+				return fmt.Errorf("too many tag object indirections for tag %s", t.Name().Short())
+			}
 
 			// The target of an annotated tag is either a commit or another annotated tag.
 			// Follow the target chain
@@ -156,9 +158,6 @@ func (r *repository) ResolveTagsForCommit(commitHash string) ([]string, error) {
 			} else {
 				return fmt.Errorf("failed to get tag object: %w", err)
 			}
-		}
-		if i == 99 {
-			return fmt.Errorf("too many tag object indirections for tag %s", t.Name().Short())
 		}
 
 		if tagHash == hash {
