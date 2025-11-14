@@ -165,8 +165,7 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Cleanup cluster
-	ignoreDelete := os.Getenv("RADIX_E2E_IGNORE_CLUSTER_DELETE") == "true"
-	if testCluster != nil && !ignoreDelete {
+	if testCluster != nil {
 		_ = testCluster.Delete(context.Background())
 	}
 
