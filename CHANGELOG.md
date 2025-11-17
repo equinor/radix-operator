@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.104.1](https://github.com/equinor/radix-operator/compare/v1.104.0..v1.104.1) - 2025-11-14
+## [1.105.0](https://github.com/equinor/radix-operator/compare/v1.104.1..v1.105.0) - 2025-11-17
+
+### 🚀 Features
+
+- E2e testing with KIND (#1514) - ([6cc7b29](https://github.com/equinor/radix-operator/commit/6cc7b29f72ee40f8bb4e55e03dca0f474ec2705c)) by @Richard87 in [#1514](https://github.com/equinor/radix-operator/pull/1514)
+
+
+## [1.104.1](https://github.com/equinor/radix-operator/compare/v1.104.0..v1.104.1) - 2025-11-17
 
 ### 🐛 Bug Fixes
 
