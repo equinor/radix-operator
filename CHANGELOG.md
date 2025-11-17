@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.104.1](https://github.com/equinor/radix-operator/compare/v1.104.0..v1.104.1) - 2025-11-14
+
+### 🐛 Bug Fixes
+
+- Bug resolve tags for a commit (#1522) - ([05402f9](https://github.com/equinor/radix-operator/commit/05402f96c1b602e5029345d82639ba49b8f184f1)) by @Richard87 in [#1522](https://github.com/equinor/radix-operator/pull/1522)
+
+
+## [1.104.0](https://github.com/equinor/radix-operator/compare/v1.103.1..v1.104.0) - 2025-11-07
+
+### 🚀 Features
+
+- Return a more descriptive error message. (#1507) - ([e599811](https://github.com/equinor/radix-operator/commit/e5998112a2d5a2090904ddbdad0019c5d2663d9d)) by @jacobsolbergholm in [#1507](https://github.com/equinor/radix-operator/pull/1507)
+
+
+### 🐛 Bug Fixes
+
+- Remove environment from radixdeployjob (#1501) - ([26a58af](https://github.com/equinor/radix-operator/commit/26a58afa16f9ed45e01601ad46b8ccade2e2fe76)) by @Richard87 in [#1501](https://github.com/equinor/radix-operator/pull/1501)
+
+
 ## [1.103.1](https://github.com/equinor/radix-operator/compare/v1.103.0..v1.103.1) - 2025-11-06
 
 ### 🐛 Bug Fixes
