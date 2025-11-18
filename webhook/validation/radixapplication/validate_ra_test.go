@@ -45,6 +45,104 @@ func Test_ParseRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing.
 	assert.Empty(t, wnrs)
 }
 
+func Test_ComponentJobNameValidator(t *testing.T) {
+	tests := []struct {
+		name        string
+		ra          *radixv1.RadixApplication
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid - no jobs, only components",
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components: []radixv1.RadixComponent{
+						{Name: "component1"},
+						{Name: "component2"},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid - no components, only jobs",
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Jobs: []radixv1.RadixJobComponent{
+						{Name: "job1"},
+						{Name: "job2"},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid - different component and job names",
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components: []radixv1.RadixComponent{
+						{Name: "component1"},
+						{Name: "component2"},
+					},
+					Jobs: []radixv1.RadixJobComponent{
+						{Name: "job1"},
+						{Name: "job2"},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid - duplicate name between component and job",
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components: []radixv1.RadixComponent{
+						{Name: "component1"},
+						{Name: "duplicate-name"},
+					},
+					Jobs: []radixv1.RadixJobComponent{
+						{Name: "duplicate-name"},
+						{Name: "job2"},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "duplicate-name",
+		},
+		{
+			name: "invalid - multiple components with same name as job",
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components: []radixv1.RadixComponent{
+						{Name: "shared"},
+						{Name: "component2"},
+					},
+					Jobs: []radixv1.RadixJobComponent{
+						{Name: "shared"},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "shared",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := radixapplication.CreateOfflineValidator()
+			_, err := validator.Validate(context.Background(), tt.ra)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errorMsg)
+				assert.Contains(t, err.Error(), "component and job names must be unique")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func Test_valid_ra_returns_true(t *testing.T) {
 	client := createClient("testdata/radixregistration.yaml")
 	validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
@@ -89,6 +187,14 @@ func Test_invalid_ra(t *testing.T) {
 		{"no error", nil, func(ra *radixv1.RadixApplication) {}},
 		{"no related rr", radixapplication.ErrNoRadixApplication, func(ra *radixv1.RadixApplication) {
 			ra.Name = noReleatedRRAppName
+		}},
+		{"duplicate component and job name", radixapplication.ErrComponentJobNamesMustBeUnique, func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components = []radixv1.RadixComponent{
+				{Name: "duplicate-name"},
+			}
+			ra.Spec.Jobs = []radixv1.RadixJobComponent{
+				{Name: "duplicate-name"},
+			}
 		}},
 		{"non existing env for component", radixapplication.ErrEnvironmentReferencedByComponentDoesNotExist, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig = []radixv1.RadixEnvironmentConfig{
@@ -197,13 +303,13 @@ func Test_invalid_ra(t *testing.T) {
 		{"resource limit unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits[unsupportedResource] = "250m"
 		}},
-		{"memory resource limit wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"memory resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = invalidResourceValue
 		}},
 		{"memory resource request wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = invalidResourceValue
 		}},
-		{"memory resource request larger than limit", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"memory resource request larger than limit", radixapplication.ErrRequestedResourceExceedsLimit, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "250Ki"
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
 		}},
@@ -229,7 +335,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"common memory resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Limits["memory"] = invalidResourceValue
 		}},
-		{"common memory resource request wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"common memory resource request wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Requests["memory"] = invalidResourceValue
 		}},
 		{"common cpu resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
@@ -295,15 +401,15 @@ func Test_invalid_ra(t *testing.T) {
 		{"job resource limit unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits[unsupportedResource] = "250m"
 		}},
-		{"job memory resource limit wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"job memory resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = invalidResourceValue
 		}},
-		{"job memory resource request wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"job memory resource request wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = invalidResourceValue
 		}},
 		{"job memory resource request larger than limit", radixapplication.ErrRequestedResourceExceedsLimit, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "250Ki"
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "100Ki"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "1000Ki"
 		}},
 		{"job cpu resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["cpu"] = invalidResourceValue
@@ -324,10 +430,10 @@ func Test_invalid_ra(t *testing.T) {
 		{"job common resource request unsupported resource", radixapplication.ErrInvalidResourceType, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Requests[unsupportedResource] = "250m"
 		}},
-		{"job common memory resource limit wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"job common memory resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Limits["memory"] = invalidResourceValue
 		}},
-		{"job common memory resource request wrong format", radixapplication.ErrMemoryResourceRequirementFormat, func(ra *radixv1.RadixApplication) {
+		{"job common memory resource request wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Resources.Requests["memory"] = invalidResourceValue
 		}},
 		{"job common cpu resource limit wrong format", radixapplication.ErrInvalidResourceFormat, func(ra *radixv1.RadixApplication) {
@@ -540,8 +646,7 @@ func Test_invalid_ra(t *testing.T) {
 			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
-			wnrs, err := validator.Validate(context.Background(), validRA)
-			assert.Empty(t, wnrs)
+			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectedError != nil {
 				fmt.Println(err)
@@ -609,6 +714,155 @@ func Test_RA_WithWarnings(t *testing.T) {
 				if !found {
 					t.Errorf("Expected warning '%s' not found in warnings: %v", testcase.expectedWarning, wrns)
 				}
+			}
+		})
+	}
+}
+
+func Test_MemoryBelowMinimum_ProducesWarning(t *testing.T) {
+	var testScenarios = []struct {
+		name     string
+		updateRA updateRAFunc
+	}{
+		{"component env memory limit 19M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "19M"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "19M"
+		}},
+		{"component env memory request 15M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "15M"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "15M"
+		}},
+		{"component env memory limit and request 10M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "10M"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "10M"
+		}},
+		{"component env memory limit 19Mi produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "19Mi"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "19Mi"
+		}},
+		{"component env memory request 1M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "1M"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "1M"
+		}},
+		{"component common memory limit 19M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "19M"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "19M"
+		}},
+		{"component common memory request 15M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Requests["memory"] = "15M"
+			ra.Spec.Components[0].Resources.Limits["memory"] = "15M"
+		}},
+		{"component common memory limit and request 10M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "10M"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "10M"
+		}},
+		{"job env memory limit 19M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "19M"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "19M"
+		}},
+		{"job env memory request 15M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "15M"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "15M"
+		}},
+		{"job env memory limit and request 5M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "5M"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "5M"
+		}},
+		{"job common memory limit 19M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "19M"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "19M"
+		}},
+		{"job common memory request 15M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "15M"
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "15M"
+		}},
+		{"job common memory limit and request 10M produces warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "10M"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "10M"
+		}},
+	}
+
+	client := createClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			testcase.updateRA(validRA)
+			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			wrns, err := validator.Validate(context.Background(), validRA)
+
+			assert.NoError(t, err, "Should not return an error for memory below 20M")
+			assert.NotEmpty(t, wrns, "Should return warnings for memory below 20M")
+
+			// Verify the warning contains the expected message
+			found := false
+			for _, wrn := range wrns {
+				if strings.Contains(wrn, radixapplication.WarnMemoryResourceBelowRecommendedMinimum) {
+					found = true
+					break
+				}
+			}
+			assert.True(t, found, "Expected warning message '%s' not found in warnings: %v",
+				radixapplication.WarnMemoryResourceBelowRecommendedMinimum, wrns)
+		})
+	}
+}
+
+func Test_MemoryAtOrAboveMinimum_NoWarning(t *testing.T) {
+	var testScenarios = []struct {
+		name     string
+		updateRA updateRAFunc
+	}{
+		{"component env memory limit exactly 20M produces no warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "20M"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "20M"
+		}},
+		{"component env memory 21M produces no warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "21M"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "21M"
+		}},
+		{"component env memory 50Mi produces no warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Mi"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Mi"
+		}},
+		{"component common memory exactly 20M produces no warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "20M"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "20M"
+		}},
+		{"component common memory 100M produces no warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "100M"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "100M"
+		}},
+		{"job env memory exactly 20M produces no warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "20M"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "20M"
+		}},
+		{"job env memory 50M produces no warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50M"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50M"
+		}},
+		{"job common memory exactly 20M produces no warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "20M"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "20M"
+		}},
+		{"job common memory 100M produces no warning", func(ra *radixv1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "100M"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "100M"
+		}},
+	}
+
+	client := createClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			testcase.updateRA(validRA)
+			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			wrns, err := validator.Validate(context.Background(), validRA)
+
+			assert.NoError(t, err, "Should not return an error")
+			// Check that there are no memory-related warnings
+			for _, wrn := range wrns {
+				assert.NotContains(t, wrn, radixapplication.WarnMemoryResourceBelowRecommendedMinimum,
+					"Should not produce memory warning for values at or above 20M")
 			}
 		})
 	}
@@ -773,10 +1027,9 @@ func Test_InvalidRAComponentLimitRequest_Error(t *testing.T) {
 			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
-			wnrs, err := validator.Validate(context.Background(), validRA)
+			_, err := validator.Validate(context.Background(), validRA)
 
-			assert.Empty(t, wnrs)
-			assert.Error(t, err)
+			assert.Error(t, err, "Expected error for invalid resource format")
 		})
 	}
 }
@@ -810,10 +1063,9 @@ func Test_InvalidRAJobLimitRequest_Error(t *testing.T) {
 			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
-			wnrs, err := validator.Validate(context.Background(), validRA)
+			_, err := validator.Validate(context.Background(), validRA)
 
-			assert.Empty(t, wnrs)
-			assert.Error(t, err)
+			assert.Error(t, err, "Expected error for invalid resource format")
 		})
 	}
 }

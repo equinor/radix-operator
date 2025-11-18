@@ -106,8 +106,6 @@ spec:
                 description: |-
                   List of component specification for the application.
                   More info: https://www.radix.equinor.com/radix-config#components
-
-                  internal: MaxItems only required to limit CEL complexity
                 items:
                   description: RadixComponent defines a component.
                   properties:
@@ -3543,8 +3541,6 @@ spec:
                 description: |-
                   List of job specification for the application.
                   More info: https://www.radix.equinor.com/radix-config#jobs
-
-                  internal: MaxItems only required to limit CEL complexity
                 items:
                   description: |-
                     RadixJobComponent defines a single job component within a RadixApplication
@@ -5001,10 +4997,6 @@ spec:
             required:
             - environments
             type: object
-            x-kubernetes-validations:
-            - message: component and job names must be unique across both lists
-              rule: '!has(self.jobs) || self.jobs.all(j, !(j.name in self.components.map(c,
-                c.name)))'
         required:
         - metadata
         - spec

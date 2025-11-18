@@ -35,6 +35,7 @@ var (
 var (
 	offlineValidators = []validatorFunc{
 		deprecatedPublicUsageValidator,
+		componentJobNameValidator,
 		componentValidator,
 		jobValidator,
 		externalDNSAliasValidator,
@@ -106,6 +107,21 @@ func createRRExistValidator(kubeClient client.Client) validatorFunc {
 
 		return nil, nil
 	}
+}
+
+func componentJobNameValidator(_ context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
+	componentNames := make(map[string]bool)
+	for _, component := range ra.Spec.Components {
+		componentNames[component.Name] = true
+	}
+
+	for _, job := range ra.Spec.Jobs {
+		if componentNames[job.Name] {
+			return nil, []error{fmt.Errorf("%s: %w", job.Name, ErrComponentJobNamesMustBeUnique)}
+		}
+	}
+
+	return nil, nil
 }
 
 func deprecatedPublicUsageValidator(_ context.Context, ra *radixv1.RadixApplication) ([]string, []error) {

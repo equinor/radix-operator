@@ -80,7 +80,7 @@
           "type": "object"
         },
         "components": {
-          "description": "List of component specification for the application.\nMore info: https://www.radix.equinor.com/radix-config#components\n\ninternal: MaxItems only required to limit CEL complexity",
+          "description": "List of component specification for the application.\nMore info: https://www.radix.equinor.com/radix-config#components",
           "items": {
             "description": "RadixComponent defines a component.",
             "properties": {
@@ -3519,7 +3519,7 @@
           "x-kubernetes-list-type": "map"
         },
         "jobs": {
-          "description": "List of job specification for the application.\nMore info: https://www.radix.equinor.com/radix-config#jobs\n\ninternal: MaxItems only required to limit CEL complexity",
+          "description": "List of job specification for the application.\nMore info: https://www.radix.equinor.com/radix-config#jobs",
           "items": {
             "description": "RadixJobComponent defines a single job component within a RadixApplication\nThe job component is used by the radix-job-scheduler to create Kubernetes Job objects",
             "properties": {
@@ -4966,13 +4966,7 @@
       "required": [
         "environments"
       ],
-      "type": "object",
-      "x-kubernetes-validations": [
-        {
-          "message": "component and job names must be unique across both lists",
-          "rule": "!has(self.jobs) || self.jobs.all(j, !(j.name in self.components.map(c, c.name)))"
-        }
-      ]
+      "type": "object"
     }
   },
   "required": [

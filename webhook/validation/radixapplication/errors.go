@@ -11,6 +11,7 @@ var (
 	ErrDNSAliasReservedForRadixPlatformApplication                   = errors.New("dns alias is reserved for Radix platform application")
 	ErrDNSAliasReservedForRadixPlatformService                       = errors.New("dns alias is reserved for Radix platform service")
 	ErrComponentNameReservedSuffix                                   = errors.New("component name reserved suffix")
+	ErrComponentJobNamesMustBeUnique                                 = errors.New("component and job names must be unique across both lists")
 	ErrDNSAliasEnvironmentNotDefined                                 = errors.New("environment for dns alias is not defined in radix application")
 	ErrDNSAliasComponentNotDefinedOrDisabled                         = errors.New("component for dns alias is not defined or disabled in radix application")
 	ErrExternalAliasCannotBeEmpty                                    = errors.New("external alias cannot be empty")
