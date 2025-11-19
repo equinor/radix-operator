@@ -3171,6 +3171,7 @@ func (in *RadixJobStatus) DeepCopyInto(out *RadixJobStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	in.Reconciled.DeepCopyInto(&out.Reconciled)
 	return
 }
 

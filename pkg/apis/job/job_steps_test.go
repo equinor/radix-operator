@@ -244,7 +244,7 @@ func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStat
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
 	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixRegistration, scenario.radixJob, nil)
-	err = job.setStatusOfJob(context.Background())
+	err = job.syncStatus(context.Background(), nil)
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
 	actualRj, err := s.radixClient.RadixV1().RadixJobs(scenario.radixJob.Namespace).Get(context.Background(), scenario.radixJob.Name, metav1.GetOptions{})

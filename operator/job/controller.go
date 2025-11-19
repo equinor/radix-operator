@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/operator/common"
-	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -52,7 +51,7 @@ func NewController(ctx context.Context,
 	if _, err := radixJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixJob, _ := cur.(*v1.RadixJob)
-			if job.IsRadixJobDone(radixJob) {
+			if radixJob.Status.Condition.IsDoneCondition() {
 				logger.Debug().Msgf("Skip job object %s as it is complete", radixJob.GetName())
 				metrics.CustomResourceAddedButSkipped(crType)
 				metrics.InitiateRadixJobStatusChanged(radixJob)
@@ -69,10 +68,17 @@ func NewController(ctx context.Context,
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRJ := cur.(*v1.RadixJob)
-			if job.IsRadixJobDone(newRJ) {
+			oldRJ := old.(*v1.RadixJob)
+
+			if newRJ.Status.Condition.IsDoneCondition() {
 				logger.Debug().Msgf("Skip job object %s as it is complete", newRJ.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				metrics.InitiateRadixJobStatusChanged(newRJ)
+				return
+			}
+
+			// Skip enqueue if no changes to spec or condition
+			if newRJ.Generation == oldRJ.Generation && newRJ.Status.Condition == oldRJ.Status.Condition {
 				return
 			}
 
