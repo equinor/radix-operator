@@ -123,9 +123,6 @@ func NewController(ctx context.Context,
 		UpdateFunc: func(old, cur interface{}) {
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
-			if newRr.ResourceVersion == oldRr.ResourceVersion {
-				return
-			}
 
 			// If neither admin or reader AD groups change, this
 			// does not affect the deployment
@@ -160,9 +157,6 @@ func NewController(ctx context.Context,
 		UpdateFunc: func(old, cur interface{}) {
 			newRa := cur.(*v1.RadixApplication)
 			oldRa := old.(*v1.RadixApplication)
-			if newRa.ResourceVersion == oldRa.ResourceVersion {
-				return
-			}
 
 			environmentsToResync := getAddedOrDroppedEnvironmentNames(oldRa, newRa)
 			for _, envName := range environmentsToResync {

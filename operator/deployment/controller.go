@@ -111,11 +111,6 @@ func NewController(ctx context.Context,
 			logger.Debug().Msgf("Service object added event received for %s. Do nothing", service.Name)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			newService := cur.(*corev1.Service)
-			oldService := old.(*corev1.Service)
-			if newService.ResourceVersion == oldService.ResourceVersion {
-				return
-			}
 			controller.HandleObject(ctx, cur, v1.KindRadixDeployment, getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -129,9 +124,6 @@ func NewController(ctx context.Context,
 		UpdateFunc: func(old, cur interface{}) {
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
-			if newRr.ResourceVersion == oldRr.ResourceVersion {
-				return
-			}
 
 			// If neither admin or reader AD groups change, this
 			// does not affect the deployment

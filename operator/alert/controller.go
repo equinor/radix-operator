@@ -89,9 +89,6 @@ func NewController(ctx context.Context,
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			newRr := newObj.(*radixv1.RadixRegistration)
 			oldRr := oldObj.(*radixv1.RadixRegistration)
-			if newRr.ResourceVersion == oldRr.ResourceVersion {
-				return
-			}
 
 			// If neither admin nor reader AD groups change, this
 			// does not affect the alert

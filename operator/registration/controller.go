@@ -6,7 +6,6 @@ import (
 
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -100,17 +99,14 @@ func NewController(ctx context.Context,
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldSecret := oldObj.(*corev1.Secret)
 			newSecret := newObj.(*corev1.Secret)
-			namespace, err := client.CoreV1().Namespaces().Get(ctx, oldSecret.Namespace, metav1.GetOptions{})
-			if err != nil {
-				logger.Error().Err(err).Msg("Failed to get namespace")
-				return
-			}
-			if oldSecret.ResourceVersion == newSecret.ResourceVersion {
-				// Periodic resync will send update events for all known Secrets.
-				// Two different versions of the same Secret will always have different RVs.
-				return
-			}
-			if isGitDeployKey(newSecret) && newSecret.Namespace != "" {
+
+			if isGitDeployKey(newSecret) {
+				namespace, err := client.CoreV1().Namespaces().Get(ctx, oldSecret.Namespace, metav1.GetOptions{})
+				if err != nil {
+					logger.Error().Err(err).Msg("Failed to get namespace for Git deploy key secret")
+					metrics.OperatorError(crType, "git_deploy_key", "namespace_error")
+					return
+				}
 				// Resync, as deploy key is updated. Resync is triggered on namespace, since RR not directly own the
 				// secret
 				controller.HandleObject(ctx, namespace, v1.KindRadixRegistration, getObject)
@@ -122,17 +118,19 @@ func NewController(ctx context.Context,
 				logger.Error().Msg("corev1.Secret object cast failed during deleted event received.")
 				return
 			}
-			namespace, err := client.CoreV1().Namespaces().Get(ctx, secret.Namespace, metav1.GetOptions{})
-			if err != nil {
-				// Ignore error if namespace does not exist.
-				// This is normal when a RR is deleted, resulting in deletion of namespaces and it's secrets
-				if errors.IsNotFound(err) {
+
+			if isGitDeployKey(secret) {
+				namespace, err := client.CoreV1().Namespaces().Get(ctx, secret.Namespace, metav1.GetOptions{})
+				if err != nil {
+					// Ignore error if namespace does not exist.
+					// This is normal when a RR is deleted, resulting in deletion of namespaces and it's secrets
+					if errors.IsNotFound(err) {
+						return
+					}
+					logger.Error().Err(err).Msg("Failed to get namespace for Git deploy key secret")
+					metrics.OperatorError(crType, "git_deploy_key", "namespace_error")
 					return
 				}
-				logger.Error().Err(err).Msg("Failed to get namespace")
-				return
-			}
-			if isGitDeployKey(secret) && namespace.Labels[kube.RadixAppLabel] != "" {
 				// Resync, as deploy key is deleted. Resync is triggered on namespace, since RR not directly own the
 				// secret
 				controller.HandleObject(ctx, namespace, v1.KindRadixRegistration, getObject)
