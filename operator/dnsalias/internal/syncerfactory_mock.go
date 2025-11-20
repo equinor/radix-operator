@@ -7,9 +7,8 @@ package internal
 import (
 	reflect "reflect"
 
-	dnsalias "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	defaults "github.com/equinor/radix-operator/pkg/apis/defaults"
-	dnsalias0 "github.com/equinor/radix-operator/pkg/apis/dnsalias"
+	dnsalias "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	ingress "github.com/equinor/radix-operator/pkg/apis/ingress"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -42,15 +41,15 @@ func (m *MockSyncerFactory) EXPECT() *MockSyncerFactoryMockRecorder {
 }
 
 // CreateSyncer mocks base method.
-func (m *MockSyncerFactory) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, dnsConfig *dnsalias.DNSConfig, ingressConfiguration ingress.IngressConfiguration, oauth2Config defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, radixDNSAlias *v1.RadixDNSAlias) dnsalias0.Syncer {
+func (m *MockSyncerFactory) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, dnsZone string, ingressConfiguration ingress.IngressConfiguration, oauth2Config defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, radixDNSAlias *v1.RadixDNSAlias) dnsalias.Syncer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateSyncer", kubeClient, kubeUtil, radixClient, dnsConfig, ingressConfiguration, oauth2Config, ingressAnnotationProviders, radixDNSAlias)
-	ret0, _ := ret[0].(dnsalias0.Syncer)
+	ret := m.ctrl.Call(m, "CreateSyncer", kubeClient, kubeUtil, radixClient, dnsZone, ingressConfiguration, oauth2Config, ingressAnnotationProviders, radixDNSAlias)
+	ret0, _ := ret[0].(dnsalias.Syncer)
 	return ret0
 }
 
 // CreateSyncer indicates an expected call of CreateSyncer.
-func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeClient, kubeUtil, radixClient, dnsConfig, ingressConfiguration, oauth2Config, ingressAnnotationProviders, radixDNSAlias interface{}) *gomock.Call {
+func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeClient, kubeUtil, radixClient, dnsZone, ingressConfiguration, oauth2Config, ingressAnnotationProviders, radixDNSAlias interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), kubeClient, kubeUtil, radixClient, dnsConfig, ingressConfiguration, oauth2Config, ingressAnnotationProviders, radixDNSAlias)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), kubeClient, kubeUtil, radixClient, dnsZone, ingressConfiguration, oauth2Config, ingressAnnotationProviders, radixDNSAlias)
 }

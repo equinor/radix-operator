@@ -73,7 +73,7 @@ test:
 	LOG_LEVEL=warn go test -cover `go list ./... | grep -v 'github.com/equinor/radix-operator/pkg/client' | grep -v 'github.com/equinor/radix-operator/e2e'`
 
 .PHONY: test-e2e
-test-e2e:
+test-e2e: generate
 	cd e2e && go test -v -p 1 -timeout 30m ./...
 	# Note: -p 1 is used to run tests sequentially to allow printing logs sequentially
 

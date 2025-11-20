@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -23,25 +22,25 @@ const ConfigBranchFallback = "master"
 
 // ApplicationConfig Instance variables
 type ApplicationConfig struct {
-	kubeclient     kubernetes.Interface
-	radixclient    radixclient.Interface
-	kubeutil       *kube.Kube
-	registration   *radixv1.RadixRegistration
-	config         *radixv1.RadixApplication
-	dnsAliasConfig *dnsalias.DNSConfig
-	logger         zerolog.Logger
+	kubeclient   kubernetes.Interface
+	radixclient  radixclient.Interface
+	kubeutil     *kube.Kube
+	registration *radixv1.RadixRegistration
+	config       *radixv1.RadixApplication
+	dnsZone      string
+	logger       zerolog.Logger
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, dnsAliasConfig *dnsalias.DNSConfig) *ApplicationConfig {
+func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, dnsZone string) *ApplicationConfig {
 	return &ApplicationConfig{
-		kubeclient:     kubeclient,
-		radixclient:    radixclient,
-		kubeutil:       kubeutil,
-		registration:   registration,
-		config:         config,
-		dnsAliasConfig: dnsAliasConfig,
-		logger:         log.Logger.With().Str("resource_kind", radixv1.KindRadixApplication).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
+		kubeclient:   kubeclient,
+		radixclient:  radixclient,
+		kubeutil:     kubeutil,
+		registration: registration,
+		config:       config,
+		dnsZone:      dnsZone,
+		logger:       log.Logger.With().Str("resource_kind", radixv1.KindRadixApplication).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
 	}
 }
 
