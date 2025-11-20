@@ -9,6 +9,8 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -77,8 +79,8 @@ func NewController(ctx context.Context,
 				return
 			}
 
-			// Skip enqueue if no changes to spec or condition
-			if newRJ.Generation == oldRJ.Generation && newRJ.Status.Condition == oldRJ.Status.Condition {
+			// Skip enqueue if no changes
+			if compare(oldRJ, newRJ) {
 				return
 			}
 
@@ -158,4 +160,11 @@ func NewController(ctx context.Context,
 
 func getRadixJob(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
 	return radixClient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+func compare(a, b *v1.RadixJob) bool {
+	return a.Generation == b.Generation &&
+		a.Status.Condition == b.Status.Condition &&
+		cmp.Equal(a.Labels, b.Labels, cmpopts.EquateEmpty()) &&
+		cmp.Equal(a.Annotations, b.Annotations)
 }

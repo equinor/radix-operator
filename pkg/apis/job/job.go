@@ -84,11 +84,15 @@ func (job *Job) OnSync(ctx context.Context) error {
 		return fmt.Errorf("failed to sync target environments: %w", err)
 	}
 
-	stopReconciliation, err := job.syncStatuses(ctx, ra)
-	if err != nil {
+	if stopped, err := job.handleStop(ctx, ra); err != nil {
 		return err
+	} else if stopped {
+		return nil
 	}
-	if stopReconciliation {
+
+	if queued, err := job.handleJobQueueing(ctx, ra); err != nil {
+		return err
+	} else if queued {
 		return nil
 	}
 
@@ -105,6 +109,24 @@ func (job *Job) OnSync(ctx context.Context) error {
 	return nil
 }
 
+// handleStop stops the job if the Stop flag is set and activates the next queued job.
+// Returns true if the job was stopped, indicating that reconciliation should stop.
+func (job *Job) handleStop(ctx context.Context, ra *v1.RadixApplication) (bool, error) {
+	if !job.radixJob.Spec.Stop {
+		return false, nil
+	}
+
+	if err := job.stopJob(ctx); err != nil {
+		return false, fmt.Errorf("failed to stop job: %w", err)
+	}
+
+	if err := job.setNextJobToRunning(ctx, ra); err != nil {
+		return false, fmt.Errorf("failed to set next job to running: %w", err)
+	}
+
+	return true, nil
+}
+
 func (job *Job) reconcile(ctx context.Context) error {
 	_, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(ctx, job.radixJob.Name, metav1.GetOptions{})
 	if err != nil {
@@ -113,33 +135,27 @@ func (job *Job) reconcile(ctx context.Context) error {
 			return job.createPipelineJob(ctx)
 		}
 
-		return err
+		return fmt.Errorf("failed to create pipeline job: %s", err)
 	}
 
 	return nil
 }
 
-func (job *Job) syncStatuses(ctx context.Context, ra *v1.RadixApplication) (bool, error) {
-	if job.radixJob.Spec.Stop {
-		if err := job.stopJob(ctx); err != nil {
-			return false, err
-		}
-		if err := job.setNextJobToRunning(ctx, ra); err != nil {
-			return false, err
-		}
-
-		return true, nil
+// handleJobQueueing checks if another job is running on the same branch or environment and queues this job if necessary.
+// Returns true if the job was queued, indicating that reconciliation should stop.
+func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) (bool, error) {
+	if !slices.Contains([]v1.RadixJobCondition{"", v1.JobQueued}, job.radixJob.Status.Condition) {
+		return false, nil
 	}
 
 	existingRadixJobs, err := job.getRadixJobs(ctx)
 	if err != nil {
-		err = fmt.Errorf("failed to get all RadixJobs: %w", err)
-		return false, err
+		return false, fmt.Errorf("failed to list jobs: %w", err)
 	}
 
 	if isOtherJobRunningOnBranchOrEnvironment(ra, job.radixJob, existingRadixJobs) {
 		if err := job.queueJob(ctx); err != nil {
-			return false, err
+			return false, fmt.Errorf("failed to queue job: %w", err)
 		}
 
 		return true, nil
