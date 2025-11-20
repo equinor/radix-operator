@@ -72,7 +72,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.WaitForSynced("Sync should be called on add RadixDNSAlias")
 
 	appNamespace := utils.GetAppNamespace(appName1)
-	ra, err := s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.Background(), &radixv1.RadixApplication{
+	_, err = s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.Background(), &radixv1.RadixApplication{
 		ObjectMeta: metav1.ObjectMeta{Name: appName1},
 		Spec:       radixv1.RadixApplicationSpec{DNSAlias: []radixv1.DNSAlias{{Alias: aliasName, Environment: envName1, Component: componentName1}}}}, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -132,34 +132,6 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on updated reader ad group")
-
-	// Sync should trigger when changed DNSAlias in radix application
-	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	ra.Spec.DNSAlias[0].Component = componentName2
-	ra.ObjectMeta.ResourceVersion = string(uuid.NewUUID())
-	_, err = s.RadixClient.RadixV1().RadixApplications(appNamespace).Update(context.Background(), ra, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on updated alias")
-
-	// Sync should trigger when added DNSAlias in radix application
-	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	ra.Spec.DNSAlias = append(ra.Spec.DNSAlias, radixv1.DNSAlias{
-		Alias:       aliasName2,
-		Environment: envName1,
-		Component:   componentName1,
-	})
-	ra.ObjectMeta.ResourceVersion = string(uuid.NewUUID())
-	_, err = s.RadixClient.RadixV1().RadixApplications(appNamespace).Update(context.Background(), ra, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on added alias")
-
-	// Sync should trigger when deleted DNSAlias in radix application
-	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	ra.Spec.DNSAlias = ra.Spec.DNSAlias[1:]
-	ra.ObjectMeta.ResourceVersion = string(uuid.NewUUID())
-	_, err = s.RadixClient.RadixV1().RadixApplications(appNamespace).Update(context.Background(), ra, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on delete alias")
 
 	// Delete the RadixDNSAlias should not trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)

@@ -6,7 +6,6 @@ import (
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 func (app *ApplicationConfig) syncStatus(ctx context.Context, reconcileErr error) error {
@@ -30,15 +29,12 @@ func (app *ApplicationConfig) syncStatus(ctx context.Context, reconcileErr error
 }
 
 func (app *ApplicationConfig) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixApplicationStatus)) error {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updateObj := app.config.DeepCopy()
-		changeStatusFunc(&updateObj.Status)
-		updateObj, err := app.radixclient.RadixV1().RadixApplications(app.config.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		app.config = updateObj
-		return nil
-	})
-	return err
+	updateObj := app.config.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	updateObj, err := app.radixclient.RadixV1().RadixApplications(updateObj.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	app.config = updateObj
+	return nil
 }

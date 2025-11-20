@@ -6,7 +6,6 @@ import (
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 func (s *syncer) syncStatus(ctx context.Context, reconcileErr error) error {
@@ -29,18 +28,12 @@ func (s *syncer) syncStatus(ctx context.Context, reconcileErr error) error {
 }
 
 func (s *syncer) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixDNSAliasStatus)) error {
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		radixDNSAlias, err := s.radixClient.RadixV1().RadixDNSAliases().Get(ctx, s.radixDNSAlias.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		changeStatusFunc(&radixDNSAlias.Status)
-		updatedRadixDNSAlias, err := s.radixClient.RadixV1().RadixDNSAliases().UpdateStatus(ctx, radixDNSAlias, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		s.radixDNSAlias = updatedRadixDNSAlias
+	updateObj := s.radixDNSAlias.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	updateObj, err := s.radixClient.RadixV1().RadixDNSAliases().UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+	if err != nil {
 		return err
-	})
-
+	}
+	s.radixDNSAlias = updateObj
+	return err
 }

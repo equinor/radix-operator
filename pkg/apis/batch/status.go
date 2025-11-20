@@ -13,7 +13,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 func (s *syncer) syncStatus(ctx context.Context, reconcileErr error) error {
@@ -85,20 +84,14 @@ func (s *syncer) syncStatus(ctx context.Context, reconcileErr error) error {
 }
 
 func (s *syncer) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixBatchStatus)) error {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		radixBatch, err := s.radixClient.RadixV1().RadixBatches(s.radixBatch.GetNamespace()).Get(ctx, s.radixBatch.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		changeStatusFunc(&radixBatch.Status)
-		updatedRadixBatch, err := s.radixClient.RadixV1().RadixBatches(radixBatch.GetNamespace()).UpdateStatus(ctx, radixBatch, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		s.radixBatch = updatedRadixBatch
-		return nil
-	})
-	return err
+	updateObj := s.radixBatch.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	updateObj, err := s.radixClient.RadixV1().RadixBatches(updateObj.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	s.radixBatch = updateObj
+	return nil
 }
 
 func (s *syncer) buildJobStatuses(ctx context.Context) ([]radixv1.RadixBatchJobStatus, error) {

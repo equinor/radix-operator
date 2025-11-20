@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -52,7 +51,6 @@ func NewController(ctx context.Context, kubeClient kubernetes.Interface,
 	addEventHandlersForRadixDeployments(radixInformerFactory, controller, radixClient, &logger)
 	addEventHandlersForIngresses(ctx, kubeInformerFactory, controller, &logger)
 	addEventHandlersForRadixRegistrations(radixInformerFactory, controller, radixClient, &logger)
-	addEventHandlersForRadixApplication(radixInformerFactory, controller, radixClient, &logger)
 	return controller
 }
 
@@ -74,37 +72,6 @@ func addEventHandlersForRadixRegistrations(radixInformerFactory informers.Shared
 	}); err != nil {
 		panic(err)
 	}
-}
-
-func addEventHandlersForRadixApplication(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface, logger *zerolog.Logger) {
-	informer := radixInformerFactory.Radix().V1().RadixApplications()
-	if _, err := informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			oldRA := oldObj.(*radixv1.RadixApplication)
-			newRA := newObj.(*radixv1.RadixApplication)
-			if oldRA.GetResourceVersion() == newRA.GetResourceVersion() ||
-				equalDNSAliases(oldRA.Spec.DNSAlias, newRA.Spec.DNSAlias) {
-				return // updating RadixApplication has the same resource version and DNS aliases. Do nothing.
-			}
-			enqueueRadixDNSAliasesForAppName(controller, radixClient, newRA.GetName(), logger)
-		},
-	}); err != nil {
-		panic(err)
-	}
-}
-
-func equalDNSAliases(dnsAliases1, dnsAliases2 []radixv1.DNSAlias) bool {
-	if len(dnsAliases1) != len(dnsAliases2) {
-		return false
-	}
-	dnsAlias1Map := slice.Reduce(dnsAliases1, make(map[string]radixv1.DNSAlias), func(acc map[string]radixv1.DNSAlias, dnsAlias radixv1.DNSAlias) map[string]radixv1.DNSAlias {
-		acc[dnsAlias.Alias] = dnsAlias
-		return acc
-	})
-	return slice.All(dnsAliases2, func(dnsAlias2 radixv1.DNSAlias) bool {
-		dnsAlias1, ok := dnsAlias1Map[dnsAlias2.Alias]
-		return ok && dnsAlias1.Environment == dnsAlias2.Environment && dnsAlias1.Component == dnsAlias2.Component
-	})
 }
 
 func addEventHandlersForIngresses(ctx context.Context, kubeInformerFactory kubeinformers.SharedInformerFactory, controller *common.Controller, logger *zerolog.Logger) {

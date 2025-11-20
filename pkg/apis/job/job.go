@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/retry"
 )
 
 // Job Instance variables
@@ -289,7 +288,7 @@ func (job *Job) syncStatus(ctx context.Context, reconcileErr error) error {
 			currStatus.Message = ""
 		}
 	}); err != nil {
-		return err
+		return fmt.Errorf("failed to sync status: %w", err)
 	}
 
 	return reconcileErr
@@ -649,26 +648,16 @@ func (job *Job) updateStatus(ctx context.Context, changeStatusFunc func(currStat
 }
 
 func updateRadixJobStatus(ctx context.Context, client radixclient.Interface, rj *v1.RadixJob, changeStatusFunc func(currStatus *v1.RadixJobStatus)) (*v1.RadixJob, error) {
-	rjInterface := client.RadixV1().RadixJobs(rj.GetNamespace())
-	var outRJ *v1.RadixJob
-
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRJ, err := rjInterface.Get(ctx, rj.Name, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		changeStatusFunc(&currentRJ.Status)
-		outRJ, err = rjInterface.UpdateStatus(ctx, currentRJ, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-
-		if currentRJ.Status.Condition != outRJ.Status.Condition {
-			metrics.RadixJobStatusChanged(outRJ)
-		}
-		return nil
-	})
-	return outRJ, err
+	updateObj := rj.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	updateObj, err := client.RadixV1().RadixJobs(rj.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if rj.Status.Condition != updateObj.Status.Condition {
+		metrics.RadixJobStatusChanged(updateObj)
+	}
+	return updateObj, nil
 }
 
 func (job *Job) getPipelineJobs(ctx context.Context) ([]batchv1.Job, error) {

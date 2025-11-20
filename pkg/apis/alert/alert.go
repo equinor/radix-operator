@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/retry"
 )
 
 // AlertSyncer defines interface for syncing a RadixAlert
@@ -93,17 +92,14 @@ func (syncer *alertSyncer) syncStatus(ctx context.Context, reconcileErr error) e
 }
 
 func (syncer *alertSyncer) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixAlertStatus)) error {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updateObj := syncer.radixAlert.DeepCopy()
-		changeStatusFunc(&updateObj.Status)
-		updateRAL, err := syncer.radixClient.RadixV1().RadixAlerts(syncer.radixAlert.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		syncer.radixAlert = updateRAL
-		return nil
-	})
-	return err
+	updateObj := syncer.radixAlert.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	updateObj, err := syncer.radixClient.RadixV1().RadixAlerts(updateObj.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	syncer.radixAlert = updateObj
+	return nil
 }
 
 func (syncer *alertSyncer) getOwnerReference() []metav1.OwnerReference {

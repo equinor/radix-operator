@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/client-go/util/retry"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -106,14 +104,12 @@ func (app *Application) syncStatus(ctx context.Context, reconcileErr error) erro
 }
 
 func (app *Application) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *v1.RadixRegistrationStatus)) error {
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		updateObj := app.registration.DeepCopy()
-		changeStatusFunc(&updateObj.Status)
-		updateObj, err := app.radixclient.RadixV1().RadixRegistrations().UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		app.registration = updateObj
-		return nil
-	})
+	updateObj := app.registration.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	updateObj, err := app.radixclient.RadixV1().RadixRegistrations().UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	app.registration = updateObj
+	return nil
 }

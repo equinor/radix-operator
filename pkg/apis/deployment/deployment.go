@@ -27,7 +27,6 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/retry"
 )
 
 // DeploymentSyncer defines interface for syncing a RadixDeployment
@@ -526,20 +525,9 @@ func (deploy *Deployment) isLatestInTheEnvironment(allRDs []*v1.RadixDeployment)
 }
 
 func updateRadixDeploymentStatus(ctx context.Context, client radixclient.Interface, rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus)) (*v1.RadixDeployment, error) {
-	rdInterface := client.RadixV1().RadixDeployments(rd.GetNamespace())
-	var outRD *v1.RadixDeployment
-
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRD, err := rdInterface.Get(ctx, rd.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		changeStatusFunc(&currentRD.Status)
-		outRD, err = rdInterface.UpdateStatus(ctx, currentRD, metav1.UpdateOptions{})
-		return err
-	})
-
-	return outRD, err
+	updateObj := rd.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	return client.RadixV1().RadixDeployments(rd.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
 }
 
 func sortRDsByActiveFromTimestampDesc(rds []*v1.RadixDeployment) []*v1.RadixDeployment {
