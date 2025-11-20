@@ -107,11 +107,6 @@ func NewController(ctx context.Context,
 
 	if _, err := kubernetesJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
-			newJob := cur.(*batchv1.Job)
-			oldJob := old.(*batchv1.Job)
-			if newJob.ResourceVersion == oldJob.ResourceVersion {
-				return
-			}
 			controller.HandleObject(ctx, cur, v1.KindRadixJob, getRadixJob)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -131,11 +126,6 @@ func NewController(ctx context.Context,
 	if _, err := podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			newPod := cur.(*corev1.Pod)
-			oldPod := old.(*corev1.Pod)
-			if newPod.ResourceVersion == oldPod.ResourceVersion {
-				return
-			}
-
 			if ownerRef := metav1.GetControllerOf(newPod); ownerRef != nil {
 				if ownerRef.Kind != "Job" || newPod.Labels[kube.RadixJobNameLabel] == "" {
 					return
@@ -166,5 +156,5 @@ func compare(a, b *v1.RadixJob) bool {
 	return a.Generation == b.Generation &&
 		a.Status.Condition == b.Status.Condition &&
 		cmp.Equal(a.Labels, b.Labels, cmpopts.EquateEmpty()) &&
-		cmp.Equal(a.Annotations, b.Annotations)
+		cmp.Equal(a.Annotations, b.Annotations, cmpopts.EquateEmpty())
 }

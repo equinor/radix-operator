@@ -2,161 +2,161 @@ package job
 
 import (
 	"context"
-	"os"
+	"fmt"
 	"testing"
+	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/operator/common"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/test"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/golang/mock/gomock"
-	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/record"
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 type jobTestSuite struct {
-	suite.Suite
-	promClient *prometheusfake.Clientset
-	kubeUtil   *kube.Kube
-	tu         test.Utils
+	common.ControllerTestSuite
+	cleanup chan bool
+	// promClient *prometheusfake.Clientset
+	// kubeUtil   *kube.Kube
+	// tu         test.Utils
 }
 
 func TestJobTestSuite(t *testing.T) {
 	suite.Run(t, new(jobTestSuite))
 }
 
-func (s *jobTestSuite) SetupSuite() {
-	test.SetRequiredEnvironmentVariables()
-}
-
 func (s *jobTestSuite) SetupTest() {
-	secretProviderClient := secretproviderfake.NewSimpleClientset()
-	kedaClient := kedafake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(fake.NewSimpleClientset(), fakeradix.NewSimpleClientset(), kedaClient, secretProviderClient)
-	s.promClient = prometheusfake.NewSimpleClientset()
-	s.tu = test.NewTestUtils(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), kedaClient, secretProviderClient)
-	err := s.tu.CreateClusterPrerequisites("AnyClusterName", "anysubid")
-	s.Require().NoError(err)
-}
-
-func (s *jobTestSuite) TearDownTest() {
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
-	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
+	s.ControllerTestSuite.SetupTest()
+	s.cleanup = make(chan bool)
 }
 
 func (s *jobTestSuite) Test_Controller_Calls_Handler() {
-	anyAppName := "test-app"
-
+	jobName, namespace, appName := "any-job", "any-ns", "any-app-name"
 	ctx, stop := context.WithCancel(context.Background())
-	synced := make(chan bool)
-
 	defer stop()
-	defer close(synced)
 
-	hasSynced := func(syncedOk bool) { synced <- syncedOk }
 	ctrl := gomock.NewController(s.T())
-	mockHistory := NewMockHistory(ctrl)
-	withHistoryOption := func(h *handler) { h.jobHistory = mockHistory }
-	jobHandler := s.createHandler(hasSynced, withHistoryOption)
-
+	handler := NewMockHandler(ctrl)
 	go func() {
-		err := s.startJobController(ctx, jobHandler)
+		err := s.startJobController(ctx, handler)
 		s.Require().NoError(err)
 	}()
 
-	mockHistory.EXPECT().Cleanup(gomock.Any(), anyAppName).Times(1)
+	rj := &v1.RadixJob{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: jobName}, Spec: v1.RadixJobSpec{AppName: appName}}
 
-	// Create job should sync
-	rj, _ := s.tu.ApplyJob(
-		utils.ARadixBuildDeployJob().
-			WithAppName(anyAppName))
-
-	op, ok := <-synced
-	s.True(ok)
-	s.True(op)
-
-	// Update  radix job should sync. Controller will skip if an update
-	// changes nothing, except for spec or metadata, labels or annotations
-	rj.Spec.Stop = true
-	_, err := s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.Background(), rj, metav1.UpdateOptions{})
+	// Create RJ should sync and call cleanup
+	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(1).Do(s.cleanupChannelCallback())
+	handler.EXPECT().Sync(gomock.Any(), rj.Namespace, rj.Name).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	rj, err := s.RadixClient.RadixV1().RadixJobs(rj.Namespace).Create(ctx, rj, metav1.CreateOptions{})
 	s.Require().NoError(err)
+	s.WaitForSynced("Sync called on add RadixJob")
+	s.waitForCleanup("Cleanup called on add RadixJob")
 
-	op, ok = <-synced
-	s.True(ok)
-	s.True(op)
+	// Update RJ spec (faked by incrementing generation) should sync
+	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(0).Do(s.cleanupChannelCallback())
+	handler.EXPECT().Sync(gomock.Any(), rj.Namespace, rj.Name).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	rj.Generation++
+	rj, err = s.RadixClient.RadixV1().RadixJobs(rj.Namespace).Update(context.Background(), rj, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync called on update RadixJob")
+	s.waitForNotCleanup("Cleanup called on add RadixJob")
 
-	// Child job should sync
-	childJob := batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: jobs.GetOwnerReference(rj),
-		},
+	// Update RJ labels should sync
+	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(0).Do(s.cleanupChannelCallback())
+	handler.EXPECT().Sync(gomock.Any(), rj.Namespace, rj.Name).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	rj.Labels = map[string]string{"key": "val"}
+	rj, err = s.RadixClient.RadixV1().RadixJobs(rj.Namespace).Update(context.Background(), rj, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync called on update RadixJob")
+	s.waitForNotCleanup("Cleanup called on add RadixJob")
+
+	// Update RJ annotations should sync
+	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(0).Do(s.cleanupChannelCallback())
+	handler.EXPECT().Sync(gomock.Any(), rj.Namespace, rj.Name).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	rj.Annotations = map[string]string{"key": "val"}
+	rj, err = s.RadixClient.RadixV1().RadixJobs(rj.Namespace).Update(context.Background(), rj, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync called on update RadixJob")
+	s.waitForNotCleanup("Cleanup called on add RadixJob")
+
+	// Update RJ status condition should sync
+	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(0).Do(s.cleanupChannelCallback())
+	handler.EXPECT().Sync(gomock.Any(), rj.Namespace, rj.Name).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	rj.Status.Condition = v1.JobRunning
+	rj, err = s.RadixClient.RadixV1().RadixJobs(rj.Namespace).Update(context.Background(), rj, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync called on update RadixJob")
+	s.waitForNotCleanup("Cleanup called on add RadixJob")
+
+	// Update RJ other status props should not sync
+	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(0).Do(s.cleanupChannelCallback())
+	handler.EXPECT().Sync(gomock.Any(), rj.Namespace, rj.Name).Times(0).DoAndReturn(s.SyncedChannelCallback())
+	rj.Status.Reconciled = metav1.Now()
+	rj, err = s.RadixClient.RadixV1().RadixJobs(rj.Namespace).UpdateStatus(context.Background(), rj, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForNotSynced("Sync called on update RadixJob")
+	s.waitForNotCleanup("Cleanup called on add RadixJob")
+
+	childJob := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{OwnerReferences: jobs.GetOwnerReference(rj)}}
+
+	// Create k8s job should not sync
+	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(0).Do(s.cleanupChannelCallback())
+	handler.EXPECT().Sync(gomock.Any(), rj.Namespace, rj.Name).Times(0).DoAndReturn(s.SyncedChannelCallback())
+	childJob, err = s.KubeClient.BatchV1().Jobs(rj.Namespace).Create(context.Background(), childJob, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	s.WaitForNotSynced("Sync called on create k8s job")
+	s.waitForNotCleanup("Cleanup called on create k8s job")
+
+	// Update k8s job should sync
+	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(0).Do(s.cleanupChannelCallback())
+	handler.EXPECT().Sync(gomock.Any(), rj.Namespace, rj.Name).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	childJob, err = s.KubeClient.BatchV1().Jobs(rj.Namespace).Update(context.Background(), childJob, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync called on create k8s job")
+	s.waitForNotCleanup("Cleanup called on create k8s job")
+
+	// Delete k8s job should sync
+	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(0).Do(s.cleanupChannelCallback())
+	handler.EXPECT().Sync(gomock.Any(), rj.Namespace, rj.Name).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	err = s.KubeClient.BatchV1().Jobs(rj.Namespace).Delete(context.Background(), childJob.Name, metav1.DeleteOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync called on create k8s job")
+	s.waitForNotCleanup("Cleanup called on create k8s job")
+}
+
+func (s *jobTestSuite) cleanupChannelCallback() func(ctx context.Context, appName string) error {
+	return func(ctx context.Context, appName string) error {
+		s.cleanup <- true
+		return nil
 	}
-
-	// Only update of Kubernetes Job is something that the job-controller handles
-	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.Background(), &childJob, metav1.CreateOptions{})
-	s.Require().NoError(err)
-
-	childJob.ObjectMeta.ResourceVersion = "1234"
-	_, err = s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.Background(), &childJob, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-
-	op, ok = <-synced
-	s.True(ok)
-	s.True(op)
 }
 
-func (s *jobTestSuite) createHandler(hasSynced func(syncedOk bool), opts ...handlerOpts) Handler {
-	return NewHandler(
-		s.kubeUtil.KubeClient(),
-		s.kubeUtil,
-		s.kubeUtil.RadixClient(),
-		&record.FakeRecorder{},
-		createConfig(),
-		hasSynced,
-		opts...,
-	)
+func (s *jobTestSuite) waitForCleanup(expectedOperation string) {
+	timeout := time.NewTimer(s.TestControllerSyncTimeout)
+	select {
+	case <-s.cleanup:
+	case <-timeout.C:
+		s.FailNow(fmt.Sprintf("Timeout waiting for %s", expectedOperation))
+	}
 }
 
-func createConfig() *config.Config {
-	return &config.Config{
-		DNSConfig: &dnsalias.DNSConfig{
-			DNSZone:               "dev.radix.equinor.com",
-			ReservedAppDNSAliases: map[string]string{"api": "radix-api"},
-			ReservedDNSAliases:    []string{"grafana"},
-		},
-		PipelineJobConfig: &pipelinejob.Config{
-			PipelineJobsHistoryLimit:          3,
-			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
-			AppBuilderResourcesLimitsCPU:      pointers.Ptr(resource.MustParse("200m")),
-			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
-			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
-			GitCloneImage:                     "docker.io/git:any",
-			PipelineImage:                     "docker.io/anypipeline:tag",
-		},
+func (s *jobTestSuite) waitForNotCleanup(failMessage string) {
+	timeout := time.NewTimer(10 * time.Millisecond)
+	select {
+	case <-s.cleanup:
+		s.FailNow(failMessage)
+	case <-timeout.C:
 	}
 }
 
 func (s *jobTestSuite) startJobController(ctx context.Context, handler Handler) error {
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
-	radixInformerFactory := informers.NewSharedInformerFactory(s.kubeUtil.RadixClient(), 0)
-	controller := NewController(ctx, s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), handler, kubeInformerFactory, radixInformerFactory)
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.KubeClient, 0)
+	radixInformerFactory := informers.NewSharedInformerFactory(s.RadixClient, 0)
+	controller := NewController(ctx, s.KubeClient, s.RadixClient, handler, kubeInformerFactory, radixInformerFactory)
 	kubeInformerFactory.Start(ctx.Done())
 	radixInformerFactory.Start(ctx.Done())
 	return controller.Run(ctx, 4)

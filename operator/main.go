@@ -344,8 +344,7 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config,
-		func(syncedOk bool) {}) // Not interested in getting notifications of synced
+		a.config)
 
 	return job.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory)
 }

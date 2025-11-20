@@ -86,7 +86,7 @@ mocks: bootstrap
 	mockgen -source ./pkg/apis/dnsalias/syncer.go -destination ./pkg/apis/dnsalias/syncer_mock.go -package dnsalias
 	mockgen -source ./operator/dnsalias/internal/syncerfactory.go -destination ./operator/dnsalias/internal/syncerfactory_mock.go -package internal
 	mockgen -source ./operator/common/handler.go -destination ./operator/common/handler_mock.go -package common
-	mockgen -source ./pkg/apis/job/job_history.go -destination ./operator/job/job_history_mock.go -package job
+	mockgen -source ./operator/job/handler.go -destination ./operator/job/handler_mock.go -package job
 	mockgen -source ./pipeline-runner/internal/wait/job.go -destination ./pipeline-runner/internal/wait/job_mock.go -package wait
 	mockgen -source ./pipeline-runner/internal/watcher/radix_deployment_watcher.go -destination ./pipeline-runner/internal/watcher/radix_deployment_watcher_mock.go -package watcher
 	mockgen -source ./pipeline-runner/internal/watcher/namespace.go -destination ./pipeline-runner/internal/watcher/namespace_mock.go -package watcher
