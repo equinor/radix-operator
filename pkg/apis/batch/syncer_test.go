@@ -2,6 +2,7 @@ package batch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -33,8 +34,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -103,6 +106,74 @@ func (s *syncerTestSuite) setupTest() {
 	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
+}
+
+func (s *syncerTestSuite) Test_Status() {
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "any-rd", Namespace: "any-ns"},
+		Spec: radixv1.RadixDeploymentSpec{
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{Name: "job"},
+			},
+		},
+	}
+	rd, err := s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(s.T().Context(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	rb := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: "any-name", Namespace: rd.Namespace, Generation: 42},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{
+					Name: rd.Name,
+				},
+				Job: "job",
+			},
+		},
+	}
+	rb, err = s.radixClient.RadixV1().RadixBatches(rb.Namespace).Create(context.Background(), rb, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	// First sync sets status
+	expectedGen := rb.Generation
+	sut := s.createSyncer(rb, nil)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rb, err = s.radixClient.RadixV1().RadixBatches(rb.Namespace).Get(context.Background(), rb.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixBatchReconcileSucceeded, rb.Status.ReconcileStatus)
+	s.Empty(rb.Status.Message)
+	s.Equal(expectedGen, rb.Status.ObservedGeneration)
+	s.False(rb.Status.Reconciled.IsZero())
+
+	// Second sync with updated generation
+	rb.Generation++
+	expectedGen = rb.Generation
+	sut = s.createSyncer(rb, nil)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rb, err = s.radixClient.RadixV1().RadixBatches(rb.Namespace).Get(context.Background(), rb.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixBatchReconcileSucceeded, rb.Status.ReconcileStatus)
+	s.Empty(rb.Status.Message)
+	s.Equal(expectedGen, rb.Status.ObservedGeneration)
+	s.False(rb.Status.Reconciled.IsZero())
+
+	// Sync with error
+	errorMsg := "any sync error"
+	s.radixClient.PrependReactor("get", "radixdeployments", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New(errorMsg)
+	})
+	rb.Generation++
+	expectedGen = rb.Generation
+	sut = s.createSyncer(rb, nil)
+	err = sut.OnSync(context.Background())
+	s.Require().ErrorContains(err, errorMsg)
+	rb, err = s.radixClient.RadixV1().RadixBatches(rb.Namespace).Get(context.Background(), rb.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixBatchReconcileFailed, rb.Status.ReconcileStatus)
+	s.Contains(rb.Status.Message, errorMsg)
+	s.Equal(expectedGen, rb.Status.ObservedGeneration)
+	s.False(rb.Status.Reconciled.IsZero())
 }
 
 func (s *syncerTestSuite) Test_ShouldSkipReconcileResourcesWhenBatchConditionIsDone() {
@@ -1340,6 +1411,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenJobMissingInRadixDeployment() {
 	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
 	s.Equal(invalidDeploymentReferenceReason, batch.Status.Condition.Reason)
 	s.Equal(err.Error(), batch.Status.Condition.Message)
+	s.Equal(radixv1.RadixBatchReconcileFailed, batch.Status.ReconcileStatus)
 }
 
 func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
@@ -1365,6 +1437,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
 	batch, _ = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
 	s.Equal(invalidDeploymentReferenceReason, batch.Status.Condition.Reason)
+	s.Equal(radixv1.RadixBatchReconcileFailed, batch.Status.ReconcileStatus)
 }
 
 func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {

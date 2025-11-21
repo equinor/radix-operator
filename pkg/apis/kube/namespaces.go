@@ -30,9 +30,13 @@ func (kubeutil *Kube) ApplyNamespace(ctx context.Context, name string, labels ma
 	}
 
 	oldNamespace, err := kubeutil.getNamespace(ctx, name)
-	if err != nil && k8errs.IsNotFound(err) {
-		logger.Debug().Msgf("namespace object %s doesn't exists, create the object", name)
-		_, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(ctx, &namespace, metav1.CreateOptions{})
+	if err != nil {
+		if k8errs.IsNotFound(err) {
+
+			logger.Debug().Msgf("namespace object %s doesn't exists, create the object", name)
+			_, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(ctx, &namespace, metav1.CreateOptions{})
+			return err
+		}
 		return err
 	}
 

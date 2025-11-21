@@ -27,7 +27,6 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/retry"
 )
 
 // DeploymentSyncer defines interface for syncing a RadixDeployment
@@ -94,21 +93,19 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 	ctx = log.Ctx(ctx).With().Str("resource_kind", v1.KindRadixDeployment).Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
 
-	if IsRadixDeploymentInactive(deploy.radixDeployment) {
+	if deploy.radixDeployment.Status.Condition == v1.DeploymentInactive {
 		log.Ctx(ctx).Debug().Msg("Ignoring RadixDeployment as it is inactive")
 		return nil
 	}
 
-	stopReconciliation, err := deploy.syncStatuses(ctx)
-	if err != nil {
+	if isActiveCondition, err := deploy.trySetActiveCondition(ctx); err != nil {
 		return err
-	}
-	if stopReconciliation {
+	} else if !isActiveCondition {
 		log.Ctx(ctx).Info().Msgf("stop reconciliation, status updated triggering new sync")
 		return nil
 	}
 
-	if err := deploy.syncDeployment(ctx); err != nil {
+	if err := deploy.syncStatus(ctx, deploy.syncDeployment(ctx)); err != nil {
 		return err
 	}
 
@@ -116,46 +113,54 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 	return metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
 }
 
-// IsRadixDeploymentInactive checks if deployment is inactive
-func IsRadixDeploymentInactive(rd *v1.RadixDeployment) bool {
-	return rd == nil || rd.Status.Condition == v1.DeploymentInactive
-}
+func (deploy *Deployment) syncStatus(ctx context.Context, reconcileErr error) error {
+	err := deploy.updateStatus(ctx, func(currStatus *v1.RadixDeployStatus) {
+		currStatus.Reconciled = metav1.Now()
+		currStatus.ObservedGeneration = deploy.radixDeployment.Generation
 
-// getNamespace gets the namespace of radixDeployment
-func (deploy *Deployment) getNamespace() string {
-	return deploy.radixDeployment.GetNamespace()
-}
-
-// getName gets the name of radixDeployment
-func (deploy *Deployment) getName() string {
-	return deploy.radixDeployment.GetName()
-}
-
-func (deploy *Deployment) syncStatuses(ctx context.Context) (stopReconciliation bool, err error) {
-	allRDs, err := deploy.kubeutil.ListRadixDeployments(ctx, deploy.getNamespace())
+		if reconcileErr != nil {
+			currStatus.ReconcileStatus = v1.RadixDeploymentReconcileFailed
+			currStatus.Message = reconcileErr.Error()
+		} else {
+			currStatus.ReconcileStatus = v1.RadixDeploymentReconcileSucceeded
+			currStatus.Message = ""
+		}
+	})
 	if err != nil {
-		err = fmt.Errorf("failed to get all RadixDeployments: %w", err)
+		return fmt.Errorf("failed to sync status: %w", err)
 	}
 
-	if deploy.isLatestInTheEnvironment(allRDs) {
-		// Should always reconcile, because we now skip sync if only status on RD has been modified
-		stopReconciliation = false
-		err = deploy.updateStatusOnActiveDeployment(ctx)
-		if err != nil {
-			return false, fmt.Errorf("failed to set RadixDeployment %s to active: %w", deploy.getName(), err)
-		}
-		err = deploy.setOtherRDsToInactive(ctx, allRDs)
-		if err != nil {
-			// should this lead to new RD not being deployed?
-			log.Ctx(ctx).Warn().Err(err).Msg("Failed to set old rds statuses to inactive")
-		}
-	} else {
-		// Inactive - Should not be put back on queue - stop reconciliation
-		// Inactive status is updated when latest rd reconciliation is triggered
-		stopReconciliation = true
-		log.Ctx(ctx).Warn().Msgf("RadixDeployment %s was not the latest. Ignoring", deploy.getName())
+	return reconcileErr
+}
+
+// trySetActiveCondition sets RadixDeployment condition to active if it is the latest, and sets all other RDs in the namespace to inactive.
+// It returns true if the RadixDeployment is active.
+func (deploy *Deployment) trySetActiveCondition(ctx context.Context) (bool, error) {
+	allRDs, err := deploy.kubeutil.ListRadixDeployments(ctx, deploy.radixDeployment.Namespace)
+	if err != nil {
+		return false, fmt.Errorf("failed to list RadixDeployments: %w", err)
 	}
-	return
+
+	if !deploy.isLatestInTheEnvironment(allRDs) {
+		log.Ctx(ctx).Info().Msgf("RadixDeployment %s was not the latest. Ignoring", deploy.radixDeployment.Name)
+		return false, nil
+	}
+
+	err = deploy.updateStatus(ctx, func(currStatus *v1.RadixDeployStatus) {
+		if currStatus.Condition != v1.DeploymentActive {
+			currStatus.ActiveFrom = metav1.NewTime(time.Now().UTC())
+		}
+		currStatus.Condition = v1.DeploymentActive
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to set RadixDeployment %s to active: %w", deploy.radixDeployment.Name, err)
+	}
+
+	if err := deploy.setOtherRDsToInactive(ctx, allRDs); err != nil {
+		return false, fmt.Errorf("failed to set old RadixDeployments to inactive: %w", err)
+	}
+
+	return true, nil
 }
 
 func (deploy *Deployment) syncDeployment(ctx context.Context) error {
@@ -231,47 +236,13 @@ func (deploy *Deployment) configureRbac(ctx context.Context) error {
 	return nil
 }
 
-func (deploy *Deployment) updateStatusOnActiveDeployment(ctx context.Context) error {
-	return deploy.updateRadixDeploymentStatus(ctx, deploy.radixDeployment, func(currStatus *v1.RadixDeployStatus) {
-		if deploy.radixDeployment.Status.Condition == v1.DeploymentActive {
-			currStatus.Reconciled = metav1.NewTime(time.Now().UTC())
-		} else {
-			currStatus.Condition = v1.DeploymentActive
-			currStatus.ActiveFrom = metav1.NewTime(time.Now().UTC())
-		}
-	})
-}
-
-func (deploy *Deployment) setRDToInactive(ctx context.Context, rd *v1.RadixDeployment, activeTo metav1.Time) error {
-	if rd.Status.Condition == v1.DeploymentInactive {
-		return nil
-	}
-	return deploy.updateRadixDeploymentStatus(ctx, rd, func(currStatus *v1.RadixDeployStatus) {
-		currStatus.Condition = v1.DeploymentInactive
-		currStatus.ActiveTo = metav1.NewTime(activeTo.Time)
-		currStatus.ActiveFrom = getActiveFrom(rd)
-	})
-}
-
-func (deploy *Deployment) updateRadixDeploymentStatus(ctx context.Context, rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus)) error {
-	rdInterface := deploy.radixclient.RadixV1().RadixDeployments(rd.GetNamespace())
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRD, err := rdInterface.Get(ctx, rd.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		changeStatusFunc(&currentRD.Status)
-		_, err = rdInterface.UpdateStatus(ctx, currentRD, metav1.UpdateOptions{})
-
-		if err == nil && rd.GetName() == deploy.radixDeployment.GetName() {
-			currentRD, err = rdInterface.Get(ctx, rd.GetName(), metav1.GetOptions{})
-			if err == nil {
-				deploy.radixDeployment = currentRD
-			}
-		}
+func (deploy *Deployment) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *v1.RadixDeployStatus)) error {
+	updatedRD, err := updateRadixDeploymentStatus(ctx, deploy.radixclient, deploy.radixDeployment, changeStatusFunc)
+	if err != nil {
 		return err
-	})
-	return err
+	}
+	deploy.radixDeployment = updatedRD
+	return nil
 }
 
 func (deploy *Deployment) setOtherRDsToInactive(ctx context.Context, allRDs []*v1.RadixDeployment) error {
@@ -282,62 +253,25 @@ func (deploy *Deployment) setOtherRDsToInactive(ctx context.Context, allRDs []*v
 	prevRD := sortedRDs[0]
 
 	for _, rd := range sortedRDs {
-		if strings.EqualFold(rd.GetName(), deploy.getName()) {
+		if strings.EqualFold(rd.GetName(), deploy.radixDeployment.Name) {
 			prevRD = deploy.radixDeployment
 			continue
 		}
-		activeTo := getActiveFrom(prevRD)
-		err := deploy.setRDToInactive(ctx, rd, activeTo)
-		if err != nil {
-			return err
+
+		if rd.Status.Condition != v1.DeploymentInactive {
+			_, err := updateRadixDeploymentStatus(ctx, deploy.radixclient, rd, func(currStatus *v1.RadixDeployStatus) {
+				currStatus.Condition = v1.DeploymentInactive
+				currStatus.ActiveTo = getActiveFrom(prevRD)
+				currStatus.ActiveFrom = getActiveFrom(rd)
+			})
+			if err != nil {
+				return err
+			}
 		}
+
 		prevRD = rd
 	}
 	return nil
-}
-
-func sortRDsByActiveFromTimestampDesc(rds []*v1.RadixDeployment) []*v1.RadixDeployment {
-	sort.Slice(rds, func(i, j int) bool {
-		return isRD1ActiveBeforeRD2(rds[j], rds[i])
-	})
-	return rds
-}
-
-func sortRDsByActiveFromTimestampAsc(rds []*v1.RadixDeployment) []*v1.RadixDeployment {
-	sort.Slice(rds, func(i, j int) bool {
-		return isRD1ActiveBeforeRD2(rds[i], rds[j])
-	})
-	return rds
-}
-
-// isLatestInTheEnvironment Checks if the deployment is the latest in the same namespace as specified in the deployment
-func (deploy *Deployment) isLatestInTheEnvironment(allRDs []*v1.RadixDeployment) bool {
-	return isLatest(deploy.radixDeployment, allRDs)
-}
-
-// isLatest Checks if the deployment is the latest in the same namespace as specified in the deployment
-func isLatest(deploy *v1.RadixDeployment, allRDs []*v1.RadixDeployment) bool {
-	for _, rd := range allRDs {
-		if rd.GetName() != deploy.GetName() && isRD1ActiveBeforeRD2(deploy, rd) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func isRD1ActiveBeforeRD2(rd1 *v1.RadixDeployment, rd2 *v1.RadixDeployment) bool {
-	rd1ActiveFrom := getActiveFrom(rd1)
-	rd2ActiveFrom := getActiveFrom(rd2)
-
-	return rd1ActiveFrom.Before(&rd2ActiveFrom)
-}
-
-func getActiveFrom(rd *v1.RadixDeployment) metav1.Time {
-	if rd.Status.ActiveFrom.IsZero() {
-		return rd.CreationTimestamp
-	}
-	return rd.Status.ActiveFrom
 }
 
 func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Context) error {
@@ -428,16 +362,12 @@ func (deploy *Deployment) garbageCollectAuxiliaryResources(ctx context.Context) 
 	return nil
 }
 
-func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
-}
-
 func (deploy *Deployment) maintainHistoryLimit(ctx context.Context, deploymentHistoryLimit int) {
 	if deploymentHistoryLimit <= 0 {
 		return
 	}
 
-	deployments, err := deploy.kubeutil.ListRadixDeployments(ctx, deploy.getNamespace())
+	deployments, err := deploy.kubeutil.ListRadixDeployments(ctx, deploy.radixDeployment.Namespace)
 	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("Failed to list RadixDeployments")
 		return
@@ -463,7 +393,7 @@ func (deploy *Deployment) maintainHistoryLimit(ctx context.Context, deploymentHi
 			continue
 		}
 		log.Ctx(ctx).Info().Msgf("Removing deployment %s from %s", deployment.Name, deployment.Namespace)
-		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(ctx, deployment.Name, metav1.DeleteOptions{})
+		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.radixDeployment.Namespace).Delete(ctx, deployment.Name, metav1.DeleteOptions{})
 		if err != nil {
 			log.Ctx(ctx).Warn().Err(err).Msgf("Failed to delete old RadixDeployment %s", deployment.Name)
 		}
@@ -471,7 +401,7 @@ func (deploy *Deployment) maintainHistoryLimit(ctx context.Context, deploymentHi
 }
 
 func (deploy *Deployment) getRadixDeploymentsReferencedByJobs(ctx context.Context) (map[string]bool, error) {
-	radixBatches, err := deploy.kubeutil.ListRadixBatches(ctx, deploy.getNamespace())
+	radixBatches, err := deploy.kubeutil.ListRadixBatches(ctx, deploy.radixDeployment.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -572,19 +502,6 @@ func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, de
 	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
 }
 
-func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployComponent, desiredJobAuxDeployment *appsv1.Deployment) {
-	auxDeploymentEnvVars := desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env
-	if restartComponentValue, ok := deployComponent.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
-		if index := slice.FindIndex(auxDeploymentEnvVars, func(envVar corev1.EnvVar) bool {
-			return strings.EqualFold(envVar.Name, defaults.RadixRestartEnvironmentVariable)
-		}); index >= 0 {
-			desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env[index].Value = restartComponentValue
-			return
-		}
-		desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env = append(auxDeploymentEnvVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: restartComponentValue})
-	}
-}
-
 func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, namespace, jobKubeDeploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(jobKubeDeploymentName)
 	desiredJobAuxDeployment := deploy.createJobAuxDeployment(jobKubeDeploymentName, jobAuxKubeDeploymentName)
@@ -596,4 +513,71 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 		return nil, nil, err
 	}
 	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
+}
+
+func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) string {
+	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
+}
+
+// isLatestInTheEnvironment Checks if the deployment is the latest in the same namespace as specified in the deployment
+func (deploy *Deployment) isLatestInTheEnvironment(allRDs []*v1.RadixDeployment) bool {
+	return isLatest(deploy.radixDeployment, allRDs)
+}
+
+func updateRadixDeploymentStatus(ctx context.Context, client radixclient.Interface, rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus)) (*v1.RadixDeployment, error) {
+	updateObj := rd.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	return client.RadixV1().RadixDeployments(rd.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+}
+
+func sortRDsByActiveFromTimestampDesc(rds []*v1.RadixDeployment) []*v1.RadixDeployment {
+	sort.Slice(rds, func(i, j int) bool {
+		return isRD1ActiveBeforeRD2(rds[j], rds[i])
+	})
+	return rds
+}
+
+func sortRDsByActiveFromTimestampAsc(rds []*v1.RadixDeployment) []*v1.RadixDeployment {
+	sort.Slice(rds, func(i, j int) bool {
+		return isRD1ActiveBeforeRD2(rds[i], rds[j])
+	})
+	return rds
+}
+
+// isLatest Checks if the deployment is the latest in the same namespace as specified in the deployment
+func isLatest(deploy *v1.RadixDeployment, allRDs []*v1.RadixDeployment) bool {
+	for _, rd := range allRDs {
+		if rd.GetName() != deploy.GetName() && isRD1ActiveBeforeRD2(deploy, rd) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isRD1ActiveBeforeRD2(rd1 *v1.RadixDeployment, rd2 *v1.RadixDeployment) bool {
+	rd1ActiveFrom := getActiveFrom(rd1)
+	rd2ActiveFrom := getActiveFrom(rd2)
+
+	return rd1ActiveFrom.Before(&rd2ActiveFrom)
+}
+
+func getActiveFrom(rd *v1.RadixDeployment) metav1.Time {
+	if rd.Status.ActiveFrom.IsZero() {
+		return rd.CreationTimestamp
+	}
+	return rd.Status.ActiveFrom
+}
+
+func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployComponent, desiredJobAuxDeployment *appsv1.Deployment) {
+	auxDeploymentEnvVars := desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env
+	if restartComponentValue, ok := deployComponent.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
+		if index := slice.FindIndex(auxDeploymentEnvVars, func(envVar corev1.EnvVar) bool {
+			return strings.EqualFold(envVar.Name, defaults.RadixRestartEnvironmentVariable)
+		}); index >= 0 {
+			desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env[index].Value = restartComponentValue
+			return
+		}
+		desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env = append(auxDeploymentEnvVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: restartComponentValue})
+	}
 }

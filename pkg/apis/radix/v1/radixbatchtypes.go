@@ -1,7 +1,7 @@
 package v1
 
 import (
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +genclient
@@ -14,19 +14,22 @@ import (
 
 // RadixBatch enables batch execution of Radix job components.
 type RadixBatch struct {
-	meta_v1.TypeMeta   `json:",inline"`
-	meta_v1.ObjectMeta `json:"metadata"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   RadixBatchSpec   `json:"spec"`
-	Status RadixBatchStatus `json:"status,omitempty"`
+	Spec RadixBatchSpec `json:"spec"`
+
+	// Status is the observed state of the RadixBatch
+	// +kubebuilder:validation:Optional
+	Status RadixBatchStatus `json:"status,omitzero"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixBatchList is a collection of RadixBatches.
 type RadixBatchList struct {
-	meta_v1.TypeMeta `json:",inline"`
-	meta_v1.ListMeta `json:"metadata"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
 
 	Items []RadixBatch `json:"items"`
 }
@@ -282,12 +285,19 @@ type RadixBatchCondition struct {
 
 	// The time the condition entered Active state.
 	// +optional
-	ActiveTime *meta_v1.Time `json:"activeTime,omitempty"`
+	ActiveTime *metav1.Time `json:"activeTime,omitempty"`
 
 	// The time the condition entered Completed state.
 	// +optional
-	CompletionTime *meta_v1.Time `json:"completionTime,omitempty"`
+	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
 }
+
+type RadixBatchReconcileStatus string
+
+const (
+	RadixBatchReconcileSucceeded RadixBatchReconcileStatus = "Succeeded"
+	RadixBatchReconcileFailed    RadixBatchReconcileStatus = "Failed"
+)
 
 // RadixBatchStatus represents the current state of a RadixBatch
 type RadixBatchStatus struct {
@@ -296,8 +306,24 @@ type RadixBatchStatus struct {
 	JobStatuses []RadixBatchJobStatus `json:"jobStatuses,omitempty"`
 
 	// The batch is completed when all jobs are in a completed phase (Succeeded, Failed or Stopped)
-	// +optional
-	Condition RadixBatchCondition `json:"condition,omitempty"`
+	// +kubebuilder:validation:Optional
+	Condition RadixBatchCondition `json:"condition,omitzero"`
+
+	// Reconciled is the timestamp of the last successful reconciliation
+	// +kubebuilder:validation:Optional
+	Reconciled metav1.Time `json:"reconciled,omitzero"`
+
+	// ObservedGeneration is the generation observed by the controller
+	// +kubebuilder:validation:Optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ReconcileStatus indicates whether the last reconciliation succeeded or failed
+	// +kubebuilder:validation:Optional
+	ReconcileStatus RadixBatchReconcileStatus `json:"reconcileStatus,omitempty"`
+
+	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
+	// +kubebuilder:validation:Optional
+	Message string `json:"message,omitempty"`
 }
 
 // RadixBatchJobStatus contains details for the current status of the job.
@@ -318,11 +344,11 @@ type RadixBatchJobStatus struct {
 
 	// The time at which the Kubernetes job was created.
 	// +optional
-	CreationTime *meta_v1.Time `json:"creationTime,omitempty"`
+	CreationTime *metav1.Time `json:"creationTime,omitempty"`
 
 	// The time at which the Kubernetes job was started.
 	// +optional
-	StartTime *meta_v1.Time `json:"startTime,omitempty"`
+	StartTime *metav1.Time `json:"startTime,omitempty"`
 
 	// The time at which the batch job ended.
 	// The value is set when phase is either Succeeded, Failed or Stopped.
@@ -330,7 +356,7 @@ type RadixBatchJobStatus struct {
 	// - Failed: Value from LastTransitionTime of the Failed condition of the Kubernetes job.
 	// - Stopped: The timestamp a job with Stop=true was reonciled.
 	// +optional
-	EndTime *meta_v1.Time `json:"endTime,omitempty"`
+	EndTime *metav1.Time `json:"endTime,omitempty"`
 
 	// The number of times the container for the job has failed.
 	// +optional
@@ -366,15 +392,15 @@ type RadixBatchJobPodStatus struct {
 
 	// The time at which the Kubernetes job's pod was created.
 	// +optional
-	CreationTime *meta_v1.Time `json:"creationTime,omitempty"`
+	CreationTime *metav1.Time `json:"creationTime,omitempty"`
 
 	// The time at which the batch job's pod startedAt
 	// +optional
-	StartTime *meta_v1.Time `json:"startTime,omitempty"`
+	StartTime *metav1.Time `json:"startTime,omitempty"`
 
 	// The time at which the batch job's pod finishedAt.
 	// +optional
-	EndTime *meta_v1.Time `json:"endTime,omitempty"`
+	EndTime *metav1.Time `json:"endTime,omitempty"`
 
 	// The number of times the container has been restarted.
 	RestartCount int32 `json:"restartCount"`

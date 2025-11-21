@@ -63,7 +63,6 @@ func (s *handlerSuite) Test_NewHandler_DefaultValues() {
 	s.Same(s.promClient, h.prometheusperatorclient)
 	s.Same(s.certClient, h.certClient)
 	s.Same(s.config, h.config)
-	s.NotNil(h.hasSynced)
 }
 
 func (s *handlerSuite) Test_NewHandler_ConfigOptionsCalled() {
@@ -201,10 +200,4 @@ func Test_WithDeploymentSyncerFactory(t *testing.T) {
 	h := &handler{}
 	WithDeploymentSyncerFactory(factory)(h)
 	assert.NotNil(t, h.deploymentSyncerFactory) // HACK Currently no way to compare function pointers
-}
-
-func Test_WithHasSyncedCallback(t *testing.T) {
-	h := &handler{}
-	WithHasSyncedCallback(func(b bool) {})(h)
-	assert.NotNil(t, h.hasSynced) // HACK Currently no way to compare function pointers
 }

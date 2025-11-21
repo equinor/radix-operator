@@ -24,7 +24,10 @@ type RadixDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              RadixDeploymentSpec `json:"spec"`
-	Status            RadixDeployStatus   `json:"status,omitempty"`
+
+	// Status is the observed state of the RadixDeployment
+	// +kubebuilder:validation:Optional
+	Status RadixDeployStatus `json:"status,omitzero"`
 }
 
 // GetComponentByName returns the component matching the name parameter, or nil if not found
@@ -56,14 +59,36 @@ func (rd *RadixDeployment) GetCommonComponentByName(name string) RadixCommonDepl
 	return rd.GetJobComponentByName(name)
 }
 
-// RadixDeployStatus is the status for a rd
+type RadixDeploymentReconcileStatus string
+
+const (
+	RadixDeploymentReconcileSucceeded RadixDeploymentReconcileStatus = "Succeeded"
+	RadixDeploymentReconcileFailed    RadixDeploymentReconcileStatus = "Failed"
+)
+
+// RadixDeployStatus represents the current state of a RadixDeployment
 type RadixDeployStatus struct {
 	ActiveFrom metav1.Time `json:"activeFrom"`
-	// +optional
-	ActiveTo  metav1.Time          `json:"activeTo,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	ActiveTo  metav1.Time          `json:"activeTo,omitzero"`
 	Condition RadixDeployCondition `json:"condition"`
-	// +optional
-	Reconciled metav1.Time `json:"reconciled"`
+
+	// Reconciled is the timestamp of the last successful reconciliation
+	// +kubebuilder:validation:Optional
+	Reconciled metav1.Time `json:"reconciled,omitzero"`
+
+	// ObservedGeneration is the generation observed by the controller
+	// +kubebuilder:validation:Optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ReconcileStatus indicates whether the last reconciliation succeeded or failed
+	// +kubebuilder:validation:Optional
+	ReconcileStatus RadixDeploymentReconcileStatus `json:"reconcileStatus,omitempty"`
+
+	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
+	// +kubebuilder:validation:Optional
+	Message string `json:"message,omitempty"`
 }
 
 // RadixDeployCondition Holds the condition of a component

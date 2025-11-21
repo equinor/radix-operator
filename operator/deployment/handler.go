@@ -21,17 +21,8 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-var hasSyncedNoop common.HasSynced = func(b bool) {}
-
 // HandlerConfigOption defines a configuration function used for additional configuration of Handler
 type HandlerConfigOption func(*handler)
-
-// WithHasSyncedCallback configures Handler callback when RD has synced successfully
-func WithHasSyncedCallback(callback common.HasSynced) HandlerConfigOption {
-	return func(h *handler) {
-		h.hasSynced = callback
-	}
-}
 
 // WithOAuth2DefaultConfig configures default OAuth2 settings
 func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOption {
@@ -77,7 +68,6 @@ type handler struct {
 	kedaClient              kedav2.Interface
 	events                  common.SyncEventRecorder
 	kubeutil                *kube.Kube
-	hasSynced               common.HasSynced
 	oauth2DefaultConfig     defaults.OAuth2Config
 	oauth2ProxyDockerImage  string
 	oauth2RedisDockerImage  string
@@ -104,7 +94,6 @@ func NewHandler(kubeclient kubernetes.Interface,
 		prometheusperatorclient: prometheusperatorclient,
 		certClient:              certClient,
 		kubeutil:                kubeutil,
-		hasSynced:               hasSyncedNoop,
 		deploymentSyncerFactory: deployment.DeploymentSyncerFactoryFunc(deployment.NewDeploymentSyncer),
 		events:                  common.NewSyncEventRecorder(eventRecorder),
 		config:                  config,
@@ -119,7 +108,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 
 // Sync Is created on sync of resource
 func (t *handler) Sync(ctx context.Context, namespace, name string) error {
-	rd, err := t.kubeutil.GetRadixDeployment(ctx, namespace, name)
+	rd, err := t.radixclient.RadixV1().RadixDeployments(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		// The Deployment resource may no longer exist, in which case we stop
 		// processing.
@@ -132,43 +121,33 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	}
 	logger := log.Ctx(ctx).With().Str("app_name", rd.Spec.AppName).Logger()
 	ctx = logger.WithContext(ctx)
+	logger.Debug().Msgf("Sync deployment %s", rd.Name)
 
-	if deployment.IsRadixDeploymentInactive(rd) {
-		logger.Debug().Msgf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
-		return nil
-	}
-
-	syncRD := rd.DeepCopy()
-	logger.Debug().Msgf("Sync deployment %s", syncRD.Name)
-
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(ctx, syncRD.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(ctx, rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			logger.Debug().Msgf("RadixRegistration %s no longer exists", syncRD.Spec.AppName)
+			logger.Debug().Msgf("RadixRegistration %s no longer exists", rd.Spec.AppName)
 			return nil
 		}
 
 		return err
 	}
 
-	ingressAnnotations := ingress.GetAnnotationProvider(t.ingressConfiguration, syncRD.Namespace, t.oauth2DefaultConfig)
+	ingressAnnotations := ingress.GetAnnotationProvider(t.ingressConfiguration, rd.Namespace, t.oauth2DefaultConfig)
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-		deployment.NewOAuthRedisResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2RedisDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2RedisDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 	}
 
+	syncRD := rd.DeepCopy()
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
 	err = deployment.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRD, err)
 		return err
-	}
-
-	if t.hasSynced != nil {
-		t.hasSynced(true)
 	}
 
 	t.events.RecordSyncSuccessEvent(syncRD)

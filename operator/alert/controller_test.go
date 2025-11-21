@@ -95,7 +95,6 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 
 	// Update adGroups should trigger sync of alert1
 	rr.Spec.AdGroups = []string{"another-admin-group"}
-	rr.ResourceVersion = "2"
 	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
@@ -104,21 +103,18 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 
 	// Update adGroups should trigger sync of alert1
 	rr.Spec.ReaderAdGroups = []string{"another-reader-group"}
-	rr.ResourceVersion = "3"
 	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("sync on ReaderAdGroups update")
 
 	// Update adUsers should trigger sync of alert1
 	rr.Spec.AdUsers = []string{"another-user"}
-	rr.ResourceVersion = "4"
 	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("sync on AdUsers update")
 
 	// Update other props on RR should not trigger sync of alert1
 	rr.Spec.Owner = "owner"
-	rr.ResourceVersion = "5"
 	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 

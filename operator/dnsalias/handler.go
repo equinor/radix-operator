@@ -13,6 +13,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
@@ -79,7 +80,7 @@ func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOp
 
 // Sync is called by kubernetes after the Controller Enqueues a work-item
 func (h *handler) Sync(ctx context.Context, _, name string) error {
-	radixDNSAlias, err := h.kubeUtil.GetRadixDNSAlias(ctx, name)
+	radixDNSAlias, err := h.radixClient.RadixV1().RadixDNSAliases().Get(ctx, name, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Ctx(ctx).Info().Msgf("RadixDNSAlias %s in work queue no longer exists", name)

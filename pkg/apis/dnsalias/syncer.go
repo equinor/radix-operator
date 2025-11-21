@@ -54,7 +54,6 @@ func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient
 // OnSync is called by the handler when changes are applied and must be
 // reconciled with current state.
 func (s *syncer) OnSync(ctx context.Context) error {
-	ctx = log.Ctx(ctx).With().Str("resource_kind", radixv1.KindRadixDNSAlias).Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
 	log.Ctx(ctx).Debug().Msgf("OnSync application %s, environment %s, component %s", s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment, s.radixDNSAlias.Spec.Component)
 
@@ -66,7 +65,6 @@ func (s *syncer) OnSync(ctx context.Context) error {
 }
 
 func (s *syncer) syncAlias(ctx context.Context) error {
-	log.Ctx(ctx).Debug().Msgf("syncAlias RadixDNSAlias %s", s.radixDNSAlias.GetName())
 	if err := s.syncIngresses(ctx); err != nil {
 		return err
 	}
