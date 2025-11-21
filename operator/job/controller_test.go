@@ -9,12 +9,10 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubeinformers "k8s.io/client-go/informers"
 )
 
 type jobTestSuite struct {
@@ -152,13 +150,4 @@ func (s *jobTestSuite) waitForNotCleanup(failMessage string) {
 		s.FailNow(failMessage)
 	case <-timeout.C:
 	}
-}
-
-func (s *jobTestSuite) startJobController(ctx context.Context, handler Handler) error {
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.KubeClient, 0)
-	radixInformerFactory := informers.NewSharedInformerFactory(s.RadixClient, 0)
-	controller := NewController(ctx, s.KubeClient, s.RadixClient, handler, kubeInformerFactory, radixInformerFactory)
-	kubeInformerFactory.Start(ctx.Done())
-	radixInformerFactory.Start(ctx.Done())
-	return controller.Run(ctx, 4)
 }
