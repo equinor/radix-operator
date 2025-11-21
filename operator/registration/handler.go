@@ -56,7 +56,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 
 	syncRegistration := registration.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync registration %s", syncRegistration.Name)
-	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
+	application := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
 	err = application.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRegistration, err)

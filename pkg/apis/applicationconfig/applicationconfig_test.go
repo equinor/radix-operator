@@ -2,6 +2,7 @@ package applicationconfig_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"testing"
@@ -24,8 +25,10 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -35,7 +38,7 @@ const (
 	clusterName        = "AnyClusterName"
 )
 
-func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
+func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *radixfake.Clientset) {
 	kubeClient := kubefake.NewSimpleClientset()
 	radixClient := radixfake.NewSimpleClientset()
 	kedaClient := kedafake.NewSimpleClientset()
@@ -45,6 +48,57 @@ func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, rad
 	err := handlerTestUtils.CreateClusterPrerequisites(clusterName, "anysubid")
 	require.NoError(t, err)
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient
+}
+
+func Test_Status(t *testing.T) {
+	_, client, kubeUtil, radixClient := setupTest(t)
+
+	rr := &radixv1.RadixRegistration{}
+	ra := &radixv1.RadixApplication{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
+	ra, err := radixClient.RadixV1().RadixApplications("any-ns").Create(context.Background(), ra, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// First sync sets status
+	expectedGen := ra.Generation
+	sut := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil)
+	err = sut.OnSync(context.Background())
+	require.NoError(t, err)
+	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, radixv1.RadixApplicationReconcileSucceeded, ra.Status.ReconcileStatus)
+	assert.Empty(t, ra.Status.Message)
+	assert.Equal(t, expectedGen, ra.Status.ObservedGeneration)
+	assert.False(t, ra.Status.Reconciled.IsZero())
+
+	// Second sync with updated generation
+	ra.Generation++
+	expectedGen = ra.Generation
+	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil)
+	err = sut.OnSync(context.Background())
+	require.NoError(t, err)
+	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, radixv1.RadixApplicationReconcileSucceeded, ra.Status.ReconcileStatus)
+	assert.Empty(t, ra.Status.Message)
+	assert.Equal(t, expectedGen, ra.Status.ObservedGeneration)
+	assert.False(t, ra.Status.Reconciled.IsZero())
+
+	// Sync with error
+	errorMsg := "any sync error"
+	client.PrependReactor("*", "*", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New(errorMsg)
+	})
+	ra.Generation++
+	expectedGen = ra.Generation
+	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil)
+	err = sut.OnSync(context.Background())
+	require.ErrorContains(t, err, errorMsg)
+	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, radixv1.RadixApplicationReconcileFailed, ra.Status.ReconcileStatus)
+	assert.Contains(t, ra.Status.Message, errorMsg)
+	assert.Equal(t, expectedGen, ra.Status.ObservedGeneration)
+	assert.False(t, ra.Status.Reconciled.IsZero())
 }
 
 func Test_Create_Radix_Environments(t *testing.T) {
