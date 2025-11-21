@@ -24,10 +24,10 @@ func (env *Environment) syncStatus(ctx context.Context, reconcileErr error) erro
 		currStatus.Reconciled = now
 		currStatus.ObservedGeneration = env.config.Generation
 		if reconcileErr != nil {
-			currStatus.ReconcileStatus = radixv1.RadixAlertReconcileFailed
+			currStatus.ReconcileStatus = radixv1.RadixEnvironmentReconcileFailed
 			currStatus.Message = reconcileErr.Error()
 		} else {
-			currStatus.ReconcileStatus = radixv1.RadixAlertReconcileSucceeded
+			currStatus.ReconcileStatus = radixv1.RadixEnvironmentReconcileSucceeded
 			currStatus.Message = ""
 		}
 	})

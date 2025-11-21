@@ -67,7 +67,7 @@ type RadixEnvironmentStatus struct {
 
 	// ReconcileStatus indicates whether the last reconciliation succeeded or failed
 	// +kubebuilder:validation:Optional
-	ReconcileStatus RadixAlertReconcileStatus `json:"reconcileStatus,omitempty"`
+	ReconcileStatus RadixEnvironmentReconcileStatus `json:"reconcileStatus,omitempty"`
 
 	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
 	// +kubebuilder:validation:Optional
