@@ -36,13 +36,14 @@ func (s *jobTestSuite) SetupTest() {
 
 func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	jobName, namespace, appName := "any-job", "any-ns", "any-app-name"
-	ctx, stop := context.WithCancel(context.Background())
-	defer stop()
 
-	ctrl := gomock.NewController(s.T())
-	handler := NewMockHandler(ctrl)
+	handler := NewMockHandler(s.MockCtrl)
+
+	sut := NewController(s.Ctx, s.KubeClient, s.RadixClient, handler, s.KubeInformerFactory, s.RadixInformerFactory)
+	s.RadixInformerFactory.Start(s.Ctx.Done())
+	s.KubeInformerFactory.Start(s.Ctx.Done())
 	go func() {
-		err := s.startJobController(ctx, handler)
+		err := sut.Run(s.Ctx, 4)
 		s.Require().NoError(err)
 	}()
 
@@ -51,7 +52,7 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	// Create RJ should sync and call cleanup
 	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(1).Do(s.cleanupChannelCallback())
 	handler.EXPECT().Sync(gomock.Any(), rj.Namespace, rj.Name).Times(1).DoAndReturn(s.SyncedChannelCallback())
-	rj, err := s.RadixClient.RadixV1().RadixJobs(rj.Namespace).Create(ctx, rj, metav1.CreateOptions{})
+	rj, err := s.RadixClient.RadixV1().RadixJobs(rj.Namespace).Create(s.Ctx, rj, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync called on add RadixJob")
 	s.waitForCleanup("Cleanup called on add RadixJob")

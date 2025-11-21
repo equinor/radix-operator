@@ -21,17 +21,8 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-var hasSyncedNoop common.HasSynced = func(b bool) {}
-
 // HandlerConfigOption defines a configuration function used for additional configuration of Handler
 type HandlerConfigOption func(*handler)
-
-// WithHasSyncedCallback configures Handler callback when RD has synced successfully
-func WithHasSyncedCallback(callback common.HasSynced) HandlerConfigOption {
-	return func(h *handler) {
-		h.hasSynced = callback
-	}
-}
 
 // WithOAuth2DefaultConfig configures default OAuth2 settings
 func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOption {
@@ -77,7 +68,6 @@ type handler struct {
 	kedaClient              kedav2.Interface
 	events                  common.SyncEventRecorder
 	kubeutil                *kube.Kube
-	hasSynced               common.HasSynced
 	oauth2DefaultConfig     defaults.OAuth2Config
 	oauth2ProxyDockerImage  string
 	oauth2RedisDockerImage  string
@@ -104,7 +94,6 @@ func NewHandler(kubeclient kubernetes.Interface,
 		prometheusperatorclient: prometheusperatorclient,
 		certClient:              certClient,
 		kubeutil:                kubeutil,
-		hasSynced:               hasSyncedNoop,
 		deploymentSyncerFactory: deployment.DeploymentSyncerFactoryFunc(deployment.NewDeploymentSyncer),
 		events:                  common.NewSyncEventRecorder(eventRecorder),
 		config:                  config,
@@ -159,10 +148,6 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRD, err)
 		return err
-	}
-
-	if t.hasSynced != nil {
-		t.hasSynced(true)
 	}
 
 	t.events.RecordSyncSuccessEvent(syncRD)

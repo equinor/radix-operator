@@ -24,7 +24,6 @@ type handler struct {
 	kubeutil    *kube.Kube
 	radixclient radixclient.Interface
 	events      common.SyncEventRecorder
-	hasSynced   common.HasSynced
 }
 
 // NewHandler creates a handler for managing RadixEnvironment resources
@@ -32,15 +31,13 @@ func NewHandler(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	eventRecorder record.EventRecorder,
-	hasSynced common.HasSynced) common.Handler {
+	eventRecorder record.EventRecorder) common.Handler {
 
 	handler := &handler{
 		kubeclient:  kubeclient,
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
 		events:      common.NewSyncEventRecorder(eventRecorder),
-		hasSynced:   hasSynced,
 	}
 
 	return handler
@@ -95,7 +92,6 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 		return err
 	}
 
-	t.hasSynced(true)
 	t.events.RecordSyncSuccessEvent(syncEnvironment)
 	return nil
 }
