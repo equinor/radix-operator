@@ -34,7 +34,7 @@ func (env *Environment) syncStatus(ctx context.Context, reconcileErr error) erro
 	if err != nil {
 		return fmt.Errorf("failed to sync status: %w", err)
 	}
-	return nil
+	return reconcileErr
 }
 
 func (env *Environment) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixEnvironmentStatus)) error {

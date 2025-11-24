@@ -75,17 +75,8 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	radixApplication, _ := t.radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(syncEnvironment.Spec.AppName)).
 		Get(ctx, syncEnvironment.Spec.AppName, meta.GetOptions{})
 
-	nw, err := networkpolicy.NewNetworkPolicy(t.kubeclient, t.kubeutil, syncEnvironment.Spec.AppName)
-	if err != nil {
-		return err
-	}
-
-	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, &nw)
-
-	if err != nil {
-		return err
-	}
-
+	nw := networkpolicy.NewNetworkPolicy(t.kubeclient, t.kubeutil, syncEnvironment.Spec.AppName)
+	env := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, &nw)
 	err = env.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncEnvironment, err)

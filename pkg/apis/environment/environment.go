@@ -42,7 +42,7 @@ func NewEnvironment(
 	config *v1.RadixEnvironment,
 	regConfig *v1.RadixRegistration,
 	appConfig *v1.RadixApplication,
-	networkPolicy *networkpolicy.NetworkPolicy) (Environment, error) {
+	networkPolicy *networkpolicy.NetworkPolicy) Environment {
 
 	return Environment{
 		kubeclient:    kubeclient,
@@ -53,7 +53,7 @@ func NewEnvironment(
 		appConfig:     appConfig,
 		networkPolicy: networkPolicy,
 		logger:        log.Logger.With().Str("resource_kind", v1.KindRadixEnvironment).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
-	}, nil
+	}
 }
 
 // OnSync is called by the handler when changes are applied and must be

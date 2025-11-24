@@ -29,12 +29,12 @@ func NewNetworkPolicy(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	appName string,
-) (NetworkPolicy, error) {
+) NetworkPolicy {
 	return NetworkPolicy{
 		kubeClient: kubeClient,
 		kubeUtil:   kubeUtil,
 		appName:    appName,
-	}, nil
+	}
 }
 
 // UpdateEnvEgressRules Applies a list of egress rules to the specified radix app environment
