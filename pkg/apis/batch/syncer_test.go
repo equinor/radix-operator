@@ -108,7 +108,7 @@ func (s *syncerTestSuite) setupTest() {
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 }
 
-func (s *syncerTestSuite) Test_Status() {
+func (s *syncerTestSuite) Test_ReconcileStatus() {
 	rd := &radixv1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "any-rd", Namespace: "any-ns"},
 		Spec: radixv1.RadixDeploymentSpec{

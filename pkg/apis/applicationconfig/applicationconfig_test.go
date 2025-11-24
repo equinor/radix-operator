@@ -50,7 +50,7 @@ func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient
 }
 
-func Test_Status(t *testing.T) {
+func Test_ReconcileStatus(t *testing.T) {
 	_, client, kubeUtil, radixClient := setupTest(t)
 
 	rr := &radixv1.RadixRegistration{}

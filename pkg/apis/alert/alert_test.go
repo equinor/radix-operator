@@ -102,7 +102,7 @@ func (s *alertTestSuite) Test_New() {
 	s.Equal(defaultAlertConfigs, sut.alertConfigs)
 }
 
-func (s *alertTestSuite) Test_Status() {
+func (s *alertTestSuite) Test_ReconcileStatus() {
 	ral := &radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
 	ral, err := s.radixClient.RadixV1().RadixAlerts("any-ns").Create(context.Background(), ral, metav1.CreateOptions{})
 	s.Require().NoError(err)

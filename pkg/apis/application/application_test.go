@@ -40,7 +40,7 @@ func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, radixclie
 	return handlerTestUtils, client, kubeUtil, radixClient, kedaClient
 }
 
-func Test_Status(t *testing.T) {
+func Test_ReconcileStatus(t *testing.T) {
 	_, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 

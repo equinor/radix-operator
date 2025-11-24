@@ -67,7 +67,7 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 	return rr, re, env, nil
 }
 
-func Test_Status(t *testing.T) {
+func Test_ReconcileStatus(t *testing.T) {
 	_, client, kubeUtil, radixClient := setupTest(t)
 
 	rr := &radixv1.RadixRegistration{}

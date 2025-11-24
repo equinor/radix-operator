@@ -886,7 +886,7 @@ func TestObjectSynced_MultiComponent_AllClusters_ContainsAllIngresses(t *testing
 
 }
 
-func Test_Status(t *testing.T) {
+func Test_ReconcileStatus(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 	rr := &radixv1.RadixRegistration{}
