@@ -3,7 +3,6 @@ package git
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/go-git/go-git/v5"
@@ -134,27 +133,35 @@ func (r *repository) IsAncestor(ancestor, other string) (bool, error) {
 
 func (r *repository) ResolveTagsForCommit(commitHash string) ([]string, error) {
 	hash := plumbing.NewHash(commitHash)
-
 	tags, err := r.repo.Tags()
 	if err != nil {
 		return nil, err
 	}
 	var tagNames []string
 
-	// List all tags, both lightweight tags and annotated tags and see if any tags point to HEAD reference.
+	// List all tags, both lightweight tags and annotated tags and see if any tags point commitHash.
 	err = tags.ForEach(func(t *plumbing.Reference) error {
-		// using workaround to circumvent tag resolution bug documented at https://github.com/go-git/go-git/issues/204
-		tagName := strings.TrimPrefix(string(t.Name()), "refs/tags/")
-		tagRef, err := r.repo.Tag(tagName)
-		if err != nil {
-			return err
+		tagHash := t.Hash()
+		for i := range 100 {
+			if i == 99 {
+				return fmt.Errorf("too many tag object indirections for tag %s", t.Name().Short())
+			}
+
+			// The target of an annotated tag is either a commit or another annotated tag.
+			// Follow the target chain
+			tagObj, err := r.repo.TagObject(tagHash)
+			if err == nil {
+				tagHash = tagObj.Target
+				continue
+			} else if errors.Is(err, plumbing.ErrObjectNotFound) {
+				break
+			} else {
+				return fmt.Errorf("failed to get tag object: %w", err)
+			}
 		}
-		revHash, err := r.repo.ResolveRevision(plumbing.Revision(tagRef.Hash().String()))
-		if err != nil {
-			return err
-		}
-		if *revHash == hash {
-			tagNames = append(tagNames, tagName)
+
+		if tagHash == hash {
+			tagNames = append(tagNames, t.Name().Short())
 		}
 		return nil
 	})
