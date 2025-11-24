@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -19,7 +20,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/oklog/ulid/v2"
@@ -27,17 +27,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubeclient "k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/runtime"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 type RadixJobTestSuiteBase struct {
 	suite.Suite
 	testUtils   *test.Utils
-	kubeClient  kubeclient.Interface
+	kubeClient  *kubernetes.Clientset
 	kubeUtils   *kube.Kube
-	radixClient radixclient.Interface
+	radixClient *radix.Clientset
 	config      struct {
 		clusterName    string
 		builderImage   string
@@ -79,10 +80,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 }
 
 func (s *RadixJobTestSuiteBase) SetupTest() {
-	s.setupTest()
-}
-
-func (s *RadixJobTestSuite) SetupSubTest() {
 	s.setupTest()
 }
 
@@ -148,6 +145,86 @@ func TestRadixJobTestSuite(t *testing.T) {
 
 type RadixJobTestSuite struct {
 	RadixJobTestSuiteBase
+}
+
+func (s *RadixJobTestSuite) SetupSubTest() {
+	s.setupTest()
+}
+
+func (s *RadixJobTestSuite) Test_ReconcileStatus() {
+	qty := resource.MustParse("1")
+	cfg := &config.Config{
+		PipelineJobConfig: &pipelinejob.Config{
+			AppBuilderResourcesLimitsCPU:      &qty,
+			AppBuilderResourcesLimitsMemory:   &qty,
+			AppBuilderResourcesRequestsCPU:    &qty,
+			AppBuilderResourcesRequestsMemory: &qty,
+		},
+		DNSConfig: &dnsalias.DNSConfig{},
+	}
+	rr := &radixv1.RadixRegistration{}
+	rj := &radixv1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
+	rj, err := s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rj, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	// First sync sets status
+	expectedGen := rj.Generation
+	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, cfg)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixJobReconcileSucceeded, rj.Status.ReconcileStatus)
+	s.Empty(rj.Status.Message)
+	s.Equal(expectedGen, rj.Status.ObservedGeneration)
+	s.False(rj.Status.Reconciled.IsZero())
+
+	// Second sync with updated generation
+	rj.Generation++
+	expectedGen = rj.Generation
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, cfg)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixJobReconcileSucceeded, rj.Status.ReconcileStatus)
+	s.Empty(rj.Status.Message)
+	s.Equal(expectedGen, rj.Status.ObservedGeneration)
+	s.False(rj.Status.Reconciled.IsZero())
+
+	// Sync with stop
+	rjStop := &radixv1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: "stop-job", Generation: 20}, Spec: radixv1.RadixJobSpec{Stop: true}}
+	rjStop, err = s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rjStop, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	expectedGen = rjStop.Generation
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjStop, cfg)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rjStop, err = s.radixClient.RadixV1().RadixJobs(rjStop.Namespace).Get(context.Background(), rjStop.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixJobReconcileSucceeded, rjStop.Status.ReconcileStatus)
+	s.Empty(rj.Status.Message)
+	s.Equal(expectedGen, rjStop.Status.ObservedGeneration)
+	s.False(rjStop.Status.Reconciled.IsZero())
+
+	// Sync with error
+	rjErr := &radixv1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: "err-job", Generation: 10}}
+	rjErr, err = s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rjErr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	errorMsg := "any sync error"
+	s.kubeClient.PrependReactor("create", "jobs", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New(errorMsg)
+	})
+	expectedGen = rjErr.Generation
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjErr, cfg)
+	err = sut.OnSync(context.Background())
+	s.Require().ErrorContains(err, errorMsg)
+	rjErr, err = s.radixClient.RadixV1().RadixJobs(rjErr.Namespace).Get(context.Background(), rjErr.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixJobReconcileFailed, rjErr.Status.ReconcileStatus)
+	s.Contains(rjErr.Status.Message, errorMsg)
+	s.Equal(expectedGen, rjErr.Status.ObservedGeneration)
+	s.False(rjErr.Status.Reconciled.IsZero())
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {

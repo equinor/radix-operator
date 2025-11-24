@@ -48,11 +48,7 @@ func (job *Job) createPipelineJob(ctx context.Context) error {
 }
 
 func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) {
-	radixRegistration, err := job.radixclient.RadixV1().RadixRegistrations().Get(ctx, job.radixJob.Spec.AppName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	radixConfigFullName := getRadixConfigFullName(radixRegistration)
+	radixConfigFullName := getRadixConfigFullName(job.registration)
 	log.Ctx(ctx).Info().Msgf("Using image: %s", job.config.PipelineJobConfig.PipelineImage)
 
 	backOffLimit := int32(0)
@@ -70,7 +66,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 		return nil, err
 	}
 
-	initContainers := job.getInitContainersForRadixConfig(radixRegistration, workspace)
+	initContainers := job.getInitContainersForRadixConfig(workspace)
 
 	jobCfg := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -146,7 +142,8 @@ func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) string
 	return radixConfigFullName
 }
 
-func (job *Job) getInitContainersForRadixConfig(rr *radixv1.RadixRegistration, workspace string) []corev1.Container {
+func (job *Job) getInitContainersForRadixConfig(workspace string) []corev1.Container {
+	rr := job.registration
 	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, job.config.PipelineJobConfig.GitCloneImage)
 }
 

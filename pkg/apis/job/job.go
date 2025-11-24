@@ -134,7 +134,7 @@ func (job *Job) reconcile(ctx context.Context) error {
 			return job.createPipelineJob(ctx)
 		}
 
-		return fmt.Errorf("failed to create pipeline job: %s", err)
+		return fmt.Errorf("failed to create pipeline job: %w", err)
 	}
 
 	return nil
@@ -240,40 +240,42 @@ func (job *Job) syncTargetEnvironments(ctx context.Context, ra *v1.RadixApplicat
 }
 
 func (job *Job) syncStatus(ctx context.Context, reconcileErr error) error {
-	log.Ctx(ctx).Debug().Msg("Set RadixJob status")
 	pipelineJobs, err := job.getPipelineJobs(ctx)
 	if err != nil {
 		return err
 	}
+	var steps []v1.RadixJobStep
+	var condition v1.RadixJobCondition
 	pipelineJob, pipelineJobExists := commonslice.FindFirst(pipelineJobs, func(j batchv1.Job) bool { return j.GetName() == job.radixJob.Name })
-	if !pipelineJobExists {
-		log.Ctx(ctx).Debug().Msg("Pipeline job does not yet exist, nothing to sync")
-		return reconcileErr
-	}
-	log.Ctx(ctx).Debug().Msg("Get RadixJob steps")
-	steps, err := job.getJobSteps(ctx, pipelineJobs)
-	if err != nil {
-		return err
-	}
-	log.Ctx(ctx).Debug().Msgf("Got %d RadixJob steps", len(steps))
-	jobStatusCondition, err := job.getJobConditionFromJobStatus(ctx, pipelineJob.Status)
-	if err != nil {
-		return err
+	if pipelineJobExists {
+		steps, err = job.getJobSteps(ctx, pipelineJobs)
+		if err != nil {
+			return err
+		}
+		condition, err = job.getJobConditionFromJobStatus(ctx, pipelineJob.Status)
+		if err != nil {
+			return err
+		}
 	}
 
 	environments, err := job.getJobEnvironments(ctx)
 	if err != nil {
 		return err
 	}
+
 	if err = job.updateStatus(ctx, func(currStatus *v1.RadixJobStatus) {
-		log.Ctx(ctx).Debug().Msgf("Update RadixJob status with %d steps and the condition %s", len(steps), jobStatusCondition)
-		currStatus.Steps = steps
-		currStatus.Condition = jobStatusCondition
 		currStatus.Created = &job.radixJob.CreationTimestamp
-		currStatus.Started = pipelineJob.Status.StartTime
-		if len(pipelineJob.Status.Conditions) > 0 {
-			currStatus.Ended = &pipelineJob.Status.Conditions[0].LastTransitionTime
+
+		if pipelineJobExists {
+			currStatus.Steps = steps
+			currStatus.Condition = condition
+			currStatus.Started = pipelineJob.Status.StartTime
+
+			if len(pipelineJob.Status.Conditions) > 0 {
+				currStatus.Ended = &pipelineJob.Status.Conditions[0].LastTransitionTime
+			}
 		}
+
 		if len(environments) > 0 {
 			currStatus.TargetEnvs = environments
 		}
@@ -635,6 +637,7 @@ func (job *Job) getJobEnvironments(ctx context.Context) ([]string, error) {
 		}
 		return acc
 	})
+
 	return commonmaps.GetKeysFromMap(environmentsMap), nil
 }
 
