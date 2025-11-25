@@ -63,8 +63,7 @@ jobs:
 
       - name: Run e2e tests
         env:
-          E2E_SETUP_PARALLELISM: 2
-          E2E_PRUNE_BUILD_CACHE_ON_FINISH: "true"
+          E2E_SETUP_PARALLELISM: 1
         run: make test-e2e
         timeout-minutes: 35
 

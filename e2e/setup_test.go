@@ -62,9 +62,8 @@ var componentSpecs = []struct {
 }
 
 type Config struct {
-	SetupParallelism        uint `envconfig:"E2E_SETUP_PARALLELISM" default:"0" desc:"Limits the number of active goroutines for building images and setting up kind cluster. Value 0 indicates no limit."`
-	RemoveImagesOnFinish    bool `envconfig:"E2E_REMOVE_IMAGES_ON_FINISH" default:"true" desc:"Remove test images after test finish."`
-	PruneBuildCacheOnFinish bool `envconfig:"E2E_PRUNE_BUILD_CACHE_ON_FINISH" default:"true" desc:"Prune build cache after test finish."`
+	SetupParallelism     uint `envconfig:"E2E_SETUP_PARALLELISM" default:"0" desc:"Limits the number of active goroutines for building images and setting up kind cluster. Value 0 indicates no limit."`
+	RemoveImagesOnFinish bool `envconfig:"E2E_REMOVE_IMAGES_ON_FINISH" default:"true" desc:"Remove test images after test finish."`
 }
 
 // TestMain is the entry point for e2e tests
@@ -75,7 +74,7 @@ func TestMain(m *testing.M) {
 		_ = envconfig.Usage("", &cfg)
 		panic("failed to parse process config: " + err.Error())
 	}
-	fmt.Printf("Config:\n  SetupParallelism: %v\n  RemoveImagesOnFinish: %v\n  PruneBuildCacheOnFinish: %v\n", cfg.SetupParallelism, cfg.RemoveImagesOnFinish, cfg.PruneBuildCacheOnFinish)
+	fmt.Printf("Config:\n  SetupParallelism: %v\n  RemoveImagesOnFinish: %v\n", cfg.SetupParallelism, cfg.RemoveImagesOnFinish)
 
 	// Create a context with timeout for the entire test suite
 	testContext, testCancel := context.WithTimeout(context.Background(), 30*time.Minute)
@@ -100,7 +99,6 @@ func TestMain(m *testing.M) {
 	// Start building images
 	for _, spec := range componentSpecs {
 		eg.Go(func() error {
-			defer internal.PruneBuildCache(testContext)
 			return internal.BuildImage(testContext, spec.Dockerfile, spec.ImageName, imageTag)
 		})
 	}
@@ -191,10 +189,6 @@ func TestMain(m *testing.M) {
 		for _, spec := range componentSpecs {
 			_ = internal.RemoveImage(context.Background(), spec.ImageName, imageTag)
 		}
-	}
-
-	if cfg.PruneBuildCacheOnFinish {
-		_ = internal.PruneBuildCache(context.Background())
 	}
 
 	os.Exit(code)
