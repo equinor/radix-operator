@@ -11,6 +11,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
+	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -60,8 +61,19 @@ var componentSpecs = []struct {
 	},
 }
 
+type Config struct {
+	SetupParallellism uint `envconfig:"E2E_SETUP_PARALLELLISM" default:"0" desc:"Limits the number of active goroutines for building images and setting up kind cluster. Value 0 indicates no limit."`
+}
+
 // TestMain is the entry point for e2e tests
 func TestMain(m *testing.M) {
+	var cfg Config
+	err := envconfig.Process("", &cfg)
+	if err != nil {
+		_ = envconfig.Usage("", &cfg)
+		panic("failed to parse process config: " + err.Error())
+	}
+	fmt.Printf("Config:\n  SetupParallellism: %v\n", cfg.SetupParallellism)
 
 	// Create a context with timeout for the entire test suite
 	testContext, testCancel := context.WithTimeout(context.Background(), 30*time.Minute)
@@ -71,12 +83,8 @@ func TestMain(m *testing.M) {
 	imageTag := internal.GenerateImageTag()
 	println("Starting parallel cluster creation and image builds with tag:", imageTag)
 	var eg errgroup.Group
-
-	// Start building images
-	for _, spec := range componentSpecs {
-		eg.Go(func() error {
-			return internal.BuildImage(testContext, spec.Dockerfile, spec.ImageName, imageTag)
-		})
+	if cfg.SetupParallellism > 0 {
+		eg.SetLimit(int(cfg.SetupParallellism))
 	}
 
 	// Start creating Kind cluster
@@ -87,8 +95,15 @@ func TestMain(m *testing.M) {
 		return err
 	})
 
+	// Start building images
+	for _, spec := range componentSpecs {
+		eg.Go(func() error {
+			return internal.BuildImage(testContext, spec.Dockerfile, spec.ImageName, imageTag)
+		})
+	}
+
 	// Wait for both to complete
-	err := eg.Wait()
+	err = eg.Wait()
 	if err != nil {
 		panic("failed to setup cluster or build images: " + err.Error())
 	}
