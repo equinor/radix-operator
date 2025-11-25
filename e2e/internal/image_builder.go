@@ -51,11 +51,11 @@ func RemoveImage(ctx context.Context, imageName, imageTag string) error {
 	fmt.Printf("Removing image %s\n", fullImageName)
 
 	// Remove docker image
-	buildCmd := exec.CommandContext(ctx, "docker", "image", "rm", fullImageName)
-	buildCmd.Stdout = os.Stdout
-	buildCmd.Stderr = os.Stderr
+	cmd := exec.CommandContext(ctx, "docker", "image", "rm", fullImageName)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-	if err := buildCmd.Run(); err != nil {
+	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to remove image %s: %w", fullImageName, err)
 	}
 
