@@ -62,6 +62,8 @@ jobs:
           go mod download
 
       - name: Run e2e tests
+        env:
+          E2E_SETUP_PARALLELLISM: 2
         run: make test-e2e
         timeout-minutes: 35
 
