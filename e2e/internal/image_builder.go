@@ -44,3 +44,38 @@ func BuildImage(ctx context.Context, dockerfile, imageName, imageTag string) err
 	fmt.Printf("Successfully built %s\n", fullImageName)
 	return nil
 }
+
+// RemoveImage removes a Docker image
+func RemoveImage(ctx context.Context, imageName, imageTag string) error {
+	fullImageName := fmt.Sprintf("%s:%s", imageName, imageTag)
+	fmt.Printf("Removing image %s\n", fullImageName)
+
+	// Remove docker image
+	buildCmd := exec.CommandContext(ctx, "docker", "image", "rm", fullImageName)
+	buildCmd.Stdout = os.Stdout
+	buildCmd.Stderr = os.Stderr
+
+	if err := buildCmd.Run(); err != nil {
+		return fmt.Errorf("failed to remove image %s: %w", fullImageName, err)
+	}
+
+	fmt.Printf("Successfully removed %s\n", fullImageName)
+	return nil
+}
+
+// PruneBuildCache prunes build cache
+func PruneBuildCache(ctx context.Context) error {
+	fmt.Println("Prune build cache")
+
+	// Build the Docker image from project root
+	buildCmd := exec.CommandContext(ctx, "docker", "builder", "prune", "--force")
+	buildCmd.Stdout = os.Stdout
+	buildCmd.Stderr = os.Stderr
+
+	if err := buildCmd.Run(); err != nil {
+		return fmt.Errorf("failed to prune build cache: %w", err)
+	}
+
+	fmt.Println("Successfully pruned build cache")
+	return nil
+}
