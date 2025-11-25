@@ -62,19 +62,3 @@ func RemoveImage(ctx context.Context, imageName, imageTag string) error {
 	fmt.Printf("Successfully removed %s\n", fullImageName)
 	return nil
 }
-
-// PruneBuildCache prunes build cache
-func PruneBuildCache(ctx context.Context) error {
-	fmt.Println("Prune build cache")
-
-	buildCmd := exec.CommandContext(ctx, "docker", "builder", "prune", "--force")
-	buildCmd.Stdout = os.Stdout
-	buildCmd.Stderr = os.Stderr
-
-	if err := buildCmd.Run(); err != nil {
-		return fmt.Errorf("failed to prune build cache: %w", err)
-	}
-
-	fmt.Println("Successfully pruned build cache")
-	return nil
-}
