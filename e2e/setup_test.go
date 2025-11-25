@@ -71,7 +71,6 @@ func TestMain(m *testing.M) {
 	imageTag := internal.GenerateImageTag()
 	println("Starting parallel cluster creation and image builds with tag:", imageTag)
 	var eg errgroup.Group
-	eg.SetLimit(1)
 
 	// Start building images
 	for _, spec := range componentSpecs {
