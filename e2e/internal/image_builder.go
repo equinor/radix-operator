@@ -67,7 +67,6 @@ func RemoveImage(ctx context.Context, imageName, imageTag string) error {
 func PruneBuildCache(ctx context.Context) error {
 	fmt.Println("Prune build cache")
 
-	// Build the Docker image from project root
 	buildCmd := exec.CommandContext(ctx, "docker", "builder", "prune", "--force")
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stderr
