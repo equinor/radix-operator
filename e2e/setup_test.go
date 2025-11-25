@@ -62,7 +62,7 @@ var componentSpecs = []struct {
 }
 
 type Config struct {
-	SetupParallellism uint `envconfig:"E2E_SETUP_PARALLELLISM" default:"0" desc:"Limits the number of active goroutines for building images and setting up kind cluster. Value 0 indicates no limit."`
+	SetupParallelism uint `envconfig:"E2E_SETUP_PARALLELISM" default:"0" desc:"Limits the number of active goroutines for building images and setting up kind cluster. Value 0 indicates no limit."`
 }
 
 // TestMain is the entry point for e2e tests
@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 		_ = envconfig.Usage("", &cfg)
 		panic("failed to parse process config: " + err.Error())
 	}
-	fmt.Printf("Config:\n  SetupParallellism: %v\n", cfg.SetupParallellism)
+	fmt.Printf("Config:\n  SetupParallelism: %v\n", cfg.SetupParallelism)
 
 	// Create a context with timeout for the entire test suite
 	testContext, testCancel := context.WithTimeout(context.Background(), 30*time.Minute)
@@ -83,8 +83,8 @@ func TestMain(m *testing.M) {
 	imageTag := internal.GenerateImageTag()
 	println("Starting parallel cluster creation and image builds with tag:", imageTag)
 	var eg errgroup.Group
-	if cfg.SetupParallellism > 0 {
-		eg.SetLimit(int(cfg.SetupParallellism))
+	if cfg.SetupParallelism > 0 {
+		eg.SetLimit(int(cfg.SetupParallelism))
 	}
 
 	// Start creating Kind cluster
