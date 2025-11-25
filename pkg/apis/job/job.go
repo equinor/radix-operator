@@ -410,6 +410,9 @@ func (job *Job) queueJob(ctx context.Context) error {
 	return job.updateStatus(ctx, func(currStatus *v1.RadixJobStatus) {
 		currStatus.Created = &job.radixJob.CreationTimestamp
 		currStatus.Condition = v1.JobQueued
+		currStatus.Reconciled = metav1.Now()
+		currStatus.ReconcileStatus = v1.RadixJobReconcileSucceeded
+		currStatus.ObservedGeneration = job.radixJob.Generation
 	})
 }
 

@@ -227,6 +227,24 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	s.False(rjErr.Status.Reconciled.IsZero())
 }
 
+func (s *RadixJobTestSuite) Test_QueuedJob_ReconcileStatus() {
+	config := getConfigWithPipelineJobsHistoryLimit(3)
+
+	// Setup
+	_, err := s.testUtils.ApplyJob(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)))
+	s.Require().NoError(err)
+
+	// Sync job -> queued
+	expectedGen := int64(42)
+	secondJob, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithGeneration(expectedGen).WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	s.Require().NoError(err)
+	s.Equal(radixv1.JobQueued, secondJob.Status.Condition)
+	s.Equal(radixv1.RadixJobReconcileSucceeded, secondJob.Status.ReconcileStatus)
+	s.Empty(secondJob.Status.Message)
+	s.Equal(expectedGen, secondJob.Status.ObservedGeneration)
+	s.False(secondJob.Status.Reconciled.IsZero())
+}
+
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appID := ulid.Make()
 	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
