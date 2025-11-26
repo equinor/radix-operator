@@ -103,7 +103,6 @@ type RadixApplicationSpec struct {
 	//
 	// +listType=map
 	// +listMapKey=name
-	// +kubebuilder:validation:MaxItems=100
 	// +optional
 	Jobs []RadixJobComponent `json:"jobs,omitempty"`
 
@@ -112,7 +111,6 @@ type RadixApplicationSpec struct {
 	//
 	// +listType=map
 	// +listMapKey=name
-	// +kubebuilder:validation:MaxItems=100
 	// +optional
 	Components []RadixComponent `json:"components,omitempty"`
 
