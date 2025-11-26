@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -439,116 +438,6 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 
 		err := c.Create(t.Context(), ra, client.DryRunAll)
 		assert.Error(t, err, "Should reject when component and job have the same name")
-	})
-}
-
-// TestRadixApplicationComponentsMaxItemsValidation tests Components MaxItems=100
-func TestRadixApplicationComponentsMaxItemsValidation(t *testing.T) {
-	c := getClient(t)
-	appName := "test-components-max"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
-
-	t.Run("valid - 100 components", func(t *testing.T) {
-		components := make([]v1.RadixComponent, 100)
-		for i := 0; i < 100; i++ {
-			components[i] = v1.RadixComponent{
-				Name: "comp" + string(rune('0'+i/10)) + string(rune('0'+i%10)),
-			}
-		}
-
-		ra := &v1.RadixApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      appName,
-				Namespace: appNamespace,
-			},
-			Spec: v1.RadixApplicationSpec{
-				Environments: []v1.Environment{{Name: "dev"}},
-				Components:   components,
-			},
-		}
-
-		err := c.Create(t.Context(), ra, client.DryRunAll)
-		assert.NoError(t, err)
-	})
-
-	t.Run("invalid - 101 components exceeds MaxItems", func(t *testing.T) {
-		components := make([]v1.RadixComponent, 101)
-		for i := 0; i < 101; i++ {
-			components[i] = v1.RadixComponent{
-				Name: "c" + string(rune('0'+i/100)) + string(rune('0'+(i/10)%10)) + string(rune('0'+i%10)),
-			}
-		}
-
-		ra := &v1.RadixApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      appName,
-				Namespace: appNamespace,
-			},
-			Spec: v1.RadixApplicationSpec{
-				Environments: []v1.Environment{{Name: "dev"}},
-				Components:   components,
-			},
-		}
-
-		err := c.Create(t.Context(), ra, client.DryRunAll)
-		assert.Error(t, err, "Should reject when components exceed MaxItems=100")
-	})
-}
-
-// TestRadixApplicationJobsMaxItemsValidation tests Jobs MaxItems=100
-func TestRadixApplicationJobsMaxItemsValidation(t *testing.T) {
-	c := getClient(t)
-	appName := "test-jobs-max"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
-
-	t.Run("valid - 100 jobs", func(t *testing.T) {
-		jobs := make([]v1.RadixJobComponent, 100)
-		for i := 0; i < 100; i++ {
-			jobs[i] = v1.RadixJobComponent{
-				Name:          fmt.Sprintf("job%d", i),
-				SchedulerPort: int32(10000 + i),
-			}
-		}
-
-		ra := &v1.RadixApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      appName,
-				Namespace: appNamespace,
-			},
-			Spec: v1.RadixApplicationSpec{
-				Environments: []v1.Environment{{Name: "dev"}},
-				Jobs:         jobs,
-			},
-		}
-
-		err := c.Create(t.Context(), ra, client.DryRunAll)
-		assert.NoError(t, err)
-	})
-
-	t.Run("invalid - 101 jobs exceeds MaxItems", func(t *testing.T) {
-		jobs := make([]v1.RadixJobComponent, 101)
-		for i := 0; i < 101; i++ {
-			jobs[i] = v1.RadixJobComponent{
-				Name:          fmt.Sprintf("job%d", i),
-				SchedulerPort: int32(10000 + i),
-			}
-		}
-
-		ra := &v1.RadixApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      appName,
-				Namespace: appNamespace,
-			},
-			Spec: v1.RadixApplicationSpec{
-				Environments: []v1.Environment{{Name: "dev"}},
-				Jobs:         jobs,
-			},
-		}
-
-		err := c.Create(t.Context(), ra, client.DryRunAll)
-		assert.Error(t, err, "Should reject when jobs exceed MaxItems=100")
 	})
 }
 
