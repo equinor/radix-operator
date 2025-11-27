@@ -18,9 +18,6 @@ import (
 type jobTestSuite struct {
 	common.ControllerTestSuite
 	cleanup chan bool
-	// promClient *prometheusfake.Clientset
-	// kubeUtil   *kube.Kube
-	// tu         test.Utils
 }
 
 func TestJobTestSuite(t *testing.T) {

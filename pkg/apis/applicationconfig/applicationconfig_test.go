@@ -60,7 +60,7 @@ func Test_ReconcileStatus(t *testing.T) {
 
 	// First sync sets status
 	expectedGen := ra.Generation
-	sut := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil)
+	sut := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
@@ -73,7 +73,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	ra.Generation++
 	expectedGen = ra.Generation
-	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil)
+	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
@@ -90,7 +90,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	})
 	ra.Generation++
 	expectedGen = ra.Generation
-	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil)
+	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
 	err = sut.OnSync(context.Background())
 	require.ErrorContains(t, err, errorMsg)
 	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
@@ -106,7 +106,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplicationFromFile(sampleApp)
-	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp, "")
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp)
 	_, err := radixClient.RadixV1().RadixApplications(radixApp.Namespace).Create(context.Background(), radixApp, metav1.CreateOptions{})
 	require.NoError(t, err)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
@@ -174,7 +174,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	_, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Create(context.Background(), ra, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, "")
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
@@ -1120,7 +1120,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, "")
+	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
 
 	err = applicationConfig.OnSync(context.Background())
 	if err != nil {

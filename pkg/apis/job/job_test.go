@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -160,7 +159,6 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 			AppBuilderResourcesRequestsCPU:    &qty,
 			AppBuilderResourcesRequestsMemory: &qty,
 		},
-		DNSConfig: &dnsalias.DNSConfig{},
 	}
 	rr := &radixv1.RadixRegistration{}
 	rj := &radixv1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}

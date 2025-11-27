@@ -257,7 +257,6 @@ func (a *App) createApplicationController(ctx context.Context) *common.Controlle
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config.DNSZone,
 	)
 
 	return application.NewController(ctx,

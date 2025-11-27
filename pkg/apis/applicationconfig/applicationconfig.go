@@ -27,19 +27,17 @@ type ApplicationConfig struct {
 	kubeutil     *kube.Kube
 	registration *radixv1.RadixRegistration
 	config       *radixv1.RadixApplication
-	dnsZone      string
 	logger       zerolog.Logger
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, dnsZone string) *ApplicationConfig {
+func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication) *ApplicationConfig {
 	return &ApplicationConfig{
 		kubeclient:   kubeclient,
 		radixclient:  radixclient,
 		kubeutil:     kubeutil,
 		registration: registration,
 		config:       config,
-		dnsZone:      dnsZone,
 		logger:       log.Logger.With().Str("resource_kind", radixv1.KindRadixApplication).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
 	}
 }
