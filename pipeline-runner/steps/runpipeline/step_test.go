@@ -11,7 +11,6 @@ import (
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -74,7 +73,7 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 			GitRefType:    string(radixv1.GitRefBranch),
 			PipelineType:  string(radixv1.BuildDeploy),
 			ToEnvironment: internalTest.Env1,
-			DNSConfig:     &dnsalias.DNSConfig{}},
+		},
 		RadixApplication:             raBuilder.BuildRA(),
 		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
 	}
@@ -285,7 +284,6 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyEnvVars() {
 					GitRefType:    string(radixv1.GitRefBranch),
 					PipelineType:  string(radixv1.BuildDeploy),
 					ToEnvironment: internalTest.Env1,
-					DNSConfig:     &dnsalias.DNSConfig{},
 				},
 				RadixApplication:             ra,
 				TargetEnvironments:           []model.TargetEnvironment{{Environment: internalTest.Env1}},
@@ -437,7 +435,6 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyIdentity() {
 					GitRefType:    string(radixv1.GitRefBranch),
 					PipelineType:  string(radixv1.BuildDeploy),
 					ToEnvironment: internalTest.Env1,
-					DNSConfig:     &dnsalias.DNSConfig{},
 				},
 				RadixApplication:             raBuilder.BuildRA(),
 				TargetEnvironments:           []model.TargetEnvironment{{Environment: internalTest.Env1}},

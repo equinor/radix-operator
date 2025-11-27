@@ -63,6 +63,9 @@ spec:
             description: RadixDeploymentSpec is the spec for a deployment
             properties:
               appname:
+                maxLength: 253
+                minLength: 1
+                pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                 type: string
               components:
                 items:
@@ -723,6 +726,7 @@ spec:
                         maxReplicas:
                           description: Defines the maximum number of replicas.
                           format: int32
+                          maximum: 64
                           minimum: 1
                           type: integer
                         minReplicas:
@@ -813,6 +817,7 @@ spec:
                                                   for a user defined managed identity
                                                   or application ID for an application
                                                   registration.
+                                                format: uuid
                                                 type: string
                                             required:
                                             - clientId
@@ -922,6 +927,7 @@ spec:
                                                   for a user defined managed identity
                                                   or application ID for an application
                                                   registration.
+                                                format: uuid
                                                 type: string
                                             required:
                                             - clientId
@@ -1052,6 +1058,11 @@ spec:
                       required:
                       - maxReplicas
                       type: object
+                      x-kubernetes-validations:
+                      - message: maxReplicas must be greater than 0
+                        rule: self.maxReplicas > 0
+                      - message: minReplicas must be less than or equal to maxReplicas
+                        rule: '!has(self.minReplicas) || self.minReplicas <= self.maxReplicas'
                     identity:
                       description: Identity configuration for federation with external
                         identity providers.
@@ -1063,12 +1074,14 @@ spec:
                               description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
                                 registration.
+                              format: uuid
                               type: string
                           required:
                           - clientId
                           type: object
                       type: object
                     image:
+                      minLength: 1
                       type: string
                     ingressConfiguration:
                       items:
@@ -1084,12 +1097,16 @@ spec:
                           type: string
                         portName:
                           description: Defines which port in the ports list where
-                            metrics is served.
+                            metrics is served. If not specified, the first port is
+                            used.
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
                     name:
+                      maxLength: 50
+                      minLength: 1
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     network:
                       description: |-
@@ -1186,6 +1203,9 @@ spec:
                         - port
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     public:
                       description: 'Deprecated: For backwards compatibility Public
                         is still supported, new code should use PublicPort instead'
@@ -1195,8 +1215,12 @@ spec:
                     readOnlyFileSystem:
                       type: boolean
                     replicas:
+                      maximum: 64
+                      minimum: 0
                       type: integer
                     replicasOverride:
+                      maximum: 64
+                      minimum: 0
                       type: integer
                     resources:
                       description: |-
@@ -1266,6 +1290,7 @@ spec:
                                         name used when mounting the secret, key or
                                         certificate.
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     encoding:
                                       description: |-
@@ -1278,6 +1303,7 @@ spec:
                                       description: Defines the name of the environment
                                         variable that will contain the value of the
                                         secret, key or certificate.
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     format:
                                       description: |-
@@ -1301,6 +1327,7 @@ spec:
                                         in the keyvault.
                                       maxLength: 127
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     type:
                                       description: Type of item in the keyvault referenced
@@ -1341,6 +1368,9 @@ spec:
                             - name
                             type: object
                           type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                       type: object
                     secrets:
                       items:
@@ -1598,14 +1628,14 @@ spec:
                         type: object
                       type: array
                   required:
-                  - alwaysPullImageOnDeploy
                   - image
-                  - monitoring
                   - name
-                  - public
                   type: object
                 type: array
               environment:
+                maxLength: 63
+                minLength: 1
+                pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                 type: string
               imagePullSecrets:
                 items:
@@ -1640,6 +1670,7 @@ spec:
                       type: array
                     backoffLimit:
                       format: int32
+                      minimum: 0
                       type: integer
                     batchStatusRules:
                       description: BatchStatusRules Rules define how a batch status
@@ -1782,12 +1813,14 @@ spec:
                               description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
                                 registration.
+                              format: uuid
                               type: string
                           required:
                           - clientId
                           type: object
                       type: object
                     image:
+                      minLength: 1
                       type: string
                     monitoring:
                       type: boolean
@@ -1799,12 +1832,16 @@ spec:
                           type: string
                         portName:
                           description: Defines which port in the ports list where
-                            metrics is served.
+                            metrics is served. If not specified, the first port is
+                            used.
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
                     name:
+                      maxLength: 253
+                      minLength: 1
+                      pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
                     node:
                       description: 'Deprecated: use Runtime.NodeType instead.'
@@ -1863,6 +1900,9 @@ spec:
                         - port
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     readOnlyFileSystem:
                       type: boolean
                     resources:
@@ -1915,6 +1955,8 @@ spec:
                       type: object
                     schedulerPort:
                       format: int32
+                      maximum: 65535
+                      minimum: 1024
                       type: integer
                     secretRefs:
                       description: RadixSecretRefs defines secret vault
@@ -1936,6 +1978,7 @@ spec:
                                         name used when mounting the secret, key or
                                         certificate.
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     encoding:
                                       description: |-
@@ -1948,6 +1991,7 @@ spec:
                                       description: Defines the name of the environment
                                         variable that will contain the value of the
                                         secret, key or certificate.
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     format:
                                       description: |-
@@ -1971,6 +2015,7 @@ spec:
                                         in the keyvault.
                                       maxLength: 127
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     type:
                                       description: Type of item in the keyvault referenced
@@ -2011,6 +2056,9 @@ spec:
                             - name
                             type: object
                           type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                       type: object
                     secrets:
                       items:
@@ -2018,6 +2066,7 @@ spec:
                       type: array
                     timeLimitSeconds:
                       format: int64
+                      minimum: 1
                       type: integer
                     volumeMounts:
                       items:
@@ -2271,10 +2320,9 @@ spec:
                         type: object
                       type: array
                   required:
-                  - alwaysPullImageOnDeploy
                   - image
-                  - monitoring
                   - name
+                  - schedulerPort
                   type: object
                 type: array
             required:

@@ -26,7 +26,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -183,8 +182,7 @@ func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo 
 		return "", "", err
 	}
 	tagsConcat := strings.Join(tags, " ")
-
-	if err = radixvalidators.GitTagsContainIllegalChars(tagsConcat); err != nil {
+	if err = prepareInternal.GitTagsContainIllegalChars(tagsConcat); err != nil {
 		return "", "", err
 	}
 

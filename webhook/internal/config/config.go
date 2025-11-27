@@ -29,6 +29,9 @@ type Config struct {
 	DnsName                  string   `envconfig:"DNS_NAME" default:"radix-webhook.default.svc" desc:"DNS name of the webhook service"`
 	ExtraDnsNames            []string `envconfig:"EXTRA_DNS_NAMES" default:"" desc:"Additional DNS names for the webhook service, separated by commas"`
 	WebhookConfigurationName string   `envconfig:"WEBHOOK_CONFIGURATION_NAME" default:"radix-webhook-configuration" desc:"Name of the webhook service"`
+
+	ReservedDNSAliases    []string          `envconfig:"RADIX_RESERVED_DNS_ALIASES" default:"grafana,prometheus,www" desc:"comma separated list of DNS aliases, reserved for Radix platform services"`
+	ReservedDNSAppAliases map[string]string `envconfig:"RADIX_RESERVED_APP_DNS_ALIASES" default:"api:radix-api" desc:"comma separated list of DNS aliases, reserved for Radix application services, in the format alias:app-name,alias2:app-name-2"`
 }
 
 func MustParseConfig() Config {

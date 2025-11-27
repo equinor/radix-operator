@@ -96,6 +96,10 @@ spec:
               value: {{ .Values.radixWebhook.requireConfigurationItem | quote }}
             - name: DNS_NAME
               value: radix-webhook.{{ .Release.Namespace }}.svc
+            - name: RADIX_RESERVED_APP_DNS_ALIASES
+              value: {{ include "helm-toolkit.utils.joinMapWithComma" .Values.radixWebhook.reservedAppDNSAliases | quote }}
+            - name: RADIX_RESERVED_DNS_ALIASES
+              value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.radixWebhook.reservedDNSAliases | quote }}
           volumeMounts:
             - name: certs
               mountPath: /run/certs

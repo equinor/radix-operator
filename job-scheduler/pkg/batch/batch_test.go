@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	testUtil "github.com/equinor/radix-operator/job-scheduler/internal/test"
@@ -745,7 +744,7 @@ func aRadixDeploymentWithComponentModifier(props testProps, radixDeploymentName 
 		WithJobComponent(m(operatorutils.NewDeployJobComponentBuilder().
 			WithName(props.radixJobComponentName).
 			WithImage("radixdev.azurecr.io/job:imagetag").
-			WithSchedulerPort(numbers.Int32Ptr(8080))))
+			WithSchedulerPort(8080)))
 	return builder
 }
 

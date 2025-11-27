@@ -258,7 +258,7 @@ func (a *App) createApplicationController(ctx context.Context) *common.Controlle
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config.DNSConfig,
+		a.config.DNSZone,
 	)
 
 	return application.NewController(ctx,
@@ -292,7 +292,7 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config.DNSConfig,
+		a.config.DNSZone,
 		dnsalias.WithIngressConfiguration(a.ingressConfiguration),
 		dnsalias.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 	)

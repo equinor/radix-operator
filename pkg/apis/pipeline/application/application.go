@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"unicode"
 
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
@@ -15,7 +14,7 @@ import (
 )
 
 // ParseRadixApplication Parse and validate RadixApplication from configFileContent
-func ParseRadixApplication(ctx context.Context, radixClient radixclient.Interface, appName string, dnsConfig *dnsalias.DNSConfig, configFileContent []byte) (*radixv1.RadixApplication, error) {
+func ParseRadixApplication(ctx context.Context, radixClient radixclient.Interface, appName string, configFileContent []byte) (*radixv1.RadixApplication, error) {
 	ra := &radixv1.RadixApplication{}
 
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
@@ -28,21 +27,12 @@ func ParseRadixApplication(ctx context.Context, radixClient radixclient.Interfac
 		return nil, fmt.Errorf("the application name %s in the radixconfig file does not match the registered application name %s", ra.GetName(), appName)
 	}
 	correctRadixApplication(ctx, ra)
-
-	// Validate RA
-	if validate.RAContainsOldPublic(ra) {
-		log.Ctx(ctx).Warn().Msg("component.public is deprecated, please use component.publicPort instead")
-	}
-	if err := validate.CanRadixApplicationBeInserted(ctx, radixClient, ra, dnsConfig); err != nil {
-		log.Ctx(ctx).Error().Msg("Radix config not valid")
-		return nil, err
-	}
 	return ra, nil
 }
 
 func correctRadixApplication(ctx context.Context, ra *radixv1.RadixApplication) {
-	if isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name); !isAppNameLowercase {
-		log.Ctx(ctx).Warn().Err(err).Msg("%s Converting name to lowercase")
+	if !isApplicationNameLowercase(ra.Name) {
+		log.Ctx(ctx).Warn().Msgf("Converting name %s to lowercase ", ra.Name)
 		ra.Name = strings.ToLower(ra.Name)
 	}
 	for i := 0; i < len(ra.Spec.Components); i++ {
@@ -51,6 +41,15 @@ func correctRadixApplication(ctx context.Context, ra *radixv1.RadixApplication) 
 	for i := 0; i < len(ra.Spec.Jobs); i++ {
 		ra.Spec.Jobs[i].Resources = buildResource(&ra.Spec.Jobs[i])
 	}
+}
+
+func isApplicationNameLowercase(appName string) bool {
+	for _, r := range appName {
+		if unicode.IsUpper(r) && unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
 }
 
 func buildResource(component radixv1.RadixCommonComponent) radixv1.ResourceRequirements {

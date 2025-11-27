@@ -22,7 +22,7 @@ type DeployJobComponentBuilder interface {
 	WithNodeGpuCount(gpuCount string) DeployJobComponentBuilder
 	WithSecrets([]string) DeployJobComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) DeployJobComponentBuilder
-	WithSchedulerPort(*int32) DeployJobComponentBuilder
+	WithSchedulerPort(int32) DeployJobComponentBuilder
 	WithPayloadPath(*string) DeployJobComponentBuilder
 	WithTimeLimitSeconds(*int64) DeployJobComponentBuilder
 	WithIdentity(*v1.Identity) DeployJobComponentBuilder
@@ -47,7 +47,7 @@ type deployJobComponentBuilder struct {
 	secretRefs              v1.RadixSecretRefs
 	resources               v1.ResourceRequirements
 	volumeMounts            []v1.RadixVolumeMount
-	schedulerPort           *int32
+	schedulerPort           int32
 	payloadPath             *string
 	node                    v1.RadixNode
 	timeLimitSeconds        *int64
@@ -155,7 +155,7 @@ func (dcb *deployJobComponentBuilder) WithSecretRefs(secretRefs v1.RadixSecretRe
 	return dcb
 }
 
-func (dcb *deployJobComponentBuilder) WithSchedulerPort(port *int32) DeployJobComponentBuilder {
+func (dcb *deployJobComponentBuilder) WithSchedulerPort(port int32) DeployJobComponentBuilder {
 	dcb.schedulerPort = port
 	return dcb
 }

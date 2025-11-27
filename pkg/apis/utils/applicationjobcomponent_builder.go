@@ -18,7 +18,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithEnvironmentConfigs(...RadixJobComponentEnvironmentConfigBuilder) RadixApplicationJobComponentBuilder
 	WithCommonEnvironmentVariable(string, string) RadixApplicationJobComponentBuilder
 	WithCommonResource(map[string]string, map[string]string) RadixApplicationJobComponentBuilder
-	WithSchedulerPort(*int32) RadixApplicationJobComponentBuilder
+	WithSchedulerPort(int32) RadixApplicationJobComponentBuilder
 	WithPayloadPath(*string) RadixApplicationJobComponentBuilder
 	WithNode(node v1.RadixNode) RadixApplicationJobComponentBuilder
 	WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationJobComponentBuilder
@@ -48,7 +48,7 @@ type radixApplicationJobComponentBuilder struct {
 	environmentConfig  []RadixJobComponentEnvironmentConfigBuilder
 	variables          v1.EnvVarsMap
 	resources          v1.ResourceRequirements
-	schedulerPort      *int32
+	schedulerPort      int32
 	payloadPath        *string
 	node               v1.RadixNode
 	volumes            []v1.RadixVolumeMount
@@ -165,7 +165,7 @@ func (rcb *radixApplicationJobComponentBuilder) WithCommonResource(request map[s
 	return rcb
 }
 
-func (rcb *radixApplicationJobComponentBuilder) WithSchedulerPort(port *int32) RadixApplicationJobComponentBuilder {
+func (rcb *radixApplicationJobComponentBuilder) WithSchedulerPort(port int32) RadixApplicationJobComponentBuilder {
 	rcb.schedulerPort = port
 	return rcb
 }

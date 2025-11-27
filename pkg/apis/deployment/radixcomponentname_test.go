@@ -3,7 +3,6 @@ package deployment
 import (
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -69,11 +68,11 @@ func Test_CommonDeployComponentHasPorts(t *testing.T) {
 		WithJobComponents(
 			utils.NewDeployJobComponentBuilder().WithName("job1").
 				WithPorts([]v1.ComponentPort{{Name: "http", Port: 8080}}).
-				WithSchedulerPort(pointers.Ptr[int32](8081)),
+				WithSchedulerPort(8081),
 			utils.NewDeployJobComponentBuilder().WithName("job2").
 				WithPorts([]v1.ComponentPort{{Name: "http", Port: 8080}}),
 			utils.NewDeployJobComponentBuilder().WithName("job3").
-				WithSchedulerPort(pointers.Ptr[int32](8081)),
+				WithSchedulerPort(8081),
 			utils.NewDeployJobComponentBuilder().WithName("job4"),
 		).
 		BuildRD()

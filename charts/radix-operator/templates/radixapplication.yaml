@@ -53,8 +53,11 @@ spec:
                       Defines a list of secrets that will be passed as ARGs when building Dockerfile.
                       The secrets can also be accessed in sub-pipelines.
                     items:
+                      maxLength: 253
+                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                       type: string
                     type: array
+                    x-kubernetes-list-type: set
                   subPipeline:
                     description: SubPipeline common configuration for all environments.
                     properties:
@@ -70,6 +73,7 @@ spec:
                                 description: Defines the Client ID for a user defined
                                   managed identity or application ID for an application
                                   registration.
+                                format: uuid
                                 type: string
                             required:
                             - clientId
@@ -986,6 +990,7 @@ spec:
                               maxReplicas:
                                 description: Defines the maximum number of replicas.
                                 format: int32
+                                maximum: 64
                                 minimum: 1
                                 type: integer
                               minReplicas:
@@ -1078,6 +1083,7 @@ spec:
                                                         ID for a user defined managed
                                                         identity or application ID
                                                         for an application registration.
+                                                      format: uuid
                                                       type: string
                                                   required:
                                                   - clientId
@@ -1191,6 +1197,7 @@ spec:
                                                         ID for a user defined managed
                                                         identity or application ID
                                                         for an application registration.
+                                                      format: uuid
                                                       type: string
                                                   required:
                                                   - clientId
@@ -1329,6 +1336,12 @@ spec:
                             required:
                             - maxReplicas
                             type: object
+                            x-kubernetes-validations:
+                            - message: maxReplicas must be greater than 0
+                              rule: self.maxReplicas > 0
+                            - message: minReplicas must be less than or equal to maxReplicas
+                              rule: '!has(self.minReplicas) || self.minReplicas <=
+                                self.maxReplicas'
                           identity:
                             description: |-
                               Environment specific configuration for workload identity (federated credentials).
@@ -1341,6 +1354,7 @@ spec:
                                     description: Defines the Client ID for a user
                                       defined managed identity or application ID for
                                       an application registration.
+                                    format: uuid
                                     type: string
                                 required:
                                 - clientId
@@ -1518,6 +1532,7 @@ spec:
                                               file name used when mounting the secret,
                                               key or certificate.
                                             minLength: 1
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           encoding:
                                             description: |-
@@ -1530,6 +1545,7 @@ spec:
                                             description: Defines the name of the environment
                                               variable that will contain the value
                                               of the secret, key or certificate.
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           format:
                                             description: |-
@@ -1553,6 +1569,7 @@ spec:
                                               certificate in the keyvault.
                                             maxLength: 127
                                             minLength: 1
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           type:
                                             description: Type of item in the keyvault
@@ -1593,6 +1610,9 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
                             type: object
                           src:
                             description: |-
@@ -2329,6 +2349,7 @@ spec:
                         maxReplicas:
                           description: Defines the maximum number of replicas.
                           format: int32
+                          maximum: 64
                           minimum: 1
                           type: integer
                         minReplicas:
@@ -2419,6 +2440,7 @@ spec:
                                                   for a user defined managed identity
                                                   or application ID for an application
                                                   registration.
+                                                format: uuid
                                                 type: string
                                             required:
                                             - clientId
@@ -2528,6 +2550,7 @@ spec:
                                                   for a user defined managed identity
                                                   or application ID for an application
                                                   registration.
+                                                format: uuid
                                                 type: string
                                             required:
                                             - clientId
@@ -2658,6 +2681,11 @@ spec:
                       required:
                       - maxReplicas
                       type: object
+                      x-kubernetes-validations:
+                      - message: maxReplicas must be greater than 0
+                        rule: self.maxReplicas > 0
+                      - message: minReplicas must be less than or equal to maxReplicas
+                        rule: '!has(self.minReplicas) || self.minReplicas <= self.maxReplicas'
                     identity:
                       description: |-
                         Configuration for workload identity (federated credentials).
@@ -2670,6 +2698,7 @@ spec:
                               description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
                                 registration.
+                              format: uuid
                               type: string
                           required:
                           - clientId
@@ -2710,7 +2739,8 @@ spec:
                           type: string
                         portName:
                           description: Defines which port in the ports list where
-                            metrics is served.
+                            metrics is served. If not specified, the first port is
+                            used.
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
@@ -2908,6 +2938,7 @@ spec:
                                         name used when mounting the secret, key or
                                         certificate.
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     encoding:
                                       description: |-
@@ -2920,6 +2951,7 @@ spec:
                                       description: Defines the name of the environment
                                         variable that will contain the value of the
                                         secret, key or certificate.
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     format:
                                       description: |-
@@ -2943,6 +2975,7 @@ spec:
                                         in the keyvault.
                                       maxLength: 127
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     type:
                                       description: Type of item in the keyvault referenced
@@ -2983,14 +3016,19 @@ spec:
                             - name
                             type: object
                           type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                       type: object
                     secrets:
                       description: |-
                         List of secret environment variable names.
                         More info: https://www.radix.equinor.com/radix-config#secrets
                       items:
+                        pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                     src:
                       description: |-
                         Path to the Dockerfile that builds the component.
@@ -3477,6 +3515,7 @@ spec:
                                   description: Defines the Client ID for a user defined
                                     managed identity or application ID for an application
                                     registration.
+                                  format: uuid
                                   type: string
                               required:
                               - clientId
@@ -3799,6 +3838,7 @@ spec:
                                     description: Defines the Client ID for a user
                                       defined managed identity or application ID for
                                       an application registration.
+                                    format: uuid
                                     type: string
                                 required:
                                 - clientId
@@ -3923,6 +3963,7 @@ spec:
                                               file name used when mounting the secret,
                                               key or certificate.
                                             minLength: 1
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           encoding:
                                             description: |-
@@ -3935,6 +3976,7 @@ spec:
                                             description: Defines the name of the environment
                                               variable that will contain the value
                                               of the secret, key or certificate.
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           format:
                                             description: |-
@@ -3958,6 +4000,7 @@ spec:
                                               certificate in the keyvault.
                                             maxLength: 127
                                             minLength: 1
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           type:
                                             description: Type of item in the keyvault
@@ -3998,6 +4041,9 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
                             type: object
                           src:
                             description: |-
@@ -4362,6 +4408,7 @@ spec:
                               description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
                                 registration.
+                              format: uuid
                               type: string
                           required:
                           - clientId
@@ -4395,7 +4442,8 @@ spec:
                           type: string
                         portName:
                           description: Defines which port in the ports list where
-                            metrics is served.
+                            metrics is served. If not specified, the first port is
+                            used.
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
@@ -4551,6 +4599,7 @@ spec:
                                         name used when mounting the secret, key or
                                         certificate.
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     encoding:
                                       description: |-
@@ -4563,6 +4612,7 @@ spec:
                                       description: Defines the name of the environment
                                         variable that will contain the value of the
                                         secret, key or certificate.
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     format:
                                       description: |-
@@ -4586,6 +4636,7 @@ spec:
                                         in the keyvault.
                                       maxLength: 127
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     type:
                                       description: Type of item in the keyvault referenced
@@ -4626,14 +4677,19 @@ spec:
                             - name
                             type: object
                           type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                       type: object
                     secrets:
                       description: |-
                         List of secret environment variable names.
                         More info: https://www.radix.equinor.com/radix-config#secrets-2
                       items:
+                        pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                     src:
                       description: |-
                         Path to the Dockerfile that builds the job.
@@ -4908,6 +4964,7 @@ spec:
                       type: array
                   required:
                   - name
+                  - schedulerPort
                   type: object
                 type: array
                 x-kubernetes-list-map-keys:
