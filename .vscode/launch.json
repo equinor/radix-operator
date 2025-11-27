@@ -8,12 +8,15 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/webhook/main.go",
 			"env": {
-				"REQUIRE_AD_GROUPS": "true",
-				"REQUIRE_CONFIGURATION_ITEM": "true",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
 				"CERTS_DIR": "${workspaceFolder}/local/certs",
-			},
+
+				"REQUIRE_AD_GROUPS": "true",
+				"REQUIRE_CONFIGURATION_ITEM": "true",
+				"RADIX_RESERVED_APP_DNS_ALIASES": "api:radix-api,canary:radix-canary-golang,console:radix-web-console,cost-api:radix-cost-allocation-api,webhook:radix-github-webhook",
+				"RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www,app,playground,dev"
+			}
 		},
 		{
 			"name": "Launch-build-deploy-pipeline",
@@ -46,7 +49,6 @@
 				// "--TO_ENVIRONMENT=dev",
 				// "--IMAGE_TAG_NAME=server=1.23-alpine-slim",
 				// "--IMAGE_TAG_NAME=server2=1.22.1-alpine-perl",
-				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
 				"--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
 				"--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=radix-external-registry-default-auth",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
@@ -71,7 +73,6 @@
 				"--RADIX_FILE_NAME=radixconfig.yaml",
 				"--DEBUG=true",
 				"--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
-				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
 				"--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
@@ -95,7 +96,6 @@
 				"--RADIX_ZONE=dev",
 				"--RADIX_CLUSTERNAME=weekly-44",
 				"--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
-				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
 				"--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
@@ -118,8 +118,6 @@
 				"--RADIX_ZONE=dev",
 				"--RADIX_CLUSTERNAME=weekly-43",
 				"--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
-				"--RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
-				"--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
 				"--APPLY_CONFIG_DEPLOY_EXTERNALDNS=true",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
@@ -156,8 +154,8 @@
 				"RADIX_APP_CONTAINER_REGISTRY": "radixdevapp.azurecr.io",
 				"RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL": "https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0",
 				"RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.9.0",
-                "RADIX_OAUTH_REDIS_IMAGE": "docker.io/library/redis:8.0",
-                "RADIXOPERATOR_TENANT_ID": "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",
+				"RADIX_OAUTH_REDIS_IMAGE": "docker.io/library/redis:8.0",
+				"RADIXOPERATOR_TENANT_ID": "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",
 				"KUBERNETES_SERVICE_PORT": "443",
 				"REGISTRATION_CONTROLLER_THREADS": "10",
 				"APPLICATION_CONTROLLER_THREADS": "10",
@@ -178,7 +176,6 @@
 				"RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT": "10",
 				"RADIX_PIPELINE_JOBS_HISTORY_LIMIT": "5",
 				"SECCOMP_PROFILE_FILENAME": "allow-buildah.json",
-				"RADIX_RESERVED_APP_DNS_ALIASES": "api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
 				"RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www",
 				"RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER": "digicert-http01",
 				"RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION": "2160h",

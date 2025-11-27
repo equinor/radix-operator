@@ -5,7 +5,6 @@ import (
 
 	"github.com/equinor/radix-operator/operator/common"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
@@ -20,7 +19,7 @@ type handler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
-	dnsConfig   *dnsalias.DNSConfig
+	dnsZone     string
 	events      common.SyncEventRecorder
 }
 
@@ -29,14 +28,14 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	eventRecorder record.EventRecorder,
-	dnsConfig *dnsalias.DNSConfig) common.Handler {
+	dnsZone string) common.Handler {
 
 	handler := &handler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
 		kubeutil:    kubeutil,
 		events:      common.NewSyncEventRecorder(eventRecorder),
-		dnsConfig:   dnsConfig,
+		dnsZone:     dnsZone,
 	}
 
 	return handler
@@ -71,7 +70,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 
 	syncApplication := radixApplication.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync application %s", syncApplication.Name)
-	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsConfig)
+	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsZone)
 	err = applicationConfig.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncApplication, err)

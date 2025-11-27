@@ -5,7 +5,6 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -31,19 +30,19 @@ type syncer struct {
 	radixClient                radixclient.Interface
 	kubeUtil                   *kube.Kube
 	radixDNSAlias              *radixv1.RadixDNSAlias
-	dnsConfig                  *dnsalias.DNSConfig
+	dnsZone                    string
 	ingressConfiguration       ingress.IngressConfiguration
 	oauth2DefaultConfig        defaults.OAuth2Config
 	ingressAnnotationProviders []ingress.AnnotationProvider
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsConfig *dnsalias.DNSConfig, ingressConfiguration ingress.IngressConfiguration, oauth2Config defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, radixDNSAlias *radixv1.RadixDNSAlias) Syncer {
+func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsZone string, ingressConfiguration ingress.IngressConfiguration, oauth2Config defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, radixDNSAlias *radixv1.RadixDNSAlias) Syncer {
 	return &syncer{
 		kubeClient:                 kubeClient,
 		radixClient:                radixClient,
 		kubeUtil:                   kubeUtil,
-		dnsConfig:                  dnsConfig,
+		dnsZone:                    dnsZone,
 		ingressConfiguration:       ingressConfiguration,
 		oauth2DefaultConfig:        oauth2Config,
 		ingressAnnotationProviders: ingressAnnotationProviders,

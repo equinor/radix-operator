@@ -21,9 +21,12 @@
             "secrets": {
               "description": "Defines a list of secrets that will be passed as ARGs when building Dockerfile.\nThe secrets can also be accessed in sub-pipelines.",
               "items": {
+                "maxLength": 253,
+                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                 "type": "string"
               },
-              "type": "array"
+              "type": "array",
+              "x-kubernetes-list-type": "set"
             },
             "subPipeline": {
               "description": "SubPipeline common configuration for all environments.",
@@ -36,6 +39,7 @@
                       "properties": {
                         "clientId": {
                           "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                          "format": "uuid",
                           "type": "string"
                         }
                       },
@@ -933,6 +937,7 @@
                         "maxReplicas": {
                           "description": "Defines the maximum number of replicas.",
                           "format": "int32",
+                          "maximum": 64,
                           "minimum": 1,
                           "type": "integer"
                         },
@@ -1016,6 +1021,7 @@
                                             "properties": {
                                               "clientId": {
                                                 "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                                "format": "uuid",
                                                 "type": "string"
                                               }
                                             },
@@ -1117,6 +1123,7 @@
                                             "properties": {
                                               "clientId": {
                                                 "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                                "format": "uuid",
                                                 "type": "string"
                                               }
                                             },
@@ -1263,7 +1270,17 @@
                       "required": [
                         "maxReplicas"
                       ],
-                      "type": "object"
+                      "type": "object",
+                      "x-kubernetes-validations": [
+                        {
+                          "message": "maxReplicas must be greater than 0",
+                          "rule": "self.maxReplicas > 0"
+                        },
+                        {
+                          "message": "minReplicas must be less than or equal to maxReplicas",
+                          "rule": "!has(self.minReplicas) || self.minReplicas <= self.maxReplicas"
+                        }
+                      ]
                     },
                     "identity": {
                       "description": "Environment specific configuration for workload identity (federated credentials).\nMore info: https://www.radix.equinor.com/radix-config#identity",
@@ -1273,6 +1290,7 @@
                           "properties": {
                             "clientId": {
                               "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                              "format": "uuid",
                               "type": "string"
                             }
                           },
@@ -1433,6 +1451,7 @@
                                     "alias": {
                                       "description": "Alias overrides the default file name used when mounting the secret, key or certificate.",
                                       "minLength": 1,
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "encoding": {
@@ -1444,6 +1463,7 @@
                                     },
                                     "envVar": {
                                       "description": "Defines the name of the environment variable that will contain the value of the secret, key or certificate.",
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "format": {
@@ -1466,6 +1486,7 @@
                                       "description": "Name of a secret, key or certificate in the keyvault.",
                                       "maxLength": 127,
                                       "minLength": 1,
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "type": {
@@ -1512,7 +1533,11 @@
                             ],
                             "type": "object"
                           },
-                          "type": "array"
+                          "type": "array",
+                          "x-kubernetes-list-map-keys": [
+                            "name"
+                          ],
+                          "x-kubernetes-list-type": "map"
                         }
                       },
                       "type": "object"
@@ -2264,6 +2289,7 @@
                   "maxReplicas": {
                     "description": "Defines the maximum number of replicas.",
                     "format": "int32",
+                    "maximum": 64,
                     "minimum": 1,
                     "type": "integer"
                   },
@@ -2347,6 +2373,7 @@
                                       "properties": {
                                         "clientId": {
                                           "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                          "format": "uuid",
                                           "type": "string"
                                         }
                                       },
@@ -2448,6 +2475,7 @@
                                       "properties": {
                                         "clientId": {
                                           "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                                          "format": "uuid",
                                           "type": "string"
                                         }
                                       },
@@ -2594,7 +2622,17 @@
                 "required": [
                   "maxReplicas"
                 ],
-                "type": "object"
+                "type": "object",
+                "x-kubernetes-validations": [
+                  {
+                    "message": "maxReplicas must be greater than 0",
+                    "rule": "self.maxReplicas > 0"
+                  },
+                  {
+                    "message": "minReplicas must be less than or equal to maxReplicas",
+                    "rule": "!has(self.minReplicas) || self.minReplicas <= self.maxReplicas"
+                  }
+                ]
               },
               "identity": {
                 "description": "Configuration for workload identity (federated credentials).\nMore info: https://www.radix.equinor.com/radix-config#identity",
@@ -2604,6 +2642,7 @@
                     "properties": {
                       "clientId": {
                         "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                        "format": "uuid",
                         "type": "string"
                       }
                     },
@@ -2642,7 +2681,7 @@
                     "type": "string"
                   },
                   "portName": {
-                    "description": "Defines which port in the ports list where metrics is served.",
+                    "description": "Defines which port in the ports list where metrics is served. If not specified, the first port is used.",
                     "maxLength": 15,
                     "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
@@ -2836,6 +2875,7 @@
                               "alias": {
                                 "description": "Alias overrides the default file name used when mounting the secret, key or certificate.",
                                 "minLength": 1,
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "encoding": {
@@ -2847,6 +2887,7 @@
                               },
                               "envVar": {
                                 "description": "Defines the name of the environment variable that will contain the value of the secret, key or certificate.",
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "format": {
@@ -2869,6 +2910,7 @@
                                 "description": "Name of a secret, key or certificate in the keyvault.",
                                 "maxLength": 127,
                                 "minLength": 1,
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "type": {
@@ -2915,7 +2957,11 @@
                       ],
                       "type": "object"
                     },
-                    "type": "array"
+                    "type": "array",
+                    "x-kubernetes-list-map-keys": [
+                      "name"
+                    ],
+                    "x-kubernetes-list-type": "map"
                   }
                 },
                 "type": "object"
@@ -2923,9 +2969,11 @@
               "secrets": {
                 "description": "List of secret environment variable names.\nMore info: https://www.radix.equinor.com/radix-config#secrets",
                 "items": {
+                  "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                   "type": "string"
                 },
-                "type": "array"
+                "type": "array",
+                "x-kubernetes-list-type": "set"
               },
               "src": {
                 "description": "Path to the Dockerfile that builds the component.\nMore info: https://www.radix.equinor.com/radix-config#src",
@@ -3434,6 +3482,7 @@
                         "properties": {
                           "clientId": {
                             "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                            "format": "uuid",
                             "type": "string"
                           }
                         },
@@ -3741,6 +3790,7 @@
                           "properties": {
                             "clientId": {
                               "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                              "format": "uuid",
                               "type": "string"
                             }
                           },
@@ -3857,6 +3907,7 @@
                                     "alias": {
                                       "description": "Alias overrides the default file name used when mounting the secret, key or certificate.",
                                       "minLength": 1,
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "encoding": {
@@ -3868,6 +3919,7 @@
                                     },
                                     "envVar": {
                                       "description": "Defines the name of the environment variable that will contain the value of the secret, key or certificate.",
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "format": {
@@ -3890,6 +3942,7 @@
                                       "description": "Name of a secret, key or certificate in the keyvault.",
                                       "maxLength": 127,
                                       "minLength": 1,
+                                      "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                       "type": "string"
                                     },
                                     "type": {
@@ -3936,7 +3989,11 @@
                             ],
                             "type": "object"
                           },
-                          "type": "array"
+                          "type": "array",
+                          "x-kubernetes-list-map-keys": [
+                            "name"
+                          ],
+                          "x-kubernetes-list-type": "map"
                         }
                       },
                       "type": "object"
@@ -4300,6 +4357,7 @@
                     "properties": {
                       "clientId": {
                         "description": "Defines the Client ID for a user defined managed identity or application ID for an application registration.",
+                        "format": "uuid",
                         "type": "string"
                       }
                     },
@@ -4331,7 +4389,7 @@
                     "type": "string"
                   },
                   "portName": {
-                    "description": "Defines which port in the ports list where metrics is served.",
+                    "description": "Defines which port in the ports list where metrics is served. If not specified, the first port is used.",
                     "maxLength": 15,
                     "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                     "type": "string"
@@ -4492,6 +4550,7 @@
                               "alias": {
                                 "description": "Alias overrides the default file name used when mounting the secret, key or certificate.",
                                 "minLength": 1,
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "encoding": {
@@ -4503,6 +4562,7 @@
                               },
                               "envVar": {
                                 "description": "Defines the name of the environment variable that will contain the value of the secret, key or certificate.",
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "format": {
@@ -4525,6 +4585,7 @@
                                 "description": "Name of a secret, key or certificate in the keyvault.",
                                 "maxLength": 127,
                                 "minLength": 1,
+                                "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                                 "type": "string"
                               },
                               "type": {
@@ -4571,7 +4632,11 @@
                       ],
                       "type": "object"
                     },
-                    "type": "array"
+                    "type": "array",
+                    "x-kubernetes-list-map-keys": [
+                      "name"
+                    ],
+                    "x-kubernetes-list-type": "map"
                   }
                 },
                 "type": "object"
@@ -4579,9 +4644,11 @@
               "secrets": {
                 "description": "List of secret environment variable names.\nMore info: https://www.radix.equinor.com/radix-config#secrets-2",
                 "items": {
+                  "pattern": "^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$",
                   "type": "string"
                 },
-                "type": "array"
+                "type": "array",
+                "x-kubernetes-list-type": "set"
               },
               "src": {
                 "description": "Path to the Dockerfile that builds the job.\nMore info: https://www.radix.equinor.com/radix-config#src-2",
@@ -4860,7 +4927,8 @@
               }
             },
             "required": [
-              "name"
+              "name",
+              "schedulerPort"
             ],
             "type": "object"
           },

@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
-	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -91,8 +90,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.WaitForNotSynced("Sync should not be called when updating RadixDNSAlias with no changes")
 
 	// Add Ingress with owner reference to RadixDNSAlias should not trigger sync
-	cfg := &dnsalias2.DNSConfig{DNSZone: dnsZone}
-	ing := buildRadixDNSAliasIngress(alias, int32(8080), cfg)
+	ing := buildRadixDNSAliasIngress(alias, int32(8080), dnsZone)
 	ing.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radixv1.SchemeGroupVersion.Identifier(), Kind: radixv1.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
 	envNamespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(gomock.Any(), envNamespace, aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
@@ -140,13 +138,13 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.WaitForNotSynced("Sync should be called when deleting RadixDNSAlias")
 }
 
-func buildRadixDNSAliasIngress(dnsAlias *radixv1.RadixDNSAlias, port int32, cfg *dnsalias2.DNSConfig) *networkingv1.Ingress {
+func buildRadixDNSAliasIngress(dnsAlias *radixv1.RadixDNSAlias, port int32, dnsZone string) *networkingv1.Ingress {
 	aliasName := dnsAlias.GetName()
 	return &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   dnsaliasapi.GetDNSAliasIngressName(aliasName),
 			Labels: radixlabels.ForDNSAliasIngress(dnsAlias.Spec.AppName, dnsAlias.Spec.Component, aliasName),
 		},
-		Spec: ingress.GetIngressSpec(dnsaliasapi.GetDNSAliasHost(aliasName, cfg.DNSZone), dnsAlias.Spec.Component, defaults.TLSSecretName, port),
+		Spec: ingress.GetIngressSpec(dnsaliasapi.GetDNSAliasHost(aliasName, dnsZone), dnsAlias.Spec.Component, defaults.TLSSecretName, port),
 	}
 }

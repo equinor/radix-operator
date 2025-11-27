@@ -33,7 +33,6 @@ const DynamicTagNameInEnvironmentConfig = "{imageTagName}"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=radixapplications,shortName=ra
 // +kubebuilder:subresource:status
-
 // RadixApplication describes an application
 type RadixApplication struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -131,6 +130,7 @@ type RadixApplicationSpec struct {
 
 	// List of job specification for the application.
 	// More info: https://www.radix.equinor.com/radix-config#jobs
+	//
 	// +listType=map
 	// +listMapKey=name
 	// +optional
@@ -138,6 +138,7 @@ type RadixApplicationSpec struct {
 
 	// List of component specification for the application.
 	// More info: https://www.radix.equinor.com/radix-config#components
+	//
 	// +listType=map
 	// +listMapKey=name
 	// +optional
@@ -185,6 +186,9 @@ type EnvVarsMap map[string]string
 type BuildSpec struct {
 	// Defines a list of secrets that will be passed as ARGs when building Dockerfile.
 	// The secrets can also be accessed in sub-pipelines.
+	// +kubebuilder:validation:items:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
+	// +kubebuilder:validation:items:MaxLength=253
+	// +listType=set
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -358,18 +362,21 @@ type DNSAlias struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`
+	// +required
 	Alias string `json:"alias"`
 
 	// Name of the environment for the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +required
 	Environment string `json:"environment"`
 
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +required
 	Component string `json:"component"`
 }
 
@@ -475,6 +482,8 @@ type RadixComponent struct {
 
 	// List of secret environment variable names.
 	// More info: https://www.radix.equinor.com/radix-config#secrets
+	// +kubebuilder:validation:items:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
+	// +listType=set
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -755,8 +764,8 @@ type RadixJobComponent struct {
 	// More info: https://www.radix.equinor.com/radix-config#schedulerport
 	// +kubebuilder:validation:Minimum=1024
 	// +kubebuilder:validation:Maximum=65535
-	// +optional
-	SchedulerPort *int32 `json:"schedulerPort,omitempty"`
+	// +required
+	SchedulerPort int32 `json:"schedulerPort"`
 
 	// Defines the path where the job payload is mounted.
 	// More info: https://www.radix.equinor.com/radix-config#payload
@@ -783,6 +792,8 @@ type RadixJobComponent struct {
 
 	// List of secret environment variable names.
 	// More info: https://www.radix.equinor.com/radix-config#secrets-2
+	// +kubebuilder:validation:items:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
+	// +listType=set
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -1104,6 +1115,7 @@ type RadixJobComponentEnvironmentConfig struct {
 type RadixJobComponentPayload struct {
 	// Path to the folder where payload is mounted
 	// +kubebuilder:validation:MinLength=1
+	// +required
 	Path string `json:"path"`
 }
 
@@ -1454,9 +1466,10 @@ type RadixNode struct {
 
 // MonitoringConfig Monitoring configuration
 type MonitoringConfig struct {
-	// Defines which port in the ports list where metrics is served.
+	// Defines which port in the ports list where metrics is served. If not specified, the first port is used.
 	// +kubebuilder:validation:MaxLength=15
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +optional
 	PortName string `json:"portName,omitempty"`
 
 	// Defines the path where metrics is served.
@@ -1475,6 +1488,8 @@ const (
 // RadixSecretRefs defines secret vault
 type RadixSecretRefs struct {
 	// List of Azure Key Vaults to get secrets from.
+	// +listType=map
+	// +listMapKey=name
 	// +optional
 	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults,omitempty"`
 }
@@ -1527,9 +1542,11 @@ type RadixAzureKeyVaultItem struct {
 	// Name of a secret, key or certificate in the keyvault.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=127
+	// +kubebuilder:validation:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
 	Name string `json:"name"`
 
 	// Defines the name of the environment variable that will contain the value of the secret, key or certificate.
+	// +kubebuilder:validation:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
 	// +optional
 	EnvVar string `json:"envVar,omitempty"`
 
@@ -1540,6 +1557,7 @@ type RadixAzureKeyVaultItem struct {
 
 	// Alias overrides the default file name used when mounting the secret, key or certificate.
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
 	// +optional
 	Alias *string `json:"alias,omitempty"`
 
@@ -1767,6 +1785,8 @@ type Identity struct {
 // AzureIdentity properties for Azure AD Workload Identity
 type AzureIdentity struct {
 	// Defines the Client ID for a user defined managed identity or application ID for an application registration.
+	// +kubebuilder:validation:Format=uuid
+	// +required
 	ClientId string `json:"clientId"`
 }
 

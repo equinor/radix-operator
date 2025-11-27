@@ -37,7 +37,7 @@ func (r *radixConfigReader) Read(pipelineInfo *model.PipelineInfo) (*radixv1.Rad
 	}
 	log.Debug().Msgf("Radix config file %s has been loaded", radixConfigFileFullName)
 
-	radixApplication, err := application.ParseRadixApplication(context.Background(), r.radixClient, pipelineInfo.GetAppName(), pipelineInfo.GetDNSConfig(), configFileContent)
+	radixApplication, err := application.ParseRadixApplication(context.Background(), r.radixClient, pipelineInfo.GetAppName(), configFileContent)
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
@@ -22,7 +21,6 @@ import (
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -43,7 +41,7 @@ type syncerTestSuite struct {
 	kedaClient    *kedafake.Clientset
 	kubeUtil      *kube.Kube
 	promClient    *prometheusfake.Clientset
-	dnsConfig     *dnsalias2.DNSConfig
+	dnsZone       string
 	oauthConfig   defaults.OAuth2Config
 	ingressConfig ingress.IngressConfiguration
 }
@@ -57,7 +55,7 @@ func (s *syncerTestSuite) SetupTest() {
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.kedaClient = kedafake.NewSimpleClientset()
-	s.dnsConfig = &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
+	s.dnsZone = "dev.radix.equinor.com"
 	s.oauthConfig = defaults.NewOAuth2Config()
 	s.ingressConfig = ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
 
@@ -65,7 +63,7 @@ func (s *syncerTestSuite) SetupTest() {
 }
 
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
-	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsConfig, s.ingressConfig, s.oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), radixDNSAlias)
+	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.ingressConfig, s.oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), radixDNSAlias)
 }
 
 type testIngress struct {
@@ -687,18 +685,18 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 
 	scenarios := []struct {
 		name          string
-		expectedError string
+		expectedError error
 		hasPublicPort bool
 	}{
 		{
 			name:          "error, because the component has no public port",
 			hasPublicPort: false,
-			expectedError: "component component1 referred to by dnsAlias is not marked as public",
+			expectedError: errors.New("rd component component1: no public port found"),
 		},
 		{
 			name:          "no error",
 			hasPublicPort: true,
-			expectedError: "",
+			expectedError: nil,
 		},
 	}
 	for _, ts := range scenarios {
@@ -726,11 +724,10 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 			syncer := s.createSyncer(radixDNSAlias)
 			err := syncer.OnSync(context.Background())
 
-			if len(ts.expectedError) > 0 {
-				require.Error(t, err)
-				require.EqualError(t, err, ts.expectedError)
+			if ts.expectedError != nil {
+				assert.ErrorContains(t, err, ts.expectedError.Error())
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 		})
 	}
