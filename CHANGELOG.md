@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.105.0](https://github.com/equinor/radix-operator/compare/v1.104.1..v1.105.0) - 2025-11-27
+## [1.106.0](https://github.com/equinor/radix-operator/compare/v1.105.0..v1.106.0) - 2025-11-28
+
+### 🚀 Features
+
+- Extend CRD status with with reconcile state and error (#1518) - ([ff805ee](https://github.com/equinor/radix-operator/commit/ff805ee7fc78130a8fd7b80419d3679a03490a47)) by @nilsgstrabo in [#1518](https://github.com/equinor/radix-operator/pull/1518)
+
+
+## [1.105.0](https://github.com/equinor/radix-operator/compare/v1.104.1..v1.105.0) - 2025-11-28
 
 ### 🚀 Features
 
