@@ -3,54 +3,49 @@ package environment
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
-func (env *Environment) syncStatus(ctx context.Context, radixEnvironment *radixv1.RadixEnvironment, time metav1.Time) error {
-	if err := env.updateRadixEnvironmentStatus(ctx, env.radixclient, env.appConfig, radixEnvironment, time); err != nil {
-		return fmt.Errorf("failed to update status on environment %s: %w", radixEnvironment.Spec.EnvName, err)
-	}
-	return nil
-}
+func (env *Environment) syncStatus(ctx context.Context, reconcileErr error) error {
+	err := env.updateStatus(ctx, func(currStatus *radixv1.RadixEnvironmentStatus) {
+		now := metav1.NewTime(time.Now().UTC())
 
-func (env *Environment) updateRadixEnvironmentStatus(ctx context.Context, radixClient versioned.Interface, radixApplication *radixv1.RadixApplication, radixEnvironment *radixv1.RadixEnvironment, time metav1.Time) error {
-	radixEnvironmentInterface := radixClient.RadixV1().RadixEnvironments()
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		name := radixEnvironment.GetName()
-		currentEnv, err := radixEnvironmentInterface.Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return err
+		isOrphaned := !existsInAppConfig(env.appConfig, env.config.Spec.EnvName)
+		currStatus.Orphaned = isOrphaned
+		if isOrphaned && currStatus.OrphanedTimestamp == nil {
+			currStatus.OrphanedTimestamp = &now
+		} else if !isOrphaned && currStatus.OrphanedTimestamp != nil {
+			currStatus.OrphanedTimestamp = nil
 		}
-		changeStatus(radixApplication, radixEnvironment.Spec.EnvName, &currentEnv.Status, time)
-		updated, err := radixEnvironmentInterface.UpdateStatus(ctx, currentEnv, metav1.UpdateOptions{})
-		if err == nil && env.config.GetName() == name {
-			currentEnv, err = radixEnvironmentInterface.Get(ctx, name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			env.config = currentEnv
-			env.logger.Debug().Msgf("updated status of RadixEnvironment (revision %s)", updated.GetResourceVersion())
-			return nil
+
+		currStatus.Reconciled = now
+		currStatus.ObservedGeneration = env.config.Generation
+		if reconcileErr != nil {
+			currStatus.ReconcileStatus = radixv1.RadixEnvironmentReconcileFailed
+			currStatus.Message = reconcileErr.Error()
+		} else {
+			currStatus.ReconcileStatus = radixv1.RadixEnvironmentReconcileSucceeded
+			currStatus.Message = ""
 		}
-		return err
 	})
+	if err != nil {
+		return fmt.Errorf("failed to sync status: %w", err)
+	}
+	return reconcileErr
 }
 
-func changeStatus(radixApplication *radixv1.RadixApplication, envName string, currStatus *radixv1.RadixEnvironmentStatus, syncTime metav1.Time) {
-	isOrphaned := !existsInAppConfig(radixApplication, envName)
-	if isOrphaned && currStatus.OrphanedTimestamp == nil {
-		currStatus.OrphanedTimestamp = pointers.Ptr(syncTime)
-	} else if !isOrphaned && currStatus.OrphanedTimestamp != nil {
-		currStatus.OrphanedTimestamp = nil
+func (env *Environment) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixEnvironmentStatus)) error {
+	updateObj := env.config.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	updateObj, err := env.radixclient.RadixV1().RadixEnvironments().UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+	if err != nil {
+		return err
 	}
-	currStatus.Orphaned = isOrphaned
-	// time is parameterized for testability
-	currStatus.Reconciled = syncTime
+	env.config = updateObj
+	return nil
 }
 
 func existsInAppConfig(app *radixv1.RadixApplication, envName string) bool {

@@ -19,7 +19,6 @@ type handler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
-	dnsZone     string
 	events      common.SyncEventRecorder
 }
 
@@ -27,15 +26,13 @@ type handler struct {
 func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	eventRecorder record.EventRecorder,
-	dnsZone string) common.Handler {
+	eventRecorder record.EventRecorder) common.Handler {
 
 	handler := &handler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
 		kubeutil:    kubeutil,
 		events:      common.NewSyncEventRecorder(eventRecorder),
-		dnsZone:     dnsZone,
 	}
 
 	return handler
@@ -70,7 +67,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 
 	syncApplication := radixApplication.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync application %s", syncApplication.Name)
-	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, t.dnsZone)
+	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication)
 	err = applicationConfig.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncApplication, err)

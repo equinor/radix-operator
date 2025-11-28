@@ -50,7 +50,7 @@ func NewController(ctx context.Context,
 	logger.Info().Msg("Setting up event handlers")
 	if _, err := applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixApplication informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
@@ -64,7 +64,7 @@ func NewController(ctx context.Context,
 				return
 			}
 
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixApplication informer UpdateFunc")
 			}
 		},
@@ -102,7 +102,7 @@ func NewController(ctx context.Context,
 				return
 			}
 			logger.Debug().Msg("update Radix Application due to changed admin or reader AD groups")
-			if _, err := controller.Enqueue(ra); err != nil {
+			if err := controller.Enqueue(ra); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
 			}
 			metrics.CustomResourceUpdated(crType)

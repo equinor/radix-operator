@@ -50,11 +50,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -879,6 +881,56 @@ func TestObjectSynced_MultiComponent_AllClusters_ContainsAllIngresses(t *testing
 	assert.Equal(t, "true", radixQuoteIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should be an active cluster alias")
 	assert.Equal(t, "radixquote", radixQuoteIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
+}
+
+func Test_ReconcileStatus(t *testing.T) {
+	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+	rr := &radixv1.RadixRegistration{}
+	rd := &radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "any-rd", Generation: 42}}
+	rd, err := radixclient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// First sync sets status
+	expectedGen := rd.Generation
+	sut := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, &config.Config{})
+	err = sut.OnSync(context.Background())
+	require.NoError(t, err)
+	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, radixv1.RadixDeploymentReconcileSucceeded, rd.Status.ReconcileStatus)
+	assert.Empty(t, rd.Status.Message)
+	assert.Equal(t, expectedGen, rd.Status.ObservedGeneration)
+	assert.False(t, rd.Status.Reconciled.IsZero())
+
+	// Second sync with updated generation
+	rd.Generation++
+	expectedGen = rd.Generation
+	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, &config.Config{})
+	err = sut.OnSync(context.Background())
+	require.NoError(t, err)
+	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, radixv1.RadixDeploymentReconcileSucceeded, rd.Status.ReconcileStatus)
+	assert.Empty(t, rd.Status.Message)
+	assert.Equal(t, expectedGen, rd.Status.ObservedGeneration)
+	assert.False(t, rd.Status.Reconciled.IsZero())
+
+	// Sync with error
+	errorMsg := "any sync error"
+	kubeclient.PrependReactor("*", "*", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New(errorMsg)
+	})
+	rr.Generation++
+	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, &config.Config{})
+	err = sut.OnSync(context.Background())
+	assert.ErrorContains(t, err, errorMsg)
+	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, radixv1.RadixDeploymentReconcileFailed, rd.Status.ReconcileStatus)
+	assert.Contains(t, rd.Status.Message, errorMsg)
+	assert.Equal(t, expectedGen, rd.Status.ObservedGeneration)
+	assert.False(t, rd.Status.Reconciled.IsZero())
 }
 
 func TestObjectSynced_ReadOnlyFileSystem(t *testing.T) {

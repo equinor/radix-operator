@@ -20,7 +20,6 @@ type handler struct {
 	kubeutil    *kube.Kube
 	radixclient radixclient.Interface
 	events      common.SyncEventRecorder
-	hasSynced   common.HasSynced
 }
 
 // NewHandler creates a handler which deals with RadixRegistration resources
@@ -28,15 +27,13 @@ func NewHandler(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	eventRecorder record.EventRecorder,
-	hasSynced common.HasSynced) common.Handler {
+	eventRecorder record.EventRecorder) common.Handler {
 
 	handler := &handler{
 		kubeclient:  kubeclient,
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
 		events:      common.NewSyncEventRecorder(eventRecorder),
-		hasSynced:   hasSynced,
 	}
 
 	return handler
@@ -59,14 +56,13 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 
 	syncRegistration := registration.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync registration %s", syncRegistration.Name)
-	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
+	application := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
 	err = application.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRegistration, err)
 		return err
 	}
 
-	t.hasSynced(true)
 	t.events.RecordSyncSuccessEvent(syncRegistration)
 	return nil
 }

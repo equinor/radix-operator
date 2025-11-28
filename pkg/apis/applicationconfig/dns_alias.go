@@ -9,6 +9,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,6 +32,10 @@ func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
 	}
 	// then - update
 	for _, dnsAlias := range aliasesToUpdate {
+		existingDnsAlias := existingAliases[dnsAlias.Name]
+		if cmp.Equal(existingDnsAlias, dnsAlias, cmpopts.EquateEmpty()) {
+			continue
+		}
 		if err := app.kubeutil.UpdateRadixDNSAlias(ctx, dnsAlias); err != nil {
 			errs = append(errs, err)
 		}
@@ -51,7 +57,7 @@ func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*ra
 	for _, dnsAlias := range app.config.Spec.DNSAlias {
 		if existingAlias, exists := existingAliases[dnsAlias.Alias]; exists {
 			if existingAlias.Spec.AppName != appName {
-				errs = append(errs, fmt.Errorf("DNS Alias %s of the application %s is used by another application", appName, dnsAlias.Alias))
+				errs = append(errs, fmt.Errorf("failed to process dns alias %s: %w", dnsAlias.Alias, ErrDNSAliasUsedByOtherApplication))
 				continue
 			}
 			if existingAlias.Spec.Environment == dnsAlias.Environment {

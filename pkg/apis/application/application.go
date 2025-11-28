@@ -3,9 +3,6 @@ package application
 import (
 	"context"
 	"fmt"
-	"time"
-
-	"k8s.io/client-go/util/retry"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -31,91 +28,88 @@ func NewApplication(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	registration *v1.RadixRegistration) (Application, error) {
+	registration *v1.RadixRegistration) Application {
 
 	return Application{
 		kubeclient:   kubeclient,
 		radixclient:  radixclient,
 		kubeutil:     kubeutil,
 		registration: registration,
-	}, nil
+	}
 }
 
-// OnSync compares the actual state with the desired, and attempts to
-// converge the two
+// OnSync compares the actual state with the desired, and attempts to converge the two
 func (app *Application) OnSync(ctx context.Context) error {
 	ctx = log.Ctx(ctx).With().Str("resource_kind", v1.KindRadixRegistration).Logger().WithContext(ctx)
 	log.Ctx(ctx).Info().Msg("Syncing")
-	radixRegistration := app.registration
+	return app.syncStatus(ctx, app.reconcile(ctx))
+}
 
-	err := app.createAppNamespace(ctx)
-	if err != nil {
+func (app *Application) reconcile(ctx context.Context) error {
+
+	if err := app.createAppNamespace(ctx); err != nil {
 		return fmt.Errorf("failed to create app namespace: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msg("App namespace created")
 
-	err = app.createLimitRangeOnAppNamespace(ctx, utils.GetAppNamespace(radixRegistration.Name))
-	if err != nil {
+	if err := app.createLimitRangeOnAppNamespace(ctx); err != nil {
 		return fmt.Errorf("failed to create limit range on app namespace: %w", err)
 	}
-
 	log.Ctx(ctx).Debug().Msg("Limit range on app namespace created")
 
-	err = app.applySecretsForPipelines(ctx) // create deploy key in app namespace
-	if err != nil {
+	if err := app.applySecretsForPipelines(ctx); err != nil {
 		return fmt.Errorf("failed to apply pipeline secrets: %w", err)
 	}
 
-	err = utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName)
-	if err != nil {
+	if err := utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName); err != nil {
 		return fmt.Errorf("failed to grant access to git private key secret: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msg("Applied secrets needed by pipelines")
 
-	err = app.applyRbacOnPipelineRunner(ctx)
-	if err != nil {
+	if err := app.applyRbacOnPipelineRunner(ctx); err != nil {
 		return fmt.Errorf("failed to apply pipeline permissions: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msg("Applied access permissions needed by pipeline")
 
-	err = app.applyRbacRadixRegistration(ctx)
-	if err != nil {
+	if err := app.applyRbacRadixRegistration(ctx); err != nil {
 		return fmt.Errorf("failed to grant access to RadixRegistration: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msg("Applied access permissions to RadixRegistration")
 
-	err = app.applyRbacAppNamespace(ctx)
-	if err != nil {
+	if err := app.applyRbacAppNamespace(ctx); err != nil {
 		return fmt.Errorf("failed to grant access to app namespace: %w", err)
-	}
-
-	log.Ctx(ctx).Debug().Msg("Applied access to app namespace. Set registration to be reconciled")
-	err = app.updateRadixRegistrationStatus(ctx, radixRegistration, func(currStatus *v1.RadixRegistrationStatus) {
-		currStatus.Reconciled = metav1.NewTime(time.Now().UTC())
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update status on RadixRegistration: %w", err)
 	}
 
 	return nil
 }
 
-func (app *Application) updateRadixRegistrationStatus(ctx context.Context, rr *v1.RadixRegistration, changeStatusFunc func(currStatus *v1.RadixRegistrationStatus)) error {
-	rrInterface := app.radixclient.RadixV1().RadixRegistrations()
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRR, err := rrInterface.Get(ctx, rr.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		changeStatusFunc(&currentRR.Status)
-		_, err = rrInterface.UpdateStatus(ctx, currentRR, metav1.UpdateOptions{})
+func (app *Application) syncStatus(ctx context.Context, reconcileErr error) error {
+	err := app.updateStatus(ctx, func(currStatus *v1.RadixRegistrationStatus) {
+		currStatus.Reconciled = metav1.Now()
+		currStatus.ObservedGeneration = app.registration.Generation
 
-		if err == nil && rr.GetName() == app.registration.GetName() {
-			currentRR, err = rrInterface.Get(ctx, rr.GetName(), metav1.GetOptions{})
-			if err == nil {
-				app.registration = currentRR
-			}
+		if reconcileErr != nil {
+			currStatus.ReconcileStatus = v1.RadixRegistrationReconcileFailed
+			currStatus.Message = reconcileErr.Error()
+		} else {
+			currStatus.ReconcileStatus = v1.RadixRegistrationReconcileSucceeded
+			currStatus.Message = ""
 		}
-		return err
 	})
+	if err != nil {
+		return fmt.Errorf("failed to sync status: %w", err)
+	}
+
+	return reconcileErr
+}
+
+func (app *Application) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *v1.RadixRegistrationStatus)) error {
+	updateObj := app.registration.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	updateObj, err := app.radixclient.RadixV1().RadixRegistrations().UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	app.registration = updateObj
+	return nil
 }

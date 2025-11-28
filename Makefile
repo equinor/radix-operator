@@ -91,7 +91,7 @@ mocks: bootstrap
 	mockgen -source ./pkg/apis/dnsalias/syncer.go -destination ./pkg/apis/dnsalias/syncer_mock.go -package dnsalias
 	mockgen -source ./operator/dnsalias/internal/syncerfactory.go -destination ./operator/dnsalias/internal/syncerfactory_mock.go -package internal
 	mockgen -source ./operator/common/handler.go -destination ./operator/common/handler_mock.go -package common
-	mockgen -source ./pkg/apis/job/job_history.go -destination ./operator/job/job_history_mock.go -package job
+	mockgen -source ./operator/job/handler.go -destination ./operator/job/handler_mock.go -package job
 	mockgen -source ./pipeline-runner/internal/wait/job.go -destination ./pipeline-runner/internal/wait/job_mock.go -package wait
 	mockgen -source ./pipeline-runner/internal/watcher/radix_deployment_watcher.go -destination ./pipeline-runner/internal/watcher/radix_deployment_watcher_mock.go -package watcher
 	mockgen -source ./pipeline-runner/internal/watcher/namespace.go -destination ./pipeline-runner/internal/watcher/namespace_mock.go -package watcher
@@ -159,7 +159,7 @@ code-gen: bootstrap
 	./hack/update-codegen.sh
 
 .PHONY: helmresources
-helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixwebhook delete-temp-resources
+helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixalert-crd radixenvironment-crd radixjob-crd radixwebhook delete-temp-resources
 
 .PHONY: radixregistration-crd
 radixregistration-crd: temp-resources
@@ -168,7 +168,7 @@ radixregistration-crd: temp-resources
 .PHONY: radixapplication-crd
 radixapplication-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixapplications.yaml $(CRD_CHART_DIR)radixapplication.yaml
-	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml > $(JSON_SCHEMA_DIR)radixapplication.json
+	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml | jq 'del(.properties.status)' > $(JSON_SCHEMA_DIR)radixapplication.json
 
 .PHONY: radixbatch-crd
 radixbatch-crd: temp-resources
@@ -181,6 +181,18 @@ radixdeployment-crd: temp-resources
 .PHONY: radixdnsalias-crd
 radixdnsalias-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdnsaliases.yaml $(CRD_CHART_DIR)radixdnsalias.yaml
+
+.PHONY: radixalert-crd
+radixalert-crd: temp-resources
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixalerts.yaml $(CRD_CHART_DIR)radixalert.yaml
+
+.PHONY: radixenvironment-crd
+radixenvironment-crd: temp-resources
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixenvironments.yaml $(CRD_CHART_DIR)radixenvironment.yaml
+
+.PHONY: radixjob-crd
+radixjob-crd: temp-resources
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixjobs.yaml $(CRD_CHART_DIR)radixjob.yaml
 
 .PHONY: radixwebhook
 radixwebhook: temp-resources

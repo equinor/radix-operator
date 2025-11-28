@@ -30,9 +30,9 @@ const (
 const DynamicTagNameInEnvironmentConfig = "{imageTagName}"
 
 // +genclient
-// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=radixapplications,shortName=ra
+// +kubebuilder:subresource:status
 // RadixApplication describes an application
 type RadixApplication struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -41,6 +41,36 @@ type RadixApplication struct {
 	// Specification for an application.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/
 	Spec RadixApplicationSpec `json:"spec"`
+
+	// Status is the observed state of the RadixApplication
+	// +kubebuilder:validation:Optional
+	Status RadixApplicationStatus `json:"status,omitzero"`
+}
+
+type RadixApplicationReconcileStatus string
+
+const (
+	RadixApplicationReconcileSucceeded RadixApplicationReconcileStatus = "Succeeded"
+	RadixApplicationReconcileFailed    RadixApplicationReconcileStatus = "Failed"
+)
+
+// RadixApplicationStatus is the observed state of the RadixApplication
+type RadixApplicationStatus struct {
+	// Reconciled is the timestamp of the last successful reconciliation
+	// +kubebuilder:validation:Optional
+	Reconciled metav1.Time `json:"reconciled,omitzero"`
+
+	// ObservedGeneration is the generation observed by the controller
+	// +kubebuilder:validation:Optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ReconcileStatus indicates whether the last reconciliation succeeded or failed
+	// +kubebuilder:validation:Optional
+	ReconcileStatus RadixApplicationReconcileStatus `json:"reconcileStatus,omitempty"`
+
+	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
+	// +kubebuilder:validation:Optional
+	Message string `json:"message,omitempty"`
 }
 
 // GetComponentByName returns the component matching the name parameter, or nil if not found

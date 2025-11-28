@@ -241,7 +241,6 @@ func (a *App) createRegistrationController(ctx context.Context) *common.Controll
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
 	return registration.NewController(ctx,
@@ -258,7 +257,6 @@ func (a *App) createApplicationController(ctx context.Context) *common.Controlle
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config.DNSZone,
 	)
 
 	return application.NewController(ctx,
@@ -275,7 +273,6 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
 	return environment.NewController(ctx,
@@ -344,8 +341,7 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config,
-		func(syncedOk bool) {}) // Not interested in getting notifications of synced
+		a.config)
 
 	return job.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory)
 }

@@ -3,6 +3,7 @@ package alert
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/equinor/radix-common/utils"
@@ -18,8 +19,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -97,6 +100,54 @@ func (s *alertTestSuite) Test_New() {
 	s.Equal(ral, sut.radixAlert)
 	s.Equal(defaultSlackMessageTemplate, sut.slackMessageTemplate)
 	s.Equal(defaultAlertConfigs, sut.alertConfigs)
+}
+
+func (s *alertTestSuite) Test_ReconcileStatus() {
+	ral := &radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
+	ral, err := s.radixClient.RadixV1().RadixAlerts("any-ns").Create(context.Background(), ral, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	// First sync sets status
+	expectedGen := ral.Generation
+	sut := s.createAlertSyncer(ral)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	ral, err = s.radixClient.RadixV1().RadixAlerts(ral.Namespace).Get(context.Background(), ral.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixAlertReconcileSucceeded, ral.Status.ReconcileStatus)
+	s.Empty(ral.Status.Message)
+	s.Equal(expectedGen, ral.Status.ObservedGeneration)
+	s.False(ral.Status.Reconciled.IsZero())
+
+	// Second sync with updated generation
+	ral.Generation++
+	expectedGen = ral.Generation
+	sut = s.createAlertSyncer(ral)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	ral, err = s.radixClient.RadixV1().RadixAlerts(ral.Namespace).Get(context.Background(), ral.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixAlertReconcileSucceeded, ral.Status.ReconcileStatus)
+	s.Empty(ral.Status.Message)
+	s.Equal(expectedGen, ral.Status.ObservedGeneration)
+	s.False(ral.Status.Reconciled.IsZero())
+
+	// Sync with error
+	errorMsg := "any sync error"
+	s.kubeClient.PrependReactor("*", "*", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New(errorMsg)
+	})
+	ral.Generation++
+	expectedGen = ral.Generation
+	sut = s.createAlertSyncer(ral)
+	err = sut.OnSync(context.Background())
+	s.Require().ErrorContains(err, errorMsg)
+	ral, err = s.radixClient.RadixV1().RadixAlerts(ral.Namespace).Get(context.Background(), ral.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixAlertReconcileFailed, ral.Status.ReconcileStatus)
+	s.Contains(ral.Status.Message, errorMsg)
+	s.Equal(expectedGen, ral.Status.ObservedGeneration)
+	s.False(ral.Status.Reconciled.IsZero())
 }
 
 func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {

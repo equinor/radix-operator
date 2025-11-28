@@ -28,7 +28,6 @@ type handler struct {
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 	events      common.SyncEventRecorder
-	hasSynced   common.HasSynced
 	config      *apiconfig.Config
 	jobHistory  job.History
 }
@@ -41,7 +40,6 @@ func NewHandler(kubeclient kubernetes.Interface,
 	radixClient radixclient.Interface,
 	eventRecorder record.EventRecorder,
 	config *apiconfig.Config,
-	hasSynced common.HasSynced,
 	opts ...handlerOpts) Handler {
 
 	handler := &handler{
@@ -49,7 +47,6 @@ func NewHandler(kubeclient kubernetes.Interface,
 		radixclient: radixClient,
 		kubeutil:    kubeUtil,
 		events:      common.NewSyncEventRecorder(eventRecorder),
-		hasSynced:   hasSynced,
 		config:      config,
 		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.PipelineJobConfig.PipelineJobsHistoryLimit, config.PipelineJobConfig.PipelineJobsHistoryPeriodLimit),
 	}
@@ -96,7 +93,6 @@ func (t *handler) Sync(ctx context.Context, namespace, jobName string) error {
 		return err
 	}
 
-	t.hasSynced(true)
 	t.events.RecordSyncSuccessEvent(syncJob)
 	return nil
 }

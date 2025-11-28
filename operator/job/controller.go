@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/operator/common"
-	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -52,14 +53,14 @@ func NewController(ctx context.Context,
 	if _, err := radixJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixJob, _ := cur.(*v1.RadixJob)
-			if job.IsRadixJobDone(radixJob) {
+			if radixJob.Status.Condition.IsDoneCondition() {
 				logger.Debug().Msgf("Skip job object %s as it is complete", radixJob.GetName())
 				metrics.CustomResourceAddedButSkipped(crType)
 				metrics.InitiateRadixJobStatusChanged(radixJob)
 				return
 			}
 
-			if _, err := controller.Enqueue(cur); err != nil {
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixJob informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
@@ -69,14 +70,21 @@ func NewController(ctx context.Context,
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRJ := cur.(*v1.RadixJob)
-			if job.IsRadixJobDone(newRJ) {
+			oldRJ := old.(*v1.RadixJob)
+
+			if newRJ.Status.Condition.IsDoneCondition() {
 				logger.Debug().Msgf("Skip job object %s as it is complete", newRJ.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				metrics.InitiateRadixJobStatusChanged(newRJ)
 				return
 			}
 
-			if _, err := controller.Enqueue(cur); err != nil {
+			// Skip enqueue if no changes
+			if compare(oldRJ, newRJ) {
+				return
+			}
+
+			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixJob informer UpdateFunc")
 			}
 			metrics.CustomResourceUpdated(crType)
@@ -99,11 +107,6 @@ func NewController(ctx context.Context,
 
 	if _, err := kubernetesJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
-			newJob := cur.(*batchv1.Job)
-			oldJob := old.(*batchv1.Job)
-			if newJob.ResourceVersion == oldJob.ResourceVersion {
-				return
-			}
 			controller.HandleObject(ctx, cur, v1.KindRadixJob, getRadixJob)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -123,11 +126,6 @@ func NewController(ctx context.Context,
 	if _, err := podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			newPod := cur.(*corev1.Pod)
-			oldPod := old.(*corev1.Pod)
-			if newPod.ResourceVersion == oldPod.ResourceVersion {
-				return
-			}
-
 			if ownerRef := metav1.GetControllerOf(newPod); ownerRef != nil {
 				if ownerRef.Kind != "Job" || newPod.Labels[kube.RadixJobNameLabel] == "" {
 					return
@@ -152,4 +150,11 @@ func NewController(ctx context.Context,
 
 func getRadixJob(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
 	return radixClient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+func compare(a, b *v1.RadixJob) bool {
+	return a.Generation == b.Generation &&
+		a.Status.Condition == b.Status.Condition &&
+		cmp.Equal(a.Labels, b.Labels, cmpopts.EquateEmpty()) &&
+		cmp.Equal(a.Annotations, b.Annotations, cmpopts.EquateEmpty())
 }

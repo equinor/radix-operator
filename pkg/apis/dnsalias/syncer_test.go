@@ -26,9 +26,11 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -73,6 +75,57 @@ type testIngress struct {
 	serviceName string
 	port        int32
 	labels      map[string]string
+}
+
+func (s *syncerTestSuite) Test_ReconcileStatus() {
+	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: "app"}}
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	rda := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}, Spec: radixv1.RadixDNSAliasSpec{AppName: "app"}}
+	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), rda, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	// First sync sets status
+	expectedGen := rda.Generation
+	sut := s.createSyncer(rda)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixDNSAliasReconcileSucceeded, rda.Status.ReconcileStatus)
+	s.Empty(rda.Status.Message)
+	s.Equal(expectedGen, rda.Status.ObservedGeneration)
+	s.False(rda.Status.Reconciled.IsZero())
+
+	// Second sync with updated generation
+	rda.Generation++
+	expectedGen = rda.Generation
+	sut = s.createSyncer(rda)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixDNSAliasReconcileSucceeded, rda.Status.ReconcileStatus)
+	s.Empty(rda.Status.Message)
+	s.Equal(expectedGen, rda.Status.ObservedGeneration)
+	s.False(rda.Status.Reconciled.IsZero())
+
+	// Sync with error
+	errorMsg := "any sync error"
+	s.kubeClient.PrependReactor("*", "*", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New(errorMsg)
+	})
+	rda.Generation++
+	expectedGen = rda.Generation
+	sut = s.createSyncer(rda)
+	err = sut.OnSync(context.Background())
+	s.Require().ErrorContains(err, errorMsg)
+	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixDNSAliasReconcileFailed, rda.Status.ReconcileStatus)
+	s.Contains(rda.Status.Message, errorMsg)
+	s.Equal(expectedGen, rda.Status.ObservedGeneration)
+	s.False(rda.Status.Reconciled.IsZero())
 }
 
 func (s *syncerTestSuite) Test_OnSync_ingresses() {
