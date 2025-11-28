@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.104.1](https://github.com/equinor/radix-operator/compare/v1.104.0..v1.104.1) - 2025-11-14
+## [1.105.0](https://github.com/equinor/radix-operator/compare/v1.104.1..v1.105.0) - 2025-11-27
+
+### 🚀 Features
+
+- E2e testing with KIND (#1514) - ([6cc7b29](https://github.com/equinor/radix-operator/commit/6cc7b29f72ee40f8bb4e55e03dca0f474ec2705c)) by @Richard87 in [#1514](https://github.com/equinor/radix-operator/pull/1514)
+
+- Validate RadixApplication in Webhook (#1474) - ([daee0ef](https://github.com/equinor/radix-operator/commit/daee0ef71d7efba8a3f512560d9f3da22a8d2d60)) by @Richard87 in [#1474](https://github.com/equinor/radix-operator/pull/1474)
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Enhance e2e test setup with configurable parallelism (#1537) - ([9f012f5](https://github.com/equinor/radix-operator/commit/9f012f575272d5f7876b07e4e15e53a086399c31)) by @nilsgstrabo in [#1537](https://github.com/equinor/radix-operator/pull/1537)
+
+
+## [1.104.1](https://github.com/equinor/radix-operator/compare/v1.104.0..v1.104.1) - 2025-11-17
 
 ### 🐛 Bug Fixes
 
