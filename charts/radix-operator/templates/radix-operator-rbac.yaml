@@ -19,6 +19,7 @@ rules:
   - radixregistrations
   - radixregistrations/status
   - radixapplications
+  - radixapplications/status
   - radixenvironments
   - radixenvironments/status
   - radixdeployments
