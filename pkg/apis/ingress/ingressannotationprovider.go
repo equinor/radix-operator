@@ -129,6 +129,7 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.Radix
 			authResponseHeaders = append(authResponseHeaders, authHeaders...)
 
 			// Add configuration snippet to set X-Forwarded headers
+			// NB! To be removed: https://github.com/equinor/radix-platform/issues/1822
 			annotations["nginx.ingress.kubernetes.io/configuration-snippet"] = `proxy_set_header 'X-Forwarded-Access-Token' $authHeader0;
 proxy_set_header 'X-Forwarded-User' $authHeader1;
 proxy_set_header 'X-Forwarded-Groups' $authHeader2;
