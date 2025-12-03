@@ -119,8 +119,24 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.Radix
 
 		var authResponseHeaders []string
 		if oauth.SetXAuthRequestHeaders != nil && *oauth.SetXAuthRequestHeaders {
-			authResponseHeaders = append(authResponseHeaders, "X-Auth-Request-Access-Token", "X-Auth-Request-User", "X-Auth-Request-Groups", "X-Auth-Request-Email", "X-Auth-Request-Preferred-Username")
+			authHeaders := []string{
+				"X-Auth-Request-Access-Token",
+				"X-Auth-Request-User",
+				"X-Auth-Request-Groups",
+				"X-Auth-Request-Email",
+				"X-Auth-Request-Preferred-Username",
+			}
+			authResponseHeaders = append(authResponseHeaders, authHeaders...)
+
+			// Add configuration snippet to set X-Forwarded headers
+			// NB! To be removed: https://github.com/equinor/radix-platform/issues/1822
+			annotations["nginx.ingress.kubernetes.io/configuration-snippet"] = `proxy_set_header 'X-Forwarded-Access-Token' $authHeader0;
+proxy_set_header 'X-Forwarded-User' $authHeader1;
+proxy_set_header 'X-Forwarded-Groups' $authHeader2;
+proxy_set_header 'X-Forwarded-Email' $authHeader3;
+proxy_set_header 'X-Forwarded-Preferred-Username' $authHeader4;`
 		}
+
 		if oauth.SetAuthorizationHeader != nil && *oauth.SetAuthorizationHeader {
 			authResponseHeaders = append(authResponseHeaders, "Authorization")
 		}

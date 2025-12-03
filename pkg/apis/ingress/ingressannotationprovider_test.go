@@ -320,6 +320,18 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_XAuthHea
 	s.Equal("X-Auth-Request-Access-Token,X-Auth-Request-User,X-Auth-Request-Groups,X-Auth-Request-Email,X-Auth-Request-Preferred-Username", actual["nginx.ingress.kubernetes.io/auth-response-headers"])
 }
 
+func (s *OAuth2AnnotationsTestSuite) Test_ForwardedHeaderAnnotiations_All() {
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(true), SetAuthorizationHeader: pointers.Ptr(false)}, nil)
+	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
+	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "unused-namespace")
+	s.Nil(err)
+	s.Contains(actual["nginx.ingress.kubernetes.io/configuration-snippet"], "X-Forwarded-Access-Token")
+	s.Contains(actual["nginx.ingress.kubernetes.io/configuration-snippet"], "X-Forwarded-User")
+	s.Contains(actual["nginx.ingress.kubernetes.io/configuration-snippet"], "X-Forwarded-Groups")
+	s.Contains(actual["nginx.ingress.kubernetes.io/configuration-snippet"], "X-Forwarded-Email")
+	s.Contains(actual["nginx.ingress.kubernetes.io/configuration-snippet"], "X-Forwarded-Preferred-Username")
+}
+
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_AuthorizationHeaderOnly() {
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(false), SetAuthorizationHeader: pointers.Ptr(true)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
