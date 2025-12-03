@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.107.0](https://github.com/equinor/radix-operator/compare/v1.106.0..v1.107.0) - 2025-12-03
+
+### 🚀 Features
+
+- Add snippet annotations for the "X-Forwarded" headers. (#1547) - ([2489eb0](https://github.com/equinor/radix-operator/commit/2489eb03412e974e0be8a15cf2d58d90d85dbaa3)) by @jacobsolbergholm in [#1547](https://github.com/equinor/radix-operator/pull/1547)
+
+
 ## [1.106.0](https://github.com/equinor/radix-operator/compare/v1.105.0..v1.106.0) - 2025-12-02
 
 ### 🚀 Features
