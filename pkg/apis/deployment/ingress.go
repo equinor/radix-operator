@@ -12,9 +12,93 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/rs/zerolog/log"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
+
+type dnsType string
+
+func (dns dnsType) ToIngressLabels() labels.Set {
+	switch dns {
+	case dnsTypeExternal:
+		return labels.Set{kube.RadixExternalAliasLabel: "true"}
+	case dnsTypeAppAlias:
+		return labels.Set{kube.RadixAppAliasLabel: "true"}
+	case dnsTypeClusterName:
+		return labels.Set{kube.RadixDefaultAliasLabel: "true"}
+	case dnsTypeActiveCluster:
+		return labels.Set{kube.RadixActiveClusterAliasLabel: "true"}
+	}
+
+	return nil
+}
+
+const (
+	dnsTypeExternal      dnsType = "external"
+	dnsTypeAppAlias      dnsType = "app-alias"
+	dnsTypeClusterName   dnsType = "cluster-name"
+	dnsTypeActiveCluster dnsType = "active-cluster"
+)
+
+type dnsInfo struct {
+	fqdn         string
+	tlsSecret    string
+	dnsType      dnsType
+	resourceName string
+}
+
+func getComponentDNSInfo(ctx context.Context, c radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, kubeutil kube.Kube) []dnsInfo {
+	var info []dnsInfo
+
+	appName := rd.Spec.AppName
+
+	if c.IsDNSAppAlias() {
+		appAlias := os.Getenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
+		if appAlias != "" {
+			info = append(info, dnsInfo{
+				fqdn:         fmt.Sprintf("%s.%s", appName, appAlias),
+				tlsSecret:    "",
+				dnsType:      dnsTypeAppAlias,
+				resourceName: getAppAliasIngressName(appName),
+			})
+		}
+	}
+
+	for _, externalDns := range c.GetExternalDNS() {
+		info = append(info, dnsInfo{
+			fqdn:         externalDns.FQDN,
+			tlsSecret:    utils.GetExternalDnsTlsSecretName(externalDns),
+			dnsType:      dnsTypeExternal,
+			resourceName: externalDns.FQDN,
+		})
+	}
+
+	if hostname := getActiveClusterHostName(c.GetName(), rd.Namespace); hostname != "" {
+		info = append(info, dnsInfo{
+			fqdn:         hostname,
+			tlsSecret:    "",
+			dnsType:      dnsTypeActiveCluster,
+			resourceName: getActiveClusterIngressName(c.GetName()),
+		})
+	}
+
+	if clustername, err := kubeutil.GetClusterName(ctx); err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to read cluster name")
+	} else {
+		if hostname := getHostName(c.GetName(), rd.Namespace, clustername); hostname != "" {
+			info = append(info, dnsInfo{
+				fqdn:         hostname,
+				tlsSecret:    "",
+				dnsType:      dnsTypeClusterName,
+				resourceName: getDefaultIngressName(c.GetName()),
+			})
+		}
+	}
+
+	return info
+}
 
 func (deploy *Deployment) createOrUpdateIngress(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
 	if err := deploy.createOrUpdateAppAliasIngress(ctx, deployComponent); err != nil {
@@ -245,11 +329,11 @@ func (deploy *Deployment) getDefaultIngressConfig(
 	clustername, namespace string,
 	publicPortNumber int32,
 ) (*networkingv1.Ingress, error) {
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
+	hostname := getHostName(component.GetName(), namespace, clustername)
+	if hostname == "" {
 		return nil, nil
 	}
-	hostname := getHostName(component.GetName(), namespace, clustername, dnsZone)
+
 	ingressSpec := ingress.GetIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
 
 	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, component, getDefaultIngressName(component.GetName()), ingressSpec, deploy.ingressAnnotationProviders, ownerReference)
@@ -297,7 +381,11 @@ func getActiveClusterHostName(componentName, namespace string) string {
 	return fmt.Sprintf("%s-%s.%s", componentName, namespace, dnsZone)
 }
 
-func getHostName(componentName, namespace, clustername, dnsZone string) string {
+func getHostName(componentName, namespace, clustername string) string {
+	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
+	if dnsZone == "" {
+		return ""
+	}
 	hostnameTemplate := "%s-%s.%s.%s"
 	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
 }
