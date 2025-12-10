@@ -116,6 +116,31 @@ func (deploy *Deployment) createOrUpdateIngress(ctx context.Context, deployCompo
 	return deploy.createOrUpdateClusterIngress(ctx, deployComponent)
 }
 
+func (deploy *Deployment) reconcileIngresses(ctx context.Context, c radixv1.RadixCommonDeployComponent) error {
+	hosts := getComponentDNSInfo(ctx, c, *deploy.radixDeployment, *deploy.kubeutil)
+	publicPortNumber := getPublicPortForComponent(c)
+	owner := []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
+
+	for _, host := range hosts {
+		tlsSecret := host.tlsSecret
+		if tlsSecret == "" {
+			tlsSecret = defaults.TLSSecretName
+		}
+
+		ingressSpec := ingress.GetIngressSpec(host.fqdn, c.GetName(), tlsSecret, publicPortNumber)
+		ingressConfig, err := ingress.GetIngressConfig(deploy.radixDeployment.Namespace, deploy.radixDeployment.Spec.AppName, c, host.resourceName, ingressSpec, deploy.ingressAnnotationProviders, owner)
+		if err != nil {
+			return fmt.Errorf("failed to create ingress config: %w", err)
+		}
+
+		if err := deploy.kubeutil.ApplyIngress(ctx, deploy.radixDeployment.Namespace, ingressConfig); err != nil {
+			return fmt.Errorf("failed to reconcile ingress: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (deploy *Deployment) createOrUpdateClusterIngress(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
 	clustername, err := deploy.kubeutil.GetClusterName(ctx)
 	if err != nil {
