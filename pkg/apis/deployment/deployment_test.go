@@ -800,7 +800,7 @@ func TestObjectSynced_MultiComponent_AllClusters_ContainsAllIngresses(t *testing
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 7, len(ingresses.Items), "All ingresses for the two public components should appear")
+	require.Equal(t, 7, len(ingresses.Items), "All ingresses for the two public components should appear")
 	require.Truef(t, ingressByNameExists("app", ingresses), "All ingresses for public component should exist")
 	require.Truef(t, ingressByNameExists("radixquote", ingresses), "All ingresses for public component should exist")
 
