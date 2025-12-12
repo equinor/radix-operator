@@ -115,7 +115,7 @@ func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radix
 	aliasSpec := radixDNSAlias.Spec
 	ingressName := GetDNSAliasIngressName(aliasName)
 	hostName := GetDNSAliasHost(aliasName, dnsZone)
-	ingressSpec := ingress.GetIngressSpec(hostName, aliasSpec.Component, defaults.TLSSecretName, publicPort.Port)
+	ingressSpec := ingress.GetIngressSpec(hostName, aliasSpec.Component, defaults.TLSSecretName, publicPort.Port, "/")
 
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	ingressAnnotations := ingress.GetAnnotationProvider(ingressConfiguration, namespace, oauth2Config)

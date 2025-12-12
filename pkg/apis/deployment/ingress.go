@@ -173,7 +173,7 @@ func (deploy *Deployment) createOrUpdateIngress(ctx context.Context, c radixv1.R
 			tlsSecret = defaults.TLSSecretName
 		}
 
-		ingressSpec := ingress.GetIngressSpec(host.fqdn, c.GetName(), tlsSecret, publicPortNumber)
+		ingressSpec := ingress.GetIngressSpec(host.fqdn, c.GetName(), tlsSecret, publicPortNumber, "/")
 		ingressConfig, err := ingress.GetIngressConfig(deploy.radixDeployment.Namespace, deploy.radixDeployment.Spec.AppName, c, host.resourceName, ingressSpec, deploy.ingressAnnotationProviders, owner)
 		if err != nil {
 			return fmt.Errorf("failed to create ingress config: %w", err)

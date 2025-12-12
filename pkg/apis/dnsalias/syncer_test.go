@@ -799,7 +799,7 @@ func (s *syncerTestSuite) registerExistingIngresses(kubeClient kubernetes.Interf
 				Name:   ingName,
 				Labels: ingProps.labels,
 			},
-			Spec: ingress.GetIngressSpec(ingProps.host, ingProps.serviceName, defaults.TLSSecretName, ingProps.port),
+			Spec: ingress.GetIngressSpec(ingProps.host, ingProps.serviceName, defaults.TLSSecretName, ingProps.port, "/"),
 		}
 		_, err := dnsalias.CreateRadixDNSAliasIngress(context.Background(), kubeClient, ingProps.appName, ingProps.envName, ing)
 		s.Require().NoError(err, "create existing ingress %s", ing.GetName())

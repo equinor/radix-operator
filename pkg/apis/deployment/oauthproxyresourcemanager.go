@@ -13,7 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -24,7 +24,6 @@ import (
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -42,7 +41,7 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, oauth2ProxyDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, oauth2ProxyDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
@@ -51,13 +50,13 @@ func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistrati
 		oauth2DefaultConfig:        oauth2DefaultConfig,
 		oauth2ProxyDockerImage:     oauth2ProxyDockerImage,
 		externalRegistryAuthSecret: externalRegistryAuthSecret,
-		logger:                     log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth2").Logger(),
+		logger:                     log.Logger.With().Str("resource_kind", radixv1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth2").Logger(),
 	}
 }
 
 type oauthProxyResourceManager struct {
-	rd                         *v1.RadixDeployment
-	rr                         *v1.RadixRegistration
+	rd                         *radixv1.RadixDeployment
+	rr                         *radixv1.RadixRegistration
 	kubeutil                   *kube.Kube
 	ingressAnnotationProviders []ingress.AnnotationProvider
 	oauth2DefaultConfig        defaults.OAuth2Config
@@ -75,7 +74,7 @@ func (o *oauthProxyResourceManager) Sync(ctx context.Context) error {
 	return nil
 }
 
-func (o *oauthProxyResourceManager) syncComponent(ctx context.Context, component *v1.RadixDeployComponent) error {
+func (o *oauthProxyResourceManager) syncComponent(ctx context.Context, component *radixv1.RadixDeployComponent) error {
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
 		o.logger.Debug().Msgf("Sync oauth proxy for the component %s", component.GetName())
 		componentWithOAuthDefaults := component.DeepCopy()
@@ -117,8 +116,15 @@ func (o *oauthProxyResourceManager) garbageCollect(ctx context.Context) error {
 		return fmt.Errorf("failed to garbage collect services: %w", err)
 	}
 
-	if err := o.garbageCollectIngresses(ctx); err != nil {
+	if err := o.garbageCollectIngressesNoLongerInSpec(ctx); err != nil {
 		return fmt.Errorf("failed to garbage collect ingresses: %w", err)
+	}
+
+	for _, comp := range o.rd.Spec.Components {
+		hosts := getComponentDNSInfo(ctx, &comp, *o.rd, *o.kubeutil)
+		if err := o.garbageCollectIngresses(ctx, &comp, hosts); err != nil {
+			return fmt.Errorf("failed to garbage collect ingresses: %w", err)
+		}
 	}
 
 	return nil
@@ -180,24 +186,6 @@ func (o *oauthProxyResourceManager) garbageCollectServices(ctx context.Context) 
 	return nil
 }
 
-func (o *oauthProxyResourceManager) garbageCollectIngresses(ctx context.Context) error {
-	ingresses, err := o.kubeutil.ListIngresses(ctx, o.rd.Namespace)
-	if err != nil {
-		return err
-	}
-
-	for _, ing := range ingresses {
-		if o.isEligibleForGarbageCollection(ing) {
-			err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{})
-			if err != nil && !kubeerrors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 func (o *oauthProxyResourceManager) garbageCollectRoles(ctx context.Context) error {
 	roles, err := o.kubeutil.ListRoles(ctx, o.rd.Namespace)
 	if err != nil {
@@ -238,7 +226,7 @@ func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1
 	if appName := object.GetLabels()[kube.RadixAppLabel]; appName != o.rd.Spec.AppName {
 		return false
 	}
-	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != v1.OAuthProxyAuxiliaryComponentType {
+	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != radixv1.OAuthProxyAuxiliaryComponentType {
 		return false
 	}
 	auxTargetComponentName, nameExist := RadixComponentNameFromAuxComponentLabel(object)
@@ -248,7 +236,7 @@ func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1
 	return !auxTargetComponentName.ExistInDeploymentSpec(o.rd)
 }
 
-func (o *oauthProxyResourceManager) install(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) install(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	o.logger.Debug().Msgf("install the oauth proxy for the component %s", component.GetName())
 	if err := o.createOrUpdateSecret(ctx, component); err != nil {
 		return err
@@ -262,7 +250,7 @@ func (o *oauthProxyResourceManager) install(ctx context.Context, component v1.Ra
 		return err
 	}
 
-	if err := o.createOrUpdateIngresses(ctx, component); err != nil {
+	if err := o.createOrUpdateIngress(ctx, component); err != nil {
 		return err
 	}
 
@@ -275,7 +263,7 @@ func (o *oauthProxyResourceManager) install(ctx context.Context, component v1.Ra
 	return o.createOrUpdateDeployment(ctx, component)
 }
 
-func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	o.logger.Debug().Msgf("uninstall oauth proxy for the component %s", component.GetName())
 	if err := o.deleteDeployment(ctx, component); err != nil {
 		return err
@@ -304,7 +292,7 @@ func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component v1.
 	return o.deleteRoles(ctx, component)
 }
 
-func (o *oauthProxyResourceManager) deleteDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) deleteDeployment(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component)).String()
 	deployments, err := o.kubeutil.ListDeploymentsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
@@ -320,15 +308,11 @@ func (o *oauthProxyResourceManager) deleteDeployment(ctx context.Context, compon
 	return nil
 }
 
-func (o *oauthProxyResourceManager) deleteIngresses(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	ingresses, err := o.getComponentAuxIngresses(ctx, component)
-	if err != nil {
-		return err
-	}
-	return o.kubeutil.DeleteIngresses(ctx, ingresses...)
+func (o *oauthProxyResourceManager) deleteIngresses(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
+	return o.garbageCollectIngresses(ctx, component, nil)
 }
 
-func (o *oauthProxyResourceManager) deleteServices(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) deleteServices(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component)).String()
 	services, err := o.kubeutil.ListServicesWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
@@ -344,7 +328,7 @@ func (o *oauthProxyResourceManager) deleteServices(ctx context.Context, componen
 	return nil
 }
 
-func (o *oauthProxyResourceManager) deleteSecrets(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) deleteSecrets(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component)).String()
 	secrets, err := o.kubeutil.ListSecretsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
@@ -361,7 +345,7 @@ func (o *oauthProxyResourceManager) deleteSecrets(ctx context.Context, component
 	return nil
 }
 
-func (o *oauthProxyResourceManager) deleteRoleBindings(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) deleteRoleBindings(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component)).String()
 	roleBindings, err := o.kubeutil.ListRoleBindingsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
@@ -377,7 +361,7 @@ func (o *oauthProxyResourceManager) deleteRoleBindings(ctx context.Context, comp
 	return nil
 }
 
-func (o *oauthProxyResourceManager) deleteRoles(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) deleteRoles(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component)).String()
 	roles, err := o.kubeutil.ListRolesWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
@@ -393,84 +377,107 @@ func (o *oauthProxyResourceManager) deleteRoles(ctx context.Context, component v
 	return nil
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateIngresses(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	namespace := o.rd.Namespace
-	o.logger.Debug().Msgf("create of update ingresses for the component %s in the namespace %s", component.GetName(), namespace)
-	ingresses, err := o.getComponentIngresses(ctx, component)
+func (o *oauthProxyResourceManager) garbageCollectIngressesNoLongerInSpec(ctx context.Context) error {
+	ingresses, err := o.kubeutil.ListIngresses(ctx, o.rd.Namespace)
 	if err != nil {
 		return err
 	}
 
 	for _, ing := range ingresses {
-		appName := o.rd.Spec.AppName
-		auxIngress, err := ingress.BuildOAuthProxyIngressForComponentIngress(namespace, component, &ing, o.ingressAnnotationProviders)
-		if err != nil {
-			return err
-		}
-		if auxIngress == nil {
-			continue
-		}
-		mergeAuxIngressLabels(appName, component, ing.GetLabels(), auxIngress)
-		if err := o.kubeutil.ApplyIngress(ctx, namespace, auxIngress); err != nil {
-			return err
+		if o.isEligibleForGarbageCollection(ing) {
+			err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{})
+			if err != nil && !kubeerrors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 
-func mergeAuxIngressLabels(appName string, component v1.RadixCommonDeployComponent, componentLabels map[string]string, auxIngress *networkingv1.Ingress) {
-	switch {
-	case componentLabels[kube.RadixDefaultAliasLabel] == "true":
-		oauthutil.MergeAuxComponentDefaultAliasIngressLabels(auxIngress, appName, component)
-	case componentLabels[kube.RadixActiveClusterAliasLabel] == "true":
-		oauthutil.MergeAuxComponentActiveClusterAliasIngressLabels(auxIngress, appName, component)
-	case componentLabels[kube.RadixAppAliasLabel] == "true":
-		oauthutil.MergeAuxComponentAppAliasIngressLabels(auxIngress, appName, component)
-	case componentLabels[kube.RadixExternalAliasLabel] == "true":
-		oauthutil.MergeAuxComponentExternalAliasIngressLabels(auxIngress, appName, component)
+func (o *oauthProxyResourceManager) isProxyMode() bool {
+	return annotations.Oauth2PreviewModeEnabledForEnvironment(o.rd.Annotations, o.rd.Spec.Environment)
+}
+
+func (o *oauthProxyResourceManager) getIngressPath(c radixv1.RadixCommonDeployComponent) string {
+	if o.isProxyMode() {
+		return "/"
 	}
+	return oauthutil.SanitizePathPrefix(c.GetAuthentication().GetOAuth2().ProxyPrefix)
 }
 
-func (o *oauthProxyResourceManager) getComponentIngresses(ctx context.Context, component v1.RadixCommonDeployComponent) ([]networkingv1.Ingress, error) {
-	namespace := o.rd.Namespace
-	return o.getIngressesForSelector(ctx, namespace,
-		radixlabels.ForComponentDefaultAliasIngress(component),
-		radixlabels.ForComponentActiveClusterAliasIngress(component),
-		radixlabels.ForComponentAppAliasIngress(component),
-		radixlabels.ForComponentExternalAliasIngress(component),
-	)
-}
+func (o *oauthProxyResourceManager) garbageCollectIngresses(ctx context.Context, c radixv1.RadixCommonDeployComponent, hosts []dnsInfo) error {
+	logger := log.Ctx(ctx)
+	selector := fmt.Sprintf("%s=%s, %s=%s, !%s", kube.RadixAuxiliaryComponentLabel, c.GetName(), kube.RadixAuxiliaryComponentTypeLabel, radixv1.OAuthProxyAuxiliaryComponentType, kube.RadixAliasLabel)
+	existingIngresses, err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(o.rd.GetNamespace()).List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return fmt.Errorf("failed to list ingresses in garbageCollectIngresses: %w", err)
+	}
+	logger.Debug().Msgf("Garbage collecting ingresses for component %s. Found %d existing ingresses", c.GetName(), len(existingIngresses.Items))
 
-func (o *oauthProxyResourceManager) getComponentAuxIngresses(ctx context.Context, component v1.RadixCommonDeployComponent) ([]networkingv1.Ingress, error) {
-	appName := o.rd.Spec.AppName
-	return o.getIngressesForSelector(ctx, o.rd.Namespace,
-		radixlabels.ForAuxComponentDefaultIngress(appName, component),
-		radixlabels.ForAuxComponentActiveClusterAliasIngress(appName, component),
-		radixlabels.ForAuxComponentAppAliasIngress(appName, component),
-		radixlabels.ForAuxComponentExternalAliasIngress(appName, component),
-	)
-}
+	isOAuthEnabled := c.GetAuthentication().GetOAuth2() != nil
 
-func (o *oauthProxyResourceManager) getIngressesForSelector(ctx context.Context, namespace string, selectors ...labels.Set) ([]networkingv1.Ingress, error) {
-	var ingresses []networkingv1.Ingress
-	for _, selector := range selectors {
-		ingressList, err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(namespace).
-			List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
-		if err != nil {
-			return nil, err
+	var path string
+	if isOAuthEnabled {
+		path = o.getIngressPath(c)
+	}
+
+	for _, ing := range existingIngresses.Items {
+		// should exist in list of hosts
+		found := false
+		for _, host := range hosts {
+			if isOAuthEnabled && len(ing.Spec.Rules) > 0 && ing.Spec.Rules[0].Host == host.fqdn && ing.Spec.Rules[0].HTTP.Paths[0].Path == path {
+				found = true
+				break
+			}
 		}
-		ingresses = append(ingresses, ingressList.Items...)
+
+		if !found {
+			logger.Info().Msgf("Garbage collecting ingress %s for component %s", ing.Name, c.GetName())
+			if err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(o.rd.GetNamespace()).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
+				return fmt.Errorf("failed to delete ingress %s: %w", ing.Name, err)
+			}
+		}
 	}
-	return ingresses, nil
+
+	return nil
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateService(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) createOrUpdateIngress(ctx context.Context, c radixv1.RadixCommonDeployComponent) error {
+	owner := []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)}
+	hosts := getComponentDNSInfo(ctx, c, *o.rd, *o.kubeutil)
+	path := o.getIngressPath(c)
+
+	for _, host := range hosts {
+		tlsSecret := host.tlsSecret
+		if tlsSecret == "" {
+			tlsSecret = defaults.TLSSecretName
+		}
+
+		serviceName := utils.GetAuxOAuthProxyComponentServiceName(c.GetName())
+		ingressSpec := ingress.GetIngressSpec(host.fqdn, serviceName, tlsSecret, defaults.OAuthProxyPortNumber, path)
+		ingressName := oauthutil.GetAuxAuthProxyIngressName(host.resourceName)
+		ingressConfig, err := ingress.GetIngressConfig(o.rd.Namespace, o.rd.Spec.AppName, c, ingressName, ingressSpec, o.ingressAnnotationProviders, owner)
+		if err != nil {
+			return fmt.Errorf("failed to create ingress config: %w", err)
+		}
+		ingressConfig.Labels = labels.Merge(ingressConfig.Labels, host.dnsType.ToIngressLabels())
+
+		if err := o.kubeutil.ApplyIngress(ctx, o.rd.Namespace, ingressConfig); err != nil {
+			return fmt.Errorf("failed to reconcile ingress: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) createOrUpdateService(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	service := o.buildServiceSpec(component)
 	return o.kubeutil.ApplyService(ctx, o.rd.Namespace, service)
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
+func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	existingSecret, err := o.kubeutil.GetSecret(ctx, o.rd.Namespace, secretName)
 	if err != nil {
 		if !kubeerrors.IsNotFound(err) {
@@ -507,7 +514,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(ctx context.Context, co
 	return err
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) createOrUpdateRbac(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	if err := o.createOrUpdateAppAdminRbac(ctx, component); err != nil {
 		return err
 	}
@@ -515,8 +522,8 @@ func (o *oauthProxyResourceManager) createOrUpdateRbac(ctx context.Context, comp
 	return o.createOrUpdateAppReaderRbac(ctx, component)
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
+func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName("radix-app-adm", component.GetName())
 	namespace := o.rd.Namespace
 
@@ -539,8 +546,8 @@ func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Conte
 	return o.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
+func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName("radix-app-reader", component.GetName())
 	namespace := o.rd.Namespace
 
@@ -564,12 +571,12 @@ func (o *oauthProxyResourceManager) createOrUpdateAppReaderRbac(ctx context.Cont
 }
 
 func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(prefix, componentName string) string {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	return fmt.Sprintf("%s-%s", prefix, deploymentName)
 }
 
-func (o *oauthProxyResourceManager) buildOAuthProxySecret(appName string, component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
+func (o *oauthProxyResourceManager) buildOAuthProxySecret(appName string, component radixv1.RadixCommonDeployComponent) (*corev1.Secret, error) {
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	secret := &corev1.Secret{
 		Type: corev1.SecretTypeOpaque,
 		ObjectMeta: metav1.ObjectMeta{
@@ -593,7 +600,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxySecret(appName string, compon
 	return secret, nil
 }
 
-func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
+func (o *oauthProxyResourceManager) buildServiceSpec(component radixv1.RadixCommonDeployComponent) *corev1.Service {
 	serviceName := utils.GetAuxOAuthProxyComponentServiceName(component.GetName())
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -628,7 +635,7 @@ func (o *oauthProxyResourceManager) generateRandomSecretValue() ([]byte, error) 
 	return encodedBytes, nil
 }
 
-func (o *oauthProxyResourceManager) createOrUpdateDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) createOrUpdateDeployment(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	current, desired, err := o.getCurrentAndDesiredDeployment(ctx, component)
 	if err != nil {
 		return err
@@ -640,8 +647,8 @@ func (o *oauthProxyResourceManager) createOrUpdateDeployment(ctx context.Context
 	return nil
 }
 
-func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
+func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(ctx context.Context, component radixv1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 
 	currentDeployment, err := o.kubeutil.GetDeployment(ctx, o.rd.Namespace, deploymentName)
 	if err != nil && !kubeerrors.IsNotFound(err) {
@@ -655,9 +662,9 @@ func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(ctx context.C
 	return currentDeployment, desiredDeployment, nil
 }
 
-func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
+func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
 	componentName := component.GetName()
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	oauth2 := component.GetAuthentication().GetOAuth2()
 	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(defaults.OAuthProxyPortNumber)
 	if err != nil {
@@ -727,7 +734,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 	return desiredDeployment, nil
 }
 
-func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {
+func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDeployComponent) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
 	oauth := component.GetAuthentication().OAuth2
 
@@ -757,7 +764,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", defaults.OAuthProxyPortNumber)})
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), v1.OAuthProxyAuxiliaryComponentSuffix)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyCookieSecretEnvironmentVariable, secretName, defaults.OAuthCookieSecretKeyName))
 
 	if oauth.GetUseAzureIdentity() {
@@ -810,21 +817,21 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	return envVars
 }
 
-func getSessionStoreType(oauth2 *v1.OAuth2) v1.SessionStoreType {
+func getSessionStoreType(oauth2 *radixv1.OAuth2) radixv1.SessionStoreType {
 	if oauth2 == nil {
-		return v1.SessionStoreCookie
+		return radixv1.SessionStoreCookie
 	}
 	if oauth2.IsSessionStoreTypeSystemManaged() {
-		return v1.SessionStoreRedis
+		return radixv1.SessionStoreRedis
 	}
 	return oauth2.SessionStoreType
 }
 
-func (o *oauthProxyResourceManager) getSystemManagedRedisStoreConnectionURL(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("redis://%s:%d", utils.GetAuxOAuthRedisServiceName(component.GetName()), v1.OAuthRedisPortNumber)
+func (o *oauthProxyResourceManager) getSystemManagedRedisStoreConnectionURL(component radixv1.RadixCommonDeployComponent) string {
+	return fmt.Sprintf("redis://%s:%d", utils.GetAuxOAuthRedisServiceName(component.GetName()), radixv1.OAuthRedisPortNumber)
 }
 
-func getOAuthProxyProvider(oauth *v1.OAuth2) string {
+func getOAuthProxyProvider(oauth *radixv1.OAuth2) string {
 	if oauth.GetUseAzureIdentity() {
 		return defaults.OAuthProxyProviderEntraId
 	}

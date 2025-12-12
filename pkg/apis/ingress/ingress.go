@@ -22,7 +22,7 @@ type AnnotationConfiguration struct {
 }
 
 // GetIngressSpec Get Ingress spec
-func GetIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32) networkingv1.IngressSpec {
+func GetIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32, path string) networkingv1.IngressSpec {
 	pathType := networkingv1.PathTypeImplementationSpecific
 	ingressClass := "nginx"
 
@@ -43,7 +43,7 @@ func GetIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int
 					HTTP: &networkingv1.HTTPIngressRuleValue{
 						Paths: []networkingv1.HTTPIngressPath{
 							{
-								Path:     "/",
+								Path:     path,
 								PathType: &pathType,
 								Backend: networkingv1.IngressBackend{
 									Service: &networkingv1.IngressServiceBackend{
@@ -96,6 +96,7 @@ func GetIngressConfig(namespace string, appName string, component radixv1.RadixC
 	ing := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ingressName,
+			Namespace:   namespace,
 			Annotations: annotations,
 			Labels: map[string]string{
 				kube.RadixAppLabel:       appName,
