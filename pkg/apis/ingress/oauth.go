@@ -24,7 +24,7 @@ func BuildOAuthProxyIngressForComponentIngress(namespace string, component v1.Ra
 	if len(componentIngress.Spec.Rules) == 0 {
 		return nil, nil
 	}
-	oauthProxyIngressName := oauth.GetAuxAuthProxyIngressName(componentIngress.GetName())
+	oauthProxyIngressName := oauth.GetAuxOAuthProxyIngressName(componentIngress.GetName())
 	sourceHost := componentIngress.Spec.Rules[0]
 	oAuthProxyPortNumber := defaults.OAuthProxyPortNumber
 	pathType := networkingv1.PathTypeImplementationSpecific

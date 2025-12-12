@@ -28,8 +28,8 @@ func SanitizePathPrefix(prefix string) string {
 	return strings.Join(escapedParts, "/")
 }
 
-// GetAuxAuthProxyIngressName Get an ingress name for the auxiliary OAuth proxy component
-func GetAuxAuthProxyIngressName(sourceIngressName string) string {
+// GetAuxOAuthProxyIngressName Get an ingress name for the auxiliary OAuth proxy component
+func GetAuxOAuthProxyIngressName(sourceIngressName string) string {
 	return fmt.Sprintf("%s-%s", sourceIngressName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 }
 

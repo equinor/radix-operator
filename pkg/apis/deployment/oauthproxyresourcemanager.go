@@ -456,7 +456,7 @@ func (o *oauthProxyResourceManager) createOrUpdateIngress(ctx context.Context, c
 
 		serviceName := utils.GetAuxOAuthProxyComponentServiceName(c.GetName())
 		ingressSpec := ingress.GetIngressSpec(host.fqdn, serviceName, tlsSecret, defaults.OAuthProxyPortNumber, path)
-		ingressName := oauthutil.GetAuxAuthProxyIngressName(host.resourceName)
+		ingressName := oauthutil.GetAuxOAuthProxyIngressName(host.resourceName)
 		ingressConfig, err := ingress.GetIngressConfig(o.rd.Namespace, o.rd.Spec.AppName, c, ingressName, ingressSpec, o.ingressAnnotationProviders, owner)
 		if err != nil {
 			return fmt.Errorf("failed to create ingress config: %w", err)
