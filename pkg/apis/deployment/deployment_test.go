@@ -4147,9 +4147,9 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"foo": "x"}, nil)
+	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(3).Return(map[string]string{"foo": "x"}, nil)
 	annotations2 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
+	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1, annotations2}, nil, &config.Config{})
 	err = syncer.OnSync(context.Background())
@@ -4175,7 +4175,7 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], "app-dev").Times(1).Return(nil, errors.New("any error"))
+	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(nil, errors.New("any error"))
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1}, nil, &config.Config{})
 	err = syncer.OnSync(context.Background())

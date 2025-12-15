@@ -21,10 +21,14 @@ type AnnotationConfiguration struct {
 	Annotations map[string]string
 }
 
-// GetIngressSpec Get Ingress spec
-func GetIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32, path string) networkingv1.IngressSpec {
+// BuildIngressSpecForComponent Builds ingress spec for a component
+func BuildIngressSpecForComponent(hostname, serviceName, tlsSecretName string, servicePort int32, path string) networkingv1.IngressSpec {
 	pathType := networkingv1.PathTypeImplementationSpecific
 	ingressClass := "nginx"
+
+	if tlsSecretName == "" {
+		tlsSecretName = defaults.TLSSecretName
+	}
 
 	return networkingv1.IngressSpec{
 		IngressClassName: &ingressClass,
@@ -62,31 +66,12 @@ func GetIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int
 	}
 }
 
-// ParseClientCertificateConfiguration Parses ClientCertificate configuration
-func ParseClientCertificateConfiguration(clientCertificate radixv1.ClientCertificate) (certificate radixv1.ClientCertificate) {
-	verification := radixv1.VerificationTypeOff
-	certificate = radixv1.ClientCertificate{
-		Verification:              &verification,
-		PassCertificateToUpstream: pointers.Ptr(false),
-	}
-
-	if passUpstream := clientCertificate.PassCertificateToUpstream; passUpstream != nil {
-		certificate.PassCertificateToUpstream = passUpstream
-	}
-
-	if verification := clientCertificate.Verification; verification != nil {
-		certificate.Verification = verification
-	}
-
-	return
-}
-
-// GetIngressConfig Gets Ingress configuration
-func GetIngressConfig(namespace string, appName string, component radixv1.RadixCommonDeployComponent, ingressName string, ingressSpec networkingv1.IngressSpec, ingressProviders []AnnotationProvider, ownerReference []metav1.OwnerReference) (*networkingv1.Ingress, error) {
+// BuildIngressForComponent Builds ingress for a component
+func BuildIngressForComponent(namespace string, appName string, component radixv1.RadixCommonDeployComponent, ingressName string, ingressSpec networkingv1.IngressSpec, ingressProviders []AnnotationProvider, ownerReference []metav1.OwnerReference) (*networkingv1.Ingress, error) {
 
 	annotations := map[string]string{}
 	for _, ingressProvider := range ingressProviders {
-		providedAnnotations, err := ingressProvider.GetAnnotations(component, namespace)
+		providedAnnotations, err := ingressProvider.GetAnnotations(component)
 		if err != nil {
 			return nil, err
 		}
@@ -109,13 +94,32 @@ func GetIngressConfig(namespace string, appName string, component radixv1.RadixC
 	return ing, nil
 }
 
+// ParseClientCertificateConfiguration Parses ClientCertificate configuration
+func ParseClientCertificateConfiguration(clientCertificate radixv1.ClientCertificate) (certificate radixv1.ClientCertificate) {
+	verification := radixv1.VerificationTypeOff
+	certificate = radixv1.ClientCertificate{
+		Verification:              &verification,
+		PassCertificateToUpstream: pointers.Ptr(false),
+	}
+
+	if passUpstream := clientCertificate.PassCertificateToUpstream; passUpstream != nil {
+		certificate.PassCertificateToUpstream = passUpstream
+	}
+
+	if verification := clientCertificate.Verification; verification != nil {
+		certificate.Verification = verification
+	}
+
+	return
+}
+
 // GetAnnotationProvider Gets annotation provider
-func GetAnnotationProvider(ingressConfiguration IngressConfiguration, certificateNamespace string, oauth2DefaultConfig defaults.OAuth2Config) []AnnotationProvider {
+func GetAnnotationProvider(ingressConfiguration IngressConfiguration, namespace string, oauth2DefaultConfig defaults.OAuth2Config) []AnnotationProvider {
 	return []AnnotationProvider{
 		NewForceSslRedirectAnnotationProvider(),
 		NewIngressConfigurationAnnotationProvider(ingressConfiguration),
-		NewClientCertificateAnnotationProvider(certificateNamespace),
-		NewOAuth2AnnotationProvider(oauth2DefaultConfig),
+		NewClientCertificateAnnotationProvider(namespace),
+		NewOAuth2AnnotationProvider(oauth2DefaultConfig, namespace),
 		NewIngressPublicAllowListAnnotationProvider(),
 		NewIngressPublicConfigAnnotationProvider(),
 		NewRedirectErrorPageAnnotationProvider(),

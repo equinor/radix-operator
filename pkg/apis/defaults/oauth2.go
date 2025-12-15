@@ -58,9 +58,8 @@ type oauth2Config struct {
 }
 
 func (cfg *oauth2Config) MergeWith(source *v1.OAuth2) (*v1.OAuth2, error) {
-	authTransformer := mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 	target := cfg.OAuth2.DeepCopy()
-	if err := mergo.Merge(target, source, mergo.WithOverride, mergo.WithTransformers(authTransformer)); err != nil {
+	if err := mergo.Merge(target, source, mergo.WithOverride, mergo.WithTransformers(mergoutils.BoolPtrTransformer{})); err != nil {
 		return nil, err
 	}
 	return target, nil

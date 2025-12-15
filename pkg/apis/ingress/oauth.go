@@ -31,7 +31,7 @@ func BuildOAuthProxyIngressForComponentIngress(namespace string, component v1.Ra
 	annotations := map[string]string{}
 
 	for _, ia := range ingressAnnotationProviders {
-		providedAnnotations, err := ia.GetAnnotations(component, namespace)
+		providedAnnotations, err := ia.GetAnnotations(component)
 		if err != nil {
 			return nil, err
 		}

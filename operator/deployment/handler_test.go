@@ -160,7 +160,7 @@ func (s *handlerSuite) Test_Sync() {
 			ingress.NewForceSslRedirectAnnotationProvider(),
 			ingress.NewIngressConfigurationAnnotationProvider(ingressConfig),
 			ingress.NewClientCertificateAnnotationProvider(activeRd.Namespace),
-			ingress.NewOAuth2AnnotationProvider(oauthConfig),
+			ingress.NewOAuth2AnnotationProvider(oauthConfig, activeRd.Namespace),
 			ingress.NewIngressPublicAllowListAnnotationProvider(),
 			ingress.NewIngressPublicConfigAnnotationProvider(),
 			ingress.NewRedirectErrorPageAnnotationProvider(),
