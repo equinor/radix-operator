@@ -46,3 +46,11 @@ func Test_ForClusterAutoscalerSafeToEvict(t *testing.T) {
 	expected = map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}
 	assert.Equal(t, expected, actual)
 }
+
+func Test_OAuth2ProxyModeEnabledForEnvironment(t *testing.T) {
+	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}, "dev"))
+	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}, "qa"))
+	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}, "Qa"))
+	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(map[string]string{PreviewOAuth2ProxyModeAnnotation: "*"}, "qa"))
+	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(map[string]string{"some-other-annotation": "dev,qa"}, "qa"))
+}

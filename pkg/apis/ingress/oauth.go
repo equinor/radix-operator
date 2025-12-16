@@ -10,11 +10,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GetAuxOAuthProxyAnnotationProviders Gets aux OAuth proxy annotation providers
-func GetAuxOAuthProxyAnnotationProviders() []AnnotationProvider {
+// GetAuxOAuthAnnotationProviders Gets aux OAuth annotation providers for non-proxy mode
+func GetAuxOAuthAnnotationProviders() []AnnotationProvider {
 	return []AnnotationProvider{
 		NewForceSslRedirectAnnotationProvider(),
 		NewIngressPublicAllowListAnnotationProvider(),
+		NewRedirectErrorPageAnnotationProvider(),
+	}
+}
+
+// GetAuxOAuthAnnotationProviders Gets aux OAuth annotation providers for proxy mode
+func GetAuxOAuthProxyModeAnnotationProviders(ingressConfiguration IngressConfiguration, namespace string) []AnnotationProvider {
+	return []AnnotationProvider{
+		NewForceSslRedirectAnnotationProvider(),
+		NewIngressConfigurationAnnotationProvider(ingressConfiguration),
+		NewClientCertificateAnnotationProvider(namespace),
+		NewIngressPublicAllowListAnnotationProvider(),
+		NewIngressPublicConfigAnnotationProvider(),
 		NewRedirectErrorPageAnnotationProvider(),
 	}
 }

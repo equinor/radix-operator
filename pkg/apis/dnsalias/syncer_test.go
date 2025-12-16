@@ -63,7 +63,7 @@ func (s *syncerTestSuite) SetupTest() {
 }
 
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
-	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.ingressConfig, s.oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), radixDNSAlias)
+	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.ingressConfig, s.oauthConfig, ingress.GetAuxOAuthAnnotationProviders(), radixDNSAlias)
 }
 
 type testIngress struct {
@@ -677,10 +677,10 @@ func (s *syncerTestSuite) Test_OnSync_rbac() {
 
 func (s *syncerTestSuite) Test_OnSync_error() {
 	const (
-		appName1   = "app1"
-		envName1   = "env1"
-		component1 = "component1"
-		alias1     = "alias1"
+		appName   = "app1"
+		envName   = "env1"
+		component = "component1"
+		alias     = "alias1"
 	)
 
 	scenarios := []struct {
@@ -691,7 +691,7 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 		{
 			name:          "error, because the component has no public port",
 			hasPublicPort: false,
-			expectedError: errors.New("rd component component1: no public port found"),
+			expectedError: dnsalias.ErrComponentIsNotPublic,
 		},
 		{
 			name:          "no error",
@@ -705,27 +705,27 @@ func (s *syncerTestSuite) Test_OnSync_error() {
 
 			radixDNSAlias := &radixv1.RadixDNSAlias{
 				TypeMeta:   metav1.TypeMeta{Kind: radixv1.KindRadixDNSAlias, APIVersion: radixv1.SchemeGroupVersion.Identifier()},
-				ObjectMeta: metav1.ObjectMeta{Name: alias1, UID: uuid.NewUUID(), Labels: radixlabels.ForDNSAliasRbac(appName1)},
-				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: envName1, Component: component1},
+				ObjectMeta: metav1.ObjectMeta{Name: alias, UID: uuid.NewUUID(), Labels: radixlabels.ForDNSAliasRbac(appName)},
+				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName, Environment: envName, Component: component},
 			}
-			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, alias1, commonTest.DNSAlias{
-				Alias: alias1, AppName: appName1, Environment: envName1, Component: component1}), "create existing alias")
+			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, alias, commonTest.DNSAlias{
+				Alias: alias, AppName: appName, Environment: envName, Component: component}), "create existing alias")
 			testDefaultUserGroupID := string(uuid.NewUUID())
 			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
 
-			componentBuilder := utils.NewDeployComponentBuilder().WithImage("radixdev.azurecr.io/some-image1:image.tag").WithName(component1).WithPort("http", 8080)
+			componentBuilder := utils.NewDeployComponentBuilder().WithImage("radixdev.azurecr.io/some-image1:image.tag").WithName(component).WithPort("http", 8080)
 			if ts.hasPublicPort {
 				componentBuilder = componentBuilder.WithPublicPort("http")
 			}
-			rd1 := utils.NewDeploymentBuilder().WithRadixApplication(utils.ARadixApplication()).WithAppName(appName1).
-				WithEnvironment(envName1).WithComponents(componentBuilder).BuildRD()
+			rd1 := utils.NewDeploymentBuilder().WithRadixApplication(utils.ARadixApplication()).WithAppName(appName).
+				WithEnvironment(envName).WithComponents(componentBuilder).BuildRD()
 			s.registerRadixDeployments(rd1)
 
 			syncer := s.createSyncer(radixDNSAlias)
 			err := syncer.OnSync(context.Background())
 
 			if ts.expectedError != nil {
-				assert.ErrorContains(t, err, ts.expectedError.Error())
+				assert.ErrorIs(t, err, ts.expectedError)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -799,7 +799,8 @@ func (s *syncerTestSuite) registerExistingIngresses(kubeClient kubernetes.Interf
 				Name:   ingName,
 				Labels: ingProps.labels,
 			},
-			Spec: ingress.BuildIngressSpecForComponent(ingProps.host, ingProps.serviceName, "", ingProps.port, "/"),
+			// Spec: ingress.BuildIngressSpecForComponent(ingProps.host, ingProps.serviceName, "", ingProps.port, "/"),
+			Spec: ingress.BuildIngressSpecForComponent(&radixv1.RadixDeployComponent{Name: ingProps.serviceName, Ports: []radixv1.ComponentPort{{Name: "http", Port: ingProps.port}}, PublicPort: "http"}, ingProps.host, ""),
 		}
 		_, err := dnsalias.CreateRadixDNSAliasIngress(context.Background(), kubeClient, ingProps.appName, ingProps.envName, ing)
 		s.Require().NoError(err, "create existing ingress %s", ing.GetName())

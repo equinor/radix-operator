@@ -1,13 +1,22 @@
 package ingress
 
 import (
+	"strings"
+
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	ingressClass string = "nginx"
 )
 
 // IngressConfiguration Holds all ingress annotation configurations
@@ -22,9 +31,36 @@ type AnnotationConfiguration struct {
 }
 
 // BuildIngressSpecForComponent Builds ingress spec for a component
-func BuildIngressSpecForComponent(hostname, serviceName, tlsSecretName string, servicePort int32, path string) networkingv1.IngressSpec {
+func BuildIngressSpecForComponent(component radixv1.RadixCommonDeployComponent, hostname, tlsSecretName string) networkingv1.IngressSpec {
+	var servicePort int32
+	if component.GetPublicPort() == "" {
+		// For backwards compatibility
+		servicePort = component.GetPorts()[0].Port
+	} else {
+		if port, ok := slice.FindFirst(component.GetPorts(), func(cp radixv1.ComponentPort) bool {
+			return strings.EqualFold(cp.Name, component.GetPublicPort())
+		}); ok {
+			servicePort = port.Port
+		}
+	}
+
+	return buildIngressSpec(hostname, component.GetName(), tlsSecretName, servicePort, "/")
+}
+
+// BuildIngressSpecForOAuth2Component Builds ingress spec for a component's oauth2 service
+func BuildIngressSpecForOAuth2Component(component radixv1.RadixCommonDeployComponent, hostname, tlsSecretName string, proxyMode bool) networkingv1.IngressSpec {
+	serviceName := utils.GetAuxOAuthProxyComponentServiceName(component.GetName())
+	path := oauthutil.SanitizePathPrefix(component.GetAuthentication().GetOAuth2().ProxyPrefix)
+	if proxyMode {
+		path = "/"
+	}
+
+	return buildIngressSpec(hostname, serviceName, tlsSecretName, defaults.OAuthProxyPortNumber, path)
+}
+
+func buildIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32, path string) networkingv1.IngressSpec {
 	pathType := networkingv1.PathTypeImplementationSpecific
-	ingressClass := "nginx"
+	ingressClass := ingressClass
 
 	if tlsSecretName == "" {
 		tlsSecretName = defaults.TLSSecretName
@@ -66,11 +102,10 @@ func BuildIngressSpecForComponent(hostname, serviceName, tlsSecretName string, s
 	}
 }
 
-// BuildIngressForComponent Builds ingress for a component
-func BuildIngressForComponent(namespace string, appName string, component radixv1.RadixCommonDeployComponent, ingressName string, ingressSpec networkingv1.IngressSpec, ingressProviders []AnnotationProvider, ownerReference []metav1.OwnerReference) (*networkingv1.Ingress, error) {
-
+// BuildIngress Builds ingress for a component
+func BuildIngress(appName string, component radixv1.RadixCommonDeployComponent, ingressName string, ingressSpec networkingv1.IngressSpec, annotationProviders []AnnotationProvider, ownerReference []metav1.OwnerReference) (*networkingv1.Ingress, error) {
 	annotations := map[string]string{}
-	for _, ingressProvider := range ingressProviders {
+	for _, ingressProvider := range annotationProviders {
 		providedAnnotations, err := ingressProvider.GetAnnotations(component)
 		if err != nil {
 			return nil, err
@@ -81,7 +116,6 @@ func BuildIngressForComponent(namespace string, appName string, component radixv
 	ing := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ingressName,
-			Namespace:   namespace,
 			Annotations: annotations,
 			Labels: map[string]string{
 				kube.RadixAppLabel:       appName,

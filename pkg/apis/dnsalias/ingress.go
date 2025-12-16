@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -107,30 +106,23 @@ func (s *syncer) deleteIngresses(ctx context.Context, selector labels.Set) error
 }
 
 func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsZone string, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
-	publicPort := getComponentPublicPort(radixDeployComponent)
-	if publicPort == nil {
-		return nil, fmt.Errorf("rd component %s: no public port found", radixDeployComponent.GetName())
+	if !radixDeployComponent.IsPublic() {
+		return nil, ErrComponentIsNotPublic
 	}
+
 	aliasName := radixDNSAlias.GetName()
 	aliasSpec := radixDNSAlias.Spec
 	ingressName := GetDNSAliasIngressName(aliasName)
 	hostName := GetDNSAliasHost(aliasName, dnsZone)
-	ingressSpec := ingress.BuildIngressSpecForComponent(hostName, aliasSpec.Component, "", publicPort.Port, "/")
+	ingressSpec := ingress.BuildIngressSpecForComponent(radixDeployComponent, hostName, "")
 
 	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
 	ingressAnnotations := ingress.GetAnnotationProvider(ingressConfiguration, namespace, oauth2Config)
-	ingressConfig, err := ingress.BuildIngressForComponent(namespace, aliasSpec.AppName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, internal.GetOwnerReferences(radixDNSAlias, true))
+	ingressConfig, err := ingress.BuildIngress(aliasSpec.AppName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, internal.GetOwnerReferences(radixDNSAlias, true))
 	if err != nil {
 		return nil, err
 	}
 
 	ingressConfig.ObjectMeta.Labels[kube.RadixAliasLabel] = aliasName
 	return ingressConfig, nil
-}
-
-func getComponentPublicPort(component radixv1.RadixCommonDeployComponent) *radixv1.ComponentPort {
-	if port, ok := slice.FindFirst(component.GetPorts(), func(p radixv1.ComponentPort) bool { return p.Name == component.GetPublicPort() }); ok {
-		return &port
-	}
-	return nil
 }

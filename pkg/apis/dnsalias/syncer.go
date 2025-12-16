@@ -104,7 +104,7 @@ func (s *syncer) getRadixDeployComponent(ctx context.Context) (radixv1.RadixComm
 
 	deployComponent := radixDeployment.GetCommonComponentByName(aliasSpec.Component)
 	if commonUtils.IsNil(deployComponent) {
-		return nil, DeployComponentNotFoundByName(aliasSpec.AppName, aliasSpec.Environment, aliasSpec.Component, radixDeployment.GetName())
+		return nil, ErrComponentDoesNotExist
 	}
 	return deployComponent, nil
 }

@@ -65,17 +65,21 @@ func forAzureWorkloadIdentityClientId(clientId string) map[string]string {
 	return map[string]string{azureWorkloadIdentityClientIdAnnotation: clientId}
 }
 
-// Oauth2PreviewModeEnabledForEnvironment checks if the preview OAuth2 proxy mode is enabled for a given environment
-func Oauth2PreviewModeEnabledForEnvironment(annotations map[string]string, currentEnv string) bool {
+// OAuth2ProxyModeEnabledForEnvironment checks if the preview OAuth2 proxy mode is enabled for a given environment
+func OAuth2ProxyModeEnabledForEnvironment(annotations map[string]string, currentEnv string) bool {
 	if annotations == nil {
 		return false
 	}
-	modes, exists := annotations[PreviewOAuth2ProxyModeAnnotation]
+	targetEnvs, exists := annotations[PreviewOAuth2ProxyModeAnnotation]
 	if !exists {
 		return false
 	}
 
-	for _, targetEnv := range strings.Split(modes, ",") {
+	if targetEnvs == "*" {
+		return true
+	}
+
+	for targetEnv := range strings.SplitSeq(targetEnvs, ",") {
 		if strings.TrimSpace(targetEnv) == currentEnv {
 			return true
 		}

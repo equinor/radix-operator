@@ -9,12 +9,25 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	annotationutils "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 )
 
 type AnnotationProvider interface {
 	// GetAnnotations returns annotations for use on Ingress resources
 	GetAnnotations(component radixv1.RadixCommonDeployComponent) (map[string]string, error)
+}
+
+func BuildAnnotationsFromProviders(component radixv1.RadixCommonDeployComponent, annotationProviders []AnnotationProvider) (map[string]string, error) {
+	annotations := map[string]string{}
+	for _, provider := range annotationProviders {
+		providerAnnotations, err := provider.GetAnnotations(component)
+		if err != nil {
+			return nil, err
+		}
+		annotations = annotationutils.Merge(annotations, providerAnnotations)
+	}
+	return annotations, nil
 }
 
 func NewForceSslRedirectAnnotationProvider() AnnotationProvider {
