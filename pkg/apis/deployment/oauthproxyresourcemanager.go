@@ -140,12 +140,8 @@ func (o *oauthProxyResourceManager) garbageCollect(ctx context.Context) error {
 
 func (o *oauthProxyResourceManager) garbageCollectIngresses(ctx context.Context) error {
 	for _, comp := range o.rd.Spec.Components {
-		comp, err := o.buildComponentWithOAuthDefaults(&comp)
-		if err != nil {
-			return err
-		}
-		hosts := getComponentDNSInfo(ctx, comp, *o.rd, *o.kubeutil)
-		if err := o.garbageCollectIngressesForComponent(ctx, comp, hosts); err != nil {
+		hosts := getComponentDNSInfo(ctx, &comp, *o.rd, *o.kubeutil)
+		if err := o.garbageCollectIngressesForComponent(ctx, &comp, hosts); err != nil {
 			return fmt.Errorf("failed to garbage collect ingresses for component %s: %w", comp.GetName(), err)
 		}
 	}
@@ -434,7 +430,7 @@ func (o *oauthProxyResourceManager) isProxyModeEnabled() bool {
 		annotations.OAuth2ProxyModeEnabledForEnvironment(o.rr.Annotations, o.rd.Spec.Environment)
 }
 
-func (o *oauthProxyResourceManager) garbageCollectIngressesForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent, hosts []dnsInfo) error {
+func (o *oauthProxyResourceManager) garbageCollectIngressesForComponent(ctx context.Context, component *radixv1.RadixDeployComponent, hosts []dnsInfo) error {
 	logger := log.Ctx(ctx)
 	selector := fmt.Sprintf("%s,!%s", radixlabels.ForAuxOAuthProxyIngress(o.rd.Spec.AppName, component), kube.RadixAliasLabel)
 	existingIngresses, err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(o.rd.GetNamespace()).List(ctx, metav1.ListOptions{LabelSelector: selector})
@@ -447,6 +443,10 @@ func (o *oauthProxyResourceManager) garbageCollectIngressesForComponent(ctx cont
 
 	var path string
 	if isOAuthEnabled {
+		component, err = o.buildComponentWithOAuthDefaults(component)
+		if err != nil {
+			return err
+		}
 		// build a dummy ingress spec to get path from
 		path = ingress.BuildIngressSpecForOAuth2Component(component, "", "", o.isProxyModeEnabled()).Rules[0].HTTP.Paths[0].Path
 	}

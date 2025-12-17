@@ -967,22 +967,22 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_ComponentRemove
 	actualDeployments, _ := s.kubeClient.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(actualDeployments.Items, 2)
 	actualSecrets, _ := s.kubeClient.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualSecrets.Items, 2)
+	s.Require().Len(actualSecrets.Items, 2)
 	actualServices, _ := s.kubeClient.CoreV1().Services(envNamespace).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualServices.Items, 2)
+	s.Require().Len(actualServices.Items, 2)
 	actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualIngresses.Items, 4)
+	s.Require().Len(actualIngresses.Items, 4)
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(envNamespace).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualRoles.Items, 4)
+	s.Require().Len(actualRoles.Items, 4)
 	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(envNamespace).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualRoleBindings.Items, 4)
+	s.Require().Len(actualRoleBindings.Items, 4)
 
 	// Test garbage collect
 	rd = utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp1)
 	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
 	s.Require().NoError(sut.GarbageCollect(context.Background()))
 	actualDeployments, _ = s.kubeClient.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
-	s.Require().Len(actualDeployments.Items, 1)
+	s.Len(actualDeployments.Items, 1)
 	actualSecrets, _ = s.kubeClient.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualSecrets.Items, 1)
 	actualServices, _ = s.kubeClient.CoreV1().Services(envNamespace).List(context.Background(), metav1.ListOptions{})
@@ -993,6 +993,35 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_ComponentRemove
 	s.Len(actualRoles.Items, 2)
 	actualRoleBindings, _ = s.kubeClient.RbacV1().RoleBindings(envNamespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoleBindings.Items, 2)
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_OAuthDisabled_RemovedIngresses() {
+	const (
+		appName = "anyapp"
+		envName = "dev"
+	)
+	var (
+		envNamespace = utils.GetEnvironmentNamespace(appName, envName)
+	)
+
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{}, nil)
+
+	// Fixture
+	rr := utils.NewRegistrationBuilder().WithName(appName)
+	comp := utils.NewDeployComponentBuilder().WithName("c1").WithPort("http", 8000).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})
+	rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp)
+	sut := NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	s.Require().NoError(sut.Sync(context.Background()))
+	actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(actualIngresses.Items, 2)
+
+	// Test garbage collect
+	comp.WithAuthentication(nil)
+	rd = utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp)
+	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	s.Require().NoError(sut.GarbageCollect(context.Background()))
+	actualIngresses, _ = s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualIngresses.Items, 0)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_IngressConfigRemoved() {
