@@ -71,6 +71,117 @@ func (s *syncer) syncAlias(ctx context.Context) error {
 }
 
 func (s *syncer) syncIngresses(ctx context.Context) error {
+	/*
+		syncIngresses:
+			component, err:=getComponentForActiveDeployment()
+			if err!=nil {
+				return err
+			}
+
+			// Hvordan skal vi håndtere at component ikke finnes (no longer in spec)?
+			if component==nil {
+				deleteAllIngresses(component)
+				return // Bør vi på en eller annen måte skrive i RDA.Status.Message at deployment eller component ikke finnes?
+			}
+
+			garbageCollectOAuthIngress(component)
+			garbageCollectCollectComponentIngress(component)
+
+			createOrUpdateComponentIngress(component)
+			createOrUpdateOAuthIngress(component)
+
+		deleteAllIngresses:
+			ings=list ingresses with selector
+			delete all ings
+
+		garbageCollectOAuthIngress:
+			ing:=get ing with label selector
+			if not found {
+				return
+			}
+
+			delete=func() {}
+				if !comp.IsPublic() {
+					return true
+				}
+				if !comp.OAuth() {
+					return true
+				}
+
+				comp=buildComponentWithOAuthDefaults(comp)
+				path=ingress.BuildIngressSpecForOAuth2Component(comp, isProxyMode()).Path
+
+				if ing.Path!=path {
+					return true
+				}
+
+				return false
+			}
+
+			if !delete() {
+
+			}
+
+			kube delete ing
+
+		garbageCollectCollectComponentIngress:
+			ing:=get ing with label selector
+			if not found {
+				return
+			}
+
+			delete=func() {
+				if !comp.IsPublic() {
+					return true
+				}
+
+				return comp.OAuth() && isProxyMode()
+			}
+
+			if !delete() {
+				return
+			}
+
+			kube delete ing
+
+		createOrUpdateComponentIngress:
+			apply=func() {
+				if !comp.IsPublic() {
+					return false
+				}
+
+				return !comp.OAuth() || !isProxyMode() {
+			}
+
+			if !apply() {
+				return
+			}
+
+			ing:=build Ingress with Spec
+			ApplyIngress ing
+
+		createOrUpdateOAuthIngress:
+			apply=func() {
+				if !comp.IsPublic() {
+					return false
+				}
+
+				return comp.OAuth()
+			}
+
+			if !apply() {
+				return
+			}
+
+			comp=buildComponentWithOAuthDefaults(comp)
+			spec=ingress.BuildIngressSpecForOAuth2Component()
+			annotations=select based on isProxyMode()
+			ing=spec+annotations
+			ApplyIngress ing
+
+
+	*/
+
 	radixDeployComponent, err := s.getRadixDeployComponent(ctx)
 	if err != nil {
 		return err
