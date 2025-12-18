@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.107.0](https://github.com/equinor/radix-operator/compare/v1.106.0..v1.107.0) - 2025-12-17
+## [1.107.0](https://github.com/equinor/radix-operator/compare/v1.106.0..v1.107.0) - 2025-12-18
 
 ### 🚀 Features
 
