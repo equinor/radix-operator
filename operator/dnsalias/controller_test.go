@@ -8,13 +8,10 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -90,8 +87,12 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.WaitForNotSynced("Sync should not be called when updating RadixDNSAlias with no changes")
 
 	// Add Ingress with owner reference to RadixDNSAlias should not trigger sync
-	ing := buildRadixDNSAliasIngress(alias, int32(8080), dnsZone)
-	ing.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: radixv1.SchemeGroupVersion.Identifier(), Kind: radixv1.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}})
+	ing := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			OwnerReferences: []metav1.OwnerReference{{APIVersion: radixv1.SchemeGroupVersion.Identifier(), Kind: radixv1.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}},
+		},
+	}
+
 	envNamespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(gomock.Any(), envNamespace, aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	ing, err = dnsaliasapi.CreateRadixDNSAliasIngress(context.Background(), s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ing)
@@ -136,15 +137,4 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	err = s.RadixClient.RadixV1().RadixDNSAliases().Delete(context.Background(), alias.GetName(), metav1.DeleteOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should be called when deleting RadixDNSAlias")
-}
-
-func buildRadixDNSAliasIngress(dnsAlias *radixv1.RadixDNSAlias, port int32, dnsZone string) *networkingv1.Ingress {
-	aliasName := dnsAlias.GetName()
-	return &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   dnsaliasapi.GetDNSAliasIngressName(aliasName),
-			Labels: radixlabels.ForDNSAliasIngress(dnsAlias.Spec.AppName, dnsAlias.Spec.Component, aliasName),
-		},
-		Spec: ingress.GetIngressSpec(dnsaliasapi.GetDNSAliasHost(aliasName, dnsZone), dnsAlias.Spec.Component, defaults.TLSSecretName, port),
-	}
 }

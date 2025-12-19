@@ -10,11 +10,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GetAuxOAuthProxyAnnotationProviders Gets aux OAuth proxy annotation providers
-func GetAuxOAuthProxyAnnotationProviders() []AnnotationProvider {
+// GetAuxOAuthAnnotationProviders Gets aux OAuth annotation providers for non-proxy mode
+func GetAuxOAuthAnnotationProviders() []AnnotationProvider {
 	return []AnnotationProvider{
 		NewForceSslRedirectAnnotationProvider(),
 		NewIngressPublicAllowListAnnotationProvider(),
+		NewRedirectErrorPageAnnotationProvider(),
+	}
+}
+
+// GetAuxOAuthAnnotationProviders Gets aux OAuth annotation providers for proxy mode
+func GetAuxOAuthProxyModeAnnotationProviders(ingressConfiguration IngressConfiguration, namespace string) []AnnotationProvider {
+	return []AnnotationProvider{
+		NewForceSslRedirectAnnotationProvider(),
+		NewIngressConfigurationAnnotationProvider(ingressConfiguration),
+		NewClientCertificateAnnotationProvider(namespace),
+		NewIngressPublicAllowListAnnotationProvider(),
+		NewIngressPublicConfigAnnotationProvider(),
 		NewRedirectErrorPageAnnotationProvider(),
 	}
 }
@@ -24,14 +36,14 @@ func BuildOAuthProxyIngressForComponentIngress(namespace string, component v1.Ra
 	if len(componentIngress.Spec.Rules) == 0 {
 		return nil, nil
 	}
-	oauthProxyIngressName := oauth.GetAuxAuthProxyIngressName(componentIngress.GetName())
+	oauthProxyIngressName := oauth.GetAuxOAuthProxyIngressName(componentIngress.GetName())
 	sourceHost := componentIngress.Spec.Rules[0]
 	oAuthProxyPortNumber := defaults.OAuthProxyPortNumber
 	pathType := networkingv1.PathTypeImplementationSpecific
 	annotations := map[string]string{}
 
 	for _, ia := range ingressAnnotationProviders {
-		providedAnnotations, err := ia.GetAnnotations(component, namespace)
+		providedAnnotations, err := ia.GetAnnotations(component)
 		if err != nil {
 			return nil, err
 		}

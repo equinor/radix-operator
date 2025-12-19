@@ -28,6 +28,7 @@ type RegistrationBuilder interface {
 	WithRadixRegistration(*v1.RadixRegistration) RegistrationBuilder
 	WithReaderAdGroups([]string) RegistrationBuilder
 	WithReaderAdUsers([]string) RegistrationBuilder
+	WithAnnotations(map[string]string) RegistrationBuilder
 	BuildRR() *v1.RadixRegistration
 }
 
@@ -49,6 +50,7 @@ type RegistrationBuilderStruct struct {
 	configurationItem   string
 	readerAdGroups      []string
 	readerAdUsers       []string
+	annotations         map[string]string
 }
 
 // WithRadixRegistration Re-enginers a builder from a registration
@@ -164,6 +166,11 @@ func (rb *RegistrationBuilderStruct) WithConfigurationItem(ci string) Registrati
 	return rb
 }
 
+func (rb *RegistrationBuilderStruct) WithAnnotations(annotations map[string]string) RegistrationBuilder {
+	rb.annotations = annotations
+	return rb
+}
+
 // BuildRR Builds the radix registration
 func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 	cloneURL := rb.cloneURL
@@ -189,8 +196,9 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			Kind:       v1.KindRadixRegistration,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: rb.name,
-			UID:  rb.uid,
+			Name:        rb.name,
+			UID:         rb.uid,
+			Annotations: rb.annotations,
 		},
 		Spec: v1.RadixRegistrationSpec{
 			AppID:               v1.ULID{ULID: ulid.MustParse(appId)},
