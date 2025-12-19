@@ -102,14 +102,3 @@ func (kubeutil *Kube) ListIngressesWithSelector(ctx context.Context, namespace s
 	}
 	return ingresses, nil
 }
-
-// DeleteIngresses Deletes ingresses
-func (kubeutil *Kube) DeleteIngresses(ctx context.Context, ingresses ...networkingv1.Ingress) error {
-	log.Ctx(ctx).Debug().Msgf("delete %d Ingress(es)", len(ingresses))
-	for _, ing := range ingresses {
-		if err := kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
-			return err
-		}
-	}
-	return nil
-}

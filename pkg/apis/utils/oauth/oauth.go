@@ -8,7 +8,6 @@ import (
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -41,9 +40,4 @@ func MergeAuxOAuthProxyComponentResourceLabels(object metav1.Object, appName str
 // MergeAuxOAuthRedisComponentResourceLabels  Merge labels for object and aux Redis
 func MergeAuxOAuthRedisComponentResourceLabels(object metav1.Object, appName string, component radixv1.RadixCommonDeployComponent) {
 	object.SetLabels(labels.Merge(object.GetLabels(), radixlabels.ForAuxOAuthRedisComponent(appName, component)))
-}
-
-// MergeAuxComponentDNSAliasIngressResourceLabels  Merge labels for ingress and aux DNS alias OAuth proxy
-func MergeAuxComponentDNSAliasIngressResourceLabels(auxIngress *networkingv1.Ingress, appName string, component radixv1.RadixCommonDeployComponent, dnsAlias string) {
-	auxIngress.SetLabels(labels.Merge(auxIngress.GetLabels(), radixlabels.ForAuxComponentDNSAliasIngress(appName, component, dnsAlias)))
 }

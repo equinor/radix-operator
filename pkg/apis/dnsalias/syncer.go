@@ -2,15 +2,15 @@ package dnsalias
 
 import (
 	"context"
+	"fmt"
+	"slices"
+	"sync"
 
-	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -26,27 +26,33 @@ type Syncer interface {
 
 // DNSAlias is the aggregate-root for manipulating RadixDNSAliases
 type syncer struct {
-	kubeClient                 kubernetes.Interface
-	radixClient                radixclient.Interface
-	kubeUtil                   *kube.Kube
-	radixDNSAlias              *radixv1.RadixDNSAlias
-	dnsZone                    string
-	ingressConfiguration       ingress.IngressConfiguration
-	oauth2DefaultConfig        defaults.OAuth2Config
-	ingressAnnotationProviders []ingress.AnnotationProvider
+	kubeClient                      kubernetes.Interface
+	radixClient                     radixclient.Interface
+	kubeUtil                        *kube.Kube
+	radixDNSAlias                   *radixv1.RadixDNSAlias
+	dnsZone                         string
+	oauth2DefaultConfig             defaults.OAuth2Config
+	componentIngressAnnotations     []ingress.AnnotationProvider
+	oauthIngressAnnotations         []ingress.AnnotationProvider
+	oauthProxyModeIngressAnnotation []ingress.AnnotationProvider
+	rd                              *radixv1.RadixDeployment
+	rr                              *radixv1.RadixRegistration
+	component                       *radixv1.RadixDeployComponent
+	initMutex                       sync.Mutex
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsZone string, ingressConfiguration ingress.IngressConfiguration, oauth2Config defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, radixDNSAlias *radixv1.RadixDNSAlias) Syncer {
+func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsZone string, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotation []ingress.AnnotationProvider) Syncer {
 	return &syncer{
-		kubeClient:                 kubeClient,
-		radixClient:                radixClient,
-		kubeUtil:                   kubeUtil,
-		dnsZone:                    dnsZone,
-		ingressConfiguration:       ingressConfiguration,
-		oauth2DefaultConfig:        oauth2Config,
-		ingressAnnotationProviders: ingressAnnotationProviders,
-		radixDNSAlias:              radixDNSAlias,
+		kubeClient:                      kubeClient,
+		radixClient:                     radixClient,
+		kubeUtil:                        kubeUtil,
+		dnsZone:                         dnsZone,
+		oauth2DefaultConfig:             oauth2Config,
+		componentIngressAnnotations:     componentIngressAnnotations,
+		oauthIngressAnnotations:         oauthIngressAnnotations,
+		oauthProxyModeIngressAnnotation: oauthProxyModeIngressAnnotation,
+		radixDNSAlias:                   radixDNSAlias,
 	}
 }
 
@@ -54,13 +60,45 @@ func NewSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient
 // reconciled with current state.
 func (s *syncer) OnSync(ctx context.Context) error {
 	log.Ctx(ctx).Info().Msg("Syncing")
-	log.Ctx(ctx).Debug().Msgf("OnSync application %s, environment %s, component %s", s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment, s.radixDNSAlias.Spec.Component)
+	s.initMutex.Lock()
+	defer s.initMutex.Unlock()
 
 	if s.radixDNSAlias.ObjectMeta.DeletionTimestamp != nil {
-		return s.handleDeletedRadixDNSAlias(ctx)
+		return s.handleFinalizer(ctx)
 	}
+
+	if err := s.init(ctx); err != nil {
+		return fmt.Errorf("failed to init: %w", err)
+	}
+
 	return s.syncStatus(ctx, s.syncAlias(ctx))
 
+}
+
+func (s *syncer) init(ctx context.Context) error {
+	rr, err := s.kubeUtil.GetRegistration(ctx, s.radixDNSAlias.Spec.AppName)
+	if err != nil {
+		return fmt.Errorf("failed to get RadixRegistration: %w", err)
+	}
+	s.rr = rr
+
+	ns := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
+	rd, err := s.kubeUtil.GetActiveDeployment(ctx, ns)
+	if err != nil {
+		return fmt.Errorf("failed to get active RadixDeployment: %w", err)
+	}
+	s.rd = rd
+
+	if s.rd != nil {
+		component := s.rd.GetComponentByName(s.radixDNSAlias.Spec.Component)
+		component, err := s.buildComponentWithOAuthDefaults(component)
+		if err != nil {
+			return err
+		}
+		s.component = component
+	}
+
+	return nil
 }
 
 func (s *syncer) syncAlias(ctx context.Context) error {
@@ -70,181 +108,24 @@ func (s *syncer) syncAlias(ctx context.Context) error {
 	return s.syncRbac(ctx)
 }
 
-func (s *syncer) syncIngresses(ctx context.Context) error {
-	/*
-		syncIngresses:
-			component, err:=getComponentForActiveDeployment()
-			if err!=nil {
-				return err
-			}
-
-			// Hvordan skal vi håndtere at component ikke finnes (no longer in spec)?
-			if component==nil {
-				deleteAllIngresses(component)
-				return // Bør vi på en eller annen måte skrive i RDA.Status.Message at deployment eller component ikke finnes?
-			}
-
-			garbageCollectOAuthIngress(component)
-			garbageCollectCollectComponentIngress(component)
-
-			createOrUpdateComponentIngress(component)
-			createOrUpdateOAuthIngress(component)
-
-		deleteAllIngresses:
-			ings=list ingresses with selector
-			delete all ings
-
-		garbageCollectOAuthIngress:
-			ing:=get ing with label selector
-			if not found {
-				return
-			}
-
-			delete=func() {}
-				if !comp.IsPublic() {
-					return true
-				}
-				if !comp.OAuth() {
-					return true
-				}
-
-				comp=buildComponentWithOAuthDefaults(comp)
-				path=ingress.BuildIngressSpecForOAuth2Component(comp, isProxyMode()).Path
-
-				if ing.Path!=path {
-					return true
-				}
-
-				return false
-			}
-
-			if !delete() {
-
-			}
-
-			kube delete ing
-
-		garbageCollectCollectComponentIngress:
-			ing:=get ing with label selector
-			if not found {
-				return
-			}
-
-			delete=func() {
-				if !comp.IsPublic() {
-					return true
-				}
-
-				return comp.OAuth() && isProxyMode()
-			}
-
-			if !delete() {
-				return
-			}
-
-			kube delete ing
-
-		createOrUpdateComponentIngress:
-			apply=func() {
-				if !comp.IsPublic() {
-					return false
-				}
-
-				return !comp.OAuth() || !isProxyMode() {
-			}
-
-			if !apply() {
-				return
-			}
-
-			ing:=build Ingress with Spec
-			ApplyIngress ing
-
-		createOrUpdateOAuthIngress:
-			apply=func() {
-				if !comp.IsPublic() {
-					return false
-				}
-
-				return comp.OAuth()
-			}
-
-			if !apply() {
-				return
-			}
-
-			comp=buildComponentWithOAuthDefaults(comp)
-			spec=ingress.BuildIngressSpecForOAuth2Component()
-			annotations=select based on isProxyMode()
-			ing=spec+annotations
-			ApplyIngress ing
-
-
-	*/
-
-	radixDeployComponent, err := s.getRadixDeployComponent(ctx)
-	if err != nil {
-		return err
-	}
-	if radixDeployComponent == nil {
-		return nil // there is no any RadixDeployment (probably it is just created app). Do not sync, radixDeploymentInformer in the RadixDNSAlias controller will call the re-sync, when the RadixDeployment is added
-	}
-
-	aliasSpec := s.radixDNSAlias.Spec
-	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-	ing, err := s.syncIngress(ctx, namespace, radixDeployComponent)
-	if err != nil {
-		return err
-	}
-	return s.syncOAuthProxyIngress(ctx, namespace, ing, radixDeployComponent)
-}
-
-func (s *syncer) getRadixDeployComponent(ctx context.Context) (radixv1.RadixCommonDeployComponent, error) {
-	aliasSpec := s.radixDNSAlias.Spec
-	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-
-	log.Ctx(ctx).Debug().Msgf("get active deployment for the namespace %s", namespace)
-	radixDeployment, err := s.kubeUtil.GetActiveDeployment(ctx, namespace)
-	if err != nil {
-		return nil, err
-	}
-	if radixDeployment == nil {
-		return nil, nil
-	}
-	log.Ctx(ctx).Debug().Msgf("active deployment for the namespace %s is %s", namespace, radixDeployment.GetName())
-
-	deployComponent := radixDeployment.GetCommonComponentByName(aliasSpec.Component)
-	if commonUtils.IsNil(deployComponent) {
-		return nil, ErrComponentDoesNotExist
-	}
-	return deployComponent, nil
-}
-
-func (s *syncer) handleDeletedRadixDNSAlias(ctx context.Context) error {
-	log.Ctx(ctx).Debug().Msgf("handle deleted RadixDNSAlias %s in the application %s", s.radixDNSAlias.Name, s.radixDNSAlias.Spec.AppName)
-	finalizerIndex := slice.FindIndex(s.radixDNSAlias.ObjectMeta.Finalizers, func(val string) bool {
-		return val == kube.RadixDNSAliasFinalizer
-	})
+func (s *syncer) handleFinalizer(ctx context.Context) error {
+	finalizerIndex := slices.Index(s.radixDNSAlias.ObjectMeta.Finalizers, kube.RadixDNSAliasFinalizer)
 	if finalizerIndex < 0 {
-		log.Ctx(ctx).Info().Msgf("missing finalizer %s in the RadixDNSAlias %s. Exist finalizers: %d. Skip dependency handling",
-			kube.RadixDNSAliasFinalizer, s.radixDNSAlias.Name, len(s.radixDNSAlias.ObjectMeta.Finalizers))
 		return nil
 	}
 
-	selector := radixlabels.ForDNSAliasIngress(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Component, s.radixDNSAlias.GetName())
-	if err := s.deleteIngresses(ctx, selector); err != nil {
+	log.Ctx(ctx).Info().Msg("Process finalizer")
+
+	if err := s.deleteIngresses(ctx); err != nil {
 		return err
 	}
 	if err := s.deleteRbac(ctx); err != nil {
 		return err
 	}
 
-	updatingAlias := s.radixDNSAlias.DeepCopy()
-	updatingAlias.ObjectMeta.Finalizers = append(s.radixDNSAlias.ObjectMeta.Finalizers[:finalizerIndex], s.radixDNSAlias.ObjectMeta.Finalizers[finalizerIndex+1:]...)
-	log.Ctx(ctx).Debug().Msgf("removed finalizer %s from the RadixDNSAlias %s for the application %s. Left finalizers: %d",
-		kube.RadixEnvironmentFinalizer, updatingAlias.Name, updatingAlias.Spec.AppName, len(updatingAlias.ObjectMeta.Finalizers))
-
-	return s.kubeUtil.UpdateRadixDNSAlias(ctx, updatingAlias)
+	finalizers := append(s.radixDNSAlias.ObjectMeta.Finalizers[:finalizerIndex], s.radixDNSAlias.ObjectMeta.Finalizers[finalizerIndex+1:]...)
+	s.radixDNSAlias.ObjectMeta.Finalizers = finalizers
+	return s.kubeUtil.UpdateRadixDNSAlias(ctx, s.radixDNSAlias)
 }
 
 func (s *syncer) getExistingClusterRoleOwnerReferences(ctx context.Context, roleName string) ([]metav1.OwnerReference, error) {

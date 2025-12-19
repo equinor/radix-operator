@@ -136,11 +136,11 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetAuxOAuthAnnotationProviders(), ingress.GetAuxOAuthProxyModeAnnotationProviders(t.ingressConfiguration, rd.Namespace), t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetOAuthAnnotationProviders(), ingress.GetOAuthProxyModeAnnotationProviders(t.ingressConfiguration, rd.Namespace), t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2RedisDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 	}
 
-	ingressAnnotations := ingress.GetAnnotationProvider(t.ingressConfiguration, rd.Namespace, t.oauth2DefaultConfig)
+	ingressAnnotations := ingress.GetComponentAnnotationProvider(t.ingressConfiguration, rd.Namespace, t.oauth2DefaultConfig)
 	syncRD := rd.DeepCopy()
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
 	err = deployment.OnSync(ctx)

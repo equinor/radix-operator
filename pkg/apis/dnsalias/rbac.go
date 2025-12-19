@@ -21,24 +21,20 @@ import (
 
 // syncRbac Grants access to Radix DNSAlias to application admin and reader
 func (s *syncer) syncRbac(ctx context.Context) error {
-	rr, err := s.kubeUtil.GetRegistration(ctx, s.radixDNSAlias.Spec.AppName)
-	if err != nil {
+	if err := s.syncAppAdminRbac(ctx); err != nil {
 		return err
 	}
-	if err := s.syncAppAdminRbac(ctx, rr); err != nil {
-		return err
-	}
-	return s.syncAppReaderRbac(ctx, rr)
+	return s.syncAppReaderRbac(ctx)
 }
 
-func (s *syncer) syncAppAdminRbac(ctx context.Context, rr *radixv1.RadixRegistration) error {
-	subjects := utils.GetAppAdminRbacSubjects(rr)
+func (s *syncer) syncAppAdminRbac(ctx context.Context) error {
+	subjects := utils.GetAppAdminRbacSubjects(s.rr)
 	roleName := s.getClusterRoleNameForAdmin()
 	return s.syncClusterRoleAndBinding(ctx, roleName, subjects)
 }
 
-func (s *syncer) syncAppReaderRbac(ctx context.Context, rr *radixv1.RadixRegistration) error {
-	subjects := utils.GetAppReaderRbacSubjects(rr)
+func (s *syncer) syncAppReaderRbac(ctx context.Context) error {
+	subjects := utils.GetAppReaderRbacSubjects(s.rr)
 	roleName := s.getClusterRoleNameForReader()
 	return s.syncClusterRoleAndBinding(ctx, roleName, subjects)
 }
@@ -65,6 +61,7 @@ func (s *syncer) buildClusterRoleBindingsForSubjects(ctx context.Context, roleNa
 		}
 		return internal.BuildClusterRoleBinding(roleName, subjects, s.radixDNSAlias), nil
 	}
+
 	clusterRoleBinding.Subjects = subjects
 	clusterRoleBinding.ObjectMeta.OwnerReferences = kube.MergeOwnerReferences(clusterRoleBinding.ObjectMeta.OwnerReferences, internal.GetOwnerReferences(s.radixDNSAlias, false)...)
 	return clusterRoleBinding, nil
@@ -79,6 +76,7 @@ func (s *syncer) syncClusterRole(ctx context.Context, roleName string) error {
 	if err != nil {
 		return err
 	}
+
 	clusterRole.ObjectMeta.OwnerReferences = kube.MergeOwnerReferences(clusterRole.GetOwnerReferences(), ownerReferences...)
 	return s.kubeUtil.ApplyClusterRole(ctx, clusterRole)
 }
