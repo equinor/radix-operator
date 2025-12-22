@@ -16,7 +16,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/kedacore/keda/v2 v2.17.1-0.20250521173204-e23ef462abb5
+	github.com/kedacore/keda/v2 v2.17.3
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/open-policy-agent/cert-controller v0.13.0
