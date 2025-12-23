@@ -5,6 +5,5 @@ const (
 	KindClusterRoleBinding    = "ClusterRoleBinding"
 	KindRole                  = "Role"
 	KindRoleBinding           = "RoleBinding"
-	KindIngress               = "Ingress"
 	KindPersistentVolumeClaim = "PersistentVolumeClaim"
 )

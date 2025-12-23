@@ -101,11 +101,10 @@ func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder utils.RegistrationB
 // ApplyApplication Will help persist an application
 func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (*radixv1.RadixApplication, error) {
 	regBuilder := applicationBuilder.GetRegistrationBuilder()
-	var rr *radixv1.RadixRegistration
 	var err error
 
 	if !commonUtils.IsNil(regBuilder) {
-		if rr, err = tu.ApplyRegistration(regBuilder); err != nil {
+		if _, err = tu.ApplyRegistration(regBuilder); err != nil {
 			return nil, err
 		}
 	}
@@ -121,17 +120,6 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (
 		return ra, err
 	}
 	ra.ObjectMeta.UID = uuid.NewUUID() // imitate new UID, assigned by Kubernetes
-	// Note: rr may be nil if not found but that is fine
-	for _, env := range ra.Spec.Environments {
-		if _, err := tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
-			WithAppName(ra.GetName()).
-			WithAppLabel().
-			WithEnvironmentName(env.Name).
-			WithRegistrationOwner(rr).
-			WithOrphaned(false)); err != nil {
-			return nil, err
-		}
-	}
 
 	return ra, nil
 }
@@ -464,9 +452,8 @@ func RegisterRadixDNSAliasBySpec(ctx context.Context, radixClient radixclient.In
 	_, err := radixClient.RadixV1().RadixDNSAliases().Create(ctx,
 		&radixv1.RadixDNSAlias{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:       alias,
-				Labels:     labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
-				Finalizers: []string{kube.RadixDNSAliasFinalizer},
+				Name:   alias,
+				Labels: labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
 			},
 			Spec: radixv1.RadixDNSAliasSpec{
 				AppName:     aliasesSpec.AppName,

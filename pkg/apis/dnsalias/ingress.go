@@ -5,18 +5,16 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
-	"github.com/rs/zerolog/log"
 	networkingv1 "k8s.io/api/networking/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // CreateRadixDNSAliasIngress Create an Ingress for a RadixDNSAlias
@@ -195,7 +193,11 @@ func (s *syncer) createOrUpdateComponentIngress(ctx context.Context) error {
 		Spec: ingress.BuildIngressSpecForComponent(s.component, s.getHostName(), ""),
 	}
 
-	if err := s.kubeUtil.ApplyIngress(ctx, "", ing); err != nil {
+	if err := controllerutil.SetControllerReference(s.radixDNSAlias, ing, scheme); err != nil {
+		return fmt.Errorf("failed to set ownerreference for component ingress: %w", err)
+	}
+
+	if err := s.kubeUtil.ApplyIngress(ctx, s.rd.Namespace, ing); err != nil {
 		return fmt.Errorf("failed to apply component ingress: %w", err)
 	}
 
@@ -248,7 +250,7 @@ func (s *syncer) createOrUpdateOAuthIngress(ctx context.Context) error {
 	}
 	annotations, err := ingress.BuildAnnotationsFromProviders(s.component, annotationProviders)
 	if err != nil {
-		return fmt.Errorf("failed to build annotations for component ingress: %w", err)
+		return fmt.Errorf("failed to build annotations for oauth ingress: %w", err)
 	}
 
 	ing := &networkingv1.Ingress{
@@ -260,7 +262,11 @@ func (s *syncer) createOrUpdateOAuthIngress(ctx context.Context) error {
 		Spec: ingress.BuildIngressSpecForOAuth2Component(s.component, s.getHostName(), "", s.isProxyModeEnabled()),
 	}
 
-	if err := s.kubeUtil.ApplyIngress(ctx, "", ing); err != nil {
+	if err := controllerutil.SetControllerReference(s.radixDNSAlias, ing, scheme); err != nil {
+		return fmt.Errorf("failed to set ownerreference for oauth ingress: %w", err)
+	}
+
+	if err := s.kubeUtil.ApplyIngress(ctx, s.rd.Namespace, ing); err != nil {
 		return fmt.Errorf("failed to apply oauth ingress: %w", err)
 	}
 
@@ -346,25 +352,6 @@ func (s *syncer) garbageCollectComponentIngress(ctx context.Context) error {
 
 	if err := s.kubeClient.NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
 		return fmt.Errorf("failed to delete ingress: %w", err)
-	}
-
-	return nil
-}
-
-func (s *syncer) deleteIngresses(ctx context.Context) error {
-	namespace := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
-
-	ingresses, err := s.kubeClient.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
-	if err != nil {
-		return err
-	}
-
-	for _, ing := range ingresses.Items {
-		log.Ctx(ctx).Info().Msgf("Deleting ingress %s", cache.MetaObjectToName(&ing).String())
-
-		if err := s.kubeClient.NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
-			return fmt.Errorf("failed to delete ingress: %w", err)
-		}
 	}
 
 	return nil

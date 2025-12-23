@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -934,11 +933,6 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_IngressesCreat
 		})
 	}
 
-}
-
-func (s *OAuthProxyResourceManagerTestSuite) Test_GetOwnerReferenceOfIngress() {
-	actualOwnerReferences := ingress.GetOwnerReferenceOfIngress(&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "anyingress", UID: "anyuid"}})
-	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: networkingv1.SchemeGroupVersion.Identifier(), Kind: k8s.KindIngress, Name: "anyingress", UID: "anyuid", Controller: pointers.Ptr(true)}}, actualOwnerReferences)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GetIngressName() {

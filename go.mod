@@ -5,7 +5,7 @@ go 1.24.0
 godebug default=go1.24
 
 require (
-	dario.cat/mergo v1.0.1
+	dario.cat/mergo v1.0.2
 	github.com/cert-manager/cert-manager v1.15.4
 	github.com/equinor/radix-common v1.11.0
 	github.com/gin-gonic/gin v1.10.1

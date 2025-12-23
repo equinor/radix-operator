@@ -40,7 +40,6 @@ const (
 // Radix Finalizers
 const (
 	RadixEnvironmentFinalizer = "radix.equinor.com/environment-finalizer"
-	RadixDNSAliasFinalizer    = "radix.equinor.com/dnsalias-finalizer"
 )
 
 // Radix Labels

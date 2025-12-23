@@ -2,7 +2,6 @@ package kube
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -11,12 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
-
-// CreateRadixDNSAlias Creates RadixDNSAlias
-func (kubeutil *Kube) CreateRadixDNSAlias(ctx context.Context, radixDNSAlias *radixv1.RadixDNSAlias) error {
-	_, err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Create(ctx, radixDNSAlias, metav1.CreateOptions{})
-	return err
-}
 
 // GetRadixDNSAlias Gets RadixDNSAlias using lister if present
 func (kubeutil *Kube) GetRadixDNSAlias(ctx context.Context, name string) (*radixv1.RadixDNSAlias, error) {
@@ -75,24 +68,4 @@ func GetRadixDNSAliasMap(ctx context.Context, radixClient radixclient.Interface)
 		acc[dnsAlias.Name] = &dnsAlias
 		return acc
 	}), nil
-}
-
-// UpdateRadixDNSAlias Update RadixDNSAlias
-func (kubeutil *Kube) UpdateRadixDNSAlias(ctx context.Context, radixDNSAlias *radixv1.RadixDNSAlias) error {
-	_, err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Update(ctx, radixDNSAlias, metav1.UpdateOptions{})
-	return err
-}
-
-// DeleteRadixDNSAliases Delete RadixDNSAliases
-func (kubeutil *Kube) DeleteRadixDNSAliases(ctx context.Context, radixDNSAliases ...*radixv1.RadixDNSAlias) error {
-	var errs []error
-	for _, radixDNSAlias := range radixDNSAliases {
-		if radixDNSAlias.ObjectMeta.DeletionTimestamp != nil {
-			continue
-		}
-		if err := kubeutil.radixclient.RadixV1().RadixDNSAliases().Delete(ctx, radixDNSAlias.GetName(), metav1.DeleteOptions{}); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return errors.Join(errs...)
 }

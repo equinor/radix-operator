@@ -3,7 +3,6 @@ package dnsalias
 import (
 	"context"
 	"fmt"
-	"slices"
 	"sync"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -13,9 +12,13 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+)
+
+const (
+	finalizer = "radix.equinor.com/dnsalias-finalizer"
 )
 
 // Syncer of  RadixDNSAliases
@@ -63,8 +66,8 @@ func (s *syncer) OnSync(ctx context.Context) error {
 	s.initMutex.Lock()
 	defer s.initMutex.Unlock()
 
-	if s.radixDNSAlias.ObjectMeta.DeletionTimestamp != nil {
-		return s.handleFinalizer(ctx)
+	if err := s.removeFinalizer(ctx); err != nil {
+		return fmt.Errorf("failed to init: %w", err)
 	}
 
 	if err := s.init(ctx); err != nil {
@@ -105,36 +108,35 @@ func (s *syncer) syncAlias(ctx context.Context) error {
 	if err := s.syncIngresses(ctx); err != nil {
 		return err
 	}
-	return s.syncRbac(ctx)
+	// return s.syncRbac(ctx)
+	return nil
 }
 
-func (s *syncer) handleFinalizer(ctx context.Context) error {
-	finalizerIndex := slices.Index(s.radixDNSAlias.ObjectMeta.Finalizers, kube.RadixDNSAliasFinalizer)
-	if finalizerIndex < 0 {
+// removeFinalizer removes the finalizer that was unneccessarily set to delete ingresses and cluster roles + binding
+// ownerreference to the RadixDNSAlias will handle deletion automatically
+func (s *syncer) removeFinalizer(ctx context.Context) error {
+	log.Ctx(ctx).Info().Msg("Process finalizer")
+	if !controllerutil.ContainsFinalizer(s.radixDNSAlias, finalizer) {
 		return nil
 	}
 
-	log.Ctx(ctx).Info().Msg("Process finalizer")
-
-	if err := s.deleteIngresses(ctx); err != nil {
-		return err
-	}
-	if err := s.deleteRbac(ctx); err != nil {
-		return err
-	}
-
-	finalizers := append(s.radixDNSAlias.ObjectMeta.Finalizers[:finalizerIndex], s.radixDNSAlias.ObjectMeta.Finalizers[finalizerIndex+1:]...)
-	s.radixDNSAlias.ObjectMeta.Finalizers = finalizers
-	return s.kubeUtil.UpdateRadixDNSAlias(ctx, s.radixDNSAlias)
-}
-
-func (s *syncer) getExistingClusterRoleOwnerReferences(ctx context.Context, roleName string) ([]metav1.OwnerReference, error) {
-	clusterRole, err := s.kubeUtil.GetClusterRole(ctx, roleName)
+	controllerutil.RemoveFinalizer(s.radixDNSAlias, finalizer)
+	updated, err := s.radixClient.RadixV1().RadixDNSAliases().Update(ctx, s.radixDNSAlias, metav1.UpdateOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
+		return err
 	}
-	return clusterRole.GetOwnerReferences(), nil
+
+	s.radixDNSAlias = updated
+	return nil
 }
+
+// func (s *syncer) getExistingClusterRoleOwnerReferences(ctx context.Context, roleName string) ([]metav1.OwnerReference, error) {
+// 	clusterRole, err := s.kubeUtil.GetClusterRole(ctx, roleName)
+// 	if err != nil {
+// 		if errors.IsNotFound(err) {
+// 			return nil, nil
+// 		}
+// 		return nil, err
+// 	}
+// 	return clusterRole.GetOwnerReferences(), nil
+// }

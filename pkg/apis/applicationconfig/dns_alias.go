@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
@@ -26,7 +27,7 @@ func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
 	var errs []error
 	// first - delete
 	for _, dnsAlias := range aliasesToDelete {
-		if err := app.kubeutil.DeleteRadixDNSAliases(ctx, dnsAlias); err != nil {
+		if err := app.radixclient.RadixV1().RadixDNSAliases().Delete(ctx, dnsAlias.Name, metav1.DeleteOptions{}); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -36,16 +37,17 @@ func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
 		if cmp.Equal(existingDnsAlias, dnsAlias, cmpopts.EquateEmpty()) {
 			continue
 		}
-		if err := app.kubeutil.UpdateRadixDNSAlias(ctx, dnsAlias); err != nil {
+		if _, err := app.radixclient.RadixV1().RadixDNSAliases().Update(ctx, dnsAlias, metav1.UpdateOptions{}); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	// then - create
 	for _, dnsAlias := range aliasesToCreate {
-		if err := app.kubeutil.CreateRadixDNSAlias(ctx, dnsAlias); err != nil {
+		if _, err := app.radixclient.RadixV1().RadixDNSAliases().Create(ctx, dnsAlias, metav1.CreateOptions{}); err != nil {
 			errs = append(errs, err)
 		}
 	}
+
 	return stderrors.Join(errs...)
 }
 
@@ -63,12 +65,23 @@ func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*ra
 			if existingAlias.Spec.Environment == dnsAlias.Environment {
 				updatingRadixDNSAlias := existingAlias.DeepCopy()
 				updatingRadixDNSAlias.Spec.Component = dnsAlias.Component
+
+				// We must reset existing OwnerReferences since it was previously and incorrectly set to RadixApplication as controller
+				updatingRadixDNSAlias.OwnerReferences = nil
+				if err := controllerutil.SetControllerReference(app.registration, updatingRadixDNSAlias, scheme); err != nil {
+					return nil, nil, nil, fmt.Errorf("failed to set ownerreference: %w", err)
+				}
+
 				aliasesToUpdate = append(aliasesToUpdate, updatingRadixDNSAlias)
 				processedAliases[dnsAlias.Alias] = true
 				continue
 			}
 		}
-		aliasesToCreate = append(aliasesToCreate, app.buildRadixDNSAlias(appName, dnsAlias)) // new alias or an alias with changed environment or component
+		rda, err := app.buildRadixDNSAlias(appName, dnsAlias)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		aliasesToCreate = append(aliasesToCreate, rda) // new alias or an alias with changed environment or component
 	}
 	if len(errs) > 0 {
 		return nil, nil, nil, stderrors.Join(errs...)
@@ -81,13 +94,11 @@ func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*ra
 	return aliasesToCreate, aliasesToUpdate, aliasesToDelete, nil
 }
 
-func (app *ApplicationConfig) buildRadixDNSAlias(appName string, dnsAlias radixv1.DNSAlias) *radixv1.RadixDNSAlias {
-	return &radixv1.RadixDNSAlias{
+func (app *ApplicationConfig) buildRadixDNSAlias(appName string, dnsAlias radixv1.DNSAlias) (*radixv1.RadixDNSAlias, error) {
+	rda := &radixv1.RadixDNSAlias{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            dnsAlias.Alias,
-			Labels:          labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(dnsAlias.Component), labels.ForEnvironmentName(dnsAlias.Environment)),
-			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfRadixRegistration(app.registration)},
-			Finalizers:      []string{kube.RadixDNSAliasFinalizer},
+			Name:   dnsAlias.Alias,
+			Labels: labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(dnsAlias.Component), labels.ForEnvironmentName(dnsAlias.Environment)),
 		},
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
@@ -95,4 +106,10 @@ func (app *ApplicationConfig) buildRadixDNSAlias(appName string, dnsAlias radixv
 			Component:   dnsAlias.Component,
 		},
 	}
+
+	if err := controllerutil.SetControllerReference(app.registration, rda, scheme); err != nil {
+		return nil, fmt.Errorf("failed to set ownerreference: %w", err)
+	}
+
+	return rda, nil
 }

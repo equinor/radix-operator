@@ -254,26 +254,29 @@ func Test_DNSAliases_CreateUpdateDelete(t *testing.T) {
 			require.NoError(t, err)
 
 			if ts.expectedRadixDNSAliases == nil {
-				require.Len(t, radixDNSAliases.Items, 0, "not expected RadixDNSAliases")
+				require.Len(t, radixDNSAliases.Items, 0)
 				return
 			}
 
-			require.Len(t, radixDNSAliases.Items, len(ts.expectedRadixDNSAliases), "not matching expected RadixDNSAliases count")
+			require.Len(t, radixDNSAliases.Items, len(ts.expectedRadixDNSAliases))
 			if len(radixDNSAliases.Items) == len(ts.expectedRadixDNSAliases) {
 				for _, radixDNSAlias := range radixDNSAliases.Items {
 					if expectedDNSAlias, ok := ts.expectedRadixDNSAliases[radixDNSAlias.Name]; ok {
-						assert.Equal(t, expectedDNSAlias.AppName, radixDNSAlias.Spec.AppName, "app name")
-						assert.Equal(t, expectedDNSAlias.Environment, radixDNSAlias.Spec.Environment, "environment")
-						assert.Equal(t, expectedDNSAlias.Component, radixDNSAlias.Spec.Component, "component")
+						assert.Equal(t, expectedDNSAlias.AppName, radixDNSAlias.Spec.AppName)
+						assert.Equal(t, expectedDNSAlias.Environment, radixDNSAlias.Spec.Environment)
+						assert.Equal(t, expectedDNSAlias.Component, radixDNSAlias.Spec.Component)
 						if _, itWasExistingAlias := ts.existingRadixDNSAliases[radixDNSAlias.Name]; !itWasExistingAlias {
 							ownerReferences := radixDNSAlias.GetOwnerReferences()
 							require.Len(t, ownerReferences, 1)
 							ownerReference := ownerReferences[0]
-							assert.Equal(t, radixDNSAlias.Spec.AppName, ownerReference.Name, "invalid or empty ownerReference.Name")
-							assert.Equal(t, radixv1.KindRadixApplication, ownerReference.Kind, "invalid or empty ownerReference.Kind")
-							assert.NotEmpty(t, ownerReference.UID, "ownerReference.UID is empty")
-							require.NotNil(t, ownerReference.Controller, "ownerReference.Controller is nil")
-							assert.True(t, *ownerReference.Controller, "ownerReference.Controller is false")
+							assert.Equal(t, radixDNSAlias.Spec.AppName, ownerReference.Name)
+							assert.Equal(t, "radix.equinor.com/v1", ownerReference.APIVersion)
+							assert.Equal(t, "RadixRegistration", ownerReference.Kind)
+							assert.NotEmpty(t, ownerReference.UID)
+							require.NotNil(t, ownerReference.Controller)
+							assert.True(t, *ownerReference.Controller)
+							require.NotNil(t, ownerReference.BlockOwnerDeletion)
+							assert.True(t, *ownerReference.BlockOwnerDeletion)
 						}
 						continue
 					}

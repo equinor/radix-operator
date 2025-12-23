@@ -122,11 +122,15 @@ func (env *Environment) handleDeletedRadixEnvironmentDependencies(ctx context.Co
 	if err != nil {
 		return err
 	}
+
 	env.logger.Debug().Msgf("delete %d RadixDNSAlias(es)", len(radixDNSAliasList.Items))
-	dnsAliases := slice.Reduce(radixDNSAliasList.Items, []*v1.RadixDNSAlias{}, func(acc []*v1.RadixDNSAlias, radixDNSAlias v1.RadixDNSAlias) []*v1.RadixDNSAlias {
-		return append(acc, &radixDNSAlias)
-	})
-	return env.kubeutil.DeleteRadixDNSAliases(ctx, dnsAliases...)
+
+	for _, dnsAlias := range radixDNSAliasList.Items {
+		if err := env.radixclient.RadixV1().RadixDNSAliases().Delete(ctx, dnsAlias.Name, metav1.DeleteOptions{}); err != nil {
+			return fmt.Errorf("failed to delete RadixDNSAlias %s: %w", dnsAlias.Name, err)
+		}
+	}
+	return nil
 }
 
 // applyNamespace sets up namespace metadata and applies configuration to kubernetes
