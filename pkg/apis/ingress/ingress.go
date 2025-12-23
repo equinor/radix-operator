@@ -1,13 +1,22 @@
 package ingress
 
 import (
+	"strings"
+
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	ingressClass string = "nginx"
 )
 
 // IngressConfiguration Holds all ingress annotation configurations
@@ -21,10 +30,41 @@ type AnnotationConfiguration struct {
 	Annotations map[string]string
 }
 
-// GetIngressSpec Get Ingress spec
-func GetIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32) networkingv1.IngressSpec {
+// BuildIngressSpecForComponent Builds ingress spec for a component
+func BuildIngressSpecForComponent(component radixv1.RadixCommonDeployComponent, hostname, tlsSecretName string) networkingv1.IngressSpec {
+	var servicePort int32
+	if component.GetPublicPort() == "" {
+		// For backwards compatibility
+		servicePort = component.GetPorts()[0].Port
+	} else {
+		if port, ok := slice.FindFirst(component.GetPorts(), func(cp radixv1.ComponentPort) bool {
+			return strings.EqualFold(cp.Name, component.GetPublicPort())
+		}); ok {
+			servicePort = port.Port
+		}
+	}
+
+	return buildIngressSpec(hostname, component.GetName(), tlsSecretName, servicePort, "/")
+}
+
+// BuildIngressSpecForOAuth2Component Builds ingress spec for a component's oauth2 service
+func BuildIngressSpecForOAuth2Component(component radixv1.RadixCommonDeployComponent, hostname, tlsSecretName string, proxyMode bool) networkingv1.IngressSpec {
+	serviceName := utils.GetAuxOAuthProxyComponentServiceName(component.GetName())
+	path := oauthutil.SanitizePathPrefix(component.GetAuthentication().GetOAuth2().ProxyPrefix)
+	if proxyMode {
+		path = "/"
+	}
+
+	return buildIngressSpec(hostname, serviceName, tlsSecretName, defaults.OAuthProxyPortNumber, path)
+}
+
+func buildIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32, path string) networkingv1.IngressSpec {
 	pathType := networkingv1.PathTypeImplementationSpecific
-	ingressClass := "nginx"
+	ingressClass := ingressClass
+
+	if tlsSecretName == "" {
+		tlsSecretName = defaults.TLSSecretName
+	}
 
 	return networkingv1.IngressSpec{
 		IngressClassName: &ingressClass,
@@ -43,7 +83,7 @@ func GetIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int
 					HTTP: &networkingv1.HTTPIngressRuleValue{
 						Paths: []networkingv1.HTTPIngressPath{
 							{
-								Path:     "/",
+								Path:     path,
 								PathType: &pathType,
 								Backend: networkingv1.IngressBackend{
 									Service: &networkingv1.IngressServiceBackend{
@@ -62,31 +102,11 @@ func GetIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int
 	}
 }
 
-// ParseClientCertificateConfiguration Parses ClientCertificate configuration
-func ParseClientCertificateConfiguration(clientCertificate radixv1.ClientCertificate) (certificate radixv1.ClientCertificate) {
-	verification := radixv1.VerificationTypeOff
-	certificate = radixv1.ClientCertificate{
-		Verification:              &verification,
-		PassCertificateToUpstream: pointers.Ptr(false),
-	}
-
-	if passUpstream := clientCertificate.PassCertificateToUpstream; passUpstream != nil {
-		certificate.PassCertificateToUpstream = passUpstream
-	}
-
-	if verification := clientCertificate.Verification; verification != nil {
-		certificate.Verification = verification
-	}
-
-	return
-}
-
-// GetIngressConfig Gets Ingress configuration
-func GetIngressConfig(namespace string, appName string, component radixv1.RadixCommonDeployComponent, ingressName string, ingressSpec networkingv1.IngressSpec, ingressProviders []AnnotationProvider, ownerReference []metav1.OwnerReference) (*networkingv1.Ingress, error) {
-
+// BuildIngress Builds ingress for a component
+func BuildIngress(appName string, component radixv1.RadixCommonDeployComponent, ingressName string, ingressSpec networkingv1.IngressSpec, annotationProviders []AnnotationProvider, ownerReference []metav1.OwnerReference) (*networkingv1.Ingress, error) {
 	annotations := map[string]string{}
-	for _, ingressProvider := range ingressProviders {
-		providedAnnotations, err := ingressProvider.GetAnnotations(component, namespace)
+	for _, ingressProvider := range annotationProviders {
+		providedAnnotations, err := ingressProvider.GetAnnotations(component)
 		if err != nil {
 			return nil, err
 		}
@@ -108,13 +128,32 @@ func GetIngressConfig(namespace string, appName string, component radixv1.RadixC
 	return ing, nil
 }
 
+// ParseClientCertificateConfiguration Parses ClientCertificate configuration
+func ParseClientCertificateConfiguration(clientCertificate radixv1.ClientCertificate) (certificate radixv1.ClientCertificate) {
+	verification := radixv1.VerificationTypeOff
+	certificate = radixv1.ClientCertificate{
+		Verification:              &verification,
+		PassCertificateToUpstream: pointers.Ptr(false),
+	}
+
+	if passUpstream := clientCertificate.PassCertificateToUpstream; passUpstream != nil {
+		certificate.PassCertificateToUpstream = passUpstream
+	}
+
+	if verification := clientCertificate.Verification; verification != nil {
+		certificate.Verification = verification
+	}
+
+	return
+}
+
 // GetAnnotationProvider Gets annotation provider
-func GetAnnotationProvider(ingressConfiguration IngressConfiguration, certificateNamespace string, oauth2DefaultConfig defaults.OAuth2Config) []AnnotationProvider {
+func GetAnnotationProvider(ingressConfiguration IngressConfiguration, namespace string, oauth2DefaultConfig defaults.OAuth2Config) []AnnotationProvider {
 	return []AnnotationProvider{
 		NewForceSslRedirectAnnotationProvider(),
 		NewIngressConfigurationAnnotationProvider(ingressConfiguration),
-		NewClientCertificateAnnotationProvider(certificateNamespace),
-		NewOAuth2AnnotationProvider(oauth2DefaultConfig),
+		NewClientCertificateAnnotationProvider(namespace),
+		NewOAuth2AnnotationProvider(oauth2DefaultConfig, namespace),
 		NewIngressPublicAllowListAnnotationProvider(),
 		NewIngressPublicConfigAnnotationProvider(),
 		NewRedirectErrorPageAnnotationProvider(),

@@ -800,7 +800,7 @@ func TestObjectSynced_MultiComponent_AllClusters_ContainsAllIngresses(t *testing
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 7, len(ingresses.Items), "All ingresses for the two public components should appear")
+	require.Equal(t, 7, len(ingresses.Items), "All ingresses for the two public components should appear")
 	require.Truef(t, ingressByNameExists("app", ingresses), "All ingresses for public component should exist")
 	require.Truef(t, ingressByNameExists("radixquote", ingresses), "All ingresses for public component should exist")
 
@@ -4147,9 +4147,9 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"foo": "x"}, nil)
+	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(3).Return(map[string]string{"foo": "x"}, nil)
 	annotations2 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
+	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1, annotations2}, nil, &config.Config{})
 	err = syncer.OnSync(context.Background())
@@ -4175,7 +4175,7 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], "app-dev").Times(1).Return(nil, errors.New("any error"))
+	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(nil, errors.New("any error"))
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1}, nil, &config.Config{})
 	err = syncer.OnSync(context.Background())

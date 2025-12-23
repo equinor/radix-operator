@@ -453,16 +453,8 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to garbage collect service account: %w", err)
 	}
 
-	if component.IsPublic() {
-		err = deploy.createOrUpdateIngress(ctx, component)
-		if err != nil {
-			return fmt.Errorf("failed to create ingress: %w", err)
-		}
-	} else {
-		err = deploy.garbageCollectIngressNoLongerInSpecForComponent(ctx, component)
-		if err != nil {
-			return fmt.Errorf("failed to delete ingress: %w", err)
-		}
+	if err := deploy.reconcileIngresses(ctx, component); err != nil {
+		return err
 	}
 
 	if component.GetMonitoring() {
