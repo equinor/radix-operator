@@ -870,9 +870,9 @@ func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixC
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
 	// envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL", Value: "true"})	// TODO: Defaults to false.. Do we need to set this to true?
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", defaults.OAuthProxyPortNumber)})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_UPSTREAMS", Value: fmt.Sprintf("%s://%s:%v", "http", component.GetName(), defaults.OAuthProxyPortNumber)})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PASS_USER_HEADERS", Value: "false"}) // TODO: Should this be configurable in radix config, and then use "addEnvVarIfSet()"?
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", component.GetPorts()[0].Port)})                     //defaults.OAuthProxyPortNumber)})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_UPSTREAMS", Value: fmt.Sprintf("%s://%s:%v", "http", component.GetName(), component.GetPorts()[0].Port)}) //defaults.OAuthProxyPortNumber)})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PASS_USER_HEADERS", Value: "false"})                                                                      // TODO: Should this be configurable in radix config, and then use "addEnvVarIfSet()"?
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_REDIRECT_URL", Value: "/oauth2/callback"})
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyCookieSecretEnvironmentVariable, secretName, defaults.OAuthCookieSecretKeyName))
