@@ -66,15 +66,28 @@ func forAzureWorkloadIdentityClientId(clientId string) map[string]string {
 }
 
 // OAuth2ProxyModeEnabledForEnvironment checks if the preview OAuth2 proxy mode is enabled for a given environment
-func OAuth2ProxyModeEnabledForEnvironment(annotations map[string]string, currentEnv string) bool {
-	if annotations == nil {
-		return false
-	}
-	targetEnvs, exists := annotations[PreviewOAuth2ProxyModeAnnotation]
-	if !exists {
+func OAuth2ProxyModeEnabledForEnvironment(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration) bool {
+	if rd == nil {
 		return false
 	}
 
+	currentEnv := rd.Spec.Environment
+	if rr != nil && rr.Annotations != nil {
+		if targetEnvs, exists := rr.Annotations[PreviewOAuth2ProxyModeAnnotation]; exists {
+			return checkEnvironmentExists(targetEnvs, currentEnv)
+		}
+	}
+
+	if rd.Annotations != nil {
+		if targetEnvs, exists := rd.Annotations[PreviewOAuth2ProxyModeAnnotation]; exists {
+			return checkEnvironmentExists(targetEnvs, currentEnv)
+		}
+	}
+
+	return false
+}
+
+func checkEnvironmentExists(targetEnvs string, currentEnv string) bool {
 	if targetEnvs == "*" {
 		return true
 	}
@@ -84,5 +97,6 @@ func OAuth2ProxyModeEnabledForEnvironment(annotations map[string]string, current
 			return true
 		}
 	}
+
 	return false
 }
