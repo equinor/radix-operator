@@ -426,7 +426,8 @@ func (o *oauthProxyResourceManager) garbageCollectIngressesNoLongerInSpec(ctx co
 }
 
 func (o *oauthProxyResourceManager) isProxyModeEnabled() bool {
-	return annotations.OAuth2ProxyModeEnabledForEnvironment(o.rd, o.rr)
+	return annotations.OAuth2ProxyModeEnabledForEnvironment(o.rd.Annotations, o.rd.Spec.Environment) ||
+		annotations.OAuth2ProxyModeEnabledForEnvironment(o.rr.Annotations, o.rd.Spec.Environment)
 }
 
 func (o *oauthProxyResourceManager) garbageCollectIngressesForComponent(ctx context.Context, component *radixv1.RadixDeployComponent, hosts []dnsInfo) error {

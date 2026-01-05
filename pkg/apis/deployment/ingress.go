@@ -99,7 +99,8 @@ func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeplo
 }
 
 func (deploy *Deployment) isOAuth2ProxyModeEnabled() bool {
-	return annotations.OAuth2ProxyModeEnabledForEnvironment(deploy.radixDeployment, deploy.registration)
+	return annotations.OAuth2ProxyModeEnabledForEnvironment(deploy.radixDeployment.Annotations, deploy.radixDeployment.Spec.Environment) ||
+		annotations.OAuth2ProxyModeEnabledForEnvironment(deploy.registration.Annotations, deploy.radixDeployment.Spec.Environment)
 }
 
 func (deploy *Deployment) reconcileIngresses(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {

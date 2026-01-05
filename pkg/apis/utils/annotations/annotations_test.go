@@ -4,9 +4,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_Merge(t *testing.T) {
@@ -49,154 +47,10 @@ func Test_ForClusterAutoscalerSafeToEvict(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func Test_OAuth2ProxyMode_IsEnabled_WhenDeploymentAnnotation_IsDevQa_AndCurrentEnv_IsDev(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: "dev"},
-	}
-
-	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(&rd, nil))
-}
-
-func Test_OAuth2ProxyMode_IsEnabled_WhenDeploymentAnnotation_IsDevQa_AndCurrentEnv_IsQa(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: "qa"},
-	}
-
-	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(&rd, nil))
-}
-
-func Test_OAuth2ProxyMode_IsNotEnabled_WhenDeploymentAnnotation_IsDevQa_AndCurrentEnv_IsProd(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: "prod"},
-	}
-
-	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(&rd, nil))
-}
-
-func Test_OAuth2ProxyMode_IsEnabled_WhenRegistrationAnnotation_IsDevQa_AndCurrentEnv_IsQa(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		Spec: radixv1.RadixDeploymentSpec{Environment: "qa"},
-	}
-	rr := radixv1.RadixRegistration{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}},
-	}
-
-	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(&rd, &rr))
-}
-
-func Test_OAuth2ProxyMode_IsNotEnabled_WhenRegistrationAnnotation_IsDevQa_AndCurrentEnv_IsProd(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		Spec: radixv1.RadixDeploymentSpec{Environment: "prod"},
-	}
-	rr := radixv1.RadixRegistration{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}},
-	}
-
-	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(&rd, &rr))
-}
-
-func Test_OAuth2ProxyMode_IsEnabled_WhenDeploymentAnnotation_IsWildcard_AndCurrentEnv_IsDevQa(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "*"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: "dev,qa"},
-	}
-
-	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(&rd, nil))
-}
-
-func Test_OAuth2ProxyMode_IsEnabled_WhenDeploymentAnnotation_IsWildcard_AndCurrentEnv_IsEmpty(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "*"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: ""},
-	}
-
-	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(&rd, nil))
-}
-
-func Test_OAuth2ProxyMode_IsEnabled_WhenDeploymentAnnotation_IsDevQa_AndRegistrationAnnotation_IsWildcard_AndCurrentEnv_IsProd(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: "prod"},
-	}
-
-	rr := radixv1.RadixRegistration{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "*"}},
-	}
-
-	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(&rd, &rr))
-}
-
-func Test_OAuth2ProxyMode_IsNotEnabled_WhenDeploymentAnnotation_IsWildcard_AndRegistrationAnnotation_IsDevQa_AndCurrentEnv_IsProd(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "*"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: "prod"},
-	}
-
-	rr := radixv1.RadixRegistration{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}},
-	}
-
-	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(&rd, &rr))
-}
-
-func Test_OAuth2ProxyMode_IsNotEnabled_WhenDeploymentAnnotation_IsDevQa_AndRegistrationAnnotation_IsDev_AndCurrentEnv_IsQa(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: "qa"},
-	}
-
-	rr := radixv1.RadixRegistration{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev"}},
-	}
-
-	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(&rd, &rr))
-}
-
-func Test_OAuth2ProxyMode_IsEnabled_WhenDeploymentAnnotation_IsDevQa_AndRegistrationAnnotation_IsProd_AndCurrentEnv_IsProd(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: "prod"},
-	}
-
-	rr := radixv1.RadixRegistration{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa,prod"}},
-	}
-
-	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(&rd, &rr))
-}
-
-func Test_OAuth2ProxyMode_IsNotEnabled_WhenDeploymentAnnotation_IsWrong(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{"some-other-annotation": "dev,qa"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: "dev"},
-	}
-
-	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(&rd, nil))
-}
-
-func Test_OAuth2ProxyMode_IsNotEnabled_WhenRegistrationAnnotation_IsWrong(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		Spec: radixv1.RadixDeploymentSpec{Environment: "dev"},
-	}
-	rr := radixv1.RadixRegistration{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{"some-other-annotation": "dev,qa,prod"}},
-	}
-
-	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(&rd, &rr))
-}
-
-func Test_OAuth2ProxyMode_IsNotEnabled_WhenDeployment_IsNil(t *testing.T) {
-	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(nil, nil))
-}
-
-func Test_OAuth2ProxyMode_IsNotEnabled_WhenCasingMismatch(t *testing.T) {
-	rd := radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}},
-		Spec:       radixv1.RadixDeploymentSpec{Environment: "Qa"},
-	}
-
-	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(&rd, nil))
+func Test_OAuth2ProxyModeEnabledForEnvironment(t *testing.T) {
+	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}, "dev"))
+	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}, "qa"))
+	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}, "Qa"))
+	assert.True(t, OAuth2ProxyModeEnabledForEnvironment(map[string]string{PreviewOAuth2ProxyModeAnnotation: "*"}, "qa"))
+	assert.False(t, OAuth2ProxyModeEnabledForEnvironment(map[string]string{"some-other-annotation": "dev,qa"}, "qa"))
 }
