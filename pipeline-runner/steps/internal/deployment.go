@@ -12,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -86,7 +87,7 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 	if len(radixApplication.Spec.PrivateImageHubs) > 0 {
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})
 	}
-	annotations := map[string]string{
+	deploymentAnnotations := map[string]string{
 		kube.RadixBranchAnnotation:     pipelineInfo.PipelineArguments.Branch, //nolint:staticcheck
 		kube.RadixGitRefAnnotation:     pipelineInfo.PipelineArguments.GitRef,
 		kube.RadixGitRefTypeAnnotation: pipelineInfo.PipelineArguments.GitRefType,
@@ -99,6 +100,11 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 		kube.RadixRefreshBuildCache:    strconv.FormatBool(pipelineInfo.IsRefreshingBuildCache()),
 	}
 
+	// NB! To be removed: https://github.com/equinor/radix-platform/issues/1822
+	if previewAnnotation := radixApplication.GetObjectMeta().GetAnnotations()[annotations.PreviewOAuth2ProxyModeAnnotation]; previewAnnotation != "" {
+		deploymentAnnotations[annotations.PreviewOAuth2ProxyModeAnnotation] = previewAnnotation
+	}
+
 	radixDeployment := &radixv1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deployName,
@@ -109,7 +115,7 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 				kube.RadixCommitLabel:  commitID,
 				kube.RadixJobNameLabel: jobName,
 			},
-			Annotations: annotations,
+			Annotations: deploymentAnnotations,
 		},
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName:          appName,
