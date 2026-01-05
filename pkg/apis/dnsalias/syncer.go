@@ -67,7 +67,7 @@ func (s *syncer) OnSync(ctx context.Context) error {
 	defer s.initMutex.Unlock()
 
 	if err := s.removeFinalizer(ctx); err != nil {
-		return fmt.Errorf("failed to init: %w", err)
+		return fmt.Errorf("failed to remove finalizer: %w", err)
 	}
 
 	if err := s.init(ctx); err != nil {

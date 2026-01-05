@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -20,6 +18,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+)
+
+const (
+	finalizer = "radix.equinor.com/environment-finalizer"
 )
 
 // Environment is the aggregate-root for manipulating RadixEnvironments
@@ -60,8 +63,8 @@ func NewEnvironment(
 // reconciled with current state.
 func (env *Environment) OnSync(ctx context.Context) error {
 
-	if env.config.ObjectMeta.DeletionTimestamp != nil {
-		return env.handleDeletedRadixEnvironment(ctx)
+	if err := env.removeFinalizer(ctx); err != nil {
+		return fmt.Errorf("failed to remove finalizer: %w", err)
 	}
 
 	if env.regConfig == nil {
@@ -91,45 +94,21 @@ func (env *Environment) reconcile(ctx context.Context) error {
 	return nil
 }
 
-func (env *Environment) handleDeletedRadixEnvironment(ctx context.Context) error {
-	re := env.config
-	env.logger.Debug().Msgf("Handle deleted RadixEnvironment %s in the application %s", re.Name, re.Spec.AppName)
-	finalizerIndex := slice.FindIndex(re.ObjectMeta.Finalizers, func(val string) bool {
-		return val == kube.RadixEnvironmentFinalizer
-	})
-	if finalizerIndex < 0 {
-		env.logger.Info().Msgf("Missing finalizer %s in the Radix environment %s in the application %s. Exist finalizers: %d. Skip dependency handling",
-			kube.RadixEnvironmentFinalizer, re.Name, re.Spec.AppName, len(re.ObjectMeta.Finalizers))
+// removeFinalizer removes the finalizer that was unneccessarily set to delete ingresses and cluster roles + binding
+// ownerreference to the RadixDNSAlias will handle deletion automatically
+func (env *Environment) removeFinalizer(ctx context.Context) error {
+	log.Ctx(ctx).Info().Msg("Process finalizer")
+	if !controllerutil.ContainsFinalizer(env.config, finalizer) {
 		return nil
 	}
-	if err := env.handleDeletedRadixEnvironmentDependencies(ctx); err != nil {
-		return err
-	}
-	updatingRE := re.DeepCopy()
-	updatingRE.ObjectMeta.Finalizers = append(re.ObjectMeta.Finalizers[:finalizerIndex], re.ObjectMeta.Finalizers[finalizerIndex+1:]...)
-	env.logger.Debug().Msgf("Removed finalizer %s from the Radix environment %s in the application %s. Left finalizers: %d",
-		kube.RadixEnvironmentFinalizer, updatingRE.Name, updatingRE.Spec.AppName, len(updatingRE.ObjectMeta.Finalizers))
-	updated, err := env.kubeutil.UpdateRadixEnvironment(ctx, updatingRE)
-	if err != nil {
-		return err
-	}
-	env.logger.Debug().Msgf("Updated RadixEnvironment %s revision %s", re.Name, updated.GetResourceVersion())
-	return nil
-}
 
-func (env *Environment) handleDeletedRadixEnvironmentDependencies(ctx context.Context) error {
-	radixDNSAliasList, err := env.kubeutil.GetRadixDNSAliasWithSelector(ctx, radixlabels.Merge(radixlabels.ForApplicationName(env.config.Spec.AppName), radixlabels.ForEnvironmentName(env.config.Spec.EnvName)).String())
+	controllerutil.RemoveFinalizer(env.config, finalizer)
+	updated, err := env.radixclient.RadixV1().RadixEnvironments().Update(ctx, env.config, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
 
-	env.logger.Debug().Msgf("delete %d RadixDNSAlias(es)", len(radixDNSAliasList.Items))
-
-	for _, dnsAlias := range radixDNSAliasList.Items {
-		if err := env.radixclient.RadixV1().RadixDNSAliases().Delete(ctx, dnsAlias.Name, metav1.DeleteOptions{}); err != nil {
-			return fmt.Errorf("failed to delete RadixDNSAlias %s: %w", dnsAlias.Name, err)
-		}
-	}
+	env.config = updated
 	return nil
 }
 
