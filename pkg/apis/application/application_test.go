@@ -103,11 +103,8 @@ func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testin
 	assert.NoError(t, err)
 
 	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
-	for _, clusterRoleBindingName := range []string{
-		"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-platform-user-rr-reader-any-app",
-	} {
-		assert.True(t, clusterRoleBindingByNameExists(clusterRoleBindingName, clusterRoleBindings), fmt.Sprintf("ClusterRoleBinding %s does not exist", clusterRoleBindingName))
-	}
+	actualClusterRoleBindingNames := slice.Map(clusterRoleBindings.Items, func(cr rbacv1.ClusterRoleBinding) string { return cr.Name })
+	assert.ElementsMatch(t, []string{"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-platform-user-rr-reader-any-app"}, actualClusterRoleBindingNames)
 
 	assert.Equal(t, getClusterRoleBindingByName("radix-pipeline-rr-any-app", clusterRoleBindings).Subjects[0].Name, defaults.PipelineServiceAccountName)
 	assert.Equal(t, getClusterRoleBindingByName("radix-platform-user-rr-any-app", clusterRoleBindings).Subjects[0].Name, rr.Spec.AdGroups[0])
@@ -115,11 +112,8 @@ func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testin
 	assert.Equal(t, getClusterRoleBindingByName("radix-platform-user-rr-reader-any-app", clusterRoleBindings).Subjects[0].Name, rr.Spec.ReaderAdGroups[0])
 
 	clusterRoles, _ := client.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
-	for _, clusterRoleName := range []string{
-		"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-platform-user-rr-reader-any-app",
-	} {
-		assert.True(t, clusterRoleByNameExists(clusterRoleName, clusterRoles), fmt.Sprintf("ClusterRole %s does not exist", clusterRoleName))
-	}
+	actualClusterRoleNames := slice.Map(clusterRoles.Items, func(cr rbacv1.ClusterRole) string { return cr.Name })
+	assert.ElementsMatch(t, []string{"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-platform-user-rr-reader-any-app"}, actualClusterRoleNames)
 }
 
 func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
@@ -346,10 +340,6 @@ func getRoleBindingNames(roleBindings *rbacv1.RoleBindingList) []string {
 	return slice.Map(roleBindings.Items, func(r rbacv1.RoleBinding) string { return r.Name })
 }
 
-// func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
-// 	return getRoleBindingByName(name, roleBindings) != nil
-// }
-
 func getClusterRoleBindingByName(name string, clusterRoleBindings *rbacv1.ClusterRoleBindingList) *rbacv1.ClusterRoleBinding {
 	for _, clusterRoleBinding := range clusterRoleBindings.Items {
 		if clusterRoleBinding.Name == name {
@@ -358,24 +348,6 @@ func getClusterRoleBindingByName(name string, clusterRoleBindings *rbacv1.Cluste
 	}
 
 	return nil
-}
-
-func getClusterRoleByName(name string, clusterRoles *rbacv1.ClusterRoleList) *rbacv1.ClusterRole {
-	for _, clusterRole := range clusterRoles.Items {
-		if clusterRole.Name == name {
-			return &clusterRole
-		}
-	}
-
-	return nil
-}
-
-func clusterRoleBindingByNameExists(name string, clusterRoleBindings *rbacv1.ClusterRoleBindingList) bool {
-	return getClusterRoleBindingByName(name, clusterRoleBindings) != nil
-}
-
-func clusterRoleByNameExists(name string, clusterRoles *rbacv1.ClusterRoleList) bool {
-	return getClusterRoleByName(name, clusterRoles) != nil
 }
 
 func getServiceAccountByName(name string, serviceAccounts *corev1.ServiceAccountList) *corev1.ServiceAccount {
