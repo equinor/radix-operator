@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.24.4-alpine3.21 AS builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.25.5-alpine3.23 AS builder
 # allow go build tool to parse .git repo and read build info
 RUN apk add git
 
