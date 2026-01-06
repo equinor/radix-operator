@@ -27,8 +27,8 @@ spec:
   system: Radix
   dependsOn:
     - component:radix-image-builder
-  ---
-  apiVersion: backstage.io/v1alpha1
+---
+apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: radix-job-scheduler
