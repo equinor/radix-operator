@@ -241,13 +241,13 @@ HAS_SWAGGER        := $(shell command -v swagger;)
 .PHONY: bootstrap
 bootstrap: vendor
 ifndef HAS_GOLANGCI_LINT
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.64.3
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7.2
 endif
 ifndef HAS_MOCKGEN
 	go install github.com/golang/mock/mockgen@v1.6.0
 endif
 ifndef HAS_CONTROLLER_GEN
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.2
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.0
 endif
 ifndef HAS_YQ
 	go install github.com/mikefarah/yq/v4@latest
@@ -256,5 +256,5 @@ ifndef HAS_KUBECTL
 	go install k8s.io/kubernetes/cmd/kubectl@latest
 endif
 ifndef HAS_SWAGGER
-	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.33.1
 endif
