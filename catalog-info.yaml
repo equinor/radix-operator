@@ -17,7 +17,7 @@ kind: Component
 metadata:
   name: radix-pipeline-runner
   title: Radix Pipeline Runner
-  description: " Provides the CI/CD pipelines for Radix applications"
+  description: "Provides the CI/CD pipelines for Radix applications"
   annotations:
     github.com/project-slug: equinor/radix-operator
 spec:
