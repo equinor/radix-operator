@@ -1,0 +1,10 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: radix-operator
+  annotations:
+    github.com/project-slug: equinor/radix-operator
+spec:
+  type: other
+  lifecycle: unknown
+  owner: omnia-radix
