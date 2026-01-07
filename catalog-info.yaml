@@ -1,0 +1,43 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: radix-operator
+  title: Radix Operator
+  description: The core component of Radix
+  annotations:
+    github.com/project-slug: equinor/radix-operator
+spec:
+  type: service
+  lifecycle: production
+  owner: omnia-radix
+  system: Radix
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: radix-pipeline-runner
+  title: Radix Pipeline Runner
+  description: "Provides the CI/CD pipelines for Radix applications"
+  annotations:
+    github.com/project-slug: equinor/radix-operator
+spec:
+  type: service
+  lifecycle: production
+  owner: omnia-radix
+  system: Radix
+  dependsOn:
+    - component:radix-image-builder
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: radix-job-scheduler
+  title: Radix Job Scheduler
+  description: "The job scheduler server for application jobs"
+  annotations:
+    github.com/project-slug: equinor/radix-operator
+spec:
+  type: service
+  lifecycle: production
+  owner: omnia-radix
+  system: Radix
