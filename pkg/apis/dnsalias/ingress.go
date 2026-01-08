@@ -19,19 +19,19 @@ import (
 func (s *syncer) syncIngresses(ctx context.Context) error {
 
 	if err := s.garbageCollectOAuthIngress(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to garbage collect OAuth2 ingress: %w", err)
 	}
 
 	if err := s.garbageCollectComponentIngress(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to garbage collect ingress: %w", err)
 	}
 
 	if err := s.createOrUpdateComponentIngress(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to sync ingress: %w", err)
 	}
 
 	if err := s.createOrUpdateOAuthIngress(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to sync OAuth2 ingress: %w", err)
 	}
 
 	return nil
@@ -60,7 +60,7 @@ func (s *syncer) createOrUpdateComponentIngress(ctx context.Context) error {
 
 	annotations, err := ingress.BuildAnnotationsFromProviders(s.component, s.componentIngressAnnotations)
 	if err != nil {
-		return fmt.Errorf("failed to build annotations for component ingress: %w", err)
+		return fmt.Errorf("failed to build annotations: %w", err)
 	}
 
 	ing := &networkingv1.Ingress{
@@ -73,11 +73,11 @@ func (s *syncer) createOrUpdateComponentIngress(ctx context.Context) error {
 	}
 
 	if err := controllerutil.SetControllerReference(s.radixDNSAlias, ing, scheme); err != nil {
-		return fmt.Errorf("failed to set ownerreference for component ingress: %w", err)
+		return fmt.Errorf("failed to set ownerreference: %w", err)
 	}
 
 	if err := s.kubeUtil.ApplyIngress(ctx, s.rd.Namespace, ing); err != nil {
-		return fmt.Errorf("failed to apply component ingress: %w", err)
+		return fmt.Errorf("failed to create or update ingress: %w", err)
 	}
 
 	return nil
@@ -106,7 +106,7 @@ func (s *syncer) createOrUpdateOAuthIngress(ctx context.Context) error {
 	}
 	annotations, err := ingress.BuildAnnotationsFromProviders(s.component, annotationProviders)
 	if err != nil {
-		return fmt.Errorf("failed to build annotations for oauth ingress: %w", err)
+		return fmt.Errorf("failed to build annotations: %w", err)
 	}
 
 	ing := &networkingv1.Ingress{
@@ -119,11 +119,11 @@ func (s *syncer) createOrUpdateOAuthIngress(ctx context.Context) error {
 	}
 
 	if err := controllerutil.SetControllerReference(s.radixDNSAlias, ing, scheme); err != nil {
-		return fmt.Errorf("failed to set ownerreference for oauth ingress: %w", err)
+		return fmt.Errorf("failed to set ownerreference: %w", err)
 	}
 
 	if err := s.kubeUtil.ApplyIngress(ctx, s.rd.Namespace, ing); err != nil {
-		return fmt.Errorf("failed to apply oauth ingress: %w", err)
+		return fmt.Errorf("failed to create or update ingress: %w", err)
 	}
 
 	return nil
@@ -138,7 +138,7 @@ func (s *syncer) garbageCollectOAuthIngress(ctx context.Context) error {
 		if kubeerrors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("failed to get oauth ingress for garbage collect: %w", err)
+		return fmt.Errorf("failed to get ingress: %w", err)
 	}
 
 	mustDelete := func() bool {
@@ -163,7 +163,7 @@ func (s *syncer) garbageCollectOAuthIngress(ctx context.Context) error {
 	}
 
 	if err := s.kubeClient.NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
-		return fmt.Errorf("failed to delete oauth ingress: %w", err)
+		return fmt.Errorf("failed to delete ingress: %w", err)
 	}
 
 	return nil
@@ -176,7 +176,7 @@ func (s *syncer) garbageCollectComponentIngress(ctx context.Context) error {
 		if kubeerrors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("failed to get ingress for garbage collect: %w", err)
+		return fmt.Errorf("failed to get ingress: %w", err)
 	}
 
 	mustDelete := func() bool {

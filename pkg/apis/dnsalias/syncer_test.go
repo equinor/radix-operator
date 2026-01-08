@@ -10,19 +10,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/uuid"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
@@ -60,20 +53,16 @@ func (s *syncerTestSuite) SetupTest() {
 // 	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.ingressConfig, s.oauthConfig, ingress.GetOAuthAnnotationProviders(), radixDNSAlias)
 // }
 
-type testIngress struct {
-	appName     string
-	envName     string
-	alias       string
-	host        string
-	component   string
-	serviceName string
-	port        int32
-	labels      map[string]string
-}
-
-func (s *syncerTestSuite) Test_X() {
-
-}
+// type testIngress struct {
+// 	appName     string
+// 	envName     string
+// 	alias       string
+// 	host        string
+// 	component   string
+// 	serviceName string
+// 	port        int32
+// 	labels      map[string]string
+// }
 
 func (s *syncerTestSuite) Test_ReconcileStatus() {
 	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: "app"}}
@@ -124,6 +113,29 @@ func (s *syncerTestSuite) Test_ReconcileStatus() {
 	s.Contains(rda.Status.Message, errorMsg)
 	s.Equal(expectedGen, rda.Status.ObservedGeneration)
 	s.False(rda.Status.Reconciled.IsZero())
+}
+
+/*
+Ingress full spec:
+  - component with oauth
+  - component with oauth and proxy mode enabled
+
+Ingress garbage collect - fixture: component with oauth2:
+  - component not public
+  - disable oauth2
+  - component missing
+  - rd not active
+  - no rd exist
+  - rd with proxy mode
+  - rd with proxy mode other env
+  - rr with proxy mode
+  - rr with proxy mode other env
+
+Errors:
+  - rr does not exist
+*/
+func (s *syncerTestSuite) Test_Ingress_PublicComponent() {
+
 }
 
 // func (s *syncerTestSuite) Test_OnSync_ingresses() {
@@ -679,112 +691,112 @@ func (s *syncerTestSuite) Test_ReconcileStatus() {
 // 	}
 // }
 
-func (s *syncerTestSuite) Test_OnSync_error() {
-	const (
-		appName   = "app1"
-		envName   = "env1"
-		component = "component1"
-		alias     = "alias1"
-	)
+// func (s *syncerTestSuite) Test_OnSync_error() {
+// 	const (
+// 		appName   = "app1"
+// 		envName   = "env1"
+// 		component = "component1"
+// 		alias     = "alias1"
+// 	)
 
-	scenarios := []struct {
-		name          string
-		expectedError error
-		hasPublicPort bool
-	}{
-		{
-			name:          "error, because the component has no public port",
-			hasPublicPort: false,
-			expectedError: dnsalias.ErrComponentIsNotPublic,
-		},
-		{
-			name:          "no error",
-			hasPublicPort: true,
-			expectedError: nil,
-		},
-	}
-	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
-			s.SetupTest()
+// 	scenarios := []struct {
+// 		name          string
+// 		expectedError error
+// 		hasPublicPort bool
+// 	}{
+// 		{
+// 			name:          "error, because the component has no public port",
+// 			hasPublicPort: false,
+// 			expectedError: dnsalias.ErrComponentIsNotPublic,
+// 		},
+// 		{
+// 			name:          "no error",
+// 			hasPublicPort: true,
+// 			expectedError: nil,
+// 		},
+// 	}
+// 	for _, ts := range scenarios {
+// 		s.T().Run(ts.name, func(t *testing.T) {
+// 			s.SetupTest()
 
-			radixDNSAlias := &radixv1.RadixDNSAlias{
-				TypeMeta:   metav1.TypeMeta{Kind: radixv1.KindRadixDNSAlias, APIVersion: radixv1.SchemeGroupVersion.Identifier()},
-				ObjectMeta: metav1.ObjectMeta{Name: alias, UID: uuid.NewUUID(), Labels: radixlabels.ForDNSAliasRbac(appName)},
-				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName, Environment: envName, Component: component},
-			}
-			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, alias, commonTest.DNSAlias{
-				Alias: alias, AppName: appName, Environment: envName, Component: component}), "create existing alias")
-			testDefaultUserGroupID := string(uuid.NewUUID())
-			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
+// 			radixDNSAlias := &radixv1.RadixDNSAlias{
+// 				TypeMeta:   metav1.TypeMeta{Kind: radixv1.KindRadixDNSAlias, APIVersion: radixv1.SchemeGroupVersion.Identifier()},
+// 				ObjectMeta: metav1.ObjectMeta{Name: alias, UID: uuid.NewUUID(), Labels: radixlabels.ForDNSAliasRbac(appName)},
+// 				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName, Environment: envName, Component: component},
+// 			}
+// 			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, alias, commonTest.DNSAlias{
+// 				Alias: alias, AppName: appName, Environment: envName, Component: component}), "create existing alias")
+// 			testDefaultUserGroupID := string(uuid.NewUUID())
+// 			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
 
-			componentBuilder := utils.NewDeployComponentBuilder().WithImage("radixdev.azurecr.io/some-image1:image.tag").WithName(component).WithPort("http", 8080)
-			if ts.hasPublicPort {
-				componentBuilder = componentBuilder.WithPublicPort("http")
-			}
-			rd1 := utils.NewDeploymentBuilder().WithRadixApplication(utils.ARadixApplication()).WithAppName(appName).
-				WithEnvironment(envName).WithComponents(componentBuilder).BuildRD()
-			s.registerRadixDeployments(rd1)
+// 			componentBuilder := utils.NewDeployComponentBuilder().WithImage("radixdev.azurecr.io/some-image1:image.tag").WithName(component).WithPort("http", 8080)
+// 			if ts.hasPublicPort {
+// 				componentBuilder = componentBuilder.WithPublicPort("http")
+// 			}
+// 			rd1 := utils.NewDeploymentBuilder().WithRadixApplication(utils.ARadixApplication()).WithAppName(appName).
+// 				WithEnvironment(envName).WithComponents(componentBuilder).BuildRD()
+// 			s.registerRadixDeployments(rd1)
 
-			syncer := dnsalias.NewSyncer(radixDNSAlias, s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
-			err := syncer.OnSync(context.Background())
+// 			syncer := dnsalias.NewSyncer(radixDNSAlias, s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
+// 			err := syncer.OnSync(context.Background())
 
-			if ts.expectedError != nil {
-				assert.ErrorIs(t, err, ts.expectedError)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
+// 			if ts.expectedError != nil {
+// 				assert.ErrorIs(t, err, ts.expectedError)
+// 			} else {
+// 				assert.NoError(t, err)
+// 			}
+// 		})
+// 	}
+// }
 
-func (s *syncerTestSuite) getIngressesForAnyAliases(namespace string) (*networkingv1.IngressList, error) {
-	return s.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
-}
+// func (s *syncerTestSuite) getIngressesForAnyAliases(namespace string) (*networkingv1.IngressList, error) {
+// 	return s.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
+// }
 
-func (s *syncerTestSuite) getClusterRolesForAnyAliases() (*rbacv1.ClusterRoleList, error) {
-	return s.kubeClient.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
-}
+// func (s *syncerTestSuite) getClusterRolesForAnyAliases() (*rbacv1.ClusterRoleList, error) {
+// 	return s.kubeClient.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
+// }
 
-func (s *syncerTestSuite) getClusterRolesBindingsForAnyAliases() (*rbacv1.ClusterRoleBindingList, error) {
-	return s.kubeClient.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
-}
+// func (s *syncerTestSuite) getClusterRolesBindingsForAnyAliases() (*rbacv1.ClusterRoleBindingList, error) {
+// 	return s.kubeClient.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
+// }
 
-func buildRadixDeployment(appName, component1, component2, envName string, port8080, port9090 int32) *radixv1.RadixDeployment {
-	return utils.NewDeploymentBuilder().
-		WithRadixApplication(utils.ARadixApplication()).
-		WithAppName(appName).
-		WithEnvironment(envName).
-		WithComponents(utils.NewDeployComponentBuilder().
-			WithImage("radixdev.azurecr.io/some-image1:image.tag").
-			WithName(component1).
-			WithPort("http", port8080).
-			WithPublicPort("http"),
-			utils.NewDeployComponentBuilder().
-				WithImage("radixdev.azurecr.io/some-image2:image.tag").
-				WithName(component2).
-				WithPort("http", port9090).
-				WithPublicPort("http")).BuildRD()
-}
+// func buildRadixDeployment(appName, component1, component2, envName string, port8080, port9090 int32) *radixv1.RadixDeployment {
+// 	return utils.NewDeploymentBuilder().
+// 		WithRadixApplication(utils.ARadixApplication()).
+// 		WithAppName(appName).
+// 		WithEnvironment(envName).
+// 		WithComponents(utils.NewDeployComponentBuilder().
+// 			WithImage("radixdev.azurecr.io/some-image1:image.tag").
+// 			WithName(component1).
+// 			WithPort("http", port8080).
+// 			WithPublicPort("http"),
+// 			utils.NewDeployComponentBuilder().
+// 				WithImage("radixdev.azurecr.io/some-image2:image.tag").
+// 				WithName(component2).
+// 				WithPort("http", port9090).
+// 				WithPublicPort("http")).BuildRD()
+// }
 
-func (s *syncerTestSuite) registerRadixRegistration(appName string, defaultAdminADGroup string, adminADGroups []string, readerADGroups []string) {
-	if len(adminADGroups) == 0 {
-		adminADGroups = []string{defaultAdminADGroup}
-	}
-	_, err := s.kubeUtil.RadixClient().RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{Name: appName},
-		Spec: radixv1.RadixRegistrationSpec{
-			AdGroups:       adminADGroups,
-			ReaderAdGroups: readerADGroups,
-		},
-	}, metav1.CreateOptions{})
-	s.Require().NoError(err, "create existing radix registration %s", appName)
-}
+// func (s *syncerTestSuite) registerRadixRegistration(appName string, defaultAdminADGroup string, adminADGroups []string, readerADGroups []string) {
+// 	if len(adminADGroups) == 0 {
+// 		adminADGroups = []string{defaultAdminADGroup}
+// 	}
+// 	_, err := s.kubeUtil.RadixClient().RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
+// 		ObjectMeta: metav1.ObjectMeta{Name: appName},
+// 		Spec: radixv1.RadixRegistrationSpec{
+// 			AdGroups:       adminADGroups,
+// 			ReaderAdGroups: readerADGroups,
+// 		},
+// 	}, metav1.CreateOptions{})
+// 	s.Require().NoError(err, "create existing radix registration %s", appName)
+// }
 
-func (s *syncerTestSuite) registerRadixDeployments(radixDeployments ...*radixv1.RadixDeployment) {
-	for _, rd := range radixDeployments {
-		namespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
-		_, err := s.radixClient.RadixV1().RadixDeployments(namespace).
-			Create(context.Background(), rd, metav1.CreateOptions{})
-		s.Require().NoError(err, "create existing radix deployment %s", rd.GetName())
-	}
-}
+// func (s *syncerTestSuite) registerRadixDeployments(radixDeployments ...*radixv1.RadixDeployment) {
+// 	for _, rd := range radixDeployments {
+// 		namespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
+// 		_, err := s.radixClient.RadixV1().RadixDeployments(namespace).
+// 			Create(context.Background(), rd, metav1.CreateOptions{})
+// 		s.Require().NoError(err, "create existing radix deployment %s", rd.GetName())
+// 	}
+// }

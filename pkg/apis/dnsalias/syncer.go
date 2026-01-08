@@ -74,7 +74,7 @@ func (s *syncer) OnSync(ctx context.Context) error {
 		return fmt.Errorf("failed to init: %w", err)
 	}
 
-	return s.syncStatus(ctx, s.syncAlias(ctx))
+	return s.syncStatus(ctx, s.syncIngresses(ctx))
 
 }
 
@@ -104,14 +104,6 @@ func (s *syncer) init(ctx context.Context) error {
 	return nil
 }
 
-func (s *syncer) syncAlias(ctx context.Context) error {
-	if err := s.syncIngresses(ctx); err != nil {
-		return err
-	}
-	// return s.syncRbac(ctx)
-	return nil
-}
-
 // removeFinalizer removes the finalizer that was unneccessarily set to delete ingresses and cluster roles + binding
 // ownerreference to the RadixDNSAlias will handle deletion automatically
 func (s *syncer) removeFinalizer(ctx context.Context) error {
@@ -123,7 +115,7 @@ func (s *syncer) removeFinalizer(ctx context.Context) error {
 	controllerutil.RemoveFinalizer(s.radixDNSAlias, finalizer)
 	updated, err := s.radixClient.RadixV1().RadixDNSAliases().Update(ctx, s.radixDNSAlias, metav1.UpdateOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update RadixDNSAlias: %w", err)
 	}
 
 	s.radixDNSAlias = updated
