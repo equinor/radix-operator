@@ -7,7 +7,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -22,10 +21,8 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
@@ -789,36 +786,5 @@ func (s *syncerTestSuite) registerRadixDeployments(radixDeployments ...*radixv1.
 		_, err := s.radixClient.RadixV1().RadixDeployments(namespace).
 			Create(context.Background(), rd, metav1.CreateOptions{})
 		s.Require().NoError(err, "create existing radix deployment %s", rd.GetName())
-	}
-}
-
-func (s *syncerTestSuite) registerClusterRoleBindings(radixDNSAlias *radixv1.RadixDNSAlias, roleBindings []string) {
-	for _, name := range roleBindings {
-		err := s.kubeUtil.ApplyClusterRoleBinding(context.Background(), internal.BuildClusterRoleBinding(name, nil, radixDNSAlias))
-		s.Require().NoError(err, "create existing cluster role binding %s", name)
-	}
-}
-
-func (s *syncerTestSuite) registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress) {
-	for ingName, ingProps := range testIngresses {
-		ing := &networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   ingName,
-				Labels: ingProps.labels,
-			},
-			// Spec: ingress.BuildIngressSpecForComponent(ingProps.host, ingProps.serviceName, "", ingProps.port, "/"),
-			Spec: ingress.BuildIngressSpecForComponent(&radixv1.RadixDeployComponent{Name: ingProps.serviceName, Ports: []radixv1.ComponentPort{{Name: "http", Port: ingProps.port}}, PublicPort: "http"}, ingProps.host, ""),
-		}
-		_, err := dnsalias.CreateRadixDNSAliasIngress(context.Background(), kubeClient, ingProps.appName, ingProps.envName, ing)
-		s.Require().NoError(err, "create existing ingress %s", ing.GetName())
-	}
-}
-
-func getLabelsForAuxComponentDNSAliasIngress(appName, componentName, alias string) map[string]string {
-	return kubelabels.Set{
-		kube.RadixAppLabel:                    appName,
-		kube.RadixAuxiliaryComponentLabel:     componentName,
-		kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType,
-		kube.RadixAliasLabel:                  alias,
 	}
 }

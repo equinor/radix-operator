@@ -369,3 +369,36 @@ func Test_DNSAliases_ValidDNSAliases(t *testing.T) {
 		})
 	}
 }
+
+func Test_DNSAlias_ClusterRolesAndBindingCreated(t *testing.T) {
+	const (
+		appName = "any-app"
+		rrUID   = "any-uid"
+	)
+	tu, kubeClient, kubeUtil, radixClient := setupTest(t)
+	rrBuilder := utils.NewRegistrationBuilder().
+		WithName(appName).
+		WithAdGroups([]string{"admingroup1", "admingroup2"}).
+		WithAdUsers([]string{"adminuser1", "adminuser2"}).
+		WithReaderAdGroups([]string{"readergroup1", "readergroup2"}).
+		WithReaderAdUsers([]string{"readeruser1", "readeruser2"}).
+		WithUID(rrUID)
+	raBuilder := utils.NewRadixApplicationBuilder().
+		WithRadixRegistration(rrBuilder).
+		WithAppName(appName).
+		WithDNSAlias(
+			radixv1.DNSAlias{Alias: "alias1", Environment: "any", Component: "any"},
+			radixv1.DNSAlias{Alias: "alias2", Environment: "any", Component: "any"},
+		)
+	ra, err := tu.ApplyApplication(raBuilder)
+	require.NoError(t, err)
+
+	sut := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rrBuilder.BuildRR(), ra)
+	require.NoError(t, sut.OnSync(context.Background()))
+
+	clusterRoles, _ := kubeClient.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
+	assert.NotEmpty(t, clusterRoles.Items)
+
+	clusterRoleBindings, _ := kubeClient.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
+	assert.NotEmpty(t, clusterRoleBindings.Items)
+}

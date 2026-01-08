@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
-	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -95,7 +94,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 
 	envNamespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(gomock.Any(), envNamespace, aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	ing, err = dnsaliasapi.CreateRadixDNSAliasIngress(context.Background(), s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ing)
+	s.KubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)).Create(context.Background(), ing, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called when adding ingress")
 

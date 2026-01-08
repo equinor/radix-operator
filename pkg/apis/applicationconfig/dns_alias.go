@@ -24,11 +24,11 @@ func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	var errs []error
+
 	// first - delete
 	for _, dnsAlias := range aliasesToDelete {
 		if err := app.radixclient.RadixV1().RadixDNSAliases().Delete(ctx, dnsAlias.Name, metav1.DeleteOptions{}); err != nil {
-			errs = append(errs, err)
+			return fmt.Errorf("failed to delete RadixDNSAlias %s: %w", dnsAlias.Name, err)
 		}
 	}
 	// then - update
@@ -38,17 +38,27 @@ func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
 			continue
 		}
 		if _, err := app.radixclient.RadixV1().RadixDNSAliases().Update(ctx, dnsAlias, metav1.UpdateOptions{}); err != nil {
-			errs = append(errs, err)
+			return fmt.Errorf("failed to update RadixDNSAlias %s: %w", dnsAlias.Name, err)
 		}
 	}
 	// then - create
 	for _, dnsAlias := range aliasesToCreate {
 		if _, err := app.radixclient.RadixV1().RadixDNSAliases().Create(ctx, dnsAlias, metav1.CreateOptions{}); err != nil {
-			errs = append(errs, err)
+			return fmt.Errorf("failed to create RadixDNSAlias %s: %w", dnsAlias.Name, err)
 		}
 	}
 
-	return stderrors.Join(errs...)
+	if len(app.config.Spec.DNSAlias) == 0 {
+		if err := app.garbageCollectAccessToDNSAliases(ctx); err != nil {
+			return err
+		}
+	} else {
+		if err := app.grantAccessToDNSAliases(ctx); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*radixv1.RadixDNSAlias) ([]*radixv1.RadixDNSAlias, []*radixv1.RadixDNSAlias, []*radixv1.RadixDNSAlias, error) {
