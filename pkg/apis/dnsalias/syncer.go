@@ -129,14 +129,3 @@ func (s *syncer) removeFinalizer(ctx context.Context) error {
 	s.radixDNSAlias = updated
 	return nil
 }
-
-// func (s *syncer) getExistingClusterRoleOwnerReferences(ctx context.Context, roleName string) ([]metav1.OwnerReference, error) {
-// 	clusterRole, err := s.kubeUtil.GetClusterRole(ctx, roleName)
-// 	if err != nil {
-// 		if errors.IsNotFound(err) {
-// 			return nil, nil
-// 		}
-// 		return nil, err
-// 	}
-// 	return clusterRole.GetOwnerReferences(), nil
-// }
