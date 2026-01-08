@@ -2,11 +2,12 @@ package dnsalias
 
 import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 )
 
 var scheme = runtime.NewScheme()
 
 func init() {
-	radixv1.AddToScheme(scheme)
+	utilruntime.Must(radixv1.AddToScheme(scheme))
 }

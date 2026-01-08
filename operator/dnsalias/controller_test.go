@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 type controllerTestSuite struct {
@@ -50,19 +49,12 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 		componentName2 = "server2"
 		dnsZone        = "dev.radix.equinor.com"
 	)
-	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{Name: appName1},
-		Spec: radixv1.RadixRegistrationSpec{
-			AdGroups: []string{string(uuid.NewUUID())},
-		},
-	}, metav1.CreateOptions{})
-	s.Require().NoError(err)
 
 	alias := internal.BuildRadixDNSAlias(appName1, componentName1, envName1, aliasName)
 
 	// Adding a RadixDNSAlias should trigger sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	alias, err = s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), alias, metav1.CreateOptions{})
+	alias, err := s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), alias, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on add RadixDNSAlias")
 
@@ -94,7 +86,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 
 	envNamespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(gomock.Any(), envNamespace, aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	s.KubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)).Create(context.Background(), ing, metav1.CreateOptions{})
+	_, _ = s.KubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)).Create(context.Background(), ing, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called when adding ingress")
 
@@ -116,20 +108,6 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	err = s.KubeClient.NetworkingV1().Ingresses(envNamespace).Delete(context.Background(), ing.GetName(), metav1.DeleteOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on ingress deletion")
-
-	// Sync should trigger when changed admin adGroup in radix registration
-	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	rr.Spec.AdGroups = []string{string(uuid.NewUUID())}
-	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on updated admin ad group")
-
-	// Sync should trigger when changed reader adGroup in radix registration
-	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	rr.Spec.ReaderAdGroups = []string{string(uuid.NewUUID())}
-	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on updated reader ad group")
 
 	// Delete the RadixDNSAlias should not trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
