@@ -147,6 +147,7 @@ func (app *ApplicationConfig) createOrUpdateDNSAliasClusterRole(ctx context.Cont
 				return nil, fmt.Errorf("failed to update cluster role: %w", err)
 			}
 		}
+
 		return desired, nil
 	}
 
@@ -160,45 +161,47 @@ func (app *ApplicationConfig) createOrUpdateDNSAliasClusterRole(ctx context.Cont
 }
 
 func (app *ApplicationConfig) createOrUpdateClusterRoleBinding(ctx context.Context, clusterRole *rbacv1.ClusterRole, subjects []rbacv1.Subject) error {
-	var currentBinding, desiredBinding *rbacv1.ClusterRoleBinding
-	currentBinding, err := app.kubeclient.RbacV1().ClusterRoleBindings().Get(ctx, clusterRole.Name, v1.GetOptions{})
+	var current, desired *rbacv1.ClusterRoleBinding
+	current, err := app.kubeclient.RbacV1().ClusterRoleBindings().Get(ctx, clusterRole.Name, v1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return fmt.Errorf("failed to get current cluster role binding: %w", err)
 		}
-		currentBinding = nil
-		desiredBinding = &rbacv1.ClusterRoleBinding{
+		current = nil
+		desired = &rbacv1.ClusterRoleBinding{
 			ObjectMeta: v1.ObjectMeta{
 				Name: clusterRole.Name,
 			},
 		}
 	} else {
-		desiredBinding = currentBinding.DeepCopy()
+		desired = current.DeepCopy()
 	}
 
-	desiredBinding.OwnerReferences = []v1.OwnerReference{}
-	if err := controllerutil.SetControllerReference(app.registration, desiredBinding, scheme); err != nil {
+	desired.OwnerReferences = []v1.OwnerReference{}
+	if err := controllerutil.SetControllerReference(app.registration, desired, scheme); err != nil {
 		return fmt.Errorf("failed to set ownerreference for DNSAlias admin cluster role: %w", err)
 	}
-	delete(desiredBinding.Labels, kube.RadixAliasLabel) // Delete unneeded label
-	desiredBinding.Labels = labels.Merge(desiredBinding.Labels, labels.ForApplicationName(app.registration.Name))
-	desiredBinding.Subjects = subjects
-	desiredBinding.RoleRef = rbacv1.RoleRef{
+	delete(desired.Labels, kube.RadixAliasLabel) // Delete unneeded label
+	desired.Labels = labels.Merge(desired.Labels, labels.ForApplicationName(app.registration.Name))
+	desired.Subjects = subjects
+	desired.RoleRef = rbacv1.RoleRef{
 		APIGroup: rbacv1.GroupName,
 		Kind:     "ClusterRole",
 		Name:     clusterRole.Name,
 	}
 
-	if currentBinding != nil {
-		if !equality.Semantic.DeepEqual(currentBinding, desiredBinding) {
-			if _, err := app.kubeclient.RbacV1().ClusterRoleBindings().Update(ctx, desiredBinding, v1.UpdateOptions{}); err != nil {
+	if current != nil {
+		if !equality.Semantic.DeepEqual(current, desired) {
+			if _, err := app.kubeclient.RbacV1().ClusterRoleBindings().Update(ctx, desired, v1.UpdateOptions{}); err != nil {
 				return fmt.Errorf("failed to update cluster role binding: %w", err)
 			}
 		}
-	} else {
-		if _, err := app.kubeclient.RbacV1().ClusterRoleBindings().Create(ctx, desiredBinding, v1.CreateOptions{}); err != nil {
-			return fmt.Errorf("failed to create cluster role binding: %w", err)
-		}
+
+		return nil
+	}
+
+	if _, err := app.kubeclient.RbacV1().ClusterRoleBindings().Create(ctx, desired, v1.CreateOptions{}); err != nil {
+		return fmt.Errorf("failed to create cluster role binding: %w", err)
 	}
 
 	return nil
