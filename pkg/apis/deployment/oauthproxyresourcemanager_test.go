@@ -38,17 +38,16 @@ import (
 
 type OAuthProxyResourceManagerTestSuite struct {
 	suite.Suite
-	kubeClient                kubernetes.Interface
-	radixClient               radixclient.Interface
-	kedaClient                kedav2.Interface
-	secretProviderClient      secretProviderClient.Interface
-	kubeUtil                  *kube.Kube
-	ctrl                      *gomock.Controller
-	ingressAnnotationProvider *ingress.MockAnnotationProvider
-	oauth2Config              *defaults.MockOAuth2Config
-	clusterName               string
-	dnsZone                   string
-	appAliasDnsZone           string
+	kubeClient           kubernetes.Interface
+	radixClient          radixclient.Interface
+	kedaClient           kedav2.Interface
+	secretProviderClient secretProviderClient.Interface
+	kubeUtil             *kube.Kube
+	ctrl                 *gomock.Controller
+	oauth2Config         *defaults.MockOAuth2Config
+	clusterName          string
+	dnsZone              string
+	appAliasDnsZone      string
 }
 
 func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
@@ -85,7 +84,6 @@ func (s *OAuthProxyResourceManagerTestSuite) setupTest() {
 	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.ctrl = gomock.NewController(s.T())
-	s.ingressAnnotationProvider = ingress.NewMockAnnotationProvider(s.ctrl)
 	s.oauth2Config = defaults.NewMockOAuth2Config(s.ctrl)
 	s.clusterName = "any-cluster"
 	handlerTestUtils := test.NewTestUtils(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)

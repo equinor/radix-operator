@@ -102,7 +102,7 @@ func (s *syncer) createOrUpdateOAuthIngress(ctx context.Context) error {
 
 	annotationProviders := s.oauthIngressAnnotations
 	if s.isProxyModeEnabled() {
-		annotationProviders = s.oauthProxyModeIngressAnnotation
+		annotationProviders = s.oauthProxyModeIngressAnnotations
 	}
 	annotations, err := ingress.BuildAnnotationsFromProviders(s.component, annotationProviders)
 	if err != nil {

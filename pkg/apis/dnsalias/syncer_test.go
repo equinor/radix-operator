@@ -3,34 +3,41 @@ package dnsalias_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	commontest "github.com/equinor/radix-operator/pkg/apis/test"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
+	gomock "github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 type syncerTestSuite struct {
 	suite.Suite
-	kubeClient    *kubefake.Clientset
-	radixClient   *radixfake.Clientset
-	kedaClient    *kedafake.Clientset
-	kubeUtil      *kube.Kube
-	promClient    *prometheusfake.Clientset
-	dnsZone       string
-	oauthConfig   defaults.OAuth2Config
-	ingressConfig ingress.IngressConfiguration
+	kubeClient                      *kubefake.Clientset
+	radixClient                     *radixfake.Clientset
+	testUtils                       commontest.Utils
+	promClient                      *prometheusfake.Clientset
+	dnsZone                         string
+	ctrl                            *gomock.Controller
+	oauthConfig                     defaults.OAuth2Config
+	componentIngressAnnotation      *ingress.MockAnnotationProvider
+	oauthIngressAnnotation          *ingress.MockAnnotationProvider
+	oauthProxyModeIngressAnnotation *ingress.MockAnnotationProvider
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -41,17 +48,28 @@ func (s *syncerTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.promClient = prometheusfake.NewSimpleClientset()
-	s.kedaClient = kedafake.NewSimpleClientset()
+	s.testUtils = commontest.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)
 	s.dnsZone = "dev.radix.equinor.com"
-	s.oauthConfig = defaults.NewOAuth2Config()
-	s.ingressConfig = ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
-
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, secretproviderfake.NewSimpleClientset())
+	s.ctrl = gomock.NewController(s.T())
+	s.oauthConfig = defaults.NewMockOAuth2Config(s.ctrl)
+	s.componentIngressAnnotation = ingress.NewMockAnnotationProvider(s.ctrl)
+	s.oauthIngressAnnotation = ingress.NewMockAnnotationProvider(s.ctrl)
+	s.oauthProxyModeIngressAnnotation = ingress.NewMockAnnotationProvider(s.ctrl)
 }
 
-// func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
-// 	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.ingressConfig, s.oauthConfig, ingress.GetOAuthAnnotationProviders(), radixDNSAlias)
-// }
+func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
+	return dnsalias.NewSyncer(
+		radixDNSAlias,
+		s.kubeClient,
+		s.testUtils.GetKubeUtil(),
+		s.radixClient,
+		s.dnsZone,
+		s.oauthConfig,
+		[]ingress.AnnotationProvider{s.componentIngressAnnotation},
+		[]ingress.AnnotationProvider{s.oauthIngressAnnotation},
+		[]ingress.AnnotationProvider{s.oauthProxyModeIngressAnnotation},
+	)
+}
 
 // type testIngress struct {
 // 	appName     string
@@ -74,7 +92,7 @@ func (s *syncerTestSuite) Test_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
+	sut := dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -87,7 +105,7 @@ func (s *syncerTestSuite) Test_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
+	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -104,7 +122,7 @@ func (s *syncerTestSuite) Test_ReconcileStatus() {
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.kubeUtil, s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
+	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -134,8 +152,73 @@ Ingress garbage collect - fixture: component with oauth2:
 Errors:
   - rr does not exist
 */
-func (s *syncerTestSuite) Test_Ingress_PublicComponent() {
+func (s *syncerTestSuite) Test_Component_Ingress_Spec() {
+	const (
+		aliasName     = "any-alias"
+		appName       = "any-app"
+		envName       = "any-env"
+		componentName = "any-comp"
+	)
+	var (
+		envNamespace = utils.GetEnvironmentNamespace(appName, envName)
+	)
+	rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
+	_, err := s.testUtils.ApplyRegistration(rrBuilder)
+	s.Require().NoError(err)
 
+	rdBuilder := utils.NewDeploymentBuilder().
+		WithDeploymentName("any-rd").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName).
+				WithPort("metrics", 1000).
+				WithPort("http", 8000).
+				WithPublicPort("http"),
+		).
+		WithCondition(radixv1.DeploymentActive)
+	rd, err := s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
+	s.Require().NoError(err)
+
+	dnsAlias := &radixv1.RadixDNSAlias{
+		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Spec: radixv1.RadixDNSAliasSpec{
+			AppName:     appName,
+			Environment: envName,
+			Component:   componentName,
+		},
+	}
+	dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	sut := s.createSyncer(dnsAlias)
+	s.componentIngressAnnotation.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(nil, nil)
+
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	ingresses, err := s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
+	expectedIngressNames := []string{fmt.Sprintf("%s.custom-alias", aliasName)}
+	actualIngressNames := slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
+	s.Require().ElementsMatch(expectedIngressNames, actualIngressNames)
+
+	ing := ingresses.Items[0]
+
+	expectedLabels := map[string]string(labels.ForDNSAliasComponentIngress(dnsAlias))
+	s.Equal(expectedLabels, ing.Labels)
+
+	expectedOwnerReferences := []metav1.OwnerReference{{
+		APIVersion:         radixv1.SchemeGroupVersion.String(),
+		Kind:               "RadixDNSAlias",
+		Name:               aliasName,
+		Controller:         pointers.Ptr(true),
+		BlockOwnerDeletion: pointers.Ptr(true),
+	}}
+	s.ElementsMatch(expectedOwnerReferences, ing.OwnerReferences)
+
+	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.dnsZone)
+	expectedIngressSpec := ingress.BuildIngressSpecForComponent(&rd.Spec.Components[0], expectedHostName, "")
+	s.Equal(expectedIngressSpec, ing.Spec)
 }
 
 // func (s *syncerTestSuite) Test_OnSync_ingresses() {
