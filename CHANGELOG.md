@@ -2,7 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.107.0](https://github.com/equinor/radix-operator/compare/v1.106.0..v1.107.0) - 2025-12-17
+## [1.107.1](https://github.com/equinor/radix-operator/compare/v1.107.0..v1.107.1) - 2026-01-08
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump github.com/kedacore/keda/v2 to 2.18.3 and update Go base image to 1.25.5-alpine3.23 (#1573) - ([b91ac4c](https://github.com/equinor/radix-operator/commit/b91ac4c528f9d5998cfc8c34b901c31dd90424a5)) by @nilsgstrabo in [#1573](https://github.com/equinor/radix-operator/pull/1573)
+
+
+### 📚 Documentation
+
+- Add catalog-info.yaml config file (#1571) - ([4389fd4](https://github.com/equinor/radix-operator/commit/4389fd40ed634cc366a1e3d6d03c53b40a8928e8)) by @emirgens in [#1571](https://github.com/equinor/radix-operator/pull/1571)
+
+
+## [1.107.0](https://github.com/equinor/radix-operator/compare/v1.106.0..v1.107.0) - 2025-12-18
 
 ### 🚀 Features
 
