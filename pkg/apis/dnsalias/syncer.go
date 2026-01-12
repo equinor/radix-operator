@@ -79,6 +79,10 @@ func (s *syncer) OnSync(ctx context.Context) error {
 }
 
 func (s *syncer) init(ctx context.Context) error {
+	s.rr = nil
+	s.rd = nil
+	s.component = nil
+
 	rr, err := s.kubeUtil.GetRegistration(ctx, s.radixDNSAlias.Spec.AppName)
 	if err != nil {
 		return fmt.Errorf("failed to get RadixRegistration: %w", err)
@@ -94,11 +98,14 @@ func (s *syncer) init(ctx context.Context) error {
 
 	if s.rd != nil {
 		component := s.rd.GetComponentByName(s.radixDNSAlias.Spec.Component)
-		component, err := s.buildComponentWithOAuthDefaults(component)
-		if err != nil {
-			return err
+
+		if component != nil {
+			component, err := s.buildComponentWithOAuthDefaults(component)
+			if err != nil {
+				return err
+			}
+			s.component = component
 		}
-		s.component = component
 	}
 
 	return nil
