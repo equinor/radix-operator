@@ -584,7 +584,7 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_Ingresses() {
 				rdBuilder = test.rdBuilderFactory(rdBuilder)
 
 				if !commonutils.IsNil(rdBuilder) {
-					rd, err = s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
+					_, err = s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
 					s.Require().NoError(err)
 				}
 			}
@@ -593,7 +593,7 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_Ingresses() {
 				err = s.radixClient.RadixV1().RadixRegistrations().Delete(context.Background(), rr.Name, metav1.DeleteOptions{})
 				s.Require().NoError(err)
 				test.rrBuilderMutator(rrBuilder)
-				rr, err = s.testUtils.ApplyRegistration(rrBuilder)
+				_, err = s.testUtils.ApplyRegistration(rrBuilder)
 				s.Require().NoError(err)
 			}
 
