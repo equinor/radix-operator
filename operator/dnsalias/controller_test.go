@@ -11,6 +11,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -49,12 +50,15 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 		componentName2 = "server2"
 		dnsZone        = "dev.radix.equinor.com"
 	)
-
+	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
+		ObjectMeta: metav1.ObjectMeta{Name: appName1, Annotations: map[string]string{}},
+	}, metav1.CreateOptions{})
+	s.Require().NoError(err)
 	alias := internal.BuildRadixDNSAlias(appName1, componentName1, envName1, aliasName)
 
 	// Adding a RadixDNSAlias should trigger sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	alias, err := s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), alias, metav1.CreateOptions{})
+	alias, err = s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), alias, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on add RadixDNSAlias")
 
@@ -108,6 +112,13 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	err = s.KubeClient.NetworkingV1().Ingresses(envNamespace).Delete(context.Background(), ing.GetName(), metav1.DeleteOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on ingress deletion")
+
+	// Sync should trigger when annotation radix.equinor.com/preview-oauth2-proxy-mode changes on RR
+	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	rr.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] = "any"
+	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync should be called on updated radix.equinor.com/preview-oauth2-proxy-mode annotation")
 
 	// Delete the RadixDNSAlias should not trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
