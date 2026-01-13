@@ -71,32 +71,6 @@ func addEventHandlersForRadixRegistrations(ctx context.Context, radixInformerFac
 	}
 }
 
-func enqueueRadixDNSAliasesForAppName(ctx context.Context, controller *common.Controller, radixClient radixclient.Interface, appName string, logger *zerolog.Logger) {
-	logger.Debug().Msgf("Added or updated an RadixRegistration %s. Enqueue relevant RadixDNSAliases", appName)
-	radixDNSAliases, err := getRadixDNSAliasForApp(ctx, radixClient, appName)
-	if err != nil {
-		logger.Error().Err(err).Msgf("failed to get list of RadixDNSAliases for the application %s", appName)
-		return
-	}
-	for _, radixDNSAlias := range radixDNSAliases {
-		radixDNSAlias := radixDNSAlias
-		logger.Debug().Msgf("Enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
-		if err := controller.Enqueue(&radixDNSAlias); err != nil {
-			logger.Error().Err(err).Msgf("failed to enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
-		}
-	}
-}
-
-func getRadixDNSAliasForApp(ctx context.Context, radixClient radixclient.Interface, appName string) ([]radixv1.RadixDNSAlias, error) {
-	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(ctx, metav1.ListOptions{
-		LabelSelector: radixlabels.ForApplicationName(appName).String(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return radixDNSAliasList.Items, err
-}
-
 func addEventHandlersForIngresses(ctx context.Context, kubeInformerFactory kubeinformers.SharedInformerFactory, controller *common.Controller, logger *zerolog.Logger) {
 	ingressInformer := kubeInformerFactory.Networking().V1().Ingresses()
 	if _, err := ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -203,6 +177,31 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 			logger.Error().Err(err).Msgf("failed to enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
 		}
 	}
+}
+
+func enqueueRadixDNSAliasesForAppName(ctx context.Context, controller *common.Controller, radixClient radixclient.Interface, appName string, logger *zerolog.Logger) {
+	logger.Debug().Msgf("Added or updated an RadixRegistration %s. Enqueue relevant RadixDNSAliases", appName)
+	radixDNSAliases, err := getRadixDNSAliasForApp(ctx, radixClient, appName)
+	if err != nil {
+		logger.Error().Err(err).Msgf("failed to get list of RadixDNSAliases for the application %s", appName)
+		return
+	}
+	for _, radixDNSAlias := range radixDNSAliases {
+		logger.Debug().Msgf("Enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
+		if err := controller.Enqueue(&radixDNSAlias); err != nil {
+			logger.Error().Err(err).Msgf("failed to enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
+		}
+	}
+}
+
+func getRadixDNSAliasForApp(ctx context.Context, radixClient radixclient.Interface, appName string) ([]radixv1.RadixDNSAlias, error) {
+	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(ctx, metav1.ListOptions{
+		LabelSelector: radixlabels.ForApplicationName(appName).String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return radixDNSAliasList.Items, err
 }
 
 func getRadixDNSAliasForAppAndEnvironment(radixClient radixclient.Interface, appName, envName string) ([]radixv1.RadixDNSAlias, error) {

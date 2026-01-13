@@ -144,7 +144,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	// Sync should trigger when ReaderAdUsers changes on RR
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
 	rr.Spec.ReaderAdUsers = []string{"new-reader-user"}
-	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called")
 }
