@@ -101,10 +101,11 @@ func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder utils.RegistrationB
 // ApplyApplication Will help persist an application
 func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (*radixv1.RadixApplication, error) {
 	regBuilder := applicationBuilder.GetRegistrationBuilder()
+	var rr *radixv1.RadixRegistration
 	var err error
 
 	if !commonUtils.IsNil(regBuilder) {
-		if _, err = tu.ApplyRegistration(regBuilder); err != nil {
+		if rr, err = tu.ApplyRegistration(regBuilder); err != nil {
 			return nil, err
 		}
 	}
@@ -120,6 +121,17 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (
 		return ra, err
 	}
 	ra.ObjectMeta.UID = uuid.NewUUID() // imitate new UID, assigned by Kubernetes
+	// Note: rr may be nil if not found but that is fine
+	for _, env := range ra.Spec.Environments {
+		if _, err := tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
+			WithAppName(ra.GetName()).
+			WithAppLabel().
+			WithEnvironmentName(env.Name).
+			WithRegistrationOwner(rr).
+			WithOrphaned(false)); err != nil {
+			return nil, err
+		}
+	}
 
 	return ra, nil
 }
