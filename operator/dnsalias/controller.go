@@ -194,9 +194,10 @@ func enqueueRadixDNSAliasesForAppName(ctx context.Context, controller *common.Co
 	}
 }
 
-func getRadixDNSAliasForApp(ctx context.Context, radixClient radixclient.Interface, appName string) ([]radixv1.RadixDNSAlias, error) {
-	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(ctx, metav1.ListOptions{
-		LabelSelector: radixlabels.ForApplicationName(appName).String(),
+func getRadixDNSAliasForAppAndEnvironment(radixClient radixclient.Interface, appName, envName string) ([]radixv1.RadixDNSAlias, error) {
+	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(context.Background(), metav1.ListOptions{
+		LabelSelector: radixlabels.Merge(radixlabels.ForApplicationName(appName),
+			radixlabels.ForEnvironmentName(envName)).String(),
 	})
 	if err != nil {
 		return nil, err
@@ -204,10 +205,9 @@ func getRadixDNSAliasForApp(ctx context.Context, radixClient radixclient.Interfa
 	return radixDNSAliasList.Items, err
 }
 
-func getRadixDNSAliasForAppAndEnvironment(radixClient radixclient.Interface, appName, envName string) ([]radixv1.RadixDNSAlias, error) {
-	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(context.Background(), metav1.ListOptions{
-		LabelSelector: radixlabels.Merge(radixlabels.ForApplicationName(appName),
-			radixlabels.ForEnvironmentName(envName)).String(),
+func getRadixDNSAliasForApp(ctx context.Context, radixClient radixclient.Interface, appName string) ([]radixv1.RadixDNSAlias, error) {
+	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(ctx, metav1.ListOptions{
+		LabelSelector: radixlabels.ForApplicationName(appName).String(),
 	})
 	if err != nil {
 		return nil, err
