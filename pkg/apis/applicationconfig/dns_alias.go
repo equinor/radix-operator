@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/google/go-cmp/cmp"
@@ -16,7 +16,7 @@ import (
 )
 
 func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
-	existingAliases, err := kube.GetRadixDNSAliasMap(ctx, app.radixclient)
+	existingAliases, err := app.getExistingRadixDNSAliasMap(ctx)
 	if err != nil {
 		return err
 	}
@@ -59,6 +59,17 @@ func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (app *ApplicationConfig) getExistingRadixDNSAliasMap(ctx context.Context) (map[string]*radixv1.RadixDNSAlias, error) {
+	radixDNSAliases, err := app.radixclient.RadixV1().RadixDNSAliases().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list RadixDNSAliases: %w", err)
+	}
+	return slice.Reduce(radixDNSAliases.Items, make(map[string]*radixv1.RadixDNSAlias, len(radixDNSAliases.Items)), func(acc map[string]*radixv1.RadixDNSAlias, dnsAlias radixv1.RadixDNSAlias) map[string]*radixv1.RadixDNSAlias {
+		acc[dnsAlias.Name] = &dnsAlias
+		return acc
+	}), nil
 }
 
 func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*radixv1.RadixDNSAlias) ([]*radixv1.RadixDNSAlias, []*radixv1.RadixDNSAlias, []*radixv1.RadixDNSAlias, error) {
