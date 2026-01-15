@@ -8,8 +8,6 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -22,7 +20,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -382,11 +379,6 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisUninstall() {
 	s.NoError(err, "failed to list services after OAuth config change")
 	s.Len(actualServices.Items, 1)
 	s.Equal(utils.GetAuxOAuthRedisServiceName(component1Name), actualServices.Items[0].Name)
-}
-
-func (s *OAuthRedisResourceManagerTestSuite) Test_GetOwnerReferenceOfIngress() {
-	actualOwnerReferences := ingress.GetOwnerReferenceOfIngress(&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "anyingress", UID: "anyuid"}})
-	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: networkingv1.SchemeGroupVersion.Identifier(), Kind: k8s.KindIngress, Name: "anyingress", UID: "anyuid", Controller: pointers.Ptr(true)}}, actualOwnerReferences)
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) Test_GarbageCollect() {

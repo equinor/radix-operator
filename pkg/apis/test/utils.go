@@ -464,9 +464,8 @@ func RegisterRadixDNSAliasBySpec(ctx context.Context, radixClient radixclient.In
 	_, err := radixClient.RadixV1().RadixDNSAliases().Create(ctx,
 		&radixv1.RadixDNSAlias{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:       alias,
-				Labels:     labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
-				Finalizers: []string{kube.RadixDNSAliasFinalizer},
+				Name:   alias,
+				Labels: labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
 			},
 			Spec: radixv1.RadixDNSAliasSpec{
 				AppName:     aliasesSpec.AppName,

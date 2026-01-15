@@ -52,18 +52,6 @@ func GetRolebindingToRoleForServiceAccountWithLabels(roleName, serviceAccountNam
 	return getRoleBindingForSubjects(roleName, k8s.KindRole, subjects, labels)
 }
 
-// GetRolebindingToClusterRoleForServiceAccountWithLabels Get role binding object
-func GetRolebindingToClusterRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *rbacv1.RoleBinding {
-	subjects := []rbacv1.Subject{
-		{
-			Kind:      rbacv1.ServiceAccountKind,
-			Name:      serviceAccountName,
-			Namespace: serviceAccountNamespace,
-		}}
-
-	return getRoleBindingForSubjects(roleName, k8s.KindClusterRole, subjects, labels)
-}
-
 func getRoleBindingForSubjects(roleName, kind string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{

@@ -3,6 +3,7 @@ package annotations
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -12,6 +13,10 @@ import (
 const (
 	azureWorkloadIdentityClientIdAnnotation = "azure.workload.identity/client-id"
 	clusterAutoscaleSafeToEvictAnnotation   = "cluster-autoscaler.kubernetes.io/safe-to-evict"
+
+	// PreviewOAuth2ProxyModeAnnotation is used to indicate if the preview OAuth2 proxy mode is enabled.
+	// Comma separated list of target environments where its enabled.
+	PreviewOAuth2ProxyModeAnnotation = "radix.equinor.com/preview-oauth2-proxy-mode"
 )
 
 // Merge multiple maps into one
@@ -58,4 +63,26 @@ func ForClusterAutoscalerSafeToEvict(safeToEvict bool) map[string]string {
 
 func forAzureWorkloadIdentityClientId(clientId string) map[string]string {
 	return map[string]string{azureWorkloadIdentityClientIdAnnotation: clientId}
+}
+
+// OAuth2ProxyModeEnabledForEnvironment checks if the preview OAuth2 proxy mode is enabled for a given environment
+func OAuth2ProxyModeEnabledForEnvironment(annotations map[string]string, currentEnv string) bool {
+	if annotations == nil {
+		return false
+	}
+	targetEnvs, exists := annotations[PreviewOAuth2ProxyModeAnnotation]
+	if !exists {
+		return false
+	}
+
+	if targetEnvs == "*" {
+		return true
+	}
+
+	for targetEnv := range strings.SplitSeq(targetEnvs, ",") {
+		if strings.TrimSpace(targetEnv) == currentEnv {
+			return true
+		}
+	}
+	return false
 }

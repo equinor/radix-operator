@@ -30,23 +30,25 @@ func Test_NewIngressConfigurationAnnotationProvider(t *testing.T) {
 func Test_NewClientCertificateAnnotationProvider(t *testing.T) {
 	expectedNamespace := "any-namespace"
 	sut := NewClientCertificateAnnotationProvider(expectedNamespace)
-	clientCertificateAnnotationProvider, converted := sut.(ClientCertificateAnnotationProvider)
+	clientCertificateAnnotationProvider, converted := sut.(*clientCertificateAnnotationProvider)
 	assert.True(t, converted, "Expected type ClientCertificateAnnotationProvider")
-	assert.Equal(t, expectedNamespace, clientCertificateAnnotationProvider.GetNamespace())
+	assert.Equal(t, expectedNamespace, clientCertificateAnnotationProvider.namespace)
 }
 
 func Test_NewOAuth2AnnotationProvider(t *testing.T) {
 	cfg := defaults.MockOAuth2Config{}
-	sut := NewOAuth2AnnotationProvider(&cfg)
+	ns := "anyns"
+	sut := NewOAuth2AnnotationProvider(&cfg, ns)
 	assert.IsType(t, &oauth2AnnotationProvider{}, sut)
 	sutReal := sut.(*oauth2AnnotationProvider)
 	assert.Equal(t, &cfg, sutReal.oauth2DefaultConfig)
+	assert.Equal(t, ns, sutReal.serviceNamespace)
 }
 
 func Test_ForceSslRedirectAnnotations(t *testing.T) {
 	sslAnnotations := forceSslRedirectAnnotationProvider{}
 	expected := map[string]string{"nginx.ingress.kubernetes.io/force-ssl-redirect": "true"}
-	actual, err := sslAnnotations.GetAnnotations(&radixv1.RadixDeployComponent{}, "not-used-namespace-in-test")
+	actual, err := sslAnnotations.GetAnnotations(&radixv1.RadixDeployComponent{})
 	assert.Nil(t, err)
 	assert.Equal(t, expected, actual)
 }
@@ -61,17 +63,17 @@ func Test_IngressConfigurationAnnotations(t *testing.T) {
 	}
 	componentIngress := ingressConfigurationAnnotationProvider{config: config}
 
-	annotations, err := componentIngress.GetAnnotations(&radixv1.RadixDeployComponent{IngressConfiguration: []string{"socket"}}, "unused-namespace")
+	annotations, err := componentIngress.GetAnnotations(&radixv1.RadixDeployComponent{IngressConfiguration: []string{"socket"}})
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(annotations))
 	assert.Equal(t, config.AnnotationConfigurations[1].Annotations, annotations)
 
-	annotations, err = componentIngress.GetAnnotations(&radixv1.RadixDeployComponent{IngressConfiguration: []string{"socket", "round-robin"}}, "unused-namespace")
+	annotations, err = componentIngress.GetAnnotations(&radixv1.RadixDeployComponent{IngressConfiguration: []string{"socket", "round-robin"}})
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(annotations))
 	assert.Equal(t, maputils.MergeMaps(config.AnnotationConfigurations[1].Annotations, config.AnnotationConfigurations[2].Annotations), annotations)
 
-	annotations, err = componentIngress.GetAnnotations(&radixv1.RadixDeployComponent{IngressConfiguration: []string{"non-existing"}}, "unused-namespace")
+	annotations, err = componentIngress.GetAnnotations(&radixv1.RadixDeployComponent{IngressConfiguration: []string{"non-existing"}})
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(annotations))
 }
@@ -112,19 +114,19 @@ func Test_ClientCertificateAnnotations(t *testing.T) {
 	}
 
 	ingressAnnotations := NewClientCertificateAnnotationProvider("ns")
-	result, err := ingressAnnotations.GetAnnotations(&radixv1.RadixDeployComponent{Name: "name", Authentication: config1}, "unused-namespace")
+	result, err := ingressAnnotations.GetAnnotations(&radixv1.RadixDeployComponent{Name: "name", Authentication: config1})
 	assert.Nil(t, err)
 	assert.Equal(t, expect1, result)
 
-	result, err = ingressAnnotations.GetAnnotations(&radixv1.RadixDeployComponent{Name: "name", Authentication: config2}, "unused-namespace")
+	result, err = ingressAnnotations.GetAnnotations(&radixv1.RadixDeployComponent{Name: "name", Authentication: config2})
 	assert.Nil(t, err)
 	assert.Equal(t, expect2, result)
 
-	result, err = ingressAnnotations.GetAnnotations(&radixv1.RadixDeployComponent{Name: "name", Authentication: config3}, "unused-namespace")
+	result, err = ingressAnnotations.GetAnnotations(&radixv1.RadixDeployComponent{Name: "name", Authentication: config3})
 	assert.Nil(t, err)
 	assert.Equal(t, expect3, result)
 
-	result, err = ingressAnnotations.GetAnnotations(&radixv1.RadixDeployComponent{Name: "name"}, "unused-namespace")
+	result, err = ingressAnnotations.GetAnnotations(&radixv1.RadixDeployComponent{Name: "name"})
 	assert.Nil(t, err)
 	assert.Empty(t, result, "Expected Annotations to be empty")
 }
@@ -167,7 +169,7 @@ func Test_PublicIngressAllowAnnotationProvider(t *testing.T) {
 	sut := &ingressPublicAllowListAnnotationProvider{}
 	for testName, testSpec := range tests {
 		t.Run(testName, func(t *testing.T) {
-			actual, err := sut.GetAnnotations(testSpec.component, "")
+			actual, err := sut.GetAnnotations(testSpec.component)
 			assert.NoError(t, err)
 			if len(testSpec.expectedAnnotation) == 0 {
 				assert.Empty(t, actual)
@@ -238,7 +240,7 @@ func Test_PublicIngressConfigAnnotationProvider(t *testing.T) {
 	sut := &ingressPublicConfigAnnotationProvider{}
 	for testName, testSpec := range tests {
 		t.Run(testName, func(t *testing.T) {
-			actual, err := sut.GetAnnotations(testSpec.component, "")
+			actual, err := sut.GetAnnotations(testSpec.component)
 			assert.NoError(t, err)
 			if len(testSpec.expectedAnnotation) == 0 {
 				assert.Empty(t, actual)
@@ -271,7 +273,7 @@ func (s *OAuth2AnnotationsTestSuite) TearDownTest() {
 func (s *OAuth2AnnotationsTestSuite) Test_NonPublicComponent() {
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(0)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
-	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "1234"}}}, "unused-namespace")
+	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "1234"}}})
 	s.Nil(err)
 	s.Len(actual, 0)
 }
@@ -279,7 +281,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_NonPublicComponent() {
 func (s *OAuth2AnnotationsTestSuite) Test_PublicComponentNoOAuth() {
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(0)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
-	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{}}, "unused-namespace")
+	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{}})
 	s.Nil(err)
 	s.Len(actual, 0)
 }
@@ -288,7 +290,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_ComponentOAuthPassedToOAuth2Config() {
 	oauth := &radixv1.OAuth2{ClientID: "1234"}
 	s.oauth2Config.EXPECT().MergeWith(oauth).Times(1).Return(&radixv1.OAuth2{}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
-	_, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: oauth}}, "unused-namespace")
+	_, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: oauth}})
 	s.NoError(err)
 }
 
@@ -298,8 +300,8 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthSigninAndUrlAnnotations() {
 		"nginx.ingress.kubernetes.io/auth-signin": "https://$host/anypath/start?rd=$escaped_request_uri",
 		"nginx.ingress.kubernetes.io/auth-url":    "http://oauth-test-aux-oauth.appname-namespace.svc.cluster.local:4180/anypath/auth",
 	}
-	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
-	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{Name: "oauth-test", PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "appname-namespace")
+	sut := NewOAuth2AnnotationProvider(s.oauth2Config, "appname-namespace")
+	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{Name: "oauth-test", PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}})
 	s.Nil(err)
 	s.Equal(expected, actual)
 }
@@ -307,7 +309,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthSigninAndUrlAnnotations() {
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_All() {
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(true), SetAuthorizationHeader: pointers.Ptr(true)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
-	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "unused-namespace")
+	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}})
 	s.Nil(err)
 	s.Equal("X-Auth-Request-Access-Token,X-Auth-Request-User,X-Auth-Request-Groups,X-Auth-Request-Email,X-Auth-Request-Preferred-Username,Authorization", actual["nginx.ingress.kubernetes.io/auth-response-headers"])
 }
@@ -315,7 +317,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_All() {
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_XAuthHeadersOnly() {
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(true), SetAuthorizationHeader: pointers.Ptr(false)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
-	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "unused-namespace")
+	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}})
 	s.Nil(err)
 	s.Equal("X-Auth-Request-Access-Token,X-Auth-Request-User,X-Auth-Request-Groups,X-Auth-Request-Email,X-Auth-Request-Preferred-Username", actual["nginx.ingress.kubernetes.io/auth-response-headers"])
 }
@@ -323,7 +325,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_XAuthHea
 func (s *OAuth2AnnotationsTestSuite) Test_ForwardedHeaderAnnotiations_All() {
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(true), SetAuthorizationHeader: pointers.Ptr(false)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
-	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "unused-namespace")
+	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}})
 	s.Nil(err)
 	s.Contains(actual["nginx.ingress.kubernetes.io/configuration-snippet"], "X-Forwarded-Access-Token")
 	s.Contains(actual["nginx.ingress.kubernetes.io/configuration-snippet"], "X-Forwarded-User")
@@ -335,7 +337,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_ForwardedHeaderAnnotiations_All() {
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_AuthorizationHeaderOnly() {
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(false), SetAuthorizationHeader: pointers.Ptr(true)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
-	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "unused-namespace")
+	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}})
 	s.Nil(err)
 	s.Equal("Authorization", actual["nginx.ingress.kubernetes.io/auth-response-headers"])
 }
@@ -343,7 +345,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_Authoriz
 func (s *OAuth2AnnotationsTestSuite) Test_OAuthConfig_ApplyTo_ReturnError() {
 	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&radixv1.OAuth2{SetXAuthRequestHeaders: pointers.Ptr(false), SetAuthorizationHeader: pointers.Ptr(true)}, errors.New("any error"))
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
-	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}}, "unused-namespace")
+	actual, err := sut.GetAnnotations(&radixv1.RadixDeployComponent{PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}})
 	s.Error(err)
 	s.Nil(actual)
 }

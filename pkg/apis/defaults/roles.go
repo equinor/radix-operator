@@ -40,9 +40,6 @@ const (
 	// RadixPipelineRRRoleNamePrefix Role of to get RadixRegistrations for pipeline job
 	RadixPipelineRRRoleNamePrefix = "radix-pipeline-rr"
 
-	// RadixPipelineRadixDNSAliasRoleNamePrefix Role of to get RadixDNSAliases for pipeline job
-	RadixPipelineRadixDNSAliasRoleNamePrefix = "radix-pipeline-rda"
-
 	// RadixApplicationAdminRadixDNSAliasRoleNamePrefix Role of to get RadixDNSAliases for application admin
 	RadixApplicationAdminRadixDNSAliasRoleNamePrefix = "radix-platform-user-rda"
 

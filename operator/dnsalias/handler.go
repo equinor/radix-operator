@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -91,7 +92,11 @@ func (h *handler) Sync(ctx context.Context, _, name string) error {
 
 	syncingAlias := radixDNSAlias.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)
-	syncer := h.syncerFactory.CreateSyncer(h.kubeClient, h.kubeUtil, h.radixClient, h.dnsZone, h.ingressConfiguration, h.oauth2DefaultConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), syncingAlias)
+	targetIngressNamespace := utils.GetEnvironmentNamespace(syncingAlias.Spec.AppName, syncingAlias.Spec.Environment)
+	componentIngressAnnotations := ingress.GetComponentAnnotationProvider(h.ingressConfiguration, targetIngressNamespace, h.oauth2DefaultConfig)
+	oauthIngressAnnotations := ingress.GetOAuthAnnotationProviders()
+	oauthProxyModeIngressAnnotations := ingress.GetOAuthProxyModeAnnotationProviders(h.ingressConfiguration, targetIngressNamespace)
+	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.kubeClient, h.kubeUtil, h.radixClient, h.dnsZone, h.oauth2DefaultConfig, componentIngressAnnotations, oauthIngressAnnotations, oauthProxyModeIngressAnnotations)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		h.events.RecordSyncErrorEvent(syncingAlias, err)

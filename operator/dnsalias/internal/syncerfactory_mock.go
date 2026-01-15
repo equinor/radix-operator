@@ -41,15 +41,15 @@ func (m *MockSyncerFactory) EXPECT() *MockSyncerFactoryMockRecorder {
 }
 
 // CreateSyncer mocks base method.
-func (m *MockSyncerFactory) CreateSyncer(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, dnsZone string, ingressConfiguration ingress.IngressConfiguration, oauth2Config defaults.OAuth2Config, ingressAnnotationProviders []ingress.AnnotationProvider, radixDNSAlias *v1.RadixDNSAlias) dnsalias.Syncer {
+func (m *MockSyncerFactory) CreateSyncer(radixDNSAlias *v1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, dnsZone string, oauth2Config defaults.OAuth2Config, componentIngressAnnotations, oauthIngressAnnotations, oauthProxyModeIngressAnnotation []ingress.AnnotationProvider) dnsalias.Syncer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateSyncer", kubeClient, kubeUtil, radixClient, dnsZone, ingressConfiguration, oauth2Config, ingressAnnotationProviders, radixDNSAlias)
+	ret := m.ctrl.Call(m, "CreateSyncer", radixDNSAlias, kubeClient, kubeUtil, radixClient, dnsZone, oauth2Config, componentIngressAnnotations, oauthIngressAnnotations, oauthProxyModeIngressAnnotation)
 	ret0, _ := ret[0].(dnsalias.Syncer)
 	return ret0
 }
 
 // CreateSyncer indicates an expected call of CreateSyncer.
-func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeClient, kubeUtil, radixClient, dnsZone, ingressConfiguration, oauth2Config, ingressAnnotationProviders, radixDNSAlias interface{}) *gomock.Call {
+func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(radixDNSAlias, kubeClient, kubeUtil, radixClient, dnsZone, oauth2Config, componentIngressAnnotations, oauthIngressAnnotations, oauthProxyModeIngressAnnotation interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), kubeClient, kubeUtil, radixClient, dnsZone, ingressConfiguration, oauth2Config, ingressAnnotationProviders, radixDNSAlias)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), radixDNSAlias, kubeClient, kubeUtil, radixClient, dnsZone, oauth2Config, componentIngressAnnotations, oauthIngressAnnotations, oauthProxyModeIngressAnnotation)
 }

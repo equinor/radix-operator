@@ -4,103 +4,188 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/rs/zerolog/log"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
 
-func (deploy *Deployment) createOrUpdateIngress(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
-	if err := deploy.createOrUpdateAppAliasIngress(ctx, deployComponent); err != nil {
-		return err
+type dnsType string
+
+func (dns dnsType) ToIngressLabels() kubelabels.Set {
+	switch dns {
+	case dnsTypeExternal:
+		return kubelabels.Set{kube.RadixExternalAliasLabel: "true"}
+	case dnsTypeAppAlias:
+		return kubelabels.Set{kube.RadixAppAliasLabel: "true"}
+	case dnsTypeClusterName:
+		return kubelabels.Set{kube.RadixDefaultAliasLabel: "true"}
+	case dnsTypeActiveCluster:
+		return kubelabels.Set{kube.RadixActiveClusterAliasLabel: "true"}
 	}
 
-	if err := deploy.createOrUpdateExternalDNSIngresses(ctx, deployComponent); err != nil {
-		return err
-	}
-
-	if err := deploy.createOrUpdateActiveClusterIngress(ctx, deployComponent); err != nil {
-		return err
-	}
-
-	return deploy.createOrUpdateClusterIngress(ctx, deployComponent)
+	return nil
 }
 
-func (deploy *Deployment) createOrUpdateClusterIngress(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
-	clustername, err := deploy.kubeutil.GetClusterName(ctx)
-	if err != nil {
-		return err
-	}
+const (
+	dnsTypeExternal      dnsType = "external"
+	dnsTypeAppAlias      dnsType = "app-alias"
+	dnsTypeClusterName   dnsType = "cluster-name"
+	dnsTypeActiveCluster dnsType = "active-cluster"
+)
 
-	namespace := deploy.radixDeployment.Namespace
-	publicPortNumber := getPublicPortForComponent(deployComponent)
-
-	ing, err := deploy.getDefaultIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, deployComponent, clustername, namespace, publicPortNumber)
-	if err != nil {
-		return err
-	}
-
-	return deploy.kubeutil.ApplyIngress(ctx, namespace, ing)
+type dnsInfo struct {
+	fqdn         string
+	tlsSecret    string
+	dnsType      dnsType
+	resourceName string
 }
 
-func (deploy *Deployment) createOrUpdateActiveClusterIngress(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
-	namespace := deploy.radixDeployment.Namespace
-	publicPortNumber := getPublicPortForComponent(deployComponent)
+func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, kubeutil kube.Kube) []dnsInfo {
+	var info []dnsInfo
 
-	// Create fixed active cluster ingress for this component
-	activeClusterAliasIngress, err := deploy.getActiveClusterAliasIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, deployComponent, namespace, publicPortNumber)
-	if err != nil {
-		return err
+	if component.IsDNSAppAlias() {
+		appAlias := os.Getenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
+		if appAlias != "" {
+			info = append(info, dnsInfo{
+				fqdn:         fmt.Sprintf("%s.%s", rd.Spec.AppName, appAlias),
+				tlsSecret:    "",
+				dnsType:      dnsTypeAppAlias,
+				resourceName: getAppAliasIngressName(rd.Spec.AppName),
+			})
+		}
 	}
 
-	return deploy.kubeutil.ApplyIngress(ctx, namespace, activeClusterAliasIngress)
+	for _, externalDns := range component.GetExternalDNS() {
+		info = append(info, dnsInfo{
+			fqdn:         externalDns.FQDN,
+			tlsSecret:    utils.GetExternalDnsTlsSecretName(externalDns),
+			dnsType:      dnsTypeExternal,
+			resourceName: externalDns.FQDN,
+		})
+	}
+
+	if hostname := getActiveClusterHostName(component.GetName(), rd.Namespace); hostname != "" {
+		info = append(info, dnsInfo{
+			fqdn:         hostname,
+			tlsSecret:    "",
+			dnsType:      dnsTypeActiveCluster,
+			resourceName: getActiveClusterIngressName(component.GetName()),
+		})
+	}
+
+	if clustername, err := kubeutil.GetClusterName(ctx); err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to read cluster name")
+	} else {
+		if hostname := getHostName(component.GetName(), rd.Namespace, clustername); hostname != "" {
+			info = append(info, dnsInfo{
+				fqdn:         hostname,
+				tlsSecret:    "",
+				dnsType:      dnsTypeClusterName,
+				resourceName: getDefaultIngressName(component.GetName()),
+			})
+		}
+	}
+
+	return info
 }
 
-func (deploy *Deployment) createOrUpdateAppAliasIngress(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
-	if !deployComponent.IsDNSAppAlias() {
-		return deploy.garbageCollectAppAliasIngressNoLongerInSpecForComponent(ctx, deployComponent)
-	}
-
-	namespace := deploy.radixDeployment.Namespace
-	publicPortNumber := getPublicPortForComponent(deployComponent)
-
-	appAliasIngress, err := deploy.getAppAliasIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, deployComponent, namespace, publicPortNumber)
-	if err != nil {
-		return err
-	}
-
-	return deploy.kubeutil.ApplyIngress(ctx, namespace, appAliasIngress)
+func (deploy *Deployment) isOAuth2ProxyModeEnabled() bool {
+	return annotations.OAuth2ProxyModeEnabledForEnvironment(deploy.radixDeployment.Annotations, deploy.radixDeployment.Spec.Environment) ||
+		annotations.OAuth2ProxyModeEnabledForEnvironment(deploy.registration.Annotations, deploy.radixDeployment.Spec.Environment)
 }
 
-func (deploy *Deployment) createOrUpdateExternalDNSIngresses(ctx context.Context, deployComponent radixv1.RadixCommonDeployComponent) error {
-	externalDNSList := deployComponent.GetExternalDNS()
+func (deploy *Deployment) reconcileIngresses(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
+	logger := log.Ctx(ctx)
+	var hosts []dnsInfo
 
-	if len(externalDNSList) == 0 {
-		return deploy.garbageCollectAllExternalAliasIngressesForComponent(ctx, deployComponent)
+	// When everyone is using proxy mode, or its enforced, cleanup this code (https://github.com/equinor/radix-platform/issues/1822)
+	oauth2enabled := component.GetAuthentication().GetOAuth2() != nil
+	oauth2PreviewProxyEnabled := oauth2enabled && deploy.isOAuth2ProxyModeEnabled()
+	logger.Debug().Msgf("Reconciling ingresses for component %s. OAuth2 enabled: %t, Proxy mode enabled: %t", component.GetName(), oauth2enabled, oauth2PreviewProxyEnabled)
+
+	if component.IsPublic() && !oauth2PreviewProxyEnabled {
+		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)
 	}
 
-	namespace := deploy.radixDeployment.Namespace
-	publicPortNumber := getPublicPortForComponent(deployComponent)
-
-	if err := deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(ctx, deployComponent); err != nil {
-		return err
+	if err := deploy.garbageCollectIngresses(ctx, component, hosts); err != nil {
+		return fmt.Errorf("failed to garbage collect ingresses: %w", err)
 	}
 
-	for _, externalDNS := range externalDNSList {
-		ingress, err := deploy.getExternalAliasIngressConfig(deploy.radixDeployment.Spec.AppName, []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}, externalDNS, deployComponent, namespace, publicPortNumber)
-		if err != nil {
-			return err
+	if err := deploy.createOrUpdateIngress(ctx, component, hosts); err != nil {
+		return fmt.Errorf("failed to create ingress: %w", err)
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) garbageCollectIngresses(ctx context.Context, component radixv1.RadixCommonDeployComponent, hosts []dnsInfo) error {
+	logger := log.Ctx(ctx)
+
+	selector := fmt.Sprintf("%s,!%s", labels.ForComponentIngress(deploy.radixDeployment.Spec.AppName, component).AsSelector().String(), kube.RadixAliasLabel)
+	existingIngresses, err := deploy.kubeclient.NetworkingV1().Ingresses(deploy.radixDeployment.GetNamespace()).List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return fmt.Errorf("failed to list ingresses in garbageCollectIngresses: %w", err)
+	}
+	logger.Debug().Msgf("Garbage collecting ingresses for component %s. Found %d existing ingresses", component.GetName(), len(existingIngresses.Items))
+
+	for _, ing := range existingIngresses.Items {
+		// should exist in list of hosts
+		found := false
+		for _, host := range hosts {
+			if len(ing.Spec.Rules) > 0 && ing.Spec.Rules[0].Host == host.fqdn {
+				found = true
+				break
+			}
 		}
 
-		err = deploy.kubeutil.ApplyIngress(ctx, namespace, ingress)
+		if !found {
+			logger.Info().Msgf("Garbage collecting ingress %s for component %s", ing.Name, component.GetName())
+			if err := deploy.kubeclient.NetworkingV1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
+				return fmt.Errorf("failed to delete ingress %s: %w", ing.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) createOrUpdateIngress(ctx context.Context, component radixv1.RadixCommonDeployComponent, hosts []dnsInfo) error {
+	if len(hosts) == 0 {
+		return nil
+	}
+
+	owner := []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
+
+	for _, host := range hosts {
+		ingressSpec := ingress.BuildIngressSpecForComponent(component, host.fqdn, host.tlsSecret)
+		annotations, err := ingress.BuildAnnotationsFromProviders(component, deploy.ingressAnnotationProviders)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to build annotations: %w", err)
+		}
+		ing := &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        host.resourceName,
+				Annotations: annotations,
+				Labels: labels.Merge(
+					labels.ForComponentIngress(deploy.radixDeployment.Spec.AppName, component),
+					host.dnsType.ToIngressLabels(),
+				),
+				OwnerReferences: owner,
+			},
+			Spec: ingressSpec,
+		}
+
+		if err := deploy.kubeutil.ApplyIngress(ctx, deploy.radixDeployment.Namespace, ing); err != nil {
+			return fmt.Errorf("failed to reconcile ingress: %w", err)
 		}
 	}
 
@@ -131,152 +216,6 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec(ctx context.Cont
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectAppAliasIngressNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	return deploy.garbageCollectIngressByLabelSelectorForComponent(ctx, fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixAppAliasLabel, "true"))
-}
-
-func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	return deploy.garbageCollectIngressByLabelSelectorForComponent(ctx, getLabelSelectorForComponent(component))
-}
-
-func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(ctx context.Context, labelSelector string) error {
-	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(ctx, deploy.radixDeployment.GetNamespace(), labelSelector)
-	if err != nil {
-		return err
-	}
-
-	if len(ingresses) > 0 {
-		for n := range ingresses {
-			err = deploy.kubeclient.NetworkingV1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ctx, ingresses[n].Name, metav1.DeleteOptions{})
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (deploy *Deployment) garbageCollectAllExternalAliasIngressesForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	return deploy.garbageCollectIngressForComponentAndExternalAlias(ctx, component, true)
-}
-
-func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	return deploy.garbageCollectIngressForComponentAndExternalAlias(ctx, component, false)
-}
-
-func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(ctx context.Context, component radixv1.RadixCommonDeployComponent, all bool) error {
-	labelSelector := getLabelSelectorForExternalAliasIngress(component)
-	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(ctx, deploy.radixDeployment.GetNamespace(), labelSelector)
-	if err != nil {
-		return err
-	}
-
-	for _, ingress := range ingresses {
-		garbageCollectIngress := true
-
-		if !all {
-			externalAliasForIngress := ingress.Name
-			for _, externalAlias := range component.GetExternalDNS() {
-				if externalAlias.FQDN == externalAliasForIngress {
-					garbageCollectIngress = false
-				}
-			}
-		}
-
-		if garbageCollectIngress {
-			err = deploy.kubeclient.NetworkingV1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ctx, ingress.Name, metav1.DeleteOptions{})
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func getLabelSelectorForExternalAliasIngress(component radixv1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixExternalAliasLabel, "true")
-}
-
-func (deploy *Deployment) getAppAliasIngressConfig(appName string, ownerReference []metav1.OwnerReference, component radixv1.RadixCommonDeployComponent, namespace string, publicPortNumber int32) (*networkingv1.Ingress, error) {
-	appAlias := os.Getenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
-	if appAlias == "" {
-		return nil, nil
-	}
-
-	hostname := fmt.Sprintf("%s.%s", appName, appAlias)
-	ingressSpec := ingress.GetIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
-
-	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, component, getAppAliasIngressName(appName), ingressSpec, deploy.ingressAnnotationProviders, ownerReference)
-	if err != nil {
-		return nil, err
-	}
-	ingressConfig.ObjectMeta.Labels[kube.RadixAppAliasLabel] = "true"
-	return ingressConfig, err
-}
-
-func (deploy *Deployment) getActiveClusterAliasIngressConfig(
-	appName string,
-	ownerReference []metav1.OwnerReference,
-	component radixv1.RadixCommonDeployComponent,
-	namespace string,
-	publicPortNumber int32,
-) (*networkingv1.Ingress, error) {
-	hostname := getActiveClusterHostName(component.GetName(), namespace)
-	if hostname == "" {
-		return nil, nil
-	}
-	ingressSpec := ingress.GetIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
-	ingressName := getActiveClusterIngressName(component.GetName())
-
-	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, component, ingressName, ingressSpec, deploy.ingressAnnotationProviders, ownerReference)
-	if err != nil {
-		return nil, err
-	}
-	ingressConfig.ObjectMeta.Labels[kube.RadixActiveClusterAliasLabel] = "true"
-	return ingressConfig, err
-}
-
-func (deploy *Deployment) getDefaultIngressConfig(
-	appName string,
-	ownerReference []metav1.OwnerReference,
-	component radixv1.RadixCommonDeployComponent,
-	clustername, namespace string,
-	publicPortNumber int32,
-) (*networkingv1.Ingress, error) {
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
-		return nil, nil
-	}
-	hostname := getHostName(component.GetName(), namespace, clustername, dnsZone)
-	ingressSpec := ingress.GetIngressSpec(hostname, component.GetName(), defaults.TLSSecretName, publicPortNumber)
-
-	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, component, getDefaultIngressName(component.GetName()), ingressSpec, deploy.ingressAnnotationProviders, ownerReference)
-	if err != nil {
-		return nil, err
-	}
-	ingressConfig.ObjectMeta.Labels[kube.RadixDefaultAliasLabel] = "true"
-	return ingressConfig, err
-}
-
-func (deploy *Deployment) getExternalAliasIngressConfig(
-	appName string,
-	ownerReference []metav1.OwnerReference,
-	externalAlias radixv1.RadixDeployExternalDNS,
-	component radixv1.RadixCommonDeployComponent,
-	namespace string,
-	publicPortNumber int32,
-) (*networkingv1.Ingress, error) {
-	ingressSpec := ingress.GetIngressSpec(externalAlias.FQDN, component.GetName(), utils.GetExternalDnsTlsSecretName(externalAlias), publicPortNumber)
-	ingressConfig, err := ingress.GetIngressConfig(namespace, appName, component, externalAlias.FQDN, ingressSpec, deploy.ingressAnnotationProviders, ownerReference)
-	if err != nil {
-		return nil, err
-	}
-	ingressConfig.ObjectMeta.Labels[kube.RadixExternalAliasLabel] = "true"
-	return ingressConfig, err
-}
-
 func getAppAliasIngressName(appName string) string {
 	return fmt.Sprintf("%s-url-alias", appName)
 }
@@ -297,22 +236,11 @@ func getActiveClusterHostName(componentName, namespace string) string {
 	return fmt.Sprintf("%s-%s.%s", componentName, namespace, dnsZone)
 }
 
-func getHostName(componentName, namespace, clustername, dnsZone string) string {
+func getHostName(componentName, namespace, clustername string) string {
+	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
+	if dnsZone == "" {
+		return ""
+	}
 	hostnameTemplate := "%s-%s.%s.%s"
 	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
-}
-
-func getPublicPortForComponent(deployComponent radixv1.RadixCommonDeployComponent) int32 {
-	if deployComponent.GetPublicPort() == "" {
-		// For backwards compatibility
-		return deployComponent.GetPorts()[0].Port
-	} else {
-		if port, ok := slice.FindFirst(deployComponent.GetPorts(), func(cp radixv1.ComponentPort) bool {
-			return strings.EqualFold(cp.Name, deployComponent.GetPublicPort())
-		}); ok {
-			return port.Port
-		}
-	}
-
-	return 0
 }

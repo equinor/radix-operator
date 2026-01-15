@@ -999,7 +999,16 @@ func Test_RadixEnvironment(t *testing.T) {
 	})
 
 	t.Run("Environment has a correct owner", func(t *testing.T) {
-		assert.Equal(t, rrAsOwnerReference(rr), environments.Items[0].GetOwnerReferences())
+		require.Len(t, environments.Items[0].GetOwnerReferences(), 1)
+		ownerReference := environments.Items[0].GetOwnerReferences()[0]
+		assert.Equal(t, rr.Name, ownerReference.Name)
+		assert.Equal(t, "radix.equinor.com/v1", ownerReference.APIVersion)
+		assert.Equal(t, "RadixRegistration", ownerReference.Kind)
+		assert.Equal(t, rr.UID, ownerReference.UID)
+		require.NotNil(t, ownerReference.Controller)
+		assert.True(t, *ownerReference.Controller)
+		require.NotNil(t, ownerReference.BlockOwnerDeletion)
+		assert.True(t, *ownerReference.BlockOwnerDeletion)
 	})
 
 	t.Run("Environment is not orphaned", func(t *testing.T) {
@@ -1082,19 +1091,6 @@ func Test_IsConfigBranch(t *testing.T) {
 	t.Run("Branch is not configBranch", func(t *testing.T) {
 		assert.False(t, applicationconfig.IsConfigBranch(otherBranch, rr))
 	})
-}
-
-func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
-	trueVar := true
-	return []metav1.OwnerReference{
-		{
-			APIVersion: radixv1.SchemeGroupVersion.Identifier(),
-			Kind:       radixv1.KindRadixRegistration,
-			Name:       rr.Name,
-			UID:        rr.UID,
-			Controller: &trueVar,
-		},
-	}
 }
 
 func applyRadixAppWithPrivateImageHub(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, privateImageHubs radixv1.PrivateImageHubEntries) error {
