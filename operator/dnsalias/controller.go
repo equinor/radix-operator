@@ -4,10 +4,10 @@ import (
 	"context"
 	"reflect"
 
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -50,24 +50,21 @@ func NewController(ctx context.Context, kubeClient kubernetes.Interface,
 	addEventHandlersForRadixDNSAliases(radixDNSAliasInformer, controller, &logger)
 	addEventHandlersForRadixDeployments(radixInformerFactory, controller, radixClient, &logger)
 	addEventHandlersForIngresses(ctx, kubeInformerFactory, controller, &logger)
-	addEventHandlersForRadixRegistrations(radixInformerFactory, controller, radixClient, &logger)
+	addEventHandlersForRadixRegistrations(ctx, radixInformerFactory, controller, radixClient, &logger)
 	return controller
 }
 
-func addEventHandlersForRadixRegistrations(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface, logger *zerolog.Logger) {
+func addEventHandlersForRadixRegistrations(ctx context.Context, radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface, logger *zerolog.Logger) {
 	radixRegistrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 	if _, err := radixRegistrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldRR := oldObj.(*radixv1.RadixRegistration)
 			newRR := newObj.(*radixv1.RadixRegistration)
-			if oldRR.GetResourceVersion() == newRR.GetResourceVersion() &&
-				radixutils.ArrayEqualElements(oldRR.Spec.AdGroups, newRR.Spec.AdGroups) &&
-				radixutils.ArrayEqualElements(oldRR.Spec.AdUsers, newRR.Spec.AdUsers) &&
-				radixutils.ArrayEqualElements(oldRR.Spec.ReaderAdGroups, newRR.Spec.ReaderAdGroups) &&
-				radixutils.ArrayEqualElements(oldRR.Spec.ReaderAdUsers, newRR.Spec.ReaderAdUsers) {
+
+			if oldRR.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] == newRR.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] {
 				return // updating RadixRegistration has the same resource version. Do nothing.
 			}
-			enqueueRadixDNSAliasesForAppName(controller, radixClient, newRR.GetName(), logger)
+			enqueueRadixDNSAliasesForAppName(ctx, controller, radixClient, newRR.GetName(), logger)
 		},
 	}); err != nil {
 		panic(err)
@@ -175,7 +172,6 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 		return
 	}
 	for _, radixDNSAlias := range radixDNSAliases {
-		radixDNSAlias := radixDNSAlias
 		logger.Debug().Msgf("re-sync RadixDNSAlias %s", radixDNSAlias.GetName())
 		if err := controller.Enqueue(&radixDNSAlias); err != nil {
 			logger.Error().Err(err).Msgf("failed to enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
@@ -183,15 +179,14 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 	}
 }
 
-func enqueueRadixDNSAliasesForAppName(controller *common.Controller, radixClient radixclient.Interface, appName string, logger *zerolog.Logger) {
+func enqueueRadixDNSAliasesForAppName(ctx context.Context, controller *common.Controller, radixClient radixclient.Interface, appName string, logger *zerolog.Logger) {
 	logger.Debug().Msgf("Added or updated an RadixRegistration %s. Enqueue relevant RadixDNSAliases", appName)
-	radixDNSAliases, err := getRadixDNSAliasForApp(radixClient, appName)
+	radixDNSAliases, err := getRadixDNSAliasForApp(ctx, radixClient, appName)
 	if err != nil {
 		logger.Error().Err(err).Msgf("failed to get list of RadixDNSAliases for the application %s", appName)
 		return
 	}
 	for _, radixDNSAlias := range radixDNSAliases {
-		radixDNSAlias := radixDNSAlias
 		logger.Debug().Msgf("Enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
 		if err := controller.Enqueue(&radixDNSAlias); err != nil {
 			logger.Error().Err(err).Msgf("failed to enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
@@ -210,8 +205,8 @@ func getRadixDNSAliasForAppAndEnvironment(radixClient radixclient.Interface, app
 	return radixDNSAliasList.Items, err
 }
 
-func getRadixDNSAliasForApp(radixClient radixclient.Interface, appName string) ([]radixv1.RadixDNSAlias, error) {
-	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(context.Background(), metav1.ListOptions{
+func getRadixDNSAliasForApp(ctx context.Context, radixClient radixclient.Interface, appName string) ([]radixv1.RadixDNSAlias, error) {
+	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(ctx, metav1.ListOptions{
 		LabelSelector: radixlabels.ForApplicationName(appName).String(),
 	})
 	if err != nil {
@@ -222,10 +217,7 @@ func getRadixDNSAliasForApp(radixClient radixclient.Interface, appName string) (
 
 func deepEqual(old, new *radixv1.RadixDNSAlias) bool {
 	return reflect.DeepEqual(new.Spec, old.Spec) &&
-		reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) &&
-		reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) &&
-		reflect.DeepEqual(new.ObjectMeta.Finalizers, old.ObjectMeta.Finalizers) &&
-		reflect.DeepEqual(new.ObjectMeta.DeletionTimestamp, old.ObjectMeta.DeletionTimestamp)
+		reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels)
 }
 
 func getOwner(ctx context.Context, radixClient radixclient.Interface, _, name string) (interface{}, error) {

@@ -8,15 +8,14 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
-	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 type controllerTestSuite struct {
@@ -52,13 +51,9 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 		dnsZone        = "dev.radix.equinor.com"
 	)
 	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{Name: appName1},
-		Spec: radixv1.RadixRegistrationSpec{
-			AdGroups: []string{string(uuid.NewUUID())},
-		},
+		ObjectMeta: metav1.ObjectMeta{Name: appName1, Annotations: map[string]string{}},
 	}, metav1.CreateOptions{})
 	s.Require().NoError(err)
-
 	alias := internal.BuildRadixDNSAlias(appName1, componentName1, envName1, aliasName)
 
 	// Adding a RadixDNSAlias should trigger sync
@@ -95,7 +90,7 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 
 	envNamespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
 	s.Handler.EXPECT().Sync(gomock.Any(), envNamespace, aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	ing, err = dnsaliasapi.CreateRadixDNSAliasIngress(context.Background(), s.KubeClient, alias.Spec.AppName, alias.Spec.Environment, ing)
+	_, _ = s.KubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)).Create(context.Background(), ing, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called when adding ingress")
 
@@ -118,19 +113,12 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on ingress deletion")
 
-	// Sync should trigger when changed admin adGroup in radix registration
+	// Sync should trigger when annotation radix.equinor.com/preview-oauth2-proxy-mode changes on RR
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	rr.Spec.AdGroups = []string{string(uuid.NewUUID())}
+	rr.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] = "any"
 	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on updated admin ad group")
-
-	// Sync should trigger when changed reader adGroup in radix registration
-	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	rr.Spec.ReaderAdGroups = []string{string(uuid.NewUUID())}
-	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on updated reader ad group")
+	s.WaitForSynced("Sync should be called on updated radix.equinor.com/preview-oauth2-proxy-mode annotation")
 
 	// Delete the RadixDNSAlias should not trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)

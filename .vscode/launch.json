@@ -186,7 +186,7 @@
 				"RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON": "0 0 * * *",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
-				"RADIXOPERATOR_PIPELINE_IMAGE": "ghcr.io/equinor/radix/pipeline:1.104.1",
+				"RADIXOPERATOR_PIPELINE_IMAGE": "ghcr.io/equinor/radix/pipeline:1.107.1",
 				"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE": "docker.io/alpine/git:2.45.2"
 			},
 			"args": ["--useOutClusterClient=false"]

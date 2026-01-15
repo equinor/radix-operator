@@ -18,6 +18,51 @@ type AnnotationProvider interface {
 	GetAnnotations(component radixv1.RadixCommonDeployComponent) (map[string]string, error)
 }
 
+// IngressConfiguration Holds all ingress annotation configurations
+type IngressConfiguration struct {
+	AnnotationConfigurations []AnnotationConfiguration `json:"configuration" yaml:"configuration"`
+}
+
+// AnnotationConfiguration Holds annotations for a single configuration
+type AnnotationConfiguration struct {
+	Name        string
+	Annotations map[string]string
+}
+
+// GetComponentAnnotationProvider Gets annotation providers for a component ingress
+func GetComponentAnnotationProvider(ingressConfiguration IngressConfiguration, namespace string, oauth2DefaultConfig defaults.OAuth2Config) []AnnotationProvider {
+	return []AnnotationProvider{
+		NewForceSslRedirectAnnotationProvider(),
+		NewIngressConfigurationAnnotationProvider(ingressConfiguration),
+		NewClientCertificateAnnotationProvider(namespace),
+		NewOAuth2AnnotationProvider(oauth2DefaultConfig, namespace),
+		NewIngressPublicAllowListAnnotationProvider(),
+		NewIngressPublicConfigAnnotationProvider(),
+		NewRedirectErrorPageAnnotationProvider(),
+	}
+}
+
+// GetOAuthAnnotationProviders Gets annotation providers for a component's OAuth service in non-proxy mode
+func GetOAuthAnnotationProviders() []AnnotationProvider {
+	return []AnnotationProvider{
+		NewForceSslRedirectAnnotationProvider(),
+		NewIngressPublicAllowListAnnotationProvider(),
+		NewRedirectErrorPageAnnotationProvider(),
+	}
+}
+
+// GetAuxOAuthAnnotationProviders Gets annotation providers for a component's OAuth service in proxy mode
+func GetOAuthProxyModeAnnotationProviders(ingressConfiguration IngressConfiguration, namespace string) []AnnotationProvider {
+	return []AnnotationProvider{
+		NewForceSslRedirectAnnotationProvider(),
+		NewIngressConfigurationAnnotationProvider(ingressConfiguration),
+		NewClientCertificateAnnotationProvider(namespace),
+		NewIngressPublicAllowListAnnotationProvider(),
+		NewIngressPublicConfigAnnotationProvider(),
+		NewRedirectErrorPageAnnotationProvider(),
+	}
+}
+
 func BuildAnnotationsFromProviders(component radixv1.RadixCommonDeployComponent, annotationProviders []AnnotationProvider) (map[string]string, error) {
 	annotations := map[string]string{}
 	for _, provider := range annotationProviders {

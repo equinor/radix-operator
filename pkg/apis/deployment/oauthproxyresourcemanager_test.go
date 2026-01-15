@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -39,17 +38,16 @@ import (
 
 type OAuthProxyResourceManagerTestSuite struct {
 	suite.Suite
-	kubeClient                kubernetes.Interface
-	radixClient               radixclient.Interface
-	kedaClient                kedav2.Interface
-	secretProviderClient      secretProviderClient.Interface
-	kubeUtil                  *kube.Kube
-	ctrl                      *gomock.Controller
-	ingressAnnotationProvider *ingress.MockAnnotationProvider
-	oauth2Config              *defaults.MockOAuth2Config
-	clusterName               string
-	dnsZone                   string
-	appAliasDnsZone           string
+	kubeClient           kubernetes.Interface
+	radixClient          radixclient.Interface
+	kedaClient           kedav2.Interface
+	secretProviderClient secretProviderClient.Interface
+	kubeUtil             *kube.Kube
+	ctrl                 *gomock.Controller
+	oauth2Config         *defaults.MockOAuth2Config
+	clusterName          string
+	dnsZone              string
+	appAliasDnsZone      string
 }
 
 func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
@@ -86,7 +84,6 @@ func (s *OAuthProxyResourceManagerTestSuite) setupTest() {
 	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.ctrl = gomock.NewController(s.T())
-	s.ingressAnnotationProvider = ingress.NewMockAnnotationProvider(s.ctrl)
 	s.oauth2Config = defaults.NewMockOAuth2Config(s.ctrl)
 	s.clusterName = "any-cluster"
 	handlerTestUtils := test.NewTestUtils(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
@@ -934,11 +931,6 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_IngressesCreat
 		})
 	}
 
-}
-
-func (s *OAuthProxyResourceManagerTestSuite) Test_GetOwnerReferenceOfIngress() {
-	actualOwnerReferences := ingress.GetOwnerReferenceOfIngress(&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "anyingress", UID: "anyuid"}})
-	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: networkingv1.SchemeGroupVersion.Identifier(), Kind: k8s.KindIngress, Name: "anyingress", UID: "anyuid", Controller: pointers.Ptr(true)}}, actualOwnerReferences)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GetIngressName() {

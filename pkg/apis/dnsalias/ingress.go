@@ -4,125 +4,233 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
-	"github.com/rs/zerolog/log"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-// CreateRadixDNSAliasIngress Create an Ingress for a RadixDNSAlias
-func CreateRadixDNSAliasIngress(ctx context.Context, kubeClient kubernetes.Interface, appName, envName string, ingress *networkingv1.Ingress) (*networkingv1.Ingress, error) {
-	return kubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(appName, envName)).Create(ctx, ingress, metav1.CreateOptions{})
-}
+func (s *syncer) syncIngresses(ctx context.Context) error {
 
-// GetDNSAliasIngressName Gets name of the ingress for the custom DNS alias
-func GetDNSAliasIngressName(alias string) string {
-	return fmt.Sprintf("%s.custom-alias", alias)
-}
-
-// GetDNSAliasHost Gets DNS alias host.
-// Example for the alias "my-app" and the cluster "Playground": my-app.playground.radix.equinor.com
-func GetDNSAliasHost(alias, dnsZone string) string {
-	return fmt.Sprintf("%s.%s", alias, dnsZone)
-}
-
-func (s *syncer) syncIngress(ctx context.Context, namespace string, radixDeployComponent radixv1.RadixCommonDeployComponent) (*networkingv1.Ingress, error) {
-	ingressName := GetDNSAliasIngressName(s.radixDNSAlias.GetName())
-	newIngress, err := buildIngress(radixDeployComponent, s.radixDNSAlias, s.dnsZone, s.oauth2DefaultConfig, s.ingressConfiguration)
-	if err != nil {
-		return nil, err
+	if err := s.garbageCollectOAuthIngress(ctx); err != nil {
+		return fmt.Errorf("failed to garbage collect OAuth2 ingress: %w", err)
 	}
-	existingIngress, err := s.kubeUtil.GetIngress(ctx, namespace, ingressName)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			log.Ctx(ctx).Debug().Msgf("not found Ingress %s in the namespace %s. Create new.", ingressName, namespace)
-			return s.createIngress(ctx, s.radixDNSAlias, newIngress)
+
+	if err := s.garbageCollectComponentIngress(ctx); err != nil {
+		return fmt.Errorf("failed to garbage collect ingress: %w", err)
+	}
+
+	if err := s.createOrUpdateComponentIngress(ctx); err != nil {
+		return fmt.Errorf("failed to sync ingress: %w", err)
+	}
+
+	if err := s.createOrUpdateOAuthIngress(ctx); err != nil {
+		return fmt.Errorf("failed to sync OAuth2 ingress: %w", err)
+	}
+
+	return nil
+}
+
+func (s *syncer) createOrUpdateComponentIngress(ctx context.Context) error {
+	mustApply := func() bool {
+		if s.component == nil {
+			return false
 		}
-		return nil, err
-	}
-	log.Ctx(ctx).Debug().Msgf("found Ingress %s in the namespace %s.", ingressName, namespace)
-	patchesIngress, err := s.applyIngress(ctx, namespace, existingIngress, newIngress)
-	if err != nil {
-		return nil, err
-	}
-	return patchesIngress, nil
-}
 
-func (s *syncer) applyIngress(ctx context.Context, namespace string, existingIngress *networkingv1.Ingress, ing *networkingv1.Ingress) (*networkingv1.Ingress, error) {
-	patchesIngress, err := s.kubeUtil.PatchIngress(ctx, namespace, existingIngress, ing)
-	if err != nil {
-		return nil, fmt.Errorf("failed to patch an ingress %s: %w", ing.GetName(), err)
-	}
-	return patchesIngress, nil
-}
+		if !s.component.IsPublic() {
+			return false
+		}
 
-func (s *syncer) createIngress(ctx context.Context, radixDNSAlias *radixv1.RadixDNSAlias, ing *networkingv1.Ingress) (*networkingv1.Ingress, error) {
-	log.Ctx(ctx).Debug().Msgf("create an ingress %s for the RadixDNSAlias", ing.GetName())
-	return CreateRadixDNSAliasIngress(ctx, s.kubeClient, radixDNSAlias.Spec.AppName, radixDNSAlias.Spec.Environment, ing)
-}
+		if s.component.GetAuthentication().GetOAuth2() != nil && s.isProxyModeEnabled() {
+			return false
+		}
 
-func (s *syncer) syncOAuthProxyIngress(ctx context.Context, namespace string, ing *networkingv1.Ingress, deployComponent radixv1.RadixCommonDeployComponent) error {
-	appName := s.radixDNSAlias.Spec.AppName
-	authentication := deployComponent.GetAuthentication()
-	oauthEnabled := authentication != nil && authentication.OAuth2 != nil
-	if !oauthEnabled {
-		selector := radixlabels.ForAuxComponentDNSAliasIngress(s.radixDNSAlias.Spec.AppName, deployComponent, s.radixDNSAlias.GetName())
-		return s.deleteIngresses(ctx, selector)
+		return true
 	}
-	oauth2, err := s.oauth2DefaultConfig.MergeWith(authentication.OAuth2)
-	if err != nil {
-		return err
-	}
-	authentication.OAuth2 = oauth2
-	auxIngress, err := ingress.BuildOAuthProxyIngressForComponentIngress(namespace, deployComponent, ing, s.ingressAnnotationProviders)
-	if err != nil {
-		return err
-	}
-	if auxIngress == nil {
+
+	if !mustApply() {
 		return nil
 	}
-	oauth.MergeAuxComponentDNSAliasIngressResourceLabels(auxIngress, appName, deployComponent, s.radixDNSAlias.GetName())
-	return s.kubeUtil.ApplyIngress(ctx, namespace, auxIngress)
-}
 
-func (s *syncer) deleteIngresses(ctx context.Context, selector labels.Set) error {
-	aliasSpec := s.radixDNSAlias.Spec
-	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-	ingresses, err := s.kubeUtil.KubeClient().NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
+	annotations, err := ingress.BuildAnnotationsFromProviders(s.component, s.componentIngressAnnotations)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to build annotations: %w", err)
 	}
-	return s.kubeUtil.DeleteIngresses(ctx, ingresses.Items...)
+
+	ing := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        s.getIngressName(),
+			Labels:      radixlabels.ForDNSAliasComponentIngress(s.radixDNSAlias),
+			Annotations: annotations,
+		},
+		Spec: ingress.BuildIngressSpecForComponent(s.component, s.getHostName(), ""),
+	}
+
+	if err := controllerutil.SetControllerReference(s.radixDNSAlias, ing, scheme); err != nil {
+		return fmt.Errorf("failed to set ownerreference: %w", err)
+	}
+
+	if err := s.kubeUtil.ApplyIngress(ctx, s.rd.Namespace, ing); err != nil {
+		return fmt.Errorf("failed to create or update ingress: %w", err)
+	}
+
+	return nil
 }
 
-func buildIngress(radixDeployComponent radixv1.RadixCommonDeployComponent, radixDNSAlias *radixv1.RadixDNSAlias, dnsZone string, oauth2Config defaults.OAuth2Config, ingressConfiguration ingress.IngressConfiguration) (*networkingv1.Ingress, error) {
-	if !radixDeployComponent.IsPublic() {
-		return nil, ErrComponentIsNotPublic
+func (s *syncer) createOrUpdateOAuthIngress(ctx context.Context) error {
+	mustApply := func() bool {
+		if s.component == nil {
+			return false
+		}
+
+		if !s.component.IsPublic() {
+			return false
+		}
+
+		return s.component.GetAuthentication().GetOAuth2() != nil
 	}
 
-	aliasName := radixDNSAlias.GetName()
-	aliasSpec := radixDNSAlias.Spec
-	ingressName := GetDNSAliasIngressName(aliasName)
-	hostName := GetDNSAliasHost(aliasName, dnsZone)
-	ingressSpec := ingress.BuildIngressSpecForComponent(radixDeployComponent, hostName, "")
+	if !mustApply() {
+		return nil
+	}
 
-	namespace := utils.GetEnvironmentNamespace(aliasSpec.AppName, aliasSpec.Environment)
-	ingressAnnotations := ingress.GetAnnotationProvider(ingressConfiguration, namespace, oauth2Config)
-	ingressConfig, err := ingress.BuildIngress(aliasSpec.AppName, radixDeployComponent, ingressName, ingressSpec, ingressAnnotations, internal.GetOwnerReferences(radixDNSAlias, true))
+	annotationProviders := s.oauthIngressAnnotations
+	if s.isProxyModeEnabled() {
+		annotationProviders = s.oauthProxyModeIngressAnnotations
+	}
+	annotations, err := ingress.BuildAnnotationsFromProviders(s.component, annotationProviders)
+	if err != nil {
+		return fmt.Errorf("failed to build annotations: %w", err)
+	}
+
+	ing := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        oauth.GetAuxOAuthProxyIngressName(s.getIngressName()),
+			Labels:      radixlabels.ForDNSAliasComponentIngress(s.radixDNSAlias),
+			Annotations: annotations,
+		},
+		Spec: ingress.BuildIngressSpecForOAuth2Component(s.component, s.getHostName(), "", s.isProxyModeEnabled()),
+	}
+
+	if err := controllerutil.SetControllerReference(s.radixDNSAlias, ing, scheme); err != nil {
+		return fmt.Errorf("failed to set ownerreference: %w", err)
+	}
+
+	if err := s.kubeUtil.ApplyIngress(ctx, s.rd.Namespace, ing); err != nil {
+		return fmt.Errorf("failed to create or update ingress: %w", err)
+	}
+
+	return nil
+}
+
+func (s *syncer) garbageCollectOAuthIngress(ctx context.Context) error {
+	ingressName := oauth.GetAuxOAuthProxyIngressName(s.getIngressName())
+	namespace := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
+
+	ing, err := s.kubeClient.NetworkingV1().Ingresses(namespace).Get(ctx, ingressName, metav1.GetOptions{})
+	if err != nil {
+		if kubeerrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to get ingress: %w", err)
+	}
+
+	mustDelete := func() bool {
+		if s.component == nil {
+			return true
+		}
+
+		if !s.component.IsPublic() {
+			return true
+		}
+
+		if s.component.GetAuthentication().GetOAuth2() == nil {
+			return true
+		}
+
+		expectedPath := ingress.BuildIngressSpecForOAuth2Component(s.component, "", "", s.isProxyModeEnabled()).Rules[0].HTTP.Paths[0].Path
+		return ing.Spec.Rules[0].HTTP.Paths[0].Path != expectedPath
+	}
+
+	if !mustDelete() {
+		return nil
+	}
+
+	if err := s.kubeClient.NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
+		return fmt.Errorf("failed to delete ingress: %w", err)
+	}
+
+	return nil
+}
+
+func (s *syncer) garbageCollectComponentIngress(ctx context.Context) error {
+	namespace := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
+	ing, err := s.kubeClient.NetworkingV1().Ingresses(namespace).Get(ctx, s.getIngressName(), metav1.GetOptions{})
+	if err != nil {
+		if kubeerrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to get ingress: %w", err)
+	}
+
+	mustDelete := func() bool {
+		if s.component == nil {
+			return true
+		}
+
+		if !s.component.IsPublic() {
+			return true
+		}
+
+		return s.component.GetAuthentication().GetOAuth2() != nil && s.isProxyModeEnabled()
+	}
+
+	if !mustDelete() {
+		return nil
+	}
+
+	if err := s.kubeClient.NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
+		return fmt.Errorf("failed to delete ingress: %w", err)
+	}
+
+	return nil
+}
+
+func (s *syncer) buildComponentWithOAuthDefaults(component *radixv1.RadixDeployComponent) (*radixv1.RadixDeployComponent, error) {
+	if component.GetAuthentication().GetOAuth2() == nil {
+		return component, nil
+	}
+	componentWithOAuthDefaults := component.DeepCopy()
+	oauth, err := s.oauth2DefaultConfig.MergeWith(componentWithOAuthDefaults.Authentication.OAuth2)
 	if err != nil {
 		return nil, err
 	}
+	componentWithOAuthDefaults.Authentication.OAuth2 = oauth
+	return componentWithOAuthDefaults, nil
+}
 
-	ingressConfig.ObjectMeta.Labels[kube.RadixAliasLabel] = aliasName
-	return ingressConfig, nil
+func (s *syncer) isProxyModeEnabled() bool {
+	var rdProxyMode, rrProxyMode bool
+
+	if s.rd != nil {
+		rdProxyMode = annotations.OAuth2ProxyModeEnabledForEnvironment(s.rd.Annotations, s.rd.Spec.Environment)
+	}
+
+	rrProxyMode = annotations.OAuth2ProxyModeEnabledForEnvironment(s.rr.Annotations, s.rd.Spec.Environment)
+
+	return rdProxyMode || rrProxyMode
+}
+
+func (s *syncer) getHostName() string {
+	return fmt.Sprintf("%s.%s", s.radixDNSAlias.Name, s.dnsZone)
+}
+
+func (s *syncer) getIngressName() string {
+	return fmt.Sprintf("%s.custom-alias", s.radixDNSAlias.Name)
 }

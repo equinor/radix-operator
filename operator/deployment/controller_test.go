@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/operator/common"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
@@ -21,7 +23,7 @@ func TestControllerSuite(t *testing.T) {
 }
 
 func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
-	rdName, namespace := "any-rd", "any-ns"
+	appName, rdName, namespace := "any-app", "any-rd", "any-ns"
 
 	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory)
 	s.RadixInformerFactory.Start(s.Ctx.Done())
@@ -30,10 +32,14 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 		err := sut.Run(s.Ctx, 5)
 		s.Require().NoError(err)
 	}()
+	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
+		ObjectMeta: metav1.ObjectMeta{Name: appName, Annotations: map[string]string{}}},
+		metav1.CreateOptions{})
+	s.Require().NoError(err)
 
 	// Create RD should sync
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: rdName, Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: appName}},
 		Spec: radixv1.RadixDeploymentSpec{
 			Components: []radixv1.RadixDeployComponent{
 				{Name: "any", PublicPort: "http"},
@@ -41,7 +47,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 		},
 	}
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
-	rd, err := s.RadixClient.RadixV1().RadixDeployments(rd.Namespace).Create(s.Ctx, rd, metav1.CreateOptions{})
+	rd, err = s.RadixClient.RadixV1().RadixDeployments(rd.Namespace).Create(s.Ctx, rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called")
 
@@ -54,7 +60,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 
 	// Update RD labels should sync.
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
-	rd.Labels = map[string]string{"key": "value"}
+	rd.Labels["key"] = "val"
 	rd, err = s.RadixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(s.Ctx, rd, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called")
@@ -107,4 +113,38 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called")
 
+	// Sync should trigger when annotation radix.equinor.com/preview-oauth2-proxy-mode changes on RR
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	rr.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] = "any"
+	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync should be called")
+
+	// Sync should trigger when AdGroups changes on RR
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	rr.Spec.AdGroups = []string{"new-admin-group"}
+	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync should be called")
+
+	// Sync should trigger when AdUsers changes on RR
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	rr.Spec.AdUsers = []string{"new-admin-user"}
+	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync should be called")
+
+	// Sync should trigger when ReaderAdGroups changes on RR
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	rr.Spec.ReaderAdGroups = []string{"new-reader-group"}
+	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync should be called")
+
+	// Sync should trigger when ReaderAdUsers changes on RR
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
+	rr.Spec.ReaderAdUsers = []string{"new-reader-user"}
+	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.WaitForSynced("Sync should be called")
 }
