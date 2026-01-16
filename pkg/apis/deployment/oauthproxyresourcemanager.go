@@ -869,16 +869,13 @@ func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixC
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PASS_BASIC_AUTH", Value: "false"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
-	// envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL", Value: "true"})	// TODO: Defaults to false.. Do we need to set this to true?
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", component.GetPorts()[0].Port)})                     //defaults.OAuthProxyPortNumber)})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_UPSTREAMS", Value: fmt.Sprintf("%s://%s:%v", "http", component.GetName(), component.GetPorts()[0].Port)}) //defaults.OAuthProxyPortNumber)})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PASS_USER_HEADERS", Value: "false"})                                                                      // TODO: Should this be configurable in radix config, and then use "addEnvVarIfSet()"?
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_REDIRECT_URL", Value: "/oauth2/callback"})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", defaults.OAuthProxyPortNumber)})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_UPSTREAMS", Value: fmt.Sprintf("%s://%s:%v", "http", component.GetName(), component.GetPorts()[0].Port)})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_REDIRECT_URL", Value: fmt.Sprintf("%s/callback", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))})
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyCookieSecretEnvironmentVariable, secretName, defaults.OAuthCookieSecretKeyName))
 
 	if oauth.GetUseAzureIdentity() {
-		// TODO: When and how is this used?
 		envVars = append(envVars, corev1.EnvVar{Name: oauth2ProxyEntraIdFederatedTokenAuthEnvironmentVariable, Value: "true"})
 	} else {
 		envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyClientSecretEnvironmentVariable, secretName, defaults.OAuthClientSecretKeyName))
@@ -890,10 +887,10 @@ func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixC
 
 	addEnvVarIfSet("OAUTH2_PROXY_CLIENT_ID", oauth.ClientID)
 	addEnvVarIfSet("OAUTH2_PROXY_SCOPE", oauth.Scope)
-	// addEnvVarIfSet("OAUTH2_PROXY_SET_XAUTHREQUEST", oauth.SetXAuthRequestHeaders)
-	addEnvVarIfSet("OAUTH2_PROXY_PASS_ACCESS_TOKEN", oauth.SetXAuthRequestHeaders) // TODO: We need a new forwarded header version, both need to exist for backward compatibility
-	// addEnvVarIfSet("OAUTH2_PROXY_SET_AUTHORIZATION_HEADER", oauth.SetAuthorizationHeader)
-	// addEnvVarIfSet("OAUTH2_PROXY_PROXY_PREFIX", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
+	addEnvVarIfSet("OAUTH2_PROXY_PASS_USER_HEADERS", oauth.SetXAuthRequestHeaders)
+	addEnvVarIfSet("OAUTH2_PROXY_PASS_ACCESS_TOKEN", oauth.SetXAuthRequestHeaders)
+	addEnvVarIfSet("OAUTH2_PROXY_PASS_AUTHORIZATION_HEADER", oauth.SetAuthorizationHeader)
+	addEnvVarIfSet("OAUTH2_PROXY_PROXY_PREFIX", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
 	addEnvVarIfSet("OAUTH2_PROXY_LOGIN_URL", oauth.LoginURL)
 	addEnvVarIfSet("OAUTH2_PROXY_REDEEM_URL", oauth.RedeemURL)
 	addEnvVarIfSet("OAUTH2_PROXY_SESSION_STORE_TYPE", getSessionStoreType(oauth))
@@ -919,7 +916,6 @@ func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixC
 	if oauth.IsSessionStoreTypeSystemManaged() {
 		addEnvVarIfSet(oauthProxyRedisConnectionUrlEnvironmentVariable, o.getSystemManagedRedisStoreConnectionURL(component))
 	} else if oauth.IsSessionStoreTypeRedis() {
-		// TODO: Where will the connection URL be defined? In component mode redis is in a separate component
 		addEnvVarIfSet(oauthProxyRedisConnectionUrlEnvironmentVariable, oauth.GetRedisStoreConnectionURL())
 	}
 
