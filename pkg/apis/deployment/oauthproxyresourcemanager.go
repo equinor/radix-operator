@@ -942,10 +942,6 @@ func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixC
 func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
 	var envVars []corev1.EnvVar
 	var err error
-	// Radix env-vars
-	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
-		envVars = append(envVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: v})
-	}
 
 	if o.isProxyModeEnabled() {
 		envVars, err = o.getEnvVarsProxyMode(component)
@@ -957,12 +953,16 @@ func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDepl
 		envVars = o.getEnvVarsSidecarMode(component)
 	}
 
+	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
+		envVars = append(envVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: v})
+	}
+
 	return envVars, nil
 }
 
 func getUpstreamComponentPort(component radixv1.RadixCommonDeployComponent) (int32, error) {
 	if portList := component.GetPorts(); len(portList) == 0 {
-		return 0, fmt.Errorf("No ports defined for component '%s'", component.GetName())
+		return 0, fmt.Errorf("no ports defined for component '%s'", component.GetName())
 	}
 
 	if pubPort := component.GetPublicPort(); pubPort != "" {
@@ -972,7 +972,7 @@ func getUpstreamComponentPort(component radixv1.RadixCommonDeployComponent) (int
 			}
 		}
 
-		return 0, fmt.Errorf("Public port not found in list of ports for component '%s'", component.GetName())
+		return 0, fmt.Errorf("public port not found in list of ports for component '%s'", component.GetName())
 	} else {
 		return component.GetPorts()[0].Port, nil
 	}
