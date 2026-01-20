@@ -876,6 +876,7 @@ func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixC
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", defaults.OAuthProxyPortNumber)})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_UPSTREAM_TIMEOUT", Value: "0s"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_REDIRECT_URL", Value: fmt.Sprintf("%s/callback", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))})
 
 	upstreamPort, err := getUpstreamComponentPort(component)
