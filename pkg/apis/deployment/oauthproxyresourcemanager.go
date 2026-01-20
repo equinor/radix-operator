@@ -717,6 +717,11 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 	}
 
 	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
+	envVars, err := o.getEnvVars(component)
+	if err != nil {
+		return nil, err
+	}
+
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            deploymentName,
@@ -743,7 +748,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 							Name:            componentName,
 							Image:           o.oauth2ProxyDockerImage,
 							ImagePullPolicy: corev1.PullAlways,
-							Env:             o.getEnvVars(component),
+							Env:             envVars,
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          defaults.OAuthProxyPortName,
@@ -847,7 +852,7 @@ func (o *oauthProxyResourceManager) getEnvVarsSidecarMode(component radixv1.Radi
 	return envVars
 }
 
-func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixCommonDeployComponent) []corev1.EnvVar {
+func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
 	var envVars []corev1.EnvVar
 	oauth := component.GetAuthentication().OAuth2
 
@@ -871,8 +876,14 @@ func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixC
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", defaults.OAuthProxyPortNumber)})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_UPSTREAMS", Value: fmt.Sprintf("%s://%s:%v", "http", component.GetName(), component.GetPorts()[0].Port)})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_REDIRECT_URL", Value: fmt.Sprintf("%s/callback", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))})
+
+	upstreamPort, err := getUpstreamComponentPort(component)
+	if err != nil {
+		return nil, err
+	}
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_UPSTREAMS", Value: fmt.Sprintf("%s://%s:%v", "http", component.GetName(), upstreamPort)})
+
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyCookieSecretEnvironmentVariable, secretName, defaults.OAuthCookieSecretKeyName))
 
@@ -924,24 +935,46 @@ func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixC
 		addEnvVarIfSet(oauth2ProxySkipAuthRoutesEnvironmentVariable, strings.Join(oauth.SkipAuthRoutes, ","))
 	}
 
-	return envVars
+	return envVars, nil
 }
 
-func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDeployComponent) []corev1.EnvVar {
+func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
 	var envVars []corev1.EnvVar
-
-	if o.isProxyModeEnabled() {
-		envVars = o.getEnvVarsProxyMode(component)
-	} else {
-		envVars = o.getEnvVarsSidecarMode(component)
-	}
-
+	var err error
 	// Radix env-vars
 	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
 		envVars = append(envVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: v})
 	}
 
-	return envVars
+	if o.isProxyModeEnabled() {
+		envVars, err = o.getEnvVarsProxyMode(component)
+
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		envVars = o.getEnvVarsSidecarMode(component)
+	}
+
+	return envVars, nil
+}
+
+func getUpstreamComponentPort(component radixv1.RadixCommonDeployComponent) (int32, error) {
+	if portList := component.GetPorts(); len(portList) == 0 {
+		return 0, fmt.Errorf("No ports defined for component '%s'", component.GetName())
+	}
+
+	if pubPort := component.GetPublicPort(); pubPort != "" {
+		for _, port := range component.GetPorts() {
+			if port.Name == pubPort {
+				return port.Port, nil
+			}
+		}
+
+		return 0, fmt.Errorf("Public port not found in list of ports for component '%s'", component.GetName())
+	} else {
+		return component.GetPorts()[0].Port, nil
+	}
 }
 
 func getSessionStoreType(oauth2 *radixv1.OAuth2) radixv1.SessionStoreType {
