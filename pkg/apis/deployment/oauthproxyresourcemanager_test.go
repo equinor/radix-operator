@@ -775,6 +775,48 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ProxyMode_Depl
 	s.Equal("redis://server-aux-oauth-redis:6379", redisConnectUrlEnvVar.Value, "Invalid env var OAUTH2_PROXY_REDIS_CONNECTION_URL")
 }
 
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ProxyMode_DeploymentFailed_Upstream_PublicPort_NotFound() {
+	appName, envName, componentName, oauthProxyImage := "anyapp", "qa", "server", "anyoautproxyimage"
+	s.oauth2Config.EXPECT().MergeWith(&radixv1.OAuth2{}).Times(1).Return(&radixv1.OAuth2{}, nil)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().
+		WithEnvironment(envName).
+		WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"}).
+		WithComponent(utils.NewDeployComponentBuilder().
+			WithName(componentName).
+			WithPublicPort("http").
+			WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}).
+			WithPorts([]radixv1.ComponentPort{
+				{Name: "ftp", Port: 21},
+				{Name: "ssh", Port: 22},
+			})).
+		BuildRD()
+
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, oauthProxyImage, "")
+	err := sut.Sync(context.Background())
+	s.Require().ErrorContains(err, fmt.Sprintf("public port not found in list of ports for component '%s'", componentName))
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ProxyMode_DeploymentFailed_Upstream_Ports_NotSet() {
+	appName, envName, componentName, oauthProxyImage := "anyapp", "qa", "server", "anyoautproxyimage"
+	s.oauth2Config.EXPECT().MergeWith(&radixv1.OAuth2{}).Times(1).Return(&radixv1.OAuth2{}, nil)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().
+		WithEnvironment(envName).
+		WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"}).
+		WithComponent(utils.NewDeployComponentBuilder().
+			WithName(componentName).
+			WithPublicPort("http").
+			WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
+		BuildRD()
+
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, oauthProxyImage, "")
+	err := sut.Sync(context.Background())
+	s.Require().ErrorContains(err, fmt.Sprintf("no ports defined for component '%s'", componentName))
+}
+
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_SecretCreated() {
 	appName, envName, componentName := "anyapp", "qa", "server"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
