@@ -999,10 +999,27 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_IngressesCreat
 			rr := utils.NewRegistrationBuilder().WithName(appName).WithAnnotations(test.rrAnnotations).BuildRR()
 			rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithAnnotations(test.rdAnnotations).
 				WithComponents(
-					utils.NewDeployComponentBuilder().WithName(comp1Name).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}).
-						WithDNSAppAlias(true).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "foo1.bar.com"}),
-					utils.NewDeployComponentBuilder().WithName(comp2Name).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ProxyPrefix: "/custompath"}}).
-						WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "foo2.bar.com"}),
+					utils.NewDeployComponentBuilder().
+						WithName(comp1Name).
+						WithPublicPort("http").
+						WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}).
+						WithDNSAppAlias(true).
+						WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "foo1.bar.com"}).
+						WithPorts([]radixv1.ComponentPort{
+							{Name: "http", Port: 80},
+							{Name: "ftp", Port: 21},
+							{Name: "ssh", Port: 22},
+						}),
+					utils.NewDeployComponentBuilder().
+						WithName(comp2Name).
+						WithPublicPort("http").
+						WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ProxyPrefix: "/custompath"}}).
+						WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "foo2.bar.com"}).
+						WithPorts([]radixv1.ComponentPort{
+							{Name: "http", Port: 80},
+							{Name: "ftp", Port: 21},
+							{Name: "ssh", Port: 22},
+						}),
 				).
 				BuildRD()
 
