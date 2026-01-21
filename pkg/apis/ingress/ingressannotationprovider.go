@@ -9,12 +9,70 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	annotationutils "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 )
 
 type AnnotationProvider interface {
 	// GetAnnotations returns annotations for use on Ingress resources
-	GetAnnotations(component radixv1.RadixCommonDeployComponent, namespace string) (map[string]string, error)
+	GetAnnotations(component radixv1.RadixCommonDeployComponent) (map[string]string, error)
+}
+
+// IngressConfiguration Holds all ingress annotation configurations
+type IngressConfiguration struct {
+	AnnotationConfigurations []AnnotationConfiguration `json:"configuration" yaml:"configuration"`
+}
+
+// AnnotationConfiguration Holds annotations for a single configuration
+type AnnotationConfiguration struct {
+	Name        string
+	Annotations map[string]string
+}
+
+// GetComponentAnnotationProvider Gets annotation providers for a component ingress
+func GetComponentAnnotationProvider(ingressConfiguration IngressConfiguration, namespace string, oauth2DefaultConfig defaults.OAuth2Config) []AnnotationProvider {
+	return []AnnotationProvider{
+		NewForceSslRedirectAnnotationProvider(),
+		NewIngressConfigurationAnnotationProvider(ingressConfiguration),
+		NewClientCertificateAnnotationProvider(namespace),
+		NewOAuth2AnnotationProvider(oauth2DefaultConfig, namespace),
+		NewIngressPublicAllowListAnnotationProvider(),
+		NewIngressPublicConfigAnnotationProvider(),
+		NewRedirectErrorPageAnnotationProvider(),
+	}
+}
+
+// GetOAuthAnnotationProviders Gets annotation providers for a component's OAuth service in non-proxy mode
+func GetOAuthAnnotationProviders() []AnnotationProvider {
+	return []AnnotationProvider{
+		NewForceSslRedirectAnnotationProvider(),
+		NewIngressPublicAllowListAnnotationProvider(),
+		NewRedirectErrorPageAnnotationProvider(),
+	}
+}
+
+// GetAuxOAuthAnnotationProviders Gets annotation providers for a component's OAuth service in proxy mode
+func GetOAuthProxyModeAnnotationProviders(ingressConfiguration IngressConfiguration, namespace string) []AnnotationProvider {
+	return []AnnotationProvider{
+		NewForceSslRedirectAnnotationProvider(),
+		NewIngressConfigurationAnnotationProvider(ingressConfiguration),
+		NewClientCertificateAnnotationProvider(namespace),
+		NewIngressPublicAllowListAnnotationProvider(),
+		NewIngressPublicConfigAnnotationProvider(),
+		NewRedirectErrorPageAnnotationProvider(),
+	}
+}
+
+func BuildAnnotationsFromProviders(component radixv1.RadixCommonDeployComponent, annotationProviders []AnnotationProvider) (map[string]string, error) {
+	annotations := map[string]string{}
+	for _, provider := range annotationProviders {
+		providerAnnotations, err := provider.GetAnnotations(component)
+		if err != nil {
+			return nil, err
+		}
+		annotations = annotationutils.Merge(annotations, providerAnnotations)
+	}
+	return annotations, nil
 }
 
 func NewForceSslRedirectAnnotationProvider() AnnotationProvider {
@@ -23,7 +81,7 @@ func NewForceSslRedirectAnnotationProvider() AnnotationProvider {
 
 type forceSslRedirectAnnotationProvider struct{}
 
-func (forceSslRedirectAnnotationProvider) GetAnnotations(_ radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+func (forceSslRedirectAnnotationProvider) GetAnnotations(_ radixv1.RadixCommonDeployComponent) (map[string]string, error) {
 	return map[string]string{"nginx.ingress.kubernetes.io/force-ssl-redirect": "true"}, nil
 }
 
@@ -35,7 +93,7 @@ type ingressConfigurationAnnotationProvider struct {
 	config IngressConfiguration
 }
 
-func (provider *ingressConfigurationAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+func (provider *ingressConfigurationAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent) (map[string]string, error) {
 	allAnnotations := make(map[string]string)
 
 	for _, configuration := range component.GetIngressConfiguration() {
@@ -62,20 +120,11 @@ func NewClientCertificateAnnotationProvider(certificateNamespace string) Annotat
 	return &clientCertificateAnnotationProvider{namespace: certificateNamespace}
 }
 
-type ClientCertificateAnnotationProvider interface {
-	AnnotationProvider
-	GetNamespace() string
-}
-
 type clientCertificateAnnotationProvider struct {
 	namespace string
 }
 
-func (provider *clientCertificateAnnotationProvider) GetNamespace() string {
-	return provider.namespace
-}
-
-func (provider *clientCertificateAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+func (provider *clientCertificateAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent) (map[string]string, error) {
 	annotations := make(map[string]string)
 	if auth := component.GetAuthentication(); auth != nil {
 		if clientCert := auth.ClientCertificate; clientCert != nil {
@@ -92,15 +141,16 @@ func (provider *clientCertificateAnnotationProvider) GetAnnotations(component ra
 	return annotations, nil
 }
 
-func NewOAuth2AnnotationProvider(oauth2DefaultConfig defaults.OAuth2Config) AnnotationProvider {
-	return &oauth2AnnotationProvider{oauth2DefaultConfig: oauth2DefaultConfig}
+func NewOAuth2AnnotationProvider(oauth2DefaultConfig defaults.OAuth2Config, serviceNamespace string) AnnotationProvider {
+	return &oauth2AnnotationProvider{oauth2DefaultConfig: oauth2DefaultConfig, serviceNamespace: serviceNamespace}
 }
 
 type oauth2AnnotationProvider struct {
 	oauth2DefaultConfig defaults.OAuth2Config
+	serviceNamespace    string
 }
 
-func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, namespace string) (map[string]string, error) {
+func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent) (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
@@ -113,7 +163,7 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component radixv1.Radix
 
 		// Documentation for OAuth2 proxy auth-request: https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/overview#configuring-for-use-with-the-nginx-auth_request-directive
 		hostPath := fmt.Sprintf("https://$host%s", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
-		servicePath := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%d%s", "http", svcName, namespace, defaults.OAuthProxyPortNumber, oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
+		servicePath := fmt.Sprintf("%s://%s.%s.svc.cluster.local:%d%s", "http", svcName, provider.serviceNamespace, defaults.OAuthProxyPortNumber, oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
 		annotations[defaults.AuthUrlAnnotation] = fmt.Sprintf("%s/auth", servicePath)
 		annotations[defaults.AuthSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", hostPath)
 
@@ -158,7 +208,7 @@ type ingressPublicAllowListAnnotationProvider struct{}
 
 // GetAnnotations returns annotations for only allowing public ingress traffic
 // for IPs or CIDRs defined in Network.Ingress.Public.Allow for a component
-func (*ingressPublicAllowListAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+func (*ingressPublicAllowListAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent) (map[string]string, error) {
 	if network := component.GetNetwork(); network == nil || network.Ingress == nil || network.Ingress.Public == nil || network.Ingress.Public.Allow == nil || len(*network.Ingress.Public.Allow) == 0 {
 		return nil, nil
 	}
@@ -177,7 +227,7 @@ type ingressPublicConfigAnnotationProvider struct{}
 
 // GetAnnotations returns annotations for only allowing public ingress traffic
 // for IPs or CIDRs defined in Network.Ingress.Public.Allow for a component
-func (*ingressPublicConfigAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+func (*ingressPublicConfigAnnotationProvider) GetAnnotations(component radixv1.RadixCommonDeployComponent) (map[string]string, error) {
 	if network := component.GetNetwork(); network == nil || network.Ingress == nil || network.Ingress.Public == nil {
 		return nil, nil
 	}
@@ -218,6 +268,6 @@ func NewRedirectErrorPageAnnotationProvider() AnnotationProvider {
 
 type redirectErrorPageAnnotationProvider struct{}
 
-func (redirectErrorPageAnnotationProvider) GetAnnotations(_ radixv1.RadixCommonDeployComponent, _ string) (map[string]string, error) {
+func (redirectErrorPageAnnotationProvider) GetAnnotations(_ radixv1.RadixCommonDeployComponent) (map[string]string, error) {
 	return map[string]string{"nginx.ingress.kubernetes.io/custom-http-errors": "503"}, nil
 }

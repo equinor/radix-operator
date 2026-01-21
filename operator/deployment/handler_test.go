@@ -160,13 +160,13 @@ func (s *handlerSuite) Test_Sync() {
 			ingress.NewForceSslRedirectAnnotationProvider(),
 			ingress.NewIngressConfigurationAnnotationProvider(ingressConfig),
 			ingress.NewClientCertificateAnnotationProvider(activeRd.Namespace),
-			ingress.NewOAuth2AnnotationProvider(oauthConfig),
+			ingress.NewOAuth2AnnotationProvider(oauthConfig, activeRd.Namespace),
 			ingress.NewIngressPublicAllowListAnnotationProvider(),
 			ingress.NewIngressPublicConfigAnnotationProvider(),
 			ingress.NewRedirectErrorPageAnnotationProvider(),
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), oauthProxyImage, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetOAuthAnnotationProviders(), ingress.GetOAuthProxyModeAnnotationProviders(ingressConfig, activeRd.Namespace), oauthProxyImage, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, oauthRedisImage, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 		}
 		factory.

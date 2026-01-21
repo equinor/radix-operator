@@ -30,6 +30,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -800,7 +801,7 @@ func TestObjectSynced_MultiComponent_AllClusters_ContainsAllIngresses(t *testing
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 
 	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 7, len(ingresses.Items), "All ingresses for the two public components should appear")
+	require.Equal(t, 7, len(ingresses.Items), "All ingresses for the two public components should appear")
 	require.Truef(t, ingressByNameExists("app", ingresses), "All ingresses for public component should exist")
 	require.Truef(t, ingressByNameExists("radixquote", ingresses), "All ingresses for public component should exist")
 
@@ -2829,6 +2830,72 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	assert.Equal(t, int32(443), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
 }
 
+func TestObjectSynced_ToOAuth2ProxyMode_IngressesDeleted(t *testing.T) {
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+	const (
+		appName   = "any-app"
+		envName   = "any-env"
+		comp1Name = "comp1"
+		comp2Name = "comp2"
+	)
+
+	// Fixture
+	rdBuilder := utils.ARadixDeployment().
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(comp1Name).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(
+					radixv1.RadixDeployExternalDNS{FQDN: "comp1a.example.com"},
+					radixv1.RadixDeployExternalDNS{FQDN: "comp1b.example.com"},
+				),
+			utils.NewDeployComponentBuilder().
+				WithName(comp2Name).
+				WithDNSAppAlias(true).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithExternalDNS(
+					radixv1.RadixDeployExternalDNS{FQDN: "comp2a.example.com"},
+					radixv1.RadixDeployExternalDNS{FQDN: "comp2b.example.com"},
+				).
+				WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "any-client-id"}}),
+		)
+	rd, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+	ingresses, _ := client.NetworkingV1().Ingresses(rd.Namespace).List(context.Background(), metav1.ListOptions{})
+	actualIngressNames := slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
+	expectedIngressNames := []string{
+		comp1Name,
+		fmt.Sprintf("%s-active-cluster-url-alias", comp1Name),
+		"comp1a.example.com",
+		"comp1b.example.com",
+		fmt.Sprintf("%s-url-alias", appName),
+		comp2Name,
+		fmt.Sprintf("%s-active-cluster-url-alias", comp2Name),
+		"comp2a.example.com",
+		"comp2b.example.com",
+	}
+	require.ElementsMatch(t, expectedIngressNames, actualIngressNames)
+
+	// Enabled oauth2 proxy mode
+	rdBuilder = rdBuilder.WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: envName})
+	rd, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+	ingresses, _ = client.NetworkingV1().Ingresses(rd.Namespace).List(context.Background(), metav1.ListOptions{})
+	actualIngressNames = slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
+	expectedIngressNames = []string{
+		comp1Name,
+		fmt.Sprintf("%s-active-cluster-url-alias", comp1Name),
+		"comp1a.example.com",
+		"comp1b.example.com",
+	}
+	require.ElementsMatch(t, expectedIngressNames, actualIngressNames)
+}
+
 func getIngressesForRadixComponents(ingresses *[]networkingv1.Ingress) []networkingv1.Ingress {
 	var result []networkingv1.Ingress
 	for _, ing := range *ingresses {
@@ -4147,9 +4214,9 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"foo": "x"}, nil)
+	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(3).Return(map[string]string{"foo": "x"}, nil)
 	annotations2 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0], rd.Namespace).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
+	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1, annotations2}, nil, &config.Config{})
 	err = syncer.OnSync(context.Background())
@@ -4175,7 +4242,7 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0], "app-dev").Times(1).Return(nil, errors.New("any error"))
+	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(nil, errors.New("any error"))
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1}, nil, &config.Config{})
 	err = syncer.OnSync(context.Background())

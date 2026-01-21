@@ -37,12 +37,6 @@ const (
 	RadixDeploymentObservedGeneration = "radix.equinor.com/radix-deployment-observed-generation"
 )
 
-// Radix Finalizers
-const (
-	RadixEnvironmentFinalizer = "radix.equinor.com/environment-finalizer"
-	RadixDNSAliasFinalizer    = "radix.equinor.com/dnsalias-finalizer"
-)
-
 // Radix Labels
 const (
 	K8sAppLabel                         = "k8s-app"

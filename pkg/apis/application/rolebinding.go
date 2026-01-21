@@ -78,10 +78,6 @@ func (app *Application) applyRbacOnPipelineRunner(ctx context.Context) error {
 		return fmt.Errorf("failed to grant pipeline access to RadixRegistration: %w", err)
 	}
 
-	if err = app.giveAccessToRadixDNSAliases(ctx, serviceAccount, defaults.RadixPipelineRadixDNSAliasRoleNamePrefix); err != nil {
-		return fmt.Errorf("failed to grant pipeline access to RadixDNSAliases: %w", err)
-	}
-
 	if err := app.givePipelineAccessToAppNamespace(ctx, serviceAccount); err != nil {
 		return fmt.Errorf("failed to grant pipeline access to app namespace: %w", err)
 	}
@@ -92,12 +88,6 @@ func (app *Application) applyRbacOnPipelineRunner(ctx context.Context) error {
 func (app *Application) givePipelineAccessToRR(ctx context.Context, serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
 	clusterRoleName := fmt.Sprintf("%s-%s", clusterRoleNamePrefix, app.registration.Name)
 	clusterRole := app.buildRRClusterRole(ctx, clusterRoleName, []string{"get"})
-	clusterRoleBinding := app.clusterRoleBinding(ctx, serviceAccount, clusterRole)
-	return app.applyClusterRoleAndBinding(ctx, clusterRole, clusterRoleBinding)
-}
-
-func (app *Application) giveAccessToRadixDNSAliases(ctx context.Context, serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
-	clusterRole := app.buildRadixDNSAliasClusterRole(ctx, clusterRoleNamePrefix)
 	clusterRoleBinding := app.clusterRoleBinding(ctx, serviceAccount, clusterRole)
 	return app.applyClusterRoleAndBinding(ctx, clusterRole, clusterRoleBinding)
 }
