@@ -717,6 +717,11 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 	}
 
 	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
+	envVars, err := o.getEnvVars(component)
+	if err != nil {
+		return nil, err
+	}
+
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            deploymentName,
@@ -743,7 +748,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 							Name:            componentName,
 							Image:           o.oauth2ProxyDockerImage,
 							ImagePullPolicy: corev1.PullAlways,
-							Env:             o.getEnvVars(component),
+							Env:             envVars,
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          defaults.OAuthProxyPortName,
@@ -769,7 +774,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 	return desiredDeployment, nil
 }
 
-func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDeployComponent) []corev1.EnvVar {
+func (o *oauthProxyResourceManager) getEnvVarsSidecarMode(component radixv1.RadixCommonDeployComponent) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
 	oauth := component.GetAuthentication().OAuth2
 
@@ -785,12 +790,6 @@ func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDepl
 		}
 	}
 
-	// Radix env-vars
-	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
-		envVars = append(envVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: v})
-	}
-
-	// oauth2-proxy env-vars
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PROVIDER", Value: getOAuthProxyProvider(oauth)})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_HTTPONLY", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_SECURE", Value: "true"})
@@ -849,7 +848,134 @@ func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDepl
 	if len(oauth.SkipAuthRoutes) > 0 {
 		addEnvVarIfSet(oauth2ProxySkipAuthRoutesEnvironmentVariable, strings.Join(oauth.SkipAuthRoutes, ","))
 	}
+
 	return envVars
+}
+
+func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
+	var envVars []corev1.EnvVar
+	oauth := component.GetAuthentication().OAuth2
+
+	addEnvVarIfSet := func(envVar string, value interface{}) {
+		rval := reflect.ValueOf(value)
+		if !rval.IsZero() {
+			switch rval.Kind() {
+			case reflect.String:
+				envVars = append(envVars, corev1.EnvVar{Name: envVar, Value: fmt.Sprint(rval)})
+			case reflect.Ptr:
+				envVars = append(envVars, corev1.EnvVar{Name: envVar, Value: fmt.Sprint(rval.Elem())})
+			}
+		}
+	}
+
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PROVIDER", Value: getOAuthProxyProvider(oauth)})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_HTTPONLY", Value: "true"})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_SECURE", Value: "true"})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PASS_BASIC_AUTH", Value: "false"})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", Value: "true"})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL", Value: "true"})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", defaults.OAuthProxyPortNumber)})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_UPSTREAM_TIMEOUT", Value: "0s"})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_REDIRECT_URL", Value: fmt.Sprintf("%s/callback", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))})
+
+	upstreamPort, err := getUpstreamComponentPort(component)
+	if err != nil {
+		return nil, err
+	}
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_UPSTREAMS", Value: fmt.Sprintf("%s://%s:%v", "http", component.GetName(), upstreamPort)})
+
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
+	envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyCookieSecretEnvironmentVariable, secretName, defaults.OAuthCookieSecretKeyName))
+
+	if oauth.GetUseAzureIdentity() {
+		envVars = append(envVars, corev1.EnvVar{Name: oauth2ProxyEntraIdFederatedTokenAuthEnvironmentVariable, Value: "true"})
+	} else {
+		envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyClientSecretEnvironmentVariable, secretName, defaults.OAuthClientSecretKeyName))
+	}
+
+	if oauth.IsSessionStoreTypeRedis() {
+		envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyRedisPasswordEnvironmentVariable, secretName, defaults.OAuthRedisPasswordKeyName))
+	}
+
+	addEnvVarIfSet("OAUTH2_PROXY_CLIENT_ID", oauth.ClientID)
+	addEnvVarIfSet("OAUTH2_PROXY_SCOPE", oauth.Scope)
+	addEnvVarIfSet("OAUTH2_PROXY_PASS_USER_HEADERS", oauth.SetXAuthRequestHeaders)
+	addEnvVarIfSet("OAUTH2_PROXY_PASS_ACCESS_TOKEN", oauth.SetXAuthRequestHeaders)
+	addEnvVarIfSet("OAUTH2_PROXY_PASS_AUTHORIZATION_HEADER", oauth.SetAuthorizationHeader)
+	addEnvVarIfSet("OAUTH2_PROXY_PROXY_PREFIX", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
+	addEnvVarIfSet("OAUTH2_PROXY_LOGIN_URL", oauth.LoginURL)
+	addEnvVarIfSet("OAUTH2_PROXY_REDEEM_URL", oauth.RedeemURL)
+	addEnvVarIfSet("OAUTH2_PROXY_SESSION_STORE_TYPE", getSessionStoreType(oauth))
+
+	if oidc := oauth.OIDC; oidc != nil {
+		addEnvVarIfSet("OAUTH2_PROXY_OIDC_ISSUER_URL", oidc.IssuerURL)
+		addEnvVarIfSet("OAUTH2_PROXY_OIDC_JWKS_URL", oidc.JWKSURL)
+		addEnvVarIfSet("OAUTH2_PROXY_SKIP_OIDC_DISCOVERY", oidc.SkipDiscovery)
+		addEnvVarIfSet("OAUTH2_PROXY_INSECURE_OIDC_SKIP_NONCE", oidc.InsecureSkipVerifyNonce)
+	}
+
+	if cookie := oauth.Cookie; cookie != nil {
+		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_NAME", cookie.Name)
+		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_EXPIRE", cookie.Expire)
+		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_REFRESH", cookie.Refresh)
+		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_SAMESITE", cookie.SameSite)
+	}
+
+	if cookieStore := oauth.CookieStore; cookieStore != nil {
+		addEnvVarIfSet("OAUTH2_PROXY_SESSION_COOKIE_MINIMAL", cookieStore.Minimal)
+	}
+
+	if oauth.IsSessionStoreTypeSystemManaged() {
+		addEnvVarIfSet(oauthProxyRedisConnectionUrlEnvironmentVariable, o.getSystemManagedRedisStoreConnectionURL(component))
+	} else if oauth.IsSessionStoreTypeRedis() {
+		addEnvVarIfSet(oauthProxyRedisConnectionUrlEnvironmentVariable, oauth.GetRedisStoreConnectionURL())
+	}
+
+	if len(oauth.SkipAuthRoutes) > 0 {
+		addEnvVarIfSet(oauth2ProxySkipAuthRoutesEnvironmentVariable, strings.Join(oauth.SkipAuthRoutes, ","))
+	}
+
+	return envVars, nil
+}
+
+func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
+	var envVars []corev1.EnvVar
+	var err error
+
+	if o.isProxyModeEnabled() {
+		envVars, err = o.getEnvVarsProxyMode(component)
+
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		envVars = o.getEnvVarsSidecarMode(component)
+	}
+
+	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
+		envVars = append(envVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: v})
+	}
+
+	return envVars, nil
+}
+
+func getUpstreamComponentPort(component radixv1.RadixCommonDeployComponent) (int32, error) {
+	if portList := component.GetPorts(); len(portList) == 0 {
+		return 0, fmt.Errorf("no ports defined for component '%s'", component.GetName())
+	}
+
+	if pubPort := component.GetPublicPort(); pubPort != "" {
+		for _, port := range component.GetPorts() {
+			if port.Name == pubPort {
+				return port.Port, nil
+			}
+		}
+
+		return 0, fmt.Errorf("public port not found in list of ports for component '%s'", component.GetName())
+	} else {
+		return component.GetPorts()[0].Port, nil
+	}
 }
 
 func getSessionStoreType(oauth2 *radixv1.OAuth2) radixv1.SessionStoreType {
