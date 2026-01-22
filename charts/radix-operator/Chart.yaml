@@ -1,7 +1,7 @@
 apiVersion: v2
 name: radix-operator
-version: 1.108.0 # x-patch-semver
-appVersion: 1.108.0 # x-patch-semver
+version: 1.108.0-rc.2 # x-patch-semver
+appVersion: 1.108.0-rc.2 # x-patch-semver
 kubeVersion: ">=1.24.0"
 description: Radix Operator
 icon:  https://radix.equinor.com/images/logos/logo.svg
