@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.107.1](https://github.com/equinor/radix-operator/compare/v1.107.0..v1.107.1) - 2026-01-08
+## [1.108.0](https://github.com/equinor/radix-operator/compare/v1.107.1..v1.108.0) - 2026-01-21
+
+### 🚀 Features
+
+- Support oauth2 service in proxy mode (#1561) - ([3eed3b8](https://github.com/equinor/radix-operator/commit/3eed3b8198e0ca762f111f749c4b96b896c849c6)) by @nilsgstrabo in [#1561](https://github.com/equinor/radix-operator/pull/1561)
+
+
+## [1.107.1](https://github.com/equinor/radix-operator/compare/v1.107.0..v1.107.1) - 2026-01-09
 
 ### 🐛 Bug Fixes
 
