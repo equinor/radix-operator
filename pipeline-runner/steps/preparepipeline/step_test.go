@@ -9,7 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"

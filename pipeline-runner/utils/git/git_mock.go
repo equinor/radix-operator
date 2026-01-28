@@ -7,7 +7,7 @@ package git
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockRepository is a mock of Repository interface.

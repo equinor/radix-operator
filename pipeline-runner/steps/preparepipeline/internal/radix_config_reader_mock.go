@@ -9,7 +9,7 @@ import (
 
 	model "github.com/equinor/radix-operator/pipeline-runner/model"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockRadixConfigReader is a mock of RadixConfigReader interface.

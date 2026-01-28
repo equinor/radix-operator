@@ -9,7 +9,7 @@ import (
 
 	events "github.com/equinor/radix-operator/job-scheduler/models/v1/events"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockNotifier is a mock of Notifier interface.

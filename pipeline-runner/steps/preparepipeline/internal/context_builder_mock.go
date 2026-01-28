@@ -10,7 +10,7 @@ import (
 
 	model "github.com/equinor/radix-operator/pipeline-runner/model"
 	git "github.com/equinor/radix-operator/pipeline-runner/utils/git"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockContextBuilder is a mock of ContextBuilder interface.

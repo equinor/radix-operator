@@ -16,7 +16,7 @@ import (
 	modelsV1 "github.com/equinor/radix-operator/job-scheduler/models/v1"
 	apiErrors "github.com/equinor/radix-operator/job-scheduler/pkg/errors"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

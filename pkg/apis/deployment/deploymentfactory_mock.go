@@ -13,7 +13,7 @@ import (
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned0 "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 	versioned1 "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	kubernetes "k8s.io/client-go/kubernetes"
 )

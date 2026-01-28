@@ -10,7 +10,7 @@ import (
 
 	common "github.com/equinor/radix-operator/job-scheduler/models/common"
 	v1 "github.com/equinor/radix-operator/job-scheduler/models/v1"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockJobHandler is a mock of JobHandler interface.
