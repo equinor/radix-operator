@@ -18,7 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	networkingv1 "k8s.io/api/networking/v1"

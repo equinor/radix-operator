@@ -10,7 +10,7 @@ import (
 	model "github.com/equinor/radix-operator/pipeline-runner/model"
 	pipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 	v10 "k8s.io/api/batch/v1"
 )
 

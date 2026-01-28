@@ -17,7 +17,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"

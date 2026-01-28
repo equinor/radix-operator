@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	model "github.com/equinor/radix-operator/pipeline-runner/model"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 )
 

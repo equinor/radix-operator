@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockAnnotationProvider is a mock of AnnotationProvider interface.

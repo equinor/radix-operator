@@ -9,7 +9,7 @@ import (
 	"time"
 
 	_ "github.com/equinor/radix-operator/pkg/apis/test"
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/client-go/tools/cache"
