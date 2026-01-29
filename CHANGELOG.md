@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.108.0](https://github.com/equinor/radix-operator/compare/v1.107.1..v1.108.0) - 2026-01-21
+## [1.108.1](https://github.com/equinor/radix-operator/compare/v1.108.0..v1.108.1) - 2026-01-29
+
+### 🐛 Bug Fixes
+
+- Security fixes, better e2e testing (custom namespace) (#1592) - ([d96ad6f](https://github.com/equinor/radix-operator/commit/d96ad6f2cf8afedc639a274359d47db86460a6ad)) by @Richard87 in [#1592](https://github.com/equinor/radix-operator/pull/1592)
+
+
+## [1.108.0](https://github.com/equinor/radix-operator/compare/v1.107.1..v1.108.0) - 2026-01-22
 
 ### 🚀 Features
 
