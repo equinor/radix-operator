@@ -48,8 +48,6 @@ APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
 
 HASH := $(shell git rev-parse HEAD)
 
-CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
-
 TAG := $(BRANCH)-$(HASH)
 
 echo:
@@ -58,7 +56,6 @@ echo:
 	@echo "CONTAINER_REPO : " $(CONTAINER_REPO)
 	@echo "DOCKER_REGISTRY : " $(DOCKER_REGISTRY)
 	@echo "BRANCH : " $(BRANCH)
-	@echo "CLUSTER_NAME : " $(CLUSTER_NAME)
 	@echo "APP_ALIAS_BASE_URL : " $(APP_ALIAS_BASE_URL)
 	@echo "IS_PROD : " $(IS_PROD)
 	@echo "IS_DEV : " $(IS_DEV)
@@ -219,23 +216,10 @@ generate: bootstrap code-gen helmresources mocks swagger
 verify-generate: bootstrap tidy generate
 	git diff --exit-code
 
-.PHONY: apply-ra
-apply-ra: bootstrap
-	kubectl apply -f ./charts/radix-operator/templates/radixapplication.yaml
-
-.PHONY: apply-rb
-apply-rb: bootstrap
-	kubectl apply -f ./charts/radix-operator/templates/radixbatch.yaml
-
-.PHONY: apply-rd
-apply-rd: bootstrap
-	kubectl apply -f ./charts/radix-operator/templates/radixdeployment.yaml
-
 HAS_GOLANGCI_LINT  := $(shell command -v golangci-lint;)
 HAS_MOCKGEN        := $(shell command -v mockgen;)
 HAS_CONTROLLER_GEN := $(shell command -v controller-gen;)
 HAS_YQ             := $(shell command -v yq;)
-HAS_KUBECTL        := $(shell command -v kubectl;)
 HAS_SWAGGER        := $(shell command -v swagger;)
 
 .PHONY: bootstrap
@@ -251,9 +235,6 @@ ifndef HAS_CONTROLLER_GEN
 endif
 ifndef HAS_YQ
 	go install github.com/mikefarah/yq/v4@latest
-endif
-ifndef HAS_KUBECTL
-	go install k8s.io/kubernetes/cmd/kubectl@latest
 endif
 ifndef HAS_SWAGGER
 	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.33.1

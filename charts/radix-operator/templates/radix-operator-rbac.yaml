@@ -3,6 +3,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: {{ template "radix-operator.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
 ---

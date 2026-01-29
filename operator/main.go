@@ -41,7 +41,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -376,7 +375,7 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 
 func loadIngressConfigFromMap(ctx context.Context, kubeutil *kube.Kube) (ingress.IngressConfiguration, error) {
 	ingressConfig := ingress.IngressConfiguration{}
-	configMap, err := kubeutil.GetConfigMap(ctx, metav1.NamespaceDefault, ingressConfigurationMap)
+	configMap, err := kubeutil.GetConfigMap(ctx, os.Getenv("POD_NAMESPACE"), ingressConfigurationMap)
 	if err != nil {
 		return ingressConfig, err
 	}

@@ -13,24 +13,35 @@ fi
 
 file="$1"
 
+# Cross-platform in-place sed (BSD vs GNU)
+sedi() {
+  if [[ "$(uname)" == "Darwin" ]]; then
+    sed -i '' "$@"
+  else
+    sed -i "$@"
+  fi
+}
 
 # Remove all lines that are just '---'
-sed -i '/^---$/d' "$file"
+sedi '/^---$/d' "$file"
 
 # Insert Helm if at the top
-sed -i '1s;^;{{ if .Values.radixWebhook.enabled }}\n\n;' "$file"
+sedi '1s;^;{{ if .Values.radixWebhook.enabled }}\n\n;' "$file"
 # Replace metadata name
-sed -i 's/^  name: validating-webhook-configuration/  name: radix-webhook-configuration/' "$file"
+sedi 's/^  name: validating-webhook-configuration/  name: radix-webhook-configuration/' "$file"
 
 
 # Replace service name, namespace, and add port
-sed -i 's/^      name: webhook-service/      name: radix-webhook/' "$file"
-sed -i 's/^      namespace: system/      namespace: {{ .Release.Namespace }}/' "$file"
-sed -i '/^      path: \/radix\/v1\/radixregistration\/validation/a \\      port: 443' "$file"
-sed -i '/^      path: \/radix\/v1\/radixapplication\/validation/a \\      port: 443' "$file"
+sedi 's/^      name: webhook-service/      name: radix-webhook/' "$file"
+sedi 's/^      namespace: system/      namespace: {{ .Release.Namespace }}/' "$file"
+sedi '/^      path: \/radix\/v1\/radixregistration\/validation/a\
+      port: 443' "$file"
+sedi '/^      path: \/radix\/v1\/radixapplication\/validation/a\
+      port: 443' "$file"
 
 # Add matchPolicy after failurePolicy
-sed -i '/^  failurePolicy: Fail/a \\  matchPolicy: Equivalent' "$file"
+sedi '/^  failurePolicy: Fail/a\
+  matchPolicy: Equivalent' "$file"
 
 # Add an empty line before the last {{ end }}
 echo '' >> "$file"
