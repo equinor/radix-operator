@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/zerologr"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
@@ -72,7 +73,7 @@ func TestMain(m *testing.M) {
 	err := envconfig.Process("", &cfg)
 	if err != nil {
 		_ = envconfig.Usage("", &cfg)
-		panic("failed to parse process config: " + err.Error())
+		log.Fatal().Err(err).Msg("failed to parse process config")
 	}
 	fmt.Printf("Config:\n  SetupParallelism: %v\n  RemoveImagesOnFinish: %v\n", cfg.SetupParallelism, cfg.RemoveImagesOnFinish)
 
@@ -106,21 +107,21 @@ func TestMain(m *testing.M) {
 	// Wait for both to complete
 	err = eg.Wait()
 	if err != nil {
-		panic("failed to setup cluster or build images: " + err.Error())
+		log.Fatal().Err(err).Msg("failed to setup cluster or build images")
 	}
 	println("Cluster and images ready")
 
 	// Get kubeconfig
 	kubeConfig, err := testCluster.GetKubeConfig()
 	if err != nil {
-		panic("failed to get kubeconfig: " + err.Error())
+		log.Fatal().Err(err).Msg("failed to get kubeconfig")
 	}
 
 	// Load images into Kind cluster
 	println("Loading images into Kind cluster...")
 	for _, spec := range componentSpecs {
 		if err = testCluster.LoadImage(testContext, spec.ImageName, imageTag); err != nil {
-			panic("failed to load image: " + err.Error())
+			log.Fatal().Err(err).Msg("failed to load image")
 		}
 	}
 
@@ -138,12 +139,12 @@ func TestMain(m *testing.M) {
 		Scheme: scheme,
 		Logger: logrLogger,
 	}); err != nil {
-		panic("failed to create manager: " + err.Error())
+		log.Fatal().Err(err).Msg("failed to create manager")
 	}
 
 	// Install Prometheus Operator CRDs first
 	if err = internal.InstallPrometheusOperatorCRDs(testContext, testCluster.KubeConfigPath); err != nil {
-		panic("failed to install Prometheus Operator CRDs: " + err.Error())
+		log.Fatal().Err(err).Msg("failed to install Prometheus Operator CRDs")
 	}
 
 	// Install Helm chart with custom image tags
@@ -156,25 +157,25 @@ func TestMain(m *testing.M) {
 		helmValues[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName
 		helmValues[fmt.Sprintf("%s.tag", spec.HelmValueKey)] = imageTag
 	}
-	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "default", "radix-operator", "../charts/radix-operator", helmValues); err != nil {
-		panic("failed to install helm chart: " + err.Error())
+	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator", "../charts/radix-operator", helmValues); err != nil {
+		log.Fatal().Err(err).Msg("failed to install radix-operator helm chart")
 	}
 
 	// Start the manager in the background
 	go func() {
 		if err := testManager.Start(testContext); err != nil {
-			panic("failed to start manager: " + err.Error())
+			log.Fatal().Err(err).Msg("failed to start manager")
 		}
 	}()
 
 	// Wait for the manager cache to sync
 	if !testManager.GetCache().WaitForCacheSync(testContext) {
-		panic("failed to wait for cache sync")
+		log.Fatal().Msg("failed to wait for cache sync")
 	}
 
 	// Wait for webhook deployment to be ready
-	if err := WaitForDeploymentReady(testContext, testManager.GetClient(), "default", "radix-webhook"); err != nil {
-		panic("failed to wait for webhook to be ready: " + err.Error())
+	if err := WaitForDeploymentReady(testContext, testManager.GetClient(), "radix-system", "radix-webhook"); err != nil {
+		log.Fatal().Err(err).Msg("failed to wait for webhook to be ready")
 	}
 
 	// Run tests

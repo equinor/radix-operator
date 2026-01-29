@@ -23,6 +23,7 @@ configuration:
       bar1: x
       bar2: y
 `
+	t.Setenv("POD_NAMESPACE", corev1.NamespaceDefault)
 	ingressCm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: ingressConfigurationMap, Namespace: corev1.NamespaceDefault},
 		Data:       map[string]string{"ingressConfiguration": ingressConfig},

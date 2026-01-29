@@ -14,7 +14,7 @@ const (
 // GetDefaultReadinessProbeInitialDelaySeconds Gets the default readiness probe initial delay seconds defined as an environment variable
 func GetDefaultReadinessProbeInitialDelaySeconds() (int32, error) {
 	initialDelaySecondsString := os.Getenv(OperatorReadinessProbeInitialDelaySeconds)
-	initialDelaySecondsInt, err := strconv.Atoi(initialDelaySecondsString)
+	initialDelaySecondsInt, err := strconv.ParseInt(initialDelaySecondsString, 10, 32)
 	if err != nil {
 		return 0, err
 	}
@@ -24,7 +24,7 @@ func GetDefaultReadinessProbeInitialDelaySeconds() (int32, error) {
 // GetDefaultReadinessProbePeriodSeconds Gets the default readiness probe period seconds defined as an environment variable
 func GetDefaultReadinessProbePeriodSeconds() (int32, error) {
 	periodSecondsString := os.Getenv(OperatorReadinessProbePeriodSeconds)
-	periodSecondsInt, err := strconv.Atoi(periodSecondsString)
+	periodSecondsInt, err := strconv.ParseInt(periodSecondsString, 10, 32)
 	if err != nil {
 		return 0, err
 	}
