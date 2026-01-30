@@ -224,6 +224,18 @@
 			"program": "${workspaceFolder}/pkg/apis/applicationconfig",
 			"env": {},
 			"args": ["applicationconfig_test.go"]
-		}
+		},
+		{
+			"name": "Launch e2e tests",
+			"type": "go",
+			"request": "launch",
+			"mode": "test",
+			"program": "${workspaceFolder}/e2e",
+			"args": [
+				"-test.v",
+				"-test.timeout",
+				"30m"
+			]
+		},
 	]
 }
