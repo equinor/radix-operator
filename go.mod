@@ -13,7 +13,6 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/go-logr/zerologr v1.2.3
 	github.com/go-swagger/go-swagger v0.31.0
-	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/kedacore/keda/v2 v2.18.3
@@ -30,6 +29,7 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.11.1
 	github.com/tektoncd/pipeline v0.55.0
+	go.uber.org/mock v0.6.0
 	golang.org/x/crypto v0.45.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
 	golang.org/x/sync v0.18.0
