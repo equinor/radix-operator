@@ -217,6 +217,7 @@ type Environment struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +kubebuilder:validation:XValidation:rule="self != 'app'",message="environment name 'app' is reserved"
 	Name string `json:"name"`
 
 	// Build configuration for the environment.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,10 +14,13 @@ import (
 )
 
 // createNamespaceForTest creates a namespace for testing and returns a cleanup function
-func createNamespaceForTest(t *testing.T, c client.Client, name string) func() {
+func createNamespaceForTest(t *testing.T, c client.Client, appName string) func() {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name: appName + "-app",
+			Labels: map[string]string{
+				kube.RadixAppLabel: appName,
+			},
 		},
 	}
 	err := c.Create(context.Background(), ns)
@@ -32,9 +36,7 @@ func createNamespaceForTest(t *testing.T, c client.Client, name string) func() {
 // Returns cleanup function and the app namespace name
 func createRadixRegistrationAndNamespaceForTest(t *testing.T, c client.Client, appName string) (cleanup func(), appNamespace string) {
 	appNamespace = appName + "-app"
-
-	// Create namespace
-	nsCleanup := createNamespaceForTest(t, c, appNamespace)
+	nsCleanup := createNamespaceForTest(t, c, appName) // Reuse the cleanup function for namespace
 
 	// Create RadixRegistration
 	rr := &v1.RadixRegistration{
@@ -48,11 +50,11 @@ func createRadixRegistrationAndNamespaceForTest(t *testing.T, c client.Client, a
 			ConfigurationItem: "test-item",
 		},
 	}
-	err := c.Create(context.Background(), rr)
+	err := c.Create(t.Context(), rr)
 	require.NoError(t, err)
 
 	return func() {
-		_ = c.Delete(context.Background(), rr)
+		_ = c.Delete(t.Context(), rr)
 		nsCleanup()
 	}, appNamespace
 }
@@ -89,6 +91,9 @@ func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: appNamespace,
+				Labels: map[string]string{
+					kube.RadixAppLabel: appName,
+				},
 			},
 		}
 		err := c.Create(t.Context(), ns)
@@ -231,6 +236,11 @@ func TestRadixApplicationEnvironmentNameValidation(t *testing.T) {
 		{
 			name:        "invalid - starts with hyphen",
 			envName:     "-dev",
+			shouldError: true,
+		},
+		{
+			name:        "invalid - reserved name 'app' (CEL rule)",
+			envName:     "app",
 			shouldError: true,
 		},
 	}
