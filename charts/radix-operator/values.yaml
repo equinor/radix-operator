@@ -214,8 +214,6 @@ radixJobScheduler:
     tag: ""
 
 radixWebhook:
-  enabled: true
-
   logLevel: info
   logPretty: false
   requireAdGroups: true

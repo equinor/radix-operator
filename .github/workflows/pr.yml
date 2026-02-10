@@ -108,4 +108,4 @@ jobs:
       - uses: azure/setup-helm@v4
       - name: Helm Lint
         run: |
-          helm lint charts/radix-operator --set radixWebhook.enabled=true --set rbac.createApp.groups[0]="group1"
+          helm lint charts/radix-operator --set rbac.createApp.groups[0]="group1"
