@@ -24,6 +24,10 @@ func (app *Application) reconcileAppNamespace(ctx context.Context) error {
 	}
 
 	if current != nil {
+		if appLabel, exists := desired.Labels[kube.RadixAppLabel]; !exists || appLabel != registration.Name {
+			return fmt.Errorf("namespace %s already exists and is labeled with a missing or different app name: %s", name, appLabel)
+		}
+
 		if err := app.kubeutil.UpdateNamespace(ctx, current, desired); err != nil {
 			return fmt.Errorf("failed to update namespace %s: %w", name, err)
 		}
@@ -55,10 +59,6 @@ func (app *Application) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 	} else {
 		desired = currentInternal.DeepCopy()
 		current = currentInternal
-
-		if appLabel, exists := desired.Labels[kube.RadixAppLabel]; !exists || appLabel != registration.Name {
-			return nil, nil, fmt.Errorf("namespace %s already exists and is labeled with a missing or different app name: %s", name, appLabel)
-		}
 	}
 
 	desired.ObjectMeta.OwnerReferences = app.getOwnerReference()

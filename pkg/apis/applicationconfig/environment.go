@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -59,6 +60,10 @@ func (app *ApplicationConfig) syncEnvironment(ctx context.Context, radixEnvironm
 			return app.createRadixEnvironment(ctx, radixEnvironment)
 		}
 		return fmt.Errorf("failed to get RadixEnvironment: %w", err)
+	}
+
+	if appLabel, _ := existingRE.Labels[kube.RadixAppLabel]; appLabel != app.config.Name {
+		return fmt.Errorf("RadixEnvironment %s is labeled with a different app name: %s", existingRE.GetName(), appLabel)
 	}
 	return app.updateRadixEnvironment(ctx, existingRE, radixEnvironment)
 }
