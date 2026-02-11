@@ -68,7 +68,7 @@ func (app *Application) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 	})
 	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, kube.NewAppNamespacePodSecurityStandardFromEnv().Labels())
 
-	// We don'nt use snyk anymore, remove line if no more namespaces contains this label
+	// We don't use snyk anymore, remove line if no more namespaces contains this label
 	delete(desired.Labels, "snyk-service-account-sync")
 
 	return current, desired, nil
