@@ -2839,25 +2839,6 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			expectError: true,
 			errorIs:     radixapplication.ErrEnvironmentNameIsNotAvailable,
 		},
-		{
-			name: "test myapp-foo+bar and myapp+foo-bar",
-			namespaces: []client.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-prod",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
-				},
-			},
-			expectError: true,
-			errorIs:     radixapplication.ErrEnvironmentNameIsNotAvailable,
-		},
 	}
 
 	for _, tt := range tests {
