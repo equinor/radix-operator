@@ -123,7 +123,7 @@ func (env *Environment) reconcileNamespace(ctx context.Context) error {
 	}
 
 	if current != nil {
-		if appLabel, exists := desired.Labels[kube.RadixAppLabel]; !exists || appLabel != env.config.Spec.AppName {
+		if appLabel, exists := current.Labels[kube.RadixAppLabel]; !exists || appLabel != env.config.Spec.AppName {
 			return fmt.Errorf("namespace %s already exists and is labeled with a missing or different app name: %s", namespace, appLabel)
 		}
 
