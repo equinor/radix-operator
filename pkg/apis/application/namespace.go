@@ -24,7 +24,7 @@ func (app *Application) reconcileAppNamespace(ctx context.Context) error {
 	}
 
 	if current != nil {
-		if appLabel, exists := desired.Labels[kube.RadixAppLabel]; !exists || appLabel != registration.Name {
+		if appLabel, exists := current.Labels[kube.RadixAppLabel]; !exists || appLabel != registration.Name {
 			return fmt.Errorf("namespace %s already exists and is labeled with a missing or different app name: %s", name, appLabel)
 		}
 

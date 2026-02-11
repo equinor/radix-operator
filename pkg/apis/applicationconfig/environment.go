@@ -62,7 +62,7 @@ func (app *ApplicationConfig) syncEnvironment(ctx context.Context, radixEnvironm
 		return fmt.Errorf("failed to get RadixEnvironment: %w", err)
 	}
 
-	if appLabel, _ := existingRE.Labels[kube.RadixAppLabel]; appLabel != app.config.Name {
+	if appLabel := existingRE.Labels[kube.RadixAppLabel]; appLabel != app.config.Name {
 		return fmt.Errorf("RadixEnvironment %s is labeled with a different app name: %s", existingRE.GetName(), appLabel)
 	}
 	return app.updateRadixEnvironment(ctx, existingRE, radixEnvironment)
