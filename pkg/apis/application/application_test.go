@@ -155,9 +155,8 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.NoError(t, err)
 	assert.NotNil(t, ns)
 	expected := map[string]string{
-		kube.RadixAppLabel:          appName,
-		kube.RadixEnvLabel:          utils.AppNamespaceEnvName,
-		"snyk-service-account-sync": "radix-snyk-service-account",
+		kube.RadixAppLabel: appName,
+		kube.RadixEnvLabel: utils.AppNamespaceEnvName,
 	}
 	assert.Equal(t, expected, ns.GetLabels())
 
@@ -202,7 +201,6 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 	expected := map[string]string{
 		kube.RadixAppLabel:                           appName,
 		kube.RadixEnvLabel:                           utils.AppNamespaceEnvName,
-		"snyk-service-account-sync":                  "radix-snyk-service-account",
 		"pod-security.kubernetes.io/enforce":         "enforceAppNsLvl",
 		"pod-security.kubernetes.io/enforce-version": "enforceVer",
 		"pod-security.kubernetes.io/audit":           "auditLvl",
@@ -224,6 +222,9 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 		&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "any-app-app",
+				Labels: map[string]string{
+					kube.RadixAppLabel: "any-app",
+				},
 			},
 		},
 		metav1.CreateOptions{})
