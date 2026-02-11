@@ -47,7 +47,7 @@ func (app *Application) OnSync(ctx context.Context) error {
 
 func (app *Application) reconcile(ctx context.Context) error {
 
-	if err := app.createAppNamespace(ctx); err != nil {
+	if err := app.reconcileAppNamespace(ctx); err != nil {
 		return fmt.Errorf("failed to create app namespace: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msg("App namespace created")

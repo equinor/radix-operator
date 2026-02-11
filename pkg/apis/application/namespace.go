@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-// createAppNamespace creates an app namespace with RadixRegistration as owner
-func (app *Application) createAppNamespace(ctx context.Context) error {
+// reconcileAppNamespace creates an app namespace with RadixRegistration as owner
+func (app *Application) reconcileAppNamespace(ctx context.Context) error {
 	registration := app.registration
 	name := utils.GetAppNamespace(registration.Name)
 
@@ -32,7 +32,7 @@ func (app *Application) createAppNamespace(ctx context.Context) error {
 			return fmt.Errorf("failed to create namespace %s: %w", name, err)
 		}
 	}
-	log.Ctx(ctx).Info().Msgf("Created namespace %s", name)
+	log.Ctx(ctx).Info().Msgf("Reconciled namespace %s", name)
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (app *Application) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, kube.NewAppNamespacePodSecurityStandardFromEnv().Labels())
 
 	// We don'nt use snyk anymore, remove line if no more namespaces contains this label
-	delete(desired.ObjectMeta.Labels, "snyk-service-account-sync")
+	delete(desired.Labels, "snyk-service-account-sync")
 
 	return current, desired, nil
 }

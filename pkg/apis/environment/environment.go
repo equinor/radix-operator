@@ -13,7 +13,9 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -75,7 +77,7 @@ func (env *Environment) OnSync(ctx context.Context) error {
 }
 
 func (env *Environment) reconcile(ctx context.Context) error {
-	if err := env.applyNamespace(ctx); err != nil {
+	if err := env.reconcileNamespace(ctx); err != nil {
 		return fmt.Errorf("failed to reconcile environment namespace: %w", err)
 	}
 	if err := env.applyAdGroupRoleBinding(ctx); err != nil {
@@ -112,23 +114,67 @@ func (env *Environment) removeFinalizer(ctx context.Context) error {
 	return nil
 }
 
-// applyNamespace sets up namespace metadata and applies configuration to kubernetes
-func (env *Environment) applyNamespace(ctx context.Context) error {
+// reconcileNamespace sets up namespace metadata and applies configuration to kubernetes
+func (env *Environment) reconcileNamespace(ctx context.Context) error {
 	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
-	// get key to use for namespace annotation to pick up private image hubs
-	imagehubKey := fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName)
-	nsLabels := labels.Set{
-		"sync":                         "cluster-wildcard-tls-cert",
-		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",        // redundant, can be removed
-		"app-wildcard-sync":            "app-wildcard-tls-cert",            // redundant, can be removed
-		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert", // redundant, can be removed
-		"radix-wildcard-sync":          "radix-wildcard-tls-cert",
-		imagehubKey:                    env.config.Spec.AppName,
-		kube.RadixAppLabel:             env.config.Spec.AppName,
-		kube.RadixEnvLabel:             env.config.Spec.EnvName,
+	current, desired, err := env.getCurrentAndDesiredNamespace(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current and desired namespace: %w", err)
 	}
-	nsLabels = labels.Merge(nsLabels, kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels())
-	return env.kubeutil.ApplyNamespace(ctx, namespace, nsLabels, env.AsOwnerReference())
+
+	if current != nil {
+		if err := env.kubeutil.UpdateNamespace(ctx, current, desired); err != nil {
+			return fmt.Errorf("failed to update namespace %s: %w", namespace, err)
+		}
+	} else {
+		if _, err := env.kubeutil.CreateNamespace(ctx, desired); err != nil {
+			return fmt.Errorf("failed to create namespace %s: %w", namespace, err)
+		}
+	}
+	return nil
+}
+
+func (env *Environment) getCurrentAndDesiredNamespace(ctx context.Context) (current, desired *corev1.Namespace, err error) {
+	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
+
+	currentInternal, err := env.kubeclient.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return nil, nil, fmt.Errorf("failed to get namespace %s: %w", namespace, err)
+		}
+
+		desired = &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespace,
+			},
+		}
+	} else {
+		desired = currentInternal.DeepCopy()
+		current = currentInternal
+
+		if appLabel, exists := desired.Labels[kube.RadixAppLabel]; !exists || appLabel != env.config.Spec.AppName {
+			return nil, nil, fmt.Errorf("namespace %s already exists and is labeled with a missing or different app name: %s", namespace, appLabel)
+		}
+	}
+
+	desired.ObjectMeta.OwnerReferences = env.AsOwnerReference()
+	imagehubKey := fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName)
+	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, map[string]string{
+		"sync":                "cluster-wildcard-tls-cert",
+		"radix-wildcard-sync": "radix-wildcard-tls-cert",
+		imagehubKey:           env.config.Spec.AppName,
+		kube.RadixAppLabel:    env.config.Spec.AppName,
+		kube.RadixEnvLabel:    env.config.Spec.EnvName,
+	})
+	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels())
+
+	// We don'nt use these anymore, remove line if no more namespaces contains this label
+	delete(desired.Labels, "cluster-wildcard-tls-cert")
+	delete(desired.Labels, "app-wildcard-tls-cert")
+	delete(desired.Labels, "active-cluster-wildcard-tls-cert")
+
+	return current, desired, nil
 }
 
 // applyAdGroupRoleBinding grants access to environment namespace
