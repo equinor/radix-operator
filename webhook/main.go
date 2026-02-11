@@ -9,20 +9,17 @@ import (
 	"os"
 	"time"
 
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	internalconfig "github.com/equinor/radix-operator/webhook/internal/config"
 	"github.com/equinor/radix-operator/webhook/validation"
 
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
 	"github.com/rs/zerolog/log"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	siglog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -39,11 +36,8 @@ func main() {
 	logger.Info().Interface("config", c).Msg("Configuration")
 
 	logger.Info().Msg("setting up manager")
-	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(radixv1.AddToScheme(scheme))
 	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{
-		Scheme:                 scheme,
+		Scheme:                 scheme.NewScheme(),
 		Logger:                 initLogr(logger),
 		LeaderElection:         false,
 		HealthProbeBindAddress: fmt.Sprintf(":%d", c.HealthPort),

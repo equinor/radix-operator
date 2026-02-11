@@ -2,19 +2,22 @@ package utils
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// PollUntilRESTClientSuccessfulConnection tries a GET request to root with the RESTClient returned by clientFactory.
+// PollUntilClientSuccessfulConnection tries a GET request to root with the RESTClient returned by clientFactory.
 // clientFactory will be invoked on `interval` for each connection attempt until the request returns no error,
 // the error is not `net/http: TLS handshake timeout` or `ctx` is cancelled or hits a deadline.
 // Polling will terminate after `duration` defined in timeout.
-func PollUntilRESTClientSuccessfulConnection[T interface{ RESTClient() rest.Interface }](ctx context.Context, timeout time.Duration, interval time.Duration, clientFactory func() (T, error)) (T, error) {
-	var client T
+func PollUntilClientSuccessfulConnection(ctx context.Context, timeout time.Duration, interval time.Duration, clientFactory func() (client.Client, error)) (client.Client, error) {
+	var connectedClient client.Client
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -30,12 +33,13 @@ func PollUntilRESTClientSuccessfulConnection[T interface{ RESTClient() rest.Inte
 		}
 
 		// Retry if error transient, e.g. TLS handshake timeout
-		if err := c.RESTClient().Get().Do(timeoutCtx).Error(); err != nil && isTransientConnectionError(err) {
+		ns := corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: os.Getenv("POD_NAMESPACE")}}
+		if err := c.Get(timeoutCtx, client.ObjectKeyFromObject(&ns), &ns); err != nil && isTransientConnectionError(err) {
 			log.Ctx(ctx).Info().Err(err).Msg("Transient error when connecting. Retrying")
 			return false, nil
 		}
-		client = c
+		connectedClient = c
 		return true, nil
 	})
-	return client, err
+	return connectedClient, err
 }
