@@ -169,10 +169,10 @@ func (env *Environment) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 	})
 	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels())
 
-	// We don'nt use these anymore, remove line if no more namespaces contains this label
-	delete(desired.Labels, "cluster-wildcard-tls-cert")
-	delete(desired.Labels, "app-wildcard-tls-cert")
-	delete(desired.Labels, "active-cluster-wildcard-tls-cert")
+	// We don't use these anymore, remove line if no more namespaces contains this label
+	delete(desired.Labels, "cluster-wildcard-sync")
+	delete(desired.Labels, "app-wildcard-sync")
+	delete(desired.Labels, "active-cluster-wildcard-sync")
 
 	return current, desired, nil
 }
