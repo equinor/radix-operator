@@ -2,11 +2,11 @@ package kube
 
 import (
 	"context"
-	"reflect"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -24,7 +24,7 @@ func (kubeutil *Kube) CreateNamespace(ctx context.Context, namespace *corev1.Nam
 // UpdateNamespace updates the `modified` namespace.
 // If `original` is set, the two namespaces are compared, and the namespace is only updated if they are not equal.
 func (kubeutil *Kube) UpdateNamespace(ctx context.Context, original, modified *corev1.Namespace) error {
-	if original != nil && reflect.DeepEqual(original, modified) {
+	if original != nil && equality.Semantic.DeepEqual(original, modified) {
 		log.Ctx(ctx).Debug().Msgf("No need to update namespace %s", modified.Name)
 		return nil
 	}
