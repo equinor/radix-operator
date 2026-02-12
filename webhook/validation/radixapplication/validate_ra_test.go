@@ -12,10 +12,12 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/webhook/validation/radixapplication"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -2703,6 +2705,154 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 				assert.Empty(t, wnrs)
 			} else {
 				assert.ErrorIs(t, actualValidationErr, ts.expectedValidationError)
+			}
+		})
+	}
+}
+
+func Test_NamespaceUsableValidator(t *testing.T) {
+	// The testdata RA has app name "testapp" with environments "dev" and "prod"
+	// Expected namespace names: "testapp-dev" and "testapp-prod"
+	rr := load[client.Object]("testdata/radixregistration.yaml")
+	validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+
+	tests := []struct {
+		name        string
+		namespaces  []client.Object
+		expectError bool
+		errorIs     error
+	}{
+		{
+			name:        "no existing namespaces",
+			namespaces:  nil,
+			expectError: false,
+		},
+		{
+			name: "namespace exists with correct radix-app label",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "testapp-dev",
+						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "all environment namespaces with correct label",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "testapp-dev",
+						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
+					},
+				},
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "testapp-prod",
+						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "namespace exists without radix-app label",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "testapp-dev",
+					},
+				},
+			},
+			expectError: true,
+			errorIs:     radixapplication.ErrEnvironmentNameIsNotAvailable,
+		},
+		{
+			name: "namespace exists with empty labels",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "testapp-dev",
+						Labels: map[string]string{},
+					},
+				},
+			},
+			expectError: true,
+			errorIs:     radixapplication.ErrEnvironmentNameIsNotAvailable,
+		},
+		{
+			name: "namespace exists with different radix-app label",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "testapp-dev",
+						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
+					},
+				},
+			},
+			expectError: true,
+			errorIs:     radixapplication.ErrEnvironmentNameIsNotAvailable,
+		},
+		{
+			name: "one namespace correct, one with wrong label",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "testapp-dev",
+						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
+					},
+				},
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "testapp-prod",
+						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
+					},
+				},
+			},
+			expectError: true,
+			errorIs:     radixapplication.ErrEnvironmentNameIsNotAvailable,
+		},
+		{
+			name: "unrelated namespace does not affect validation",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "otherapp-dev",
+						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "namespace exists with other labels but not radix-app",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "testapp-dev",
+						Labels: map[string]string{"some-other-label": "some-value"},
+					},
+				},
+			},
+			expectError: true,
+			errorIs:     radixapplication.ErrEnvironmentNameIsNotAvailable,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objs := append([]client.Object{rr}, tt.namespaces...)
+			c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
+			validator := radixapplication.CreateOnlineValidator(c, []string{}, map[string]string{})
+			_, err := validator.Validate(context.Background(), validRA)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.ErrorIs(t, err, tt.errorIs)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

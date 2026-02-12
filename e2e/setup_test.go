@@ -150,7 +150,6 @@ func TestMain(m *testing.M) {
 	// Install Helm chart with custom image tags
 	helmValues := map[string]string{
 		"rbac.createApp.groups[0]": "123",
-		"radixWebhook.enabled":     "true",
 		"image.pullPolicy":         "IfNotPresent",
 	}
 	for _, spec := range componentSpecs {

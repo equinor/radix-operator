@@ -35,6 +35,7 @@ type RadixEnvironmentList struct {
 // RadixEnvironmentSpec is the spec for an RE
 type RadixEnvironmentSpec struct {
 	AppName string `json:"appName"`
+	// +kubebuilder:validation:XValidation:rule="self != '' && self != 'app'",message="envName must not be empty or 'app'"
 	EnvName string `json:"envName"`
 
 	// Egress defines egress rules

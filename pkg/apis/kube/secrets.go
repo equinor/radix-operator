@@ -3,7 +3,6 @@ package kube
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/equinor/radix-common/utils"
@@ -11,6 +10,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -54,7 +54,7 @@ func (kubeutil *Kube) CreateSecret(ctx context.Context, namespace string, secret
 // UpdateSecret updates the `modified` secret.
 // If `original` is set, the two secrets are compared, and the secret is only updated if they are not equal.
 func (kubeutil *Kube) UpdateSecret(ctx context.Context, original, modified *corev1.Secret) (*corev1.Secret, error) {
-	if original != nil && reflect.DeepEqual(original, modified) {
+	if original != nil && equality.Semantic.DeepEqual(original, modified) {
 		log.Ctx(ctx).Debug().Msgf("No need to update secret %s/%s", modified.Namespace, modified.Name)
 		return modified, nil
 	}

@@ -11,10 +11,13 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,6 +67,7 @@ func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, re
 	onlineValidators := []validatorFunc{
 		createRRExistValidator(client),
 		createDNSAliasAvailableValidator(client, reservedDNSAliases, reservedDNSAppAliases),
+		createNamespaceUsableValidator(client),
 	}
 
 	return &Validator{
@@ -341,6 +345,38 @@ func envNameValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]stri
 		}
 	}
 	return nil, nil
+}
+
+func createNamespaceUsableValidator(kubeClient client.Client) validatorFunc {
+	return func(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
+		var errs []error
+
+		existingNamespaces := &corev1.NamespaceList{}
+		if err := kubeClient.List(ctx, existingNamespaces); err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("failed to list existing namespaces")
+			return nil, []error{ErrInternalError}
+		}
+
+		for _, env := range ra.Spec.Environments {
+			envNs := utils.GetEnvironmentNamespace(ra.Name, env.Name)
+
+			// Returns true if namespace exist, but does not belong to the application
+			unavailableNs := slices.ContainsFunc(existingNamespaces.Items, func(ns corev1.Namespace) bool {
+				if ns.Name != envNs {
+					return false
+				}
+				// Namespace with the same name exists, check if it has the correct ownership label
+				if val, exist := ns.Labels[kube.RadixAppLabel]; !exist || val != ra.Name {
+					return true // namespace is not available for use
+				}
+				return false
+			})
+			if unavailableNs {
+				errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, ErrEnvironmentNameIsNotAvailable))
+			}
+		}
+		return nil, errs
+	}
 }
 
 func validateComponentOrJobName(componentName, componentType string) error {
