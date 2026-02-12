@@ -2,7 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.108.0](https://github.com/equinor/radix-operator/compare/v1.107.1..v1.108.0) - 2026-01-21
+## [1.108.1](https://github.com/equinor/radix-operator/compare/v1.108.0..v1.108.1) - 2026-02-12
+
+### 🐛 Bug Fixes
+
+- Security fixes, better e2e testing (custom namespace) (#1592) - ([d96ad6f](https://github.com/equinor/radix-operator/commit/d96ad6f2cf8afedc639a274359d47db86460a6ad)) by @Richard87 in [#1592](https://github.com/equinor/radix-operator/pull/1592)
+
+- Restrict environment names (#1601) - ([ee929e7](https://github.com/equinor/radix-operator/commit/ee929e7474365cb9dc12a42c3644efee2b902fac)) by @Richard87 in [#1601](https://github.com/equinor/radix-operator/pull/1601)
+
+
+### 📚 Documentation
+
+- Update catalog-info.yaml (#1596) - ([4bb64eb](https://github.com/equinor/radix-operator/commit/4bb64ebba983e635404e7e9867b4db5bc8c3d391)) by @emirgens in [#1596](https://github.com/equinor/radix-operator/pull/1596)
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Update golang mock from old to new maintainer. (#1591) - ([a6de882](https://github.com/equinor/radix-operator/commit/a6de8828ed1195bf18fd4e067becf19d16a93aa3)) by @jacobsolbergholm in [#1591](https://github.com/equinor/radix-operator/pull/1591)
+
+
+## [1.108.0](https://github.com/equinor/radix-operator/compare/v1.107.1..v1.108.0) - 2026-01-22
 
 ### 🚀 Features
 
