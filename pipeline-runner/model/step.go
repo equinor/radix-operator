@@ -7,14 +7,14 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Step Generic interface for any Step implementation
 type Step interface {
-	Init(context.Context, kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface, tektonclient.Interface, *radixv1.RadixRegistration)
+	Init(context.Context, kubernetes.Interface, radixclient.Interface, *kube.Kube, client.WithWatch, tektonclient.Interface, *radixv1.RadixRegistration)
 
 	ImplementationForType() pipeline.StepType
 	ErrorMsg(error) string
@@ -27,30 +27,30 @@ type Step interface {
 	GetRadixClient() radixclient.Interface
 	GetTektonClient() tektonclient.Interface
 	GetKubeUtil() *kube.Kube
-	GetPrometheusOperatorClient() monitoring.Interface
+	GetDynamicClient() client.WithWatch
 }
 
 // DefaultStepImplementation Struct to hold the data common to all step implementations
 type DefaultStepImplementation struct {
-	StepType                 pipeline.StepType
-	kubeClient               kubernetes.Interface
-	radixClient              radixclient.Interface
-	kubeUtil                 *kube.Kube
-	prometheusOperatorClient monitoring.Interface
-	tektonClient             tektonclient.Interface
-	rr                       *radixv1.RadixRegistration
-	ErrorMessage             string
-	SuccessMessage           string
-	Error                    error
+	StepType       pipeline.StepType
+	kubeClient     kubernetes.Interface
+	radixClient    radixclient.Interface
+	kubeUtil       *kube.Kube
+	dynamicClient  client.WithWatch
+	tektonClient   tektonclient.Interface
+	rr             *radixv1.RadixRegistration
+	ErrorMessage   string
+	SuccessMessage string
+	Error          error
 }
 
 // Init Initialize step
-func (step *DefaultStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
+func (step *DefaultStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, dynamicClient client.WithWatch, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	step.rr = rr
 	step.kubeClient = kubeClient
 	step.radixClient = radixClient
 	step.kubeUtil = kubeUtil
-	step.prometheusOperatorClient = prometheusOperatorClient
+	step.dynamicClient = dynamicClient
 	step.tektonClient = tektonClient
 }
 
@@ -109,7 +109,7 @@ func (step *DefaultStepImplementation) GetKubeUtil() *kube.Kube {
 	return step.kubeUtil
 }
 
-// GetPrometheusOperatorClient Get Prometheus client
-func (step *DefaultStepImplementation) GetPrometheusOperatorClient() monitoring.Interface {
-	return step.prometheusOperatorClient
+// GetDynamicClient Get dynamic client
+func (step *DefaultStepImplementation) GetDynamicClient() client.WithWatch {
+	return step.dynamicClient
 }

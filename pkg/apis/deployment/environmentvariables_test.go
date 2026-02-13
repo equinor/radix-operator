@@ -12,12 +12,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
-	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
@@ -25,7 +25,7 @@ type testEnvProps struct {
 	kubeclient           kubernetes.Interface
 	radixclient          radixclient.Interface
 	secretproviderclient secretProviderClient.Interface
-	prometheusclient     prometheusclient.Interface
+	dynamicClient        client.WithWatch
 	certClient           *certfake.Clientset
 	kubeUtil             *kube.Kube
 	testUtil             *test.Utils
@@ -426,7 +426,7 @@ func (testEnv *testEnvProps) applyRdComponent(t *testing.T, appName string, envN
 		WithEmptyStatus().
 		WithComponents(componentBuilder)
 
-	rd, err := ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.certClient, radixDeployBuilder)
+	rd, err := ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.certClient, radixDeployBuilder)
 	assert.NoError(t, err)
 	return rd
 }
@@ -441,13 +441,13 @@ func (testEnv *testEnvProps) applyRdJobComponent(t *testing.T, appName string, e
 		WithEmptyStatus().
 		WithJobComponents(jobBuilder)
 
-	rd, err := ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.certClient, radixDeployBuilder)
+	rd, err := ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.certClient, radixDeployBuilder)
 	assert.NoError(t, err)
 	return rd
 }
 
 func setupTestEnv(t *testing.T) *testEnvProps {
 	testEnv := testEnvProps{}
-	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.secretproviderclient, testEnv.certClient = SetupTest(t)
+	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.secretproviderclient, testEnv.certClient = SetupTest(t)
 	return &testEnv
 }

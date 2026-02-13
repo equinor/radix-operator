@@ -22,39 +22,39 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretsstoreclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	"sigs.k8s.io/yaml"
 )
 
 // PipelineRunner Instance variables
 type PipelineRunner struct {
-	definition               *pipeline.Definition
-	kubeClient               kubernetes.Interface
-	kubeUtil                 *kube.Kube
-	radixClient              radixclient.Interface
-	tektonClient             tektonclient.Interface
-	prometheusOperatorClient monitoring.Interface
-	appName                  string
-	pipelineInfo             *model.PipelineInfo
+	definition    *pipeline.Definition
+	kubeClient    kubernetes.Interface
+	kubeUtil      *kube.Kube
+	radixClient   radixclient.Interface
+	tektonClient  tektonclient.Interface
+	dynamicClient client.WithWatch
+	appName       string
+	pipelineInfo  *model.PipelineInfo
 }
 
 // NewRunner constructor
-func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interface, kedaClient kedav2.Interface, prometheusOperatorClient monitoring.Interface, secretsStoreClient secretsstoreclient.Interface, tektonClient tektonclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
+func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.WithWatch, secretsStoreClient secretsstoreclient.Interface, tektonClient tektonclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretsStoreClient)
 	handler := PipelineRunner{
-		definition:               definition,
-		kubeClient:               kubeClient,
-		kubeUtil:                 kubeUtil,
-		radixClient:              radixClient,
-		tektonClient:             tektonClient,
-		prometheusOperatorClient: prometheusOperatorClient,
-		appName:                  appName,
+		definition:    definition,
+		kubeClient:    kubeClient,
+		kubeUtil:      kubeUtil,
+		radixClient:   radixClient,
+		tektonClient:  tektonClient,
+		dynamicClient: dynamicClient,
+		appName:       appName,
 	}
 	return handler
 }
@@ -113,7 +113,7 @@ func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registra
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(ctx, cli.kubeClient, cli.radixClient, cli.kubeUtil, cli.prometheusOperatorClient, cli.tektonClient, registration)
+			Init(ctx, cli.kubeClient, cli.radixClient, cli.kubeUtil, cli.dynamicClient, cli.tektonClient, registration)
 	}
 
 	return stepImplementations

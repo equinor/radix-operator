@@ -53,7 +53,7 @@ func (zl ZerologWarningHandlerAdapter) HandleWarningHeader(_ int, _ string, text
 }
 
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, client.Client, secretProviderClient.Interface, certclient.Interface, tektonclient.Interface) {
+func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, client.WithWatch, secretProviderClient.Interface, certclient.Interface, tektonclient.Interface) {
 	logger := log.Ctx(ctx)
 	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
@@ -72,8 +72,8 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 		o(config)
 	}
 
-	dynClient, err := PollUntilClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (client.Client, error) {
-		return client.New(config, client.Options{Scheme: scheme.NewScheme()})
+	dynClient, err := PollUntilClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (client.WithWatch, error) {
+		return client.NewWithWatch(config, client.Options{Scheme: scheme.NewScheme()})
 	})
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to initialize dynamic client")

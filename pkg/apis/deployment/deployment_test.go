@@ -37,8 +37,6 @@ import (
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
-	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -58,6 +56,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -78,12 +77,12 @@ var testConfig = config.Config{
 	},
 }
 
-func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *radixfake.Clientset, *kedafake.Clientset, *prometheusfake.Clientset, *secretproviderfake.Clientset, *certfake.Clientset) {
+func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *radixfake.Clientset, *kedafake.Clientset, client.WithWatch, *secretproviderfake.Clientset, *certfake.Clientset) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
 	radixClient := radixfake.NewSimpleClientset()
 	kedaClient := kedafake.NewSimpleClientset()
-	prometheusClient := prometheusfake.NewSimpleClientset()
+	dynamicClient := test.CreateClient()
 	secretProviderClient := secretproviderfake.NewSimpleClientset()
 	certClient := certfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(
@@ -95,7 +94,7 @@ func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, kedaClient, secretProviderClient)
 	err := handlerTestUtils.CreateClusterPrerequisites(testClusterName, "anysubid")
 	require.NoError(t, err)
-	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, kedaClient, prometheusClient, secretProviderClient, certClient
+	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, kedaClient, dynamicClient, secretProviderClient, certClient
 }
 
 func TeardownTest() {
@@ -3138,12 +3137,12 @@ func Test_AddMultipleNewDeployments_CorrectStatuses(t *testing.T) {
 	anyApp := "any-app"
 	anyEnv := "dev"
 	anyComponentName := "frontend"
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	tu, client, kubeUtil, radixclient, kedaClient, dynamicClient, _, certClient := SetupTest(t)
 	defer TeardownTest()
-	rd1 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient)
+	rd1 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient, kedaClient, dynamicClient, certClient)
 
 	time.Sleep(2 * time.Millisecond)
-	rd2 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient)
+	rd2 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient, kedaClient, dynamicClient, certClient)
 	rd1, _ = getUpdatedRD(radixclient, rd1)
 
 	assert.Equal(t, radixv1.DeploymentInactive, rd1.Status.Condition)
@@ -3152,7 +3151,7 @@ func Test_AddMultipleNewDeployments_CorrectStatuses(t *testing.T) {
 	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
 
 	time.Sleep(3 * time.Millisecond)
-	rd3 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient)
+	rd3 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient, kedaClient, dynamicClient, certClient)
 	rd1, _ = getUpdatedRD(radixclient, rd1)
 	rd2, _ = getUpdatedRD(radixclient, rd2)
 
@@ -3164,7 +3163,7 @@ func Test_AddMultipleNewDeployments_CorrectStatuses(t *testing.T) {
 	assert.True(t, !rd3.Status.ActiveFrom.IsZero())
 
 	time.Sleep(4 * time.Millisecond)
-	rd4 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient)
+	rd4 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient, kedaClient, dynamicClient, certClient)
 	rd1, _ = getUpdatedRD(radixclient, rd1)
 	rd2, _ = getUpdatedRD(radixclient, rd2)
 	rd3, _ = getUpdatedRD(radixclient, rd3)
@@ -3183,7 +3182,7 @@ func getUpdatedRD(radixclient radixclient.Interface, rd *radixv1.RadixDeployment
 	return radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(context.Background(), rd.GetName(), metav1.GetOptions{ResourceVersion: rd.ResourceVersion})
 }
 
-func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, kedaClient kedav2.Interface, prometheusclient prometheusclient.Interface, certClient *certfake.Clientset) *radixv1.RadixDeployment {
+func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.WithWatch, certClient *certfake.Clientset) *radixv1.RadixDeployment {
 	radixDeployBuilder := utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
@@ -3193,7 +3192,7 @@ func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, t
 				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http"))
-	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, radixDeployBuilder)
+	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, dynamicClient, certClient, radixDeployBuilder)
 	return rd
 }
 
@@ -3350,7 +3349,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 }
 
 func TestMonitoringConfig(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	tu, kubeClient, kubeUtil, radixclient, kedaClient, dynamicClient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 	myAppName := "anyappname"
 	myEnvName := "test"
@@ -3378,7 +3377,7 @@ func TestMonitoringConfig(t *testing.T) {
 		assert.Equal(t, compName, serviceMonitor.Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 	}
 
-	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, dynamicClient, certClient, utils.ARadixDeployment().
 		WithAppName(myAppName).
 		WithEnvironment(myEnvName).
 		WithComponents(
@@ -3402,33 +3401,35 @@ func TestMonitoringConfig(t *testing.T) {
 
 	envNamespace := utils.GetEnvironmentNamespace(myAppName, myEnvName)
 	t.Run("validate service monitors", func(t *testing.T) {
-		servicemonitors, _ := prometheusclient.MonitoringV1().ServiceMonitors(envNamespace).List(context.Background(), metav1.ListOptions{})
-		assert.Equal(t, 2, len(servicemonitors.Items), "Number of service monitors was not as expected")
-		assert.True(t, serviceMonitorByNameExists(compNames[0], servicemonitors), "compName[0] service monitor should exist")
-		assert.True(t, serviceMonitorByNameExists(compNames[1], servicemonitors), "compNames[1] service monitor should exist")
-		assert.False(t, serviceMonitorByNameExists(compNames[2], servicemonitors), "compNames[2] service monitor should NOT exist")
-		assert.False(t, serviceMonitorByNameExists(compNames[3], servicemonitors), "compNames[3] service monitor should NOT exist")
+		serviceMonitors := &monitoringv1.ServiceMonitorList{}
+		err := dynamicClient.List(t.Context(), serviceMonitors, client.InNamespace(envNamespace))
+		require.NoError(t, err)
+		assert.Equal(t, 2, len(serviceMonitors.Items), "Number of service monitors was not as expected")
+		assert.True(t, serviceMonitorByNameExists(compNames[0], serviceMonitors), "compName[0] service monitor should exist")
+		assert.True(t, serviceMonitorByNameExists(compNames[1], serviceMonitors), "compNames[1] service monitor should exist")
+		assert.False(t, serviceMonitorByNameExists(compNames[2], serviceMonitors), "compNames[2] service monitor should NOT exist")
+		assert.False(t, serviceMonitorByNameExists(compNames[3], serviceMonitors), "compNames[3] service monitor should NOT exist")
 
 		// serviceMonitor, monitoringConfig, should use monitoringConfig
-		serviceMonitor := getServiceMonitorByName(compNames[0], servicemonitors)
+		serviceMonitor := getServiceMonitorByName(compNames[0], serviceMonitors)
 		serviceMonitorTestFunc(t, compNames[0], monitoringConfig, serviceMonitor)
 
 		// serviceMonitor, no monitoringConfig, should use first port
-		serviceMonitor = getServiceMonitorByName(compNames[1], servicemonitors)
+		serviceMonitor = getServiceMonitorByName(compNames[1], serviceMonitors)
 		serviceMonitorTestFunc(t, compNames[1], radixv1.MonitoringConfig{PortName: ports[0].Name}, serviceMonitor)
 
 		// no serviceMonitor, monitoringConfig, should not exist
-		serviceMonitor = getServiceMonitorByName(compNames[2], servicemonitors)
+		serviceMonitor = getServiceMonitorByName(compNames[2], serviceMonitors)
 		assert.Nil(t, serviceMonitor)
 
 		// no serviceMonitor, no monitoringConfig, should not exist
-		serviceMonitor = getServiceMonitorByName(compNames[3], servicemonitors)
+		serviceMonitor = getServiceMonitorByName(compNames[3], serviceMonitors)
 		assert.Nil(t, serviceMonitor)
 	})
 }
 
 func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
-	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 	var portTestFunc = func(portName string, portNumber int32, ports []corev1.ContainerPort) {
 		port := getPortByName(portName, ports)
@@ -3437,7 +3438,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 	}
 
 	// Initial build
-	_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, certClient, utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment("env").
 		WithComponents(
@@ -3461,7 +3462,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 	portTestFunc("scheduler-port", 8080, job.Spec.Template.Spec.Containers[0].Ports)
 
 	// Update ports
-	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
+	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, certClient, utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment("env").
 		WithComponents(
@@ -5105,16 +5106,16 @@ func parseQuantity(value string) resource.Quantity {
 }
 
 func applyDeploymentWithSyncForTestEnv(testEnv *testEnvProps, deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
-	return ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.certClient, deploymentBuilder)
+	return ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.certClient, deploymentBuilder)
 }
 
 func ApplyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, kedaClient kedav2.Interface, prometheusclient prometheusclient.Interface, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
-	return applyDeploymentWithModifiedSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, deploymentBuilder, func(syncer DeploymentSyncer) {})
+	radixclient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.WithWatch, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
+	return applyDeploymentWithModifiedSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, certClient, deploymentBuilder, func(syncer DeploymentSyncer) {})
 }
 
 func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, _ kedav2.Interface, prometheusclient prometheusclient.Interface, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder, modifySyncer func(syncer DeploymentSyncer)) (*radixv1.RadixDeployment, error) {
+	radixclient radixclient.Interface, _ kedav2.Interface, dynamicClient client.WithWatch, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder, modifySyncer func(syncer DeploymentSyncer)) (*radixv1.RadixDeployment, error) {
 
 	rd, err := tu.ApplyDeployment(context.Background(), deploymentBuilder)
 	if err != nil {
@@ -5126,7 +5127,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 		return nil, err
 	}
 
-	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, radixRegistration, rd, nil, nil, &testConfig)
+	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, nil, &testConfig)
 	modifySyncer(deploymentSyncer)
 	err = deploymentSyncer.OnSync(context.Background())
 	if err != nil {
@@ -5138,7 +5139,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 }
 
 func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, _ kedav2.Interface, prometheusclient prometheusclient.Interface, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder) error {
+	radixclient radixclient.Interface, _ kedav2.Interface, dynamicClient client.WithWatch, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder) error {
 	rd, err := tu.ApplyDeploymentUpdate(deploymentBuilder)
 	if err != nil {
 		return err
@@ -5149,7 +5150,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, prometheusclient, certClient, radixRegistration, rd, nil, nil, &testConfig)
+	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, nil, &testConfig)
 	err = deployment.OnSync(context.Background())
 	if err != nil {
 		return err

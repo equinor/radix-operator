@@ -35,7 +35,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -46,6 +45,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
@@ -66,22 +66,22 @@ type Options struct {
 }
 
 type App struct {
-	opts                     Options
-	rateLimitConfig          utils.KubernetesClientConfigOption
-	warningHandler           utils.KubernetesClientConfigOption
-	eventRecorder            record.EventRecorder
-	kubeInformerFactory      kubeinformers.SharedInformerFactory
-	radixInformerFactory     radixinformers.SharedInformerFactory
-	client                   kubernetes.Interface
-	radixClient              radixclient.Interface
-	prometheusOperatorClient monitoring.Interface
-	secretProviderClient     secretProviderClient.Interface
-	certClient               certclient.Interface
-	oauthDefaultConfig       defaults.OAuth2Config
-	ingressConfiguration     ingress.IngressConfiguration
-	kubeUtil                 *kube.Kube
-	config                   *apiconfig.Config
-	kedaClient               kedav2.Interface
+	opts                 Options
+	rateLimitConfig      utils.KubernetesClientConfigOption
+	warningHandler       utils.KubernetesClientConfigOption
+	eventRecorder        record.EventRecorder
+	kubeInformerFactory  kubeinformers.SharedInformerFactory
+	radixInformerFactory radixinformers.SharedInformerFactory
+	client               kubernetes.Interface
+	radixClient          radixclient.Interface
+	dynamicClient        client.WithWatch
+	secretProviderClient secretProviderClient.Interface
+	certClient           certclient.Interface
+	oauthDefaultConfig   defaults.OAuth2Config
+	ingressConfiguration ingress.IngressConfiguration
+	kubeUtil             *kube.Kube
+	config               *apiconfig.Config
+	kedaClient           kedav2.Interface
 }
 
 func main() {
@@ -113,7 +113,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	}
 	app.rateLimitConfig = utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
 	app.warningHandler = utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
-	app.client, app.radixClient, app.kedaClient, app.prometheusOperatorClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(ctx, app.rateLimitConfig, app.warningHandler)
+	app.client, app.radixClient, app.kedaClient, app.dynamicClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(ctx, app.rateLimitConfig, app.warningHandler)
 	app.eventRecorder, err = event.NewRecorder("Radix controller", app.client.CoreV1().Events(""))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event recorder: %w", err)
@@ -316,7 +316,7 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.kedaClient,
-		a.prometheusOperatorClient,
+		a.dynamicClient,
 		a.certClient,
 		a.eventRecorder,
 		a.config,
@@ -349,12 +349,11 @@ func (a *App) createAlertController(ctx context.Context) *common.Controller {
 	handler := alert.NewHandler(
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
-		a.kubeUtil.RadixClient(),
-		a.prometheusOperatorClient,
+		a.dynamicClient,
 		a.eventRecorder,
 	)
 
-	return alert.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory)
+	return alert.NewController(ctx, a.kubeUtil.KubeClient(), a.radixClient, handler, a.kubeInformerFactory, a.radixInformerFactory)
 }
 
 func (a *App) createBatchController(ctx context.Context) *common.Controller {
