@@ -622,7 +622,7 @@ func (step *PreparePipelinesStepImplementation) setTargetEnvironments(ctx contex
 
 	targetEnvironments := make([]model.TargetEnvironment, 0, len(targetEnvironmentNames))
 	for _, targetEnvName := range targetEnvironmentNames {
-		activeRD, err := internal.GetActiveRadixDeployment(ctx, step.GetRadixClient(), step.GetDynamicClient(), utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), targetEnvName))
+		activeRD, err := internal.GetActiveRadixDeployment(ctx, step.GetRadixClient(), step.GetKubeClient(), utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), targetEnvName))
 		if err != nil {
 			return fmt.Errorf("failed to get active depoyment for environment %s: %w", targetEnvName, err)
 		}

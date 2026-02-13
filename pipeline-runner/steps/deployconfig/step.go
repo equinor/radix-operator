@@ -47,7 +47,7 @@ func (cli *DeployConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 		featureProviders = append(featureProviders, &internal.ExternalDNSFeatureProvider{})
 	}
 
-	handler := internal.NewHandler(pipelineInfo, cli.GetRadixClient(), cli.GetDynamicClient(), cli.radixDeploymentWatcher, featureProviders)
+	handler := internal.NewHandler(pipelineInfo, cli.GetRadixClient(), cli.GetKubeClient(), cli.radixDeploymentWatcher, featureProviders)
 	if err := handler.Deploy(ctx); err != nil {
 		return fmt.Errorf("failed to deploy config: %w", err)
 	}

@@ -14,11 +14,11 @@ import (
 	"github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 type envInfo struct {
@@ -31,16 +31,16 @@ type envInfoList []envInfo
 type deployHandler struct {
 	pipelineInfo     *model.PipelineInfo
 	radixClient      versioned.Interface
-	dynamicClient    client.Client
+	kubeClient       kubernetes.Interface
 	rdWatcher        watcher.RadixDeploymentWatcher
 	featureProviders []FeatureProvider
 }
 
-func NewHandler(pipelineInfo *model.PipelineInfo, radixClient versioned.Interface, dynamicClient client.Client, rdWatcher watcher.RadixDeploymentWatcher, featureProviders []FeatureProvider) *deployHandler {
+func NewHandler(pipelineInfo *model.PipelineInfo, radixClient versioned.Interface, kubeClient kubernetes.Interface, rdWatcher watcher.RadixDeploymentWatcher, featureProviders []FeatureProvider) *deployHandler {
 	return &deployHandler{
 		pipelineInfo:     pipelineInfo,
 		radixClient:      radixClient,
-		dynamicClient:    dynamicClient,
+		kubeClient:       kubeClient,
 		rdWatcher:        rdWatcher,
 		featureProviders: featureProviders,
 	}
@@ -72,7 +72,7 @@ func (h *deployHandler) getEnvironmentCandidates(ctx context.Context) (envInfoLi
 	allEnvs := envInfoList{}
 	for _, env := range h.pipelineInfo.RadixApplication.Spec.Environments {
 		envNs := utils.GetEnvironmentNamespace(h.pipelineInfo.RadixApplication.GetName(), env.Name)
-		rd, err := internal.GetActiveRadixDeployment(ctx, h.radixClient, h.dynamicClient, envNs)
+		rd, err := internal.GetActiveRadixDeployment(ctx, h.radixClient, h.kubeClient, envNs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get active Radix deployment for environment %s: %w", env.Name, err)
 		}
