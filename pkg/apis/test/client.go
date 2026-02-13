@@ -16,7 +16,7 @@ import (
 
 var testscheme = scheme.NewScheme()
 
-func CreateClient(initObjsFilenames ...string) client.WithWatch {
+func CreateClient(initObjsFilenames ...string) client.Client {
 	var initObjs []client.Object
 	for _, filename := range initObjsFilenames {
 		obj := Load[client.Object](filename)

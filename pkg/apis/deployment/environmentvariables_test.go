@@ -25,7 +25,7 @@ type testEnvProps struct {
 	kubeclient           kubernetes.Interface
 	radixclient          radixclient.Interface
 	secretproviderclient secretProviderClient.Interface
-	dynamicClient        client.WithWatch
+	dynamicClient        client.Client
 	certClient           *certfake.Clientset
 	kubeUtil             *kube.Kube
 	testUtil             *test.Utils

@@ -31,7 +31,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	httputils "github.com/equinor/radix-operator/pkg/apis/utils/http"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -45,7 +47,9 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
@@ -74,7 +78,8 @@ type App struct {
 	radixInformerFactory radixinformers.SharedInformerFactory
 	client               kubernetes.Interface
 	radixClient          radixclient.Interface
-	dynamicClient        client.WithWatch
+	dynamicCache         cache.Cache
+	dynamicClient        client.Client
 	secretProviderClient secretProviderClient.Interface
 	certClient           certclient.Interface
 	oauthDefaultConfig   defaults.OAuth2Config
@@ -85,9 +90,10 @@ type App struct {
 }
 
 func main() {
-	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	backgroundCtx := context.Background()
+	ctx, _ := signal.NotifyContext(backgroundCtx, syscall.SIGTERM, syscall.SIGINT)
 
-	app, err := initializeApp(ctx)
+	app, err := initializeApp(backgroundCtx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize app")
 	}
@@ -113,7 +119,9 @@ func initializeApp(ctx context.Context) (*App, error) {
 	}
 	app.rateLimitConfig = utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
 	app.warningHandler = utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
-	app.client, app.radixClient, app.kedaClient, app.dynamicClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(ctx, app.rateLimitConfig, app.warningHandler)
+
+	app.dynamicCache, app.dynamicClient = app.initializeClient(ctx)
+	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(ctx, app.warningHandler)
 	app.eventRecorder, err = event.NewRecorder("Radix controller", app.client.CoreV1().Events(""))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event recorder: %w", err)
@@ -134,6 +142,40 @@ func initializeApp(ctx context.Context) (*App, error) {
 		return nil, fmt.Errorf("failed to load ingress configuration: %w", err)
 	}
 	return &app, nil
+}
+
+func (a *App) initializeClient(cacheCtx context.Context) (cache.Cache, client.Client) {
+
+	cfg := k8sconfig.GetConfigOrDie()
+	cfg.WarningHandler = utils.ZerologWarningHandlerAdapter(log.Warn)
+	cfg.Wrap(utils.PrometheusMetrics)
+	cfg.Wrap(httputils.LogRequests)
+
+	scheme := scheme.NewScheme()
+	cache, err := cache.New(cfg, cache.Options{Scheme: scheme})
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize cache")
+	}
+
+	go func() {
+		if err := cache.Start(cacheCtx); err != nil {
+			log.Fatal().Err(err).Msg("Failed to start cache")
+		}
+	}()
+
+	if synced := cache.WaitForCacheSync(cacheCtx); !synced {
+		log.Fatal().Msg("Failed to sync cache")
+	}
+
+	// TODO: Check Cache options....
+
+	dynClient, err := client.New(cfg, client.Options{Scheme: scheme, Cache: &client.CacheOptions{Reader: cache}})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize dynamic client")
+	}
+
+	return cache, dynClient
 }
 
 func (a *App) createSchedulers(ctx context.Context) ([]scheduler.TaskScheduler, error) {

@@ -49,6 +49,7 @@ func main() {
 			BindAddress: fmt.Sprintf(":%d", c.MetricsPort),
 		},
 	})
+	
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to set up overall controller manager")
 	}

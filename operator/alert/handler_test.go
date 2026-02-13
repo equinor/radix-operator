@@ -26,7 +26,7 @@ type handlerTestSuite struct {
 	radixClient          *fakeradix.Clientset
 	secretproviderclient *secretproviderfake.Clientset
 	kedaClient           *kedafake.Clientset
-	dynamicClient        client.WithWatch
+	dynamicClient        client.Client
 	kubeUtil             *kube.Kube
 	eventRecorder        *record.FakeRecorder
 	mockCtrl             *gomock.Controller

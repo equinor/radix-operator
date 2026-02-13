@@ -35,7 +35,7 @@ func testAlertSyncerWithAlertConfigs(configs AlertConfigs) testAlertSyncerConfig
 
 type alertTestSuite struct {
 	suite.Suite
-	dynamicClient client.WithWatch
+	dynamicClient client.Client
 }
 
 func TestAlertTestSuite(t *testing.T) {

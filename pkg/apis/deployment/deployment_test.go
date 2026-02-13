@@ -77,7 +77,7 @@ var testConfig = config.Config{
 	},
 }
 
-func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *radixfake.Clientset, *kedafake.Clientset, client.WithWatch, *secretproviderfake.Clientset, *certfake.Clientset) {
+func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *radixfake.Clientset, *kedafake.Clientset, client.Client, *secretproviderfake.Clientset, *certfake.Clientset) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
 	radixClient := radixfake.NewSimpleClientset()
@@ -3182,7 +3182,7 @@ func getUpdatedRD(radixclient radixclient.Interface, rd *radixv1.RadixDeployment
 	return radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(context.Background(), rd.GetName(), metav1.GetOptions{ResourceVersion: rd.ResourceVersion})
 }
 
-func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.WithWatch, certClient *certfake.Clientset) *radixv1.RadixDeployment {
+func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.Client, certClient *certfake.Clientset) *radixv1.RadixDeployment {
 	radixDeployBuilder := utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
@@ -5110,12 +5110,12 @@ func applyDeploymentWithSyncForTestEnv(testEnv *testEnvProps, deploymentBuilder 
 }
 
 func ApplyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.WithWatch, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
+	radixclient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.Client, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
 	return applyDeploymentWithModifiedSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, certClient, deploymentBuilder, func(syncer DeploymentSyncer) {})
 }
 
 func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, _ kedav2.Interface, dynamicClient client.WithWatch, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder, modifySyncer func(syncer DeploymentSyncer)) (*radixv1.RadixDeployment, error) {
+	radixclient radixclient.Interface, _ kedav2.Interface, dynamicClient client.Client, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder, modifySyncer func(syncer DeploymentSyncer)) (*radixv1.RadixDeployment, error) {
 
 	rd, err := tu.ApplyDeployment(context.Background(), deploymentBuilder)
 	if err != nil {
@@ -5139,7 +5139,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 }
 
 func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, _ kedav2.Interface, dynamicClient client.WithWatch, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder) error {
+	radixclient radixclient.Interface, _ kedav2.Interface, dynamicClient client.Client, certClient *certfake.Clientset, deploymentBuilder utils.DeploymentBuilder) error {
 	rd, err := tu.ApplyDeploymentUpdate(deploymentBuilder)
 	if err != nil {
 		return err

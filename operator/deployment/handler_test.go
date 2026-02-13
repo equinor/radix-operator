@@ -31,7 +31,7 @@ type handlerSuite struct {
 	kubeClient           *fake.Clientset
 	radixClient          *fakeradix.Clientset
 	secretProviderClient *secretproviderfake.Clientset
-	dynamicClient        client.WithWatch
+	dynamicClient        client.Client
 	certClient           *certfake.Clientset
 	kubeUtil             *kube.Kube
 	eventRecorder        *record.FakeRecorder

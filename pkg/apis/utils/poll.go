@@ -16,8 +16,8 @@ import (
 // clientFactory will be invoked on `interval` for each connection attempt until the request returns no error,
 // the error is not `net/http: TLS handshake timeout` or `ctx` is cancelled or hits a deadline.
 // Polling will terminate after `duration` defined in timeout.
-func PollUntilClientSuccessfulConnection(ctx context.Context, timeout time.Duration, interval time.Duration, clientFactory func() (client.WithWatch, error)) (client.WithWatch, error) {
-	var connectedClient client.WithWatch
+func PollUntilClientSuccessfulConnection(ctx context.Context, timeout time.Duration, interval time.Duration, clientFactory func() (client.Client, error)) (client.Client, error) {
+	var connectedClient client.Client
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 

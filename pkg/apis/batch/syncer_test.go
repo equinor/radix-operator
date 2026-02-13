@@ -46,7 +46,7 @@ type syncerTestSuite struct {
 	kubeClient    *fake.Clientset
 	radixClient   *fakeradix.Clientset
 	kubeUtil      *kube.Kube
-	dynamicClient client.WithWatch
+	dynamicClient client.Client
 	certClient    *certfake.Clientset
 	kedaClient    *kedafake.Clientset
 }
