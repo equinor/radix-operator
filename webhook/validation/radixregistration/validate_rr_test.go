@@ -8,13 +8,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/webhook/validation/radixregistration"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -164,8 +161,11 @@ func TestNamespaceUsableValidator(t *testing.T) {
 
 	for _, ts := range testScenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			client := createClient(ts.namespaces...)
-			validRR := createValidRR()
+			client := test.CreateClient()
+			for _, ns := range ts.namespaces {
+				require.NoError(t, client.Create(t.Context(), ns))
+			}
+			validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 			validator := radixregistration.CreateOnlineValidator(client, false, false)
 
 			warnings, err := validator.Validate(t.Context(), validRR)
@@ -179,9 +179,3 @@ func TestNamespaceUsableValidator(t *testing.T) {
 		})
 	}
 }
-
-func createValidRR() *radixv1.RadixRegistration {
-	validRR, _ := utils.GetRadixRegistrationFromFile("testdata/radixregistration.yaml")
-	return validRR
-}
-

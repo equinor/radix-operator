@@ -16,11 +16,14 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/webhook/validation/radixapplication"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var scheme = runtime.NewScheme()
@@ -2708,8 +2711,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 func Test_NamespaceUsableValidator(t *testing.T) {
 	// The testdata RA has app name "testapp" with environments "dev" and "prod"
 	// Expected namespace names: "testapp-dev" and "testapp-prod"
-	rr := load[client.Object]("testdata/radixregistration.yaml")
-	validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+	validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 
 	tests := []struct {
 		name        string
@@ -2838,8 +2840,11 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			objs := append([]client.Object{rr}, tt.namespaces...)
-			c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
+			c := test.CreateClient("testdata/radixregistration.yaml")
+			for _, ns := range tt.namespaces {
+				require.NoError(t, c.Create(context.Background(), ns))
+			}
+
 			validator := radixapplication.CreateOnlineValidator(c, []string{}, map[string]string{})
 			_, err := validator.Validate(context.Background(), validRA)
 
