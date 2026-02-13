@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -34,7 +33,6 @@ type DefaultStepImplementation struct {
 	StepType       pipeline.StepType
 	kubeClient     kubernetes.Interface
 	radixClient    radixclient.Interface
-	kubeUtil       *kube.Kube
 	dynamicClient  client.Client
 	tektonClient   tektonclient.Interface
 	rr             *radixv1.RadixRegistration

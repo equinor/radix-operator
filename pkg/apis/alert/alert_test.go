@@ -495,7 +495,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_CreateWithOwnerReference
 	s.Require().NoError(err)
 
 	actualAmr := &v1alpha1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(alertName), Namespace: namespace}}
-	err = s.dynamicClient.Get(s.T().Context(), client.ObjectKeyFromObject(actualAmr), actualAmr)
+	s.Require().NoError(s.dynamicClient.Get(s.T().Context(), client.ObjectKeyFromObject(actualAmr), actualAmr))
 	s.Len(actualAmr.OwnerReferences, 1, "alertmanagerconfig ownerReference length not as expected")
 	s.Equal(expectedAlertOwnerRef, actualAmr.OwnerReferences[0], "alertmanagerconfig ownerReference not as expected")
 }

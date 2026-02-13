@@ -16,7 +16,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
-	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -94,7 +93,7 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
-						WithReplicas(commonTest.IntPtr(4)),
+						WithReplicas(test.IntPtr(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment(envName).
 						WithAuthentication(
@@ -105,7 +104,7 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 								},
 							},
 						).
-						WithReplicas(commonTest.IntPtr(4))),
+						WithReplicas(test.IntPtr(4))),
 			utils.AnApplicationComponent().
 				WithName("redis").
 				WithPublicPort("").
