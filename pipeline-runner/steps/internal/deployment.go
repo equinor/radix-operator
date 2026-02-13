@@ -192,7 +192,7 @@ func GetActiveRadixDeployment(ctx context.Context, radixClient versioned.Interfa
 			return nil, err
 		}
 		log.Ctx(ctx).Info().Msg("namespace for environment does not exist yet")
-		return &radixv1.RadixDeployment{}, nil
+		return nil, nil
 	}
 
 	currentRd, err := kube.GetActiveDeployment(ctx, radixClient, namespace)
