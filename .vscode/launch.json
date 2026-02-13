@@ -129,6 +129,7 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/operator/main.go",
 			"env": {
+				"POD_NAMESPACE": "default",
 				"APP_ALIAS_BASE_URL": "app.dev.radix.equinor.com",
 				"DNS_ZONE": "dev.radix.equinor.com",
 				"RADIXOPERATOR_CLUSTER_TYPE": "development",

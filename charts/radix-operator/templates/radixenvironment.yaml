@@ -96,6 +96,9 @@ spec:
                 type: object
               envName:
                 type: string
+                x-kubernetes-validations:
+                - message: envName must not be empty or 'app'
+                  rule: self != '' && self != 'app'
             required:
             - appName
             - envName

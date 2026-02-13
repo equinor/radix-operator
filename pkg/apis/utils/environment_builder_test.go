@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +55,7 @@ func Test_WithAppLabel(t *testing.T) {
 		BuildRE()
 
 	assert.Len(t, re.ObjectMeta.Labels, 1)
-	assert.Equal(t, "myapp", re.ObjectMeta.Labels["radix-app"])
+	assert.Equal(t, "myapp", re.ObjectMeta.Labels[kube.RadixAppLabel])
 }
 
 func Test_WithLabel(t *testing.T) {
