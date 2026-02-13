@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"context"
 	"net/http"
 	"os"
 

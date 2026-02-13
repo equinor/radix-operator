@@ -121,7 +121,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	app.warningHandler = utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
 
 	app.dynamicCache, app.dynamicClient = app.initializeClient(ctx)
-	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(ctx, app.warningHandler)
+	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(app.warningHandler)
 	app.eventRecorder, err = event.NewRecorder("Radix controller", app.client.CoreV1().Events(""))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event recorder: %w", err)
