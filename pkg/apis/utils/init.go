@@ -73,7 +73,7 @@ func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientC
 	}
 
 	dynClient, err := PollUntilClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (client.WithWatch, error) {
-		return client.NewWithWatch(config, client.Options{Scheme: scheme.NewScheme()})
+		return client.NewWithWatch(config, client.Options{Scheme: scheme.NewScheme()}) // TODO: Make sure we have a cached client!
 	})
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to initialize dynamic client")

@@ -39,13 +39,13 @@ type PipelineRunner struct {
 	kubeUtil      *kube.Kube
 	radixClient   radixclient.Interface
 	tektonClient  tektonclient.Interface
-	dynamicClient client.WithWatch
+	dynamicClient client.Client
 	appName       string
 	pipelineInfo  *model.PipelineInfo
 }
 
 // NewRunner constructor
-func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.WithWatch, secretsStoreClient secretsstoreclient.Interface, tektonClient tektonclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
+func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.Client, secretsStoreClient secretsstoreclient.Interface, tektonClient tektonclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretsStoreClient)
 	handler := PipelineRunner{
 		definition:    definition,
@@ -113,7 +113,7 @@ func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registra
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(ctx, cli.kubeClient, cli.radixClient, cli.kubeUtil, cli.dynamicClient, cli.tektonClient, registration)
+			Init(ctx, cli.kubeClient, cli.radixClient, cli.dynamicClient, cli.tektonClient, registration)
 	}
 
 	return stepImplementations

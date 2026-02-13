@@ -14,7 +14,7 @@ import (
 
 // Step Generic interface for any Step implementation
 type Step interface {
-	Init(context.Context, kubernetes.Interface, radixclient.Interface, *kube.Kube, client.WithWatch, tektonclient.Interface, *radixv1.RadixRegistration)
+	Init(context.Context, kubernetes.Interface, radixclient.Interface, client.Client, tektonclient.Interface, *radixv1.RadixRegistration)
 
 	ImplementationForType() pipeline.StepType
 	ErrorMsg(error) string
@@ -26,8 +26,7 @@ type Step interface {
 	GetKubeClient() kubernetes.Interface
 	GetRadixClient() radixclient.Interface
 	GetTektonClient() tektonclient.Interface
-	GetKubeUtil() *kube.Kube
-	GetDynamicClient() client.WithWatch
+	GetDynamicClient() client.Client
 }
 
 // DefaultStepImplementation Struct to hold the data common to all step implementations
@@ -36,7 +35,7 @@ type DefaultStepImplementation struct {
 	kubeClient     kubernetes.Interface
 	radixClient    radixclient.Interface
 	kubeUtil       *kube.Kube
-	dynamicClient  client.WithWatch
+	dynamicClient  client.Client
 	tektonClient   tektonclient.Interface
 	rr             *radixv1.RadixRegistration
 	ErrorMessage   string
@@ -45,11 +44,10 @@ type DefaultStepImplementation struct {
 }
 
 // Init Initialize step
-func (step *DefaultStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, dynamicClient client.WithWatch, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
+func (step *DefaultStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, dynamicClient client.Client, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
 	step.rr = rr
 	step.kubeClient = kubeClient
 	step.radixClient = radixClient
-	step.kubeUtil = kubeUtil
 	step.dynamicClient = dynamicClient
 	step.tektonClient = tektonClient
 }
@@ -104,12 +102,7 @@ func (step *DefaultStepImplementation) GetTektonClient() tektonclient.Interface 
 	return step.tektonClient
 }
 
-// GetKubeUtil Gets Kubernetes utils
-func (step *DefaultStepImplementation) GetKubeUtil() *kube.Kube {
-	return step.kubeUtil
-}
-
 // GetDynamicClient Get dynamic client
-func (step *DefaultStepImplementation) GetDynamicClient() client.WithWatch {
+func (step *DefaultStepImplementation) GetDynamicClient() client.Client {
 	return step.dynamicClient
 }

@@ -69,8 +69,8 @@ func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter, options ...Option)
 	return step
 }
 
-func (step *BuildStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, dynamicClient client.WithWatch, tektonClient tektonclient.Interface, rr *v1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, dynamicClient, tektonClient, rr)
+func (step *BuildStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, dynamicClient client.Client, tektonClient tektonclient.Interface, rr *v1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, dynamicClient, tektonClient, rr)
 	if step.jobWaiter == nil {
 		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeClient)
 	}

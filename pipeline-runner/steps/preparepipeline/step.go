@@ -91,8 +91,8 @@ func NewPreparePipelinesStep(opt ...Option) model.Step {
 	return &implementation
 }
 
-func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, dynamicClient client.WithWatch, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, dynamicClient, tektonClient, rr)
+func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, dynamicClient client.Client, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, dynamicClient, tektonClient, rr)
 	if step.contextBuilder == nil {
 		step.contextBuilder = prepareInternal.NewContextBuilder()
 	}
@@ -622,7 +622,7 @@ func (step *PreparePipelinesStepImplementation) setTargetEnvironments(ctx contex
 
 	targetEnvironments := make([]model.TargetEnvironment, 0, len(targetEnvironmentNames))
 	for _, targetEnvName := range targetEnvironmentNames {
-		activeRD, err := internal.GetActiveRadixDeployment(ctx, step.GetKubeUtil(), utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), targetEnvName))
+		activeRD, err := internal.GetActiveRadixDeployment(ctx, step.GetRadixClient(), step.GetDynamicClient(), utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), targetEnvName))
 		if err != nil {
 			return fmt.Errorf("failed to get active depoyment for environment %s: %w", targetEnvName, err)
 		}

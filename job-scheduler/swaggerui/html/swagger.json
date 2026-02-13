@@ -1216,7 +1216,7 @@
       "x-go-package": "github.com/equinor/radix-operator/job-scheduler/models/v1"
     },
     "RadixJobComponentConfig": {
-      "description": "RadixJobComponentConfig holds description of RadixJobComponent",
+      "description": "+kubebuilder:object:generate=true\n+k8s:deepcopy-gen=true\nRadixJobComponentConfig holds description of RadixJobComponent",
       "type": "object",
       "properties": {
         "args": {

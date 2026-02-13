@@ -52,8 +52,8 @@ func NewRunPipelinesStep(options ...RunPipelinesStepImplementationOption) model.
 	return step
 }
 
-func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, dynamicClient client.WithWatch, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, dynamicClient, tektonClient, rr)
+func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, dynamicClient client.Client, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, dynamicClient, tektonClient, rr)
 	if step.waiter == nil {
 		step.waiter = wait.NewPipelineRunsCompletionWaiter(tektonClient)
 	}

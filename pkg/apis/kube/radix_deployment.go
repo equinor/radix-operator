@@ -6,6 +6,7 @@ import (
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	"github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -51,14 +52,15 @@ func (kubeutil *Kube) ListRadixDeployments(ctx context.Context, namespace string
 }
 
 // GetActiveDeployment Get active RadixDeployment for the namespace
-func (kubeutil *Kube) GetActiveDeployment(ctx context.Context, namespace string) (*v1.RadixDeployment, error) {
-	radixDeployments, err := kubeutil.radixclient.RadixV1().RadixDeployments(namespace).List(ctx, metav1.ListOptions{})
+func GetActiveDeployment(ctx context.Context, radixClient versioned.Interface, namespace string) (*v1.RadixDeployment, error) {
+
+	radixDeployments, err := radixClient.RadixV1().RadixDeployments(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	for _, rd := range radixDeployments.Items {
 		if rd.Status.Condition == v1.DeploymentActive {
-			return &rd, err
+			return &rd, nil
 		}
 	}
 	return nil, nil

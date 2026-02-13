@@ -13,10 +13,12 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	"github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // PreservingDeployComponents DeployComponents, not to be updated during deployment, but transferred from an active deployment
@@ -179,22 +181,24 @@ func getPreservingDeployComponents(ctx context.Context, pipelineInfo *model.Pipe
 }
 
 // GetActiveRadixDeployment Returns active RadixDeployment if it exists and if it is available to get
-func GetActiveRadixDeployment(ctx context.Context, kubeUtil *kube.Kube, namespace string) (*radixv1.RadixDeployment, error) {
-	var currentRd *radixv1.RadixDeployment
+func GetActiveRadixDeployment(ctx context.Context, radixClient versioned.Interface, dynamicClient client.Client, namespace string) (*radixv1.RadixDeployment, error) {
+
 	// For new applications, or applications with new environments defined in radixconfig, the namespace
 	// or rolebinding may not be configured yet by radix-operator.
 	// We skip getting active deployment if namespace does not exist or pipeline-runner does not have access
-
-	if _, err := kubeUtil.KubeClient().CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{}); err != nil {
+	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	if err := dynamicClient.Get(ctx, client.ObjectKeyFromObject(&ns), &ns); err != nil {
 		if !kubeerrors.IsNotFound(err) && !kubeerrors.IsForbidden(err) {
 			return nil, err
 		}
 		log.Ctx(ctx).Info().Msg("namespace for environment does not exist yet")
-	} else {
-		currentRd, err = kubeUtil.GetActiveDeployment(ctx, namespace)
-		if err != nil {
-			return nil, err
-		}
+		return &radixv1.RadixDeployment{}, nil
 	}
+
+	currentRd, err := kube.GetActiveDeployment(ctx, radixClient, namespace)
+	if err != nil {
+		return nil, err
+	}
+
 	return currentRd, nil
 }
