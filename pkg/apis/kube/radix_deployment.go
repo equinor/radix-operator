@@ -53,7 +53,6 @@ func (kubeutil *Kube) ListRadixDeployments(ctx context.Context, namespace string
 
 // GetActiveDeployment Get active RadixDeployment for the namespace
 func GetActiveDeployment(ctx context.Context, radixClient versioned.Interface, namespace string) (*v1.RadixDeployment, error) {
-
 	radixDeployments, err := radixClient.RadixV1().RadixDeployments(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
