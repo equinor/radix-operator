@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/rs/zerolog/log"
@@ -58,16 +59,23 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 		existingHostnames := make(map[string]bool)
 		for _, existingRoute := range existingHttpRoutes.Items {
 			for _, hostname := range existingRoute.Spec.Hostnames {
-				existingHostnames[string(hostname)] = true
+				normalizedHostname := normalizeHostname(hostname)
+				existingHostnames[normalizedHostname] = true
 			}
 		}
 
 		for _, hostname := range route.Spec.Hostnames {
-			if existingHostnames[string(hostname)] {
+			normalizedHostname := normalizeHostname(hostname)
+			if existingHostnames[normalizedHostname] {
 				errs = append(errs, fmt.Errorf("hostname %s is already in use", hostname))
 			}
 		}
 
 		return nil, errs
 	}
+}
+
+func normalizeHostname(hostname gatewayapiv1.Hostname) string {
+	h := strings.ToLower(string(hostname))
+	return strings.TrimSuffix(h, ".")
 }
