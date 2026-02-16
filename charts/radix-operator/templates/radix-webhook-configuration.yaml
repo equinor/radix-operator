@@ -11,6 +11,28 @@ webhooks:
     service:
       name: radix-webhook
       namespace: {{ .Release.Namespace }}
+      path: /gateway/v1/httproute/validation
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: httproute.validate.gateway.networking.k8s.io
+  rules:
+  - apiGroups:
+    - gateway.networking.k8s.io
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - httproutes
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: radix-webhook
+      namespace: {{ .Release.Namespace }}
       path: /radix/v1/radixapplication/validation
       port: 443
   failurePolicy: Fail
