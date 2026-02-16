@@ -39,9 +39,9 @@ func GetRadixEnvironmentFromFile(filename string) (*v1.RadixEnvironment, error) 
 
 // GetHttpRouteFromFile reads HTTPRoute configuration from a yaml file
 func GetHttpRouteFromFile(filename string) (*gatewayapiv1.HTTPRoute, error) {
-	env := &gatewayapiv1.HTTPRoute{}
-	err := getFromFile(filename, env)
-	return env, err
+	hr := &gatewayapiv1.HTTPRoute{}
+	err := getFromFile(filename, hr)
+	return hr, err
 }
 
 func getFromFile(filename string, objRef interface{}) error {

@@ -21,8 +21,8 @@ func init() {
 }
 
 func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique(t *testing.T) {
-	validHttpRoute1 := createValidHttpRoute()
-	validHttpRoute2 := createValidHttpRoute()
+	validHttpRoute1 := createValidHttpRoute(t)
+	validHttpRoute2 := createValidHttpRoute(t)
 
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
 		"unique4.hostname.com",
@@ -38,8 +38,8 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique(t *testing.T)
 }
 
 func Test_Webhook_HttpRoute_ValidationSucceeds_WhenRoute_Is_Unique(t *testing.T) {
-	validHttpRoute1 := createValidHttpRoute()
-	validHttpRoute2 := createValidHttpRoute()
+	validHttpRoute1 := createValidHttpRoute(t)
+	validHttpRoute2 := createValidHttpRoute(t)
 
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
 		"unique4.hostname.com",
@@ -55,8 +55,12 @@ func Test_Webhook_HttpRoute_ValidationSucceeds_WhenRoute_Is_Unique(t *testing.T)
 	assert.Empty(t, wrns)
 }
 
-func createValidHttpRoute() *gatewayapiv1.HTTPRoute {
-	validHttpRoute, _ := utils.GetHttpRouteFromFile("testdata/httproute.yaml")
+func createValidHttpRoute(t *testing.T) *gatewayapiv1.HTTPRoute {
+	validHttpRoute, err := utils.GetHttpRouteFromFile("testdata/httproute.yaml")
+	if err != nil {
+		t.Fatalf("failed to load test data: %v", err)
+	}
+
 	return validHttpRoute
 }
 
