@@ -63,8 +63,8 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 		}
 
 		for _, hostname := range route.Spec.Hostnames {
-			if existingHostnames[string(hostname)] == true {
-				errs = append(errs, fmt.Errorf("Hostname %s is already in use.", hostname))
+			if existingHostnames[string(hostname)] {
+				errs = append(errs, fmt.Errorf("hostname %s is already in use", hostname))
 			}
 		}
 
