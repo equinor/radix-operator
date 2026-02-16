@@ -58,6 +58,10 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 
 		existingHostnames := make(map[string]bool)
 		for _, existingRoute := range existingHttpRoutes.Items {
+			// Skip the route being validated (for patch operations)
+			if existingRoute.Name == route.Name && existingRoute.Namespace == route.Namespace {
+				continue
+			}
 			for _, hostname := range existingRoute.Spec.Hostnames {
 				normalizedHostname := normalizeHostname(hostname)
 				existingHostnames[normalizedHostname] = true
