@@ -5,6 +5,7 @@ import (
 	"os"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -32,6 +33,13 @@ func GetRadixDeployFromFile(filename string) (*v1.RadixDeployment, error) {
 // GetRadixEnvironmentFromFile reads RadixEnvironment configuration from a yaml file
 func GetRadixEnvironmentFromFile(filename string) (*v1.RadixEnvironment, error) {
 	env := &v1.RadixEnvironment{}
+	err := getFromFile(filename, env)
+	return env, err
+}
+
+// GetHttpRouteFromFile reads HTTPRoute configuration from a yaml file
+func GetHttpRouteFromFile(filename string) (*gatewayapiv1.HTTPRoute, error) {
+	env := &gatewayapiv1.HTTPRoute{}
 	err := getFromFile(filename, env)
 	return env, err
 }
