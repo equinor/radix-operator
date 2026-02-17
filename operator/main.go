@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
@@ -42,6 +43,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 	kubeinformers "k8s.io/client-go/informers"
@@ -102,6 +104,15 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to initialize app")
 	}
 
+	if profiler := viper.GetBool("USE_PROFILER"); profiler {
+		go func() {
+			log.Ctx(ctx).Info().Msg("Starting pprof server on :7070")
+			if err := http.ListenAndServe(":7070", nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Ctx(ctx).Fatal().Err(err).Msg("Failed to start pprof server")
+			}
+		}()
+	}
+
 	err = app.Run(ctx)
 	if err != nil {
 		log.Fatal().Msg(err.Error())
@@ -124,8 +135,8 @@ func initializeApp(ctx context.Context) (*App, error) {
 	app.rateLimitConfig = utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
 	app.warningHandler = utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
 
-	app.dynamicCache, app.dynamicClient = app.initializeClient(ctx)
-	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(app.warningHandler)
+	app.dynamicCache, app.dynamicClient = app.initializeClient(ctx, app.rateLimitConfig, app.warningHandler)
+	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(app.rateLimitConfig, app.warningHandler)
 	app.eventRecorder, err = event.NewRecorder("Radix controller", app.client.CoreV1().Events(""))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event recorder: %w", err)
@@ -148,7 +159,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	return &app, nil
 }
 
-func (a *App) initializeClient(cacheCtx context.Context) (cache.Cache, client.Client) {
+func (a *App) initializeClient(cacheCtx context.Context, configOptions ...utils.KubernetesClientConfigOption) (cache.Cache, client.Client) {
 	zerologr.NameFieldName = "logger"
 	zerologr.NameSeparator = "/"
 	zerologr.SetMaxV(2)
@@ -157,9 +168,12 @@ func (a *App) initializeClient(cacheCtx context.Context) (cache.Cache, client.Cl
 	klog.SetLogger(zlog)
 
 	cfg := k8sconfig.GetConfigOrDie()
-	cfg.WarningHandler = utils.ZerologWarningHandlerAdapter(log.Warn)
 	cfg.Wrap(utils.PrometheusMetrics)
 	cfg.Wrap(httputils.LogRequests)
+
+	for _, o := range configOptions {
+		o(cfg)
+	}
 
 	scheme := scheme.NewScheme()
 	cache, err := cache.New(cfg, cache.Options{Scheme: scheme})
