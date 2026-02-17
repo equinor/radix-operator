@@ -748,6 +748,39 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 	}
 }
 
+func TestObjectSynced_Job_GarbageCollectDeployments(t *testing.T) {
+	const (
+		appName = "any-app"
+		envName = "any-env"
+	)
+
+	var (
+		ns = utils.GetEnvironmentNamespace(appName, envName)
+	)
+
+	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	job1 := utils.NewDeployJobComponentBuilder().WithName("job1").WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "any"}})
+	job2 := utils.NewDeployJobComponentBuilder().WithName("job2").WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "any"}})
+	deploymentBuilder := utils.NewDeploymentBuilder().
+		WithRadixApplication(utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName))).
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents().
+		WithJobComponents(job1, job2)
+
+	// Initial sync
+	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, deploymentBuilder)
+	require.NoError(t, err)
+
+	// Sync with job2 removed
+	deploymentBuilder.WithJobComponents(job1)
+	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, deploymentBuilder)
+	require.NoError(t, err)
+	deployments, _ := client.AppsV1().Deployments(ns).List(context.Background(), metav1.ListOptions{})
+	actualDeploymentNames := slice.Map(deployments.Items, func(o appsv1.Deployment) string { return o.Name })
+	assert.ElementsMatch(t, []string{"job1", "job1-aux"}, actualDeploymentNames)
+}
+
 func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service {
 	var result []corev1.Service
 	for _, svc := range *services {
