@@ -52,8 +52,8 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 
 		existingHttpRoutes := &gatewayapiv1.HTTPRouteList{}
 		if err := kubeClient.List(ctx, existingHttpRoutes); err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("failed to list existing HttpRoutes")
-			return nil, []error{ErrInternalError}
+			log.Ctx(ctx).Error().Err(err).Msg("failed to list httproutes")
+			return nil, []error{fmt.Errorf("failed to list httproutes: %w", err)}
 		}
 
 		existingHostnames := make(map[string]bool)
@@ -71,7 +71,7 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 		for _, hostname := range route.Spec.Hostnames {
 			normalizedHostname := normalizeHostname(hostname)
 			if existingHostnames[normalizedHostname] {
-				errs = append(errs, fmt.Errorf("hostname %s is already in use", hostname))
+				errs = append(errs, fmt.Errorf("failed to validate hostname %s: %w", hostname, ErrDuplicateHostname))
 			}
 		}
 

@@ -5,5 +5,5 @@ import (
 )
 
 var (
-	ErrInternalError = errors.New("internal error. Please try again later or contact support if the issue persists")
+	ErrDuplicateHostname = errors.New("hostname already exists")
 )
