@@ -31,6 +31,7 @@ func (syncer *alertSyncer) reconcileSecret(ctx context.Context) error {
 
 		syncer.removedOrphanedSecretKeys(secret)
 
+		secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
 		return controllerutil.SetControllerReference(syncer.radixAlert, secret, syncer.dynamicClient.Scheme())
 	})
 	if err != nil {

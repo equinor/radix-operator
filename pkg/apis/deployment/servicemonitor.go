@@ -55,6 +55,7 @@ func (deploy *Deployment) createOrUpdateServiceMonitor(ctx context.Context, depl
 			},
 		}
 
+		sb.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
 		return controllerutil.SetControllerReference(deploy.radixDeployment, sb, deploy.dynamicClient.Scheme())
 	})
 	if err != nil {
