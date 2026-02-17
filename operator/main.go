@@ -49,6 +49,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -153,6 +154,7 @@ func (a *App) initializeClient(cacheCtx context.Context) (cache.Cache, client.Cl
 	zerologr.SetMaxV(2)
 	var zlog logr.Logger = zerologr.New(log.Ctx(cacheCtx))
 	siglog.SetLogger(zlog)
+	klog.SetLogger(zlog)
 
 	cfg := k8sconfig.GetConfigOrDie()
 	cfg.WarningHandler = utils.ZerologWarningHandlerAdapter(log.Warn)
