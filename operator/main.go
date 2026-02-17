@@ -36,6 +36,8 @@ import (
 	httputils "github.com/equinor/radix-operator/pkg/apis/utils/http"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
@@ -50,6 +52,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
+	siglog "sigs.k8s.io/controller-runtime/pkg/log"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
@@ -145,6 +148,11 @@ func initializeApp(ctx context.Context) (*App, error) {
 }
 
 func (a *App) initializeClient(cacheCtx context.Context) (cache.Cache, client.Client) {
+	zerologr.NameFieldName = "logger"
+	zerologr.NameSeparator = "/"
+	zerologr.SetMaxV(2)
+	var zlog logr.Logger = zerologr.New(log.Ctx(cacheCtx))
+	siglog.SetLogger(zlog)
 
 	cfg := k8sconfig.GetConfigOrDie()
 	cfg.WarningHandler = utils.ZerologWarningHandlerAdapter(log.Warn)
