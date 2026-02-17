@@ -42,7 +42,7 @@ func main() {
 	env := models.NewEnv()
 	initLogger(env)
 
-	kubeUtil := getKubeUtil(ctx)
+	kubeUtil := getKubeUtil()
 
 	radixDeployJobComponent, err := getRadixDeployJobComponentByName(ctx, kubeUtil, env)
 	if err != nil {
@@ -115,8 +115,8 @@ func startServers(servers ...*http.Server) {
 	}
 }
 
-func getKubeUtil(ctx context.Context) *kube.Kube {
-	kubeClient, radixClient, kedaClient, _, secretProviderClient, _, _ := utils.GetKubernetesClient(ctx)
+func getKubeUtil() *kube.Kube {
+	kubeClient, radixClient, kedaClient, secretProviderClient, _, _ := utils.GetKubernetesClient()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretProviderClient)
 	return kubeUtil
 }
