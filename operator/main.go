@@ -168,8 +168,6 @@ func (a *App) initializeClient(cacheCtx context.Context) (cache.Cache, client.Cl
 		log.Fatal().Msg("Failed to sync cache")
 	}
 
-	// TODO: Check Cache options....
-
 	dynClient, err := client.New(cfg, client.Options{Scheme: scheme, Cache: &client.CacheOptions{Reader: cache}})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize dynamic client")
