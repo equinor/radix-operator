@@ -77,8 +77,6 @@ type Options struct {
 
 type App struct {
 	opts                 Options
-	rateLimitConfig      utils.KubernetesClientConfigOption
-	warningHandler       utils.KubernetesClientConfigOption
 	eventRecorder        record.EventRecorder
 	kubeInformerFactory  kubeinformers.SharedInformerFactory
 	radixInformerFactory radixinformers.SharedInformerFactory
@@ -132,11 +130,11 @@ func initializeApp(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get init parameters: %w", err)
 	}
-	app.rateLimitConfig = utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
-	app.warningHandler = utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
+	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
+	warningHandler := utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
 
-	app.dynamicCache, app.dynamicClient = app.initializeClient(ctx, app.rateLimitConfig, app.warningHandler)
-	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(app.rateLimitConfig, app.warningHandler)
+	app.dynamicCache, app.dynamicClient = app.initializeClient(ctx, rateLimitConfig, warningHandler)
+	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(rateLimitConfig, warningHandler)
 	app.eventRecorder, err = event.NewRecorder("Radix controller", app.client.CoreV1().Events(""))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event recorder: %w", err)
