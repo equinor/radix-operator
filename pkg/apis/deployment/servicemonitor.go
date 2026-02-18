@@ -71,7 +71,7 @@ func (deploy *Deployment) createOrUpdateServiceMonitor(ctx context.Context, depl
 func (deploy *Deployment) deleteServiceMonitorForComponent(ctx context.Context, component v1.RadixCommonDeployComponent) error {
 	serviceMonitors := &monitoringv1.ServiceMonitorList{}
 	if err := deploy.dynamicClient.List(ctx, serviceMonitors, client.InNamespace(deploy.radixDeployment.GetNamespace())); err != nil {
-		return fmt.Errorf("failed to list service monitor  for component: %w", err)
+		return fmt.Errorf("failed to list service monitor for component: %w", err)
 	}
 
 	for _, serviceMonitor := range serviceMonitors.Items {
