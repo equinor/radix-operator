@@ -13,16 +13,17 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/deployconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func Test_RunDeployConfigTestSuite(t *testing.T) {
@@ -31,20 +32,18 @@ func Test_RunDeployConfigTestSuite(t *testing.T) {
 
 type deployConfigTestSuite struct {
 	suite.Suite
-	kubeClient  *kubefake.Clientset
-	radixClient *radixfake.Clientset
-	kedaClient  *kedafake.Clientset
-	promClient  *prometheusfake.Clientset
-	kubeUtil    *kube.Kube
-	ctrl        *gomock.Controller
+	kubeClient    *kubefake.Clientset
+	radixClient   *radixfake.Clientset
+	kedaClient    *kedafake.Clientset
+	dynamicClient client.Client
+	ctrl          *gomock.Controller
 }
 
 func (s *deployConfigTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.kedaClient = kedafake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
+	s.dynamicClient = test.CreateClient()
 	s.ctrl = gomock.NewController(s.T())
 }
 
@@ -580,7 +579,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(len(affectedEnvs))
 
 			cli := deployconfig.NewDeployConfigStep(radixDeploymentWatcher)
-			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 			if err := cli.Run(context.Background(), pipelineInfo); err != nil {
 				t.Logf("Error: %v", err)
 				s.Require().NoError(err)

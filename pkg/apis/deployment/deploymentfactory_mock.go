@@ -18,9 +18,9 @@ import (
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned0 "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	versioned1 "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	gomock "go.uber.org/mock/gomock"
 	kubernetes "k8s.io/client-go/kubernetes"
+	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // MockDeploymentSyncerFactory is a mock of DeploymentSyncerFactory interface.
@@ -48,15 +48,15 @@ func (m *MockDeploymentSyncerFactory) EXPECT() *MockDeploymentSyncerFactoryMockR
 }
 
 // CreateDeploymentSyncer mocks base method.
-func (m *MockDeploymentSyncerFactory) CreateDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned0.Interface, prometheusperatorclient versioned1.Interface, certClient versioned.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, arg9 *config.Config) DeploymentSyncer {
+func (m *MockDeploymentSyncerFactory) CreateDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned0.Interface, dynamicClient client.Client, certClient versioned.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, ingressAnnotationProviders []ingress.AnnotationProvider, auxResourceManagers []AuxiliaryResourceManager, arg9 *config.Config) DeploymentSyncer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateDeploymentSyncer", kubeclient, kubeutil, radixclient, prometheusperatorclient, certClient, registration, radixDeployment, ingressAnnotationProviders, auxResourceManagers, arg9)
+	ret := m.ctrl.Call(m, "CreateDeploymentSyncer", kubeclient, kubeutil, radixclient, dynamicClient, certClient, registration, radixDeployment, ingressAnnotationProviders, auxResourceManagers, arg9)
 	ret0, _ := ret[0].(DeploymentSyncer)
 	return ret0
 }
 
 // CreateDeploymentSyncer indicates an expected call of CreateDeploymentSyncer.
-func (mr *MockDeploymentSyncerFactoryMockRecorder) CreateDeploymentSyncer(kubeclient, kubeutil, radixclient, prometheusperatorclient, certClient, registration, radixDeployment, ingressAnnotationProviders, auxResourceManagers, arg9 any) *gomock.Call {
+func (mr *MockDeploymentSyncerFactoryMockRecorder) CreateDeploymentSyncer(kubeclient, kubeutil, radixclient, dynamicClient, certClient, registration, radixDeployment, ingressAnnotationProviders, auxResourceManagers, arg9 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDeploymentSyncer", reflect.TypeOf((*MockDeploymentSyncerFactory)(nil).CreateDeploymentSyncer), kubeclient, kubeutil, radixclient, prometheusperatorclient, certClient, registration, radixDeployment, ingressAnnotationProviders, auxResourceManagers, arg9)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDeploymentSyncer", reflect.TypeOf((*MockDeploymentSyncerFactory)(nil).CreateDeploymentSyncer), kubeclient, kubeutil, radixclient, dynamicClient, certClient, registration, radixDeployment, ingressAnnotationProviders, auxResourceManagers, arg9)
 }

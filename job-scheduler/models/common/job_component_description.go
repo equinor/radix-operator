@@ -1,7 +1,5 @@
 package common
 
-// +kubebuilder:object:generate=true
-
 // RadixJobComponentConfig holds description of RadixJobComponent
 type RadixJobComponentConfig struct {
 	// Resource describes the compute resource requirements.

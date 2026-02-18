@@ -1,39 +1,27 @@
 package alert
 
 import (
-	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
-	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // AlertSyncerFactoryFunc is an adapter that can be used to convert
-// a function into a DeploymentSyncerFactory
+// a function into a AlertSyncerFactory
 type AlertSyncerFactoryFunc func(
-	kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	prometheusperatorclient monitoring.Interface,
+	dynamicClient client.Client,
 	radixAlert *v1.RadixAlert,
 ) AlertSyncer
 
 func (f AlertSyncerFactoryFunc) CreateAlertSyncer(
-	kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	prometheusperatorclient monitoring.Interface,
+	dynamicClient client.Client,
 	radixAlert *v1.RadixAlert,
 ) AlertSyncer {
-	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, radixAlert)
+	return f(dynamicClient, radixAlert)
 }
 
-// AlertSyncerFactory defines a factory to create a DeploymentSyncer
+// AlertSyncerFactory defines a factory to create a AlertSyncer
 type AlertSyncerFactory interface {
 	CreateAlertSyncer(
-		kubeclient kubernetes.Interface,
-		kubeutil *kube.Kube,
-		radixclient radixclient.Interface,
-		prometheusperatorclient monitoring.Interface,
+		dynamicClient client.Client,
 		radixAlert *v1.RadixAlert) AlertSyncer
 }

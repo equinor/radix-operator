@@ -12,12 +12,9 @@ package alert
 import (
 	reflect "reflect"
 
-	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	versioned0 "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	gomock "go.uber.org/mock/gomock"
-	kubernetes "k8s.io/client-go/kubernetes"
+	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // MockAlertSyncerFactory is a mock of AlertSyncerFactory interface.
@@ -45,15 +42,15 @@ func (m *MockAlertSyncerFactory) EXPECT() *MockAlertSyncerFactoryMockRecorder {
 }
 
 // CreateAlertSyncer mocks base method.
-func (m *MockAlertSyncerFactory) CreateAlertSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, prometheusperatorclient versioned0.Interface, radixAlert *v1.RadixAlert) AlertSyncer {
+func (m *MockAlertSyncerFactory) CreateAlertSyncer(dynamicClient client.Client, radixAlert *v1.RadixAlert) AlertSyncer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAlertSyncer", kubeclient, kubeutil, radixclient, prometheusperatorclient, radixAlert)
+	ret := m.ctrl.Call(m, "CreateAlertSyncer", dynamicClient, radixAlert)
 	ret0, _ := ret[0].(AlertSyncer)
 	return ret0
 }
 
 // CreateAlertSyncer indicates an expected call of CreateAlertSyncer.
-func (mr *MockAlertSyncerFactoryMockRecorder) CreateAlertSyncer(kubeclient, kubeutil, radixclient, prometheusperatorclient, radixAlert any) *gomock.Call {
+func (mr *MockAlertSyncerFactoryMockRecorder) CreateAlertSyncer(dynamicClient, radixAlert any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAlertSyncer", reflect.TypeOf((*MockAlertSyncerFactory)(nil).CreateAlertSyncer), kubeclient, kubeutil, radixclient, prometheusperatorclient, radixAlert)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAlertSyncer", reflect.TypeOf((*MockAlertSyncerFactory)(nil).CreateAlertSyncer), dynamicClient, radixAlert)
 }

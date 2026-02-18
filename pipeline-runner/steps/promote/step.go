@@ -84,7 +84,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	radixDeployment = rd.DeepCopy()
 	radixDeployment.Name = utils.GetDeploymentName(pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
 
-	activeRadixDeployment, err := cli.GetKubeUtil().GetActiveDeployment(ctx, toNs)
+	activeRadixDeployment, err := kube.GetActiveDeployment(ctx, cli.GetRadixClient(), toNs)
 	if err != nil {
 		return err
 	}

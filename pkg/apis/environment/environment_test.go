@@ -56,8 +56,8 @@ func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, *radix.Cl
 }
 
 func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, radixEnvFileName string) (*radixv1.RadixRegistration, *radixv1.RadixEnvironment, Environment, error) {
-	rr, _ := utils.GetRadixRegistrationFromFile(regConfigFileName)
-	re, _ := utils.GetRadixEnvironmentFromFile(radixEnvFileName)
+	rr := test.Load[*radixv1.RadixRegistration](regConfigFileName)
+	re := test.Load[*radixv1.RadixEnvironment](radixEnvFileName)
 	nw := networkpolicy.NewNetworkPolicy(client, kubeUtil, re.Spec.AppName)
 	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, &nw)
 	// register instance with radix-client so UpdateStatus() can find it

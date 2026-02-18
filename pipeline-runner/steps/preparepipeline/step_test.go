@@ -9,7 +9,9 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"go.uber.org/mock/gomock"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
@@ -21,12 +23,10 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -50,22 +50,20 @@ func Test_RunTestSuite(t *testing.T) {
 
 type stepTestSuite struct {
 	suite.Suite
-	kubeClient  *kubefake.Clientset
-	radixClient *radixfake.Clientset
-	kedaClient  *kedafake.Clientset
-	promClient  *prometheusfake.Clientset
-	kubeUtil    *kube.Kube
-	tknClient   tektonclient.Interface
-	ctrl        *gomock.Controller
+	kubeClient    *kubefake.Clientset
+	radixClient   *radixfake.Clientset
+	kedaClient    *kedafake.Clientset
+	dynamicClient client.Client
+	tknClient     tektonclient.Interface
+	ctrl          *gomock.Controller
 }
 
 func (s *stepTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
+	s.dynamicClient = test.CreateClient()
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.tknClient = tektonfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
 	s.ctrl = gomock.NewController(s.T())
 }
 
@@ -107,7 +105,7 @@ func (s *stepTestSuite) Test_SetRadixConfig() {
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	err := step.Run(ctx, pipelineInfo)
 	s.Require().NoError(err)
@@ -138,7 +136,7 @@ func (s *stepTestSuite) Test_SetRadixConfig_CheckoutError() {
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	err := step.Run(ctx, pipelineInfo)
 	s.ErrorIs(err, expectedError)
@@ -169,7 +167,7 @@ func (s *stepTestSuite) Test_SetRadixConfig_ReadError() {
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	err := step.Run(ctx, pipelineInfo)
 	s.ErrorIs(err, expectedError)
@@ -200,7 +198,7 @@ func (s *stepTestSuite) Test_TargetEnvironments_ApplyConfig() {
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
 
 	err := step.Run(ctx, pipelineInfo)
 	s.Require().NoError(err)
@@ -273,7 +271,7 @@ func (s *stepTestSuite) Test_TargetEnvironments_Deploy() {
 				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 			)
 			ctx := context.Background()
-			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
 
 			err := step.Run(ctx, pipelineInfo)
 			s.Require().NoError(err)
@@ -371,7 +369,7 @@ func (s *stepTestSuite) Test_TargetEnvironments_BuildDeploy() {
 				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 			)
 			ctx := context.Background()
-			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
 
 			err := step.Run(ctx, pipelineInfo)
 			s.Require().NoError(err)
@@ -416,7 +414,7 @@ func (s *stepTestSuite) Test_BuildDeploy_GitBuildInfo_CommitIDArgumentNotDefined
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
 
 	err := step.Run(ctx, pipelineInfo)
 	s.Require().NoError(err)
@@ -451,7 +449,7 @@ func (s *stepTestSuite) Test_BuildDeploy_GitBuildInfo_ResolveCommitForReferenceE
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
 
 	err := step.Run(ctx, pipelineInfo)
 	s.ErrorIs(err, expectedError)
@@ -485,7 +483,7 @@ func (s *stepTestSuite) Test_BuildDeploy_GitBuildInfo_IsAncestorError() {
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
 
 	err := step.Run(ctx, pipelineInfo)
 	s.ErrorIs(err, expectedError)
@@ -520,7 +518,7 @@ func (s *stepTestSuite) Test_BuildDeploy_GitBuildInfo_ResolveTagsForCommitError(
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
 
 	err := step.Run(ctx, pipelineInfo)
 	s.ErrorIs(err, expectedError)
@@ -564,7 +562,7 @@ func (s *stepTestSuite) Test_BuildDeploy_GitBuildInfo_CommitIDArgumentDefined() 
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
 
 	err := step.Run(ctx, pipelineInfo)
 	s.Require().NoError(err)
@@ -1052,7 +1050,7 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 			)
 			ctx := context.Background()
-			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 			err = step.Run(ctx, pipelineInfo)
 			ts.wantErr(s.T(), err)
 			ts.assertScenario(s.T(), step, ts.args.pipeline.ObjectMeta.Name)
@@ -1096,7 +1094,7 @@ func (s *stepTestSuite) Test_SubPipeline_ResolveAndCheckoutCommit_Deploy_Environ
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, utils.NewRegistrationBuilder().WithConfigBranch(configBranch).BuildRR())
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().WithConfigBranch(configBranch).BuildRR())
 
 	err := step.Run(ctx, pipelineInfo)
 	s.Require().NoError(err)
@@ -1139,7 +1137,7 @@ func (s *stepTestSuite) Test_SubPipeline_ResolveAndCheckoutCommit_Deploy_Environ
 		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 	)
 	ctx := context.Background()
-	step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, utils.NewRegistrationBuilder().WithConfigBranch(configBranch).BuildRR())
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().WithConfigBranch(configBranch).BuildRR())
 
 	err := step.Run(ctx, pipelineInfo)
 	s.Require().NoError(err)
@@ -1338,7 +1336,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
 			)
 			ctx := context.Background()
-			step.Init(ctx, s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 			err = step.Run(ctx, pipelineInfo)
 			s.Require().NoError(err)
 			s.ElementsMatch(pipelineInfo.TargetEnvironments, slice.Map(ts.expectedTargetEnvs, func(n string) model.TargetEnvironment { return model.TargetEnvironment{Environment: n} }))

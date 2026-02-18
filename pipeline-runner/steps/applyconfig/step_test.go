@@ -15,15 +15,16 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func Test_RunApplyConfigTestSuite(t *testing.T) {
@@ -32,19 +33,17 @@ func Test_RunApplyConfigTestSuite(t *testing.T) {
 
 type applyConfigTestSuite struct {
 	suite.Suite
-	kubeClient  *kubefake.Clientset
-	radixClient *radixfake.Clientset
-	kedaClient  *kedafake.Clientset
-	promClient  *prometheusfake.Clientset
-	kubeUtil    *kube.Kube
+	kubeClient    *kubefake.Clientset
+	radixClient   *radixfake.Clientset
+	kedaClient    *kedafake.Clientset
+	dynamicClient client.Client
 }
 
 func (s *applyConfigTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
+	s.dynamicClient = test.CreateClient()
 	s.kedaClient = kedafake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
 }
 
 func (s *applyConfigTestSuite) SetupSubTest() {
@@ -63,7 +62,7 @@ func (s *applyConfigTestSuite) Test_RadixConfigMap_WithoutPrepareBuildCtx_Proces
 		RadixApplication: expectedRa,
 	}
 	step := applyconfig.NewApplyConfigStep()
-	step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	err := step.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	s.Nil(pipelineInfo.BuildContext)
@@ -91,7 +90,7 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretMissing() {
 	}
 
 	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	err := cli.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	s.Empty(pipelineInfo.BuildSecret)
@@ -122,7 +121,7 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretExist() {
 	}
 
 	cli := applyconfig.NewApplyConfigStep()
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	err := cli.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	s.Equal(secret, pipelineInfo.BuildSecret)
@@ -151,7 +150,7 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildComponentInDeployPipelineShouldF
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	err := applyStep.Run(context.Background(), &pipeline)
 	s.ErrorIs(err, applyconfig.ErrDeployOnlyPipelineDoesNotSupportBuild)
 }
@@ -179,7 +178,7 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPipelineShouldFail() 
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	err := applyStep.Run(context.Background(), &pipeline)
 	s.ErrorIs(err, applyconfig.ErrDeployOnlyPipelineDoesNotSupportBuild)
 }
@@ -273,7 +272,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
 	imageNameFunc := func(env, comp string) string {
 		return fmt.Sprintf("%s-%s", env, comp)
@@ -451,7 +450,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
 	imageNameFunc := func(comp string) string {
 		return fmt.Sprintf("%s-%s", envName, comp)
@@ -616,7 +615,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
 
@@ -750,7 +749,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	// Run apply config step
 	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
@@ -1263,7 +1262,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 				TargetEnvironments: []model.TargetEnvironment{{Environment: envName, ActiveRadixDeployment: existingRd}},
 			}
 			applyStep := applyconfig.NewApplyConfigStep()
-			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 			// Run applyconfig step
 			s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
@@ -1380,7 +1379,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentImageTagName() {
 				}
 
 				applyStep := applyconfig.NewApplyConfigStep()
-				applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+				applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 				err := applyStep.Run(context.Background(), &pipelineInfo)
 				if expectedError == nil {
 					s.NoError(err, "pipeline type %s", pipelineType)
@@ -1417,7 +1416,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInRAShouldSu
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
 
@@ -1445,7 +1444,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentWithImageTagNameInPipelineAr
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
 
@@ -1472,7 +1471,7 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail(
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	err := applyStep.Run(context.Background(), &pipeline)
 	s.ErrorIs(err, applyconfig.ErrMissingRequiredImageTagName)
 	s.ErrorContains(err, "deployjob")
@@ -1503,7 +1502,7 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed(
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
 
@@ -1531,7 +1530,7 @@ func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgS
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	s.NoError(applyStep.Run(context.Background(), &pipeline))
 }
 
@@ -1612,7 +1611,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 			}
 
 			applyStep := applyconfig.NewApplyConfigStep()
-			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 			err = applyStep.Run(context.Background(), &pipeline)
 			if len(ts.expectedError) > 0 {
 				s.Assert().EqualError(err, ts.expectedError, "missing error '%s'", ts.expectedError)
@@ -1660,7 +1659,7 @@ func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
 	}
 
 	applyStep := applyconfig.NewApplyConfigStep()
-	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
 
@@ -1757,7 +1756,7 @@ func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 			}
 
 			applyStep := applyconfig.NewApplyConfigStep()
-			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 			err := applyStep.Run(context.Background(), &pipeline)
 			if test.expectError {
 				s.ErrorIs(err, applyconfig.ErrBuildNonDefaultRuntimeArchitectureWithoutBuildKitError)

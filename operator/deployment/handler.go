@@ -11,8 +11,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -63,7 +63,7 @@ func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) Han
 type handler struct {
 	kubeclient              kubernetes.Interface
 	radixclient             radixclient.Interface
-	prometheusperatorclient monitoring.Interface
+	dynamicClient           client.Client
 	certClient              certclient.Interface
 	kedaClient              kedav2.Interface
 	events                  common.SyncEventRecorder
@@ -81,7 +81,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	kedaClient kedav2.Interface,
-	prometheusperatorclient monitoring.Interface,
+	dynamicClient client.Client,
 	certClient certclient.Interface,
 	eventRecorder record.EventRecorder,
 	config *config.Config,
@@ -91,7 +91,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeclient:              kubeclient,
 		radixclient:             radixclient,
 		kedaClient:              kedaClient,
-		prometheusperatorclient: prometheusperatorclient,
+		dynamicClient:           dynamicClient,
 		certClient:              certClient,
 		kubeutil:                kubeutil,
 		deploymentSyncerFactory: deployment.DeploymentSyncerFactoryFunc(deployment.NewDeploymentSyncer),
@@ -142,7 +142,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 
 	ingressAnnotations := ingress.GetComponentAnnotationProvider(t.ingressConfiguration, rd.Namespace, t.oauth2DefaultConfig)
 	syncRD := rd.DeepCopy()
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.dynamicClient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
 	err = deployment.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRD, err)

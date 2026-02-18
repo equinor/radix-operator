@@ -6,9 +6,8 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/alert"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
@@ -27,29 +26,26 @@ func WithAlertSyncerFactory(factory alert.AlertSyncerFactory) HandlerConfigOptio
 
 // handler Instance variables
 type handler struct {
-	kubeclient              kubernetes.Interface
-	radixclient             radixclient.Interface
-	prometheusperatorclient monitoring.Interface
-	kubeutil                *kube.Kube
-	alertSyncerFactory      alert.AlertSyncerFactory
-	events                  common.SyncEventRecorder
+	kubeclient         kubernetes.Interface
+	dynamicClient      client.Client
+	kubeutil           *kube.Kube
+	alertSyncerFactory alert.AlertSyncerFactory
+	events             common.SyncEventRecorder
 }
 
 // NewHandler Constructor
 func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	prometheusperatorclient monitoring.Interface,
+	dynamicClient client.Client,
 	eventRecorder record.EventRecorder,
 	options ...HandlerConfigOption) common.Handler {
 
 	handler := &handler{
-		kubeclient:              kubeclient,
-		radixclient:             radixclient,
-		prometheusperatorclient: prometheusperatorclient,
-		kubeutil:                kubeutil,
-		alertSyncerFactory:      alert.AlertSyncerFactoryFunc(alert.New),
-		events:                  common.NewSyncEventRecorder(eventRecorder),
+		kubeclient:         kubeclient,
+		dynamicClient:      dynamicClient,
+		kubeutil:           kubeutil,
+		alertSyncerFactory: alert.AlertSyncerFactoryFunc(alert.New),
+		events:             common.NewSyncEventRecorder(eventRecorder),
 	}
 
 	for _, option := range options {
@@ -77,7 +73,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	syncRAL := alert.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync radix alert %s", syncRAL.Name)
 
-	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, syncRAL)
+	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.dynamicClient, syncRAL)
 	err = alertSyncer.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRAL, err)
