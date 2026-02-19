@@ -48,30 +48,26 @@ func (validator *Validator) Validate(ctx context.Context, hr *gatewayapiv1.HTTPR
 
 func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 	return func(ctx context.Context, route *gatewayapiv1.HTTPRoute) ([]string, []error) {
-		var errs []error
-
 		existingHttpRoutes := &gatewayapiv1.HTTPRouteList{}
 		if err := kubeClient.List(ctx, existingHttpRoutes); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to list httproutes")
 			return nil, []error{fmt.Errorf("failed to list httproutes: %w", err)}
 		}
 
-		existingHostnames := make(map[string]bool)
+		var existingHostnames []string
 		for _, existingRoute := range existingHttpRoutes.Items {
-			// Skip the route being validated (for patch operations)
 			if existingRoute.Name == route.Name && existingRoute.Namespace == route.Namespace {
 				continue
 			}
-			for _, hostname := range existingRoute.Spec.Hostnames {
-				normalizedHostname := normalizeHostname(hostname)
-				existingHostnames[normalizedHostname] = true
+			for _, hostname := range existingRoute.Spec.Hostnames { // TODO: If in another namespace
+				existingHostnames = append(existingHostnames, normalizeHostname(hostname))
 			}
 		}
 
-		for _, hostname := range route.Spec.Hostnames {
-			normalizedHostname := normalizeHostname(hostname)
-			if existingHostnames[normalizedHostname] {
-				errs = append(errs, fmt.Errorf("failed to validate hostname %s: %w", hostname, ErrDuplicateHostname))
+		var errs []error
+		for _, incomingHostname := range route.Spec.Hostnames {
+			if err := validateHostname(normalizeHostname(incomingHostname), existingHostnames, incomingHostname); err != nil {
+				errs = append(errs, err)
 			}
 		}
 
@@ -80,6 +76,38 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 }
 
 func normalizeHostname(hostname gatewayapiv1.Hostname) string {
-	h := strings.ToLower(string(hostname))
-	return strings.TrimSuffix(h, ".")
+	return strings.ToLower(string(hostname))
+}
+
+func validateHostname(incomingHostname string, existing []string, original gatewayapiv1.Hostname) error {
+	for _, existingHostname := range existing {
+		incomingToCompare := incomingHostname
+		existingToCompare := existingHostname
+
+		// When either hostname is a wildcard, compare their apex domains
+		// E.g., "*.example.com" conflicts with "api.example.com"
+		if isWildcardDomain(incomingHostname) || isWildcardDomain(existingHostname) {
+			incomingToCompare = getApexDomain(incomingHostname)
+			existingToCompare = getApexDomain(existingHostname)
+		}
+
+		if incomingToCompare == existingToCompare {
+			return fmt.Errorf("failed to validate hostname %s: %w", original, ErrDuplicateHostname)
+		}
+	}
+	return nil
+}
+
+func isWildcardDomain(fqdn string) bool {
+	return len(fqdn) > 0 && fqdn[0] == '*'
+}
+
+func getApexDomain(fqdn string) string {
+	parts := strings.Split(fqdn, ".")
+
+	if len(parts) >= 2 {
+		return parts[len(parts)-2] + "." + parts[len(parts)-1]
+	}
+
+	return fqdn
 }

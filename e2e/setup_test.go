@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	siglog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 var (
@@ -129,6 +130,7 @@ func TestMain(m *testing.M) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(radixv1.AddToScheme(scheme))
+	utilruntime.Must(gatewayapiv1.Install(scheme))
 
 	// Initialize logger for controller-runtime
 	logger := initLogger()
@@ -159,6 +161,10 @@ func TestMain(m *testing.M) {
 	}
 	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator", "../charts/radix-operator", helmValues); err != nil {
 		log.Fatal().Err(err).Msg("failed to install radix-operator helm chart")
+	}
+
+	if err = internal.InstallGatewayApiCRDs(testContext, testCluster.KubeConfigPath); err != nil {
+		log.Fatal().Err(err).Msg("failed to install Gateway API CRDs")
 	}
 
 	// Start the manager in the background

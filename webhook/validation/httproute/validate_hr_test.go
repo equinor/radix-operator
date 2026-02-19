@@ -42,10 +42,29 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique(t *testing.T)
 	assert.Error(t, err)
 }
 
+func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique_EvenIf_MixedCasing(t *testing.T) {
+	validHttpRoute1 := createValidHttpRoute(t)
+	validHttpRoute2 := createValidHttpRoute(t)
+
+	validHttpRoute2.Name = "someUniqueName"
+	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
+		"unique4.hostname.com",
+		"uniQUE3.HOSTname.com",
+		"UNIQUE2.hostNAME.com",
+	}
+
+	client := createClient(validHttpRoute1)
+
+	validator := httproute.CreateOnlineValidator(client)
+	_, err := validator.Validate(context.Background(), validHttpRoute2)
+	assert.Error(t, err)
+}
+
 func Test_Webhook_HttpRoute_ValidationSucceeds_WhenRoute_Is_Unique(t *testing.T) {
 	validHttpRoute1 := createValidHttpRoute(t)
 	validHttpRoute2 := createValidHttpRoute(t)
 
+	validHttpRoute2.Name = "someUniqueName"
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
 		"unique4.hostname.com",
 		"unique5.hostname.com",
@@ -69,6 +88,52 @@ func Test_Webhook_HttpRoute_ValidationSucceeds_WhenPatching_SameRoute(t *testing
 	assert.NoError(t, err)
 	assert.Empty(t, wrns)
 }
+
+func Test_Webhook_HttpRoute_ValidationFails_WhenExistingRoute_HasWildcard(t *testing.T) {
+	validHttpRoute1 := createValidHttpRoute(t)
+	validHttpRoute2 := createValidHttpRoute(t)
+
+	// Existing route
+	validHttpRoute1.Name = "someUniqueName"
+	validHttpRoute1.Spec.Hostnames = []gatewayapiv1.Hostname{
+		"*.hostname.com",
+		"unique5.test.com",
+		"unique6.test.com",
+	}
+
+	// Incoming route
+	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
+		"unique1.hostname.com",
+		"unique7.test.com",
+		"unique8.test.com",
+	}
+
+	client := createClient(validHttpRoute1)
+
+	validator := httproute.CreateOnlineValidator(client)
+	_, err := validator.Validate(context.Background(), validHttpRoute2)
+	assert.Error(t, err)
+}
+
+func Test_Webhook_HttpRoute_ValidationFails_WhenIncomingRoute_HasWildcard(t *testing.T) {
+	validHttpRoute1 := createValidHttpRoute(t)
+	validHttpRoute2 := createValidHttpRoute(t)
+
+	validHttpRoute2.Name = "someUniqueName"
+	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
+		"*.hostname.com",
+		"unique5.test.com",
+		"unique6.test.com",
+	}
+
+	client := createClient(validHttpRoute1)
+
+	validator := httproute.CreateOnlineValidator(client)
+	_, err := validator.Validate(context.Background(), validHttpRoute2)
+	assert.Error(t, err)
+}
+
+// TODO: Also a test for testing case sensitivity
 
 func createValidHttpRoute(t *testing.T) *gatewayapiv1.HTTPRoute {
 	validHttpRoute := load[*gatewayapiv1.HTTPRoute]("./testdata/httproute.yaml", t)
