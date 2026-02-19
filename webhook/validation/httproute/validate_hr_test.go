@@ -39,7 +39,7 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique(t *testing.T)
 
 	validator := httproute.CreateOnlineValidator(client)
 	_, err := validator.Validate(context.Background(), validHttpRoute2)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, httproute.ErrDuplicateHostname)
 }
 
 func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique_EvenIf_MixedCasing(t *testing.T) {
@@ -57,7 +57,7 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique_EvenIf_MixedC
 
 	validator := httproute.CreateOnlineValidator(client)
 	_, err := validator.Validate(context.Background(), validHttpRoute2)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, httproute.ErrDuplicateHostname)
 }
 
 func Test_Webhook_HttpRoute_ValidationSucceeds_WhenRoute_Is_Unique(t *testing.T) {
@@ -112,7 +112,7 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenExistingRoute_HasWildcard(t *tes
 
 	validator := httproute.CreateOnlineValidator(client)
 	_, err := validator.Validate(context.Background(), validHttpRoute2)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, httproute.ErrDuplicateHostname)
 }
 
 func Test_Webhook_HttpRoute_ValidationFails_WhenIncomingRoute_HasWildcard(t *testing.T) {
@@ -130,7 +130,7 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenIncomingRoute_HasWildcard(t *tes
 
 	validator := httproute.CreateOnlineValidator(client)
 	_, err := validator.Validate(context.Background(), validHttpRoute2)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, httproute.ErrDuplicateHostname)
 }
 
 // TODO: Also a test for testing case sensitivity
