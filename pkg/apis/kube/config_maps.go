@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -49,7 +49,7 @@ func (kubeutil *Kube) CreateConfigMap(ctx context.Context, namespace string, con
 // UpdateConfigMap updates the `modified` configmap.
 // If `original` is set, the two configmaps are compared, and the secret is only updated if they are not equal.
 func (kubeutil *Kube) UpdateConfigMap(ctx context.Context, original, modified *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	if original != nil && reflect.DeepEqual(original, modified) {
+	if original != nil && equality.Semantic.DeepEqual(original, modified) {
 		log.Ctx(ctx).Debug().Msgf("No need to update configmap %s/%s", modified.Namespace, modified.Name)
 		return modified, nil
 	}

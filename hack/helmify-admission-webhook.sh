@@ -25,8 +25,6 @@ sedi() {
 # Remove all lines that are just '---'
 sedi '/^---$/d' "$file"
 
-# Insert Helm if at the top
-sedi '1s;^;{{ if .Values.radixWebhook.enabled }}\n\n;' "$file"
 # Replace metadata name
 sedi 's/^  name: validating-webhook-configuration/  name: radix-webhook-configuration/' "$file"
 
@@ -44,7 +42,3 @@ sedi '/^      path: \/gateway\/v1\/httproute\/validation/a\
 # Add matchPolicy after failurePolicy
 sedi '/^  failurePolicy: Fail/a\
   matchPolicy: Equivalent' "$file"
-
-# Add an empty line before the last {{ end }}
-echo '' >> "$file"
-echo '{{ end }}' >> "$file"

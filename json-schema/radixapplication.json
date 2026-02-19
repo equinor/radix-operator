@@ -3469,7 +3469,13 @@
                 "maxLength": 63,
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
-                "type": "string"
+                "type": "string",
+                "x-kubernetes-validations": [
+                  {
+                    "message": "environment name 'app' is reserved",
+                    "rule": "self != 'app'"
+                  }
+                ]
               },
               "subPipeline": {
                 "description": "SubPipeline configuration.",

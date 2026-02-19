@@ -189,6 +189,50 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	assert.Equal(t, 2, len(environments.Items))
 }
 
+func Test_Reconcile_Environment_With_Different_AppLabel_Fails(t *testing.T) {
+	_, client, kubeUtil, radixClient := setupTest(t)
+
+	// Create a RadixEnvironment with name "foo-bar-test" but labeled with "foo-bar"
+	// This simulates a conflict where an environment exists with the expected name
+	// but belongs to a different application (e.g., app "foo-bar" with env "test")
+	_, err := radixClient.RadixV1().RadixEnvironments().Create(
+		context.Background(),
+		&radixv1.RadixEnvironment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "foo-bar-test",
+				Labels: labels.Set{kube.RadixAppLabel: "foo-bar"},
+			},
+			Spec: radixv1.RadixEnvironmentSpec{
+				AppName: "foo-bar",
+				EnvName: "test",
+			},
+		},
+		metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// Create RadixRegistration and RadixApplication for "foo" with environment "bar-test"
+	// This would also create a RadixEnvironment named "foo-bar-test"
+	rr := utils.NewRegistrationBuilder().
+		WithName("foo").
+		BuildRR()
+
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName("foo").
+		WithEnvironment("bar-test", "master").
+		BuildRA()
+	_, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Create(context.Background(), ra, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// Try to sync - should fail because the RadixEnvironment "foo-bar-test" has a different app label
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	err = app.OnSync(context.Background())
+
+	// Verify error
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "labeled with a different app name")
+	assert.Contains(t, err.Error(), "foo-bar")
+}
+
 func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
 	branch := "master"
 
