@@ -42,7 +42,7 @@ func TestGatewayWebhookHttpRouteValidation(t *testing.T) {
 	defer cleanup()
 
 	t.Run("fails validation when route is not unique", func(t *testing.T) {
-		appName := "test-new-httproute-validation"
+		appName := "test-new-httproute-validation-1"
 		appNamespace := appName + "-app"
 		nsCleanup := createNamespaceForTest(t, c, appName)
 		defer nsCleanup()
@@ -61,7 +61,7 @@ func TestGatewayWebhookHttpRouteValidation(t *testing.T) {
 	})
 
 	t.Run("succeeds validation when route is unique", func(t *testing.T) {
-		appName := "test-new-httproute-validation"
+		appName := "test-new-httproute-validation-2"
 		appNamespace := appName + "-app"
 		nsCleanup := createNamespaceForTest(t, c, appName)
 		defer nsCleanup()
@@ -97,7 +97,7 @@ func TestGatewayWebhookHttpRouteValidation(t *testing.T) {
 	})
 
 	t.Run("fails validation when existing route has conflicting wildcard", func(t *testing.T) {
-		appName := "test-new-httproute-validation"
+		appName := "test-new-httproute-validation-3"
 		appNamespace := appName + "-app"
 		nsCleanup := createNamespaceForTest(t, c, appName)
 		defer nsCleanup()
@@ -116,7 +116,7 @@ func TestGatewayWebhookHttpRouteValidation(t *testing.T) {
 	})
 
 	t.Run("fails validation when incoming route has conflicting wildcard", func(t *testing.T) {
-		appName := "test-new-httproute-validation"
+		appName := "test-new-httproute-validation-4"
 		appNamespace := appName + "-app"
 		nsCleanup := createNamespaceForTest(t, c, appName)
 		defer nsCleanup()
@@ -135,7 +135,7 @@ func TestGatewayWebhookHttpRouteValidation(t *testing.T) {
 	})
 
 	t.Run("fails validation when route is not unique even if casing is mixed", func(t *testing.T) {
-		appName := "test-new-httproute-validation"
+		appName := "test-new-httproute-validation-5"
 		appNamespace := appName + "-app"
 		nsCleanup := createNamespaceForTest(t, c, appName)
 		defer nsCleanup()
