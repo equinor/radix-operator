@@ -13,7 +13,7 @@ spec:
       namespace: istio-system
       kind: Gateway
       group: gateway.networking.k8s.io
-  hostnames: ["unique1.hostname.com", "unique2.hostname.com", "unique3.hostname.com"]
+  hostnames: ["unique1.hostname.com", "unique2.hostname.com", "unique3.hostname.com", "app.unique3.hostname.com"]
   rules:
     - matches:
         - path:
