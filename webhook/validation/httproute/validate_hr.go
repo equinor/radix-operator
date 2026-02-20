@@ -56,10 +56,10 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 
 		var existingHostnames []string
 		for _, existingRoute := range existingHttpRoutes.Items {
-			if existingRoute.Name == route.Name && existingRoute.Namespace == route.Namespace {
+			if existingRoute.Namespace == route.Namespace {
 				continue
 			}
-			for _, hostname := range existingRoute.Spec.Hostnames { // TODO: If in another namespace
+			for _, hostname := range existingRoute.Spec.Hostnames {
 				existingHostnames = append(existingHostnames, normalizeHostname(hostname))
 			}
 		}
