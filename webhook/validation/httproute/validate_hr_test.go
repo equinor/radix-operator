@@ -200,6 +200,25 @@ func Test_Webhook_HttpRoute_ValidationSucceeds_WhenIncomingWildcardRoute_HasFewe
 	assert.Empty(t, wrns)
 }
 
+func Test_Webhook_HttpRoute_ValidationSucceeds_WhenBothRoutes_HaveWildcards_AtDifferentLevels(t *testing.T) {
+	validHttpRoute1 := createValidHttpRoute(t)
+	validHttpRoute2 := createValidHttpRoute(t)
+
+	validHttpRoute2.Namespace = "someUniqueNamespace"
+	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
+		"*.sub4-2.sub4.hostname.com",
+		"sub1.test.com",
+		"sub2.test.com",
+	}
+
+	client := createClient(validHttpRoute1)
+
+	validator := httproute.CreateOnlineValidator(client)
+	wrns, err := validator.Validate(context.Background(), validHttpRoute2)
+	assert.NoError(t, err)
+	assert.Empty(t, wrns)
+}
+
 func createValidHttpRoute(t *testing.T) *gatewayapiv1.HTTPRoute {
 	validHttpRoute := load[*gatewayapiv1.HTTPRoute]("./testdata/httproute.yaml", t)
 
