@@ -36,6 +36,8 @@ sedi '/^      path: \/radix\/v1\/radixregistration\/validation/a\
       port: 443' "$file"
 sedi '/^      path: \/radix\/v1\/radixapplication\/validation/a\
       port: 443' "$file"
+sedi '/^      path: \/gateway\/v1\/httproute\/validation/a\
+      port: 443' "$file"
 
 # Add matchPolicy after failurePolicy
 sedi '/^  failurePolicy: Fail/a\
