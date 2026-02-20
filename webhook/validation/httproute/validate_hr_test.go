@@ -133,8 +133,6 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenIncomingRoute_HasWildcard(t *tes
 	assert.ErrorIs(t, err, httproute.ErrDuplicateHostname)
 }
 
-// TODO: Also a test for testing case sensitivity
-
 func createValidHttpRoute(t *testing.T) *gatewayapiv1.HTTPRoute {
 	validHttpRoute := load[*gatewayapiv1.HTTPRoute]("./testdata/httproute.yaml", t)
 
