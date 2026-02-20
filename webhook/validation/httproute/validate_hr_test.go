@@ -24,14 +24,26 @@ func init() {
 	utilruntime.Must(gatewayapiv1.Install(scheme))
 }
 
+func Test_Webhook_HttpRoute_ValidationSucceeds_WhenRouteIsNotUnique_ButInSameNamespace(t *testing.T) {
+	validHttpRoute1 := createValidHttpRoute(t)
+	validHttpRoute2 := createValidHttpRoute(t)
+
+	client := createClient(validHttpRoute1)
+
+	validator := httproute.CreateOnlineValidator(client)
+	wrns, err := validator.Validate(context.Background(), validHttpRoute2)
+	assert.NoError(t, err)
+	assert.Empty(t, wrns)
+}
+
 func Test_Webhook_HttpRoute_ValidationSucceeds_WhenExistingDomain_IsParentDomain_OfIncomingWildcardDomain(t *testing.T) {
 	validHttpRoute1 := createValidHttpRoute(t)
 	validHttpRoute2 := createValidHttpRoute(t)
 
 	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
-		"unique4.hostname.com",
-		"*.unique1.hostname.com",
+		"sub4.hostname.com",
+		"*.sub1.hostname.com",
 	}
 
 	client := createClient(validHttpRoute1)
@@ -42,32 +54,15 @@ func Test_Webhook_HttpRoute_ValidationSucceeds_WhenExistingDomain_IsParentDomain
 	assert.Empty(t, wrns)
 }
 
-func Test_Webhook_HttpRoute_ValidationFails_WhenExistingDomain_Overlaps_WithIncomingWildcardDomain(t *testing.T) {
-	validHttpRoute1 := createValidHttpRoute(t)
-	validHttpRoute2 := createValidHttpRoute(t)
-
-	validHttpRoute2.Namespace = "someUniqueNamespace"
-	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
-		"unique4.hostname.com",
-		"*.unique3.hostname.com",
-	}
-
-	client := createClient(validHttpRoute1)
-
-	validator := httproute.CreateOnlineValidator(client)
-	_, err := validator.Validate(context.Background(), validHttpRoute2)
-	assert.ErrorIs(t, err, httproute.ErrDuplicateHostname)
-}
-
 func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique(t *testing.T) {
 	validHttpRoute1 := createValidHttpRoute(t)
 	validHttpRoute2 := createValidHttpRoute(t)
 
 	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
-		"unique4.hostname.com",
-		"unique3.hostname.com",
-		"unique2.hostname.com",
+		"sub4.hostname.com",
+		"sub3.hostname.com",
+		"sub2.hostname.com",
 	}
 
 	client := createClient(validHttpRoute1)
@@ -83,9 +78,9 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique_EvenIf_MixedC
 
 	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
-		"unique4.hostname.com",
-		"uniQUE3.HOSTname.com",
-		"UNIQUE2.hostNAME.com",
+		"SUb4.hostname.com",
+		"suB3.HOSTname.com",
+		"sub2.hostNAME.com",
 	}
 
 	client := createClient(validHttpRoute1)
@@ -101,9 +96,9 @@ func Test_Webhook_HttpRoute_ValidationSucceeds_WhenRoute_Is_Unique(t *testing.T)
 
 	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
-		"unique4.hostname.com",
-		"unique5.hostname.com",
-		"unique6.hostname.com",
+		"sub4.hostname.com",
+		"sub5.hostname.com",
+		"sub6.hostname.com",
 	}
 
 	client := createClient(validHttpRoute1)
@@ -132,15 +127,15 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenExistingRoute_HasWildcard(t *tes
 	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute1.Spec.Hostnames = []gatewayapiv1.Hostname{
 		"*.hostname.com",
-		"unique5.test.com",
-		"unique6.test.com",
+		"sub5.test.com",
+		"sub6.test.com",
 	}
 
 	// Incoming route
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
-		"unique1.hostname.com",
-		"unique7.test.com",
-		"unique8.test.com",
+		"sub1.hostname.com",
+		"sub1.test.com",
+		"sub2.test.com",
 	}
 
 	client := createClient(validHttpRoute1)
@@ -150,15 +145,15 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenExistingRoute_HasWildcard(t *tes
 	assert.ErrorIs(t, err, httproute.ErrDuplicateHostname)
 }
 
-func Test_Webhook_HttpRoute_ValidationFails_WhenIncomingRoute_HasWildcard(t *testing.T) {
+func Test_Webhook_HttpRoute_ValidationFails_WhenIncomingRoute_HasOverlappingWildcard(t *testing.T) {
 	validHttpRoute1 := createValidHttpRoute(t)
 	validHttpRoute2 := createValidHttpRoute(t)
 
 	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
 		"*.hostname.com",
-		"unique5.test.com",
-		"unique6.test.com",
+		"sub5.test.com",
+		"sub6.test.com",
 	}
 
 	client := createClient(validHttpRoute1)
@@ -166,6 +161,43 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenIncomingRoute_HasWildcard(t *tes
 	validator := httproute.CreateOnlineValidator(client)
 	_, err := validator.Validate(context.Background(), validHttpRoute2)
 	assert.ErrorIs(t, err, httproute.ErrDuplicateHostname)
+}
+
+func Test_Webhook_HttpRoute_ValidationFails_WhenIncomingRoute_HasOverlappingWildcard_OfMultilevelSubdomain(t *testing.T) {
+	validHttpRoute1 := createValidHttpRoute(t)
+	validHttpRoute2 := createValidHttpRoute(t)
+
+	validHttpRoute2.Namespace = "someUniqueNamespace"
+	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
+		"*.sub3.hostname.com",
+		"sub5.test.com",
+		"sub6.test.com",
+	}
+
+	client := createClient(validHttpRoute1)
+
+	validator := httproute.CreateOnlineValidator(client)
+	_, err := validator.Validate(context.Background(), validHttpRoute2)
+	assert.ErrorIs(t, err, httproute.ErrDuplicateHostname)
+}
+
+func Test_Webhook_HttpRoute_ValidationSucceeds_WhenIncomingWildcardRoute_HasFewerSubdomains_ThanExistingRoute_WithSameParentDomain(t *testing.T) {
+	validHttpRoute1 := createValidHttpRoute(t)
+	validHttpRoute2 := createValidHttpRoute(t)
+
+	validHttpRoute2.Namespace = "someUniqueNamespace"
+	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
+		"*.sub3-3.sub3-2.sub3.hostname.com",
+		"sub1.test.com",
+		"sub2.test.com",
+	}
+
+	client := createClient(validHttpRoute1)
+
+	validator := httproute.CreateOnlineValidator(client)
+	wrns, err := validator.Validate(context.Background(), validHttpRoute2)
+	assert.NoError(t, err)
+	assert.Empty(t, wrns)
 }
 
 func createValidHttpRoute(t *testing.T) *gatewayapiv1.HTTPRoute {
