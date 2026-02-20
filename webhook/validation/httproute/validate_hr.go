@@ -81,20 +81,29 @@ func normalizeHostname(hostname gatewayapiv1.Hostname) string {
 
 func validateHostname(incomingHostname string, existing []string, original gatewayapiv1.Hostname) error {
 	for _, existingHostname := range existing {
-		incomingToCompare := incomingHostname
-		existingToCompare := existingHostname
-
-		// When either hostname is a wildcard, compare their apex domains
-		// E.g., "*.example.com" conflicts with "api.example.com"
-		if isWildcardDomain(incomingHostname) || isWildcardDomain(existingHostname) {
-			incomingToCompare = getApexDomain(incomingHostname)
-			existingToCompare = getApexDomain(existingHostname)
+		if incomingHostname == existingHostname {
+			return fmt.Errorf("failed to validate hostname %s: %w", original, ErrDuplicateHostname)
 		}
 
-		if incomingToCompare == existingToCompare {
+		if !isWildcardDomain(incomingHostname) && !isWildcardDomain(existingHostname) {
+			continue
+		}
+
+		// When either hostname is a wildcard, compare their parent domains
+		// E.g., "*.radix.example.com" conflicts with "api.radix.example.com"
+		partsIncoming := strings.Split(incomingHostname, ".")
+		partsExisting := strings.Split(existingHostname, ".")
+		if len(partsIncoming) != len(partsExisting) {
+			continue
+		}
+
+		parentDomainIncoming := getParentDomain(incomingHostname)
+		parentDomainExisting := getParentDomain(existingHostname)
+		if parentDomainIncoming == parentDomainExisting {
 			return fmt.Errorf("failed to validate hostname %s: %w", original, ErrDuplicateHostname)
 		}
 	}
+
 	return nil
 }
 
@@ -102,12 +111,11 @@ func isWildcardDomain(fqdn string) bool {
 	return len(fqdn) > 0 && fqdn[0] == '*'
 }
 
-func getApexDomain(fqdn string) string {
+func getParentDomain(fqdn string) string {
 	parts := strings.Split(fqdn, ".")
-
-	if len(parts) >= 2 {
-		return parts[len(parts)-2] + "." + parts[len(parts)-1]
+	if len(parts) <= 1 {
+		return fqdn
 	}
 
-	return fqdn
+	return strings.Join(parts[1:], ".")
 }

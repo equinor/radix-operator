@@ -28,7 +28,7 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique(t *testing.T)
 	validHttpRoute1 := createValidHttpRoute(t)
 	validHttpRoute2 := createValidHttpRoute(t)
 
-	validHttpRoute2.Name = "someUniqueName"
+	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
 		"unique4.hostname.com",
 		"unique3.hostname.com",
@@ -46,7 +46,7 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenRoute_IsNot_Unique_EvenIf_MixedC
 	validHttpRoute1 := createValidHttpRoute(t)
 	validHttpRoute2 := createValidHttpRoute(t)
 
-	validHttpRoute2.Name = "someUniqueName"
+	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
 		"unique4.hostname.com",
 		"uniQUE3.HOSTname.com",
@@ -64,7 +64,7 @@ func Test_Webhook_HttpRoute_ValidationSucceeds_WhenRoute_Is_Unique(t *testing.T)
 	validHttpRoute1 := createValidHttpRoute(t)
 	validHttpRoute2 := createValidHttpRoute(t)
 
-	validHttpRoute2.Name = "someUniqueName"
+	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
 		"unique4.hostname.com",
 		"unique5.hostname.com",
@@ -94,7 +94,7 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenExistingRoute_HasWildcard(t *tes
 	validHttpRoute2 := createValidHttpRoute(t)
 
 	// Existing route
-	validHttpRoute1.Name = "someUniqueName"
+	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute1.Spec.Hostnames = []gatewayapiv1.Hostname{
 		"*.hostname.com",
 		"unique5.test.com",
@@ -119,7 +119,7 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenIncomingRoute_HasWildcard(t *tes
 	validHttpRoute1 := createValidHttpRoute(t)
 	validHttpRoute2 := createValidHttpRoute(t)
 
-	validHttpRoute2.Name = "someUniqueName"
+	validHttpRoute2.Namespace = "someUniqueNamespace"
 	validHttpRoute2.Spec.Hostnames = []gatewayapiv1.Hostname{
 		"*.hostname.com",
 		"unique5.test.com",
