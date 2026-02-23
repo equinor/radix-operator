@@ -16,11 +16,17 @@ import (
 
 var testscheme = scheme.NewScheme()
 
-func CreateClient(initObjsFilenames ...string) client.Client {
+func CreateClient(filenameOrObject ...any) client.Client {
 	var initObjs []client.Object
-	for _, filename := range initObjsFilenames {
-		obj := Load[client.Object](filename)
-		initObjs = append(initObjs, obj)
+	for _, filename := range filenameOrObject {
+		switch v := filename.(type) {
+		case string:
+			initObjs = append(initObjs, Load[client.Object](v))
+		case client.Object:
+			initObjs = append(initObjs, v)
+		default:
+			log.Fatal().Str("filename", fmt.Sprintf("%v", filename)).Msg("unsupported type for init object")
+		}
 	}
 	return fake.NewClientBuilder().WithScheme(testscheme).WithStatusSubresource(&radixv1.RadixAlert{}).WithObjects(initObjs...).Build()
 }
