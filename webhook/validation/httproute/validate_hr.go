@@ -66,7 +66,7 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 
 		var errs []error
 		for _, incomingHostname := range route.Spec.Hostnames {
-			if !validateHostname(normalizeHostname(incomingHostname), existingHostnames, incomingHostname) {
+			if !validateHostname(normalizeHostname(incomingHostname), existingHostnames) {
 				errs = append(errs, fmt.Errorf("failed to validate hostname %s: %w", incomingHostname, ErrDuplicateHostname))
 			}
 		}
@@ -79,7 +79,7 @@ func normalizeHostname(hostname gatewayapiv1.Hostname) string {
 	return strings.ToLower(string(hostname))
 }
 
-func validateHostname(incomingHostname string, existing []string, original gatewayapiv1.Hostname) bool {
+func validateHostname(incomingHostname string, existing []string) bool {
 	for _, existingHostname := range existing {
 		if incomingHostname == existingHostname {
 			return false
