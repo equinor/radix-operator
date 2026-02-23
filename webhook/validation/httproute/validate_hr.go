@@ -91,12 +91,6 @@ func validateHostname(incomingHostname string, existing []string, original gatew
 
 		// When either hostname is a wildcard, compare their parent domains
 		// E.g., "*.radix.example.com" conflicts with "api.radix.example.com"
-		partsIncoming := strings.Split(incomingHostname, ".")
-		partsExisting := strings.Split(existingHostname, ".")
-		if len(partsIncoming) != len(partsExisting) {
-			continue
-		}
-
 		parentDomainIncoming := getParentDomain(incomingHostname)
 		parentDomainExisting := getParentDomain(existingHostname)
 		if parentDomainIncoming == parentDomainExisting {
