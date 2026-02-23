@@ -66,8 +66,8 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 
 		var errs []error
 		for _, incomingHostname := range route.Spec.Hostnames {
-			if err := validateHostname(normalizeHostname(incomingHostname), existingHostnames, incomingHostname); err != nil {
-				errs = append(errs, err)
+			if !validateHostname(normalizeHostname(incomingHostname), existingHostnames, incomingHostname) {
+				errs = append(errs, fmt.Errorf("failed to validate hostname %s: %w", incomingHostname, ErrDuplicateHostname))
 			}
 		}
 
@@ -79,10 +79,10 @@ func normalizeHostname(hostname gatewayapiv1.Hostname) string {
 	return strings.ToLower(string(hostname))
 }
 
-func validateHostname(incomingHostname string, existing []string, original gatewayapiv1.Hostname) error {
+func validateHostname(incomingHostname string, existing []string, original gatewayapiv1.Hostname) bool {
 	for _, existingHostname := range existing {
 		if incomingHostname == existingHostname {
-			return fmt.Errorf("failed to validate hostname %s: %w", original, ErrDuplicateHostname)
+			return false
 		}
 
 		if !isWildcardDomain(incomingHostname) && !isWildcardDomain(existingHostname) {
@@ -94,11 +94,11 @@ func validateHostname(incomingHostname string, existing []string, original gatew
 		parentDomainIncoming := getParentDomain(incomingHostname)
 		parentDomainExisting := getParentDomain(existingHostname)
 		if parentDomainIncoming == parentDomainExisting {
-			return fmt.Errorf("failed to validate hostname %s: %w", original, ErrDuplicateHostname)
+			return false
 		}
 	}
 
-	return nil
+	return true
 }
 
 func isWildcardDomain(fqdn string) bool {
