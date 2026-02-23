@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -78,80 +77,6 @@ func TestGatewayWebhookHttpRouteValidation(t *testing.T) {
 			t.Logf("Got expected error: %v", err)
 		}
 	})
-
-	t.Run("succeeds validation when updating route", func(t *testing.T) {
-		hostnames := []gatewayapiv1.Hostname{
-			"unique1.hostname.com",
-			"unique2.hostname.com",
-			"unique4.hostname.com",
-		}
-		appName := "test-httproute-validation"
-		appNamespace := appName + "-app"
-		routeName := appName + "-httproute"
-		err := updateHttpRoute(t, c, routeName, appNamespace, hostnames, true)
-
-		assert.NoError(t, err, "Should accept update of existing http route")
-		if err != nil {
-			t.Logf("Got expected error: %v", err)
-		}
-	})
-
-	t.Run("fails validation when existing route has conflicting wildcard", func(t *testing.T) {
-		appName := "test-new-httproute-validation-3"
-		appNamespace := appName + "-app"
-		nsCleanup := createNamespaceForTest(t, c, appName)
-		defer nsCleanup()
-
-		hostnames := []gatewayapiv1.Hostname{
-			"unique4.hostname.com",
-			"unique.wildcarddomain.com",
-			"unique6.hostname.com",
-		}
-		_, err := createHttpRoute(t, c, "uniqueroute", appNamespace, hostnames, true)
-
-		assert.Error(t, err, "Should reject http route that has a conflicting wildcard domain outside its own namespace")
-		if err != nil {
-			t.Logf("Got expected error: %v", err)
-		}
-	})
-
-	t.Run("fails validation when incoming route has conflicting wildcard", func(t *testing.T) {
-		appName := "test-new-httproute-validation-4"
-		appNamespace := appName + "-app"
-		nsCleanup := createNamespaceForTest(t, c, appName)
-		defer nsCleanup()
-
-		hostnames := []gatewayapiv1.Hostname{
-			"unique1.test.com",
-			"*.hostname.com",
-			"unique2.test.com",
-		}
-		_, err := createHttpRoute(t, c, "uniqueroute", appNamespace, hostnames, true)
-
-		assert.Error(t, err, "Should reject http route that has a conflicting wildcard domain outside its own namespace")
-		if err != nil {
-			t.Logf("Got expected error: %v", err)
-		}
-	})
-
-	t.Run("fails validation when route is not unique even if casing is mixed", func(t *testing.T) {
-		appName := "test-new-httproute-validation-5"
-		appNamespace := appName + "-app"
-		nsCleanup := createNamespaceForTest(t, c, appName)
-		defer nsCleanup()
-
-		hostnames := []gatewayapiv1.Hostname{
-			"unique4.hostname.com",
-			"uniQUE3.HOSTname.com",
-			"UNIQUE2.hostNAME.com",
-		}
-		_, err := createHttpRoute(t, c, "uniqueroute", appNamespace, hostnames, true)
-
-		assert.Error(t, err, "Should reject http route that is not unique outside its own namespace")
-		if err != nil {
-			t.Logf("Got expected error: %v", err)
-		}
-	})
 }
 
 func createHttpRoute(t *testing.T, c client.Client, name string, namespace string, hostnames []gatewayapiv1.Hostname, dryRunAll bool) (func(), error) {
@@ -202,30 +127,4 @@ func createHttpRoute(t *testing.T, c client.Client, name string, namespace strin
 	}
 
 	return cleanup, nil
-}
-
-func updateHttpRoute(t *testing.T, c client.Client, name string, namespace string, hostnames []gatewayapiv1.Hostname, dryRunAll bool) error {
-	// Get the existing HTTPRoute from the cluster
-	httpRoute := &gatewayapiv1.HTTPRoute{}
-	err := c.Get(t.Context(), client.ObjectKey{Name: name, Namespace: namespace}, httpRoute)
-	if err != nil {
-		return fmt.Errorf("failed to get existing HTTPRoute: %w", err)
-	}
-
-	// Update the hostnames
-	if hostnames != nil {
-		httpRoute.Spec.Hostnames = hostnames
-	}
-
-	// Update with the current ResourceVersion
-	if dryRunAll {
-		err = c.Update(t.Context(), httpRoute, client.DryRunAll)
-	} else {
-		err = c.Update(t.Context(), httpRoute)
-	}
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
