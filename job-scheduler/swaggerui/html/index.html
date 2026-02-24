@@ -1,19 +1,39 @@
-<!-- HTML for static distribution bundle build -->
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <title>Swagger UI</title>
-    <link rel="stylesheet" type="text/css" href="./swagger-ui.css" />
-    <link rel="stylesheet" type="text/css" href="index.css" />
-    <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
-    <link rel="icon" type="image/png" href="./favicon-16x16.png" sizes="16x16" />
-  </head>
 
-  <body>
-    <div id="swagger-ui"></div>
-    <script src="./swagger-ui-bundle.js" charset="UTF-8"> </script>
-    <script src="./swagger-ui-standalone-preset.js" charset="UTF-8"> </script>
-    <script src="./swagger-initializer.js" charset="UTF-8"> </script>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="SwaggerUI" />
+  <title>SwaggerUI</title>
+
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' https://unpkg.com/swagger-ui-dist@5.31.0/swagger-ui-bundle.js https://unpkg.com/swagger-ui-dist@5.31.0/swagger-ui-standalone-preset.js; 
+    style-src 'self' https://unpkg.com/swagger-ui-dist@5.31.0/swagger-ui.css 'sha256-RL3ie0nH+Lzz2YNqQN83mnU0J1ot4QL7b99vMdIX99w='; 
+    img-src 'self' data: https://validator.swagger.io;
+    connect-src 'self' https://unpkg.com;
+    ">
+
+  <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
+
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.31.0/swagger-ui.css"
+    integrity="sha512-franxM1vSpi8w0Ni4gQdyju6H2ZQLfVbHG48n4AU2icB8yTJ/WgBl9pxo9IcXjgKNlt+p7N1pdDER9P6ayGepA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <script src="https://unpkg.com/swagger-ui-dist@5.31.0/swagger-ui-bundle.js"
+    integrity="sha512-6WkepU6FmMMNE0LmwyAaYhXIE4VZ12qm8HrOOqzTiK0SJqoTqhdsTENV+Eq5bx3AGhYvN117cvHBDbTWQU1lYg=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <script src="https://unpkg.com/swagger-ui-dist@5.31.0/swagger-ui-standalone-preset.js"
+    integrity="sha512-xlHi4BuPfAt2afGWeeIII/NlKlDRcQJH3OOKMjifEdh4UGnwOKWxOgTpNEYu390fURlsMK6uSJrEsuuoWx0Vtw=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <script src="./swagger.js"></script>
+</head>
+
+<body>
+  <div id="swagger-ui"></div>
+</body>
+
 </html>
