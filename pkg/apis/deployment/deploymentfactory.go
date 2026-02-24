@@ -7,8 +7,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // DeploymentSyncerFactoryFunc is an adapter that can be used to convert
@@ -17,7 +17,7 @@ type DeploymentSyncerFactoryFunc func(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	prometheusperatorclient monitoring.Interface,
+	dynamicClient client.Client,
 	certClient certclient.Interface,
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
@@ -30,7 +30,7 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	prometheusperatorclient monitoring.Interface,
+	dynamicClient client.Client,
 	certClient certclient.Interface,
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
@@ -38,7 +38,7 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	auxResourceManagers []AuxiliaryResourceManager,
 	config *config.Config,
 ) DeploymentSyncer {
-	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, certClient, registration, radixDeployment, ingressAnnotationProviders, auxResourceManagers, config)
+	return f(kubeclient, kubeutil, radixclient, dynamicClient, certClient, registration, radixDeployment, ingressAnnotationProviders, auxResourceManagers, config)
 }
 
 // DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
@@ -47,7 +47,7 @@ type DeploymentSyncerFactory interface {
 		kubeclient kubernetes.Interface,
 		kubeutil *kube.Kube,
 		radixclient radixclient.Interface,
-		prometheusperatorclient monitoring.Interface,
+		dynamicClient client.Client,
 		certClient certclient.Interface,
 		registration *v1.RadixRegistration,
 		radixDeployment *v1.RadixDeployment,

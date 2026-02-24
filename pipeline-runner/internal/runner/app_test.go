@@ -11,7 +11,6 @@ import (
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
@@ -33,7 +32,7 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *radix.Clientset, *kedafake
 func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	kubeclient, radixclient, kedaClient, secretproviderclient, _ := setupTest(t)
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	cli := runner.NewRunner(kubeclient, radixclient, kedaClient, &monitoring.Clientset{}, secretproviderclient, nil, pipelineDefinition, "any-app")
+	cli := runner.NewRunner(kubeclient, radixclient, kedaClient, nil, secretproviderclient, nil, pipelineDefinition, "any-app")
 
 	err := cli.PrepareRun(context.Background(), &model.PipelineArguments{})
 	assert.Error(t, err)

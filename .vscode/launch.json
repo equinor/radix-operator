@@ -129,6 +129,7 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/operator/main.go",
 			"env": {
+				"USE_PROFILER": "true",
 				"POD_NAMESPACE": "default",
 				"APP_ALIAS_BASE_URL": "app.dev.radix.equinor.com",
 				"DNS_ZONE": "dev.radix.equinor.com",
@@ -232,11 +233,7 @@
 			"request": "launch",
 			"mode": "test",
 			"program": "${workspaceFolder}/e2e",
-			"args": [
-				"-test.v",
-				"-test.timeout",
-				"30m"
-			]
-		},
+			"args": ["-test.v", "-test.timeout", "30m"]
+		}
 	]
 }

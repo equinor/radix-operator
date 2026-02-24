@@ -5,15 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -48,95 +46,38 @@ func (list alertConfigList) Any(anyFunc func(c AlertConfig) bool) bool {
 	return false
 }
 
-func (syncer *alertSyncer) createOrUpdateAlertManagerConfig(ctx context.Context) error {
+func (syncer *alertSyncer) reconcileAlertManagerConfig(ctx context.Context) error {
 	ns := syncer.radixAlert.Namespace
-	amc, err := syncer.getAlertManagerConfig(ctx)
-	if err != nil {
-		return err
-	}
-	return syncer.applyAlertManagerConfig(ctx, ns, amc)
-}
 
-func (syncer *alertSyncer) applyAlertManagerConfig(ctx context.Context, namespace string, alertManagerConfig *v1alpha1.AlertmanagerConfig) error {
-	oldConfig, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(ctx, alertManagerConfig.Name, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			created, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Create(ctx, alertManagerConfig, metav1.CreateOptions{})
+	config := &v1alpha1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(syncer.radixAlert.Name), Namespace: ns}}
+	op, err := controllerutil.CreateOrUpdate(ctx, syncer.dynamicClient, config, func() error {
+		receivers := syncer.getAlertmanagerConfigReceivers()
+		routes := syncer.getAlertmanagerConfigRoutes(ctx)
+
+		routeJSON := []apiextensionsv1.JSON{}
+		for _, route := range routes {
+			routeBytes, err := json.Marshal(route)
 			if err != nil {
-				return fmt.Errorf("failed to create AlertManagerConfig object: %w", err)
+				return err
 			}
-
-			log.Ctx(ctx).Debug().Msgf("Created AlertManagerConfig: %s in namespace %s", created.Name, namespace)
-			return nil
-		}
-		return err
-	}
-
-	oldConfigJSON, err := json.Marshal(oldConfig)
-	if err != nil {
-		return fmt.Errorf("failed to marshal old AlertManagerConfig object: %w", err)
-	}
-
-	// Avoid uneccessary patching
-	newConfig := oldConfig.DeepCopy()
-	newConfig.Annotations = alertManagerConfig.Annotations
-	newConfig.Labels = alertManagerConfig.Labels
-	newConfig.OwnerReferences = alertManagerConfig.OwnerReferences
-	newConfig.Spec = alertManagerConfig.Spec
-
-	newConfigJSON, err := json.Marshal(newConfig)
-	if err != nil {
-		return fmt.Errorf("failed to marshal new AlertManagerConfig object: %w", err)
-	}
-
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldConfigJSON, newConfigJSON, v1alpha1.AlertmanagerConfig{})
-	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch AlertManagerConfig objects: %w", err)
-	}
-
-	if !kube.IsEmptyPatch(patchBytes) {
-		// Will perform update as patching does not work
-		updatedConfig, err := syncer.prometheusClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Update(ctx, newConfig, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to update AlertManagerConfig object: %w", err)
+			routeJSON = append(routeJSON, apiextensionsv1.JSON{Raw: routeBytes})
 		}
 
-		log.Ctx(ctx).Debug().Msgf("Updated AlertManagerConfig: %s ", updatedConfig.Name)
-		return nil
-
-	}
-
-	return nil
-}
-
-func (syncer *alertSyncer) getAlertManagerConfig(ctx context.Context) (*v1alpha1.AlertmanagerConfig, error) {
-	receivers := syncer.getAlertmanagerConfigReceivers()
-	routes := syncer.getAlertmanagerConfigRoutes(ctx)
-
-	routeJSON := []apiextensionsv1.JSON{}
-	for _, route := range routes {
-		routeBytes, err := json.Marshal(route)
-		if err != nil {
-			return nil, err
-		}
-		routeJSON = append(routeJSON, apiextensionsv1.JSON{Raw: routeBytes})
-	}
-
-	amc := &v1alpha1.AlertmanagerConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            getAlertmanagerConfigName(syncer.radixAlert.Name),
-			OwnerReferences: syncer.getOwnerReference(),
-		},
-		Spec: v1alpha1.AlertmanagerConfigSpec{
+		config.Spec = v1alpha1.AlertmanagerConfigSpec{
 			Receivers: receivers,
 			Route: &v1alpha1.Route{
 				Receiver: noopRecevierName,
 				Routes:   routeJSON,
 			},
-		},
+		}
+		return controllerutil.SetControllerReference(syncer.radixAlert, config, syncer.dynamicClient.Scheme())
+	})
+
+	if op != controllerutil.OperationResultNone {
+		log.Ctx(ctx).Info().Str("operation", string(op)).Msg("recconcile alert manager config")
 	}
 
-	return amc, nil
+	return err
 }
 
 func (syncer *alertSyncer) getAlertmanagerConfigReceivers() []v1alpha1.Receiver {

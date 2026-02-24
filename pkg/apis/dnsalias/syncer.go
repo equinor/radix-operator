@@ -90,7 +90,7 @@ func (s *syncer) init(ctx context.Context) error {
 	s.rr = rr
 
 	ns := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
-	rd, err := s.kubeUtil.GetActiveDeployment(ctx, ns)
+	rd, err := kube.GetActiveDeployment(ctx, s.kubeUtil.RadixClient(), ns)
 	if err != nil {
 		return fmt.Errorf("failed to get active RadixDeployment: %w", err)
 	}

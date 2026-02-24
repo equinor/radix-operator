@@ -8,8 +8,9 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/rs/zerolog/log"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func (deploy *Deployment) createOrUpdateServiceMonitor(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
@@ -22,64 +23,18 @@ func (deploy *Deployment) createOrUpdateServiceMonitor(ctx context.Context, depl
 	}
 
 	namespace := deploy.radixDeployment.Namespace
-	serviceMonitor := getServiceMonitorConfig(deployComponent.GetName(), namespace, monitoringConfig)
-	return deploy.applyServiceMonitor(ctx, namespace, serviceMonitor)
-}
-
-func (deploy *Deployment) deleteServiceMonitorForComponent(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, serviceMonitor := range serviceMonitors.Items {
-		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
-		if ok && component.GetName() == string(componentName) {
-			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(ctx, serviceMonitor.Name, metav1.DeleteOptions{})
-			if err != nil {
-				return err
-			}
+	componentName := deployComponent.GetName()
+	sb := &monitoringv1.ServiceMonitor{ObjectMeta: metav1.ObjectMeta{Name: componentName, Namespace: namespace}}
+	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, sb, func() error {
+		if sb.ObjectMeta.Labels == nil {
+			sb.ObjectMeta.Labels = map[string]string{}
 		}
-	}
-
-	return nil
-}
-
-func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec(ctx context.Context) error {
-	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get ServiceMonitors: %w", err)
-	}
-
-	for _, serviceMonitor := range serviceMonitors.Items {
-		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
-		if !ok {
-			continue
+		sb.ObjectMeta.Labels = map[string]string{
+			kube.RadixComponentLabel: componentName,
 		}
-		if deploy.isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor, componentName) {
-			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(ctx, serviceMonitor.Name, metav1.DeleteOptions{})
-			if err != nil {
-				return err
-			}
-		}
-	}
 
-	return nil
-}
+		sb.Spec = monitoringv1.ServiceMonitorSpec{
 
-func (deploy *Deployment) isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor *monitoringv1.ServiceMonitor, componentName RadixComponentName) bool {
-	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
-}
-
-func getServiceMonitorConfig(componentName, namespace string, monitoringConfig v1.MonitoringConfig) *monitoringv1.ServiceMonitor {
-	serviceMonitor := &monitoringv1.ServiceMonitor{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: componentName,
-			Labels: map[string]string{
-				kube.RadixComponentLabel: componentName,
-			},
-		},
-		Spec: monitoringv1.ServiceMonitorSpec{
 			Endpoints: []monitoringv1.Endpoint{
 				{
 					Interval: "5s",
@@ -98,44 +53,61 @@ func getServiceMonitorConfig(componentName, namespace string, monitoringConfig v
 					kube.RadixComponentLabel: componentName,
 				},
 			},
-		},
-	}
-	return serviceMonitor
-}
-
-func (deploy *Deployment) getServiceMonitor(ctx context.Context, namespace, name string) (serviceMonitor *monitoringv1.ServiceMonitor, err error) {
-	serviceMonitor, err = deploy.prometheusperatorclient.
-		MonitoringV1().
-		ServiceMonitors(namespace).
-		Get(ctx, name, metav1.GetOptions{})
-	return
-}
-
-func (deploy *Deployment) applyServiceMonitor(ctx context.Context, namespace string, serviceMonitor *monitoringv1.ServiceMonitor) error {
-	serviceMonitorName := serviceMonitor.Name
-	oldServiceMonitor, err := deploy.getServiceMonitor(ctx, namespace, serviceMonitorName)
-	if err != nil && errors.IsNotFound(err) {
-		createdServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(ctx, serviceMonitor, metav1.CreateOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to create ServiceMonitor object: %w", err)
 		}
 
-		log.Ctx(ctx).Debug().Msgf("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("failed to get ServiceMonitor object: %w", err)
-	}
-
-	newServiceMonitor := oldServiceMonitor.DeepCopy()
-	newServiceMonitor.ObjectMeta.Labels = serviceMonitor.Labels
-	newServiceMonitor.ObjectMeta.Annotations = serviceMonitor.ObjectMeta.Annotations
-	newServiceMonitor.ObjectMeta.OwnerReferences = serviceMonitor.ObjectMeta.OwnerReferences
-	newServiceMonitor.Spec = serviceMonitor.Spec
-
-	_, err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(ctx, newServiceMonitor, metav1.UpdateOptions{})
+		sb.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
+		return controllerutil.SetControllerReference(deploy.radixDeployment, sb, deploy.dynamicClient.Scheme())
+	})
 	if err != nil {
-		return fmt.Errorf("failed to update ServiceMonitor object: %w", err)
+		return fmt.Errorf("failed to create or update service monitor '%s': %w", componentName, err)
+	}
+	if op != controllerutil.OperationResultNone {
+		log.Ctx(ctx).Info().Str("servicemonitor", componentName).Str("op", string(op)).Msg("reconcile service monitor")
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) deleteServiceMonitorForComponent(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+	serviceMonitors := &monitoringv1.ServiceMonitorList{}
+	if err := deploy.dynamicClient.List(ctx, serviceMonitors, client.InNamespace(deploy.radixDeployment.GetNamespace())); err != nil {
+		return fmt.Errorf("failed to list service monitor for component: %w", err)
+	}
+
+	for _, serviceMonitor := range serviceMonitors.Items {
+		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
+		if ok && component.GetName() == string(componentName) {
+			if err := deploy.dynamicClient.Delete(ctx, serviceMonitor); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec(ctx context.Context) error {
+	serviceMonitors := &monitoringv1.ServiceMonitorList{}
+	if err := deploy.dynamicClient.List(ctx, serviceMonitors, client.InNamespace(deploy.radixDeployment.GetNamespace())); err != nil {
+		return fmt.Errorf("failed to get ServiceMonitors: %w", err)
+	}
+
+	for _, serviceMonitor := range serviceMonitors.Items {
+		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
+		if !ok {
+			continue
+		}
+		if deploy.isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor, componentName) {
+
+			if err := deploy.dynamicClient.Delete(ctx, serviceMonitor); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor *monitoringv1.ServiceMonitor, componentName RadixComponentName) bool {
+	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
 }

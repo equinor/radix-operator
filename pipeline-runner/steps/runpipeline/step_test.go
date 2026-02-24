@@ -13,10 +13,10 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func Test_RunTestSuite(t *testing.T) {
@@ -35,21 +36,19 @@ func Test_RunTestSuite(t *testing.T) {
 
 type stepTestSuite struct {
 	suite.Suite
-	kubeClient  *kubefake.Clientset
-	radixClient *radixfake.Clientset
-	kedaClient  *kedafake.Clientset
-	promClient  *prometheusfake.Clientset
-	kubeUtil    *kube.Kube
-	tknClient   tektonclient.Interface
+	kubeClient    *kubefake.Clientset
+	radixClient   *radixfake.Clientset
+	kedaClient    *kedafake.Clientset
+	dynamicClient client.Client
+	tknClient     tektonclient.Interface
 }
 
 func (s *stepTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
+	s.dynamicClient = test.CreateClient()
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.tknClient = tektonfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
 }
 
 func (s *stepTestSuite) SetupSubTest() {
@@ -81,7 +80,7 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
-	step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
 		ObjectMeta: metav1.ObjectMeta{
@@ -290,7 +289,7 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyEnvVars() {
 				EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
 			}
 			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
-			step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
+			step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 			_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID)},
@@ -441,7 +440,7 @@ func (s *stepTestSuite) Test_RunPipeline_ApplyIdentity() {
 				EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
 			}
 			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
-			step.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, s.tknClient, rr)
+			step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 			appNamespace := pipelineInfo.GetAppNamespace()
 			_, err = s.tknClient.TektonV1().Pipelines(appNamespace).Create(context.TODO(), &pipelinev1.Pipeline{

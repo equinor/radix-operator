@@ -11,12 +11,14 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 type envInfo struct {
@@ -28,15 +30,17 @@ type envInfoList []envInfo
 
 type deployHandler struct {
 	pipelineInfo     *model.PipelineInfo
-	kubeUtil         *kube.Kube
+	radixClient      versioned.Interface
+	kubeClient       kubernetes.Interface
 	rdWatcher        watcher.RadixDeploymentWatcher
 	featureProviders []FeatureProvider
 }
 
-func NewHandler(pipelineInfo *model.PipelineInfo, kubeUtil *kube.Kube, rdWatcher watcher.RadixDeploymentWatcher, featureProviders []FeatureProvider) *deployHandler {
+func NewHandler(pipelineInfo *model.PipelineInfo, radixClient versioned.Interface, kubeClient kubernetes.Interface, rdWatcher watcher.RadixDeploymentWatcher, featureProviders []FeatureProvider) *deployHandler {
 	return &deployHandler{
 		pipelineInfo:     pipelineInfo,
-		kubeUtil:         kubeUtil,
+		radixClient:      radixClient,
+		kubeClient:       kubeClient,
 		rdWatcher:        rdWatcher,
 		featureProviders: featureProviders,
 	}
@@ -68,7 +72,7 @@ func (h *deployHandler) getEnvironmentCandidates(ctx context.Context) (envInfoLi
 	allEnvs := envInfoList{}
 	for _, env := range h.pipelineInfo.RadixApplication.Spec.Environments {
 		envNs := utils.GetEnvironmentNamespace(h.pipelineInfo.RadixApplication.GetName(), env.Name)
-		rd, err := internal.GetActiveRadixDeployment(ctx, h.kubeUtil, envNs)
+		rd, err := internal.GetActiveRadixDeployment(ctx, h.radixClient, h.kubeClient, envNs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get active Radix deployment for environment %s: %w", env.Name, err)
 		}
@@ -98,7 +102,7 @@ func (h *deployHandler) applyDeployments(ctx context.Context, rdList []*radixv1.
 
 	for _, rd := range rdList {
 		log.Ctx(ctx).Info().Msgf("Apply Radix deployment %s to environment %s", rd.GetName(), rd.Spec.Environment)
-		_, err := h.kubeUtil.RadixClient().RadixV1().RadixDeployments(rd.GetNamespace()).Create(ctx, rd, metav1.CreateOptions{})
+		_, err := h.radixClient.RadixV1().RadixDeployments(rd.GetNamespace()).Create(ctx, rd, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to apply Radix deployment %s to environment %s: %w", rd.GetName(), rd.Spec.Environment, err)
 		}

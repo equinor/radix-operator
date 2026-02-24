@@ -16,9 +16,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 var overrideUseBuildCache, refreshBuildCache model.BoolPtr
@@ -76,14 +79,21 @@ func main() {
 
 // runs os.Exit(1) if error
 func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (*runner.PipelineRunner, error) {
-	client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, _, tektonClient := utils.GetKubernetesClient(ctx)
+	kubeclient, radixClient, kedaClient, secretProviderClient, _, tektonClient := utils.GetKubernetesClient()
+
+	cfg := k8sconfig.GetConfigOrDie()
+	cfg.WarningHandler = utils.ZerologWarningHandlerAdapter(log.Warn)
+	dynamicClient, err := client.New(cfg, client.Options{Scheme: scheme.NewScheme()})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize dynamic client: %w", err)
+	}
 
 	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {
 		return nil, err
 	}
 
-	pipelineRunner := runner.NewRunner(client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, tektonClient, pipelineDefinition, pipelineArgs.AppName)
+	pipelineRunner := runner.NewRunner(kubeclient, radixClient, kedaClient, dynamicClient, secretProviderClient, tektonClient, pipelineDefinition, pipelineArgs.AppName)
 
 	err = pipelineRunner.PrepareRun(ctx, pipelineArgs)
 	if err != nil {

@@ -15,7 +15,7 @@ import (
 func Test_EmptyDir(t *testing.T) {
 	appName, envName, compName := "anyapp", "anyenv", "anycomp"
 
-	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, _, certClient := SetupTest(t)
 	builder := utils.NewDeploymentBuilder().
 		WithRadixApplication(utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName))).
 		WithAppName(appName).
@@ -27,7 +27,7 @@ func Test_EmptyDir(t *testing.T) {
 			),
 		)
 
-	rd, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, builder)
+	rd, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, certClient, builder)
 	require.NoError(t, err)
 	assert.NotNil(t, rd)
 

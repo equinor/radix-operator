@@ -5,8 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -14,18 +12,18 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/webhook/validation/radixapplication"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 var scheme = runtime.NewScheme()
@@ -38,8 +36,8 @@ func init() {
 type updateRAFunc func(rr *radixv1.RadixApplication)
 
 func Test_ParseRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing.T) {
-	radixClient := createClient("testdata/radixregistration.yaml")
-	ra := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+	radixClient := test.CreateClient("testdata/radixregistration.yaml")
+	ra := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 
 	validator := radixapplication.CreateOnlineValidator(radixClient, []string{"grafana"}, map[string]string{"api": "radix-api"})
 	wnrs, err := validator.Validate(context.Background(), ra)
@@ -146,8 +144,8 @@ func Test_ComponentJobNameValidator(t *testing.T) {
 }
 
 func Test_valid_ra_returns_true(t *testing.T) {
-	client := createClient("testdata/radixregistration.yaml")
-	validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 	validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 	wnrs, err := validator.Validate(context.Background(), validRA)
 
@@ -156,8 +154,8 @@ func Test_valid_ra_returns_true(t *testing.T) {
 }
 
 func Test_missing_rr(t *testing.T) {
-	client := createClient()
-	validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+	client := test.CreateClient()
+	validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 
 	validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 	wnrs, err := validator.Validate(context.Background(), validRA)
@@ -642,10 +640,10 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			_, err := validator.Validate(context.Background(), validRA)
@@ -694,10 +692,10 @@ func Test_RA_WithWarnings(t *testing.T) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "10M"
 		}},
 	}
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
 			wrns, err := validator.Validate(context.Background(), validRA)
@@ -784,10 +782,10 @@ func Test_MemoryBelowMinimum_ProducesWarning(t *testing.T) {
 		}},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
 			wrns, err := validator.Validate(context.Background(), validRA)
@@ -852,10 +850,10 @@ func Test_MemoryAtOrAboveMinimum_NoWarning(t *testing.T) {
 		}},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
 			wrns, err := validator.Validate(context.Background(), validRA)
@@ -925,10 +923,10 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 		}},
 	}
 
-	client := createClient("./testdata/radixregistration.yaml")
+	client := test.CreateClient("./testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
@@ -986,10 +984,10 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 		}},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
@@ -1023,10 +1021,10 @@ func Test_InvalidRAComponentLimitRequest_Error(t *testing.T) {
 		}},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			_, err := validator.Validate(context.Background(), validRA)
@@ -1059,10 +1057,10 @@ func Test_InvalidRAJobLimitRequest_Error(t *testing.T) {
 		}},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			_, err := validator.Validate(context.Background(), validRA)
@@ -1166,10 +1164,10 @@ func Test_PublicPort(t *testing.T) {
 		},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
@@ -1254,10 +1252,10 @@ func Test_Variables(t *testing.T) {
 		},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
@@ -1775,38 +1773,38 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 		},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
-	for name, test := range testScenarios {
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for name, scenario := range testScenarios {
 		t.Run(name, func(t *testing.T) {
-			if len(test.updateRA) == 0 {
+			if len(scenario.updateRA) == 0 {
 				assert.FailNow(t, "missing updateRA functions for %s", name)
 				return
 			}
 
-			for _, ra := range test.updateRA {
-				validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
-				volumes := test.volumeMounts()
+			for _, ra := range scenario.updateRA {
+				validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+				volumes := scenario.volumeMounts()
 				ra(validRA, volumes)
 				validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 				wnrs, err := validator.Validate(context.Background(), validRA)
-				if test.expectedError == nil {
+				if scenario.expectedError == nil {
 					assert.NoError(t, err)
 				} else {
-					assert.ErrorIs(t, err, test.expectedError)
+					assert.ErrorIs(t, err, scenario.expectedError)
 				}
 
-				if test.expectedWarning == "" {
+				if scenario.expectedWarning == "" {
 					assert.Empty(t, wnrs)
 				} else {
 					found := false
 					for _, wrn := range wnrs {
-						if strings.Contains(wrn, test.expectedWarning) {
+						if strings.Contains(wrn, scenario.expectedWarning) {
 							found = true
 							break
 						}
 					}
 					if !found {
-						assert.Failf(t, "expected warning '%s' not found in '%s'", test.expectedWarning, strings.Join(wnrs, ", "))
+						assert.Failf(t, "expected warning '%s' not found in '%s'", scenario.expectedWarning, strings.Join(wnrs, ", "))
 					}
 				}
 			}
@@ -2294,10 +2292,10 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 		},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
@@ -2474,10 +2472,10 @@ func Test_EgressConfig(t *testing.T) {
 		},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
@@ -2602,10 +2600,10 @@ func Test_validateNotificationsRA(t *testing.T) {
 		},
 	}
 
-	client := createClient("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			ra := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			ra := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRa(ra)
 
 			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
@@ -2687,7 +2685,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 
 	for _, ts := range testScenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			client := createClient(
+			client := test.CreateClient(
 				"testdata/radixregistration.yaml",
 				"testdata/radixregistration.radix-api.yaml",
 				"testdata/radixregistration.anyapp2.yaml",
@@ -2713,8 +2711,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 func Test_NamespaceUsableValidator(t *testing.T) {
 	// The testdata RA has app name "testapp" with environments "dev" and "prod"
 	// Expected namespace names: "testapp-dev" and "testapp-prod"
-	rr := load[client.Object]("testdata/radixregistration.yaml")
-	validRA := load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+	validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 
 	tests := []struct {
 		name        string
@@ -2843,8 +2840,11 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			objs := append([]client.Object{rr}, tt.namespaces...)
-			c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
+			c := test.CreateClient("testdata/radixregistration.yaml")
+			for _, ns := range tt.namespaces {
+				require.NoError(t, c.Create(context.Background(), ns))
+			}
+
 			validator := radixapplication.CreateOnlineValidator(c, []string{}, map[string]string{})
 			_, err := validator.Validate(context.Background(), validRA)
 
@@ -2856,49 +2856,4 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			}
 		})
 	}
-}
-
-func createClient(initObjsFilenames ...string) client.Client {
-	objs := []client.Object{}
-	for _, filename := range initObjsFilenames {
-		obj := load[client.Object](filename)
-		objs = append(objs, obj)
-	}
-
-	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
-}
-
-func load[T client.Object](filename string) T {
-	raw := struct {
-		metav1.TypeMeta   `json:",inline"`
-		metav1.ObjectMeta `json:"metadata,omitempty"`
-	}{}
-
-	configFileContent, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-
-	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
-	// This package supports encoding and decoding of yaml for CRD struct types using the json tag.
-	// The gopkg.in/yaml.v3 package requires the yaml tag.
-	err = yaml.Unmarshal(configFileContent, &raw)
-	if err != nil {
-		panic(err)
-	}
-
-	gvk := raw.GetObjectKind().GroupVersionKind()
-	t, ok := scheme.AllKnownTypes()[gvk]
-	if !ok {
-		panic(fmt.Sprintf("scheme does not know GroupVersionKind %s", gvk.String()))
-	}
-
-	obj := reflect.New(t)
-	objP := obj.Interface()
-	err = yaml.Unmarshal(configFileContent, objP)
-	if err != nil {
-		panic(err)
-	}
-
-	return objP.(T)
 }

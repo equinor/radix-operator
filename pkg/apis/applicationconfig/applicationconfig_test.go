@@ -104,8 +104,8 @@ func Test_ReconcileStatus(t *testing.T) {
 func Test_Create_Radix_Environments(t *testing.T) {
 	_, client, kubeUtil, radixClient := setupTest(t)
 
-	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
-	radixApp, _ := utils.GetRadixApplicationFromFile(sampleApp)
+	radixRegistration := test.Load[*radixv1.RadixRegistration](sampleRegistration)
+	radixApp := test.Load[*radixv1.RadixApplication](sampleApp)
 	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp)
 	_, err := radixClient.RadixV1().RadixApplications(radixApp.Namespace).Create(context.Background(), radixApp, metav1.CreateOptions{})
 	require.NoError(t, err)

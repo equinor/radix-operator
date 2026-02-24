@@ -16,11 +16,10 @@ import (
 	jobutil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	_ "github.com/equinor/radix-operator/pkg/apis/test"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
@@ -28,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -46,19 +46,19 @@ func Test_RunBuildTestSuite(t *testing.T) {
 
 type buildTestSuite struct {
 	suite.Suite
-	kubeClient  *kubefake.Clientset
-	radixClient *radixfake.Clientset
-	promClient  *prometheusfake.Clientset
-	kubeUtil    *kube.Kube
-	ctrl        *gomock.Controller
-	kedaClient  *kedafake.Clientset
+	kubeClient    *kubefake.Clientset
+	radixClient   *radixfake.Clientset
+	dynamicClient client.Client
+	kubeUtil      *kube.Kube
+	ctrl          *gomock.Controller
+	kedaClient    *kedafake.Clientset
 }
 
 func (s *buildTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.kedaClient = kedafake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
+	s.dynamicClient = test.CreateClient()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
 	s.ctrl = gomock.NewController(s.T())
 }
@@ -71,7 +71,7 @@ func (s *buildTestSuite) setupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.kedaClient = kedafake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
+	s.dynamicClient = test.CreateClient()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
 	s.ctrl = gomock.NewController(s.T())
 }
@@ -82,7 +82,7 @@ func (s *buildTestSuite) Test_TargetEnvironmentsEmpty_ShouldSkip() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(0)
 	var m mock.Mock
 	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments:    model.PipelineArguments{},
@@ -101,7 +101,7 @@ func (s *buildTestSuite) Test_BuildComponentImagesEmpty_ShouldSkip() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(0)
 	var m mock.Mock
 	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments:    model.PipelineArguments{},
@@ -128,7 +128,7 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
 	var m mock.Mock
 	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -178,7 +178,7 @@ func (s *buildTestSuite) Test_AppWithoutBuildSecrets_Validation() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
 	var m mock.Mock
 	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -216,7 +216,7 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
 	var m mock.Mock
 	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
