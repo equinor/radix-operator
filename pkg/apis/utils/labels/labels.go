@@ -58,8 +58,8 @@ func ForComponentIngress(appName string, component radixv1.RadixCommonDeployComp
 
 }
 
-// ForComponentHTTPRoute returns labels for a component's HTTPRoute object
-func ForComponentHTTPRoute(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
+// ForComponentGatewayResources returns labels for a component's Gateway API resources
+func ForComponentGatewayResources(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixAppLabel:       appName,
 		kube.RadixComponentLabel: component.GetName(),
