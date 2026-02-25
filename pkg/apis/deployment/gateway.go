@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/gateway"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -19,7 +21,7 @@ import (
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
-	//gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
+	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 )
 
 type dnsType string
@@ -125,22 +127,54 @@ func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, compone
 	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, route, func() error {
 		route.Labels = kubelabels.Merge(route.Labels, labels.ForComponentHTTPRoute(deploy.registration.Name, component))
 
+		var backendRef gatewayapiv1.HTTPBackendRef
+		if oauth2enabled {
+			backendRef = gateway.BuildBackendRefForComponentOauth2Service(component)
+		} else {
+			var err error
+			backendRef, err = gateway.BuildBackendRefForComponent(component)
+			if err != nil {
+				return fmt.Errorf("failed to build backend reference for component %s: %w", componentName, err)
+			}
+		}
+
+		parentRefs := []gatewayapiv1.ParentReference{
+			{
+				Group: new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
+				Kind:  new(gatewayapiv1.Kind("Gateway")),
+
+				// TODO: Make this configurable
+				Name:        "gateway",
+				Namespace:   new(gatewayapiv1.Namespace("istio-system")),
+				SectionName: new(gatewayapiv1.SectionName("https")),
+			},
+		}
+
+		if slices.ContainsFunc(hosts, func(h dnsInfo) bool { return h.dnsType == dnsTypeExternal }) {
+			parentRefs = append(parentRefs, gatewayapiv1.ParentReference{
+				Group:     new(gatewayapiv1.Group(gatewayapixv1alpha1.GroupName)),
+				Kind:      new(gatewayapiv1.Kind("XListenerSet")),
+				Name:      gatewayapiv1.ObjectName(component.GetName()),
+				Namespace: new(gatewayapiv1.Namespace(namespace)),
+			})
+		}
+
 		route.Spec = gatewayapiv1.HTTPRouteSpec{
 			Hostnames: slice.Map(hosts, func(host dnsInfo) gatewayapiv1.Hostname { return gatewayapiv1.Hostname(host.fqdn) }),
 			Rules: []gatewayapiv1.HTTPRouteRule{
 				{
-					BackendRefs: []gatewayapiv1.HTTPBackendRef{
+					BackendRefs: []gatewayapiv1.HTTPBackendRef{backendRef},
+					Filters: []gatewayapiv1.HTTPRouteFilter{
 						{
-							// TODO: If OAuth2Proxy, use OAuth2Service
-							BackendRef: gatewayapiv1.BackendRef{
-								BackendObjectReference: gatewayapiv1.BackendObjectReference {
-									Name: ,
-								},
+							Type: gatewayapiv1.HTTPRouteFilterResponseHeaderModifier,
+							ResponseHeaderModifier: &gatewayapiv1.HTTPHeaderFilter{
+								Add: []gatewayapiv1.HTTPHeader{{Name: "Strict-Transport-Security", Value: "max-age=31536000; includeSubDomains; preload"}},
 							},
 						},
 					},
 				},
 			},
+			CommonRouteSpec: gatewayapiv1.CommonRouteSpec{ParentRefs: parentRefs},
 		}
 
 		route.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}

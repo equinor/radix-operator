@@ -338,6 +338,25 @@ func (deployComponent *RadixDeployComponent) GetPublicPort() string {
 	return deployComponent.PublicPort
 }
 
+func (deployComponent *RadixDeployComponent) GetPublicPortNumber() (int32, bool) {
+	if len(deployComponent.PublicPort) == 0 {
+		return 0, false
+	}
+
+	if deployComponent.PublicPort != "" {
+		for _, port := range deployComponent.Ports {
+			if port.Name == deployComponent.PublicPort {
+				return port.Port, true
+			}
+		}
+
+		return 0, false
+	}
+
+	// Use deprecated Public field for backwards compatibility
+	return deployComponent.Ports[0].Port, true
+}
+
 func (deployComponent *RadixDeployComponent) IsPublic() bool {
 	return len(deployComponent.PublicPort) > 0
 }
@@ -466,6 +485,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetHorizontalScaling() *Radix
 
 func (deployJobComponent *RadixDeployJobComponent) GetPublicPort() string {
 	return ""
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetPublicPortNumber() (int32, bool) {
+	return 0, false
 }
 
 func (deployJobComponent *RadixDeployJobComponent) IsPublic() bool {
@@ -669,6 +692,7 @@ type RadixCommonDeployComponent interface {
 	GetReplicasOverride() *int
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetPublicPort() string
+	GetPublicPortNumber() (int32, bool)
 	IsPublic() bool
 	GetExternalDNS() []RadixDeployExternalDNS
 	IsDNSAppAlias() bool
