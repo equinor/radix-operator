@@ -55,6 +55,15 @@ func ForComponentIngress(appName string, component radixv1.RadixCommonDeployComp
 		kube.RadixAppLabel:       appName,
 		kube.RadixComponentLabel: component.GetName(),
 	}
+
+}
+
+// ForComponentHTTPRoute returns labels for a component's HTTPRoute object
+func ForComponentHTTPRoute(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:       appName,
+		kube.RadixComponentLabel: component.GetName(),
+	}
 }
 
 // ForJobAuxObject returns labels describing the job aux object,
