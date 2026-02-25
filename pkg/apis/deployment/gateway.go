@@ -108,6 +108,15 @@ func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeplo
 
 // }
 
+/*
+	TODO:
+	- garbage collect gateway resources for comps no longer in spec
+	- refactor: split reconcile ListenerSet and HTTPRoute
+	- tests
+	- implement gateway in RadixDNSAlias
+	- implement annotation for testing with ExternalDNS
+*/
+
 func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	logger := log.Ctx(ctx)
 	var hosts []dnsInfo
