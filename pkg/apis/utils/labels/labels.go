@@ -316,6 +316,15 @@ func ForDNSAliasComponentIngress(dnsAlias *radixv1.RadixDNSAlias) kubelabels.Set
 	}
 }
 
+// ForDNSAliasComponentGatewayResource returns labels for DNS alias ingress
+func ForDNSAliasComponentGatewayResource(dnsAlias *radixv1.RadixDNSAlias) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:       dnsAlias.Spec.AppName,
+		kube.RadixComponentLabel: dnsAlias.Spec.Component,
+		kube.RadixAliasLabel:     dnsAlias.Name,
+	}
+}
+
 // ForDNSAliasRbac returns labels for DNS alias cluster role and rolebinding
 func ForDNSAliasRbac(appName string) kubelabels.Set {
 	return kubelabels.Set{

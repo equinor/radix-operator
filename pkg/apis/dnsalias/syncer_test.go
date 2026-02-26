@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -27,12 +28,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type syncerTestSuite struct {
 	suite.Suite
 	kubeClient                      *kubefake.Clientset
 	radixClient                     *radixfake.Clientset
+	dynamicClient                   client.Client
 	testUtils                       commontest.Utils
 	promClient                      *prometheusfake.Clientset
 	dnsZone                         string
@@ -58,6 +61,7 @@ func (s *syncerTestSuite) SetupSubTest() {
 func (s *syncerTestSuite) setupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
+	s.dynamicClient = test.CreateClient()
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.testUtils = commontest.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)
 	s.dnsZone = "dev.radix.equinor.com"
@@ -74,6 +78,7 @@ func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dns
 		s.kubeClient,
 		s.testUtils.GetKubeUtil(),
 		s.radixClient,
+		s.dynamicClient,
 		s.dnsZone,
 		s.oauthConfig,
 		[]ingress.AnnotationProvider{s.componentIngressAnnotation},
@@ -92,7 +97,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
+	sut := dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -105,7 +110,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
+	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -122,7 +127,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
+	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})

@@ -16,6 +16,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Handler Handler for radix dns aliases
@@ -23,6 +24,7 @@ type handler struct {
 	kubeClient           kubernetes.Interface
 	kubeUtil             *kube.Kube
 	radixClient          radixclient.Interface
+	dynamicClient        client.Client
 	syncerFactory        internal.SyncerFactory
 	events               common.SyncEventRecorder
 	dnsZone              string
@@ -35,6 +37,7 @@ func NewHandler(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
+	dynamicClient client.Client,
 	eventRecorder record.EventRecorder,
 	dnsZone string,
 	options ...HandlerConfigOption) common.Handler {
@@ -43,6 +46,7 @@ func NewHandler(
 		kubeClient:    kubeClient,
 		kubeUtil:      kubeUtil,
 		radixClient:   radixClient,
+		dynamicClient: dynamicClient,
 		syncerFactory: internal.SyncerFactoryFunc(dnsalias.NewSyncer),
 		events:        common.NewSyncEventRecorder(eventRecorder),
 		dnsZone:       dnsZone,
@@ -96,7 +100,7 @@ func (h *handler) Sync(ctx context.Context, _, name string) error {
 	componentIngressAnnotations := ingress.GetComponentAnnotationProvider(h.ingressConfiguration, targetIngressNamespace, h.oauth2DefaultConfig)
 	oauthIngressAnnotations := ingress.GetOAuthAnnotationProviders()
 	oauthProxyModeIngressAnnotations := ingress.GetOAuthProxyModeAnnotationProviders(h.ingressConfiguration, targetIngressNamespace)
-	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.kubeClient, h.kubeUtil, h.radixClient, h.dnsZone, h.oauth2DefaultConfig, componentIngressAnnotations, oauthIngressAnnotations, oauthProxyModeIngressAnnotations)
+	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.kubeClient, h.kubeUtil, h.radixClient, h.dynamicClient, h.dnsZone, h.oauth2DefaultConfig, componentIngressAnnotations, oauthIngressAnnotations, oauthProxyModeIngressAnnotations)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		h.events.RecordSyncErrorEvent(syncingAlias, err)

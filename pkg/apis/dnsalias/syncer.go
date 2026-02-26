@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -31,6 +32,7 @@ type Syncer interface {
 type syncer struct {
 	kubeClient                       kubernetes.Interface
 	radixClient                      radixclient.Interface
+	dynamicClient                    client.Client
 	kubeUtil                         *kube.Kube
 	radixDNSAlias                    *radixv1.RadixDNSAlias
 	dnsZone                          string
@@ -45,10 +47,11 @@ type syncer struct {
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsZone string, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotations []ingress.AnnotationProvider) Syncer {
+func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, dnsZone string, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotations []ingress.AnnotationProvider) Syncer {
 	return &syncer{
 		kubeClient:                       kubeClient,
 		radixClient:                      radixClient,
+		dynamicClient:                    dynamicClient,
 		kubeUtil:                         kubeUtil,
 		dnsZone:                          dnsZone,
 		oauth2DefaultConfig:              oauth2Config,
@@ -74,8 +77,20 @@ func (s *syncer) OnSync(ctx context.Context) error {
 		return fmt.Errorf("failed to init: %w", err)
 	}
 
-	return s.syncStatus(ctx, s.syncIngresses(ctx))
+	return s.syncStatus(ctx, s.reconcile(ctx))
 
+}
+
+func (s *syncer) reconcile(ctx context.Context) error {
+	if err := s.syncIngresses(ctx); err != nil {
+		return fmt.Errorf("failed to reconcile ingresses: %w", err)
+	}
+
+	if err := s.reconcileHTTPRoute(ctx); err != nil {
+		return fmt.Errorf("failed to reconcile HTTPRoute: %w", err)
+	}
+
+	return nil
 }
 
 func (s *syncer) init(ctx context.Context) error {

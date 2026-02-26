@@ -339,6 +339,10 @@ func (deployComponent *RadixDeployComponent) GetPublicPort() string {
 }
 
 func (deployComponent *RadixDeployComponent) GetPublicPortNumber() (int32, bool) {
+	if deployComponent == nil {
+		return 0, false
+	}
+
 	if len(deployComponent.PublicPort) == 0 {
 		return 0, false
 	}

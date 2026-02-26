@@ -349,6 +349,7 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.dynamicClient,
 		a.eventRecorder,
 		a.config.DNSZone,
 		dnsalias.WithIngressConfiguration(a.ingressConfiguration),
