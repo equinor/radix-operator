@@ -4240,7 +4240,7 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	defer TeardownTest()
 
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
-	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithDNSAppAlias(true)).BuildRD()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithDNSAppAlias(true)).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
@@ -4287,7 +4287,7 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
-	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080)).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
@@ -4307,7 +4307,7 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
-	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080)).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
@@ -4668,7 +4668,7 @@ func Test_ExternalDNS_Legacy_ResourcesMigrated(t *testing.T) {
 		utils.ARadixDeployment().
 			WithAppName(appName).
 			WithEnvironment(envName).
-			WithComponents(utils.NewDeployComponentBuilder().WithName(compName).WithPublicPort("http").WithExternalDNS(
+			WithComponents(utils.NewDeployComponentBuilder().WithName(compName).WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(
 				radixv1.RadixDeployExternalDNS{FQDN: fqdnManual, UseCertificateAutomation: false},
 				radixv1.RadixDeployExternalDNS{FQDN: fqdnAutomation, UseCertificateAutomation: true},
 			)).
@@ -4946,7 +4946,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	defer TeardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(
-		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
 	).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
@@ -5002,7 +5002,7 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 	defer TeardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(
-		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
 	).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
