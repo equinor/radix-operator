@@ -56,7 +56,7 @@ type dnsInfo struct {
 /*
 	TODO:
 	- tests
-	- implement gateway in RadixDNSAlias
+	- implement gateway in RadixDNSAlias, make sure to never reconcile HTTPRoute with Component Name
 */
 
 func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
@@ -312,6 +312,11 @@ func (deploy *Deployment) garbageCollectHTTPRoutesNoLongerInSpec(ctx context.Con
 	}
 
 	for _, route := range routes.Items {
+		// skip if route owner is not RadixDeployment
+		if c := metav1.GetControllerOf(&route); c == nil || c.Kind != radixv1.KindRadixDeployment {
+			continue
+		}
+
 		componentName, ok := RadixComponentNameFromComponentLabel(&route)
 		if !ok {
 			continue
