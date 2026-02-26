@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.109.1](https://github.com/equinor/radix-operator/compare/v1.109.0..v1.109.1) - 2026-02-26
+
+### 🐛 Bug Fixes
+
+- Replace Prometheus Client with the new Dynamic Client (#1602) - ([6de0f52](https://github.com/equinor/radix-operator/commit/6de0f52e3424a44bc54bfd761c06a20ffa4dbea2)) by @Richard87 in [#1602](https://github.com/equinor/radix-operator/pull/1602)
+
+- Upgrade swagger ui (#1620) - ([de900a1](https://github.com/equinor/radix-operator/commit/de900a1acd1ae87ed42b3ea69196a4594278c790)) by @Richard87 in [#1620](https://github.com/equinor/radix-operator/pull/1620)
+
+
 ## [1.109.0](https://github.com/equinor/radix-operator/compare/v1.108.2..v1.109.0) - 2026-02-23
 
 ### 🚀 Features
