@@ -2,10 +2,8 @@ package deployment
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
-	"slices"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -56,6 +54,28 @@ type dnsInfo struct {
 	resourceName string
 }
 
+/*
+	TODO:
+	- garbage collect gateway resources for comps no longer in spec
+	- tests
+	- implement gateway in RadixDNSAlias
+	- implement annotation for testing with ExternalDNS. Must also handle different issuerRef in certificate
+	-
+*/
+
+func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
+	ls, err := deploy.reconcileListenerSet(ctx, component)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile ListenerSet: %w", err)
+	}
+
+	if err := deploy.reconcileHTTPRoute(ctx, component, ls); err != nil {
+		return fmt.Errorf("failed to reconcile HTTPRoute: %w", err)
+	}
+
+	return nil
+}
+
 func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, kubeutil kube.Kube) []dnsInfo {
 	var info []dnsInfo
 
@@ -103,6 +123,100 @@ func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeplo
 	}
 
 	return info
+}
+
+func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radixv1.RadixCommonDeployComponent, parentListenerSet *gatewayapixv1alpha1.XListenerSet) error {
+	logger := log.Ctx(ctx)
+	var hosts []dnsInfo
+
+	// When everyone is using proxy mode, or its enforced, cleanup this code (https://github.com/equinor/radix-platform/issues/1822)
+	oauth2enabled := component.GetAuthentication().GetOAuth2() != nil
+	logger.Debug().Msgf("Reconciling ingresses for component %s. OAuth2 enabled: %t", component.GetName(), oauth2enabled)
+
+	if component.IsPublic() {
+		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)
+	}
+
+	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: component.GetName(), Namespace: deploy.radixDeployment.Namespace}}
+	if len(hosts) == 0 {
+		err := deploy.dynamicClient.Delete(ctx, route)
+		if client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("failed to delete HTTPRoute %s: %w", route.Name, err)
+		}
+		if err == nil {
+			logger.Info().Str("httproute", route.Name).Str("op", "delete").Msg("reconcile HTTPRoute")
+		}
+
+		return nil
+	}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, route, func() error {
+		parentRefs := []gatewayapiv1.ParentReference{{
+			Group: new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
+			Kind:  new(gatewayapiv1.Kind("Gateway")),
+
+			// TODO: Make this configurable
+			Name:        "gateway",
+			Namespace:   new(gatewayapiv1.Namespace("istio-system")),
+			SectionName: new(gatewayapiv1.SectionName("https")),
+		}}
+
+		if parentListenerSet != nil {
+			lsGVK, err := deploy.dynamicClient.GroupVersionKindFor(parentListenerSet)
+			if err != nil {
+				return fmt.Errorf("failed to get GVK for ListenerSet %s: %w", parentListenerSet.Name, err)
+			}
+
+			parentRefs = append(parentRefs, gatewayapiv1.ParentReference{
+				Group:     new(gatewayapiv1.Group(lsGVK.Group)),
+				Kind:      new(gatewayapiv1.Kind(lsGVK.Kind)),
+				Name:      gatewayapiv1.ObjectName(parentListenerSet.Name),
+				Namespace: new(gatewayapiv1.Namespace(parentListenerSet.Namespace)),
+			})
+		}
+		route.Labels = kubelabels.Merge(route.Labels, labels.ForComponentGatewayResources(deploy.registration.Name, component))
+
+		var backendRef gatewayapiv1.HTTPBackendRef
+		if oauth2enabled {
+			backendRef = gateway.BuildBackendRefForComponentOauth2Service(component)
+		} else {
+			var err error
+			backendRef, err = gateway.BuildBackendRefForComponent(component)
+			if err != nil {
+				return fmt.Errorf("failed to build backend reference for component %s: %w", component.GetName(), err)
+			}
+		}
+
+		route.Spec = gatewayapiv1.HTTPRouteSpec{
+			Hostnames: slice.Map(hosts, func(host dnsInfo) gatewayapiv1.Hostname { return gatewayapiv1.Hostname(host.fqdn) }),
+			Rules: []gatewayapiv1.HTTPRouteRule{
+				{
+					BackendRefs: []gatewayapiv1.HTTPBackendRef{backendRef},
+					Filters: []gatewayapiv1.HTTPRouteFilter{
+						{
+							Type: gatewayapiv1.HTTPRouteFilterResponseHeaderModifier,
+							ResponseHeaderModifier: &gatewayapiv1.HTTPHeaderFilter{
+								Add: []gatewayapiv1.HTTPHeader{{Name: "Strict-Transport-Security", Value: "max-age=31536000; includeSubDomains; preload"}},
+							},
+						},
+					},
+				},
+			},
+			CommonRouteSpec: gatewayapiv1.CommonRouteSpec{ParentRefs: parentRefs},
+		}
+
+		route.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
+		return controllerutil.SetControllerReference(deploy.radixDeployment, route, deploy.dynamicClient.Scheme())
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to create or update HTTPRoute '%s': %w", route.Name, err)
+	}
+	if op != controllerutil.OperationResultNone {
+		log.Ctx(ctx).Info().Str("httproute", route.Name).Str("op", string(op)).Msg("reconcile HTTPRoute")
+	}
+
+	return nil
 }
 
 func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component radixv1.RadixCommonDeployComponent) (*gatewayapixv1alpha1.XListenerSet, error) {
@@ -171,154 +285,6 @@ func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component ra
 	}
 
 	return ls, nil
-}
-
-/*
-	TODO:
-	- garbage collect gateway resources for comps no longer in spec
-	- refactor: split reconcile ListenerSet and HTTPRoute
-	- tests
-	- implement gateway in RadixDNSAlias
-	- implement annotation for testing with ExternalDNS. Must also handle different issuerRef in certificate
-	-
-*/
-
-func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	logger := log.Ctx(ctx)
-	var hosts []dnsInfo
-
-	// When everyone is using proxy mode, or its enforced, cleanup this code (https://github.com/equinor/radix-platform/issues/1822)
-	oauth2enabled := component.GetAuthentication().GetOAuth2() != nil
-	logger.Debug().Msgf("Reconciling ingresses for component %s. OAuth2 enabled: %t", component.GetName(), oauth2enabled)
-
-	if component.IsPublic() {
-		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)
-	}
-
-	if len(hosts) == 0 {
-		// Garbage collect HTTP routes and listener sets
-		return errors.New("Not implemented")
-	}
-
-	hasExternalDNSAlias := slices.ContainsFunc(hosts, func(h dnsInfo) bool { return h.dnsType == dnsTypeExternal })
-	namespace := deploy.radixDeployment.Namespace
-	componentName := component.GetName()
-	parentRefGateway := gatewayapiv1.ParentReference{
-		Group: new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
-		Kind:  new(gatewayapiv1.Kind("Gateway")),
-
-		// TODO: Make this configurable
-		Name:        "gateway",
-		Namespace:   new(gatewayapiv1.Namespace("istio-system")),
-		SectionName: new(gatewayapiv1.SectionName("https")),
-	}
-	parentRefs := []gatewayapiv1.ParentReference{parentRefGateway}
-
-	if !hasExternalDNSAlias {
-		// Garbage collect listener set
-	} else {
-
-		ls := &gatewayapixv1alpha1.XListenerSet{ObjectMeta: metav1.ObjectMeta{Name: componentName, Namespace: namespace}}
-		op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, ls, func() error {
-			var listeners []gatewayapixv1alpha1.ListenerEntry
-			for _, host := range hosts {
-				if host.dnsType == dnsTypeExternal {
-					listeners = append(listeners, gatewayapixv1alpha1.ListenerEntry{
-						Name:     gatewayapixv1alpha1.SectionName(host.fqdn),
-						Hostname: new(gatewayapixv1alpha1.Hostname(host.fqdn)),
-						Protocol: gatewayapiv1.HTTPSProtocolType,
-						Port:     443,
-						TLS: &gatewayapiv1.ListenerTLSConfig{
-							Mode: new(gatewayapiv1.TLSModeTerminate),
-							CertificateRefs: []gatewayapiv1.SecretObjectReference{
-								{Name: gatewayapiv1.ObjectName(host.tlsSecret)},
-							},
-						},
-					})
-				}
-			}
-
-			ls.Labels = kubelabels.Merge(ls.Labels, labels.ForComponentGatewayResources(deploy.registration.Name, component))
-			ls.Spec = gatewayapixv1alpha1.ListenerSetSpec{
-				ParentRef: gatewayapixv1alpha1.ParentGatewayReference{
-					Group:     parentRefGateway.Group,
-					Kind:      parentRefGateway.Kind,
-					Name:      parentRefGateway.Name,
-					Namespace: parentRefGateway.Namespace,
-				},
-				Listeners: listeners,
-			}
-
-			ls.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
-			return controllerutil.SetControllerReference(deploy.radixDeployment, ls, deploy.dynamicClient.Scheme())
-		})
-
-		if err != nil {
-			return fmt.Errorf("failed to create or update XListenerSet '%s': %w", ls.Name, err)
-		}
-
-		if op != controllerutil.OperationResultNone {
-			log.Ctx(ctx).Info().Str("xlisternerset", componentName).Str("op", string(op)).Msg("reconcile XListenerSet")
-		}
-
-		lsGVK, err := deploy.dynamicClient.GroupVersionKindFor(ls)
-		if err != nil {
-			return fmt.Errorf("failed to get GVK for ListenerSet %s: %w", ls.Name, err)
-		}
-
-		parentRefs = append(parentRefs, gatewayapiv1.ParentReference{
-			Group:     new(gatewayapiv1.Group(lsGVK.Group)),
-			Kind:      new(gatewayapiv1.Kind(lsGVK.Kind)),
-			Name:      gatewayapiv1.ObjectName(ls.Name),
-			Namespace: new(gatewayapiv1.Namespace(ls.Namespace)),
-		})
-	}
-
-	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: componentName, Namespace: namespace}}
-	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, route, func() error {
-		route.Labels = kubelabels.Merge(route.Labels, labels.ForComponentGatewayResources(deploy.registration.Name, component))
-
-		var backendRef gatewayapiv1.HTTPBackendRef
-		if oauth2enabled {
-			backendRef = gateway.BuildBackendRefForComponentOauth2Service(component)
-		} else {
-			var err error
-			backendRef, err = gateway.BuildBackendRefForComponent(component)
-			if err != nil {
-				return fmt.Errorf("failed to build backend reference for component %s: %w", componentName, err)
-			}
-		}
-
-		route.Spec = gatewayapiv1.HTTPRouteSpec{
-			Hostnames: slice.Map(hosts, func(host dnsInfo) gatewayapiv1.Hostname { return gatewayapiv1.Hostname(host.fqdn) }),
-			Rules: []gatewayapiv1.HTTPRouteRule{
-				{
-					BackendRefs: []gatewayapiv1.HTTPBackendRef{backendRef},
-					Filters: []gatewayapiv1.HTTPRouteFilter{
-						{
-							Type: gatewayapiv1.HTTPRouteFilterResponseHeaderModifier,
-							ResponseHeaderModifier: &gatewayapiv1.HTTPHeaderFilter{
-								Add: []gatewayapiv1.HTTPHeader{{Name: "Strict-Transport-Security", Value: "max-age=31536000; includeSubDomains; preload"}},
-							},
-						},
-					},
-				},
-			},
-			CommonRouteSpec: gatewayapiv1.CommonRouteSpec{ParentRefs: parentRefs},
-		}
-
-		route.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
-		return controllerutil.SetControllerReference(deploy.radixDeployment, route, deploy.dynamicClient.Scheme())
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to create or update HTTPRoute '%s': %w", route.Name, err)
-	}
-	if op != controllerutil.OperationResultNone {
-		log.Ctx(ctx).Info().Str("httproute", componentName).Str("op", string(op)).Msg("reconcile HTTP Route")
-	}
-
-	return nil
 }
 
 func (deploy *Deployment) garbageCollectGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent, hosts []dnsInfo) error {
