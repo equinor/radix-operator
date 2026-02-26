@@ -55,8 +55,15 @@ type dnsInfo struct {
 
 /*
 	TODO:
+	- Create network policies for gateway resources
+	- Copy annotation from RA to RD on Deploy+Promote steps in Pipeline
+	- implement gateway in RadixDNSAlias, make sure to never reconcile HTTPRoute with Component Name (Test added/removed/changed DNSAlias)
 	- tests
-	- implement gateway in RadixDNSAlias, make sure to never reconcile HTTPRoute with Component Name
+		- Test HTTPRoute and ListenerSet are created when component is public and has external DNS
+		- Test HTTPRoute and ListenerSet are deleted when component is not public anymore
+		- Test HTTPRoute and ListenerSet are updated when DNS is changed (ExternalDNS, DnsAppAlias)
+		- Test HTTPRoute and ListenerSet are garbage collected when component is removed from spec
+		- Test When Oauth2 is enabled/disabled, correct backend reference is set in HTTPRoute
 */
 
 func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
