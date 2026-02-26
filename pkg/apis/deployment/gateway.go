@@ -8,13 +8,11 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/gateway"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,7 +54,6 @@ type dnsInfo struct {
 
 /*
 	TODO:
-	- garbage collect gateway resources for comps no longer in spec
 	- tests
 	- implement gateway in RadixDNSAlias
 	- implement annotation for testing with ExternalDNS. Must also handle different issuerRef in certificate
@@ -74,55 +71,6 @@ func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, compone
 	}
 
 	return nil
-}
-
-func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, kubeutil kube.Kube) []dnsInfo {
-	var info []dnsInfo
-
-	if component.IsDNSAppAlias() {
-		appAlias := os.Getenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
-		if appAlias != "" {
-			info = append(info, dnsInfo{
-				fqdn:         fmt.Sprintf("%s.%s", rd.Spec.AppName, appAlias),
-				tlsSecret:    "",
-				dnsType:      dnsTypeAppAlias,
-				resourceName: getAppAliasIngressName(rd.Spec.AppName),
-			})
-		}
-	}
-
-	for _, externalDns := range component.GetExternalDNS() {
-		info = append(info, dnsInfo{
-			fqdn:         externalDns.FQDN,
-			tlsSecret:    utils.GetExternalDnsTlsSecretName(externalDns),
-			dnsType:      dnsTypeExternal,
-			resourceName: externalDns.FQDN,
-		})
-	}
-
-	if hostname := getActiveClusterHostName(component.GetName(), rd.Namespace); hostname != "" {
-		info = append(info, dnsInfo{
-			fqdn:         hostname,
-			tlsSecret:    "",
-			dnsType:      dnsTypeActiveCluster,
-			resourceName: getActiveClusterIngressName(component.GetName()),
-		})
-	}
-
-	if clustername, err := kubeutil.GetClusterName(ctx); err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("failed to read cluster name")
-	} else {
-		if hostname := getHostName(component.GetName(), rd.Namespace, clustername); hostname != "" {
-			info = append(info, dnsInfo{
-				fqdn:         hostname,
-				tlsSecret:    "",
-				dnsType:      dnsTypeClusterName,
-				resourceName: getDefaultIngressName(component.GetName()),
-			})
-		}
-	}
-
-	return info
 }
 
 func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radixv1.RadixCommonDeployComponent, parentListenerSet *gatewayapixv1alpha1.XListenerSet) error {
@@ -287,88 +235,87 @@ func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component ra
 	return ls, nil
 }
 
-func (deploy *Deployment) garbageCollectGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent, hosts []dnsInfo) error {
-	logger := log.Ctx(ctx)
+func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, kubeutil kube.Kube) []dnsInfo {
+	var info []dnsInfo
 
-	selector := fmt.Sprintf("%s,!%s", labels.ForComponentIngress(deploy.radixDeployment.Spec.AppName, component).AsSelector().String(), kube.RadixAliasLabel)
-	existingIngresses, err := deploy.kubeclient.NetworkingV1().Ingresses(deploy.radixDeployment.GetNamespace()).List(ctx, metav1.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return fmt.Errorf("failed to list ingresses in garbageCollectIngresses: %w", err)
-	}
-	logger.Debug().Msgf("Garbage collecting ingresses for component %s. Found %d existing ingresses", component.GetName(), len(existingIngresses.Items))
-
-	for _, ing := range existingIngresses.Items {
-		// should exist in list of hosts
-		found := false
-		for _, host := range hosts {
-			if len(ing.Spec.Rules) > 0 && ing.Spec.Rules[0].Host == host.fqdn {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			logger.Info().Msgf("Garbage collecting ingress %s for component %s", ing.Name, component.GetName())
-			if err := deploy.kubeclient.NetworkingV1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
-				return fmt.Errorf("failed to delete ingress %s: %w", ing.Name, err)
-			}
+	if component.IsDNSAppAlias() {
+		appAlias := os.Getenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
+		if appAlias != "" {
+			info = append(info, dnsInfo{
+				fqdn:         fmt.Sprintf("%s.%s", rd.Spec.AppName, appAlias),
+				tlsSecret:    "",
+				dnsType:      dnsTypeAppAlias,
+				resourceName: getAppAliasIngressName(rd.Spec.AppName),
+			})
 		}
 	}
 
-	return nil
-}
-
-func (deploy *Deployment) createOrUpdateGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent, hosts []dnsInfo) error {
-	if len(hosts) == 0 {
-		return nil
+	for _, externalDns := range component.GetExternalDNS() {
+		info = append(info, dnsInfo{
+			fqdn:         externalDns.FQDN,
+			tlsSecret:    utils.GetExternalDnsTlsSecretName(externalDns),
+			dnsType:      dnsTypeExternal,
+			resourceName: externalDns.FQDN,
+		})
 	}
 
-	owner := []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
+	if hostname := getActiveClusterHostName(component.GetName(), rd.Namespace); hostname != "" {
+		info = append(info, dnsInfo{
+			fqdn:         hostname,
+			tlsSecret:    "",
+			dnsType:      dnsTypeActiveCluster,
+			resourceName: getActiveClusterIngressName(component.GetName()),
+		})
+	}
 
-	for _, host := range hosts {
-		ingressSpec := ingress.BuildIngressSpecForComponent(component, host.fqdn, host.tlsSecret)
-		annotations, err := ingress.BuildAnnotationsFromProviders(component, deploy.ingressAnnotationProviders)
-		if err != nil {
-			return fmt.Errorf("failed to build annotations: %w", err)
-		}
-		ing := &networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        host.resourceName,
-				Annotations: annotations,
-				Labels: labels.Merge(
-					labels.ForComponentIngress(deploy.radixDeployment.Spec.AppName, component),
-					host.dnsType.ToIngressLabels(),
-				),
-				OwnerReferences: owner,
-			},
-			Spec: ingressSpec,
-		}
-
-		if err := deploy.kubeutil.ApplyIngress(ctx, deploy.radixDeployment.Namespace, ing); err != nil {
-			return fmt.Errorf("failed to reconcile ingress: %w", err)
+	if clustername, err := kubeutil.GetClusterName(ctx); err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to read cluster name")
+	} else {
+		if hostname := getHostName(component.GetName(), rd.Namespace, clustername); hostname != "" {
+			info = append(info, dnsInfo{
+				fqdn:         hostname,
+				tlsSecret:    "",
+				dnsType:      dnsTypeClusterName,
+				resourceName: getDefaultIngressName(component.GetName()),
+			})
 		}
 	}
 
-	return nil
+	return info
 }
 
 func (deploy *Deployment) garbageCollectGatewayResourcesNoLongerInSpec(ctx context.Context) error {
-	ingresses, err := deploy.kubeutil.ListIngresses(ctx, deploy.radixDeployment.Namespace)
-	if err != nil {
-		return err
+	if err := deploy.garbageCollectHTTPRoutesNoLongerInSpec(ctx); err != nil {
+		return fmt.Errorf("failed to garbage collect HTTPRoutes: %w", err)
 	}
 
-	for _, ing := range ingresses {
-		componentName, ok := RadixComponentNameFromComponentLabel(ing)
+	if err := deploy.garbageCollectListenerSetsNoLongerInSpec(ctx); err != nil {
+		return fmt.Errorf("failed to garbage collect ListenerSets: %w", err)
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) garbageCollectHTTPRoutesNoLongerInSpec(ctx context.Context) error {
+	routes := &gatewayapiv1.HTTPRouteList{}
+	if err := deploy.dynamicClient.List(ctx, routes, client.InNamespace(deploy.radixDeployment.Namespace), client.MatchingLabels(labels.ForApplicationName(deploy.registration.Name))); err != nil {
+		return fmt.Errorf("failed to list HTTPRoutes: %w", err)
+	}
+
+	for _, route := range routes.Items {
+		componentName, ok := RadixComponentNameFromComponentLabel(&route)
 		if !ok {
 			continue
 		}
 
-		// Ingresses should only exist for items in component list.
+		// HTTPRoutes should only exist for items in component list.
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
-			err = deploy.kubeclient.NetworkingV1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ctx, ing.Name, metav1.DeleteOptions{})
-			if err != nil {
-				return err
+			err := deploy.dynamicClient.Delete(ctx, &route)
+			if client.IgnoreNotFound(err) != nil {
+				return fmt.Errorf("failed to delete HTTPRoute %s: %w", route.Name, err)
+			}
+			if err == nil {
+				log.Ctx(ctx).Info().Str("httproute", route.Name).Str("op", "delete").Msg("garbage collect HTTPRoute no longer in spec")
 			}
 		}
 	}
@@ -376,31 +323,29 @@ func (deploy *Deployment) garbageCollectGatewayResourcesNoLongerInSpec(ctx conte
 	return nil
 }
 
-func getAppAliasIngressName(appName string) string {
-	return fmt.Sprintf("%s-url-alias", appName)
-}
-
-func getActiveClusterIngressName(componentName string) string {
-	return fmt.Sprintf("%s-active-cluster-url-alias", componentName)
-}
-
-func getDefaultIngressName(componentName string) string {
-	return componentName
-}
-
-func getActiveClusterHostName(componentName, namespace string) string {
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
-		return ""
+func (deploy *Deployment) garbageCollectListenerSetsNoLongerInSpec(ctx context.Context) error {
+	lsList := &gatewayapixv1alpha1.XListenerSetList{}
+	if err := deploy.dynamicClient.List(ctx, lsList, client.InNamespace(deploy.radixDeployment.Namespace), client.MatchingLabels(labels.ForApplicationName(deploy.registration.Name))); err != nil {
+		return fmt.Errorf("failed to list XListenerSets: %w", err)
 	}
-	return fmt.Sprintf("%s-%s.%s", componentName, namespace, dnsZone)
-}
 
-func getHostName(componentName, namespace, clustername string) string {
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
-		return ""
+	for _, ls := range lsList.Items {
+		componentName, ok := RadixComponentNameFromComponentLabel(&ls)
+		if !ok {
+			continue
+		}
+
+		// ListenerSets should only exist for items in component list.
+		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
+			err := deploy.dynamicClient.Delete(ctx, &ls)
+			if client.IgnoreNotFound(err) != nil {
+				return fmt.Errorf("failed to delete XListenerSet %s: %w", ls.Name, err)
+			}
+			if err == nil {
+				log.Ctx(ctx).Info().Str("xlisternerset", ls.Name).Str("op", "delete").Msg("garbage collect XListenerSet no longer in spec")
+			}
+		}
 	}
-	hostnameTemplate := "%s-%s.%s.%s"
-	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
+
+	return nil
 }

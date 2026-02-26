@@ -3,7 +3,9 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"os"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -130,4 +132,33 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec(ctx context.Cont
 	}
 
 	return nil
+}
+
+func getAppAliasIngressName(appName string) string {
+	return fmt.Sprintf("%s-url-alias", appName)
+}
+
+func getActiveClusterIngressName(componentName string) string {
+	return fmt.Sprintf("%s-active-cluster-url-alias", componentName)
+}
+
+func getDefaultIngressName(componentName string) string {
+	return componentName
+}
+
+func getActiveClusterHostName(componentName, namespace string) string {
+	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
+	if dnsZone == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s-%s.%s", componentName, namespace, dnsZone)
+}
+
+func getHostName(componentName, namespace, clustername string) string {
+	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
+	if dnsZone == "" {
+		return ""
+	}
+	hostnameTemplate := "%s-%s.%s.%s"
+	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
 }
