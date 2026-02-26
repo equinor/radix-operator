@@ -55,9 +55,11 @@ type dnsInfo struct {
 
 /*
 	TODO:
-	- Create network policies for gateway resources
 	- Copy annotation from RA to RD on Deploy+Promote steps in Pipeline
 	- implement gateway in RadixDNSAlias, make sure to never reconcile HTTPRoute with Component Name (Test added/removed/changed DNSAlias)
+	- config:
+		- gateway cluster issuer name
+		- gateway name and namespace (use in networkpolicy and httproutes and listenersets parentrefs, in both deploy and dnsalias syncer)
 	- tests
 		- Test HTTPRoute and ListenerSet are created when component is public and has external DNS
 		- Test HTTPRoute and ListenerSet are deleted when component is not public anymore
@@ -135,8 +137,10 @@ func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radi
 
 		if deploy.isGatewayAPIEnabled() {
 			route.Annotations[annotations.PreviewGatewayModeAnnotation] = "true"
+			route.Annotations["external-dns.alpha.kubernetes.io/ttl"] = "30"
 		} else {
 			delete(route.Annotations, annotations.PreviewGatewayModeAnnotation)
+			delete(route.Annotations, "external-dns.alpha.kubernetes.io/ttl")
 		}
 
 		var backendRef gatewayapiv1.HTTPBackendRef
@@ -155,6 +159,11 @@ func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radi
 			Rules: []gatewayapiv1.HTTPRouteRule{
 				{
 					BackendRefs: []gatewayapiv1.HTTPBackendRef{backendRef},
+					Matches: []gatewayapiv1.HTTPRouteMatch{
+						{
+							Path: &gatewayapiv1.HTTPPathMatch{Type: new(gatewayapiv1.PathMatchPathPrefix), Value: new("/")},
+						},
+					},
 					Filters: []gatewayapiv1.HTTPRouteFilter{
 						{
 							Type: gatewayapiv1.HTTPRouteFilterResponseHeaderModifier,
@@ -213,10 +222,17 @@ func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component ra
 				Hostname: new(gatewayapixv1alpha1.Hostname(host.fqdn)),
 				Protocol: gatewayapiv1.HTTPSProtocolType,
 				Port:     443,
+				AllowedRoutes: &gatewayapiv1.AllowedRoutes{
+					Namespaces: &gatewayapiv1.RouteNamespaces{From: new(gatewayapiv1.NamespacesFromSame)},
+				},
 				TLS: &gatewayapiv1.ListenerTLSConfig{
 					Mode: new(gatewayapiv1.TLSModeTerminate),
 					CertificateRefs: []gatewayapiv1.SecretObjectReference{
-						{Name: gatewayapiv1.ObjectName(host.tlsSecret)},
+						{
+							Group: new(gatewayapiv1.Group("")),
+							Kind:  new(gatewayapiv1.Kind("Secret")),
+							Name:  gatewayapiv1.ObjectName(host.tlsSecret),
+						},
 					},
 				},
 			})

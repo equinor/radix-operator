@@ -24,7 +24,6 @@ func (deploy *Deployment) setDefaultNetworkPolicies(ctx context.Context) error {
 		defaultIngressNetworkPolicy(appName, env, owner),
 		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.config.DeploymentSyncer.KubernetesAPIPort),
 		allowOauthAuxComponentEgressNetworkPolicy(appName, env, owner),
-		allowBatchSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.config.DeploymentSyncer.KubernetesAPIPort),
 	}
 
 	var errs []error
@@ -59,8 +58,10 @@ func defaultIngressNetworkPolicy(appName, env string, owner []metav1.OwnerRefere
 							PodSelector: &metav1.LabelSelector{},
 						},
 						// namespace hosting prometheus and ingress-nginx need label "purpose:radix-base-ns"
+						// TODO: Make this configurable in helm values
 						createSelector(map[string]string{"app.kubernetes.io/name": "ingress-nginx"}, map[string]string{"purpose": "radix-base-ns"}),
 						createSelector(map[string]string{"app.kubernetes.io/name": "prometheus"}, map[string]string{"purpose": "radix-base-ns"}),
+						createSelector(map[string]string{"gateway.networking.k8s.io/gateway-name": "gateway"}, map[string]string{"purpose": "radix-base-ns"}),
 					},
 				},
 			},
@@ -88,17 +89,6 @@ func allowJobSchedulerServerEgressNetworkPolicy(appName string, env string, owne
 	// This is because egress rule must allow traffic to public IP of k8s API server,
 	// and the public IP is dynamic.
 	return allowEgressNetworkByPortPolicy("radix-allow-job-scheduler-egress", kube.RadixPodIsJobSchedulerLabel, "true", appName, env, owner, []egreessPortPolicy{
-		{port: 53, protocol: corev1.ProtocolTCP},
-		{port: 53, protocol: corev1.ProtocolUDP},
-		{port: kubernetesApiPort, protocol: corev1.ProtocolTCP},
-	})
-}
-
-func allowBatchSchedulerServerEgressNetworkPolicy(appName string, env string, owner []metav1.OwnerReference, kubernetesApiPort int32) *v1.NetworkPolicy {
-	// We allow outbound to entire Internet from the batch scheduler server pods.
-	// This is because egress rule must allow traffic to public IP of k8s API server,
-	// and the public IP is dynamic.
-	return allowEgressNetworkByPortPolicy("radix-allow-batch-scheduler-egress", kube.RadixJobTypeLabel, kube.RadixJobTypeBatchSchedule, appName, env, owner, []egreessPortPolicy{
 		{port: 53, protocol: corev1.ProtocolTCP},
 		{port: 53, protocol: corev1.ProtocolUDP},
 		{port: kubernetesApiPort, protocol: corev1.ProtocolTCP},
