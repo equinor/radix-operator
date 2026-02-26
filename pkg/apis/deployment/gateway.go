@@ -19,6 +19,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
@@ -104,9 +105,73 @@ func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeplo
 	return info
 }
 
-// func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component radixv1.RadixCommonDeployComponent) (*gatewayapixv1alpha1.XListenerSet, error) {
+func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component radixv1.RadixCommonDeployComponent) (*gatewayapixv1alpha1.XListenerSet, error) {
+	logger := log.Ctx(ctx)
+	var hosts []dnsInfo
 
-// }
+	if component.IsPublic() {
+		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)
+	}
+
+	externalDNSHosts := slice.FindAll(hosts, func(h dnsInfo) bool { return h.dnsType == dnsTypeExternal })
+	ls := &gatewayapixv1alpha1.XListenerSet{ObjectMeta: metav1.ObjectMeta{Name: component.GetName(), Namespace: deploy.radixDeployment.Namespace}}
+
+	if len(externalDNSHosts) == 0 {
+		err := deploy.dynamicClient.Delete(ctx, ls)
+		if client.IgnoreNotFound(err) != nil {
+			return nil, fmt.Errorf("failed to delete ListenerSet %s: %w", ls.Name, err)
+		}
+		if err == nil {
+			logger.Info().Str("xlisternerset", ls.Name).Str("op", "delete").Msg("reconcile XListenerSet")
+		}
+
+		return nil, nil
+	}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, ls, func() error {
+		var listeners []gatewayapixv1alpha1.ListenerEntry
+		for _, host := range externalDNSHosts {
+			listeners = append(listeners, gatewayapixv1alpha1.ListenerEntry{
+				Name:     gatewayapixv1alpha1.SectionName(host.fqdn),
+				Hostname: new(gatewayapixv1alpha1.Hostname(host.fqdn)),
+				Protocol: gatewayapiv1.HTTPSProtocolType,
+				Port:     443,
+				TLS: &gatewayapiv1.ListenerTLSConfig{
+					Mode: new(gatewayapiv1.TLSModeTerminate),
+					CertificateRefs: []gatewayapiv1.SecretObjectReference{
+						{Name: gatewayapiv1.ObjectName(host.tlsSecret)},
+					},
+				},
+			})
+		}
+
+		ls.Labels = kubelabels.Merge(ls.Labels, labels.ForComponentGatewayResources(deploy.registration.Name, component))
+		ls.Spec = gatewayapixv1alpha1.ListenerSetSpec{
+			ParentRef: gatewayapixv1alpha1.ParentGatewayReference{
+				Group: new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
+				Kind:  new(gatewayapiv1.Kind("Gateway")),
+
+				// TODO: Make this configurable
+				Name:      "gateway",
+				Namespace: new(gatewayapiv1.Namespace("istio-system")),
+			},
+			Listeners: listeners,
+		}
+
+		ls.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
+		return controllerutil.SetControllerReference(deploy.radixDeployment, ls, deploy.dynamicClient.Scheme())
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create or update XListenerSet '%s': %w", ls.Name, err)
+	}
+
+	if op != controllerutil.OperationResultNone {
+		logger.Info().Str("xlisternerset", ls.Name).Str("op", string(op)).Msg("reconcile XListenerSet")
+	}
+
+	return ls, nil
+}
 
 /*
 	TODO:
