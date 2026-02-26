@@ -157,6 +157,8 @@ spec:
               value: {{ .Values.gitClone.image.repository }}:{{ .Values.gitClone.image.tag | default "latest" }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER
               value: {{ .Values.ingress.certificate.automation.clusterIssuer }}
+            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER
+              value: {{ .Values.ingress.certificate.automation.gatewayClusterIssuer }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION
               value: {{ .Values.ingress.certificate.automation.duration }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE

@@ -143,6 +143,11 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 		renewBefore = minCertRenewBefore
 	}
 
+	clusterIssuer := deploy.config.CertificateAutomation.ClusterIssuer
+	if deploy.isGatewayAPIEnabled() {
+		clusterIssuer = deploy.config.CertificateAutomation.GatewayClusterIssuer
+	}
+
 	certificate := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      externalDns.FQDN,
@@ -154,7 +159,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 			IssuerRef: cmmeta.ObjectReference{
 				Group: cm.GroupName,
 				Kind:  cmv1.ClusterIssuerKind,
-				Name:  deploy.config.CertificateAutomation.ClusterIssuer,
+				Name:  clusterIssuer,
 			},
 			Duration:    &metav1.Duration{Duration: duration},
 			RenewBefore: &metav1.Duration{Duration: renewBefore},

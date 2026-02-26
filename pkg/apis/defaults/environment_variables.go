@@ -199,6 +199,8 @@ const (
 	// RadixCertificateAutomationClusterIssuerVariable Name of cluster isser to use for certificate automation
 	RadixCertificateAutomationClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER"
 
+	RadixCertificateAutomationGatewayClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER"
+
 	// RadixCertificateAutomationDurationVariable Defines duration for certificates issued by cluster issuer
 	RadixCertificateAutomationDurationVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION"
 

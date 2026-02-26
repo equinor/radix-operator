@@ -86,6 +86,7 @@ func NewConfig() *apiconfig.Config {
 			GitCloneImage:                         viper.GetString(defaults.RadixGitCloneGitImageEnvironmentVariable),
 		},
 		CertificateAutomation: certificateconfig.AutomationConfig{
+			GatewayClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationGatewayClusterIssuerVariable),
 			ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
 			Duration:      viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
 			RenewBefore:   viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),

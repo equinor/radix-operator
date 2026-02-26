@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,8 +57,6 @@ type dnsInfo struct {
 	TODO:
 	- tests
 	- implement gateway in RadixDNSAlias
-	- implement annotation for testing with ExternalDNS. Must also handle different issuerRef in certificate
-	-
 */
 
 func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
@@ -123,6 +122,15 @@ func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radi
 			})
 		}
 		route.Labels = kubelabels.Merge(route.Labels, labels.ForComponentGatewayResources(deploy.registration.Name, component))
+		if route.Annotations == nil {
+			route.Annotations = map[string]string{}
+		}
+
+		if deploy.isGatewayAPIEnabled() {
+			route.Annotations[annotations.PreviewGatewayModeAnnotation] = "true"
+		} else {
+			delete(route.Annotations, annotations.PreviewGatewayModeAnnotation)
+		}
 
 		var backendRef gatewayapiv1.HTTPBackendRef
 		if oauth2enabled {
@@ -298,6 +306,7 @@ func (deploy *Deployment) garbageCollectGatewayResourcesNoLongerInSpec(ctx conte
 
 func (deploy *Deployment) garbageCollectHTTPRoutesNoLongerInSpec(ctx context.Context) error {
 	routes := &gatewayapiv1.HTTPRouteList{}
+	//TODO: Do not list HTTPRoutes owned by DNSAlias
 	if err := deploy.dynamicClient.List(ctx, routes, client.InNamespace(deploy.radixDeployment.Namespace), client.MatchingLabels(labels.ForApplicationName(deploy.registration.Name))); err != nil {
 		return fmt.Errorf("failed to list HTTPRoutes: %w", err)
 	}
@@ -348,4 +357,11 @@ func (deploy *Deployment) garbageCollectListenerSetsNoLongerInSpec(ctx context.C
 	}
 
 	return nil
+}
+
+// isGatewayAPIEnabled checks if the gateway API is enabled for the deployment.
+// TODO: Remove this when everything is using gateway API, or when it's enforced, and cleanup the code related to this (
+func (deploy *Deployment) isGatewayAPIEnabled() bool {
+	return annotations.GatewayAPIEnabledForEnvironment(deploy.radixDeployment.Annotations, deploy.radixDeployment.Spec.Environment) ||
+		annotations.GatewayAPIEnabledForEnvironment(deploy.registration.Annotations, deploy.radixDeployment.Spec.Environment)
 }
