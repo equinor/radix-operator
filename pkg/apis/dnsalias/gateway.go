@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/gateway"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
@@ -19,8 +20,8 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 	logger := log.Ctx(ctx)
 
 	// When everyone is using proxy mode, or its enforced, cleanup this code (https://github.com/equinor/radix-platform/issues/1822)
-
-	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: s.getIngressName(), Namespace: s.rd.Namespace}}
+	namespace := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
+	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: s.getIngressName(), Namespace: namespace}}
 
 	if _, hasPublicPort := s.component.GetPublicPortNumber(); !hasPublicPort {
 		err := s.dynamicClient.Delete(ctx, route)
