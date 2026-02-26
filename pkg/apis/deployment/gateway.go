@@ -114,7 +114,8 @@ func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeplo
 	- refactor: split reconcile ListenerSet and HTTPRoute
 	- tests
 	- implement gateway in RadixDNSAlias
-	- implement annotation for testing with ExternalDNS
+	- implement annotation for testing with ExternalDNS. Must also handle different issuerRef in certificate
+	-
 */
 
 func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
