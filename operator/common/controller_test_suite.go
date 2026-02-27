@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -15,6 +16,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -23,6 +25,7 @@ type ControllerTestSuite struct {
 	suite.Suite
 	KubeClient                *fake.Clientset
 	RadixClient               *fakeradix.Clientset
+	DynamicClient             client.Client
 	SecretProviderClient      *secretproviderfake.Clientset
 	kedaClient                *kedafake.Clientset
 	PromClient                *prometheusfake.Clientset
@@ -42,6 +45,7 @@ type ControllerTestSuite struct {
 func (s *ControllerTestSuite) SetupTest() {
 	s.KubeClient = fake.NewSimpleClientset()
 	s.RadixClient = fakeradix.NewSimpleClientset()
+	s.DynamicClient = test.CreateClient()
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.SecretProviderClient = secretproviderfake.NewSimpleClientset()
 	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient, s.kedaClient, s.SecretProviderClient)

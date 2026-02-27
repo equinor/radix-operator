@@ -112,6 +112,10 @@ func (js *JobSchedulerComponent) GetPublicPort() string {
 	return js.radixJob.GetPublicPort()
 }
 
+func (js *JobSchedulerComponent) GetPublicPortNumber() (int32, bool) {
+	return js.radixJob.GetPublicPortNumber()
+}
+
 func (js *JobSchedulerComponent) IsPublic() bool {
 	return js.radixJob.IsPublic()
 }

@@ -55,6 +55,15 @@ func ForComponentIngress(appName string, component radixv1.RadixCommonDeployComp
 		kube.RadixAppLabel:       appName,
 		kube.RadixComponentLabel: component.GetName(),
 	}
+
+}
+
+// ForComponentGatewayResources returns labels for a component's Gateway API resources
+func ForComponentGatewayResources(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:       appName,
+		kube.RadixComponentLabel: component.GetName(),
+	}
 }
 
 // ForJobAuxObject returns labels describing the job aux object,
@@ -300,6 +309,15 @@ func ForDNSAliasOAuthIngress(dnsAlias *radixv1.RadixDNSAlias) kubelabels.Set {
 
 // ForDNSAliasComponentIngress returns labels for DNS alias ingress
 func ForDNSAliasComponentIngress(dnsAlias *radixv1.RadixDNSAlias) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:       dnsAlias.Spec.AppName,
+		kube.RadixComponentLabel: dnsAlias.Spec.Component,
+		kube.RadixAliasLabel:     dnsAlias.Name,
+	}
+}
+
+// ForDNSAliasComponentGatewayResource returns labels for DNS alias ingress
+func ForDNSAliasComponentGatewayResource(dnsAlias *radixv1.RadixDNSAlias) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixAppLabel:       dnsAlias.Spec.AppName,
 		kube.RadixComponentLabel: dnsAlias.Spec.Component,

@@ -9,94 +9,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
-
-type dnsType string
-
-func (dns dnsType) ToIngressLabels() kubelabels.Set {
-	switch dns {
-	case dnsTypeExternal:
-		return kubelabels.Set{kube.RadixExternalAliasLabel: "true"}
-	case dnsTypeAppAlias:
-		return kubelabels.Set{kube.RadixAppAliasLabel: "true"}
-	case dnsTypeClusterName:
-		return kubelabels.Set{kube.RadixDefaultAliasLabel: "true"}
-	case dnsTypeActiveCluster:
-		return kubelabels.Set{kube.RadixActiveClusterAliasLabel: "true"}
-	}
-
-	return nil
-}
-
-const (
-	dnsTypeExternal      dnsType = "external"
-	dnsTypeAppAlias      dnsType = "app-alias"
-	dnsTypeClusterName   dnsType = "cluster-name"
-	dnsTypeActiveCluster dnsType = "active-cluster"
-)
-
-type dnsInfo struct {
-	fqdn         string
-	tlsSecret    string
-	dnsType      dnsType
-	resourceName string
-}
-
-func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, kubeutil kube.Kube) []dnsInfo {
-	var info []dnsInfo
-
-	if component.IsDNSAppAlias() {
-		appAlias := os.Getenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
-		if appAlias != "" {
-			info = append(info, dnsInfo{
-				fqdn:         fmt.Sprintf("%s.%s", rd.Spec.AppName, appAlias),
-				tlsSecret:    "",
-				dnsType:      dnsTypeAppAlias,
-				resourceName: getAppAliasIngressName(rd.Spec.AppName),
-			})
-		}
-	}
-
-	for _, externalDns := range component.GetExternalDNS() {
-		info = append(info, dnsInfo{
-			fqdn:         externalDns.FQDN,
-			tlsSecret:    utils.GetExternalDnsTlsSecretName(externalDns),
-			dnsType:      dnsTypeExternal,
-			resourceName: externalDns.FQDN,
-		})
-	}
-
-	if hostname := getActiveClusterHostName(component.GetName(), rd.Namespace); hostname != "" {
-		info = append(info, dnsInfo{
-			fqdn:         hostname,
-			tlsSecret:    "",
-			dnsType:      dnsTypeActiveCluster,
-			resourceName: getActiveClusterIngressName(component.GetName()),
-		})
-	}
-
-	if clustername, err := kubeutil.GetClusterName(ctx); err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("failed to read cluster name")
-	} else {
-		if hostname := getHostName(component.GetName(), rd.Namespace, clustername); hostname != "" {
-			info = append(info, dnsInfo{
-				fqdn:         hostname,
-				tlsSecret:    "",
-				dnsType:      dnsTypeClusterName,
-				resourceName: getDefaultIngressName(component.GetName()),
-			})
-		}
-	}
-
-	return info
-}
 
 func (deploy *Deployment) isOAuth2ProxyModeEnabled() bool {
 	return annotations.OAuth2ProxyModeEnabledForEnvironment(deploy.radixDeployment.Annotations, deploy.radixDeployment.Spec.Environment) ||

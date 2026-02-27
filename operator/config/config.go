@@ -85,10 +85,16 @@ func NewConfig() *apiconfig.Config {
 			PipelineImage:                         viper.GetString(defaults.RadixPipelineImageEnvironmentVariable),
 			GitCloneImage:                         viper.GetString(defaults.RadixGitCloneGitImageEnvironmentVariable),
 		},
+		Gateway: apiconfig.GatewayConfig{
+			Name:        viper.GetString(defaults.RadixIngressGatewayNameVariable),
+			Namespace:   viper.GetString(defaults.RadixIngressGatewayNamespaceVariable),
+			SectionName: viper.GetString(defaults.RadixIngressGatewaySectionNameVariable),
+		},
 		CertificateAutomation: certificateconfig.AutomationConfig{
-			ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
-			Duration:      viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
-			RenewBefore:   viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),
+			GatewayClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationGatewayClusterIssuerVariable),
+			ClusterIssuer:        viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
+			Duration:             viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
+			RenewBefore:          viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),
 		},
 		DeploymentSyncer: deployment.SyncerConfig{
 			TenantID:               viper.GetString(defaults.OperatorTenantIdEnvironmentVariable),

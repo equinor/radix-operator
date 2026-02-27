@@ -275,78 +275,67 @@ func (deploy *Deployment) setOtherRDsToInactive(ctx context.Context, allRDs []*v
 }
 
 func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Context) error {
-	err := deploy.garbageCollectDeploymentsNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectDeploymentsNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectDeprecatedHPAs(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectDeprecatedHPAs(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectScalersNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectScalersNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectTriggerAuthsNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectTriggerAuthsNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectServicesNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectServicesNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectIngressesNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectIngressesNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectPodDisruptionBudgetsNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectGatewayResourcesNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectSecretsNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectPodDisruptionBudgetsNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectRoleBindingsNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectSecretsNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectServiceMonitorsNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectRoleBindingsNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectScheduledJobsNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectServiceMonitorsNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectScheduledJobsNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectRadixBatchesNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectConfigMapsNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectRadixBatchesNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
-	err = deploy.garbageCollectServiceAccountNoLongerInSpec(ctx)
-	if err != nil {
+	if err := deploy.garbageCollectConfigMapsNoLongerInSpec(ctx); err != nil {
+		return err
+	}
+
+	if err := deploy.garbageCollectServiceAccountNoLongerInSpec(ctx); err != nil {
 		return err
 	}
 
@@ -454,7 +443,11 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 	}
 
 	if err := deploy.reconcileIngresses(ctx, component); err != nil {
-		return err
+		return fmt.Errorf("failed to reconcile ingresses: %w", err)
+	}
+
+	if err := deploy.reconcileGatewayResources(ctx, component); err != nil {
+		return fmt.Errorf("failed to reconcile gateway resources: %w", err)
 	}
 
 	if component.GetMonitoring() {
