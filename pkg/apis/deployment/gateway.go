@@ -53,11 +53,6 @@ type dnsInfo struct {
 	resourceName string
 }
 
-/*
-	TODO:
-	 - Test Network Policy is using correct pod and namespace selector for Gateway resource
-*/
-
 func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	ls, err := deploy.reconcileListenerSet(ctx, component)
 	if err != nil {
