@@ -19,4 +19,12 @@ type Config struct {
 	DeploymentSyncer        deployment.SyncerConfig
 	ContainerRegistryConfig containerregistry.Config
 	TaskConfig              *task.Config
+
+	Gateway GatewayConfig
+}
+
+type GatewayConfig struct {
+	Name        string
+	Namespace   string
+	SectionName string
 }

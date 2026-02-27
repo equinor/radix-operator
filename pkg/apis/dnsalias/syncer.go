@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -35,7 +36,6 @@ type syncer struct {
 	dynamicClient                    client.Client
 	kubeUtil                         *kube.Kube
 	radixDNSAlias                    *radixv1.RadixDNSAlias
-	dnsZone                          string
 	oauth2DefaultConfig              defaults.OAuth2Config
 	componentIngressAnnotations      []ingress.AnnotationProvider
 	oauthIngressAnnotations          []ingress.AnnotationProvider
@@ -44,16 +44,17 @@ type syncer struct {
 	rr                               *radixv1.RadixRegistration
 	component                        *radixv1.RadixDeployComponent
 	initMutex                        sync.Mutex
+	config                           config.Config
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, dnsZone string, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotations []ingress.AnnotationProvider) Syncer {
+func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotations []ingress.AnnotationProvider) Syncer {
 	return &syncer{
 		kubeClient:                       kubeClient,
 		radixClient:                      radixClient,
 		dynamicClient:                    dynamicClient,
 		kubeUtil:                         kubeUtil,
-		dnsZone:                          dnsZone,
+		config:                           config,
 		oauth2DefaultConfig:              oauth2Config,
 		componentIngressAnnotations:      componentIngressAnnotations,
 		oauthIngressAnnotations:          oauthIngressAnnotations,

@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -39,7 +40,7 @@ func (s *handlerTestSuite) TearDownTest() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
-	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, "dev.radix.equinor.com", dnsalias.WithSyncerFactory(s.syncerFactory))
+	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, config.Config{}, dnsalias.WithSyncerFactory(s.syncerFactory))
 
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
@@ -49,7 +50,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
-	expectedDnsZone := "any.zone.com"
+	c := config.Config{}
 	expectedOauth2Cfg := defaults.NewMockOAuth2Config(s.MockCtrl)
 	expectedDnsAlias := &radixv1.RadixDNSAlias{
 		ObjectMeta: v1.ObjectMeta{Name: "any-dns-alias"},
@@ -66,16 +67,18 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 	expectedOAuthProxyModeIngressAnnotations := ingress.GetOAuthProxyModeAnnotationProviders(ingress.IngressConfiguration{}, expectedTagretNamespace)
 	expectedError := fmt.Errorf("some error")
 	s.Require().NoError(err)
-	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, expectedDnsZone, expectedOauth2Cfg, expectedComponentIngressAnnotations, expectedOAuthIngressAnnotations, expectedOAuthProxyModeIngressAnnotations).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg, expectedComponentIngressAnnotations, expectedOAuthIngressAnnotations, expectedOAuthProxyModeIngressAnnotations).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
 
-	sut := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, expectedDnsZone, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
+	sut := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, c, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
 	actualError := sut.Sync(context.Background(), "", expectedDnsAlias.Name)
 	s.Equal(expectedError, actualError)
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
-	expectedDnsZone := "any.zone.com"
+	c := config.Config{
+		DNSZone: "any.zone.com",
+	}
 	expectedOauth2Cfg := defaults.NewMockOAuth2Config(s.MockCtrl)
 	expectedDnsAlias := &radixv1.RadixDNSAlias{
 		ObjectMeta: v1.ObjectMeta{Name: "any-dns-alias"},
@@ -91,9 +94,9 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 	expectedOAuthIngressAnnotations := ingress.GetOAuthAnnotationProviders()
 	expectedOAuthProxyModeIngressAnnotations := ingress.GetOAuthProxyModeAnnotationProviders(ingress.IngressConfiguration{}, expectedTagretNamespace)
 	s.Require().NoError(err)
-	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, expectedDnsZone, expectedOauth2Cfg, expectedComponentIngressAnnotations, expectedOAuthIngressAnnotations, expectedOAuthProxyModeIngressAnnotations).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg, expectedComponentIngressAnnotations, expectedOAuthIngressAnnotations, expectedOAuthProxyModeIngressAnnotations).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
 
-	sut := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, expectedDnsZone, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
+	sut := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, c, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
 	s.NoError(sut.Sync(context.Background(), "", expectedDnsAlias.Name))
 }

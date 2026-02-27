@@ -41,6 +41,9 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 		}
 	}()
 
+	s.KubeInformerFactory.WaitForCacheSync(s.Ctx.Done())
+	s.RadixInformerFactory.WaitForCacheSync(s.Ctx.Done())
+
 	const (
 		appName1       = "any-app1"
 		aliasName      = "alias-alias-1"
@@ -48,7 +51,6 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 		envName1       = "env1"
 		componentName1 = "server1"
 		componentName2 = "server2"
-		dnsZone        = "dev.radix.equinor.com"
 	)
 	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
 		ObjectMeta: metav1.ObjectMeta{Name: appName1, Annotations: map[string]string{}},

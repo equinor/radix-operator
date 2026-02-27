@@ -228,7 +228,7 @@ func (s *syncer) isProxyModeEnabled() bool {
 }
 
 func (s *syncer) getHostName() string {
-	return fmt.Sprintf("%s.%s", s.radixDNSAlias.Name, s.dnsZone)
+	return fmt.Sprintf("%s.%s", s.radixDNSAlias.Name, s.config.DNSZone)
 }
 
 func (s *syncer) getIngressName() string {

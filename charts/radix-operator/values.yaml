@@ -81,6 +81,11 @@ resources:
     memory: 1Gi
 
 ingress:
+  gateway:
+    name: ""
+    namespace: ""
+    sectionName: "https"
+
   certificate:
     automation:
       clusterIssuer: ""

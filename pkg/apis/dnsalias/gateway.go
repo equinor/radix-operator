@@ -39,13 +39,11 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 
 	op, err := controllerutil.CreateOrUpdate(ctx, s.dynamicClient, route, func() error {
 		parentRefs := []gatewayapiv1.ParentReference{{
-			Group: new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
-			Kind:  new(gatewayapiv1.Kind("Gateway")),
-
-			// TODO: Make this configurable
-			Name:        "gateway",
-			Namespace:   new(gatewayapiv1.Namespace("istio-system")),
-			SectionName: new(gatewayapiv1.SectionName("https")),
+			Group:       new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
+			Kind:        new(gatewayapiv1.Kind("Gateway")),
+			Name:        gatewayapiv1.ObjectName(s.config.Gateway.Name),
+			Namespace:   new(gatewayapiv1.Namespace(s.config.Gateway.Namespace)),
+			SectionName: new(gatewayapiv1.SectionName(s.config.Gateway.SectionName)),
 		}}
 
 		route.Labels = kubelabels.Merge(route.Labels, labels.ForDNSAliasComponentGatewayResource(s.radixDNSAlias))

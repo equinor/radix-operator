@@ -55,9 +55,6 @@ type dnsInfo struct {
 
 /*
 	TODO:
-	- config:
-		- gateway cluster issuer name
-		- gateway name and namespace (use in networkpolicy and httproutes and listenersets parentrefs, in both deploy and dnsalias syncer)
 	- tests
 		- Test HTTPRoute and ListenerSet are created when component is public and has external DNS
 		- Test HTTPRoute and ListenerSet are deleted when component is not public anymore
@@ -106,13 +103,11 @@ func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radi
 
 	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, route, func() error {
 		parentRefs := []gatewayapiv1.ParentReference{{
-			Group: new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
-			Kind:  new(gatewayapiv1.Kind("Gateway")),
-
-			// TODO: Make this configurable
-			Name:        "gateway",
-			Namespace:   new(gatewayapiv1.Namespace("istio-system")),
-			SectionName: new(gatewayapiv1.SectionName("https")),
+			Group:       new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
+			Kind:        new(gatewayapiv1.Kind("Gateway")),
+			Name:        gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
+			Namespace:   new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
+			SectionName: new(gatewayapiv1.SectionName(deploy.config.Gateway.SectionName)),
 		}}
 
 		if parentListenerSet != nil {
@@ -239,12 +234,10 @@ func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component ra
 		ls.Labels = kubelabels.Merge(ls.Labels, labels.ForComponentGatewayResources(deploy.registration.Name, component))
 		ls.Spec = gatewayapixv1alpha1.ListenerSetSpec{
 			ParentRef: gatewayapixv1alpha1.ParentGatewayReference{
-				Group: new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
-				Kind:  new(gatewayapiv1.Kind("Gateway")),
-
-				// TODO: Make this configurable
-				Name:      "gateway",
-				Namespace: new(gatewayapiv1.Namespace("istio-system")),
+				Group:     new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
+				Kind:      new(gatewayapiv1.Kind("Gateway")),
+				Name:      gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
+				Namespace: new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
 			},
 			Listeners: listeners,
 		}

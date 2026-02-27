@@ -171,6 +171,14 @@ spec:
               value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
             - name: RADIXOPERATOR_PIPELINE_IMAGE
               value: {{ .Values.radixPipelineRunner.image.repository }}:{{ .Values.radixPipelineRunner.image.tag | default .Chart.AppVersion }}
+
+            - name: RADIXOPERATOR_INGRESS_GATEWAY_NAME
+              value: {{ required "gateway name is required to operate" .Values.ingress.gateway.name }}
+            - name: RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE
+              value: {{ required "gateway namespace is required to operate" .Values.ingress.gateway.namespace }}
+            - name: RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME
+              value: {{ .Values.ingress.gateway.sectionName }}
+
           livenessProbe:
             httpGet:
               path: /healthz

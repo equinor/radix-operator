@@ -9,6 +9,7 @@ import (
 	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -37,12 +38,21 @@ type syncerTestSuite struct {
 	dynamicClient                   client.Client
 	testUtils                       test.Utils
 	promClient                      *prometheusfake.Clientset
-	dnsZone                         string
 	ctrl                            *gomock.Controller
 	oauthConfig                     *defaults.MockOAuth2Config
 	componentIngressAnnotation      *ingress.MockAnnotationProvider
 	oauthIngressAnnotation          *ingress.MockAnnotationProvider
 	oauthProxyModeIngressAnnotation *ingress.MockAnnotationProvider
+	config                          config.Config
+}
+
+var testConfig = config.Config{
+	DNSZone: "dev.radix.equinor.com",
+	Gateway: config.GatewayConfig{
+		Name:        "any-gateway",
+		Namespace:   "any-namespace",
+		SectionName: "any-section",
+	},
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -63,7 +73,7 @@ func (s *syncerTestSuite) setupTest() {
 	s.dynamicClient = test.CreateClient()
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.testUtils = test.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)
-	s.dnsZone = "dev.radix.equinor.com"
+	s.config = testConfig
 	s.ctrl = gomock.NewController(s.T())
 	s.oauthConfig = defaults.NewMockOAuth2Config(s.ctrl)
 	s.componentIngressAnnotation = ingress.NewMockAnnotationProvider(s.ctrl)
@@ -78,7 +88,7 @@ func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dns
 		s.testUtils.GetKubeUtil(),
 		s.radixClient,
 		s.dynamicClient,
-		s.dnsZone,
+		s.config,
 		s.oauthConfig,
 		[]ingress.AnnotationProvider{s.componentIngressAnnotation},
 		[]ingress.AnnotationProvider{s.oauthIngressAnnotation},
@@ -96,7 +106,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
+	sut := dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig, nil, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -109,7 +119,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
+	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig, nil, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -126,7 +136,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.dnsZone, s.oauthConfig, nil, nil, nil)
+	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig, nil, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -204,7 +214,7 @@ func (s *syncerTestSuite) Test_OnSync_Component_IngressSpec() {
 	}}
 	s.ElementsMatch(expectedOwnerReferences, ing.OwnerReferences)
 
-	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.dnsZone)
+	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.DNSZone)
 	expectedIngressSpec := ingress.BuildIngressSpecForComponent(&rd.Spec.Components[0], expectedHostName, "")
 	s.Equal(expectedIngressSpec, ing.Spec)
 }
@@ -267,7 +277,7 @@ func (s *syncerTestSuite) Test_OnSync_Component_ChangeDNSAliasComponent_IngressS
 
 	ing := ingresses.Items[0]
 
-	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.dnsZone)
+	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.DNSZone)
 	expectedIngressSpec := ingress.BuildIngressSpecForComponent(&rd.Spec.Components[1], expectedHostName, "")
 	s.Equal(expectedIngressSpec, ing.Spec)
 }
@@ -340,7 +350,7 @@ func (s *syncerTestSuite) Test_OnSync_ComponentWithOAuth2_IngressSpec() {
 		BlockOwnerDeletion: pointers.Ptr(true),
 	}}
 	expectedLabels := map[string]string(labels.ForDNSAliasComponentIngress(dnsAlias))
-	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.dnsZone)
+	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.DNSZone)
 
 	compIngress, _ := slice.FindFirst(ingresses.Items, func(ing networkingv1.Ingress) bool { return ing.Name == compIngressName })
 	s.Equal(expectedLabels, compIngress.Labels)
@@ -448,7 +458,7 @@ func (s *syncerTestSuite) Test_OnSync_ComponentWithOAuth2_ProxyMode_IngressSpec(
 				BlockOwnerDeletion: pointers.Ptr(true),
 			}}
 			expectedLabels := map[string]string(labels.ForDNSAliasComponentIngress(dnsAlias))
-			expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.dnsZone)
+			expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.DNSZone)
 
 			oauthIngress, _ := slice.FindFirst(ingresses.Items, func(ing networkingv1.Ingress) bool { return ing.Name == oauthIngressName })
 			s.Equal(expectedLabels, oauthIngress.Labels)

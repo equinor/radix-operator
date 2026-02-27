@@ -21,7 +21,7 @@ func (deploy *Deployment) setDefaultNetworkPolicies(ctx context.Context) error {
 	owner := []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
 
 	networkPolicies := []*v1.NetworkPolicy{
-		defaultIngressNetworkPolicy(appName, env, owner),
+		defaultIngressNetworkPolicy(appName, env, owner, deploy.config.Gateway.Name),
 		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.config.DeploymentSyncer.KubernetesAPIPort),
 		allowOauthAuxComponentEgressNetworkPolicy(appName, env, owner),
 	}
@@ -38,7 +38,7 @@ func (deploy *Deployment) setDefaultNetworkPolicies(ctx context.Context) error {
 }
 
 // ref https://github.com/ahmetb/kubernetes-network-policy-recipes/blob/master/04-deny-traffic-from-other-namespaces.md
-func defaultIngressNetworkPolicy(appName, env string, owner []metav1.OwnerReference) *v1.NetworkPolicy {
+func defaultIngressNetworkPolicy(appName, env string, owner []metav1.OwnerReference, gatewayName string) *v1.NetworkPolicy {
 	np := v1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "radix-deny-traffic-from-other-ns",
@@ -61,7 +61,7 @@ func defaultIngressNetworkPolicy(appName, env string, owner []metav1.OwnerRefere
 						// TODO: Make this configurable in helm values
 						createSelector(map[string]string{"app.kubernetes.io/name": "ingress-nginx"}, map[string]string{"purpose": "radix-base-ns"}),
 						createSelector(map[string]string{"app.kubernetes.io/name": "prometheus"}, map[string]string{"purpose": "radix-base-ns"}),
-						createSelector(map[string]string{"gateway.networking.k8s.io/gateway-name": "gateway"}, map[string]string{"purpose": "radix-base-ns"}),
+						createSelector(map[string]string{"gateway.networking.k8s.io/gateway-name": gatewayName}, map[string]string{"purpose": "radix-base-ns"}),
 					},
 				},
 			},

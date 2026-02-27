@@ -225,4 +225,12 @@ const (
 
 	// RadixGithubWorkspaceEnvironmentVariable Path to a cloned GitHub repository
 	RadixGithubWorkspaceEnvironmentVariable = "RADIX_GITHUB_WORKSPACE"
+
+	// RadixIngressGatewayNameVariable The name of the gateway to use for ingress
+	RadixIngressGatewayNameVariable = "RADIXOPERATOR_INGRESS_GATEWAY_NAME"
+
+	// RadixIngressGatewayNamespaceVariable The namespace of the gateway to use for ingress
+	RadixIngressGatewayNamespaceVariable = "RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE"
+
+	RadixIngressGatewaySectionNameVariable = "RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME"
 )

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
@@ -13,7 +14,7 @@ import (
 
 // SyncerFactory defines a factory to create a DNS alias Syncer
 type SyncerFactory interface {
-	CreateSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, dnsZone string, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotation []ingress.AnnotationProvider) dnsaliasapi.Syncer
+	CreateSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotation []ingress.AnnotationProvider) dnsaliasapi.Syncer
 }
 
 // SyncerFactoryFunc is an adapter that can be used to convert
@@ -24,7 +25,7 @@ type SyncerFactoryFunc func(
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
 	dynamicClient client.Client,
-	dnsZone string,
+	config config.Config,
 	oauth2Config defaults.OAuth2Config,
 	componentIngressAnnotations []ingress.AnnotationProvider,
 	oauthIngressAnnotations []ingress.AnnotationProvider,
@@ -32,6 +33,6 @@ type SyncerFactoryFunc func(
 ) dnsaliasapi.Syncer
 
 // CreateSyncer Create a DNS alias Syncer
-func (f SyncerFactoryFunc) CreateSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, dnsZone string, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotation []ingress.AnnotationProvider) dnsaliasapi.Syncer {
-	return f(radixDNSAlias, kubeClient, kubeUtil, radixClient, dynamicClient, dnsZone, oauth2Config, componentIngressAnnotations, oauthIngressAnnotations, oauthProxyModeIngressAnnotation)
+func (f SyncerFactoryFunc) CreateSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotation []ingress.AnnotationProvider) dnsaliasapi.Syncer {
+	return f(radixDNSAlias, kubeClient, kubeUtil, radixClient, dynamicClient, config, oauth2Config, componentIngressAnnotations, oauthIngressAnnotations, oauthProxyModeIngressAnnotation)
 }
