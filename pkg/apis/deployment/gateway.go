@@ -52,15 +52,10 @@ type dnsInfo struct {
 	dnsType      dnsType
 	resourceName string
 }
-
 /*
-	TODO:
-	- tests
-		- Test HTTPRoute and ListenerSet are created when component is public and has external DNS
-		- Test HTTPRoute and ListenerSet are deleted when component is not public anymore
-		- Test HTTPRoute and ListenerSet are updated when DNS is changed (ExternalDNS, DnsAppAlias)
-		- Test HTTPRoute and ListenerSet are garbage collected when component is removed from spec
-		- Test When Oauth2 is enabled/disabled, correct backend reference is set in HTTPRoute
+	TODO: 
+	 - Test Network Policy is using correct pod and namespace selector for Gateway resource
+	 - Check correct usage of ClusterIssuer in deploy.createOrUpdateExternalDnsCertificate()
 */
 
 func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
