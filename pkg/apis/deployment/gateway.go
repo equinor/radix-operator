@@ -52,10 +52,10 @@ type dnsInfo struct {
 	dnsType      dnsType
 	resourceName string
 }
+
 /*
-	TODO: 
+	TODO:
 	 - Test Network Policy is using correct pod and namespace selector for Gateway resource
-	 - Check correct usage of ClusterIssuer in deploy.createOrUpdateExternalDnsCertificate()
 */
 
 func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {

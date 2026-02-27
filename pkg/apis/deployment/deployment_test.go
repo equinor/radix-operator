@@ -5020,6 +5020,97 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 	assert.ErrorContains(t, syncer.OnSync(context.Background()), "cluster issuer not set in certificate automation config")
 }
 
+func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
+	fqdn := "any.example.com"
+	clusterIssuer := "standard-issuer"
+	gatewayClusterIssuer := "gateway-issuer"
+	envName := "dev"
+
+	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+
+	cfg := &config.Config{
+		CertificateAutomation: certificateconfig.AutomationConfig{
+			ClusterIssuer:        clusterIssuer,
+			GatewayClusterIssuer: gatewayClusterIssuer,
+			Duration:             10000 * time.Hour,
+			RenewBefore:          1000 * time.Hour,
+		},
+	}
+
+	t.Run("uses ClusterIssuer when gateway API is not enabled", func(t *testing.T) {
+		rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
+		rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment(envName).WithComponent(
+			utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+		).BuildRD()
+		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+		require.NoError(t, err)
+		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+		require.NoError(t, syncer.OnSync(context.Background()))
+		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, clusterIssuer, cert.Spec.IssuerRef.Name)
+	})
+
+	t.Run("uses GatewayClusterIssuer when gateway API is enabled via RD annotation", func(t *testing.T) {
+		rr := utils.NewRegistrationBuilder().WithName("app2").BuildRR()
+		rd := utils.NewDeploymentBuilder().WithAppName("app2").WithEnvironment(envName).
+			WithAnnotations(map[string]string{annotations.PreviewGatewayModeAnnotation: envName}).
+			WithComponent(
+				utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+			).BuildRD()
+		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+		require.NoError(t, err)
+		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app2", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+		require.NoError(t, syncer.OnSync(context.Background()))
+		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app2", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, gatewayClusterIssuer, cert.Spec.IssuerRef.Name)
+	})
+
+	t.Run("uses GatewayClusterIssuer when gateway API is enabled via RR annotation", func(t *testing.T) {
+		rr := utils.NewRegistrationBuilder().WithName("app3").WithAnnotations(map[string]string{annotations.PreviewGatewayModeAnnotation: envName}).BuildRR()
+		rd := utils.NewDeploymentBuilder().WithAppName("app3").WithEnvironment(envName).WithComponent(
+			utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+		).BuildRD()
+		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+		require.NoError(t, err)
+		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app3", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+		require.NoError(t, syncer.OnSync(context.Background()))
+		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app3", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, gatewayClusterIssuer, cert.Spec.IssuerRef.Name)
+	})
+
+	t.Run("uses ClusterIssuer when gateway API annotation targets different environment", func(t *testing.T) {
+		rr := utils.NewRegistrationBuilder().WithName("app4").BuildRR()
+		rd := utils.NewDeploymentBuilder().WithAppName("app4").WithEnvironment(envName).
+			WithAnnotations(map[string]string{annotations.PreviewGatewayModeAnnotation: "other-env"}).
+			WithComponent(
+				utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+			).BuildRD()
+		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+		require.NoError(t, err)
+		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app4", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+		require.NoError(t, syncer.OnSync(context.Background()))
+		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app4", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, clusterIssuer, cert.Spec.IssuerRef.Name)
+	})
+}
+
 func Test_ExternalDNS_GarbageCollectResourceNoLongerInSpec(t *testing.T) {
 	appName, envName := "anyapp", "anyenv"
 	ns := utils.GetEnvironmentNamespace(appName, envName)
