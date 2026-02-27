@@ -191,7 +191,7 @@ func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component ra
 			return nil, fmt.Errorf("failed to delete ListenerSet %s: %w", ls.Name, err)
 		}
 		if err == nil {
-			logger.Info().Str("xlisternerset", ls.Name).Str("op", "delete").Msg("reconcile XListenerSet")
+			logger.Info().Str("xlistenerset", ls.Name).Str("op", "delete").Msg("reconcile XListenerSet")
 		}
 
 		return nil, nil
@@ -241,7 +241,7 @@ func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component ra
 	}
 
 	if op != controllerutil.OperationResultNone {
-		logger.Info().Str("xlisternerset", ls.Name).Str("op", string(op)).Msg("reconcile XListenerSet")
+		logger.Info().Str("xlistenerset", ls.Name).Str("op", string(op)).Msg("reconcile XListenerSet")
 	}
 
 	return ls, nil
@@ -360,7 +360,7 @@ func (deploy *Deployment) garbageCollectListenerSetsNoLongerInSpec(ctx context.C
 				return fmt.Errorf("failed to delete XListenerSet %s: %w", ls.Name, err)
 			}
 			if err == nil {
-				log.Ctx(ctx).Info().Str("xlisternerset", ls.Name).Str("op", "delete").Msg("garbage collect XListenerSet no longer in spec")
+				log.Ctx(ctx).Info().Str("xlistenerset", ls.Name).Str("op", "delete").Msg("garbage collect XListenerSet no longer in spec")
 			}
 		}
 	}
