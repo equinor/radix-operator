@@ -56,7 +56,6 @@ type dnsInfo struct {
 /*
 	TODO:
 	- Copy annotation from RA to RD on Deploy+Promote steps in Pipeline
-	- implement gateway in RadixDNSAlias, make sure to never reconcile HTTPRoute with Component Name (Test added/removed/changed DNSAlias)
 	- config:
 		- gateway cluster issuer name
 		- gateway name and namespace (use in networkpolicy and httproutes and listenersets parentrefs, in both deploy and dnsalias syncer)
