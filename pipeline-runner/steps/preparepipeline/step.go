@@ -369,12 +369,12 @@ func getBuildDeployPipelineShouldBeStopped(pipelineInfo *model.PipelineInfo) (bo
 
 func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Context, pipelineInfo *model.PipelineInfo) {
 	stringBuilder := strings.Builder{}
-	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for the app %s", pipelineInfo.Definition.Type, step.GetAppName()))
+	fmt.Fprintf(&stringBuilder, "Prepare pipeline %s for the app %s", pipelineInfo.Definition.Type, step.GetAppName())
 	if len(pipelineInfo.GetGitRefOrDefault()) > 0 {
-		stringBuilder.WriteString(fmt.Sprintf(", the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault()))
+		fmt.Fprintf(&stringBuilder, ", the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault())
 	}
 	if len(pipelineInfo.PipelineArguments.CommitID) > 0 {
-		stringBuilder.WriteString(fmt.Sprintf(", the commit %s", pipelineInfo.PipelineArguments.CommitID))
+		fmt.Fprintf(&stringBuilder, ", the commit %s", pipelineInfo.PipelineArguments.CommitID)
 	}
 	log.Ctx(ctx).Info().Msg(stringBuilder.String())
 }

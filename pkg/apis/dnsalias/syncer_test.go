@@ -14,7 +14,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
-	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -36,7 +35,7 @@ type syncerTestSuite struct {
 	kubeClient                      *kubefake.Clientset
 	radixClient                     *radixfake.Clientset
 	dynamicClient                   client.Client
-	testUtils                       commontest.Utils
+	testUtils                       test.Utils
 	promClient                      *prometheusfake.Clientset
 	dnsZone                         string
 	ctrl                            *gomock.Controller
@@ -63,7 +62,7 @@ func (s *syncerTestSuite) setupTest() {
 	s.radixClient = radixfake.NewSimpleClientset()
 	s.dynamicClient = test.CreateClient()
 	s.promClient = prometheusfake.NewSimpleClientset()
-	s.testUtils = commontest.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)
+	s.testUtils = test.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)
 	s.dnsZone = "dev.radix.equinor.com"
 	s.ctrl = gomock.NewController(s.T())
 	s.oauthConfig = defaults.NewMockOAuth2Config(s.ctrl)

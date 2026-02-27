@@ -95,7 +95,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 
 	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromDeploymentAnnotation] = rd.GetName()
 	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromEnvironmentAnnotation] = pipelineInfo.PipelineArguments.FromEnvironment
-	
+
 	// NB! To be removed: https://github.com/equinor/radix-platform/issues/1822
 	if previewOAuthAnnotation := radixApplication.GetObjectMeta().GetAnnotations()[annotations.PreviewOAuth2ProxyModeAnnotation]; previewOAuthAnnotation != "" {
 		radixDeployment.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] = previewOAuthAnnotation

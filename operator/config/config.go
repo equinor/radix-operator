@@ -87,9 +87,9 @@ func NewConfig() *apiconfig.Config {
 		},
 		CertificateAutomation: certificateconfig.AutomationConfig{
 			GatewayClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationGatewayClusterIssuerVariable),
-			ClusterIssuer: viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
-			Duration:      viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
-			RenewBefore:   viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),
+			ClusterIssuer:        viper.GetString(defaults.RadixCertificateAutomationClusterIssuerVariable),
+			Duration:             viper.GetDuration(defaults.RadixCertificateAutomationDurationVariable),
+			RenewBefore:          viper.GetDuration(defaults.RadixCertificateAutomationRenewBeforeVariable),
 		},
 		DeploymentSyncer: deployment.SyncerConfig{
 			TenantID:               viper.GetString(defaults.OperatorTenantIdEnvironmentVariable),
