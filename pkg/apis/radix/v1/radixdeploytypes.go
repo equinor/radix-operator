@@ -343,7 +343,7 @@ func (deployComponent *RadixDeployComponent) GetPublicPortNumber() (int32, bool)
 		return 0, false
 	}
 
-	if len(deployComponent.PublicPort) == 0 || len(deployComponent.Ports) == 0 {
+	if len(deployComponent.Ports) == 0 {
 		return 0, false
 	}
 
@@ -357,8 +357,11 @@ func (deployComponent *RadixDeployComponent) GetPublicPortNumber() (int32, bool)
 		return 0, false
 	}
 
-	// Use deprecated Public field for backwards compatibility
-	return deployComponent.Ports[0].Port, true
+	if deployComponent.Public {
+		return deployComponent.Ports[0].Port, true
+	}
+
+	return 0, false
 }
 
 func (deployComponent *RadixDeployComponent) IsPublic() bool {

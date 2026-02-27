@@ -62,6 +62,7 @@ func Test_RadixDeployComponent_GetPublicPortNumber(t *testing.T) {
 		"PublicPort matches a port": {
 			component: &v1.RadixDeployComponent{
 				PublicPort: "http",
+				Public:     true,
 				Ports:      []v1.ComponentPort{{Name: "http", Port: 8080}},
 			},
 			expectedPort: 8080,
@@ -70,6 +71,7 @@ func Test_RadixDeployComponent_GetPublicPortNumber(t *testing.T) {
 		"PublicPort matches second port": {
 			component: &v1.RadixDeployComponent{
 				PublicPort: "http",
+				Public:     true,
 				Ports:      []v1.ComponentPort{{Name: "metrics", Port: 9090}, {Name: "http", Port: 8080}},
 			},
 			expectedPort: 8080,
@@ -87,6 +89,29 @@ func Test_RadixDeployComponent_GetPublicPortNumber(t *testing.T) {
 			component: &v1.RadixDeployComponent{
 				PublicPort: "http",
 				Ports:      []v1.ComponentPort{},
+			},
+			expectedPort: 0,
+			expectedOk:   false,
+		},
+		"deprecated Public true returns first port": {
+			component: &v1.RadixDeployComponent{
+				Public: true,
+				Ports:  []v1.ComponentPort{{Name: "http", Port: 8080}, {Name: "metrics", Port: 9090}},
+			},
+			expectedPort: 8080,
+			expectedOk:   true,
+		},
+		"deprecated Public false with ports returns not ok": {
+			component: &v1.RadixDeployComponent{
+				Public: false,
+				Ports:  []v1.ComponentPort{{Name: "http", Port: 8080}},
+			},
+			expectedPort: 0,
+			expectedOk:   false,
+		},
+		"ports defined but not public": {
+			component: &v1.RadixDeployComponent{
+				Ports: []v1.ComponentPort{{Name: "http", Port: 8080}},
 			},
 			expectedPort: 0,
 			expectedOk:   false,
