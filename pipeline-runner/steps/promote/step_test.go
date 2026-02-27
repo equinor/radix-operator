@@ -15,6 +15,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -968,4 +969,112 @@ func TestPromote_Runtime_KeepFromSourceRD(t *testing.T) {
 	assert.Nil(t, job1Prod.Runtime, "%s should use Runtime from source RD", job1Prod.Name)
 	assert.Equal(t, &v1.Runtime{Architecture: "job2arch"}, job2Prod.Runtime, "%s should use Runtime from source RD", job2Prod.Name)
 
+}
+
+func TestPromote_PreviewAnnotationsCopiedFromRadixApplication(t *testing.T) {
+	const (
+		appName        = "any-app"
+		deploymentName = "deployment-1"
+		imageTag       = "abcdef"
+		jobName        = "any-promote-job"
+		devEnv         = "dev"
+		prodEnv        = "prod"
+	)
+
+	tests := map[string]struct {
+		raAnnotations                    map[string]string
+		expectedPreviewOAuthAnnotation   string
+		expectedPreviewGatewayAnnotation string
+	}{
+		"no preview annotations on RA": {
+			raAnnotations:                    nil,
+			expectedPreviewOAuthAnnotation:   "",
+			expectedPreviewGatewayAnnotation: "",
+		},
+		"PreviewOAuth2ProxyModeAnnotation set on RA": {
+			raAnnotations:                    map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "env1,env2"},
+			expectedPreviewOAuthAnnotation:   "env1,env2",
+			expectedPreviewGatewayAnnotation: "",
+		},
+		"PreviewGatewayModeAnnotation set on RA": {
+			raAnnotations:                    map[string]string{annotations.PreviewGatewayModeAnnotation: "env1"},
+			expectedPreviewOAuthAnnotation:   "",
+			expectedPreviewGatewayAnnotation: "env1",
+		},
+		"both preview annotations set on RA": {
+			raAnnotations:                    map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "env1", annotations.PreviewGatewayModeAnnotation: "*"},
+			expectedPreviewOAuthAnnotation:   "env1",
+			expectedPreviewGatewayAnnotation: "*",
+		},
+		"empty preview annotations on RA are not copied": {
+			raAnnotations:                    map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "", annotations.PreviewGatewayModeAnnotation: ""},
+			expectedPreviewOAuthAnnotation:   "",
+			expectedPreviewGatewayAnnotation: "",
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			kubeclient, radixclient, commonTestUtils := setupTest(t)
+
+			_, err := commonTestUtils.ApplyDeployment(
+				context.Background(),
+				utils.ARadixDeployment().
+					WithRadixApplication(
+						utils.NewRadixApplicationBuilder().
+							WithRadixRegistration(utils.ARadixRegistration().WithName(appName)).
+							WithAppName(appName).
+							WithEnvironment(devEnv, "master").
+							WithEnvironment(prodEnv, "").
+							WithComponents(utils.AnApplicationComponent().WithName("app")).
+							WithJobComponents(utils.AnApplicationJobComponent().WithName("job").WithSchedulerPort(8080))).
+					WithAppName(appName).
+					WithDeploymentName(deploymentName).
+					WithEnvironment(devEnv).
+					WithImageTag(imageTag))
+			require.NoError(t, err)
+
+			commonTest.CreateEnvNamespace(kubeclient, appName, prodEnv)
+
+			// Set preview annotations on the RadixApplication
+			ra, err := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Get(context.Background(), appName, metav1.GetOptions{})
+			require.NoError(t, err)
+			if tt.raAnnotations != nil {
+				if ra.Annotations == nil {
+					ra.Annotations = make(map[string]string)
+				}
+				for k, v := range tt.raAnnotations {
+					ra.Annotations[k] = v
+				}
+				ra, err = radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Update(context.Background(), ra, metav1.UpdateOptions{})
+				require.NoError(t, err)
+			}
+
+			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
+			cli := promote.NewPromoteStep()
+			cli.Init(context.Background(), kubeclient, radixclient, nil, nil, rr)
+
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					FromEnvironment: devEnv,
+					ToEnvironment:   prodEnv,
+					DeploymentName:  deploymentName,
+					JobName:         jobName,
+					ImageTag:        imageTag,
+					CommitID:        anyCommitID,
+				},
+			}
+
+			err = cli.Run(context.Background(), pipelineInfo)
+			require.NoError(t, err)
+
+			rds, err := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, prodEnv)).List(context.Background(), metav1.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, rds.Items, 1)
+
+			rd := rds.Items[0]
+			assert.Equal(t, tt.expectedPreviewOAuthAnnotation, rd.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation])
+			assert.Equal(t, tt.expectedPreviewGatewayAnnotation, rd.Annotations[annotations.PreviewGatewayModeAnnotation])
+		})
+	}
 }
