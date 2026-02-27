@@ -64,6 +64,10 @@ func addEventHandlersForRadixRegistrations(ctx context.Context, radixInformerFac
 			if oldRR.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] == newRR.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] {
 				return // updating RadixRegistration has the same resource version. Do nothing.
 			}
+			if oldRR.Annotations[annotations.PreviewGatewayModeAnnotation] == newRR.Annotations[annotations.PreviewGatewayModeAnnotation] {
+				return // updating RadixRegistration has the same resource version. Do nothing.
+			}
+
 			enqueueRadixDNSAliasesForAppName(ctx, controller, radixClient, newRR.GetName(), logger)
 		},
 	}); err != nil {

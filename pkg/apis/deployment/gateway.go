@@ -55,7 +55,6 @@ type dnsInfo struct {
 
 /*
 	TODO:
-	- Copy annotation from RA to RD on Deploy+Promote steps in Pipeline
 	- config:
 		- gateway cluster issuer name
 		- gateway name and namespace (use in networkpolicy and httproutes and listenersets parentrefs, in both deploy and dnsalias syncer)
