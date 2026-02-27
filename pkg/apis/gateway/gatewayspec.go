@@ -24,7 +24,7 @@ func BuildBackendRefForComponent(component radixv1.RadixCommonDeployComponent) (
 	return createBackendRef(component.GetName(), servicePort), nil
 }
 
-// BuildBackendRefForComponent Builds backend reference for a component
+// BuildBackendRefForComponentOauth2Service Builds backend reference for a component's OAuth2 service
 func BuildBackendRefForComponentOauth2Service(component radixv1.RadixCommonDeployComponent) gatewayapiv1.HTTPBackendRef {
 	serviceName := utils.GetAuxOAuthProxyComponentServiceName(component.GetName())
 	return createBackendRef(serviceName, defaults.OAuthProxyPortNumber)
