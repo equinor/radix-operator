@@ -177,7 +177,7 @@ func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component ra
 	logger := log.Ctx(ctx)
 	var hosts []dnsInfo
 
-	logger.Debug().Msgf("Reconciling HTTPRoute for component %s", component.GetName())
+	logger.Debug().Msgf("Reconciling ListenerSet for component %s", component.GetName())
 
 	if component.IsPublic() {
 		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)
