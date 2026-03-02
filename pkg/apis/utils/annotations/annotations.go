@@ -17,6 +17,7 @@ const (
 	// PreviewOAuth2ProxyModeAnnotation is used to indicate if the preview OAuth2 proxy mode is enabled.
 	// Comma separated list of target environments where its enabled.
 	PreviewOAuth2ProxyModeAnnotation = "radix.equinor.com/preview-oauth2-proxy-mode"
+	PreviewGatewayModeAnnotation     = "radix.equinor.com/preview-gateway-mode"
 )
 
 // Merge multiple maps into one
@@ -71,6 +72,28 @@ func OAuth2ProxyModeEnabledForEnvironment(annotations map[string]string, current
 		return false
 	}
 	targetEnvs, exists := annotations[PreviewOAuth2ProxyModeAnnotation]
+	if !exists {
+		return false
+	}
+
+	if targetEnvs == "*" {
+		return true
+	}
+
+	for targetEnv := range strings.SplitSeq(targetEnvs, ",") {
+		if strings.TrimSpace(targetEnv) == currentEnv {
+			return true
+		}
+	}
+	return false
+}
+
+// GatewayAPIEnabledForEnvironment checks if the preview gateway mode is enabled for a given environment
+func GatewayAPIEnabledForEnvironment(annotations map[string]string, currentEnv string) bool {
+	if annotations == nil {
+		return false
+	}
+	targetEnvs, exists := annotations[PreviewGatewayModeAnnotation]
 	if !exists {
 		return false
 	}

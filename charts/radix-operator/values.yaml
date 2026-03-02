@@ -81,11 +81,17 @@ resources:
     memory: 1Gi
 
 ingress:
+  gateway:
+    name: ""
+    namespace: ""
+    sectionName: "https"
+
   certificate:
     automation:
       clusterIssuer: ""
       duration: "2160h"
       renewBefore: "720h"
+      gatewayClusterIssuer: ""
   configuration:
     - name: websocketfriendly
       annotations:

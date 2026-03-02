@@ -95,10 +95,15 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 
 	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromDeploymentAnnotation] = rd.GetName()
 	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromEnvironmentAnnotation] = pipelineInfo.PipelineArguments.FromEnvironment
+
 	// NB! To be removed: https://github.com/equinor/radix-platform/issues/1822
-	if previewAnnotation := radixApplication.GetObjectMeta().GetAnnotations()[annotations.PreviewOAuth2ProxyModeAnnotation]; previewAnnotation != "" {
-		radixDeployment.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] = previewAnnotation
+	if previewOAuthAnnotation := radixApplication.GetObjectMeta().GetAnnotations()[annotations.PreviewOAuth2ProxyModeAnnotation]; previewOAuthAnnotation != "" {
+		radixDeployment.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] = previewOAuthAnnotation
 	}
+	if previewGatewayAnnotation := radixApplication.GetObjectMeta().GetAnnotations()[annotations.PreviewGatewayModeAnnotation]; previewGatewayAnnotation != "" {
+		radixDeployment.Annotations[annotations.PreviewGatewayModeAnnotation] = previewGatewayAnnotation
+	}
+
 	radixDeployment.ResourceVersion = ""
 	radixDeployment.Namespace = toNs
 	radixDeployment.Labels[kube.RadixEnvLabel] = pipelineInfo.PipelineArguments.ToEnvironment

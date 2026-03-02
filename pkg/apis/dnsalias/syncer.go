@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -14,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -31,9 +33,9 @@ type Syncer interface {
 type syncer struct {
 	kubeClient                       kubernetes.Interface
 	radixClient                      radixclient.Interface
+	dynamicClient                    client.Client
 	kubeUtil                         *kube.Kube
 	radixDNSAlias                    *radixv1.RadixDNSAlias
-	dnsZone                          string
 	oauth2DefaultConfig              defaults.OAuth2Config
 	componentIngressAnnotations      []ingress.AnnotationProvider
 	oauthIngressAnnotations          []ingress.AnnotationProvider
@@ -42,15 +44,17 @@ type syncer struct {
 	rr                               *radixv1.RadixRegistration
 	component                        *radixv1.RadixDeployComponent
 	initMutex                        sync.Mutex
+	config                           config.Config
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dnsZone string, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotations []ingress.AnnotationProvider) Syncer {
+func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotations []ingress.AnnotationProvider) Syncer {
 	return &syncer{
 		kubeClient:                       kubeClient,
 		radixClient:                      radixClient,
+		dynamicClient:                    dynamicClient,
 		kubeUtil:                         kubeUtil,
-		dnsZone:                          dnsZone,
+		config:                           config,
 		oauth2DefaultConfig:              oauth2Config,
 		componentIngressAnnotations:      componentIngressAnnotations,
 		oauthIngressAnnotations:          oauthIngressAnnotations,
@@ -74,8 +78,20 @@ func (s *syncer) OnSync(ctx context.Context) error {
 		return fmt.Errorf("failed to init: %w", err)
 	}
 
-	return s.syncStatus(ctx, s.syncIngresses(ctx))
+	return s.syncStatus(ctx, s.reconcile(ctx))
 
+}
+
+func (s *syncer) reconcile(ctx context.Context) error {
+	if err := s.syncIngresses(ctx); err != nil {
+		return fmt.Errorf("failed to reconcile ingresses: %w", err)
+	}
+
+	if err := s.reconcileHTTPRoute(ctx); err != nil {
+		return fmt.Errorf("failed to reconcile HTTPRoute: %w", err)
+	}
+
+	return nil
 }
 
 func (s *syncer) init(ctx context.Context) error {

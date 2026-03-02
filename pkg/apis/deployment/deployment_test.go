@@ -427,7 +427,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
 				t.Parallel()
 				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(context.Background(), metav1.ListOptions{})
-				assert.Equal(t, 4, len(np.Items), "Number of networkpolicy was not expected")
+				assert.Equal(t, 3, len(np.Items), "Number of networkpolicy was not expected")
 			})
 		})
 	}
@@ -741,7 +741,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
 				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(context.Background(), metav1.ListOptions{})
-				assert.Equal(t, 4, len(np.Items), "Number of networkpolicy was not expected")
+				assert.Equal(t, 3, len(np.Items), "Number of networkpolicy was not expected")
 			})
 		})
 	}
@@ -4240,7 +4240,7 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	defer TeardownTest()
 
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
-	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithDNSAppAlias(true)).BuildRD()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithDNSAppAlias(true)).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
@@ -4287,7 +4287,7 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
-	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080)).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
@@ -4307,7 +4307,7 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
-	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080)).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
@@ -4668,7 +4668,7 @@ func Test_ExternalDNS_Legacy_ResourcesMigrated(t *testing.T) {
 		utils.ARadixDeployment().
 			WithAppName(appName).
 			WithEnvironment(envName).
-			WithComponents(utils.NewDeployComponentBuilder().WithName(compName).WithPublicPort("http").WithExternalDNS(
+			WithComponents(utils.NewDeployComponentBuilder().WithName(compName).WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(
 				radixv1.RadixDeployExternalDNS{FQDN: fqdnManual, UseCertificateAutomation: false},
 				radixv1.RadixDeployExternalDNS{FQDN: fqdnAutomation, UseCertificateAutomation: true},
 			)).
@@ -4946,7 +4946,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	defer TeardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(
-		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
 	).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
@@ -5002,7 +5002,7 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 	defer TeardownTest()
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(
-		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
 	).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
@@ -5018,6 +5018,97 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
 	assert.ErrorContains(t, syncer.OnSync(context.Background()), "cluster issuer not set in certificate automation config")
+}
+
+func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
+	fqdn := "any.example.com"
+	clusterIssuer := "standard-issuer"
+	gatewayClusterIssuer := "gateway-issuer"
+	envName := "dev"
+
+	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+
+	cfg := &config.Config{
+		CertificateAutomation: certificateconfig.AutomationConfig{
+			ClusterIssuer:        clusterIssuer,
+			GatewayClusterIssuer: gatewayClusterIssuer,
+			Duration:             10000 * time.Hour,
+			RenewBefore:          1000 * time.Hour,
+		},
+	}
+
+	t.Run("uses ClusterIssuer when gateway API is not enabled", func(t *testing.T) {
+		rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
+		rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment(envName).WithComponent(
+			utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+		).BuildRD()
+		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+		require.NoError(t, err)
+		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+		require.NoError(t, syncer.OnSync(context.Background()))
+		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, clusterIssuer, cert.Spec.IssuerRef.Name)
+	})
+
+	t.Run("uses GatewayClusterIssuer when gateway API is enabled via RD annotation", func(t *testing.T) {
+		rr := utils.NewRegistrationBuilder().WithName("app2").BuildRR()
+		rd := utils.NewDeploymentBuilder().WithAppName("app2").WithEnvironment(envName).
+			WithAnnotations(map[string]string{annotations.PreviewGatewayModeAnnotation: envName}).
+			WithComponent(
+				utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+			).BuildRD()
+		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+		require.NoError(t, err)
+		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app2", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+		require.NoError(t, syncer.OnSync(context.Background()))
+		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app2", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, gatewayClusterIssuer, cert.Spec.IssuerRef.Name)
+	})
+
+	t.Run("uses GatewayClusterIssuer when gateway API is enabled via RR annotation", func(t *testing.T) {
+		rr := utils.NewRegistrationBuilder().WithName("app3").WithAnnotations(map[string]string{annotations.PreviewGatewayModeAnnotation: envName}).BuildRR()
+		rd := utils.NewDeploymentBuilder().WithAppName("app3").WithEnvironment(envName).WithComponent(
+			utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+		).BuildRD()
+		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+		require.NoError(t, err)
+		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app3", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+		require.NoError(t, syncer.OnSync(context.Background()))
+		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app3", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, gatewayClusterIssuer, cert.Spec.IssuerRef.Name)
+	})
+
+	t.Run("uses ClusterIssuer when gateway API annotation targets different environment", func(t *testing.T) {
+		rr := utils.NewRegistrationBuilder().WithName("app4").BuildRR()
+		rd := utils.NewDeploymentBuilder().WithAppName("app4").WithEnvironment(envName).
+			WithAnnotations(map[string]string{annotations.PreviewGatewayModeAnnotation: "other-env"}).
+			WithComponent(
+				utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
+			).BuildRD()
+		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+		require.NoError(t, err)
+		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app4", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+		require.NoError(t, syncer.OnSync(context.Background()))
+		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app4", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, clusterIssuer, cert.Spec.IssuerRef.Name)
+	})
 }
 
 func Test_ExternalDNS_GarbageCollectResourceNoLongerInSpec(t *testing.T) {

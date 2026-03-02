@@ -132,7 +132,8 @@ func NewController(ctx context.Context,
 				radixutils.ArrayEqualElements(newRr.Spec.AdUsers, oldRr.Spec.AdUsers) &&
 				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) &&
 				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdUsers, oldRr.Spec.ReaderAdUsers) &&
-				oldRr.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] == newRr.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] {
+				oldRr.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] == newRr.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] &&
+				oldRr.Annotations[annotations.PreviewGatewayModeAnnotation] == newRr.Annotations[annotations.PreviewGatewayModeAnnotation] {
 				return
 			}
 

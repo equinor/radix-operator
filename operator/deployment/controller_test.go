@@ -32,6 +32,9 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 		err := sut.Run(s.Ctx, 5)
 		s.Require().NoError(err)
 	}()
+	s.KubeInformerFactory.WaitForCacheSync(s.Ctx.Done())
+	s.RadixInformerFactory.WaitForCacheSync(s.Ctx.Done())
+
 	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
 		ObjectMeta: metav1.ObjectMeta{Name: appName, Annotations: map[string]string{}}},
 		metav1.CreateOptions{})

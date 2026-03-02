@@ -173,15 +173,15 @@ func (step *BuildStepImplementation) getJobOwnerReferences(ctx context.Context, 
 }
 
 func (step *BuildStepImplementation) getJobDescription(job *batchv1.Job) string {
-	builder := strings.Builder{}
-	builder.WriteString(fmt.Sprintf("job %s to build", job.Name))
+	builder := &strings.Builder{}
+	fmt.Fprintf(builder, "job %s to build", job.Name)
 	if componentName, ok := job.GetLabels()[kube.RadixComponentLabel]; ok {
-		builder.WriteString(fmt.Sprintf(" component %s", componentName))
+		fmt.Fprintf(builder, " component %s", componentName)
 	} else {
 		builder.WriteString(" components")
 	}
 	if envName, ok := job.GetLabels()[kube.RadixEnvLabel]; ok {
-		builder.WriteString(fmt.Sprintf(" in environment %s", envName))
+		fmt.Fprintf(builder, " in environment %s", envName)
 	}
 	return builder.String()
 }

@@ -1,6 +1,6 @@
 module github.com/equinor/radix-operator
 
-go 1.25.5
+go 1.26.0
 
 godebug default=go1.24
 
