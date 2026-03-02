@@ -196,6 +196,30 @@ rules:
   - patch
   - delete
   - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - patch
+  - delete
+  - watch  
+- apiGroups:
+  - gateway.networking.x-k8s.io
+  resources:
+  - xlistenersets
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - patch
+  - delete
+  - watch  
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
