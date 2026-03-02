@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	rx "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -22,29 +23,27 @@ const (
 type NetworkPolicy struct {
 	kubeClient kubernetes.Interface
 	kubeUtil   *kube.Kube
-	appName    string
+	config     config.Config
 }
 
 func NewNetworkPolicy(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
-	appName string,
+	config config.Config,
 ) NetworkPolicy {
 	return NetworkPolicy{
 		kubeClient: kubeClient,
 		kubeUtil:   kubeUtil,
-		appName:    appName,
+		config:     config,
 	}
 }
 
 // UpdateEnvEgressRules Applies a list of egress rules to the specified radix app environment
-func (nw *NetworkPolicy) UpdateEnvEgressRules(ctx context.Context, radixEgressRules []rx.EgressRule, allowRadix *bool, env string) error {
-
-	ns := utils.GetEnvironmentNamespace(nw.appName, env)
+func (nw *NetworkPolicy) UpdateEnvEgressRules(ctx context.Context, radixEgressRules []rx.EgressRule, allowRadix *bool, appName, envName string) error {
 
 	// if there are _no_ egress rules defined in radixconfig, and 'allowRadix' is undefined, we delete existing policy
 	if len(radixEgressRules) == 0 && allowRadix == nil {
-		return nw.deleteUserDefinedEgressPolicies(ctx, ns, env)
+		return nw.deleteUserDefinedEgressPolicies(ctx, appName, envName)
 	}
 
 	userDefinedEgressRules := convertToK8sEgressRules(radixEgressRules)
@@ -52,26 +51,27 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(ctx context.Context, radixEgressRu
 	// adding kube-dns and own namespace to user-defined egress rules
 	egressRules := append(userDefinedEgressRules,
 		createAllowKubeDnsEgressRule(),
-		nw.createAllowOwnNamespaceEgressRule(env),
+		nw.createAllowOwnNamespaceEgressRule(appName, envName),
 	)
 
 	if allowRadix != nil && *allowRadix {
-		egressRules = append(egressRules, createAllowRadixEgressRule())
+		egressRules = append(egressRules, createAllowRadixEgressRule(nw.config.Gateway.Name))
 	}
 
-	egressPolicy := nw.createEgressPolicy(env, egressRules, true)
+	egressPolicy := nw.createEgressPolicy(appName, envName, egressRules, true)
 
+	ns := utils.GetEnvironmentNamespace(appName, envName)
 	return nw.kubeUtil.ApplyNetworkPolicy(ctx, egressPolicy, ns)
 }
 
-func (nw *NetworkPolicy) deleteUserDefinedEgressPolicies(ctx context.Context, ns string, env string) error {
-	existingPolicies, err := nw.kubeUtil.ListUserDefinedNetworkPolicies(ctx, nw.appName, env)
+func (nw *NetworkPolicy) deleteUserDefinedEgressPolicies(ctx context.Context, appName, env string) error {
+	existingPolicies, err := nw.kubeUtil.ListUserDefinedNetworkPolicies(ctx, appName, env)
 	if err != nil {
 		return err
 	}
 
 	for _, policy := range existingPolicies.Items {
-		err = nw.kubeClient.NetworkingV1().NetworkPolicies(ns).Delete(ctx, policy.GetName(), metav1.DeleteOptions{})
+		err = nw.kubeClient.NetworkingV1().NetworkPolicies(policy.Namespace).Delete(ctx, policy.GetName(), metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
@@ -80,13 +80,13 @@ func (nw *NetworkPolicy) deleteUserDefinedEgressPolicies(ctx context.Context, ns
 	return nil
 }
 
-func (nw *NetworkPolicy) createAllowOwnNamespaceEgressRule(env string) v1.NetworkPolicyEgressRule {
+func (nw *NetworkPolicy) createAllowOwnNamespaceEgressRule(appName, env string) v1.NetworkPolicyEgressRule {
 	ownNamespaceEgressRule := v1.NetworkPolicyEgressRule{
 		Ports: nil, // allowing all ports
 		To: []v1.NetworkPolicyPeer{{
 			NamespaceSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					kube.RadixAppLabel: nw.appName,
+					kube.RadixAppLabel: appName,
 					kube.RadixEnvLabel: env,
 				},
 			},
@@ -96,12 +96,12 @@ func (nw *NetworkPolicy) createAllowOwnNamespaceEgressRule(env string) v1.Networ
 	return ownNamespaceEgressRule
 }
 
-func (nw *NetworkPolicy) createEgressPolicy(env string, egressRules []v1.NetworkPolicyEgressRule, isUserDefined bool) *v1.NetworkPolicy {
+func (nw *NetworkPolicy) createEgressPolicy(appName, env string, egressRules []v1.NetworkPolicyEgressRule, isUserDefined bool) *v1.NetworkPolicy {
 	np := v1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: userDefinedEgressPolicyName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:                      nw.appName,
+				kube.RadixAppLabel:                      appName,
 				kube.RadixEnvLabel:                      env,
 				kube.RadixUserDefinedNetworkPolicyLabel: strconv.FormatBool(isUserDefined),
 			},
@@ -185,7 +185,7 @@ func createAllowKubeDnsEgressRule() v1.NetworkPolicyEgressRule {
 	return dnsEgressRule
 }
 
-func createAllowRadixEgressRule() v1.NetworkPolicyEgressRule {
+func createAllowRadixEgressRule(gatewayName string) v1.NetworkPolicyEgressRule {
 	var tcp = corev1.ProtocolTCP
 	var udp = corev1.ProtocolUDP
 
@@ -216,13 +216,24 @@ func createAllowRadixEgressRule() v1.NetworkPolicyEgressRule {
 				},
 			},
 		},
-		To: []v1.NetworkPolicyPeer{{
-			PodSelector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app.kubernetes.io/name": "ingress-nginx"},
+		To: []v1.NetworkPolicyPeer{
+			{
+				PodSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"app.kubernetes.io/name": "ingress-nginx"},
+				},
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"purpose": "radix-base-ns"},
+				},
 			},
-			// empty namespaceSelector is necessary for podSelector to work
-			NamespaceSelector: &metav1.LabelSelector{},
-		}},
+			{
+				PodSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"gateway.networking.k8s.io/gateway-name": gatewayName},
+				},
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"purpose": "radix-base-ns"},
+				},
+			},
+		},
 	}
 
 	return httpToRadixEgressRule

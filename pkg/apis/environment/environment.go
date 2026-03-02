@@ -89,7 +89,7 @@ func (env *Environment) reconcile(ctx context.Context) error {
 	if err := env.applyLimitRange(ctx); err != nil {
 		return fmt.Errorf("failed to apply limit range: %w", err)
 	}
-	if err := env.networkPolicy.UpdateEnvEgressRules(ctx, env.config.Spec.Egress.Rules, env.config.Spec.Egress.AllowRadix, env.config.Spec.EnvName); err != nil {
+	if err := env.networkPolicy.UpdateEnvEgressRules(ctx, env.config.Spec.Egress.Rules, env.config.Spec.Egress.AllowRadix, env.config.Spec.AppName, env.config.Spec.EnvName); err != nil {
 		return fmt.Errorf("failed to add egress rules: %w", err)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
@@ -15,6 +16,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,6 +41,12 @@ const (
 	limitDefaultReqestMemory = "123M" // 123'000'000
 )
 
+var testCfg config.Config = config.Config{
+	Gateway: config.GatewayConfig{
+		Name: "any-gateway-name",
+	},
+}
+
 func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, *radix.Clientset) {
 	fakekube := fake.NewSimpleClientset()
 	fakeradix := radix.NewSimpleClientset()
@@ -58,7 +66,7 @@ func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, *radix.Cl
 func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, radixEnvFileName string) (*radixv1.RadixRegistration, *radixv1.RadixEnvironment, Environment, error) {
 	rr := test.Load[*radixv1.RadixRegistration](regConfigFileName)
 	re := test.Load[*radixv1.RadixEnvironment](radixEnvFileName)
-	nw := networkpolicy.NewNetworkPolicy(client, kubeUtil, re.Spec.AppName)
+	nw := networkpolicy.NewNetworkPolicy(client, kubeUtil, testCfg)
 	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
 	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{}); err != nil {
@@ -76,7 +84,7 @@ func Test_ReconcileStatus(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42},
 		Spec:       radixv1.RadixEnvironmentSpec{AppName: "any-app", EnvName: "any-env"},
 	}
-	np := networkpolicy.NewNetworkPolicy(client, kubeUtil, "")
+	np := networkpolicy.NewNetworkPolicy(client, kubeUtil, config.Config{})
 	re, err := radixClient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{})
 	require.NoError(t, err)
 

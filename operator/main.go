@@ -333,6 +333,7 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		*a.config,
 		a.eventRecorder,
 	)
 
