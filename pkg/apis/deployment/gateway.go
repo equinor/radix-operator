@@ -70,9 +70,8 @@ func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radi
 	logger := log.Ctx(ctx)
 	var hosts []dnsInfo
 
-	// When everyone is using proxy mode, or its enforced, cleanup this code (https://github.com/equinor/radix-platform/issues/1822)
 	oauth2enabled := component.GetAuthentication().GetOAuth2() != nil
-	logger.Debug().Msgf("Reconciling ingresses for component %s. OAuth2 enabled: %t", component.GetName(), oauth2enabled)
+	logger.Debug().Msgf("Reconciling HTTPRoute for component %s. OAuth2 enabled: %t", component.GetName(), oauth2enabled)
 
 	if component.IsPublic() {
 		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)
@@ -177,6 +176,8 @@ func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radi
 func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component radixv1.RadixCommonDeployComponent) (*gatewayapixv1alpha1.XListenerSet, error) {
 	logger := log.Ctx(ctx)
 	var hosts []dnsInfo
+
+	logger.Debug().Msgf("Reconciling HTTPRoute for component %s", component.GetName())
 
 	if component.IsPublic() {
 		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)

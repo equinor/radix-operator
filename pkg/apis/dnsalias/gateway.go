@@ -19,7 +19,6 @@ import (
 func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 	logger := log.Ctx(ctx)
 
-	// When everyone is using proxy mode, or its enforced, cleanup this code (https://github.com/equinor/radix-platform/issues/1822)
 	namespace := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
 	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: s.getIngressName(), Namespace: namespace}}
 
