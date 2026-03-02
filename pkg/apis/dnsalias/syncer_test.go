@@ -822,7 +822,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
 	s.Require().NotNil(route.Spec.Rules[0].Filters[0].ResponseHeaderModifier)
 	s.Require().Len(route.Spec.Rules[0].Filters[0].ResponseHeaderModifier.Add, 1)
 	s.Equal(gatewayapiv1.HTTPHeaderName("Strict-Transport-Security"), route.Spec.Rules[0].Filters[0].ResponseHeaderModifier.Add[0].Name)
-	s.Equal("max-age=31536000; includeSubDomains; preload", route.Spec.Rules[0].Filters[0].ResponseHeaderModifier.Add[0].Value)
+	s.Equal("max-age=31536000; includeSubDomains", route.Spec.Rules[0].Filters[0].ResponseHeaderModifier.Add[0].Value)
 }
 
 func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_WithOAuth2() {

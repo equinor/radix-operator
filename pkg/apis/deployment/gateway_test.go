@@ -228,6 +228,7 @@ func (s *GatewayTestSuite) TestHTTPRouteAndListenerSetCreated_PublicComponentWit
 	s.Require().NotNil(route.Spec.Rules[0].Filters[0].ResponseHeaderModifier)
 	s.Require().Len(route.Spec.Rules[0].Filters[0].ResponseHeaderModifier.Add, 1)
 	s.Equal(gatewayapiv1.HTTPHeaderName("Strict-Transport-Security"), route.Spec.Rules[0].Filters[0].ResponseHeaderModifier.Add[0].Name)
+	s.Equal("max-age=31536000; includeSubDomains", route.Spec.Rules[0].Filters[0].ResponseHeaderModifier.Add[0].Value)
 
 	// Verify path match
 	s.Require().Len(route.Spec.Rules[0].Matches, 1)

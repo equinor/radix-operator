@@ -150,7 +150,7 @@ func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radi
 						{
 							Type: gatewayapiv1.HTTPRouteFilterResponseHeaderModifier,
 							ResponseHeaderModifier: &gatewayapiv1.HTTPHeaderFilter{
-								Add: []gatewayapiv1.HTTPHeader{{Name: "Strict-Transport-Security", Value: "max-age=31536000; includeSubDomains; preload"}},
+								Add: []gatewayapiv1.HTTPHeader{{Name: "Strict-Transport-Security", Value: "max-age=31536000; includeSubDomains"}},
 							},
 						},
 					},
