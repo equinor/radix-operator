@@ -316,7 +316,7 @@ func ForDNSAliasComponentIngress(dnsAlias *radixv1.RadixDNSAlias) kubelabels.Set
 	}
 }
 
-// ForDNSAliasComponentGatewayResource returns labels for DNS alias ingress
+// ForDNSAliasComponentGatewayResource returns labels for DNS alias Gateway API resources
 func ForDNSAliasComponentGatewayResource(dnsAlias *radixv1.RadixDNSAlias) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixAppLabel:       dnsAlias.Spec.AppName,
