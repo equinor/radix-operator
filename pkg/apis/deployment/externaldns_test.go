@@ -140,12 +140,6 @@ func (s *ExternalDNSTestSuite) getHTTPRoute(ctx context.Context, name, namespace
 	return route, err
 }
 
-func (s *ExternalDNSTestSuite) listHTTPRoutes(ctx context.Context, namespace string) (*gatewayapiv1.HTTPRouteList, error) {
-	routes := &gatewayapiv1.HTTPRouteList{}
-	err := s.dynamicClient.List(ctx, routes, client.InNamespace(namespace))
-	return routes, err
-}
-
 func (s *ExternalDNSTestSuite) getListenerSet(ctx context.Context, name, namespace string) (*gatewayapixv1alpha1.XListenerSet, error) {
 	ls := &gatewayapixv1alpha1.XListenerSet{}
 	err := s.dynamicClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ls)
