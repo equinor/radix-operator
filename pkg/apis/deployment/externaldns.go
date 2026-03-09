@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	cm "github.com/cert-manager/cert-manager/pkg/apis/certmanager"
@@ -24,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
@@ -35,7 +37,7 @@ const (
 )
 
 func (deploy *Deployment) reconcileGatewayResourcesExternalDns(ctx context.Context) error {
-	var fqdn []string
+	var fqdns []string
 
 	for _, component := range deploy.radixDeployment.Spec.Components {
 		if component.IsPublic() == false {
@@ -43,14 +45,51 @@ func (deploy *Deployment) reconcileGatewayResourcesExternalDns(ctx context.Conte
 		}
 
 		for _, ed := range component.GetExternalDNS() {
-			fqdn = append(fqdn, ed.FQDN)
-			ls, err := deploy.reconcileListenerSet(ctx, ed)
+			fqdns = append(fqdns, ed.FQDN)
+			ls, err := deploy.createOrUpdateListenerSetForExternalDns(ctx, ed)
 			if err != nil {
 				return fmt.Errorf("failed to reconcile ListenerSet for external DNS %s: %w", ed.FQDN, err)
 			}
 			if err := deploy.createOrUpdateHTTPRouteForExternalDns(ctx, &component, ed, ls); err != nil {
 				return fmt.Errorf("failed to reconcile HTTPRoute for external DNS %s: %w", ed.FQDN, err)
 			}
+		}
+	}
+
+	// Garbage collect any ListenerSets and HTTPRoutes for external DNS that are no longer in the spec
+	listenersSets := &gatewayapixv1alpha1.XListenerSetList{}
+	if err := deploy.dynamicClient.List(ctx, listenersSets, client.InNamespace(deploy.radixDeployment.Namespace)); err != nil {
+		return fmt.Errorf("failed to list ListenerSets: %w", err)
+	}
+	for _, ls := range listenersSets.Items {
+		if ls.Labels[kube.RadixAppLabel] != deploy.registration.Name {
+			continue
+		}
+
+		fqdn, exists := ls.Labels[kube.RadixExternalAliasFQDNLabel]
+		if exists && !slices.Contains(fqdns, fqdn) {
+			if err := deploy.dynamicClient.Delete(ctx, &ls); client.IgnoreNotFound(err) != nil {
+				return fmt.Errorf("failed to delete ListenerSet %s: %w", ls.Name, err)
+			}
+			log.Ctx(ctx).Info().Str("listenerset", ls.Name).Msg("deleted ListenerSet for external DNS no longer in spec")
+		}
+	}
+
+	// Garbage collect HTTPRoutes for external DNS that are no longer in the spec
+	routes := &gatewayapiv1.HTTPRouteList{}
+	if err := deploy.dynamicClient.List(ctx, routes, client.InNamespace(deploy.radixDeployment.Namespace)); err != nil {
+		return fmt.Errorf("failed to list HTTPRoutes: %w", err)
+	}
+	for _, route := range routes.Items {
+		if route.Labels[kube.RadixAppLabel] != deploy.registration.Name {
+			continue
+		}
+		fqdn, exist := route.Labels[kube.RadixExternalAliasFQDNLabel]
+		if exist && !slices.Contains(fqdns, fqdn) {
+			if err := deploy.dynamicClient.Delete(ctx, &route); client.IgnoreNotFound(err) != nil {
+				return fmt.Errorf("failed to delete HTTPRoute %s: %w", route.Name, err)
+			}
+			log.Ctx(ctx).Info().Str("httproute", route.Name).Msg("deleted HTTPRoute for external DNS no longer in spec")
 		}
 	}
 
@@ -141,7 +180,7 @@ func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Cont
 	return nil
 }
 
-func (deploy *Deployment) reconcileListenerSet(ctx context.Context, ed radixv1.RadixDeployExternalDNS) (gatewayapixv1alpha1.XListenerSet, error) {
+func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Context, ed radixv1.RadixDeployExternalDNS) (gatewayapixv1alpha1.XListenerSet, error) {
 	logger := log.Ctx(ctx)
 	logger.Debug().Msgf("Reconciling ListenerSet for %s", ed.FQDN)
 
