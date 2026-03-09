@@ -184,14 +184,8 @@ func Test_ForDNSAliasRbac(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func Test_ForExternalDNSTLSSecret(t *testing.T) {
-	actual := ForExternalDNSTLSSecret("any-app", radixv1.RadixDeployExternalDNS{FQDN: "test.com"})
-	expected := kubelabels.Set{kube.RadixAppLabel: "any-app", kube.RadixExternalAliasFQDNLabel: "test.com"}
-	assert.Equal(t, expected, actual)
-}
-
-func Test_ForExternalDNSCertificate(t *testing.T) {
-	actual := ForExternalDNSCertificate("any-app", radixv1.RadixDeployExternalDNS{FQDN: "test.com"})
+func Test_ForExternalDNSResource(t *testing.T) {
+	actual := ForExternalDNSResource("any-app", radixv1.RadixDeployExternalDNS{FQDN: "test.com"})
 	expected := kubelabels.Set{kube.RadixAppLabel: "any-app", kube.RadixExternalAliasFQDNLabel: "test.com"}
 	assert.Equal(t, expected, actual)
 }

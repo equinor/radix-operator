@@ -11,20 +11,188 @@ import (
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/gateway"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 )
 
 const (
 	minCertDuration    = 2160 * time.Hour
 	minCertRenewBefore = 360 * time.Hour
 )
+
+func (deploy *Deployment) reconcileGatewayResourcesExternalDns(ctx context.Context) error {
+	var fqdn []string
+
+	for _, component := range deploy.radixDeployment.Spec.Components {
+		if component.IsPublic() == false {
+			continue
+		}
+
+		for _, ed := range component.GetExternalDNS() {
+			fqdn = append(fqdn, ed.FQDN)
+			ls, err := deploy.reconcileListenerSet(ctx, ed)
+			if err != nil {
+				return fmt.Errorf("failed to reconcile ListenerSet for external DNS %s: %w", ed.FQDN, err)
+			}
+			if err := deploy.createOrUpdateHTTPRouteForExternalDns(ctx, &component, ed, ls); err != nil {
+				return fmt.Errorf("failed to reconcile HTTPRoute for external DNS %s: %w", ed.FQDN, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Context, component radixv1.RadixCommonDeployComponent, ed radixv1.RadixDeployExternalDNS, parentListenerSet gatewayapixv1alpha1.XListenerSet) error {
+	logger := log.Ctx(ctx)
+
+	oauth2enabled := component.GetAuthentication().GetOAuth2() != nil
+	logger.Debug().Msgf("Reconciling HTTPRoute for external dns %s. OAuth2 enabled: %t", ed.FQDN, oauth2enabled)
+
+	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}}
+	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, route, func() error {
+
+		lsGVK, err := deploy.dynamicClient.GroupVersionKindFor(&parentListenerSet)
+		if err != nil {
+			return fmt.Errorf("failed to get GVK for ListenerSet %s: %w", parentListenerSet.Name, err)
+		}
+
+		route.Labels = kubelabels.Merge(route.Labels, labels.ForExternalDNSResource(deploy.registration.Name, ed))
+		if route.Annotations == nil {
+			route.Annotations = map[string]string{}
+		}
+
+		if deploy.isGatewayAPIEnabled() {
+			route.Annotations[annotations.PreviewGatewayModeAnnotation] = "true"
+			route.Annotations["external-dns.alpha.kubernetes.io/ttl"] = "30"
+		} else {
+			delete(route.Annotations, annotations.PreviewGatewayModeAnnotation)
+			delete(route.Annotations, "external-dns.alpha.kubernetes.io/ttl")
+		}
+
+		var backendRef gatewayapiv1.HTTPBackendRef
+		if oauth2enabled {
+			backendRef = gateway.BuildBackendRefForComponentOauth2Service(component)
+		} else {
+			var err error
+			backendRef, err = gateway.BuildBackendRefForComponent(component)
+			if err != nil {
+				return fmt.Errorf("failed to build backend reference for component %s: %w", component.GetName(), err)
+			}
+		}
+
+		route.Spec = gatewayapiv1.HTTPRouteSpec{
+			Hostnames: []gatewayapiv1.Hostname{
+				gatewayapiv1.Hostname(ed.FQDN),
+			},
+			Rules: []gatewayapiv1.HTTPRouteRule{
+				{
+					BackendRefs: []gatewayapiv1.HTTPBackendRef{backendRef},
+					Matches: []gatewayapiv1.HTTPRouteMatch{
+						{
+							Path: &gatewayapiv1.HTTPPathMatch{Type: new(gatewayapiv1.PathMatchPathPrefix), Value: new("/")},
+						},
+					},
+					Filters: []gatewayapiv1.HTTPRouteFilter{
+						{
+							Type: gatewayapiv1.HTTPRouteFilterResponseHeaderModifier,
+							ResponseHeaderModifier: &gatewayapiv1.HTTPHeaderFilter{
+								Add: []gatewayapiv1.HTTPHeader{{Name: "Strict-Transport-Security", Value: "max-age=31536000; includeSubDomains"}},
+							},
+						},
+					},
+				},
+			},
+			CommonRouteSpec: gatewayapiv1.CommonRouteSpec{ParentRefs: []gatewayapiv1.ParentReference{
+				{
+					Group:     new(gatewayapiv1.Group(lsGVK.Group)),
+					Kind:      new(gatewayapiv1.Kind(lsGVK.Kind)),
+					Name:      gatewayapiv1.ObjectName(parentListenerSet.Name),
+					Namespace: new(gatewayapiv1.Namespace(parentListenerSet.Namespace)),
+				},
+			}},
+		}
+
+		route.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
+		return controllerutil.SetControllerReference(deploy.radixDeployment, route, deploy.dynamicClient.Scheme())
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to create or update HTTPRoute '%s': %w", route.Name, err)
+	}
+	if op != controllerutil.OperationResultNone {
+		log.Ctx(ctx).Info().Str("httproute", route.Name).Str("op", string(op)).Msg("reconcile HTTPRoute")
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) reconcileListenerSet(ctx context.Context, ed radixv1.RadixDeployExternalDNS) (gatewayapixv1alpha1.XListenerSet, error) {
+	logger := log.Ctx(ctx)
+	logger.Debug().Msgf("Reconciling ListenerSet for %s", ed.FQDN)
+
+	ls := gatewayapixv1alpha1.XListenerSet{ObjectMeta: metav1.ObjectMeta{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, &ls, func() error {
+		ls.Labels = kubelabels.Merge(ls.Labels, labels.ForExternalDNSResource(deploy.registration.Name, ed))
+		ls.Spec = gatewayapixv1alpha1.ListenerSetSpec{
+			ParentRef: gatewayapixv1alpha1.ParentGatewayReference{
+				Group:     new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
+				Kind:      new(gatewayapiv1.Kind("Gateway")),
+				Name:      gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
+				Namespace: new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
+			},
+			Listeners: []gatewayapixv1alpha1.ListenerEntry{
+				gatewayapixv1alpha1.ListenerEntry{
+					Name:     gatewayapixv1alpha1.SectionName("https"),
+					Hostname: new(gatewayapixv1alpha1.Hostname(ed.FQDN)),
+					Protocol: gatewayapiv1.HTTPSProtocolType,
+					Port:     443,
+					AllowedRoutes: &gatewayapiv1.AllowedRoutes{
+						Namespaces: &gatewayapiv1.RouteNamespaces{From: new(gatewayapiv1.NamespacesFromSame)},
+					},
+					TLS: &gatewayapiv1.ListenerTLSConfig{
+						Mode: new(gatewayapiv1.TLSModeTerminate),
+						CertificateRefs: []gatewayapiv1.SecretObjectReference{
+							{
+								Group: new(gatewayapiv1.Group("")),
+								Kind:  new(gatewayapiv1.Kind("Secret")),
+								Name:  gatewayapiv1.ObjectName(utils.GetExternalDnsTlsSecretName(ed)),
+							},
+						},
+					},
+				},
+			},
+		}
+
+		ls.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
+		return controllerutil.SetControllerReference(deploy.radixDeployment, &ls, deploy.dynamicClient.Scheme())
+	})
+
+	if err != nil {
+		return ls, fmt.Errorf("failed to create or update XListenerSet '%s': %w", ls.Name, err)
+	}
+
+	if op != controllerutil.OperationResultNone {
+		logger.Info().Str("xlistenerset", ls.Name).Str("op", string(op)).Msg("reconcile XListenerSet")
+	}
+
+	return ls, nil
+}
 
 func (deploy *Deployment) syncExternalDnsResources(ctx context.Context) error {
 	if err := deploy.garbageCollectExternalDnsResourcesNoLongerInSpec(ctx); err != nil {
@@ -114,7 +282,7 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificatesNoLongerInSpec(ct
 }
 
 func (deploy *Deployment) garbageCollectExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
-	selector := radixlabels.ForExternalDNSCertificate(deploy.registration.Name, externalDns).AsSelector()
+	selector := radixlabels.ForExternalDNSResource(deploy.registration.Name, externalDns).AsSelector()
 	certs, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
@@ -152,7 +320,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      externalDns.FQDN,
 			Namespace: deploy.radixDeployment.Namespace,
-			Labels:    radixlabels.ForExternalDNSCertificate(deploy.registration.Name, externalDns),
+			Labels:    radixlabels.ForExternalDNSResource(deploy.registration.Name, externalDns),
 		},
 		Spec: cmv1.CertificateSpec{
 			DNSNames: []string{externalDns.FQDN},
@@ -165,7 +333,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 			RenewBefore: &metav1.Duration{Duration: renewBefore},
 			SecretName:  utils.GetExternalDnsTlsSecretName(externalDns),
 			SecretTemplate: &cmv1.CertificateSecretTemplate{
-				Labels: radixlabels.ForExternalDNSTLSSecret(deploy.registration.Name, externalDns),
+				Labels: radixlabels.ForExternalDNSResource(deploy.registration.Name, externalDns),
 			},
 			PrivateKey: &cmv1.CertificatePrivateKey{
 				RotationPolicy: cmv1.RotationPolicyAlways,
@@ -241,7 +409,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context
 		desiredSecret = currentSecret.DeepCopy()
 	}
 
-	desiredSecret.Labels = radixlabels.ForExternalDNSTLSSecret(deploy.registration.Name, externalDns)
+	desiredSecret.Labels = radixlabels.ForExternalDNSResource(deploy.registration.Name, externalDns)
 
 	if currentSecret == nil {
 		if _, err := deploy.kubeutil.CreateSecret(ctx, ns, desiredSecret); err != nil {
