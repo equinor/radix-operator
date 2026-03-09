@@ -156,6 +156,16 @@ func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Cont
 				},
 			},
 			CommonRouteSpec: gatewayapiv1.CommonRouteSpec{ParentRefs: []gatewayapiv1.ParentReference{
+				// The gateway must also be defined as parentref in order for external-dns to pick it up.
+				// Not sure if this is required when we route all traffic to Istio
+				// TODO: Check is gateway parentRef is required
+				{
+					Group:       new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
+					Kind:        new(gatewayapiv1.Kind("Gateway")),
+					Name:        gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
+					Namespace:   new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
+					SectionName: new(gatewayapiv1.SectionName(deploy.config.Gateway.SectionName)),
+				},
 				{
 					Group:     new(gatewayapiv1.Group(lsGVK.Group)),
 					Kind:      new(gatewayapiv1.Kind(lsGVK.Kind)),

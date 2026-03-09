@@ -194,13 +194,28 @@ func (s *ExternalDNSTestSuite) TestHTTPRouteAndListenerSetCreated_ForExternalDNS
 	s.Require().Len(route.Spec.Hostnames, 1)
 	s.Equal(gatewayapiv1.Hostname(externalDNSFQDN), route.Spec.Hostnames[0])
 
-	// Verify parent ref points to the ListenerSet (not the Gateway)
-	s.Require().Len(route.Spec.CommonRouteSpec.ParentRefs, 1)
-	parentRef := route.Spec.CommonRouteSpec.ParentRefs[0]
-	s.Equal(gatewayapiv1.Group(gatewayapixv1alpha1.GroupName), *parentRef.Group)
-	s.Equal(gatewayapiv1.Kind("XListenerSet"), *parentRef.Kind)
-	s.Equal(gatewayapiv1.ObjectName(externalDNSFQDN), parentRef.Name)
-	s.Equal(gatewayapiv1.Namespace(ns), *parentRef.Namespace)
+	// Verify parent refs include both Gateway and ListenerSet
+	s.Require().Len(route.Spec.CommonRouteSpec.ParentRefs, 2)
+
+	gatewayParentRef := route.Spec.CommonRouteSpec.ParentRefs[0]
+	s.Require().NotNil(gatewayParentRef.Group)
+	s.Require().NotNil(gatewayParentRef.Kind)
+	s.Require().NotNil(gatewayParentRef.Namespace)
+	s.Require().NotNil(gatewayParentRef.SectionName)
+	s.Equal(gatewayapiv1.Group(gatewayapiv1.GroupName), *gatewayParentRef.Group)
+	s.Equal(gatewayapiv1.Kind("Gateway"), *gatewayParentRef.Kind)
+	s.Equal(gatewayapiv1.ObjectName(edTestGatewayName), gatewayParentRef.Name)
+	s.Equal(gatewayapiv1.Namespace(edTestGatewayNamespace), *gatewayParentRef.Namespace)
+	s.Equal(gatewayapiv1.SectionName(s.cfg.Gateway.SectionName), *gatewayParentRef.SectionName)
+
+	listenerSetParentRef := route.Spec.CommonRouteSpec.ParentRefs[1]
+	s.Require().NotNil(listenerSetParentRef.Group)
+	s.Require().NotNil(listenerSetParentRef.Kind)
+	s.Require().NotNil(listenerSetParentRef.Namespace)
+	s.Equal(gatewayapiv1.Group(gatewayapixv1alpha1.GroupName), *listenerSetParentRef.Group)
+	s.Equal(gatewayapiv1.Kind("XListenerSet"), *listenerSetParentRef.Kind)
+	s.Equal(gatewayapiv1.ObjectName(externalDNSFQDN), listenerSetParentRef.Name)
+	s.Equal(gatewayapiv1.Namespace(ns), *listenerSetParentRef.Namespace)
 
 	// Verify backend ref points to the component service
 	s.Require().Len(route.Spec.Rules, 1)
