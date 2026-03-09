@@ -200,7 +200,7 @@ func (s *GatewayTestSuite) TestHTTPRouteAndListenerSetCreated_PublicComponentWit
 	s.Contains(hostnameStrings(route.Spec.Hostnames), externalDNSFQDN)
 
 	// Verify parent refs include both Gateway and ListenerSet
-	s.Len(route.Spec.CommonRouteSpec.ParentRefs, 2, "should have gateway + listenerset parent refs")
+	s.Require().Len(route.Spec.CommonRouteSpec.ParentRefs, 2, "should have gateway + listenerset parent refs")
 	gatewayParent := route.Spec.CommonRouteSpec.ParentRefs[0]
 	s.Equal(gatewayapiv1.ObjectName(testGatewayName), gatewayParent.Name)
 	s.Equal(gatewayapiv1.Namespace(testGatewayNamespace), *gatewayParent.Namespace)

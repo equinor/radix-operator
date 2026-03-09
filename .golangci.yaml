@@ -21,6 +21,9 @@ linters:
           - staticcheck
         text: "QF1001:"
       - linters:
+          - staticcheck
+        text: "S1002:"
+      - linters:
           - godox
         text: "Line contains TODO/BUG/FIXME:"
     presets:

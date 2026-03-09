@@ -18,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -195,26 +194,25 @@ func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Co
 				Name:      gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
 				Namespace: new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
 			},
-			Listeners: []gatewayapixv1alpha1.ListenerEntry{
-				gatewayapixv1alpha1.ListenerEntry{
-					Name:     gatewayapixv1alpha1.SectionName("https"),
-					Hostname: new(gatewayapixv1alpha1.Hostname(ed.FQDN)),
-					Protocol: gatewayapiv1.HTTPSProtocolType,
-					Port:     443,
-					AllowedRoutes: &gatewayapiv1.AllowedRoutes{
-						Namespaces: &gatewayapiv1.RouteNamespaces{From: new(gatewayapiv1.NamespacesFromSame)},
-					},
-					TLS: &gatewayapiv1.ListenerTLSConfig{
-						Mode: new(gatewayapiv1.TLSModeTerminate),
-						CertificateRefs: []gatewayapiv1.SecretObjectReference{
-							{
-								Group: new(gatewayapiv1.Group("")),
-								Kind:  new(gatewayapiv1.Kind("Secret")),
-								Name:  gatewayapiv1.ObjectName(utils.GetExternalDnsTlsSecretName(ed)),
-							},
+			Listeners: []gatewayapixv1alpha1.ListenerEntry{{
+				Name:     gatewayapixv1alpha1.SectionName("https"),
+				Hostname: new(gatewayapixv1alpha1.Hostname(ed.FQDN)),
+				Protocol: gatewayapiv1.HTTPSProtocolType,
+				Port:     443,
+				AllowedRoutes: &gatewayapiv1.AllowedRoutes{
+					Namespaces: &gatewayapiv1.RouteNamespaces{From: new(gatewayapiv1.NamespacesFromSame)},
+				},
+				TLS: &gatewayapiv1.ListenerTLSConfig{
+					Mode: new(gatewayapiv1.TLSModeTerminate),
+					CertificateRefs: []gatewayapiv1.SecretObjectReference{
+						{
+							Group: new(gatewayapiv1.Group("")),
+							Kind:  new(gatewayapiv1.Kind("Secret")),
+							Name:  gatewayapiv1.ObjectName(utils.GetExternalDnsTlsSecretName(ed)),
 						},
 					},
 				},
+			},
 			},
 		}
 
@@ -272,7 +270,7 @@ func (deploy *Deployment) garbageCollectExternalDnsResourcesNoLongerInSpec(ctx c
 }
 
 func (deploy *Deployment) garbageCollectExternalDnsSecretsNoLongerInSpec(ctx context.Context) error {
-	selector := radixlabels.ForApplicationName(deploy.registration.Name).AsSelector()
+	selector := labels.ForApplicationName(deploy.registration.Name).AsSelector()
 	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
@@ -296,7 +294,7 @@ func (deploy *Deployment) garbageCollectExternalDnsSecretsNoLongerInSpec(ctx con
 }
 
 func (deploy *Deployment) garbageCollectExternalDnsCertificatesNoLongerInSpec(ctx context.Context) error {
-	selector := radixlabels.ForApplicationName(deploy.registration.Name).AsSelector()
+	selector := labels.ForApplicationName(deploy.registration.Name).AsSelector()
 	certificates, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
@@ -321,7 +319,7 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificatesNoLongerInSpec(ct
 }
 
 func (deploy *Deployment) garbageCollectExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
-	selector := radixlabels.ForExternalDNSResource(deploy.registration.Name, externalDns).AsSelector()
+	selector := labels.ForExternalDNSResource(deploy.registration.Name, externalDns).AsSelector()
 	certs, err := deploy.certClient.CertmanagerV1().Certificates(deploy.radixDeployment.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
@@ -359,7 +357,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      externalDns.FQDN,
 			Namespace: deploy.radixDeployment.Namespace,
-			Labels:    radixlabels.ForExternalDNSResource(deploy.registration.Name, externalDns),
+			Labels:    labels.ForExternalDNSResource(deploy.registration.Name, externalDns),
 		},
 		Spec: cmv1.CertificateSpec{
 			DNSNames: []string{externalDns.FQDN},
@@ -372,7 +370,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 			RenewBefore: &metav1.Duration{Duration: renewBefore},
 			SecretName:  utils.GetExternalDnsTlsSecretName(externalDns),
 			SecretTemplate: &cmv1.CertificateSecretTemplate{
-				Labels: radixlabels.ForExternalDNSResource(deploy.registration.Name, externalDns),
+				Labels: labels.ForExternalDNSResource(deploy.registration.Name, externalDns),
 			},
 			PrivateKey: &cmv1.CertificatePrivateKey{
 				RotationPolicy: cmv1.RotationPolicyAlways,
@@ -448,7 +446,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context
 		desiredSecret = currentSecret.DeepCopy()
 	}
 
-	desiredSecret.Labels = radixlabels.ForExternalDNSResource(deploy.registration.Name, externalDns)
+	desiredSecret.Labels = labels.ForExternalDNSResource(deploy.registration.Name, externalDns)
 
 	if currentSecret == nil {
 		if _, err := deploy.kubeutil.CreateSecret(ctx, ns, desiredSecret); err != nil {

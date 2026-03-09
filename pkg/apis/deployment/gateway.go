@@ -61,7 +61,10 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 	logger.Debug().Msgf("Reconciling HTTPRoute for component %s. OAuth2 enabled: %t", component.GetName(), oauth2enabled)
 
 	if component.IsPublic() {
-		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)
+		// HTTPRoute for external dns is reconciled in externaldns.go, so filter out those
+		hosts = slice.FindAll(
+			getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil),
+			func(host dnsInfo) bool { return host.dnsType != dnsTypeExternal })
 	}
 
 	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: component.GetName(), Namespace: deploy.radixDeployment.Namespace}}
