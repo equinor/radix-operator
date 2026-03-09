@@ -106,7 +106,7 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 	}
 
 	if err := deploy.syncStatus(ctx, deploy.syncDeployment(ctx)); err != nil {
-		return err
+		return fmt.Errorf("failed to sync deployment %s for application %s: %w", deploy.radixDeployment.Name, deploy.radixDeployment.Spec.AppName, err)
 	}
 
 	deploy.maintainHistoryLimit(ctx, deploy.config.DeploymentSyncer.DeploymentHistoryLimit)
@@ -190,14 +190,14 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 	for _, component := range deploy.radixDeployment.Spec.Components {
 		ctx := log.Ctx(ctx).With().Str("component", component.Name).Logger().WithContext(ctx)
 		if err := deploy.syncDeploymentForRadixComponent(ctx, &component); err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("failed to sync component %s: %w", component.Name, err))
 		}
 	}
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		ctx := log.Ctx(ctx).With().Str("jobComponent", jobComponent.Name).Logger().WithContext(ctx)
 		jobSchedulerComponent := internal.NewJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
 		if err := deploy.syncDeploymentForRadixComponent(ctx, jobSchedulerComponent); err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("failed to sync job %s: %w", jobSchedulerComponent.GetName(), err))
 		}
 	}
 	// If any error occurred when syncing of components
