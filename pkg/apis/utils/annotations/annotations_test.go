@@ -67,6 +67,14 @@ func Test_OAuth2ProxyModeEnabledForEnvironment(t *testing.T) {
 		{name: "spaces around env trimmed", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev, qa , prod"}, currentEnv: "qa", expected: true},
 		{name: "empty value", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: ""}, currentEnv: "dev", expected: false},
 		{name: "empty currentEnv with empty entry", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: ""}, currentEnv: "", expected: true},
+		// Gateway API enabled implies OAuth2 proxy mode enabled
+		{name: "gateway api enabled for env enables oauth2", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev"}, currentEnv: "dev", expected: true},
+		{name: "gateway api enabled wildcard enables oauth2", annotations: map[string]string{PreviewGatewayModeAnnotation: "*"}, currentEnv: "qa", expected: true},
+		{name: "gateway api enabled for other env does not enable oauth2", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev"}, currentEnv: "qa", expected: false},
+		{name: "gateway api enabled in list enables oauth2", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev,qa"}, currentEnv: "qa", expected: true},
+		{name: "gateway api enabled without oauth2 annotation", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev"}, currentEnv: "dev", expected: true},
+		{name: "both gateway and oauth2 enabled", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev", PreviewOAuth2ProxyModeAnnotation: "dev"}, currentEnv: "dev", expected: true},
+		{name: "gateway api nil oauth2 set", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev"}, currentEnv: "dev", expected: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

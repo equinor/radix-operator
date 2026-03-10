@@ -149,6 +149,10 @@ func TestMain(m *testing.M) {
 		log.Fatal().Err(err).Msg("failed to install Prometheus Operator CRDs")
 	}
 
+	if err = internal.InstallGatewayApiCRDs(testContext, testCluster.KubeConfigPath); err != nil {
+		log.Fatal().Err(err).Msg("failed to install Gateway API CRDs")
+	}
+
 	// Install Helm chart with custom image tags
 	helmValues := map[string]string{
 		"rbac.createApp.groups[0]":  "123",
@@ -162,10 +166,6 @@ func TestMain(m *testing.M) {
 	}
 	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator", "../charts/radix-operator", helmValues); err != nil {
 		log.Fatal().Err(err).Msg("failed to install radix-operator helm chart")
-	}
-
-	if err = internal.InstallGatewayApiCRDs(testContext, testCluster.KubeConfigPath); err != nil {
-		log.Fatal().Err(err).Msg("failed to install Gateway API CRDs")
 	}
 
 	// Start the manager in the background
