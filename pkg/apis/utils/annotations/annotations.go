@@ -68,6 +68,10 @@ func forAzureWorkloadIdentityClientId(clientId string) map[string]string {
 
 // OAuth2ProxyModeEnabledForEnvironment checks if the preview OAuth2 proxy mode is enabled for a given environment
 func OAuth2ProxyModeEnabledForEnvironment(annotations map[string]string, currentEnv string) bool {
+	if GatewayAPIEnabledForEnvironment(annotations, currentEnv) {
+		return true
+	}
+
 	if annotations == nil {
 		return false
 	}
