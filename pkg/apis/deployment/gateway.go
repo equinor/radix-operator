@@ -53,20 +53,7 @@ type dnsInfo struct {
 	resourceName string
 }
 
-func (deploy *Deployment) reconcileGatewayResources(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	ls, err := deploy.reconcileListenerSet(ctx, component)
-	if err != nil {
-		return fmt.Errorf("failed to reconcile ListenerSet: %w", err)
-	}
-
-	if err := deploy.reconcileHTTPRoute(ctx, component, ls); err != nil {
-		return fmt.Errorf("failed to reconcile HTTPRoute: %w", err)
-	}
-
-	return nil
-}
-
-func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radixv1.RadixCommonDeployComponent, parentListenerSet *gatewayapixv1alpha1.XListenerSet) error {
+func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	logger := log.Ctx(ctx)
 	var hosts []dnsInfo
 
@@ -74,7 +61,10 @@ func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radi
 	logger.Debug().Msgf("Reconciling HTTPRoute for component %s. OAuth2 enabled: %t", component.GetName(), oauth2enabled)
 
 	if component.IsPublic() {
-		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)
+		// HTTPRoute for external dns is reconciled in externaldns.go, so filter out those
+		hosts = slice.FindAll(
+			getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil),
+			func(host dnsInfo) bool { return host.dnsType != dnsTypeExternal })
 	}
 
 	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: component.GetName(), Namespace: deploy.radixDeployment.Namespace}}
@@ -99,19 +89,6 @@ func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radi
 			SectionName: new(gatewayapiv1.SectionName(deploy.config.Gateway.SectionName)),
 		}}
 
-		if parentListenerSet != nil {
-			lsGVK, err := deploy.dynamicClient.GroupVersionKindFor(parentListenerSet)
-			if err != nil {
-				return fmt.Errorf("failed to get GVK for ListenerSet %s: %w", parentListenerSet.Name, err)
-			}
-
-			parentRefs = append(parentRefs, gatewayapiv1.ParentReference{
-				Group:     new(gatewayapiv1.Group(lsGVK.Group)),
-				Kind:      new(gatewayapiv1.Kind(lsGVK.Kind)),
-				Name:      gatewayapiv1.ObjectName(parentListenerSet.Name),
-				Namespace: new(gatewayapiv1.Namespace(parentListenerSet.Namespace)),
-			})
-		}
 		route.Labels = kubelabels.Merge(route.Labels, labels.ForComponentGatewayResources(deploy.registration.Name, component))
 		if route.Annotations == nil {
 			route.Annotations = map[string]string{}
@@ -171,81 +148,6 @@ func (deploy *Deployment) reconcileHTTPRoute(ctx context.Context, component radi
 	}
 
 	return nil
-}
-
-func (deploy *Deployment) reconcileListenerSet(ctx context.Context, component radixv1.RadixCommonDeployComponent) (*gatewayapixv1alpha1.XListenerSet, error) {
-	logger := log.Ctx(ctx)
-	var hosts []dnsInfo
-
-	logger.Debug().Msgf("Reconciling ListenerSet for component %s", component.GetName())
-
-	if component.IsPublic() {
-		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)
-	}
-
-	externalDNSHosts := slice.FindAll(hosts, func(h dnsInfo) bool { return h.dnsType == dnsTypeExternal })
-	ls := &gatewayapixv1alpha1.XListenerSet{ObjectMeta: metav1.ObjectMeta{Name: component.GetName(), Namespace: deploy.radixDeployment.Namespace}}
-
-	if len(externalDNSHosts) == 0 {
-		err := deploy.dynamicClient.Delete(ctx, ls)
-		if client.IgnoreNotFound(err) != nil {
-			return nil, fmt.Errorf("failed to delete ListenerSet %s: %w", ls.Name, err)
-		}
-		if err == nil {
-			logger.Info().Str("xlistenerset", ls.Name).Str("op", "delete").Msg("reconcile XListenerSet")
-		}
-
-		return nil, nil
-	}
-
-	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, ls, func() error {
-		var listeners []gatewayapixv1alpha1.ListenerEntry
-		for _, host := range externalDNSHosts {
-			listeners = append(listeners, gatewayapixv1alpha1.ListenerEntry{
-				Name:     gatewayapixv1alpha1.SectionName(host.fqdn),
-				Hostname: new(gatewayapixv1alpha1.Hostname(host.fqdn)),
-				Protocol: gatewayapiv1.HTTPSProtocolType,
-				Port:     443,
-				AllowedRoutes: &gatewayapiv1.AllowedRoutes{
-					Namespaces: &gatewayapiv1.RouteNamespaces{From: new(gatewayapiv1.NamespacesFromSame)},
-				},
-				TLS: &gatewayapiv1.ListenerTLSConfig{
-					Mode: new(gatewayapiv1.TLSModeTerminate),
-					CertificateRefs: []gatewayapiv1.SecretObjectReference{
-						{
-							Group: new(gatewayapiv1.Group("")),
-							Kind:  new(gatewayapiv1.Kind("Secret")),
-							Name:  gatewayapiv1.ObjectName(host.tlsSecret),
-						},
-					},
-				},
-			})
-		}
-
-		ls.Labels = kubelabels.Merge(ls.Labels, labels.ForComponentGatewayResources(deploy.registration.Name, component))
-		ls.Spec = gatewayapixv1alpha1.ListenerSetSpec{
-			ParentRef: gatewayapixv1alpha1.ParentGatewayReference{
-				Group:     new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
-				Kind:      new(gatewayapiv1.Kind("Gateway")),
-				Name:      gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
-				Namespace: new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
-			},
-			Listeners: listeners,
-		}
-
-		ls.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
-		return controllerutil.SetControllerReference(deploy.radixDeployment, ls, deploy.dynamicClient.Scheme())
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create or update XListenerSet '%s': %w", ls.Name, err)
-	}
-
-	if op != controllerutil.OperationResultNone {
-		logger.Info().Str("xlistenerset", ls.Name).Str("op", string(op)).Msg("reconcile XListenerSet")
-	}
-
-	return ls, nil
 }
 
 func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, kubeutil kube.Kube) []dnsInfo {

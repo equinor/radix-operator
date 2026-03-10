@@ -167,8 +167,9 @@ func (s *GatewayTestSuite) namespace() string {
 	return utils.GetEnvironmentNamespace(testAppName, testEnvName)
 }
 
-// Test that HTTPRoute and ListenerSet are created when component is public and has external DNS
-func (s *GatewayTestSuite) TestHTTPRouteAndListenerSetCreated_PublicComponentWithExternalDNS() {
+// Test that component HTTPRoute is created with correct spec when component has external DNS
+// External DNS specific HTTPRoute and ListenerSet tests are in externaldns_test.go
+func (s *GatewayTestSuite) TestComponentHTTPRoute_PublicComponentWithExternalDNS() {
 	externalDNSFQDN := "app.example.com"
 
 	_, err := s.applyDeploymentWithSync(
@@ -189,28 +190,23 @@ func (s *GatewayTestSuite) TestHTTPRouteAndListenerSetCreated_PublicComponentWit
 	ctx := context.Background()
 	ns := s.namespace()
 
-	// Verify HTTPRoute created
+	// Verify component HTTPRoute created (named by component, not FQDN)
 	route, err := s.getHTTPRoute(ctx, testComponentName, ns)
 	s.Require().NoError(err)
 	s.Equal(testComponentName, route.Name)
 	s.Equal(ns, route.Namespace)
 
-	// Verify hostnames include external DNS, active cluster and cluster-name hosts
-	s.GreaterOrEqual(len(route.Spec.Hostnames), 2, "should have at least external DNS and cluster hostnames")
-	s.Contains(hostnameStrings(route.Spec.Hostnames), externalDNSFQDN)
+	// Component HTTPRoute should NOT include external DNS hostname (handled in externaldns.go)
+	s.NotContains(hostnameStrings(route.Spec.Hostnames), externalDNSFQDN)
+	// Should still have cluster hostnames
+	s.Greater(len(route.Spec.Hostnames), 0, "should have cluster hostnames")
 
-	// Verify parent refs include both Gateway and ListenerSet
-	s.Len(route.Spec.CommonRouteSpec.ParentRefs, 2, "should have gateway + listenerset parent refs")
+	// Component HTTPRoute should only have Gateway parent ref (no ListenerSet)
+	s.Require().Len(route.Spec.CommonRouteSpec.ParentRefs, 1, "should only have gateway parent ref")
 	gatewayParent := route.Spec.CommonRouteSpec.ParentRefs[0]
 	s.Equal(gatewayapiv1.ObjectName(testGatewayName), gatewayParent.Name)
 	s.Equal(gatewayapiv1.Namespace(testGatewayNamespace), *gatewayParent.Namespace)
 	s.Equal(gatewayapiv1.SectionName(testGatewaySectionName), *gatewayParent.SectionName)
-
-	lsParent := route.Spec.CommonRouteSpec.ParentRefs[1]
-	s.Equal(gatewayapiv1.Group(gatewayapixv1alpha1.GroupName), *lsParent.Group)
-	s.Equal(gatewayapiv1.Kind("XListenerSet"), *lsParent.Kind)
-	s.Equal(gatewayapiv1.ObjectName(testComponentName), lsParent.Name)
-	s.Equal(gatewayapiv1.Namespace(ns), *lsParent.Namespace)
 
 	// Verify labels
 	s.Equal(testAppName, route.Labels[kube.RadixAppLabel])
@@ -239,37 +235,6 @@ func (s *GatewayTestSuite) TestHTTPRouteAndListenerSetCreated_PublicComponentWit
 	// Verify owner reference
 	s.Require().Len(route.OwnerReferences, 1)
 	s.Equal(radixv1.KindRadixDeployment, route.OwnerReferences[0].Kind)
-
-	// Verify ListenerSet created for external DNS
-	ls, err := s.getListenerSet(ctx, testComponentName, ns)
-	s.Require().NoError(err)
-	s.Equal(testComponentName, ls.Name)
-
-	// Verify listener for external DNS host
-	s.Require().Len(ls.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.SectionName(externalDNSFQDN), ls.Spec.Listeners[0].Name)
-	s.NotNil(ls.Spec.Listeners[0].Hostname)
-	s.Equal(gatewayapixv1alpha1.Hostname(externalDNSFQDN), *ls.Spec.Listeners[0].Hostname)
-	s.Equal(gatewayapiv1.HTTPSProtocolType, ls.Spec.Listeners[0].Protocol)
-	s.Equal(gatewayapiv1.PortNumber(443), ls.Spec.Listeners[0].Port)
-
-	// Verify TLS config with certificate ref
-	s.Require().NotNil(ls.Spec.Listeners[0].TLS)
-	s.Equal(gatewayapiv1.TLSModeTerminate, *ls.Spec.Listeners[0].TLS.Mode)
-	s.Require().Len(ls.Spec.Listeners[0].TLS.CertificateRefs, 1)
-	s.Equal(gatewayapiv1.ObjectName(externalDNSFQDN), ls.Spec.Listeners[0].TLS.CertificateRefs[0].Name)
-
-	// Verify parent gateway reference
-	s.Equal(gatewayapiv1.ObjectName(testGatewayName), ls.Spec.ParentRef.Name)
-	s.Equal(gatewayapiv1.Namespace(testGatewayNamespace), *ls.Spec.ParentRef.Namespace)
-
-	// Verify labels
-	s.Equal(testAppName, ls.Labels[kube.RadixAppLabel])
-	s.Equal(testComponentName, ls.Labels[kube.RadixComponentLabel])
-
-	// Verify owner reference
-	s.Require().Len(ls.OwnerReferences, 1)
-	s.Equal(radixv1.KindRadixDeployment, ls.OwnerReferences[0].Kind)
 }
 
 // Test that HTTPRoute is created but ListenerSet is NOT created when component is public without external DNS
@@ -307,11 +272,9 @@ func (s *GatewayTestSuite) TestHTTPRouteCreated_ListenerSetNotCreated_PublicComp
 	s.True(k8serrors.IsNotFound(err), "ListenerSet should not exist for public component without external DNS")
 }
 
-// Test HTTPRoute and ListenerSet are deleted when component is not public anymore
-func (s *GatewayTestSuite) TestHTTPRouteAndListenerSetDeleted_WhenComponentNotPublic() {
-	externalDNSFQDN := "app.example.com"
-
-	// First deploy with public component + external DNS
+// Test component HTTPRoute is deleted when component is not public anymore
+func (s *GatewayTestSuite) TestHTTPRouteDeleted_WhenComponentNotPublic() {
+	// First deploy with public component
 	_, err := s.applyDeploymentWithSync(
 		utils.ARadixDeployment().
 			WithAppName(testAppName).
@@ -320,8 +283,7 @@ func (s *GatewayTestSuite) TestHTTPRouteAndListenerSetDeleted_WhenComponentNotPu
 				utils.NewDeployComponentBuilder().
 					WithName(testComponentName).
 					WithPort("http", 8080).
-					WithPublicPort("http").
-					WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: externalDNSFQDN, UseCertificateAutomation: false}),
+					WithPublicPort("http"),
 			).
 			WithJobComponents(),
 	)
@@ -330,11 +292,9 @@ func (s *GatewayTestSuite) TestHTTPRouteAndListenerSetDeleted_WhenComponentNotPu
 	ctx := context.Background()
 	ns := s.namespace()
 
-	// Verify resources exist
+	// Verify component HTTPRoute exists
 	_, err = s.getHTTPRoute(ctx, testComponentName, ns)
 	s.Require().NoError(err, "HTTPRoute should exist after first sync")
-	_, err = s.getListenerSet(ctx, testComponentName, ns)
-	s.Require().NoError(err, "ListenerSet should exist after first sync")
 
 	// Now deploy with non-public component (no public port)
 	_, err = s.applyDeploymentWithSync(
@@ -350,78 +310,12 @@ func (s *GatewayTestSuite) TestHTTPRouteAndListenerSetDeleted_WhenComponentNotPu
 	)
 	s.Require().NoError(err)
 
-	// HTTPRoute should be deleted
+	// Component HTTPRoute should be deleted
 	_, err = s.getHTTPRoute(ctx, testComponentName, ns)
 	s.True(k8serrors.IsNotFound(err), "HTTPRoute should be deleted when component is not public")
-
-	// ListenerSet should be deleted
-	_, err = s.getListenerSet(ctx, testComponentName, ns)
-	s.True(k8serrors.IsNotFound(err), "ListenerSet should be deleted when component is not public")
 }
 
-// Test HTTPRoute and ListenerSet are updated when external DNS is changed
-func (s *GatewayTestSuite) TestHTTPRouteAndListenerSetUpdated_WhenExternalDNSChanged() {
-	originalFQDN := "app.example.com"
-	updatedFQDN := "new-app.example.com"
-
-	// Deploy with original external DNS
-	_, err := s.applyDeploymentWithSync(
-		utils.ARadixDeployment().
-			WithAppName(testAppName).
-			WithEnvironment(testEnvName).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(testComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http").
-					WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: originalFQDN, UseCertificateAutomation: false}),
-			).
-			WithJobComponents(),
-	)
-	s.Require().NoError(err)
-
-	ctx := context.Background()
-	ns := s.namespace()
-
-	// Verify original DNS in HTTPRoute and ListenerSet
-	route, err := s.getHTTPRoute(ctx, testComponentName, ns)
-	s.Require().NoError(err)
-	s.Contains(hostnameStrings(route.Spec.Hostnames), originalFQDN)
-
-	ls, err := s.getListenerSet(ctx, testComponentName, ns)
-	s.Require().NoError(err)
-	s.Require().Len(ls.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.Hostname(originalFQDN), *ls.Spec.Listeners[0].Hostname)
-
-	// Deploy with updated external DNS
-	_, err = s.applyDeploymentWithSync(
-		utils.ARadixDeployment().
-			WithAppName(testAppName).
-			WithEnvironment(testEnvName).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(testComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http").
-					WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: updatedFQDN, UseCertificateAutomation: false}),
-			).
-			WithJobComponents(),
-	)
-	s.Require().NoError(err)
-
-	// Verify updated DNS in HTTPRoute
-	route, err = s.getHTTPRoute(ctx, testComponentName, ns)
-	s.Require().NoError(err)
-	s.Contains(hostnameStrings(route.Spec.Hostnames), updatedFQDN)
-	s.NotContains(hostnameStrings(route.Spec.Hostnames), originalFQDN)
-
-	// Verify updated DNS in ListenerSet
-	ls, err = s.getListenerSet(ctx, testComponentName, ns)
-	s.Require().NoError(err)
-	s.Require().Len(ls.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.Hostname(updatedFQDN), *ls.Spec.Listeners[0].Hostname)
-	s.Equal(gatewayapiv1.ObjectName(updatedFQDN), ls.Spec.Listeners[0].TLS.CertificateRefs[0].Name)
-}
+// External DNS FQDN change tests are in externaldns_test.go
 
 // Test HTTPRoute and ListenerSet are updated when DnsAppAlias is toggled
 func (s *GatewayTestSuite) TestHTTPRouteUpdated_WhenDNSAppAliasChanged() {
@@ -471,10 +365,8 @@ func (s *GatewayTestSuite) TestHTTPRouteUpdated_WhenDNSAppAliasChanged() {
 	s.NotContains(hostnameStrings(route.Spec.Hostnames), appAliasFQDN, "should not have app alias hostname after disabling")
 }
 
-// Test HTTPRoute and ListenerSet are garbage collected when component is removed from spec
+// Test component HTTPRoute is garbage collected when component is removed from spec
 func (s *GatewayTestSuite) TestGarbageCollection_WhenComponentRemovedFromSpec() {
-	externalDNSFQDN := "app.example.com"
-
 	// Deploy with a public component
 	_, err := s.applyDeploymentWithSync(
 		utils.ARadixDeployment().
@@ -484,8 +376,7 @@ func (s *GatewayTestSuite) TestGarbageCollection_WhenComponentRemovedFromSpec() 
 				utils.NewDeployComponentBuilder().
 					WithName(testComponentName).
 					WithPort("http", 8080).
-					WithPublicPort("http").
-					WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: externalDNSFQDN, UseCertificateAutomation: false}),
+					WithPublicPort("http"),
 			).
 			WithJobComponents(),
 	)
@@ -494,11 +385,9 @@ func (s *GatewayTestSuite) TestGarbageCollection_WhenComponentRemovedFromSpec() 
 	ctx := context.Background()
 	ns := s.namespace()
 
-	// Verify resources exist
+	// Verify component HTTPRoute exists
 	_, err = s.getHTTPRoute(ctx, testComponentName, ns)
 	s.Require().NoError(err, "HTTPRoute should exist")
-	_, err = s.getListenerSet(ctx, testComponentName, ns)
-	s.Require().NoError(err, "ListenerSet should exist")
 
 	// Deploy with a different component (removing the original)
 	_, err = s.applyDeploymentWithSync(
@@ -518,10 +407,6 @@ func (s *GatewayTestSuite) TestGarbageCollection_WhenComponentRemovedFromSpec() 
 	// HTTPRoute for removed component should be garbage collected
 	_, err = s.getHTTPRoute(ctx, testComponentName, ns)
 	s.True(k8serrors.IsNotFound(err), "HTTPRoute for removed component should be garbage collected")
-
-	// ListenerSet for removed component should be garbage collected
-	_, err = s.getListenerSet(ctx, testComponentName, ns)
-	s.True(k8serrors.IsNotFound(err), "ListenerSet for removed component should be garbage collected")
 
 	// New component's HTTPRoute should exist
 	_, err = s.getHTTPRoute(ctx, "other-component", ns)
@@ -613,107 +498,9 @@ func (s *GatewayTestSuite) TestBackendRefUpdated_WhenOAuth2Toggled() {
 	s.Equal(gatewayapiv1.ObjectName(testComponentName), route.Spec.Rules[0].BackendRefs[0].Name)
 }
 
-// Test that ListenerSet has multiple listeners when component has multiple external DNS entries
-func (s *GatewayTestSuite) TestListenerSetMultipleListeners_MultipleExternalDNS() {
-	fqdn1 := "app1.example.com"
-	fqdn2 := "app2.example.com"
+// Multiple external DNS ListenerSet and HTTPRoute tests are in externaldns_test.go
 
-	_, err := s.applyDeploymentWithSync(
-		utils.ARadixDeployment().
-			WithAppName(testAppName).
-			WithEnvironment(testEnvName).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(testComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http").
-					WithExternalDNS(
-						radixv1.RadixDeployExternalDNS{FQDN: fqdn1, UseCertificateAutomation: false},
-						radixv1.RadixDeployExternalDNS{FQDN: fqdn2, UseCertificateAutomation: false},
-					),
-			).
-			WithJobComponents(),
-	)
-	s.Require().NoError(err)
-
-	ctx := context.Background()
-	ns := s.namespace()
-
-	ls, err := s.getListenerSet(ctx, testComponentName, ns)
-	s.Require().NoError(err)
-
-	// Should have two listeners
-	s.Require().Len(ls.Spec.Listeners, 2)
-	listenerNames := []string{string(ls.Spec.Listeners[0].Name), string(ls.Spec.Listeners[1].Name)}
-	s.ElementsMatch(listenerNames, []string{fqdn1, fqdn2})
-
-	// Verify TLS secret names match FQDNs
-	for _, listener := range ls.Spec.Listeners {
-		s.Require().NotNil(listener.TLS)
-		s.Require().Len(listener.TLS.CertificateRefs, 1)
-		s.Equal(gatewayapiv1.ObjectName(*listener.Hostname), listener.TLS.CertificateRefs[0].Name)
-	}
-
-	// HTTPRoute should contain all hostnames including external DNS
-	route, err := s.getHTTPRoute(ctx, testComponentName, ns)
-	s.Require().NoError(err)
-	routeHostnames := hostnameStrings(route.Spec.Hostnames)
-	s.Subset(routeHostnames, []string{fqdn1, fqdn2})
-}
-
-// Test ListenerSet is removed when external DNS is removed but component stays public
-func (s *GatewayTestSuite) TestListenerSetDeleted_WhenExternalDNSRemoved() {
-	externalDNSFQDN := "app.example.com"
-
-	// Deploy with external DNS
-	_, err := s.applyDeploymentWithSync(
-		utils.ARadixDeployment().
-			WithAppName(testAppName).
-			WithEnvironment(testEnvName).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(testComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http").
-					WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: externalDNSFQDN, UseCertificateAutomation: false}),
-			).
-			WithJobComponents(),
-	)
-	s.Require().NoError(err)
-
-	ctx := context.Background()
-	ns := s.namespace()
-
-	_, err = s.getListenerSet(ctx, testComponentName, ns)
-	s.Require().NoError(err, "ListenerSet should exist with external DNS")
-
-	// Redeploy without external DNS but still public
-	_, err = s.applyDeploymentWithSync(
-		utils.ARadixDeployment().
-			WithAppName(testAppName).
-			WithEnvironment(testEnvName).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(testComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http"),
-			).
-			WithJobComponents(),
-	)
-	s.Require().NoError(err)
-
-	// ListenerSet should be deleted
-	_, err = s.getListenerSet(ctx, testComponentName, ns)
-	s.True(k8serrors.IsNotFound(err), "ListenerSet should be deleted when external DNS removed")
-
-	// HTTPRoute should still exist (component is still public)
-	route, err := s.getHTTPRoute(ctx, testComponentName, ns)
-	s.Require().NoError(err, "HTTPRoute should still exist for public component")
-	s.NotContains(hostnameStrings(route.Spec.Hostnames), externalDNSFQDN, "external DNS hostname should be removed from HTTPRoute")
-
-	// HTTPRoute should only have gateway parent ref (no listenerset)
-	s.Len(route.Spec.CommonRouteSpec.ParentRefs, 1)
-}
+// External DNS resource deletion tests are in externaldns_test.go
 
 // Test that gateway mode annotation is set when gateway API is enabled via RR annotation
 func (s *GatewayTestSuite) TestGatewayModeAnnotation_WhenGatewayAPIEnabled() {
@@ -878,8 +665,8 @@ func (s *GatewayTestSuite) TestGatewayModeAnnotationRemoved_WhenGatewayAPIPrevie
 	s.False(hasGatewayAnnotation, "gateway mode annotation should be removed")
 }
 
-// Test that all component hostnames are present in HTTPRoute
-func (s *GatewayTestSuite) TestHTTPRouteHostnames_ContainsAllDNSTypes() {
+// Test that component HTTPRoute contains non-external DNS hostnames
+func (s *GatewayTestSuite) TestHTTPRouteHostnames_ContainsNonExternalDNSTypes() {
 	externalDNSFQDN := "app.example.com"
 
 	_, err := s.applyDeploymentWithSync(
@@ -910,8 +697,8 @@ func (s *GatewayTestSuite) TestHTTPRouteHostnames_ContainsAllDNSTypes() {
 	appAliasFQDN := fmt.Sprintf("%s.%s", testAppName, testAppAliasBaseURL)
 	s.Contains(routeHostnames, appAliasFQDN, "should contain app alias hostname")
 
-	// External DNS
-	s.Contains(routeHostnames, externalDNSFQDN, "should contain external DNS hostname")
+	// External DNS should NOT be in the component HTTPRoute (handled by externaldns.go)
+	s.NotContains(routeHostnames, externalDNSFQDN, "external DNS hostname should not be in component HTTPRoute")
 
 	// Active cluster hostname
 	activeClusterHostname := getActiveClusterHostName(testComponentName, ns)
@@ -926,10 +713,8 @@ func (s *GatewayTestSuite) TestHTTPRouteHostnames_ContainsAllDNSTypes() {
 	}
 }
 
-// TestLabels_ForComponentGatewayResources verifies correct labels on HTTPRoute and ListenerSet
+// TestLabels_ForComponentGatewayResources verifies correct labels on component HTTPRoute
 func (s *GatewayTestSuite) TestLabels_ForComponentGatewayResources() {
-	externalDNSFQDN := "app.example.com"
-
 	_, err := s.applyDeploymentWithSync(
 		utils.ARadixDeployment().
 			WithAppName(testAppName).
@@ -938,8 +723,7 @@ func (s *GatewayTestSuite) TestLabels_ForComponentGatewayResources() {
 				utils.NewDeployComponentBuilder().
 					WithName(testComponentName).
 					WithPort("http", 8080).
-					WithPublicPort("http").
-					WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: externalDNSFQDN, UseCertificateAutomation: false}),
+					WithPublicPort("http"),
 			).
 			WithJobComponents(),
 	)
@@ -954,13 +738,6 @@ func (s *GatewayTestSuite) TestLabels_ForComponentGatewayResources() {
 	expectedLabels := radixlabels.ForComponentGatewayResources(testAppName, &radixv1.RadixDeployComponent{Name: testComponentName})
 	for k, v := range expectedLabels {
 		s.Equal(v, route.Labels[k], "HTTPRoute should have label %s=%s", k, v)
-	}
-
-	ls, err := s.getListenerSet(ctx, testComponentName, ns)
-	s.Require().NoError(err)
-
-	for k, v := range expectedLabels {
-		s.Equal(v, ls.Labels[k], "ListenerSet should have label %s=%s", k, v)
 	}
 }
 

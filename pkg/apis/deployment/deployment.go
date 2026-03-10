@@ -186,6 +186,10 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 		return fmt.Errorf("failed to set default network policies: %w", err)
 	}
 
+	if err := deploy.reconcileGatewayResourcesExternalDns(ctx); err != nil {
+		return fmt.Errorf("failed to reconcile gateway resources: %w", err)
+	}
+
 	var errs []error
 	for _, component := range deploy.radixDeployment.Spec.Components {
 		ctx := log.Ctx(ctx).With().Str("component", component.Name).Logger().WithContext(ctx)
@@ -446,8 +450,8 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to reconcile ingresses: %w", err)
 	}
 
-	if err := deploy.reconcileGatewayResources(ctx, component); err != nil {
-		return fmt.Errorf("failed to reconcile gateway resources: %w", err)
+	if err := deploy.reconcileHTTPRouteComponent(ctx, component); err != nil {
+		return fmt.Errorf("failed to reconcile HTTPRoute: %w", err)
 	}
 
 	if component.GetMonitoring() {
