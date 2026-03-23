@@ -41,7 +41,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 	if skipBlobs {
 		cloneArgs = append(cloneArgs, "--filter=blob:none")
 	}
-	commands = append(commands, fmt.Sprintf("git clone %s %s %s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")", sshURL, strings.Join(cloneArgs, " "), directory))
+	commands = append(commands, fmt.Sprintf("git clone %[1]s %[2]s %[3]s && (cd %[3]s && git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")", sshURL, strings.Join(cloneArgs, " "), directory))
 
 	if len(commitID) > 0 {
 		commands = append(commands, fmt.Sprintf("cd %[1]s && echo \"Checking out commit %[2]s\" && git merge-base --is-ancestor %[2]s HEAD && git checkout -q %[2]s && cd -", directory, commitID))
