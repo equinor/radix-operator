@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.110.2](https://github.com/equinor/radix-operator/compare/v1.110.1..v1.110.2) - 2026-03-24
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump the go_modules group across 1 directory with 2 updates (#1644) - ([edfa65d](https://github.com/equinor/radix-operator/commit/edfa65dc7abb97ffc2896af9800f7f03d98ccc2b)) by @dependabot[bot] in [#1644](https://github.com/equinor/radix-operator/pull/1644)
+
+
 ## [1.110.1](https://github.com/equinor/radix-operator/compare/v1.110.0..v1.110.1) - 2026-03-23
 
 ### 🐛 Bug Fixes
