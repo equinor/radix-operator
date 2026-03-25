@@ -29,7 +29,7 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithArgs(strings []string) RadixJobComponentEnvironmentConfigBuilder
 	WithRunAsUser(runAsUser *int64) RadixJobComponentEnvironmentConfigBuilder
 	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) RadixJobComponentEnvironmentConfigBuilder
-	WithSafeToEvict(*bool) RadixJobComponentEnvironmentConfigBuilder
+	WithSafeToRestart(*bool) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
 
@@ -57,7 +57,7 @@ type radixJobComponentEnvironmentConfigBuilder struct {
 	command            *[]string
 	args               *[]string
 	runAsUser          *int64
-	safeToEvict        *bool
+	safeToRestart      *bool
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
@@ -181,8 +181,8 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithFailurePolicy(failureP
 	return ceb
 }
 
-func (ceb *radixJobComponentEnvironmentConfigBuilder) WithSafeToEvict(safeToEvict *bool) RadixJobComponentEnvironmentConfigBuilder {
-	ceb.safeToEvict = safeToEvict
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithSafeToRestart(safeToRestart *bool) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.safeToRestart = safeToRestart
 	return ceb
 }
 
@@ -210,7 +210,7 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		Command:            ceb.command,
 		Args:               ceb.args,
 		RunAsUser:          ceb.runAsUser,
-		SafeToEvict:        ceb.safeToEvict,
+		SafeToRestart:      ceb.safeToRestart,
 	}
 }
 

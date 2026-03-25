@@ -3897,8 +3897,8 @@
                       },
                       "type": "object"
                     },
-                    "safeToEvict": {
-                      "description": "Defines whether the job can be safely evicted by the cluster autoscaler during node scale-down.\nIf not set, the value is determined by timeLimitSeconds: true if >= 3 days, false otherwise.",
+                    "safeToRestart": {
+                      "description": "Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.\nIf not set, the value is determined by timeLimitSeconds, check radix documentation for details.",
                       "type": "boolean"
                     },
                     "secretRefs": {
@@ -4537,8 +4537,8 @@
                 },
                 "type": "object"
               },
-              "safeToEvict": {
-                "description": "Defines whether the job can be safely evicted by the cluster autoscaler during node scale-down.\nIf not set, the value is determined by timeLimitSeconds: true if >= 3 days, false otherwise.",
+              "safeToRestart": {
+                "description": "Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.\nIf not set, the value is determined by timeLimitSeconds, check radix documentation for details.",
                 "type": "boolean"
               },
               "schedulerPort": {

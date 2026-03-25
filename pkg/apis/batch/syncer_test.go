@@ -2648,50 +2648,50 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 	}
 }
 
-func (s *syncerTestSuite) Test_SafeToEvictAnnotation() {
+func (s *syncerTestSuite) Test_SafeToRestartAnnotation() {
 	const safeToEvictAnnotation = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 
 	tests := map[string]struct {
-		componentSafeToEvict      *bool
+		componentSafeToRestart    *bool
 		componentTimeLimitSeconds *int64
-		batchJobSafeToEvict       *bool
+		batchJobSafeToRestart     *bool
 		batchJobTimeLimitSeconds  *int64
 		threshold                 int64
 		expectedAnnotationValue   string
 	}{
-		"no safeToEvict, no timeLimitSeconds defaults to true": {
+		"no safeToRestart, no timeLimitSeconds defaults to true": {
 			threshold:               600,
 			expectedAnnotationValue: "true",
 		},
-		"component safeToEvict true": {
-			componentSafeToEvict:    pointers.Ptr(true),
+		"component safeToRestart true": {
+			componentSafeToRestart:  pointers.Ptr(true),
 			threshold:               600,
 			expectedAnnotationValue: "true",
 		},
-		"component safeToEvict false": {
-			componentSafeToEvict:    pointers.Ptr(false),
+		"component safeToRestart false": {
+			componentSafeToRestart:  pointers.Ptr(false),
 			threshold:               600,
 			expectedAnnotationValue: "false",
 		},
-		"batchJob safeToEvict true overrides component false": {
-			componentSafeToEvict:    pointers.Ptr(false),
-			batchJobSafeToEvict:     pointers.Ptr(true),
+		"batchJob safeToRestart true overrides component false": {
+			componentSafeToRestart:  pointers.Ptr(false),
+			batchJobSafeToRestart:   pointers.Ptr(true),
 			threshold:               600,
 			expectedAnnotationValue: "true",
 		},
-		"batchJob safeToEvict false overrides component true": {
-			componentSafeToEvict:    pointers.Ptr(true),
-			batchJobSafeToEvict:     pointers.Ptr(false),
+		"batchJob safeToRestart false overrides component true": {
+			componentSafeToRestart:  pointers.Ptr(true),
+			batchJobSafeToRestart:   pointers.Ptr(false),
 			threshold:               600,
 			expectedAnnotationValue: "false",
 		},
-		"batchJob safeToEvict true, no component safeToEvict": {
-			batchJobSafeToEvict:     pointers.Ptr(true),
+		"batchJob safeToRestart true, no component safeToRestart": {
+			batchJobSafeToRestart:   pointers.Ptr(true),
 			threshold:               600,
 			expectedAnnotationValue: "true",
 		},
-		"batchJob safeToEvict false, no component safeToEvict": {
-			batchJobSafeToEvict:     pointers.Ptr(false),
+		"batchJob safeToRestart false, no component safeToRestart": {
+			batchJobSafeToRestart:   pointers.Ptr(false),
 			threshold:               600,
 			expectedAnnotationValue: "false",
 		},
@@ -2722,22 +2722,22 @@ func (s *syncerTestSuite) Test_SafeToEvictAnnotation() {
 			threshold:                 600,
 			expectedAnnotationValue:   "true",
 		},
-		"safeToEvict takes precedence over timeLimitSeconds, component safeToEvict true with low time limit": {
-			componentSafeToEvict:      pointers.Ptr(true),
+		"safeToRestart takes precedence over timeLimitSeconds, component safeToRestart true with low time limit": {
+			componentSafeToRestart:    pointers.Ptr(true),
 			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
 			threshold:                 600,
 			expectedAnnotationValue:   "true",
 		},
-		"safeToEvict takes precedence over timeLimitSeconds, component safeToEvict false with high time limit": {
-			componentSafeToEvict:      pointers.Ptr(false),
+		"safeToRestart takes precedence over timeLimitSeconds, component safeToRestart false with high time limit": {
+			componentSafeToRestart:    pointers.Ptr(false),
 			componentTimeLimitSeconds: pointers.Ptr(int64(1000)),
 			threshold:                 600,
 			expectedAnnotationValue:   "false",
 		},
-		"batchJob safeToEvict takes precedence over both timeLimitSeconds": {
+		"batchJob safeToRestart takes precedence over both timeLimitSeconds": {
 			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
 			batchJobTimeLimitSeconds:  pointers.Ptr(int64(1000)),
-			batchJobSafeToEvict:       pointers.Ptr(false),
+			batchJobSafeToRestart:     pointers.Ptr(false),
 			threshold:                 600,
 			expectedAnnotationValue:   "false",
 		},
@@ -2758,7 +2758,7 @@ func (s *syncerTestSuite) Test_SafeToEvictAnnotation() {
 					Jobs: []radixv1.RadixBatchJob{
 						{
 							Name:             jobName,
-							SafeToEvict:      tt.batchJobSafeToEvict,
+							SafeToRestart:    tt.batchJobSafeToRestart,
 							TimeLimitSeconds: tt.batchJobTimeLimitSeconds,
 						},
 					},
@@ -2773,7 +2773,7 @@ func (s *syncerTestSuite) Test_SafeToEvictAnnotation() {
 						{
 							Name:             componentName,
 							Image:            "any-image",
-							SafeToEvict:      tt.componentSafeToEvict,
+							SafeToRestart:    tt.componentSafeToRestart,
 							TimeLimitSeconds: tt.componentTimeLimitSeconds,
 						},
 					},
@@ -2786,7 +2786,7 @@ func (s *syncerTestSuite) Test_SafeToEvictAnnotation() {
 			s.Require().NoError(err)
 			s.applyRadixDeploymentEnvVarsConfigMaps(s.kubeUtil, rd)
 
-			cfg := &config.Config{SafeToEvictBatchJobThreshold: tt.threshold}
+			cfg := &config.Config{SafeToRestartBatchJobThreshold: tt.threshold}
 			sut := s.createSyncer(batch, cfg)
 			s.Require().NoError(sut.OnSync(context.Background()))
 

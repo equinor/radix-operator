@@ -234,6 +234,6 @@ const (
 
 	RadixIngressGatewaySectionNameVariable = "RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME"
 
-	// RadixSafeToEvictBatchJobThresholdVariable Threshold in seconds for determining cluster-autoscaler safe-to-evict annotation on batch jobs
-	RadixSafeToEvictBatchJobThresholdVariable = "RADIXOPERATOR_SAFE_TO_EVICT_BATCH_JOB_THRESHOLD"
+	// RadixSafeToRestartBatchJobThresholdVariable Threshold in seconds for determining cluster-autoscaler safe-to-evict annotation on batch jobs
+	RadixSafeToRestartBatchJobThresholdVariable = "RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD"
 )

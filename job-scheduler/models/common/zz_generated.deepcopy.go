@@ -195,8 +195,8 @@ func (in *RadixJobComponentConfig) DeepCopyInto(out *RadixJobComponentConfig) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.SafeToEvict != nil {
-		in, out := &in.SafeToEvict, &out.SafeToEvict
+	if in.SafeToRestart != nil {
+		in, out := &in.SafeToRestart, &out.SafeToRestart
 		*out = new(bool)
 		**out = **in
 	}

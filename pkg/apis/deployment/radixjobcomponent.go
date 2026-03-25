@@ -131,7 +131,7 @@ func (c *jobComponentsBuilder) buildJobComponent(ctx context.Context, radixJobCo
 		RunAsUser:            getRadixCommonComponentRunAsUser(&radixJobComponent, environmentSpecificConfig),
 		BatchStatusRules:     getRadixJobComponentBatchStatusRules(&radixJobComponent, environmentSpecificConfig),
 		FailurePolicy:        failurePolicy,
-		SafeToEvict:          getRadixJobComponentSafeToEvict(radixJobComponent, environmentSpecificConfig),
+		SafeToRestart:        getRadixJobComponentSafeToRestart(radixJobComponent, environmentSpecificConfig),
 	}
 	return &deployJob, nil
 }
@@ -174,9 +174,9 @@ func getRadixJobComponentBackoffLimit(radixJobComponent v1.RadixJobComponent, en
 	return radixJobComponent.BackoffLimit
 }
 
-func getRadixJobComponentSafeToEvict(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) *bool {
-	if environmentSpecificConfig != nil && environmentSpecificConfig.SafeToEvict != nil {
-		return environmentSpecificConfig.SafeToEvict
+func getRadixJobComponentSafeToRestart(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) *bool {
+	if environmentSpecificConfig != nil && environmentSpecificConfig.SafeToRestart != nil {
+		return environmentSpecificConfig.SafeToRestart
 	}
-	return radixJobComponent.SafeToEvict
+	return radixJobComponent.SafeToRestart
 }

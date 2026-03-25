@@ -29,17 +29,17 @@ const (
 	jobPayloadVolumeName = "job-payload"
 )
 
-// getSafeToEvictAnnotations returns the cluster-autoscaler safe-to-evict annotation for a batch job.
-// If safeToEvict is explicitly set, that value is used.
+// getSafeToRestartAnnotations returns the cluster-autoscaler safe-to-evict annotation for a batch job.
+// If safeToRestart is explicitly set, that value is used.
 // Otherwise, the value is calculated from timeLimitSeconds:
-//   - false if timeLimitSeconds < safeToEvictBatchJobThreshold
-//   - true if timeLimitSeconds >= safeToEvictBatchJobThreshold
-func getSafeToEvictAnnotations(safeToEvict *bool, timeLimitSeconds *int64, safeToEvictBatchJobThreshold int64) map[string]string {
-	if safeToEvict != nil {
-		return annotations.ForClusterAutoscalerSafeToEvict(*safeToEvict)
+//   - false if timeLimitSeconds < safeToRestartBatchJobThreshold
+//   - true if timeLimitSeconds >= safeToRestartBatchJobThreshold
+func getSafeToRestartAnnotations(safeToRestart *bool, timeLimitSeconds *int64, safeToRestartBatchJobThreshold int64) map[string]string {
+	if safeToRestart != nil {
+		return annotations.ForClusterAutoscalerSafeToEvict(*safeToRestart)
 	}
 	if timeLimitSeconds != nil {
-		return annotations.ForClusterAutoscalerSafeToEvict(*timeLimitSeconds >= safeToEvictBatchJobThreshold)
+		return annotations.ForClusterAutoscalerSafeToEvict(*timeLimitSeconds >= safeToRestartBatchJobThreshold)
 	}
 	return annotations.ForClusterAutoscalerSafeToEvict(true)
 }
@@ -131,11 +131,11 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 		timeLimitSeconds = batchJob.TimeLimitSeconds
 	}
 
-	safeToEvict := jobComponent.SafeToEvict
-	if batchJob.SafeToEvict != nil {
-		safeToEvict = batchJob.SafeToEvict
+	safeToRestart := jobComponent.SafeToRestart
+	if batchJob.SafeToRestart != nil {
+		safeToRestart = batchJob.SafeToRestart
 	}
-	podAnnotations := getSafeToEvictAnnotations(safeToEvict, timeLimitSeconds, s.config.SafeToEvictBatchJobThreshold)
+	podAnnotations := getSafeToRestartAnnotations(safeToRestart, timeLimitSeconds, s.config.SafeToRestartBatchJobThreshold)
 
 	node := jobComponent.GetNode()
 	if batchJob.Node != nil { // nolint:staticcheck // SA1019: Ignore linting deprecated fields

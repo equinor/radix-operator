@@ -842,10 +842,10 @@ type RadixJobComponent struct {
 	// +kubebuilder:validation:Minimum:=0
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
 
-	// Defines whether the job can be safely evicted by the cluster autoscaler during node scale-down.
-	// If not set, the value is determined by timeLimitSeconds: true if >= 3 days, false otherwise.
+	// Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.
+	// If not set, the value is determined by timeLimitSeconds, check radix documentation for details.
 	// +optional
-	SafeToEvict *bool `json:"safeToEvict,omitempty"`
+	SafeToRestart *bool `json:"safeToRestart,omitempty"`
 
 	// Configuration for workload identity (federated credentials).
 	// More info: https://www.radix.equinor.com/radix-config#identity-2
@@ -1052,10 +1052,10 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +kubebuilder:validation:Minimum:=0
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
 
-	// Defines whether the job can be safely evicted by the cluster autoscaler during node scale-down.
-	// If not set, the value is determined by timeLimitSeconds: true if >= 3 days, false otherwise.
+	// Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.
+	// If not set, the value is determined by timeLimitSeconds, check radix documentation for details.
 	// +optional
-	SafeToEvict *bool `json:"safeToEvict,omitempty"`
+	SafeToRestart *bool `json:"safeToRestart,omitempty"`
 
 	// Environment specific configuration for workload identity (federated credentials).
 	// More info: https://www.radix.equinor.com/radix-config#identity-2

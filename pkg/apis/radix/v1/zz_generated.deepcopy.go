@@ -1288,8 +1288,8 @@ func (in *RadixBatchJob) DeepCopyInto(out *RadixBatchJob) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.SafeToEvict != nil {
-		in, out := &in.SafeToEvict, &out.SafeToEvict
+	if in.SafeToRestart != nil {
+		in, out := &in.SafeToRestart, &out.SafeToRestart
 		*out = new(bool)
 		**out = **in
 	}
@@ -1985,8 +1985,8 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.SafeToEvict != nil {
-		in, out := &in.SafeToEvict, &out.SafeToEvict
+	if in.SafeToRestart != nil {
+		in, out := &in.SafeToRestart, &out.SafeToRestart
 		*out = new(bool)
 		**out = **in
 	}
@@ -2825,8 +2825,8 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.SafeToEvict != nil {
-		in, out := &in.SafeToEvict, &out.SafeToEvict
+	if in.SafeToRestart != nil {
+		in, out := &in.SafeToRestart, &out.SafeToRestart
 		*out = new(bool)
 		**out = **in
 	}
@@ -2930,8 +2930,8 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 		*out = new(int32)
 		**out = **in
 	}
-	if in.SafeToEvict != nil {
-		in, out := &in.SafeToEvict, &out.SafeToEvict
+	if in.SafeToRestart != nil {
+		in, out := &in.SafeToRestart, &out.SafeToRestart
 		*out = new(bool)
 		**out = **in
 	}

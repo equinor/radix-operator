@@ -22,9 +22,9 @@ type Config struct {
 
 	Gateway GatewayConfig
 
-	// SafeToEvictBatchJobThreshold is the threshold in seconds for determining the cluster-autoscaler safe-to-evict annotation on batch jobs.
-	// Jobs with timeLimitSeconds >= SafeToEvictBatchJobThreshold are marked as safe to evict.
-	SafeToEvictBatchJobThreshold int64
+	// SafeToRestartBatchJobThreshold is the threshold in seconds for determining the cluster-autoscaler safe-to-evict annotation on batch jobs.
+	// Jobs with timeLimitSeconds >= SafeToRestartBatchJobThreshold are marked as safe to evict.
+	SafeToRestartBatchJobThreshold int64
 }
 
 type GatewayConfig struct {

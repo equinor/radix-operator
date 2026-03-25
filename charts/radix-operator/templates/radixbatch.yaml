@@ -261,8 +261,8 @@ spec:
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
-                    safeToEvict:
-                      description: Overrides safeToEvict defined for job component
+                    safeToRestart:
+                      description: Overrides safeToRestart defined for job component
                         in RadixDeployment.
                       type: boolean
                     stop:
