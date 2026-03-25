@@ -34,6 +34,7 @@ const (
 // Otherwise, the value is calculated from timeLimitSeconds:
 //   - false if timeLimitSeconds < safeToRestartBatchJobThreshold
 //   - true if timeLimitSeconds >= safeToRestartBatchJobThreshold
+//   - true if timeLimitSeconds is nil (treated as no time limit / above the threshold)
 func getSafeToRestartAnnotations(safeToRestart *bool, timeLimitSeconds *int64, safeToRestartBatchJobThreshold int64) map[string]string {
 	if safeToRestart != nil {
 		return annotations.ForClusterAutoscalerSafeToEvict(*safeToRestart)
@@ -200,8 +201,8 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 
 func (s *syncer) getJobPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1.LocalObjectReference {
 	return append(
-		rd.Spec.ImagePullSecrets, 
-		s.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...
+		rd.Spec.ImagePullSecrets,
+		s.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...,
 	)
 }
 
