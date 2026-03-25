@@ -2,13 +2,14 @@ package batch
 
 import (
 	"context"
+	"testing"
+
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )

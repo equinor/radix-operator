@@ -21,6 +21,10 @@ type Config struct {
 	TaskConfig              *task.Config
 
 	Gateway GatewayConfig
+
+	// SafeToRestartBatchJobThreshold is the threshold in seconds for determining the cluster-autoscaler safe-to-evict annotation on batch jobs.
+	// Jobs with timeLimitSeconds >= SafeToRestartBatchJobThreshold are marked as safe to evict.
+	SafeToRestartBatchJobThreshold int64
 }
 
 type GatewayConfig struct {

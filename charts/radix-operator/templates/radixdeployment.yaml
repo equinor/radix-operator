@@ -1953,6 +1953,11 @@ spec:
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
+                    safeToRestart:
+                      description: |-
+                        Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.
+                        If not set, the value is determined by TimeLimitSeconds, check radix documentation for details.
+                      type: boolean
                     schedulerPort:
                       format: int32
                       maximum: 65535

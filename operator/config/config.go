@@ -85,6 +85,7 @@ func NewConfig() *apiconfig.Config {
 			PipelineImage:                         viper.GetString(defaults.RadixPipelineImageEnvironmentVariable),
 			GitCloneImage:                         viper.GetString(defaults.RadixGitCloneGitImageEnvironmentVariable),
 		},
+		SafeToRestartBatchJobThreshold: int64(getIntFromEnvVar(defaults.RadixSafeToRestartBatchJobThresholdVariable, 3*24*60*60)),
 		Gateway: apiconfig.GatewayConfig{
 			Name:        viper.GetString(defaults.RadixIngressGatewayNameVariable),
 			Namespace:   viper.GetString(defaults.RadixIngressGatewayNamespaceVariable),

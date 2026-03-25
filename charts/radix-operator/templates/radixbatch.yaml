@@ -261,6 +261,10 @@ spec:
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
+                    safeToRestart:
+                      description: Overrides safeToRestart defined for job component
+                        in RadixDeployment.
+                      type: boolean
                     stop:
                       description: |-
                         Controls if a job should be stopped.

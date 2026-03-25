@@ -635,6 +635,11 @@ type RadixDeployJobComponent struct {
 	// +optional
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
 
+	// Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.
+	// If not set, the value is determined by TimeLimitSeconds, check radix documentation for details.
+	// +optional
+	SafeToRestart *bool `json:"safeToRestart,omitempty"`
+
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 

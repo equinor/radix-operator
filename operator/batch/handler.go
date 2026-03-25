@@ -34,7 +34,7 @@ type handler struct {
 	kubeutil      *kube.Kube
 	syncerFactory internal.SyncerFactory
 	events        common.SyncEventRecorder
-	config        *config.Config
+	config        config.Config
 }
 
 func NewHandler(
@@ -42,7 +42,7 @@ func NewHandler(
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	eventRecorder record.EventRecorder,
-	config *config.Config,
+	config config.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	h := &handler{

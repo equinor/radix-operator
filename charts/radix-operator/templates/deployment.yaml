@@ -178,6 +178,8 @@ spec:
               value: {{ required "gateway namespace is required to operate" .Values.ingress.gateway.namespace }}
             - name: RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME
               value: {{ .Values.ingress.gateway.sectionName }}
+            - name: RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD
+              value: {{ .Values.safeToRestartBatchJobThreshold | quote }}
 
           livenessProbe:
             httpGet:
