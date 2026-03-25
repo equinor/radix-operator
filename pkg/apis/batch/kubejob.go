@@ -29,6 +29,21 @@ const (
 	jobPayloadVolumeName = "job-payload"
 )
 
+// getSafeToEvictAnnotations returns the cluster-autoscaler safe-to-evict annotation for a batch job.
+// If safeToEvict is explicitly set, that value is used.
+// Otherwise, the value is calculated from timeLimitSeconds:
+//   - false if timeLimitSeconds < safeToEvictBatchJobThreshold
+//   - true if timeLimitSeconds >= safeToEvictBatchJobThreshold
+func getSafeToEvictAnnotations(safeToEvict *bool, timeLimitSeconds *int64, safeToEvictBatchJobThreshold int64) map[string]string {
+	if safeToEvict != nil {
+		return annotations.ForClusterAutoscalerSafeToEvict(*safeToEvict)
+	}
+	if timeLimitSeconds != nil {
+		return annotations.ForClusterAutoscalerSafeToEvict(*timeLimitSeconds >= safeToEvictBatchJobThreshold)
+	}
+	return annotations.ForClusterAutoscalerSafeToEvict(true)
+}
+
 func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job, actualVolumesGetter func() ([]corev1.Volume, error)) error {
 	batchJobKubeJobs := slice.FindAll(existingJobs, isKubeJobForBatchJob(batchJob))
 
@@ -104,7 +119,6 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 		jobLabels,
 		radixlabels.ForPodWithRadixIdentity(jobComponent.Identity),
 	)
-	podAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
 
 	kubeJobName := getKubeJobName(s.radixBatch.GetName(), batchJob.Name)
 	containers, err := s.getContainers(ctx, rd, jobComponent, batchJob, kubeJobName)
@@ -116,6 +130,12 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	if batchJob.TimeLimitSeconds != nil {
 		timeLimitSeconds = batchJob.TimeLimitSeconds
 	}
+
+	safeToEvict := jobComponent.SafeToEvict
+	if batchJob.SafeToEvict != nil {
+		safeToEvict = batchJob.SafeToEvict
+	}
+	podAnnotations := getSafeToEvictAnnotations(safeToEvict, timeLimitSeconds, s.config.SafeToEvictBatchJobThreshold)
 
 	node := jobComponent.GetNode()
 	if batchJob.Node != nil { // nolint:staticcheck // SA1019: Ignore linting deprecated fields
@@ -179,11 +199,10 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 }
 
 func (s *syncer) getJobPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1.LocalObjectReference {
-	imagePullSecrets := rd.Spec.ImagePullSecrets
-	if s.config != nil {
-		imagePullSecrets = append(imagePullSecrets, s.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...)
-	}
-	return imagePullSecrets
+	return append(
+		rd.Spec.ImagePullSecrets, 
+		s.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...
+	)
 }
 
 func (s *syncer) appendPayloadSecretVolumes(batchJob *radixv1.RadixBatchJob, radixJobComponent *radixv1.RadixDeployJobComponent, volumes []corev1.Volume) []corev1.Volume {

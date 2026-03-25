@@ -233,4 +233,7 @@ const (
 	RadixIngressGatewayNamespaceVariable = "RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE"
 
 	RadixIngressGatewaySectionNameVariable = "RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME"
+
+	// RadixSafeToEvictBatchJobThresholdVariable Threshold in seconds for determining cluster-autoscaler safe-to-evict annotation on batch jobs
+	RadixSafeToEvictBatchJobThresholdVariable = "RADIXOPERATOR_SAFE_TO_EVICT_BATCH_JOB_THRESHOLD"
 )

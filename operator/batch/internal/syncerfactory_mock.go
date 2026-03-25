@@ -46,7 +46,7 @@ func (m *MockSyncerFactory) EXPECT() *MockSyncerFactoryMockRecorder {
 }
 
 // CreateSyncer mocks base method.
-func (m *MockSyncerFactory) CreateSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, registration *v1.RadixRegistration, radixBatch *v1.RadixBatch, arg5 *config.Config, options ...batch.SyncerOption) batch.Syncer {
+func (m *MockSyncerFactory) CreateSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, registration *v1.RadixRegistration, radixBatch *v1.RadixBatch, arg5 config.Config, options ...batch.SyncerOption) batch.Syncer {
 	m.ctrl.T.Helper()
 	varargs := []any{kubeclient, kubeutil, radixclient, registration, radixBatch, arg5}
 	for _, a := range options {

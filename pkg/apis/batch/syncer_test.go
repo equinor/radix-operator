@@ -55,10 +55,14 @@ func TestSyncerTestSuite(t *testing.T) {
 	suite.Run(t, new(syncerTestSuite))
 }
 
-func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
+func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, cfg *config.Config, options ...SyncerOption) Syncer {
 	defaultRR := utils.ARadixRegistration().BuildRR()
 
-	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, defaultRR, forJob, config, options...)
+	if cfg == nil {
+		cfg = &config.Config{}
+	}
+
+	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, defaultRR, forJob, *cfg, options...)
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
@@ -391,7 +395,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Equal(expectedJobLabels, kubejob.Labels, "job labels")
 		expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAppIDLabel: "00000000000000000000000001", kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
 		s.Equal(expectedPodLabels, kubejob.Spec.Template.Labels, "pod labels")
-		expectedPodAnnotations := map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}
+		expectedPodAnnotations := map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}
 		s.Equal(expectedPodAnnotations, kubejob.Spec.Template.Annotations)
 		s.Equal(ownerReference(batch), kubejob.OwnerReferences)
 		s.Equal(numbers.Int32Ptr(0), kubejob.Spec.BackoffLimit)
@@ -2640,6 +2644,157 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 			kubeJobContainer := kubeJobList.Items[0].Spec.Template.Spec.Containers[0]
 			assert.Equal(t, ts.command, kubeJobContainer.Command, "command in job should match in RadixDeployment")
 			assert.Equal(t, ts.args, kubeJobContainer.Args, "args in job should match in RadixDeployment")
+		})
+	}
+}
+
+func (s *syncerTestSuite) Test_SafeToEvictAnnotation() {
+	const safeToEvictAnnotation = "cluster-autoscaler.kubernetes.io/safe-to-evict"
+
+	tests := map[string]struct {
+		componentSafeToEvict      *bool
+		componentTimeLimitSeconds *int64
+		batchJobSafeToEvict       *bool
+		batchJobTimeLimitSeconds  *int64
+		threshold                 int64
+		expectedAnnotationValue   string
+	}{
+		"no safeToEvict, no timeLimitSeconds defaults to true": {
+			threshold:               600,
+			expectedAnnotationValue: "true",
+		},
+		"component safeToEvict true": {
+			componentSafeToEvict:    pointers.Ptr(true),
+			threshold:               600,
+			expectedAnnotationValue: "true",
+		},
+		"component safeToEvict false": {
+			componentSafeToEvict:    pointers.Ptr(false),
+			threshold:               600,
+			expectedAnnotationValue: "false",
+		},
+		"batchJob safeToEvict true overrides component false": {
+			componentSafeToEvict:    pointers.Ptr(false),
+			batchJobSafeToEvict:     pointers.Ptr(true),
+			threshold:               600,
+			expectedAnnotationValue: "true",
+		},
+		"batchJob safeToEvict false overrides component true": {
+			componentSafeToEvict:    pointers.Ptr(true),
+			batchJobSafeToEvict:     pointers.Ptr(false),
+			threshold:               600,
+			expectedAnnotationValue: "false",
+		},
+		"batchJob safeToEvict true, no component safeToEvict": {
+			batchJobSafeToEvict:     pointers.Ptr(true),
+			threshold:               600,
+			expectedAnnotationValue: "true",
+		},
+		"batchJob safeToEvict false, no component safeToEvict": {
+			batchJobSafeToEvict:     pointers.Ptr(false),
+			threshold:               600,
+			expectedAnnotationValue: "false",
+		},
+		"component timeLimitSeconds below threshold": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
+			threshold:                 600,
+			expectedAnnotationValue:   "false",
+		},
+		"component timeLimitSeconds above threshold": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(1000)),
+			threshold:                 600,
+			expectedAnnotationValue:   "true",
+		},
+		"component timeLimitSeconds equal to threshold": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(600)),
+			threshold:                 600,
+			expectedAnnotationValue:   "true",
+		},
+		"batchJob timeLimitSeconds overrides component timeLimitSeconds, below threshold": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(1000)),
+			batchJobTimeLimitSeconds:  pointers.Ptr(int64(100)),
+			threshold:                 600,
+			expectedAnnotationValue:   "false",
+		},
+		"batchJob timeLimitSeconds overrides component timeLimitSeconds, above threshold": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
+			batchJobTimeLimitSeconds:  pointers.Ptr(int64(1000)),
+			threshold:                 600,
+			expectedAnnotationValue:   "true",
+		},
+		"safeToEvict takes precedence over timeLimitSeconds, component safeToEvict true with low time limit": {
+			componentSafeToEvict:      pointers.Ptr(true),
+			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
+			threshold:                 600,
+			expectedAnnotationValue:   "true",
+		},
+		"safeToEvict takes precedence over timeLimitSeconds, component safeToEvict false with high time limit": {
+			componentSafeToEvict:      pointers.Ptr(false),
+			componentTimeLimitSeconds: pointers.Ptr(int64(1000)),
+			threshold:                 600,
+			expectedAnnotationValue:   "false",
+		},
+		"batchJob safeToEvict takes precedence over both timeLimitSeconds": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
+			batchJobTimeLimitSeconds:  pointers.Ptr(int64(1000)),
+			batchJobSafeToEvict:       pointers.Ptr(false),
+			threshold:                 600,
+			expectedAnnotationValue:   "false",
+		},
+	}
+
+	for testName, tt := range tests {
+		s.Run(testName, func() {
+			appName, envName, batchName, componentName, rdName, jobName := "any-app", "any-env", "any-batch", "compute", "any-rd", "any-job"
+			namespace := utils.GetEnvironmentNamespace(appName, envName)
+
+			batch := &radixv1.RadixBatch{
+				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Spec: radixv1.RadixBatchSpec{
+					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+						Job:                  componentName,
+					},
+					Jobs: []radixv1.RadixBatchJob{
+						{
+							Name:             jobName,
+							SafeToEvict:      tt.batchJobSafeToEvict,
+							TimeLimitSeconds: tt.batchJobTimeLimitSeconds,
+						},
+					},
+				},
+			}
+
+			rd := &radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: rdName},
+				Spec: radixv1.RadixDeploymentSpec{
+					AppName: appName,
+					Jobs: []radixv1.RadixDeployJobComponent{
+						{
+							Name:             componentName,
+							Image:            "any-image",
+							SafeToEvict:      tt.componentSafeToEvict,
+							TimeLimitSeconds: tt.componentTimeLimitSeconds,
+						},
+					},
+				},
+			}
+
+			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			s.applyRadixDeploymentEnvVarsConfigMaps(s.kubeUtil, rd)
+
+			cfg := &config.Config{SafeToEvictBatchJobThreshold: tt.threshold}
+			sut := s.createSyncer(batch, cfg)
+			s.Require().NoError(sut.OnSync(context.Background()))
+
+			allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+			s.Require().NoError(err)
+			s.Require().Len(allJobs.Items, 1)
+			kubejob := allJobs.Items[0]
+			s.Equal(tt.expectedAnnotationValue, kubejob.Spec.Template.Annotations[safeToEvictAnnotation])
 		})
 	}
 }

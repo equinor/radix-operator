@@ -87,6 +87,10 @@ type RadixBatchJob struct {
 	// +kubebuilder:validation:Minimum:=0
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
 
+	// Overrides safeToEvict defined for job component in RadixDeployment.
+	// +optional
+	SafeToEvict *bool `json:"safeToEvict,omitempty"`
+
 	// Specifies the Secret name and data key containing the payload for the job
 	// +optional
 	PayloadSecretRef *PayloadSecretKeySelector `json:"payloadSecretRef,omitempty"`

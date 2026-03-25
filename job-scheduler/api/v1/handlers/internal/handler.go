@@ -389,6 +389,7 @@ func buildRadixBatchJob(jobScheduleDescription *common.JobScheduleDescription, d
 		Variables:        jobScheduleDescription.Variables.MapToRadixEnvVarsMap(),
 		TimeLimitSeconds: jobScheduleDescription.TimeLimitSeconds,
 		BackoffLimit:     jobScheduleDescription.BackoffLimit,
+		SafeToEvict:      jobScheduleDescription.SafeToEvict,
 		Image:            jobScheduleDescription.Image,
 		ImageTagName:     jobScheduleDescription.ImageTagName,
 		FailurePolicy:    jobScheduleDescription.FailurePolicy.MapToRadixFailurePolicy(),

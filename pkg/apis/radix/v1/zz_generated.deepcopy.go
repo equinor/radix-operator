@@ -1288,6 +1288,11 @@ func (in *RadixBatchJob) DeepCopyInto(out *RadixBatchJob) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.SafeToEvict != nil {
+		in, out := &in.SafeToEvict, &out.SafeToEvict
+		*out = new(bool)
+		**out = **in
+	}
 	if in.PayloadSecretRef != nil {
 		in, out := &in.PayloadSecretRef, &out.PayloadSecretRef
 		*out = new(PayloadSecretKeySelector)
@@ -1978,6 +1983,11 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 	if in.BackoffLimit != nil {
 		in, out := &in.BackoffLimit, &out.BackoffLimit
 		*out = new(int32)
+		**out = **in
+	}
+	if in.SafeToEvict != nil {
+		in, out := &in.SafeToEvict, &out.SafeToEvict
+		*out = new(bool)
 		**out = **in
 	}
 	if in.Identity != nil {
@@ -2815,6 +2825,11 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.SafeToEvict != nil {
+		in, out := &in.SafeToEvict, &out.SafeToEvict
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Identity != nil {
 		in, out := &in.Identity, &out.Identity
 		*out = new(Identity)
@@ -2913,6 +2928,11 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 	if in.BackoffLimit != nil {
 		in, out := &in.BackoffLimit, &out.BackoffLimit
 		*out = new(int32)
+		**out = **in
+	}
+	if in.SafeToEvict != nil {
+		in, out := &in.SafeToEvict, &out.SafeToEvict
+		*out = new(bool)
 		**out = **in
 	}
 	if in.Identity != nil {

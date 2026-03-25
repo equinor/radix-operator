@@ -635,6 +635,11 @@ type RadixDeployJobComponent struct {
 	// +optional
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
 
+	// Defines whether the job can be safely evicted by the cluster autoscaler during node scale-down.
+	// If not set, the value is determined by TimeLimitSeconds: true if >= 3 days, false otherwise.
+	// +optional
+	SafeToEvict *bool `json:"safeToEvict,omitempty"`
+
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 

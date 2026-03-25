@@ -3897,6 +3897,10 @@
                       },
                       "type": "object"
                     },
+                    "safeToEvict": {
+                      "description": "Defines whether the job can be safely evicted by the cluster autoscaler during node scale-down.\nIf not set, the value is determined by timeLimitSeconds: true if >= 3 days, false otherwise.",
+                      "type": "boolean"
+                    },
                     "secretRefs": {
                       "description": "Environment specific configuration for external secret stores, like Azure KeyVault.\nMore info: https://www.radix.equinor.com/radix-config#secretrefs",
                       "properties": {
@@ -4532,6 +4536,10 @@
                   }
                 },
                 "type": "object"
+              },
+              "safeToEvict": {
+                "description": "Defines whether the job can be safely evicted by the cluster autoscaler during node scale-down.\nIf not set, the value is determined by timeLimitSeconds: true if >= 3 days, false otherwise.",
+                "type": "boolean"
               },
               "schedulerPort": {
                 "description": "Defines the port number that the job-scheduler API server will listen to.\nMore info: https://www.radix.equinor.com/radix-config#schedulerport",

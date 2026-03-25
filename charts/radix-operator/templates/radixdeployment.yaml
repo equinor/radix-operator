@@ -1953,6 +1953,11 @@ spec:
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
+                    safeToEvict:
+                      description: |-
+                        Defines whether the job can be safely evicted by the cluster autoscaler during node scale-down.
+                        If not set, the value is determined by TimeLimitSeconds: true if >= 3 days, false otherwise.
+                      type: boolean
                     schedulerPort:
                       format: int32
                       maximum: 65535

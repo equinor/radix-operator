@@ -1000,6 +1000,11 @@
         "runtime": {
           "$ref": "#/definitions/Runtime"
         },
+        "safeToEvict": {
+          "description": "SafeToEvict defines whether the job can be safely evicted by the cluster autoscaler during node scale-down.\nIf not set, the value is determined by timeLimitSeconds. Read documentation for details.",
+          "type": "boolean",
+          "x-go-name": "SafeToEvict"
+        },
         "timeLimitSeconds": {
           "description": "TimeLimitSeconds defines maximum job run time. Corresponds to ActiveDeadlineSeconds in K8s.",
           "type": "integer",
@@ -1268,6 +1273,11 @@
         },
         "runtime": {
           "$ref": "#/definitions/Runtime"
+        },
+        "safeToEvict": {
+          "description": "SafeToEvict defines whether the job can be safely evicted by the cluster autoscaler during node scale-down.\nIf not set, the value is determined by timeLimitSeconds. Read documentation for details.",
+          "type": "boolean",
+          "x-go-name": "SafeToEvict"
         },
         "timeLimitSeconds": {
           "description": "TimeLimitSeconds defines maximum job run time. Corresponds to ActiveDeadlineSeconds in K8s.",

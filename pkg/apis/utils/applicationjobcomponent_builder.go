@@ -33,6 +33,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithArgs(args []string) RadixApplicationJobComponentBuilder
 	WithRunAsUser(runAsUser *int64) RadixApplicationJobComponentBuilder
 	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) RadixApplicationJobComponentBuilder
+	WithSafeToEvict(*bool) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -65,6 +66,7 @@ type radixApplicationJobComponentBuilder struct {
 	command            []string
 	args               []string
 	runAsUser          *int64
+	safeToEvict        *bool
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -230,6 +232,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithFailurePolicy(failurePolicy 
 	return rcb
 }
 
+func (rcb *radixApplicationJobComponentBuilder) WithSafeToEvict(safeToEvict *bool) RadixApplicationJobComponentBuilder {
+	rcb.safeToEvict = safeToEvict
+	return rcb
+}
+
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
 	var environmentConfig = make([]v1.RadixJobComponentEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -270,6 +277,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Command:            rcb.command,
 		Args:               rcb.args,
 		RunAsUser:          rcb.runAsUser,
+		SafeToEvict:        rcb.safeToEvict,
 	}
 }
 
