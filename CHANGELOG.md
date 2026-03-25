@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.111.0](https://github.com/equinor/radix-operator/compare/v1.110.2..v1.111.0) - 2026-03-25
+
+### 🚀 Features
+
+- SafeToRestart flag for radix batch jobs (#1652) - ([8639b11](https://github.com/equinor/radix-operator/commit/8639b11600cf0ce2f611245fbd87040c468f6368)) by @Richard87 in [#1652](https://github.com/equinor/radix-operator/pull/1652)
+
+
 ## [1.110.2](https://github.com/equinor/radix-operator/compare/v1.110.1..v1.110.2) - 2026-03-24
 
 ### 🐛 Bug Fixes
