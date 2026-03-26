@@ -13,7 +13,7 @@ jobs:
       version: ${{ steps.metadata.outputs.version }}
       release-exist: ${{ steps.metadata.outputs.release_exist }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Metadata
         id: metadata
         env:
@@ -52,7 +52,7 @@ jobs:
           - file: job-scheduler.Dockerfile
             repository: /equinor/radix/job-scheduler
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.CONTAINER_REGISTRY }}
@@ -88,7 +88,7 @@ jobs:
     env:
       HELM_CHART_REGISTRY: oci://ghcr.io
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
