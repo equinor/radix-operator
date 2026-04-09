@@ -243,11 +243,12 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 
 	var errs []error
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
+	environmentSubPipelineParams := map[string]model.SubPipelineParams{}
 	timestamp := time.Now().Format("20060102150405")
 
 	for _, targetEnv := range pipelineInfo.TargetEnvironments {
 		log.Ctx(ctx).Debug().Msgf("Create sub-pipeline for environment %s", targetEnv.Environment)
-		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForEnvironment(pipelineInfo, targetEnv.Environment, timestamp)
+		runSubPipeline, pipelineFilePath, params, err := step.prepareSubPipelineForEnvironment(pipelineInfo, targetEnv.Environment, timestamp)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to prepare sub-pipeline for environment %s: %w", targetEnv.Environment, err))
 		}
@@ -257,10 +258,13 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 				Environment:  targetEnv.Environment,
 				PipelineFile: pipelineFilePath,
 			})
+
+			environmentSubPipelineParams[targetEnv.Environment] = params
 		}
 	}
 
 	pipelineInfo.EnvironmentSubPipelinesToRun = environmentSubPipelinesToRun
+	pipelineInfo.EnvironmentSubPipelineParams = environmentSubPipelineParams
 	return errors.Join(errs...)
 }
 
@@ -379,24 +383,38 @@ func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Cont
 	log.Ctx(ctx).Info().Msg(stringBuilder.String())
 }
 
-func (step *PreparePipelinesStepImplementation) prepareSubPipelineForEnvironment(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, error) {
+func (step *PreparePipelinesStepImplementation) prepareSubPipelineForEnvironment(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, model.SubPipelineParams, error) {
 	subPipelineExists, pipelineFilePath, pl, tasks, err := step.subPipelineReader.ReadPipelineAndTasks(pipelineInfo, envName)
 	if err != nil {
-		return false, "", err
+		return false, "", model.SubPipelineParams{}, err
 	}
 	if !subPipelineExists {
-		return false, "", nil
+		return false, "", model.SubPipelineParams{}, nil
 	}
-	if err = step.createSubPipelineAndTasks(envName, pl, tasks, timestamp, pipelineInfo); err != nil {
-		return false, "", err
+
+	params := model.SubPipelineParams{
+		PipelineType: pipelineInfo.PipelineArguments.PipelineType,
+		Environment:  envName,
+		GitSSHUrl:    step.GetRegistration().Spec.CloneURL,
+		GitRef:       pipelineInfo.GetGitRef(),
+		GitRefType:   pipelineInfo.GetGitRefTypeOrDefault(),
+		GitCommit:    pipelineInfo.GitCommitHash,
+		GitTags:      pipelineInfo.GitTags,
 	}
-	return true, pipelineFilePath, nil
+	if err = step.createSubPipelineAndTasks(envName, pl, tasks, params, timestamp, pipelineInfo); err != nil {
+		return false, "", model.SubPipelineParams{}, err
+	}
+	return true, pipelineFilePath, params, nil
 }
 
-func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName string, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) (map[string]v1.Task, error) {
+func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName string, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo, params model.SubPipelineParams) (map[string]v1.Task, error) {
 	var errs []error
 	taskMap := make(map[string]v1.Task)
 	hash := internal.GetJobNameHash(pipelineInfo)
+	paramSpec, err := params.AsObjectParamSpec()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate radix param for tasks: %w", err)
+	}
 
 	for _, task := range tasks {
 		originalTaskName := task.Name
@@ -428,6 +446,8 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 		if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 		}
+
+		task.Spec.Params = append(task.Spec.Params, paramSpec)
 
 		ensureCorrectSecureContext(&task)
 		taskMap[originalTaskName] = task
@@ -504,17 +524,28 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	securityContext.Capabilities.Drop = []corev1.Capability{"ALL"}
 }
 
-func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envName string, pipeline *v1.Pipeline, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) error {
+func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envName string, pipeline *v1.Pipeline, tasks []v1.Task, params model.SubPipelineParams, timestamp string, pipelineInfo *model.PipelineInfo) error {
 	originalPipelineName := pipeline.Name
 	var errs []error
-	taskMap, err := step.buildSubPipelineTasks(envName, tasks, timestamp, pipelineInfo)
+	taskMap, err := step.buildSubPipelineTasks(envName, tasks, timestamp, pipelineInfo, params)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %w", originalPipelineName, err))
+		errs = append(errs, fmt.Errorf("failed to build tasks for pipeline: %w", err))
 	}
 
 	_, azureClientIdPipelineParamExist := internalsubpipeline.GetEnvVars(pipelineInfo.GetRadixApplication(), envName)[pipelineDefaults.AzureClientIdEnvironmentVariable]
 	if azureClientIdPipelineParamExist {
 		ensureAzureClientIdParamExistInPipelineParams(pipeline)
+	}
+
+	paramSpec, err := params.AsObjectParamSpec()
+	if err != nil {
+		return fmt.Errorf("failed to generate radix param for pipeline: %w", err)
+	}
+	pipeline.Spec.Params = append(pipeline.Spec.Params, paramSpec)
+
+	paramRef, err := params.AsObjectParamReference()
+	if err != nil {
+		return fmt.Errorf("failed to generate radix param refs for pipeline tasks: %w", err)
 	}
 
 	for taskIndex, pipelineSpecTask := range pipeline.Spec.Tasks {
@@ -523,14 +554,19 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 			errs = append(errs, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
 			continue
 		}
+
 		pipeline.Spec.Tasks[taskIndex].TaskRef = &v1.TaskRef{Name: task.Name}
 		if azureClientIdPipelineParamExist {
 			ensureAzureClientIdParamExistInTaskParams(pipeline, taskIndex, task)
 		}
+
+		pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, paramRef)
 	}
+
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
+
 	hash := internal.GetJobNameHash(pipelineInfo)
 	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalPipelineName), timestamp, hash)
 	pipeline.ObjectMeta.Name = pipelineName
