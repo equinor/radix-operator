@@ -203,11 +203,6 @@ type RadixBuildSpec struct {
 	// +optional
 	PushImage bool `json:"pushImage,omitempty"`
 
-	// Enables BuildKit when building Dockerfile.
-	//
-	// +optional
-	UseBuildKit *bool `json:"useBuildKit,omitempty"`
-
 	// Defaults to true and requires useBuildKit to have an effect.
 	//
 	// +optional

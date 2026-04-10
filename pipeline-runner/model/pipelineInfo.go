@@ -208,10 +208,18 @@ func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bo
 	return p.GetRadixPipelineType() == pipelineType
 }
 
-// IsUsingBuildKit Check if buildkit should be used
+// IsUsingBuildKit Check if buildkit should be used. Defaults to true if no build secrets is set.
 func (p *PipelineInfo) IsUsingBuildKit() bool {
-	return p.RadixApplication != nil && p.RadixApplication.Spec.Build != nil &&
-		p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
+	if p.RadixApplication == nil || p.RadixApplication.Spec.Build == nil {
+		return true
+	}
+
+	if p.RadixApplication.Spec.Build.UseBuildKit != nil {
+		return *p.RadixApplication.Spec.Build.UseBuildKit
+	}
+
+	// If build secrets are empty, buildkit is used. If not use ACR RunRasks for backwards compatibility.
+	return len(p.RadixApplication.Spec.Build.Secrets) == 0
 }
 
 // IsUsingBuildCache Check if build cache should be used

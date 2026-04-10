@@ -130,9 +130,6 @@ spec:
                     description: Defaults to true and requires useBuildKit to have
                       an effect.
                     type: boolean
-                  useBuildKit:
-                    description: Enables BuildKit when building Dockerfile.
-                    type: boolean
                 required:
                 - branch
                 - imageTag
