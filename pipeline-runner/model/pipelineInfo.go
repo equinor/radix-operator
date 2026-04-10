@@ -218,7 +218,7 @@ func (p *PipelineInfo) IsUsingBuildKit() bool {
 		return *p.RadixApplication.Spec.Build.UseBuildKit
 	}
 
-	// If build secrets are empty, buildkit is used. If not use ACR RunRasks for backwards compatibility.
+	// If build secrets are empty, BuildKit is used; otherwise, use ACR Run Tasks for backwards compatibility.
 	return len(p.RadixApplication.Spec.Build.Secrets) == 0
 }
 
