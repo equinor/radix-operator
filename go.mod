@@ -7,9 +7,15 @@ godebug default=go1.24
 require (
 	dario.cat/mergo v1.0.2
 	github.com/cert-manager/cert-manager v1.15.4
+<<<<<<< 1663-default-to-usebuildkit-true
 	github.com/equinor/radix-common v1.12.3-0.20260410082650-6adfc538cb8b // TODO FIX
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-git/go-git/v5 v5.16.5
+=======
+	github.com/equinor/radix-common v1.11.0
+	github.com/gin-gonic/gin v1.10.1
+	github.com/go-git/go-git/v5 v5.17.1
+>>>>>>> master
 	github.com/go-logr/logr v1.4.3
 	github.com/go-logr/zerologr v1.2.3
 	github.com/go-swagger/go-swagger v0.31.0
@@ -74,7 +80,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/gin-contrib/sse v1.1.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-git/go-billy/v5 v5.6.2 // indirect
+	github.com/go-git/go-billy/v5 v5.8.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.2 // indirect
