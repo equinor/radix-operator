@@ -203,11 +203,6 @@ type RadixBuildSpec struct {
 	// +optional
 	PushImage bool `json:"pushImage,omitempty"`
 
-	// Defaults to true and requires useBuildKit to have an effect.
-	//
-	// +optional
-	UseBuildCache *bool `json:"useBuildCache,omitempty"`
-
 	// OverrideUseBuildCache override default or configured build cache option
 	//
 	// +optional
