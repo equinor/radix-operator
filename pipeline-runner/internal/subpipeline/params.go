@@ -74,8 +74,8 @@ func ObjectParamSpec(paramName string, obj any) (pipelinev1.ParamSpec, error) {
 //	pipelinev1.Param{
 //		Name: "source",
 //		Value: *pipelinev1.NewObject(map[string]string{
-//			"gitSSHUrl": "\"$(params.radix.gitSSHUrl)\"",
-//			"gitCommit": "\"$(params.radix.gitCommit)\"",
+//			"gitSSHUrl": "$(params.radix.gitSSHUrl)",
+//			"gitCommit": "$(params.radix.gitCommit)",
 //		}),
 //	}
 func ObjectParamReference(paramName string, obj any, reference pipelinev1.ParamSpec) (pipelinev1.Param, error) {
