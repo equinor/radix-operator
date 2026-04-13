@@ -235,6 +235,7 @@ func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipeline
 		if !envVarExistInParamSpecs {
 			continue // Add to pipelineRun params only env-vars, existing in the pipeline paramSpecs or Azure identity clientId
 		}
+
 		param := pipelinev1.Param{Name: envVarName, Value: pipelinev1.ParamValue{Type: paramSpec.Type}}
 		if param.Value.Type == pipelinev1.ParamTypeArray { // Param can contain a string value or a comma-separated values array
 			param.Value.ArrayVal = strings.Split(envVarValue, ",")
@@ -242,21 +243,7 @@ func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipeline
 			param.Value.StringVal = envVarValue
 		}
 		pipelineParams = append(pipelineParams, param)
-		delete(pipelineParamsMap, envVarName)
 	}
-
-	// for paramName, paramSpec := range pipelineParamsMap {
-	// 	if paramName == defaults.AzureClientIdEnvironmentVariable && len(envVars[defaults.AzureClientIdEnvironmentVariable]) > 0 {
-	// 		continue // Azure identity clientId was set by radixconfig build env-var or identity
-	// 	}
-	// 	param := pipelinev1.Param{Name: paramName, Value: pipelinev1.ParamValue{Type: paramSpec.Type}}
-	// 	if paramSpec.Default != nil {
-	// 		param.Value.StringVal = paramSpec.Default.StringVal
-	// 		param.Value.ArrayVal = paramSpec.Default.ArrayVal
-	// 		param.Value.ObjectVal = paramSpec.Default.ObjectVal
-	// 	}
-	// 	pipelineParams = append(pipelineParams, param)
-	// }
 
 	param, err := pipelineInfo.EnvironmentSubPipelineParams[targetEnv].AsObjectParam()
 	if err != nil {
