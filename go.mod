@@ -7,7 +7,7 @@ godebug default=go1.24
 require (
 	dario.cat/mergo v1.0.2
 	github.com/cert-manager/cert-manager v1.15.4
-	github.com/equinor/radix-common v1.12.3 // TODO FIX
+	github.com/equinor/radix-common v1.12.3
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-git/go-git/v5 v5.17.1
 	github.com/go-logr/logr v1.4.3
