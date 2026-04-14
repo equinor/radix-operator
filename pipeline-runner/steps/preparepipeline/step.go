@@ -241,14 +241,26 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 		return fmt.Errorf("failed to checkout commit %s: %w", gitCommit, err)
 	}
 
+	pipelineInfo.EnvironmentSubPipelineParams = map[string]model.SubPipelineParams{}
+	for _, targetEnv := range pipelineInfo.TargetEnvironments {
+		pipelineInfo.EnvironmentSubPipelineParams[targetEnv.Environment] = model.SubPipelineParams{
+			PipelineType: pipelineInfo.PipelineArguments.PipelineType,
+			Environment:  targetEnv.Environment,
+			GitSSHUrl:    step.GetRegistration().Spec.CloneURL,
+			GitRef:       pipelineInfo.GetGitRef(),
+			GitRefType:   pipelineInfo.GetGitRefTypeOrDefault(),
+			GitCommit:    pipelineInfo.GitCommitHash,
+			GitTags:      pipelineInfo.GitTags,
+		}
+	}
+
 	var errs []error
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
-	environmentSubPipelineParams := map[string]model.SubPipelineParams{}
 	timestamp := time.Now().Format("20060102150405")
 
 	for _, targetEnv := range pipelineInfo.TargetEnvironments {
 		log.Ctx(ctx).Debug().Msgf("Create sub-pipeline for environment %s", targetEnv.Environment)
-		runSubPipeline, pipelineFilePath, params, err := step.prepareSubPipelineForEnvironment(pipelineInfo, targetEnv.Environment, timestamp)
+		runSubPipeline, pipelineFilePath, err := step.prepareSubPipelineForEnvironment(pipelineInfo, targetEnv.Environment, timestamp)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to prepare sub-pipeline for environment %s: %w", targetEnv.Environment, err))
 		}
@@ -259,12 +271,10 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 				PipelineFile: pipelineFilePath,
 			})
 
-			environmentSubPipelineParams[targetEnv.Environment] = params
 		}
 	}
 
 	pipelineInfo.EnvironmentSubPipelinesToRun = environmentSubPipelinesToRun
-	pipelineInfo.EnvironmentSubPipelineParams = environmentSubPipelineParams
 	return errors.Join(errs...)
 }
 
@@ -383,35 +393,27 @@ func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Cont
 	log.Ctx(ctx).Info().Msg(stringBuilder.String())
 }
 
-func (step *PreparePipelinesStepImplementation) prepareSubPipelineForEnvironment(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, model.SubPipelineParams, error) {
+func (step *PreparePipelinesStepImplementation) prepareSubPipelineForEnvironment(pipelineInfo *model.PipelineInfo, envName, timestamp string) (bool, string, error) {
 	subPipelineExists, pipelineFilePath, pl, tasks, err := step.subPipelineReader.ReadPipelineAndTasks(pipelineInfo, envName)
 	if err != nil {
-		return false, "", model.SubPipelineParams{}, err
+		return false, "", err
 	}
 	if !subPipelineExists {
-		return false, "", model.SubPipelineParams{}, nil
+		return false, "", nil
 	}
 
-	params := model.SubPipelineParams{
-		PipelineType: pipelineInfo.PipelineArguments.PipelineType,
-		Environment:  envName,
-		GitSSHUrl:    step.GetRegistration().Spec.CloneURL,
-		GitRef:       pipelineInfo.GetGitRef(),
-		GitRefType:   pipelineInfo.GetGitRefTypeOrDefault(),
-		GitCommit:    pipelineInfo.GitCommitHash,
-		GitTags:      pipelineInfo.GitTags,
+	if err = step.createSubPipelineAndTasks(envName, pl, tasks, timestamp, pipelineInfo); err != nil {
+		return false, "", err
 	}
-	if err = step.createSubPipelineAndTasks(envName, pl, tasks, params, timestamp, pipelineInfo); err != nil {
-		return false, "", model.SubPipelineParams{}, err
-	}
-	return true, pipelineFilePath, params, nil
+	return true, pipelineFilePath, nil
 }
 
-func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName string, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo, params model.SubPipelineParams) (map[string]v1.Task, error) {
+func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName string, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) (map[string]v1.Task, error) {
 	var errs []error
 	taskMap := make(map[string]v1.Task)
 	hash := internal.GetJobNameHash(pipelineInfo)
-	paramSpec, err := params.AsObjectParamSpec()
+
+	paramSpec, err := pipelineInfo.EnvironmentSubPipelineParams[envName].AsObjectParamSpec()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate radix param for tasks: %w", err)
 	}
@@ -527,10 +529,11 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	securityContext.Capabilities.Drop = []corev1.Capability{"ALL"}
 }
 
-func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envName string, pipeline *v1.Pipeline, tasks []v1.Task, params model.SubPipelineParams, timestamp string, pipelineInfo *model.PipelineInfo) error {
-	originalPipelineName := pipeline.Name
+func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envName string, pipeline *v1.Pipeline, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) error {
 	var errs []error
-	taskMap, err := step.buildSubPipelineTasks(envName, tasks, timestamp, pipelineInfo, params)
+	originalPipelineName := pipeline.Name
+
+	taskMap, err := step.buildSubPipelineTasks(envName, tasks, timestamp, pipelineInfo)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to build tasks for pipeline: %w", err))
 	}
@@ -539,6 +542,8 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 	if azureClientIdPipelineParamExist {
 		ensureAzureClientIdParamExistInPipelineParams(pipeline)
 	}
+
+	params := pipelineInfo.EnvironmentSubPipelineParams[envName]
 
 	paramSpec, err := params.AsObjectParamSpec()
 	if err != nil {
