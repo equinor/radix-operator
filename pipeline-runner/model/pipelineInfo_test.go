@@ -235,3 +235,52 @@ func Test_CompareApplicationWithDeploymentHash(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, isEqual)
 }
+
+func Test_IsUsingBuildKit(t *testing.T) {
+	boolTrue := true
+	boolFalse := false
+
+	tests := []struct {
+		name     string
+		ra       *v1.RadixApplication
+		expected bool
+	}{
+		{
+			name:     "nil RadixApplication returns true",
+			ra:       nil,
+			expected: true,
+		},
+		{
+			name:     "nil Build spec returns true",
+			ra:       &v1.RadixApplication{},
+			expected: true,
+		},
+		{
+			name:     "UseBuildKit explicitly true returns true",
+			ra:       &v1.RadixApplication{Spec: v1.RadixApplicationSpec{Build: &v1.BuildSpec{UseBuildKit: &boolTrue}}},
+			expected: true,
+		},
+		{
+			name:     "UseBuildKit explicitly false returns false",
+			ra:       &v1.RadixApplication{Spec: v1.RadixApplicationSpec{Build: &v1.BuildSpec{UseBuildKit: &boolFalse}}},
+			expected: false,
+		},
+		{
+			name:     "UseBuildKit nil with no secrets returns true",
+			ra:       &v1.RadixApplication{Spec: v1.RadixApplicationSpec{Build: &v1.BuildSpec{}}},
+			expected: true,
+		},
+		{
+			name:     "UseBuildKit nil with secrets returns false",
+			ra:       &v1.RadixApplication{Spec: v1.RadixApplicationSpec{Build: &v1.BuildSpec{Secrets: []string{"SECRET1"}}}},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &model.PipelineInfo{RadixApplication: tt.ra}
+			assert.Equal(t, tt.expected, p.IsUsingBuildKit())
+		})
+	}
+}
