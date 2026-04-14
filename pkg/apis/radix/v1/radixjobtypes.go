@@ -38,6 +38,11 @@ const (
 	RadixJobReconcileFailed    RadixJobReconcileStatus = "Failed"
 )
 
+type RadixJobBuildStatus struct {
+	UsedBuildKit   bool `json:"usedBuildKit"`
+	UsedBuildCache bool `json:"usedBuildCache"`
+}
+
 // RadixJobStatus is the observed state of the RadixJob
 type RadixJobStatus struct {
 	// Condition describes the current state of the job
@@ -59,7 +64,7 @@ type RadixJobStatus struct {
 	// +kubebuilder:validation:Optional
 	TargetEnvs []string `json:"targetEnvironments,omitempty"`
 
-	// Steps contains the status of each pipeline step
+	// Deprecated: Steps contains the status of each pipeline step
 	// +kubebuilder:validation:Optional
 	Steps []RadixJobStep `json:"steps,omitempty"`
 
@@ -78,6 +83,10 @@ type RadixJobStatus struct {
 	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitempty"`
+
+	// BuildStatus provides additional information about the build execution
+	// +kubebuilder:validation:Optional
+	BuildStatus RadixJobBuildStatus `json:"buildStatus,omitempty"`
 }
 
 // RadixJobCondition Holds the condition of a job

@@ -42,6 +42,8 @@ type PipelineRunner struct {
 	dynamicClient client.Client
 	appName       string
 	pipelineInfo  *model.PipelineInfo
+	startTime     time.Time
+	endTime       time.Time
 }
 
 // NewRunner constructor
@@ -55,6 +57,8 @@ func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interfac
 		tektonClient:  tektonClient,
 		dynamicClient: dynamicClient,
 		appName:       appName,
+		startTime:     time.Now(),
+		endTime:       time.Time{},
 	}
 	return handler
 }
@@ -79,6 +83,7 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 // Run runs through the steps in the defined pipeline
 func (cli *PipelineRunner) Run(ctx context.Context) error {
 	printPipelineDescription(ctx, cli.pipelineInfo)
+	cli.UpdateStatus(ctx, v1.JobRunning)
 	for _, step := range cli.pipelineInfo.Steps {
 		logger := log.Ctx(ctx)
 		ctx := logger.WithContext(ctx)
@@ -91,6 +96,7 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 		logger.Info().Msg(step.SucceededMsg())
 		if cli.pipelineInfo.StopPipeline {
 			logger.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
+			cli.UpdateStatus(ctx, v1.JobStoppedNoChanges, WithErrorOption(nil))
 			break
 		}
 
@@ -98,6 +104,8 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 			return ctx.Err()
 		}
 	}
+	cli.endTime = time.Now()
+	cli.UpdateStatus(ctx, v1.JobSucceeded, WithErrorOption(nil))
 	return nil
 }
 

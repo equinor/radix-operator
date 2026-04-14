@@ -21,9 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubelabels "k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -273,54 +270,4 @@ func getPushImageTag(pushImage bool) string {
 	}
 
 	return "0"
-}
-
-func (job *Job) getJobConditionFromJobStatus(ctx context.Context, jobStatus batchv1.JobStatus) (radixv1.RadixJobCondition, error) {
-	if jobStatus.Failed > 0 {
-		return radixv1.JobFailed, nil
-	}
-	if jobStatus.Active > 0 {
-		return radixv1.JobRunning, nil
-
-	}
-	if jobStatus.Succeeded > 0 {
-		jobResult, err := job.getRadixJobResult(ctx)
-		if err != nil {
-			return radixv1.JobSucceeded, err
-		}
-		if jobResult.Result == radixv1.RadixJobResultStoppedNoChanges || job.radixJob.Status.Condition == radixv1.JobStoppedNoChanges {
-			return radixv1.JobStoppedNoChanges, nil
-		}
-		return radixv1.JobSucceeded, nil
-	}
-	return radixv1.JobWaiting, nil
-}
-
-func (job *Job) getRadixJobResult(ctx context.Context) (*radixv1.RadixJobResult, error) {
-	namespace := job.radixJob.GetNamespace()
-	jobName := job.radixJob.GetName()
-	configMaps, err := job.kubeutil.ListConfigMapsWithSelector(ctx, namespace, getRadixPipelineJobResultConfigMapSelector(jobName))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ConfigMaps while garbage collecting config-maps in %s: %w", namespace, err)
-	}
-	if len(configMaps) > 1 {
-		return nil, fmt.Errorf("unexpected multiple Radix pipeline result ConfigMaps for the job %s in %s", jobName, job.radixJob.GetNamespace())
-	}
-	radixJobResult := &radixv1.RadixJobResult{}
-	if len(configMaps) == 0 {
-		return radixJobResult, nil
-	}
-	if resultContent, ok := configMaps[0].Data[ResultContent]; ok && len(resultContent) > 0 {
-		err = yaml.Unmarshal([]byte(resultContent), radixJobResult)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return radixJobResult, nil
-}
-
-func getRadixPipelineJobResultConfigMapSelector(jobName string) string {
-	radixJobNameReq, _ := kubelabels.NewRequirement(kube.RadixJobNameLabel, selection.Equals, []string{jobName})
-	pipelineResultConfigMapReq, _ := kubelabels.NewRequirement(kube.RadixConfigMapTypeLabel, selection.Equals, []string{string(kube.RadixPipelineResultConfigMap)})
-	return kubelabels.NewSelector().Add(*radixJobNameReq, *pipelineResultConfigMapReq).String()
 }
