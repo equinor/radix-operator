@@ -3,8 +3,6 @@ package runner
 import (
 	"context"
 	"errors"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
@@ -16,7 +14,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
-	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -25,12 +22,10 @@ import (
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretsstoreclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
-	"sigs.k8s.io/yaml"
 )
 
 // PipelineRunner Instance variables
@@ -127,34 +122,6 @@ func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registra
 	}
 
 	return stepImplementations
-}
-
-// CreateResultConfigMap Creates a ConfigMap with the result of the pipeline job
-func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
-	result := v1.RadixJobResult{}
-	if cli.pipelineInfo.StopPipeline {
-		result.Result = v1.RadixJobResultStoppedNoChanges
-		result.Message = cli.pipelineInfo.StopPipelineMessage
-	}
-	resultContent, err := yaml.Marshal(&result)
-	if err != nil {
-		return err
-	}
-
-	configMapName := strings.ToLower(fmt.Sprintf("%s-%s", cli.pipelineInfo.PipelineArguments.JobName, utils.RandString(5)))
-	configMap := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: configMapName,
-			Labels: map[string]string{
-				kube.RadixJobNameLabel:       cli.pipelineInfo.PipelineArguments.JobName,
-				kube.RadixConfigMapTypeLabel: string(kube.RadixPipelineResultConfigMap),
-			},
-		},
-		Data: map[string]string{jobs.ResultContent: string(resultContent)},
-	}
-	log.Ctx(ctx).Debug().Msgf("Create result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
-	_, err = cli.kubeUtil.CreateConfigMap(ctx, utils.GetAppNamespace(cli.appName), &configMap)
-	return err
 }
 
 func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineInfo) {

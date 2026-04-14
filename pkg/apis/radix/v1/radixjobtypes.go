@@ -330,22 +330,6 @@ type RadixJobStep struct {
 	Components []string `json:"components,omitempty"`
 }
 
-// RadixJobResultType Type of the Radix pipeline job result
-type RadixJobResultType string
-
-const (
-	// RadixJobResultStoppedNoChanges The Radix build-deploy pipeline job was stopped due to there were no changes in component source code
-	RadixJobResultStoppedNoChanges RadixJobResultType = "stoppedNoChanges"
-	RadixJobResultSucceeded        RadixJobResultType = "succeeded"
-	RadixJobResultFailed           RadixJobResultType = "failed"
-)
-
-// RadixJobResult is returned by Radix pipeline jobs via ConfigMap
-type RadixJobResult struct {
-	Result  RadixJobResultType `json:"result"`
-	Message string             `json:"message"`
-}
-
 // GetGitRefOrDefault Get git event ref or "branch" by default
 func (buildSpec *RadixBuildSpec) GetGitRefOrDefault() string {
 	if buildSpec.GitRef == "" {
