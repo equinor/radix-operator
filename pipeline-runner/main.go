@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -16,7 +15,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
@@ -47,23 +45,12 @@ func main() {
 			cli, err := prepareRunner(ctx, pipelineArgs)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to prepare runner")
-				cli.UpdateStatus(ctx, radixv1.JobFailed, runner.WithErrorOption(err))
 				os.Exit(1)
 			}
 
-			cli.UpdateStatus(ctx, v1.JobRunning)
 			err = cli.Run(ctx)
 			if err != nil {
-				cli.UpdateStatus(ctx, radixv1.JobFailed, runner.WithErrorOption(err))
 				os.Exit(2)
-			}
-
-			teardownCtx, cancelTeardownCtx := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancelTeardownCtx()
-			err = cli.CreateResultConfigMap(teardownCtx)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to create result ConfigMap")
-				os.Exit(3)
 			}
 
 			os.Exit(0)

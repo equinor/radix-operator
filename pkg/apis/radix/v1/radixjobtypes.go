@@ -38,11 +38,6 @@ const (
 	RadixJobReconcileFailed    RadixJobReconcileStatus = "Failed"
 )
 
-type RadixJobBuildStatus struct {
-	UsedBuildKit   bool `json:"usedBuildKit"`
-	UsedBuildCache bool `json:"usedBuildCache"`
-}
-
 // RadixJobStatus is the observed state of the RadixJob
 type RadixJobStatus struct {
 	// Condition describes the current state of the job
@@ -64,7 +59,7 @@ type RadixJobStatus struct {
 	// +kubebuilder:validation:Optional
 	TargetEnvs []string `json:"targetEnvironments,omitempty"`
 
-	// Deprecated: Steps contains the status of each pipeline step
+	// Steps contains the status of each pipeline step
 	// +kubebuilder:validation:Optional
 	Steps []RadixJobStep `json:"steps,omitempty"`
 
@@ -84,9 +79,15 @@ type RadixJobStatus struct {
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitempty"`
 
-	// BuildStatus provides additional information about the build execution
+	// PipelineRunStatus provides additional information about the pipeline run execution
 	// +kubebuilder:validation:Optional
-	BuildStatus RadixJobBuildStatus `json:"buildStatus,omitempty"`
+	PipelineRunStatus *RadixJobPipelineRunStatus `json:"pipelineRunStatus,omitempty"`
+}
+
+type RadixJobPipelineRunStatus struct {
+	UsedBuildKit   bool              `json:"usedBuildKit"`
+	UsedBuildCache bool              `json:"usedBuildCache"`
+	Result         RadixJobCondition `json:"status"`
 }
 
 // RadixJobCondition Holds the condition of a job
@@ -335,6 +336,8 @@ type RadixJobResultType string
 const (
 	// RadixJobResultStoppedNoChanges The Radix build-deploy pipeline job was stopped due to there were no changes in component source code
 	RadixJobResultStoppedNoChanges RadixJobResultType = "stoppedNoChanges"
+	RadixJobResultSucceeded        RadixJobResultType = "succeeded"
+	RadixJobResultFailed           RadixJobResultType = "failed"
 )
 
 // RadixJobResult is returned by Radix pipeline jobs via ConfigMap

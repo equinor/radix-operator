@@ -271,3 +271,23 @@ func getPushImageTag(pushImage bool) string {
 
 	return "0"
 }
+
+func (job *Job) getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) (radixv1.RadixJobCondition, error) {
+	if jobStatus.Failed > 0 {
+		return radixv1.JobFailed, nil
+	}
+	if jobStatus.Active > 0 {
+		return radixv1.JobRunning, nil
+
+	}
+	if jobStatus.Succeeded > 0 {
+
+		if job.radixJob != nil && job.radixJob.Status.PipelineRunStatus != nil && job.radixJob.Status.PipelineRunStatus.Result != "" {
+			return job.radixJob.Status.PipelineRunStatus.Result, nil
+		}
+
+		// Unknown, but pipeline runner exited successfully, so we assume succeeded
+		return radixv1.JobSucceeded, nil
+	}
+	return radixv1.JobWaiting, nil
+}

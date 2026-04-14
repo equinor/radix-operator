@@ -245,27 +245,50 @@ func (job *Job) syncStatus(ctx context.Context, reconcileErr error) error {
 		return err
 	}
 	var steps []v1.RadixJobStep
-	_, pipelineJobExists := commonslice.FindFirst(pipelineJobs, func(j batchv1.Job) bool { return j.GetName() == job.radixJob.Name })
+	var condition v1.RadixJobCondition
+	pipelineJob, pipelineJobExists := commonslice.FindFirst(pipelineJobs, func(j batchv1.Job) bool { return j.GetName() == job.radixJob.Name })
 	if pipelineJobExists {
 		steps, err = job.getJobSteps(ctx, pipelineJobs)
 		if err != nil {
 			return err
 		}
+		condition, err = job.getJobConditionFromJobStatus(pipelineJob.Status)
+		if err != nil {
+			return err
+		}
 	}
 
-	if err := job.updateStatus(ctx, func(currStatus *v1.RadixJobStatus) {
-		currStatus.Created = &job.radixJob.CreationTimestamp
-		currStatus.Reconciled = metav1.Now()
-		currStatus.ObservedGeneration = job.radixJob.Generation
+	environments, err := job.getJobEnvironments(ctx)
+	if err != nil {
+		return err
+	}
 
-		if currStatus.Condition == "" {
-			currStatus.Condition = v1.JobWaiting
-		}
+	if err = job.updateStatus(ctx, func(currStatus *v1.RadixJobStatus) {
+		currStatus.Created = &job.radixJob.CreationTimestamp
 
 		if pipelineJobExists {
 			currStatus.Steps = steps
+			currStatus.Condition = condition
+			currStatus.Started = pipelineJob.Status.StartTime
+
+			if len(pipelineJob.Status.Conditions) > 0 {
+				currStatus.Ended = &pipelineJob.Status.Conditions[0].LastTransitionTime
+			}
 		}
 
+		if len(environments) > 0 {
+			currStatus.TargetEnvs = environments
+		}
+
+		currStatus.Reconciled = metav1.Now()
+		currStatus.ObservedGeneration = job.radixJob.Generation
+		if reconcileErr != nil {
+			currStatus.ReconcileStatus = v1.RadixJobReconcileFailed
+			currStatus.Message = reconcileErr.Error()
+		} else {
+			currStatus.ReconcileStatus = v1.RadixJobReconcileSucceeded
+			currStatus.Message = ""
+		}
 	}); err != nil {
 		return fmt.Errorf("failed to sync status: %w", err)
 	}

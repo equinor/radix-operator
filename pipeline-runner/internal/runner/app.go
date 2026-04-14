@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -42,8 +43,6 @@ type PipelineRunner struct {
 	dynamicClient client.Client
 	appName       string
 	pipelineInfo  *model.PipelineInfo
-	startTime     time.Time
-	endTime       time.Time
 }
 
 // NewRunner constructor
@@ -57,8 +56,6 @@ func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interfac
 		tektonClient:  tektonClient,
 		dynamicClient: dynamicClient,
 		appName:       appName,
-		startTime:     time.Now(),
-		endTime:       time.Time{},
 	}
 	return handler
 }
@@ -91,21 +88,26 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 		err := step.Run(ctx, cli.pipelineInfo)
 		if err != nil {
 			logger.Error().Msg(step.ErrorMsg(err))
+			cli.UpdateStatus(ctx, v1.JobFailed)
 			return err
 		}
-		logger.Info().Msg(step.SucceededMsg())
+
 		if cli.pipelineInfo.StopPipeline {
 			logger.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
-			cli.UpdateStatus(ctx, v1.JobStoppedNoChanges, WithErrorOption(nil))
+			cli.UpdateStatus(ctx, v1.JobStoppedNoChanges)
 			break
 		}
 
-		if ctx.Err() != nil {
-			return ctx.Err()
+		if err := ctx.Err(); err != nil {
+			if errors.Is(err, context.Canceled) {
+				logger.Info().Msg("Pipeline run is canceled")
+				cli.UpdateStatus(context.Background(), v1.JobStopped)
+			}
+
+			return err
 		}
 	}
-	cli.endTime = time.Now()
-	cli.UpdateStatus(ctx, v1.JobSucceeded, WithErrorOption(nil))
+	cli.UpdateStatus(ctx, v1.JobSucceeded)
 	return nil
 }
 
@@ -168,5 +170,35 @@ func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineI
 		log.Ctx(ctx).Info().Msgf("Deploy application %s to environment %s", appName, pipelineInfo.GetRadixDeployToEnvironment())
 	case v1.Promote:
 		log.Ctx(ctx).Info().Msgf("Promote deployment %s of application %s from environment %s to %s", pipelineInfo.GetRadixPromoteDeployment(), appName, pipelineInfo.GetRadixPromoteFromEnvironment(), pipelineInfo.GetRadixDeployToEnvironment())
+	}
+}
+
+func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJobCondition) {
+
+	rj := &v1.RadixJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cli.pipelineInfo.PipelineArguments.JobName,
+			Namespace: utils.GetAppNamespace(cli.appName),
+		},
+	}
+
+	err := cli.dynamicClient.Get(ctx, client.ObjectKeyFromObject(rj), rj)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msgf("Failed to get pipeline job %s", cli.pipelineInfo.PipelineArguments.JobName)
+		return
+	}
+
+	if rj.Status.PipelineRunStatus == nil {
+		rj.Status.PipelineRunStatus = &v1.RadixJobPipelineRunStatus{}
+	}
+
+	rj.Status.PipelineRunStatus.UsedBuildCache = cli.pipelineInfo.IsUsingBuildCache()
+	rj.Status.PipelineRunStatus.UsedBuildKit = cli.pipelineInfo.IsUsingBuildKit()
+	rj.Status.PipelineRunStatus.Result = condition
+
+	err = cli.dynamicClient.Status().Update(ctx, rj)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msgf("Failed to update status of pipeline job %s", cli.pipelineInfo.PipelineArguments.JobName)
+		return
 	}
 }
