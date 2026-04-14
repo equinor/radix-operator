@@ -447,6 +447,9 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 		}
 
+		if slice.Any(task.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == paramSpec.Name }) {
+			return nil, fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
+		}
 		task.Spec.Params = append(task.Spec.Params, paramSpec)
 
 		ensureCorrectSecureContext(&task)
@@ -541,6 +544,9 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 	if err != nil {
 		return fmt.Errorf("failed to generate radix param for pipeline: %w", err)
 	}
+	if slice.Any(pipeline.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == paramSpec.Name }) {
+		return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
+	}
 	pipeline.Spec.Params = append(pipeline.Spec.Params, paramSpec)
 
 	paramRef, err := params.AsObjectParamReference()
@@ -559,7 +565,9 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 		if azureClientIdPipelineParamExist {
 			ensureAzureClientIdParamExistInTaskParams(pipeline, taskIndex, task)
 		}
-
+		if slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(p v1.Param) bool { return p.Name == paramRef.Name }) {
+			return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", paramSpec.Name, pipelineSpecTask.Name)
+		}
 		pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, paramRef)
 	}
 
