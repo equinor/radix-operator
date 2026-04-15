@@ -272,7 +272,7 @@ func getPushImageTag(pushImage bool) string {
 	return "0"
 }
 
-func (job *Job) getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) (radixv1.RadixJobCondition, error) {
+func (job *Job) findJobCondition(jobStatus batchv1.JobStatus) (radixv1.RadixJobCondition, error) {
 	if jobStatus.Failed > 0 {
 		return radixv1.JobFailed, nil
 	}

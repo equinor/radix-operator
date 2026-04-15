@@ -252,7 +252,7 @@ func (job *Job) syncStatus(ctx context.Context, reconcileErr error) error {
 		if err != nil {
 			return err
 		}
-		condition, err = job.getJobConditionFromJobStatus(pipelineJob.Status)
+		condition, err = job.findJobCondition(pipelineJob.Status)
 		if err != nil {
 			return err
 		}
