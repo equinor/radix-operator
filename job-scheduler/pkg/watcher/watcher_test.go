@@ -210,7 +210,7 @@ func Test_RadixBatchWatcher(t *testing.T) {
 				assert.Fail(t, err.Error())
 				return
 			}
-			assert.Nil(t, batchWatcher)
+			assert.NotNil(t, batchWatcher)
 
 			if tt.fields.newRadixBatch != nil && tt.fields.event == events.Create {
 				history.EXPECT().Cleanup(gomock.Any(), make(map[string]struct{})).Times(1)
