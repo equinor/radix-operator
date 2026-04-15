@@ -86,6 +86,7 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 			cli.UpdateStatus(ctx, v1.JobFailed)
 			return err
 		}
+		logger.Info().Msg(step.SucceededMsg())
 
 		if cli.pipelineInfo.StopPipeline {
 			logger.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
@@ -96,7 +97,9 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 		if err := ctx.Err(); err != nil {
 			if errors.Is(err, context.Canceled) {
 				logger.Info().Msg("Pipeline run is canceled")
-				cli.UpdateStatus(context.Background(), v1.JobStopped)
+				teardownCtx, stop := context.WithTimeout(context.Background(), time.Second*10)
+				defer stop()
+				cli.UpdateStatus(teardownCtx, v1.JobStopped)
 			}
 
 			return err
