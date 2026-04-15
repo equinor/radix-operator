@@ -90,7 +90,7 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 		if cli.pipelineInfo.StopPipeline {
 			logger.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
 			cli.UpdateStatus(ctx, v1.JobStoppedNoChanges)
-			break
+			return nil
 		}
 
 		if err := ctx.Err(); err != nil {
