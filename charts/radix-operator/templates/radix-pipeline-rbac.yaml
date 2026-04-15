@@ -34,6 +34,14 @@ rules:
   - get
   - list
 - apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixjobs/status
+  verbs:
+  - get
+  - list
+  - update
+- apiGroups:
   - ""
   resources:
   - configmaps
