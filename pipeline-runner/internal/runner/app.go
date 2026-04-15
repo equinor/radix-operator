@@ -24,6 +24,7 @@ import (
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretsstoreclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
@@ -145,30 +146,31 @@ func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineI
 
 func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJobCondition) {
 
-	rj := &v1.RadixJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cli.pipelineInfo.PipelineArguments.JobName,
-			Namespace: utils.GetAppNamespace(cli.appName),
-		},
-	}
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		rj := &v1.RadixJob{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      cli.pipelineInfo.PipelineArguments.JobName,
+				Namespace: utils.GetAppNamespace(cli.appName),
+			},
+		}
 
-	err := cli.dynamicClient.Get(ctx, client.ObjectKeyFromObject(rj), rj)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msgf("Failed to get pipeline job %s", cli.pipelineInfo.PipelineArguments.JobName)
-		return
-	}
+		err := cli.dynamicClient.Get(ctx, client.ObjectKeyFromObject(rj), rj)
+		if err != nil {
+			return err
+		}
 
-	if rj.Status.PipelineRunStatus == nil {
-		rj.Status.PipelineRunStatus = &v1.RadixJobPipelineRunStatus{}
-	}
+		if rj.Status.PipelineRunStatus == nil {
+			rj.Status.PipelineRunStatus = &v1.RadixJobPipelineRunStatus{}
+		}
 
-	rj.Status.PipelineRunStatus.UsedBuildCache = cli.pipelineInfo.IsUsingBuildCache()
-	rj.Status.PipelineRunStatus.UsedBuildKit = cli.pipelineInfo.IsUsingBuildKit()
-	rj.Status.PipelineRunStatus.Result = condition
+		rj.Status.PipelineRunStatus.UsedBuildCache = cli.pipelineInfo.IsUsingBuildCache()
+		rj.Status.PipelineRunStatus.UsedBuildKit = cli.pipelineInfo.IsUsingBuildKit()
+		rj.Status.PipelineRunStatus.Result = condition
 
-	err = cli.dynamicClient.Status().Update(ctx, rj)
+		return cli.dynamicClient.Status().Update(ctx, rj)
+	})
+
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("Failed to update status of pipeline job %s", cli.pipelineInfo.PipelineArguments.JobName)
-		return
 	}
 }
