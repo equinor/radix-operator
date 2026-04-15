@@ -101,6 +101,33 @@ func ObjectParamReference(paramName string, obj any, reference pipelinev1.ParamS
 	}, nil
 }
 
+// ObjectParam builds a Tekton object Param from exported struct fields tagged
+// with propname. Only string fields with a propname tag are included.
+//
+// Example:
+//
+//	type MyParam struct {
+//		GitSSHUrl string `propname:"gitSSHUrl"`
+//		GitCommit string `propname:"gitCommit"`
+//		UnTagged  string
+//	}
+//
+//	param, err := ObjectParam("radix", MyParam{
+//		GitSSHUrl: "git@github.com:equinor/radix-operator.git",
+//		GitCommit: "abc123",
+//	})
+//
+// This creates an object param named "radix" with the tagged struct values.
+//
+// Example output:
+//
+//	pipelinev1.Param{
+//		Name: "radix",
+//		Value: *pipelinev1.NewObject(map[string]string{
+//			"gitSSHUrl": "git@github.com:equinor/radix-operator.git",
+//			"gitCommit": "abc123",
+//		}),
+//	}
 func ObjectParam(paramName string, obj any) (pipelinev1.Param, error) {
 	properties, err := propTaggedStringMap(obj)
 	if err != nil {
