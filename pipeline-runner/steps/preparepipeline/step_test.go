@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -622,15 +624,16 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 				require.NoError(t, err)
 				require.Len(t, pipeline.Spec.Tasks, 1)
 
+				expectedParamNames := []string{"pipeline-type", "environment", "git-ssh-url", "git-ref", "git-ref-type", "git-commit", "git-tags"}
+
 				radixPipelineParam := requireParamSpecByName(t, pipeline.Spec.Params, "radix")
 				assert.Equal(t, pipelinev1.ParamTypeObject, radixPipelineParam.Type)
-				for _, propName := range []string{"pipeline-type", "environment", "git-ssh-url", "git-ref", "git-ref-type", "git-commit", "git-tags"} {
-					assert.Contains(t, radixPipelineParam.Properties, propName)
-				}
+				assert.ElementsMatch(t, expectedParamNames, slices.Collect(maps.Keys(radixPipelineParam.Properties)))
 
 				radixPipelineTaskParam := requireParamByName(t, pipeline.Spec.Tasks[0].Params, "radix")
 				assert.Equal(t, pipelinev1.ParamTypeObject, radixPipelineTaskParam.Value.Type)
-				for _, propName := range []string{"pipeline-type", "environment", "git-ssh-url", "git-ref", "git-ref-type", "git-commit", "git-tags"} {
+				assert.ElementsMatch(t, expectedParamNames, slices.Collect(maps.Keys(radixPipelineTaskParam.Value.ObjectVal)))
+				for _, propName := range expectedParamNames {
 					assert.Equal(t, fmt.Sprintf("$(params.radix.%s)", propName), radixPipelineTaskParam.Value.ObjectVal[propName])
 				}
 
