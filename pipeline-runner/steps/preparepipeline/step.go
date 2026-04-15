@@ -241,6 +241,19 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 		return fmt.Errorf("failed to checkout commit %s: %w", gitCommit, err)
 	}
 
+	pipelineInfo.EnvironmentSubPipelineParams = map[string]model.SubPipelineParams{}
+	for _, targetEnv := range pipelineInfo.TargetEnvironments {
+		pipelineInfo.EnvironmentSubPipelineParams[targetEnv.Environment] = model.SubPipelineParams{
+			PipelineType: pipelineInfo.PipelineArguments.PipelineType,
+			Environment:  targetEnv.Environment,
+			GitSSHUrl:    step.GetRegistration().Spec.CloneURL,
+			GitRef:       pipelineInfo.GetGitRef(),
+			GitRefType:   pipelineInfo.GetGitRefTypeOrDefault(),
+			GitCommit:    pipelineInfo.GitCommitHash,
+			GitTags:      pipelineInfo.GitTags,
+		}
+	}
+
 	var errs []error
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
 	timestamp := time.Now().Format("20060102150405")
@@ -257,6 +270,7 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 				Environment:  targetEnv.Environment,
 				PipelineFile: pipelineFilePath,
 			})
+
 		}
 	}
 
@@ -387,6 +401,7 @@ func (step *PreparePipelinesStepImplementation) prepareSubPipelineForEnvironment
 	if !subPipelineExists {
 		return false, "", nil
 	}
+
 	if err = step.createSubPipelineAndTasks(envName, pl, tasks, timestamp, pipelineInfo); err != nil {
 		return false, "", err
 	}
@@ -397,6 +412,11 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 	var errs []error
 	taskMap := make(map[string]v1.Task)
 	hash := internal.GetJobNameHash(pipelineInfo)
+
+	paramSpec, err := pipelineInfo.EnvironmentSubPipelineParams[envName].AsObjectParamSpec()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate radix param for tasks: %w", err)
+	}
 
 	for _, task := range tasks {
 		originalTaskName := task.Name
@@ -428,6 +448,11 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 		if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 		}
+
+		if slice.Any(task.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == paramSpec.Name }) {
+			return nil, fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
+		}
+		task.Spec.Params = append(task.Spec.Params, paramSpec)
 
 		ensureCorrectSecureContext(&task)
 		taskMap[originalTaskName] = task
@@ -505,16 +530,33 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 }
 
 func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envName string, pipeline *v1.Pipeline, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) error {
-	originalPipelineName := pipeline.Name
 	var errs []error
+	originalPipelineName := pipeline.Name
+
 	taskMap, err := step.buildSubPipelineTasks(envName, tasks, timestamp, pipelineInfo)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %w", originalPipelineName, err))
+		errs = append(errs, fmt.Errorf("failed to build tasks for pipeline: %w", err))
 	}
 
 	_, azureClientIdPipelineParamExist := internalsubpipeline.GetEnvVars(pipelineInfo.GetRadixApplication(), envName)[pipelineDefaults.AzureClientIdEnvironmentVariable]
 	if azureClientIdPipelineParamExist {
 		ensureAzureClientIdParamExistInPipelineParams(pipeline)
+	}
+
+	params := pipelineInfo.EnvironmentSubPipelineParams[envName]
+
+	paramSpec, err := params.AsObjectParamSpec()
+	if err != nil {
+		return fmt.Errorf("failed to generate radix param for pipeline: %w", err)
+	}
+	if slice.Any(pipeline.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == paramSpec.Name }) {
+		return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
+	}
+	pipeline.Spec.Params = append(pipeline.Spec.Params, paramSpec)
+
+	paramRef, err := params.AsObjectParamReference()
+	if err != nil {
+		return fmt.Errorf("failed to generate radix param refs for pipeline tasks: %w", err)
 	}
 
 	for taskIndex, pipelineSpecTask := range pipeline.Spec.Tasks {
@@ -523,14 +565,21 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 			errs = append(errs, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
 			continue
 		}
+
 		pipeline.Spec.Tasks[taskIndex].TaskRef = &v1.TaskRef{Name: task.Name}
 		if azureClientIdPipelineParamExist {
 			ensureAzureClientIdParamExistInTaskParams(pipeline, taskIndex, task)
 		}
+		if slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(p v1.Param) bool { return p.Name == paramRef.Name }) {
+			return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", paramSpec.Name, pipelineSpecTask.Name)
+		}
+		pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, paramRef)
 	}
+
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
+
 	hash := internal.GetJobNameHash(pipelineInfo)
 	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalPipelineName), timestamp, hash)
 	pipeline.ObjectMeta.Name = pipelineName

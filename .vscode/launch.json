@@ -28,7 +28,7 @@
 			"args": [
 				"--RADIX_APP=oauth-demo",
 				"--BRANCH=main",
-				"--COMMIT_ID=84189f2fc7e1d60cae2a2ac7d3daebc7d901c81a",
+				"--COMMIT_ID=02a0a6b06973d34bf7dd0e2dc6bfb5d59b1d99c0",
 				"--JOB_NAME=radix-pipeline-20231113133209-w",
 				"--IMAGE_TAG=abcdl",
 				"--PIPELINE_TYPE=build-deploy",
@@ -49,7 +49,6 @@
 				// "--TO_ENVIRONMENT=dev",
 				// "--IMAGE_TAG_NAME=server=1.23-alpine-slim",
 				// "--IMAGE_TAG_NAME=server2=1.22.1-alpine-perl",
-				"--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
 				"--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=radix-external-registry-default-auth",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
@@ -73,7 +72,6 @@
 				"--RADIX_FILE_NAME=radixconfig.yaml",
 				"--DEBUG=true",
 				"--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
-				"--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
 		},
@@ -96,7 +94,6 @@
 				"--RADIX_ZONE=dev",
 				"--RADIX_CLUSTERNAME=weekly-44",
 				"--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
-				"--RADIX_RESERVED_DNS_ALIASES=grafana,prometheus,www",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
 		},
