@@ -78,6 +78,16 @@ type RadixJobStatus struct {
 	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitempty"`
+
+	// PipelineRunStatus provides additional information about the pipeline run execution
+	// +kubebuilder:validation:Optional
+	PipelineRunStatus *RadixJobPipelineRunStatus `json:"pipelineRunStatus,omitempty"`
+}
+
+type RadixJobPipelineRunStatus struct {
+	UsedBuildKit   bool              `json:"usedBuildKit"`
+	UsedBuildCache bool              `json:"usedBuildCache"`
+	Status         RadixJobCondition `json:"status"`
 }
 
 // RadixJobCondition Holds the condition of a job
@@ -318,20 +328,6 @@ type RadixJobStep struct {
 	// Components is the list of components processed in this step
 	// +kubebuilder:validation:Optional
 	Components []string `json:"components,omitempty"`
-}
-
-// RadixJobResultType Type of the Radix pipeline job result
-type RadixJobResultType string
-
-const (
-	// RadixJobResultStoppedNoChanges The Radix build-deploy pipeline job was stopped due to there were no changes in component source code
-	RadixJobResultStoppedNoChanges RadixJobResultType = "stoppedNoChanges"
-)
-
-// RadixJobResult is returned by Radix pipeline jobs via ConfigMap
-type RadixJobResult struct {
-	Result  RadixJobResultType `json:"result"`
-	Message string             `json:"message"`
 }
 
 // GetGitRefOrDefault Get git event ref or "branch" by default

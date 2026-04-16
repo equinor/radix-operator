@@ -266,7 +266,16 @@ func (p *PipelineInfo) IsUsingBuildCache() bool {
 	if p.PipelineArguments.OverrideUseBuildCache != nil {
 		return *p.PipelineArguments.OverrideUseBuildCache
 	}
-	return p.RadixApplication.Spec.Build != nil && (p.RadixApplication.Spec.Build.UseBuildCache == nil || *p.RadixApplication.Spec.Build.UseBuildCache)
+
+	if p.RadixApplication == nil || p.RadixApplication.Spec.Build == nil {
+		return true
+	}
+
+	if p.RadixApplication.Spec.Build.UseBuildCache != nil {
+		return *p.RadixApplication.Spec.Build.UseBuildCache
+	}
+
+	return true
 }
 
 // IsRefreshingBuildCache Check if build cache should be refreshed

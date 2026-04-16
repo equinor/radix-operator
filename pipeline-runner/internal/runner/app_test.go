@@ -9,10 +9,11 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
-	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )

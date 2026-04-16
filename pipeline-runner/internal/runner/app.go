@@ -2,8 +2,7 @@ package runner
 
 import (
 	"context"
-	"fmt"
-	"strings"
+	"errors"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
@@ -15,7 +14,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
-	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -24,12 +22,11 @@ import (
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretsstoreclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
-	"sigs.k8s.io/yaml"
 )
 
 // PipelineRunner Instance variables
@@ -79,6 +76,7 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 // Run runs through the steps in the defined pipeline
 func (cli *PipelineRunner) Run(ctx context.Context) error {
 	printPipelineDescription(ctx, cli.pipelineInfo)
+	cli.UpdateStatus(ctx, v1.JobRunning)
 	for _, step := range cli.pipelineInfo.Steps {
 		logger := log.Ctx(ctx)
 		ctx := logger.WithContext(ctx)
@@ -86,18 +84,29 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 		err := step.Run(ctx, cli.pipelineInfo)
 		if err != nil {
 			logger.Error().Msg(step.ErrorMsg(err))
+			cli.UpdateStatus(ctx, v1.JobFailed)
 			return err
 		}
 		logger.Info().Msg(step.SucceededMsg())
+
 		if cli.pipelineInfo.StopPipeline {
 			logger.Info().Msgf("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
-			break
+			cli.UpdateStatus(ctx, v1.JobStoppedNoChanges)
+			return nil
 		}
 
-		if ctx.Err() != nil {
-			return ctx.Err()
+		if err := ctx.Err(); err != nil {
+			if errors.Is(err, context.Canceled) {
+				logger.Info().Msg("Pipeline run is canceled")
+				teardownCtx, stop := context.WithTimeout(context.Background(), time.Second*10)
+				defer stop()
+				cli.UpdateStatus(teardownCtx, v1.JobStopped)
+			}
+
+			return err
 		}
 	}
+	cli.UpdateStatus(ctx, v1.JobSucceeded)
 	return nil
 }
 
@@ -119,34 +128,6 @@ func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registra
 	return stepImplementations
 }
 
-// CreateResultConfigMap Creates a ConfigMap with the result of the pipeline job
-func (cli *PipelineRunner) CreateResultConfigMap(ctx context.Context) error {
-	result := v1.RadixJobResult{}
-	if cli.pipelineInfo.StopPipeline {
-		result.Result = v1.RadixJobResultStoppedNoChanges
-		result.Message = cli.pipelineInfo.StopPipelineMessage
-	}
-	resultContent, err := yaml.Marshal(&result)
-	if err != nil {
-		return err
-	}
-
-	configMapName := strings.ToLower(fmt.Sprintf("%s-%s", cli.pipelineInfo.PipelineArguments.JobName, utils.RandString(5)))
-	configMap := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: configMapName,
-			Labels: map[string]string{
-				kube.RadixJobNameLabel:       cli.pipelineInfo.PipelineArguments.JobName,
-				kube.RadixConfigMapTypeLabel: string(kube.RadixPipelineResultConfigMap),
-			},
-		},
-		Data: map[string]string{jobs.ResultContent: string(resultContent)},
-	}
-	log.Ctx(ctx).Debug().Msgf("Create result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
-	_, err = cli.kubeUtil.CreateConfigMap(ctx, utils.GetAppNamespace(cli.appName), &configMap)
-	return err
-}
-
 func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineInfo) {
 	appName := pipelineInfo.GetAppName()
 	switch pipelineInfo.GetRadixPipelineType() {
@@ -160,5 +141,36 @@ func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineI
 		log.Ctx(ctx).Info().Msgf("Deploy application %s to environment %s", appName, pipelineInfo.GetRadixDeployToEnvironment())
 	case v1.Promote:
 		log.Ctx(ctx).Info().Msgf("Promote deployment %s of application %s from environment %s to %s", pipelineInfo.GetRadixPromoteDeployment(), appName, pipelineInfo.GetRadixPromoteFromEnvironment(), pipelineInfo.GetRadixDeployToEnvironment())
+	}
+}
+
+func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJobCondition) {
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		rj := &v1.RadixJob{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      cli.pipelineInfo.PipelineArguments.JobName,
+				Namespace: utils.GetAppNamespace(cli.appName),
+			},
+		}
+
+		err := cli.dynamicClient.Get(ctx, client.ObjectKeyFromObject(rj), rj)
+		if err != nil {
+			return err
+		}
+
+		if rj.Status.PipelineRunStatus == nil {
+			rj.Status.PipelineRunStatus = &v1.RadixJobPipelineRunStatus{}
+		}
+
+		rj.Status.PipelineRunStatus.UsedBuildCache = cli.pipelineInfo.IsUsingBuildCache()
+		rj.Status.PipelineRunStatus.UsedBuildKit = cli.pipelineInfo.IsUsingBuildKit()
+		rj.Status.PipelineRunStatus.Status = condition
+
+		return cli.dynamicClient.Status().Update(ctx, rj)
+	})
+
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msgf("Failed to update status of pipeline job %s", cli.pipelineInfo.PipelineArguments.JobName)
 	}
 }

@@ -228,6 +228,22 @@ spec:
                   controller
                 format: int64
                 type: integer
+              pipelineRunStatus:
+                description: PipelineRunStatus provides additional information about
+                  the pipeline run execution
+                properties:
+                  status:
+                    description: RadixJobCondition Holds the condition of a job
+                    type: string
+                  usedBuildCache:
+                    type: boolean
+                  usedBuildKit:
+                    type: boolean
+                required:
+                - status
+                - usedBuildCache
+                - usedBuildKit
+                type: object
               reconcileStatus:
                 description: ReconcileStatus indicates whether the last reconciliation
                   succeeded or failed
