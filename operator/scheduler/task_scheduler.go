@@ -10,7 +10,7 @@ import (
 
 // TaskScheduler Interface for scheduling tasks
 type TaskScheduler interface {
-	// Start Starts the task scheduler crone
+	// Start Starts the task scheduler cron
 	Start()
 	// Stop Stops the task scheduler
 	Stop() context.Context
