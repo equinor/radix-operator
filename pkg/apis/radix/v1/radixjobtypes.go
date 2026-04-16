@@ -87,7 +87,7 @@ type RadixJobStatus struct {
 type RadixJobPipelineRunStatus struct {
 	UsedBuildKit   bool              `json:"usedBuildKit"`
 	UsedBuildCache bool              `json:"usedBuildCache"`
-	Result         RadixJobCondition `json:"status"`
+	Status         RadixJobCondition `json:"status"`
 }
 
 // RadixJobCondition Holds the condition of a job

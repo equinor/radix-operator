@@ -282,8 +282,8 @@ func (job *Job) findJobCondition(jobStatus batchv1.JobStatus) (radixv1.RadixJobC
 	}
 	if jobStatus.Succeeded > 0 {
 
-		if job.radixJob != nil && job.radixJob.Status.PipelineRunStatus != nil && job.radixJob.Status.PipelineRunStatus.Result != "" {
-			return job.radixJob.Status.PipelineRunStatus.Result, nil
+		if job.radixJob != nil && job.radixJob.Status.PipelineRunStatus != nil && job.radixJob.Status.PipelineRunStatus.Status != "" {
+			return job.radixJob.Status.PipelineRunStatus.Status, nil
 		}
 
 		// Unknown, but pipeline runner exited successfully, so we assume succeeded

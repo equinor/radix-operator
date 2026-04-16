@@ -28,7 +28,7 @@ func CreateClient(filenameOrObject ...any) client.Client {
 			log.Fatal().Str("filename", fmt.Sprintf("%v", filename)).Msg("unsupported type for init object")
 		}
 	}
-	return fake.NewClientBuilder().WithScheme(testscheme).WithStatusSubresource(&radixv1.RadixAlert{}).WithObjects(initObjs...).Build()
+	return fake.NewClientBuilder().WithScheme(testscheme).WithStatusSubresource(&radixv1.RadixAlert{}, &radixv1.RadixJob{}).WithObjects(initObjs...).Build()
 }
 
 func Load[T client.Object](filename string) T {
