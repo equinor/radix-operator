@@ -252,10 +252,7 @@ func (job *Job) syncStatus(ctx context.Context, reconcileErr error) error {
 		if err != nil {
 			return err
 		}
-		condition, err = job.getJobConditionFromJobStatus(ctx, pipelineJob.Status)
-		if err != nil {
-			return err
-		}
+		condition = job.findJobCondition(pipelineJob.Status)
 	}
 
 	environments, err := job.getJobEnvironments(ctx)

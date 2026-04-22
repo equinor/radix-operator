@@ -482,7 +482,7 @@ func Test_ConstructForTargetEnvironment_BuildKitAnnotations(t *testing.T) {
 	scenarios := map[string]scenarioSpec{
 		"No build spec defaults to UseBuildKit true": {
 			expectedAnnotationUseBuildKit:       "true",
-			expectedAnnotationUseBuildCache:     "false",
+			expectedAnnotationUseBuildCache:     "true",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
 		"No build spec, overrideUseBuildCache true": {
