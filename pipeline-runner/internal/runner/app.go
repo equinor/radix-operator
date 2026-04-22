@@ -81,12 +81,18 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 		logger := log.Ctx(ctx)
 		ctx := logger.WithContext(ctx)
 
-		err := step.Run(ctx, cli.pipelineInfo)
-		if err != nil {
+		if err := step.Run(ctx, cli.pipelineInfo); err != nil {
+			if errors.Is(err, context.Canceled) {
+				logger.Info().Msg("Pipeline run is canceled")
+				cli.UpdateStatus(ctx, v1.JobStopped)
+				return nil
+			}
+
 			logger.Error().Msg(step.ErrorMsg(err))
 			cli.UpdateStatus(ctx, v1.JobFailed)
 			return err
 		}
+
 		logger.Info().Msg(step.SucceededMsg())
 
 		if cli.pipelineInfo.StopPipeline {
@@ -98,11 +104,11 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 		if err := ctx.Err(); err != nil {
 			if errors.Is(err, context.Canceled) {
 				logger.Info().Msg("Pipeline run is canceled")
-				teardownCtx, stop := context.WithTimeout(context.Background(), time.Second*10)
-				defer stop()
-				cli.UpdateStatus(teardownCtx, v1.JobStopped)
+				cli.UpdateStatus(ctx, v1.JobStopped)
+				return nil
 			}
 
+			cli.UpdateStatus(ctx, v1.JobFailed)
 			return err
 		}
 	}
@@ -144,7 +150,10 @@ func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineI
 	}
 }
 
+// UpdateStatus updates the status of the pipeline job. It ignores any cancelled context, and creates its own 10second deadline
 func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJobCondition) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		rj := &v1.RadixJob{
