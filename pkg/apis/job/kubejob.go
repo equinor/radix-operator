@@ -24,11 +24,9 @@ import (
 )
 
 const (
-	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
-	ResultContent = "ResultContent"
-	runAsUser     = 1000
-	runAsGroup    = 1000
-	fsGroup       = 1000
+	runAsUser  = 1000
+	runAsGroup = 1000
+	fsGroup    = 1000
 )
 
 func (job *Job) createPipelineJob(ctx context.Context) error {
