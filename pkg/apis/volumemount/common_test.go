@@ -36,7 +36,7 @@ func (s *testSuite) SetupSubTest() {
 
 func (s *testSuite) setupTest() {
 	kubeClient := fake.NewSimpleClientset()
-	radixClient := radixfake.NewSimpleClientset()
+	radixClient := radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.kubeClient = kubeClient
 	s.kubeUtil, _ = kube.New(kubeClient, radixClient, kedafake.NewSimpleClientset(), secretproviderfake.NewSimpleClientset())
 }

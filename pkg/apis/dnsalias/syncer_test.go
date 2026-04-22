@@ -63,7 +63,7 @@ func (s *syncerTestSuite) SetupSubTest() {
 
 func (s *syncerTestSuite) setupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
-	s.radixClient = radixfake.NewSimpleClientset()
+	s.radixClient = radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.dynamicClient = test.CreateClient()
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.testUtils = test.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)

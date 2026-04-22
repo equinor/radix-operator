@@ -43,7 +43,7 @@ type deployTestSuite struct {
 
 func (s *deployTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
-	s.radixClient = radix.NewSimpleClientset()
+	s.radixClient = radix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.dynamicClient = test.CreateClient()
 	s.ctrl = gomock.NewController(s.T())

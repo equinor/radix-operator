@@ -43,7 +43,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			rxClient := radixclientfake.NewSimpleClientset()
+			rxClient := radixclientfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{Name: appName},
 			}, metav1.CreateOptions{})

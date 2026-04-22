@@ -62,7 +62,7 @@ func (s *OAuthRedisResourceManagerTestSuite) SetupTest() {
 
 func (s *OAuthRedisResourceManagerTestSuite) setupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
-	s.radixClient = radixfake.NewSimpleClientset()
+	s.radixClient = radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)

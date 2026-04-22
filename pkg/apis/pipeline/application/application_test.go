@@ -18,7 +18,7 @@ func Test_ParseRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing.
 		sampleApp = "./testdata/radixconfig.yaml"
 	)
 
-	radixClient := radixfake.NewSimpleClientset()
+	radixClient := radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	appName := "testapp"
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	_, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -42,7 +42,7 @@ func Test_ParseRadixApplication_MismatchAppName(t *testing.T) {
 		sampleApp = "./testdata/radixconfig.yaml"
 	)
 
-	radixClient := radixfake.NewSimpleClientset()
+	radixClient := radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	const (
 		registeredAppName  = "mismatching-app-name"
 		radixconfigAppName = "testapp"
@@ -61,7 +61,7 @@ func Test_ParseRadixApplication_MatchAppName(t *testing.T) {
 		sampleApp = "./testdata/radixconfig.yaml"
 	)
 
-	radixClient := radixfake.NewSimpleClientset()
+	radixClient := radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	const (
 		radixconfigAppName = "testapp"
 	)

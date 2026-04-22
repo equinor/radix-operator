@@ -35,7 +35,7 @@ type EnvironmentVariablesTestEnv struct {
 func getEnvironmentVariablesTestEnv() EnvironmentVariablesTestEnv {
 	testEnv := EnvironmentVariablesTestEnv{
 		kubeclient:           kubefake.NewSimpleClientset(),
-		radixclient:          radixfake.NewSimpleClientset(),
+		radixclient:          radixfake.NewSimpleClientset(), // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 		kedaClient:           kedafake.NewSimpleClientset(),
 		secretproviderclient: secretproviderfake.NewSimpleClientset(),
 		prometheusclient:     prometheusfake.NewSimpleClientset(),

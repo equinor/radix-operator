@@ -56,7 +56,7 @@ type buildTestSuite struct {
 
 func (s *buildTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
-	s.radixClient = radixfake.NewSimpleClientset()
+	s.radixClient = radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.dynamicClient = test.CreateClient()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
@@ -69,7 +69,7 @@ func (s *buildTestSuite) SetupSubTest() {
 
 func (s *buildTestSuite) setupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
-	s.radixClient = radixfake.NewSimpleClientset()
+	s.radixClient = radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.dynamicClient = test.CreateClient()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)

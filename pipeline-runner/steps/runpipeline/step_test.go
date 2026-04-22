@@ -43,10 +43,10 @@ type stepTestSuite struct {
 
 func (s *stepTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
-	s.radixClient = radixfake.NewSimpleClientset()
+	s.radixClient = radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.dynamicClient = test.CreateClient()
 	s.kedaClient = kedafake.NewSimpleClientset()
-	s.tknClient = tektonfake.NewSimpleClientset()
+	s.tknClient = tektonfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 }
 
 func (s *stepTestSuite) SetupSubTest() {

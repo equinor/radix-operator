@@ -30,7 +30,7 @@ import (
 
 func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, radixclient.Interface, *kedafake.Clientset) {
 	client := fake.NewSimpleClientset()
-	radixClient := fakeradix.NewSimpleClientset()
+	radixClient := fakeradix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, kedaClient, secretproviderclient)

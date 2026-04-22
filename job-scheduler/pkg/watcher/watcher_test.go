@@ -189,7 +189,7 @@ func Test_RadixBatchWatcher(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			radixClient := radixclientfake.NewSimpleClientset()
+			radixClient := radixclientfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 			namespace := "app-qa"
 			var createdRadixBatch *radixv1.RadixBatch
 			var err error

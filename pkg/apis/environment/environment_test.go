@@ -49,7 +49,7 @@ var testCfg config.Config = config.Config{
 
 func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, *radix.Clientset) {
 	fakekube := fake.NewSimpleClientset()
-	fakeradix := radix.NewSimpleClientset()
+	fakeradix := radix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(fakekube, fakeradix, kedaClient, secretproviderclient)
