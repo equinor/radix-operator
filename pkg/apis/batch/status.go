@@ -156,17 +156,17 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 	status.StartTime = job.Status.StartTime
 	status.Failed = job.Status.Failed
 
-	if condition, ok := slice.FindFirst(job.Status.Conditions, hasOneOfConditionTypes(batchv1.JobComplete, batchv1.JobSuccessCriteriaMet)); ok {
+	if condition, ok := slice.FindFirst(job.Status.Conditions, kube.JobHasOneOfConditionTypes(batchv1.JobComplete, batchv1.JobSuccessCriteriaMet)); ok {
 		status.Phase = radixv1.BatchJobPhaseSucceeded
 		status.EndTime = pointers.Ptr(condition.LastTransitionTime)
 		status.Reason = condition.Reason
 		status.Message = condition.Message
-	} else if condition, ok := slice.FindFirst(job.Status.Conditions, hasOneOfConditionTypes(batchv1.JobFailed)); ok {
+	} else if condition, ok := slice.FindFirst(job.Status.Conditions, kube.JobHasOneOfConditionTypes(batchv1.JobFailed)); ok {
 		status.Phase = radixv1.BatchJobPhaseFailed
 		status.EndTime = pointers.Ptr(condition.LastTransitionTime)
 		status.Reason = condition.Reason
 		status.Message = condition.Message
-	} else if job.Status.Active > 0 {
+	} else if kube.IsJobRunning(job.Status) {
 		status.Phase = radixv1.BatchJobPhaseActive
 		if job.Status.Ready != nil && *job.Status.Ready > 0 {
 			status.Phase = radixv1.BatchJobPhaseRunning
