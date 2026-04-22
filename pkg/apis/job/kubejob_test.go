@@ -65,7 +65,7 @@ func Test_findJobCondition(t *testing.T) {
 			expected: radixv1.JobSucceeded,
 		},
 		{
-			name: "succeeded with nil radixJob returns JobSucceeded",
+			name:     "succeeded with nil radixJob returns JobSucceeded",
 			radixJob: nil,
 			jobStatus: batchv1.JobStatus{
 				Conditions: []batchv1.JobCondition{jobCondition(batchv1.JobComplete, corev1.ConditionTrue)},

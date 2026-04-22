@@ -6,7 +6,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
@@ -17,7 +16,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
@@ -114,354 +112,374 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 	s.Assert().Equal(l.Items[0].Labels[kube.RadixAppIDLabel], rr.Spec.AppID.String(), "mismatching app ID label in PipelineRun")
 }
 
-func (s *stepTestSuite) Test_RunPipeline_ApplyEnvVars() {
-	type scenario struct {
-		name                          string
-		pipelineSpec                  pipelinev1.PipelineSpec
-		appEnvBuilder                 []utils.ApplicationEnvironmentBuilder
-		buildVariables                radixv1.EnvVarsMap
-		buildSubPipeline              utils.SubPipelineBuilder
-		expectedPipelineRunParamNames map[string]string
+func (s *stepTestSuite) Test_RunPipeline_RadixParam() {
+	mockCtrl := gomock.NewController(s.T())
+	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
+	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
+	raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName).
+		WithEnvironment(internalTest.Env1, internalTest.BranchMain).
+		WithEnvironment(internalTest.Env2, internalTest.BranchMain)
+	rr := rrBuilder.BuildRR()
+
+	env1SubPipelineParam := model.SubPipelineParams{
+		PipelineType: string(radixv1.BuildDeploy),
+		Environment:  internalTest.Env1,
+		GitSSHUrl:    "git@github.com:equinor/radix-operator.git",
+		GitRef:       internalTest.BranchMain,
+		GitRefType:   string(radixv1.GitRefBranch),
+		GitCommit:    "commit-for-dev1",
+		GitTags:      "",
+	}
+	env2SubPipelineParam := model.SubPipelineParams{
+		PipelineType: string(radixv1.BuildDeploy),
+		Environment:  internalTest.Env2,
+		GitSSHUrl:    "git@github.com:equinor/radix-operator.git",
+		GitRef:       "release/v1",
+		GitRefType:   string(radixv1.GitRefBranch),
+		GitCommit:    "commit-for-dev2",
+		GitTags:      "v1",
 	}
 
-	scenarios := []scenario{
-		{name: "no env vars",
-			pipelineSpec:  pipelinev1.PipelineSpec{},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain)},
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			AppName: internalTest.AppName,
 		},
-		{name: "task uses common env vars",
-			pipelineSpec: pipelinev1.PipelineSpec{
-				Params: []pipelinev1.ParamSpec{
-					{Name: "var1", Type: pipelinev1.ParamTypeString},
-					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
-					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
-				},
-			},
-			appEnvBuilder:                 []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain)},
-			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common", "var3": "value3common"},
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1common", "var3": "value3common", "var4": "value4default"},
+		RadixApplication: raBuilder.BuildRA(),
+		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{
+			{Environment: internalTest.Env1, PipelineFile: "subpipeline-dev1.yaml"},
+			{Environment: internalTest.Env2, PipelineFile: "subpipeline-dev2.yaml"},
 		},
-		{name: "task do not use common env vars because of an empty sub-pipeline",
-			pipelineSpec: pipelinev1.PipelineSpec{
-				Params: []pipelinev1.ParamSpec{
-					{Name: "var1", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value1default"}},
-					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
-					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
-				},
-			},
-			appEnvBuilder:                 []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain)},
-			buildSubPipeline:              utils.NewSubPipelineBuilder(),
-			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common", "var3": "value3common"},
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1default", "var3": "value3default", "var4": "value4default"},
-		},
-		{name: "task uses common env vars from sub-pipeline, ignores build variables",
-			pipelineSpec: pipelinev1.PipelineSpec{
-				Params: []pipelinev1.ParamSpec{
-					{Name: "var1", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value1default"}},
-					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
-					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
-					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
-				},
-			},
-			buildSubPipeline:              utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var3": "value3sp", "var4": "value4sp"}),
-			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common", "var3": "value3common"},
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1default", "var3": "value3sp", "var4": "value4sp", "var5": "value5default"},
-		},
-		{name: "task uses environment env vars",
-			pipelineSpec: pipelinev1.PipelineSpec{
-				Params: []pipelinev1.ParamSpec{
-					{Name: "var1", Type: pipelinev1.ParamTypeString},
-					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
-					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
-					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
-				},
-			},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithEnvVars(map[string]string{"var3": "value3env", "var4": "value4env"})},
-			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common"},
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1common", "var3": "value3env", "var4": "value4env", "var5": "value5default"},
-		},
-		{name: "task uses environment env vars, not other environment env-vars",
-			pipelineSpec: pipelinev1.PipelineSpec{
-				Params: []pipelinev1.ParamSpec{
-					{Name: "var1", Type: pipelinev1.ParamTypeString},
-					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
-					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
-					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
-				},
-			},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{
-				utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-					WithEnvVars(map[string]string{"var3": "value3env", "var4": "value4env"}),
-				utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env2).
-					WithEnvVars(map[string]string{"var3": "value3env2", "var4": "value4env2"})},
-			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common"},
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1common", "var3": "value3env", "var4": "value4env", "var5": "value5default"},
-		},
-		{name: "task uses environment sub-pipeline env vars, ignores environment build variables",
-			pipelineSpec: pipelinev1.PipelineSpec{
-				Params: []pipelinev1.ParamSpec{
-					{Name: "var1", Type: pipelinev1.ParamTypeString},
-					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
-					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
-					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
-				},
-			},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var3": "value3sp-env", "var4": "value4sp-env"}))},
-			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common"},
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1common", "var3": "value3sp-env", "var4": "value4sp-env", "var5": "value5default"},
-		},
-		{name: "task do not use environment sub-pipeline env vars, because of empty env sub-pipeline",
-			pipelineSpec: pipelinev1.PipelineSpec{
-				Params: []pipelinev1.ParamSpec{
-					{Name: "var1", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value1default"}},
-					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
-					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
-					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
-				},
-			},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithSubPipeline(utils.NewSubPipelineBuilder())},
-			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common"},
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1common", "var3": "value3default", "var4": "value4default", "var5": "value5default"},
-		},
-		{name: "task uses environment sub-pipeline env vars, build sub-pipeline env vars, ignores environment build variables and build env vars",
-			pipelineSpec: pipelinev1.PipelineSpec{
-				Params: []pipelinev1.ParamSpec{
-					{Name: "var1", Type: pipelinev1.ParamTypeString},
-					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
-					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
-					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
-				},
-			},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var3": "value3sp-env", "var4": "value4sp-env"}))},
-			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common", "var4": "value4common"},
-			buildSubPipeline:              utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var1": "value1sp", "var4": "value4sp"}),
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1sp", "var3": "value3sp-env", "var4": "value4sp-env", "var5": "value5default"},
-		},
-		{name: "task uses environment env vars, build sub-pipeline env vars, ignores environment build variables and build env vars",
-			pipelineSpec: pipelinev1.PipelineSpec{
-				Params: []pipelinev1.ParamSpec{
-					{Name: "var1", Type: pipelinev1.ParamTypeString},
-					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
-					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
-					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
-				},
-			},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithEnvVars(map[string]string{"var3": "value3env", "var4": "value4env"})},
-			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common", "var4": "value4common"},
-			buildSubPipeline:              utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var1": "value1sp", "var4": "value4sp"}),
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1sp", "var3": "value3env", "var4": "value4env", "var5": "value5default"},
+		EnvironmentSubPipelineParams: map[string]model.SubPipelineParams{
+			internalTest.Env1: env1SubPipelineParam,
+			internalTest.Env2: env2SubPipelineParam,
 		},
 	}
 
-	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
-			s.SetupTest()
-			mockCtrl := gomock.NewController(t)
+	ctx := context.Background()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+
+	paramSpec, err := model.SubPipelineParams{}.AsObjectParamSpec()
+	s.Require().NoError(err)
+
+	for _, targetEnv := range []string{internalTest.Env1, internalTest.Env2} {
+		_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   internalTest.RadixPipelineJobName + "-" + targetEnv,
+				Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv, rr.Spec.AppID),
+			},
+			Spec: pipelinev1.PipelineSpec{
+				Params: []pipelinev1.ParamSpec{paramSpec},
+			},
+		}, metav1.CreateOptions{})
+		s.Require().NoError(err)
+	}
+
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+
+	pipelineRuns, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(pipelineRuns.Items, 2)
+
+	expectedParams := map[string]pipelinev1.Param{}
+	expectedEnv1Param, err := env1SubPipelineParam.AsObjectParam()
+	s.Require().NoError(err)
+	expectedParams[internalTest.Env1] = expectedEnv1Param
+
+	expectedEnv2Param, err := env2SubPipelineParam.AsObjectParam()
+	s.Require().NoError(err)
+	expectedParams[internalTest.Env2] = expectedEnv2Param
+
+	for _, pipelineRun := range pipelineRuns.Items {
+		targetEnv := pipelineRun.Labels[kube.RadixEnvLabel]
+		expectedParam, ok := expectedParams[targetEnv]
+		s.Require().True(ok, "unexpected target environment on PipelineRun: %s", targetEnv)
+
+		var actualRadixParam *pipelinev1.Param
+		for i := range pipelineRun.Spec.Params {
+			if pipelineRun.Spec.Params[i].Name == expectedParam.Name {
+				actualRadixParam = &pipelineRun.Spec.Params[i]
+				break
+			}
+		}
+
+		s.Require().NotNil(actualRadixParam, "missing radix parameter in PipelineRun for environment %s", targetEnv)
+		s.Assert().Equal(expectedParam, *actualRadixParam)
+	}
+}
+
+func (s *stepTestSuite) Test_RunPipeline_ParamsFromBuildAndEnvironment() {
+	testCases := map[string]struct {
+		buildVariables             radixv1.EnvVarsMap
+		buildSubPipelineVars       radixv1.EnvVarsMap
+		environmentBuildVars       radixv1.EnvVarsMap
+		environmentSubPipelineVars radixv1.EnvVarsMap
+		pipelineParamSpecs         []pipelinev1.ParamSpec
+		expectedParams             []pipelinev1.Param
+	}{
+		"build and environment build variables are both included": {
+			buildVariables: radixv1.EnvVarsMap{
+				"SHARED":     "from-build",
+				"BUILD_ONLY": "build-value",
+			},
+			environmentBuildVars: radixv1.EnvVarsMap{
+				"ENV_ONLY": "env-value",
+			},
+			pipelineParamSpecs: []pipelinev1.ParamSpec{
+				{Name: "SHARED", Type: pipelinev1.ParamTypeString},
+				{Name: "BUILD_ONLY", Type: pipelinev1.ParamTypeString},
+				{Name: "ENV_ONLY", Type: pipelinev1.ParamTypeString},
+			},
+			expectedParams: []pipelinev1.Param{
+				{Name: "SHARED", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: "from-build"}},
+				{Name: "BUILD_ONLY", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: "build-value"}},
+				{Name: "ENV_ONLY", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: "env-value"}},
+			},
+		},
+		"environment build overrides build variables": {
+			buildVariables: radixv1.EnvVarsMap{
+				"SHARED":     "from-build",
+				"BUILD_ONLY": "build-value",
+			},
+			environmentBuildVars: radixv1.EnvVarsMap{
+				"SHARED": "from-environment",
+			},
+			pipelineParamSpecs: []pipelinev1.ParamSpec{
+				{Name: "SHARED", Type: pipelinev1.ParamTypeString},
+				{Name: "BUILD_ONLY", Type: pipelinev1.ParamTypeString},
+			},
+			expectedParams: []pipelinev1.Param{
+				{Name: "SHARED", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: "from-environment"}},
+				{Name: "BUILD_ONLY", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: "build-value"}},
+			},
+		},
+		"environment sub-pipeline variables override and preserve build sub-pipeline values": {
+			buildVariables: radixv1.EnvVarsMap{
+				"LEGACY": "legacy-build-variable",
+			},
+			buildSubPipelineVars: radixv1.EnvVarsMap{
+				"SHARED":         "from-build-subpipeline",
+				"BUILD_SUB_ONLY": "build-sub-only",
+				"LIST":           "a,b,c",
+			},
+			environmentBuildVars: radixv1.EnvVarsMap{
+				"SHARED": "from-environment-build",
+			},
+			environmentSubPipelineVars: radixv1.EnvVarsMap{
+				"SHARED":       "from-environment-subpipeline",
+				"ENV_SUB_ONLY": "env-sub-only",
+			},
+			pipelineParamSpecs: []pipelinev1.ParamSpec{
+				{Name: "SHARED", Type: pipelinev1.ParamTypeString},
+				{Name: "BUILD_SUB_ONLY", Type: pipelinev1.ParamTypeString},
+				{Name: "ENV_SUB_ONLY", Type: pipelinev1.ParamTypeString},
+				{Name: "LIST", Type: pipelinev1.ParamTypeArray},
+				{Name: "LEGACY", Type: pipelinev1.ParamTypeString},
+			},
+			expectedParams: []pipelinev1.Param{
+				{Name: "SHARED", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: "from-environment-subpipeline"}},
+				{Name: "BUILD_SUB_ONLY", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: "build-sub-only"}},
+				{Name: "ENV_SUB_ONLY", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: "env-sub-only"}},
+				{Name: "LIST", Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeArray, ArrayVal: []string{"a", "b", "c"}}},
+			},
+		},
+	}
+
+	for testName, testCase := range testCases {
+		s.Run(testName, func() {
+			mockCtrl := gomock.NewController(s.T())
 			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+
 			rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
-			ra := utils.NewRadixApplicationBuilder().
-				WithRadixRegistration(rrBuilder).
-				WithAppName(internalTest.AppName).
-				WithBuildVariables(ts.buildVariables).
-				WithSubPipeline(ts.buildSubPipeline).
-				WithApplicationEnvironmentBuilders(ts.appEnvBuilder...).BuildRA()
+			raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName).
+				WithBuildVariables(testCase.buildVariables)
+			if len(testCase.buildSubPipelineVars) > 0 {
+				raBuilder.WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(testCase.buildSubPipelineVars))
+			}
+
+			envBuilder := utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).WithEnvVars(testCase.environmentBuildVars)
+			if len(testCase.environmentSubPipelineVars) > 0 {
+				envBuilder.WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(testCase.environmentSubPipelineVars))
+			}
+			raBuilder.WithApplicationEnvironmentBuilders(envBuilder)
+
 			rr := rrBuilder.BuildRR()
-			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
-			s.Require().NoError(err)
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					AppName:       internalTest.AppName,
-					ImageTag:      internalTest.RadixImageTag,
-					JobName:       internalTest.RadixPipelineJobName,
-					GitRef:        internalTest.BranchMain,
-					GitRefType:    string(radixv1.GitRefBranch),
-					PipelineType:  string(radixv1.BuildDeploy),
-					ToEnvironment: internalTest.Env1,
+					AppName: internalTest.AppName,
 				},
-				RadixApplication:             ra,
-				TargetEnvironments:           []model.TargetEnvironment{{Environment: internalTest.Env1}},
-				EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
+				RadixApplication: raBuilder.BuildRA(),
+				EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{
+					{Environment: internalTest.Env1, PipelineFile: "subpipeline-dev1.yaml"},
+				},
 			}
+
+			ctx := context.Background()
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
 			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
-			step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
-			_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
-				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID)},
-				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
+			_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   internalTest.RadixPipelineJobName,
+					Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+				},
+				Spec: pipelinev1.PipelineSpec{
+					Params: testCase.pipelineParamSpecs,
+				},
+			}, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
-			err = step.Run(context.TODO(), pipelineInfo)
+			err = step.Run(ctx, pipelineInfo)
 			s.Require().NoError(err)
 
-			pipelineRunList, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
+			pipelineRuns, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
 			s.Require().NoError(err)
-			assert.Len(t, pipelineRunList.Items, 1)
-			pr := pipelineRunList.Items[0]
-			assert.Len(t, pr.Spec.Params, len(ts.expectedPipelineRunParamNames), "mismatching pipelineRun.Spec.Params element count")
-			for _, param := range pr.Spec.Params {
-				expectedValue, ok := ts.expectedPipelineRunParamNames[param.Name]
-				assert.True(t, ok, "unexpected param %s", param.Name)
-				s.Assert().Equal(expectedValue, param.Value.StringVal, "mismatching value in the param %s", param.Name)
-				s.Assert().Equal(pipelinev1.ParamTypeString, param.Value.Type, "mismatching type of the param %s", param.Name)
+			s.Require().Len(pipelineRuns.Items, 1)
+
+			var actualParams []pipelinev1.Param
+			for _, param := range pipelineRuns.Items[0].Spec.Params {
+				if param.Name == "radix" || param.Name == "AZURE_CLIENT_ID" {
+					continue
+				}
+				actualParams = append(actualParams, param)
 			}
+
+			s.Assert().ElementsMatch(testCase.expectedParams, actualParams)
 		})
 	}
 }
 
-func (s *stepTestSuite) Test_RunPipeline_ApplyIdentity() {
-	type scenario struct {
-		name                          string
-		pipelineSpec                  pipelinev1.PipelineSpec
-		appEnvBuilder                 []utils.ApplicationEnvironmentBuilder
-		buildVariables                radixv1.EnvVarsMap
-		buildIdentity                 *radixv1.Identity
-		buildSubPipeline              utils.SubPipelineBuilder
-		expectedPipelineRunParamNames map[string]string
-	}
-
-	scenarios := []scenario{
-		{name: "no identity",
-			pipelineSpec:  pipelinev1.PipelineSpec{},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain)},
+func (s *stepTestSuite) Test_RunPipeline_AzureIdentityClientID() {
+	testScenarios := map[string]struct {
+		buildIdentityClientID         string
+		buildAZURECLIENTIDParam       string
+		environmentIdentityClientID   string
+		environmentAZURECLIENTIDParam string
+		pipelineParamSpecs            []pipelinev1.ParamSpec
+		expectedAZURECLIENTID         string
+		expectAzureParam              bool
+	}{
+		"adds AZURE_CLIENT_ID from build identity when pipeline has no param spec": {
+			buildIdentityClientID: "build-identity-client-id",
+			expectedAZURECLIENTID: "build-identity-client-id",
+			expectAzureParam:      true,
 		},
-		{name: "task overrides param with common identity clientId",
-			pipelineSpec: pipelinev1.PipelineSpec{
-				Params: []pipelinev1.ParamSpec{
-					{Name: defaults.AzureClientIdEnvironmentVariable, Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "not-set"}},
-				},
-			},
-			appEnvBuilder:                 []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain)},
-			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: internalTest.SomeAzureClientId}},
-			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: internalTest.SomeAzureClientId},
+		"environment identity overrides build identity": {
+			buildIdentityClientID:       "build-identity-client-id",
+			environmentIdentityClientID: "environment-identity-client-id",
+			pipelineParamSpecs:          []pipelinev1.ParamSpec{{Name: "AZURE_CLIENT_ID", Type: pipelinev1.ParamTypeString}},
+			expectedAZURECLIENTID:       "environment-identity-client-id",
+			expectAzureParam:            true,
 		},
-		{name: "task sets param with common identity clientId",
-			pipelineSpec:                  pipelinev1.PipelineSpec{},
-			appEnvBuilder:                 []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain)},
-			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: internalTest.SomeAzureClientId}},
-			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: internalTest.SomeAzureClientId},
+		"AZURE_CLIENT_ID param in build sub-pipeline overrides build identity": {
+			buildIdentityClientID:   "build-identity-client-id",
+			buildAZURECLIENTIDParam: "build-param-client-id",
+			expectedAZURECLIENTID:   "build-param-client-id",
+			expectAzureParam:        true,
 		},
-		{name: "task uses build environment env-var instead of common identity clientId",
-			pipelineSpec: pipelinev1.PipelineSpec{},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"})},
-			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}},
-			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
+		"AZURE_CLIENT_ID param in environment sub-pipeline overrides all lower priority sources": {
+			buildIdentityClientID:         "build-identity-client-id",
+			buildAZURECLIENTIDParam:       "build-param-client-id",
+			environmentIdentityClientID:   "environment-identity-client-id",
+			environmentAZURECLIENTIDParam: "environment-param-client-id",
+			expectedAZURECLIENTID:         "environment-param-client-id",
+			expectAzureParam:              true,
 		},
-		{name: "task uses build environment sub-pipeline env-var instead of common identity clientId",
-			pipelineSpec: pipelinev1.PipelineSpec{},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"}))},
-			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}},
-			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
-		},
-		{name: "task uses build environment sub-pipeline env-var instead of common identity clientId",
-			pipelineSpec: pipelinev1.PipelineSpec{},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"}))},
-			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}},
-			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
-		},
-		{name: "task uses build environment sub-pipeline env-var instead of environment sub-pipeline identity clientId",
-			pipelineSpec: pipelinev1.PipelineSpec{},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithSubPipeline(utils.NewSubPipelineBuilder().
-					WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"}).
-					WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}}))},
-			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
-		},
-		{name: "task uses build environment sub-pipeline identity clientId instead of build env-var",
-			pipelineSpec: pipelinev1.PipelineSpec{},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithSubPipeline(utils.NewSubPipelineBuilder().WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}}))},
-			buildVariables:                map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
-			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-identity-client-id"},
-		},
-		{name: "task uses build environment sub-pipeline identity clientId instead of build sub-pipeline env-var",
-			pipelineSpec: pipelinev1.PipelineSpec{},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithSubPipeline(utils.NewSubPipelineBuilder().WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}}))},
-			buildSubPipeline:              utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"}),
-			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-identity-client-id"},
-		},
-		{name: "task removed identity clientId env-var set by build env-var when build environment sub-pipeline has no identity clientId",
-			pipelineSpec: pipelinev1.PipelineSpec{},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithSubPipeline(utils.NewSubPipelineBuilder().WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: ""}}))},
-			buildVariables:                map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
-			expectedPipelineRunParamNames: map[string]string{},
-		},
-		{name: "task uses build environment sub-pipeline identity clientId instead of build sub-pipeline env-var",
-			pipelineSpec: pipelinev1.PipelineSpec{},
-			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain).
-				WithSubPipeline(utils.NewSubPipelineBuilder().WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: ""}}))},
-			buildSubPipeline:              utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"}),
-			expectedPipelineRunParamNames: map[string]string{},
+		"AZURE_CLIENT_ID is not added when no client id is configured": {
+			expectAzureParam: false,
 		},
 	}
 
-	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
-			s.SetupTest()
-			mockCtrl := gomock.NewController(t)
+	for testScenarioName, testScenario := range testScenarios {
+		s.Run(testScenarioName, func() {
+			mockCtrl := gomock.NewController(s.T())
 			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
 
 			rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
-			raBuilder := utils.NewRadixApplicationBuilder().
-				WithRadixRegistration(rrBuilder).
-				WithAppName(internalTest.AppName).
-				WithBuildVariables(ts.buildVariables).
-				WithApplicationEnvironmentBuilders(ts.appEnvBuilder...)
-			if ts.buildIdentity != nil {
-				raBuilder = raBuilder.WithSubPipeline(utils.NewSubPipelineBuilder().WithIdentity(ts.buildIdentity))
-			}
-			rr := rrBuilder.BuildRR()
-			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
-			s.Require().NoError(err)
+			raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName)
 
+			buildSubPipelineBuilder := utils.NewSubPipelineBuilder()
+			if testScenario.buildIdentityClientID != "" {
+				buildSubPipelineBuilder.WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: testScenario.buildIdentityClientID}})
+			}
+			if testScenario.buildAZURECLIENTIDParam != "" {
+				buildSubPipelineBuilder.WithEnvVars(radixv1.EnvVarsMap{"AZURE_CLIENT_ID": testScenario.buildAZURECLIENTIDParam})
+			}
+			raBuilder.WithSubPipeline(buildSubPipelineBuilder)
+
+			environmentBuilder := utils.NewApplicationEnvironmentBuilder().WithName(internalTest.Env1).WithBuildFrom(internalTest.BranchMain)
+			environmentSubPipelineBuilder := utils.NewSubPipelineBuilder()
+			if testScenario.environmentIdentityClientID != "" {
+				environmentSubPipelineBuilder.WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: testScenario.environmentIdentityClientID}})
+			}
+			if testScenario.environmentAZURECLIENTIDParam != "" {
+				environmentSubPipelineBuilder.WithEnvVars(radixv1.EnvVarsMap{"AZURE_CLIENT_ID": testScenario.environmentAZURECLIENTIDParam})
+			}
+			environmentBuilder.WithSubPipeline(environmentSubPipelineBuilder)
+			raBuilder.WithApplicationEnvironmentBuilders(environmentBuilder)
+
+			rr := rrBuilder.BuildRR()
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					AppName:       internalTest.AppName,
-					ImageTag:      internalTest.RadixImageTag,
-					JobName:       internalTest.RadixPipelineJobName,
-					GitRef:        internalTest.BranchMain,
-					GitRefType:    string(radixv1.GitRefBranch),
-					PipelineType:  string(radixv1.BuildDeploy),
-					ToEnvironment: internalTest.Env1,
+					AppName: internalTest.AppName,
 				},
-				RadixApplication:             raBuilder.BuildRA(),
-				TargetEnvironments:           []model.TargetEnvironment{{Environment: internalTest.Env1}},
-				EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
+				RadixApplication: raBuilder.BuildRA(),
+				EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{
+					{Environment: internalTest.Env1, PipelineFile: "subpipeline-dev1.yaml"},
+				},
 			}
+
+			ctx := context.Background()
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
 			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
-			step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
-			appNamespace := pipelineInfo.GetAppNamespace()
-			_, err = s.tknClient.TektonV1().Pipelines(appNamespace).Create(context.TODO(), &pipelinev1.Pipeline{
-				ObjectMeta: metav1.ObjectMeta{Name: internalTest.RadixPipelineJobName, Namespace: appNamespace,
-					Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID)},
-				Spec: ts.pipelineSpec}, metav1.CreateOptions{})
+			_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   internalTest.RadixPipelineJobName,
+					Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+				},
+				Spec: pipelinev1.PipelineSpec{
+					Params: testScenario.pipelineParamSpecs,
+				},
+			}, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
-			err = step.Run(context.Background(), pipelineInfo)
+			err = step.Run(ctx, pipelineInfo)
 			s.Require().NoError(err)
 
-			pipelineRunList, err := s.tknClient.TektonV1().PipelineRuns(appNamespace).List(context.TODO(), metav1.ListOptions{})
+			pipelineRuns, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
 			s.Require().NoError(err)
-			assert.Len(t, pipelineRunList.Items, 1, "mismatching pipelineRun count")
-			pr := pipelineRunList.Items[0]
-			assert.Len(t, pr.Spec.Params, len(ts.expectedPipelineRunParamNames), "mismatching pipelineRun.Spec.Params element count")
-			for _, param := range pr.Spec.Params {
-				expectedValue, ok := ts.expectedPipelineRunParamNames[param.Name]
-				assert.True(t, ok, "unexpected param %s", param.Name)
-				s.Assert().Equal(expectedValue, param.Value.StringVal, "mismatching value in the param %s", param.Name)
-				s.Assert().Equal(pipelinev1.ParamTypeString, param.Value.Type, "mismatching type of the param %s", param.Name)
+			s.Require().Len(pipelineRuns.Items, 1)
+
+			var azureParam *pipelinev1.Param
+			for i := range pipelineRuns.Items[0].Spec.Params {
+				if pipelineRuns.Items[0].Spec.Params[i].Name == "radix" {
+					continue
+				}
+				if pipelineRuns.Items[0].Spec.Params[i].Name == "AZURE_CLIENT_ID" {
+					azureParam = &pipelineRuns.Items[0].Spec.Params[i]
+				}
+			}
+
+			if testScenario.expectAzureParam {
+				s.Require().NotNil(azureParam)
+				s.Assert().Equal(testScenario.expectedAZURECLIENTID, azureParam.Value.StringVal)
+			} else {
+				s.Assert().Nil(azureParam)
 			}
 		})
 	}
