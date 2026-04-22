@@ -100,17 +100,6 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 			cli.UpdateStatus(ctx, v1.JobStoppedNoChanges)
 			return nil
 		}
-
-		if err := ctx.Err(); err != nil {
-			if errors.Is(err, context.Canceled) {
-				logger.Info().Msg("Pipeline run is canceled")
-				cli.UpdateStatus(ctx, v1.JobStopped)
-				return nil
-			}
-
-			cli.UpdateStatus(ctx, v1.JobFailed)
-			return err
-		}
 	}
 	cli.UpdateStatus(ctx, v1.JobSucceeded)
 	return nil
