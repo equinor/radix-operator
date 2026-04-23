@@ -54,5 +54,3 @@ func isKubeJobForBatchJob(batchJob *radixv1.RadixBatchJob) func(job *batchv1.Job
 		return isResourceLabeledWithBatchJobName(batchJob.Name, job)
 	}
 }
-
-

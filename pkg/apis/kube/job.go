@@ -37,7 +37,6 @@ func JobHasOneOfConditionTypes(conditionTypes ...batchv1.JobConditionType) func(
 	}
 }
 
-
 // ListJobs Lists jobs from cache or from cluster
 func (kubeutil *Kube) ListJobs(ctx context.Context, namespace string) ([]*batchv1.Job, error) {
 	if kubeutil.JobLister != nil {
