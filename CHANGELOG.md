@@ -2,7 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.111.0](https://github.com/equinor/radix-operator/compare/v1.110.2..v1.111.0) - 2026-03-25
+## [1.113.0](https://github.com/equinor/radix-operator/compare/v1.112.0..v1.113.0) - 2026-04-21
+
+### 🚀 Features
+
+- Provide git and pipeline info to sub pipelines (#1664) - ([0d61554](https://github.com/equinor/radix-operator/commit/0d61554ee22c8ba80318a220051485887e08d2c4)) by @nilsgstrabo in [#1664](https://github.com/equinor/radix-operator/pull/1664)
+
+
+## [1.112.0](https://github.com/equinor/radix-operator/compare/v1.111.0..v1.112.0) - 2026-04-14
+
+### 🚀 Features
+
+- Default to using buildkit if unset, and no secrets (#1665) - ([3d9aaa8](https://github.com/equinor/radix-operator/commit/3d9aaa8dd39c137e1e9e11f45c99eda6b3472fe9)) by @Richard87 in [#1665](https://github.com/equinor/radix-operator/pull/1665)
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Update github workflows to latest version and pin to sha - ([40fd301](https://github.com/equinor/radix-operator/commit/40fd301022480c5abebb18e059d6cb3e9f00295b)) by @sveinpj in [#1656](https://github.com/equinor/radix-operator/pull/1656)
+
+
+## [1.111.0](https://github.com/equinor/radix-operator/compare/v1.110.2..v1.111.0) - 2026-03-30
 
 ### 🚀 Features
 

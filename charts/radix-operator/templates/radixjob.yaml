@@ -126,13 +126,6 @@ spec:
                     description: ToEnvironment the environment to build or build-deploy
                       to
                     type: string
-                  useBuildCache:
-                    description: Defaults to true and requires useBuildKit to have
-                      an effect.
-                    type: boolean
-                  useBuildKit:
-                    description: Enables BuildKit when building Dockerfile.
-                    type: boolean
                 required:
                 - branch
                 - imageTag
@@ -235,6 +228,22 @@ spec:
                   controller
                 format: int64
                 type: integer
+              pipelineRunStatus:
+                description: PipelineRunStatus provides additional information about
+                  the pipeline run execution
+                properties:
+                  status:
+                    description: RadixJobCondition Holds the condition of a job
+                    type: string
+                  usedBuildCache:
+                    type: boolean
+                  usedBuildKit:
+                    type: boolean
+                required:
+                - status
+                - usedBuildCache
+                - usedBuildKit
+                type: object
               reconcileStatus:
                 description: ReconcileStatus indicates whether the last reconciliation
                   succeeded or failed

@@ -480,135 +480,81 @@ func Test_ConstructForTargetEnvironment_BuildKitAnnotations(t *testing.T) {
 	}
 
 	scenarios := map[string]scenarioSpec{
-		"Build empty": {
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
+		"No build spec defaults to UseBuildKit true": {
+			expectedAnnotationUseBuildKit:       "true",
+			expectedAnnotationUseBuildCache:     "true",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
-		"Build empty, overrideUseBuildCache true": {
+		"No build spec, overrideUseBuildCache true": {
 			overrideUseBuildCache:               pointers.Ptr(true),
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
+			expectedAnnotationUseBuildKit:       "true",
+			expectedAnnotationUseBuildCache:     "true",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
-		"Build empty, overrideUseBuildCache false": {
+		"No build spec, overrideUseBuildCache false": {
 			overrideUseBuildCache:               pointers.Ptr(false),
-			expectedAnnotationUseBuildKit:       "false",
+			expectedAnnotationUseBuildKit:       "true",
 			expectedAnnotationUseBuildCache:     "false",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
-		"Build empty, overrideUseBuildCache true, refreshBuildCache false": {
-			overrideUseBuildCache:               pointers.Ptr(true),
-			refreshBuildCache:                   pointers.Ptr(true),
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
-		},
-		"Build empty, overrideUseBuildCache false, refreshBuildCache true": {
-			overrideUseBuildCache:               pointers.Ptr(false),
-			refreshBuildCache:                   pointers.Ptr(true),
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
-		},
-		"Build empty, refreshBuildCache false": {
+		"No build spec, overrideUseBuildCache true, refreshBuildCache true": {
 			overrideUseBuildCache:               pointers.Ptr(true),
 			refreshBuildCache:                   pointers.Ptr(true),
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
+			expectedAnnotationUseBuildKit:       "true",
+			expectedAnnotationUseBuildCache:     "true",
+			expectedAnnotationRefreshBuildCache: "true",
 		},
-		"Build empty, refreshBuildCache true": {
+		"No build spec, overrideUseBuildCache false, refreshBuildCache true": {
 			overrideUseBuildCache:               pointers.Ptr(false),
 			refreshBuildCache:                   pointers.Ptr(true),
-			expectedAnnotationUseBuildKit:       "false",
+			expectedAnnotationUseBuildKit:       "true",
 			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
+			expectedAnnotationRefreshBuildCache: "true",
 		},
-		"Build not empty": {
-			build:                               &radixv1.BuildSpec{},
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
-		},
-		"Build not empty, overrideUseBuildCache true": {
-			build:                               &radixv1.BuildSpec{},
-			overrideUseBuildCache:               pointers.Ptr(true),
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
-		},
-		"Build not empty, overrideUseBuildCache false": {
-			build:                               &radixv1.BuildSpec{},
-			overrideUseBuildCache:               pointers.Ptr(false),
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
-		},
-		"Build not empty, overrideUseBuildCache true, refreshBuildCache false": {
-			build:                               &radixv1.BuildSpec{},
-			overrideUseBuildCache:               pointers.Ptr(true),
-			refreshBuildCache:                   pointers.Ptr(true),
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
-		},
-		"Build not empty, overrideUseBuildCache false, refreshBuildCache true": {
-			build:                               &radixv1.BuildSpec{},
-			overrideUseBuildCache:               pointers.Ptr(false),
-			refreshBuildCache:                   pointers.Ptr(true),
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
-		},
-		"Build not empty, refreshBuildCache false": {
-			build:                               &radixv1.BuildSpec{},
-			overrideUseBuildCache:               pointers.Ptr(true),
-			refreshBuildCache:                   pointers.Ptr(true),
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
-		},
-		"Build not empty, refreshBuildCache true": {
-			build:                               &radixv1.BuildSpec{},
-			overrideUseBuildCache:               pointers.Ptr(false),
-			refreshBuildCache:                   pointers.Ptr(true),
-			expectedAnnotationUseBuildKit:       "false",
-			expectedAnnotationUseBuildCache:     "false",
-			expectedAnnotationRefreshBuildCache: "false",
-		},
-		"UseBuildKit, implicit UseBuildCache": {
+		"UseBuildKit true, implicit UseBuildCache defaults to true": {
 			build:                               &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
 			expectedAnnotationUseBuildKit:       "true",
 			expectedAnnotationUseBuildCache:     "true",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
-		"UseBuildKit, explicite UseBuildCache": {
+		"UseBuildKit true, explicit UseBuildCache true": {
 			build:                               &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(true)},
 			expectedAnnotationUseBuildKit:       "true",
 			expectedAnnotationUseBuildCache:     "true",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
-		"UseBuildKit, implicit UseBuildCache, explicite no refreshBuildCache": {
+		"UseBuildKit true, explicit UseBuildCache false": {
+			build:                               &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(false)},
+			expectedAnnotationUseBuildKit:       "true",
+			expectedAnnotationUseBuildCache:     "false",
+			expectedAnnotationRefreshBuildCache: "false",
+		},
+		"UseBuildKit true, refreshBuildCache false does not refresh": {
 			build:                               &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
 			refreshBuildCache:                   pointers.Ptr(false),
 			expectedAnnotationUseBuildKit:       "true",
 			expectedAnnotationUseBuildCache:     "true",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
-		"UseBuildKit, explicite UseBuildCache, explicite refreshBuildCache": {
+		"UseBuildKit true, UseBuildCache true, refreshBuildCache true": {
 			build:                               &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(true)},
 			refreshBuildCache:                   pointers.Ptr(true),
 			expectedAnnotationUseBuildKit:       "true",
 			expectedAnnotationUseBuildCache:     "true",
 			expectedAnnotationRefreshBuildCache: "true",
 		},
-		"UseBuildKit, explicite no UseBuildCache, explicite refreshBuildCache": {
+		"UseBuildKit true, UseBuildCache false, refreshBuildCache true": {
 			build:                               &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(false)},
 			refreshBuildCache:                   pointers.Ptr(true),
 			expectedAnnotationUseBuildKit:       "true",
 			expectedAnnotationUseBuildCache:     "false",
 			expectedAnnotationRefreshBuildCache: "true",
+		},
+		"Build secrets without UseBuildKit defaults to false": {
+			build:                               &radixv1.BuildSpec{Secrets: []string{"SECRET1"}},
+			expectedAnnotationUseBuildKit:       "false",
+			expectedAnnotationUseBuildCache:     "false",
+			expectedAnnotationRefreshBuildCache: "false",
 		},
 	}
 
@@ -617,7 +563,7 @@ func Test_ConstructForTargetEnvironment_BuildKitAnnotations(t *testing.T) {
 			const envName = "anyenv"
 			builder := utils.ARadixApplication()
 			if scenario.build != nil {
-				builder = builder.WithBuildKit(scenario.build.UseBuildKit).WithBuildCache(scenario.build.UseBuildCache)
+				builder = builder.WithBuildKit(scenario.build.UseBuildKit).WithBuildCache(scenario.build.UseBuildCache).WithBuildSecrets(scenario.build.Secrets...)
 			}
 			ra := builder.BuildRA()
 			pipelineInfo := &model.PipelineInfo{
