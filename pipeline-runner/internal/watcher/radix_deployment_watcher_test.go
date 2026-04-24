@@ -17,7 +17,7 @@ import (
 )
 
 func setupTest() (*radix.Clientset, *kubernetes.Clientset) {
-	radixClient := radix.NewSimpleClientset()
+	radixClient := radix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	kubeClient := kubernetes.NewSimpleClientset()
 	return radixClient, kubeClient
 }

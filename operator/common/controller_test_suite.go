@@ -44,7 +44,7 @@ type ControllerTestSuite struct {
 // SetupTest Set up the test suite
 func (s *ControllerTestSuite) SetupTest() {
 	s.KubeClient = fake.NewSimpleClientset()
-	s.RadixClient = fakeradix.NewSimpleClientset()
+	s.RadixClient = fakeradix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.DynamicClient = test.CreateClient()
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.SecretProviderClient = secretproviderfake.NewSimpleClientset()

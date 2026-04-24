@@ -40,7 +40,7 @@ func TestHandlerSuite(t *testing.T) {
 
 func (s *handlerTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
-	s.radixClient = fakeradix.NewSimpleClientset()
+	s.radixClient = fakeradix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.secretproviderclient = secretproviderfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretproviderclient)

@@ -102,7 +102,7 @@ func (s *syncerTestSuite) SetupSubTest() {
 
 func (s *syncerTestSuite) setupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
-	s.radixClient = fakeradix.NewSimpleClientset()
+	s.radixClient = fakeradix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()

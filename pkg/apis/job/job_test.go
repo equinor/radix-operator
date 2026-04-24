@@ -85,7 +85,7 @@ func (s *RadixJobTestSuiteBase) SetupTest() {
 func (s *RadixJobTestSuiteBase) setupTest() {
 	// Setup
 	kubeClient := kubernetes.NewSimpleClientset()
-	radixClient := radix.NewSimpleClientset()
+	radixClient := radix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)

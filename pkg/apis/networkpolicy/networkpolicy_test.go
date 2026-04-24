@@ -37,7 +37,7 @@ var testConfig = config.Config{
 func setupTest(t *testing.T) (*fake.Clientset, *kube.Kube) {
 	t.Helper()
 	kubeClient := fake.NewSimpleClientset()
-	radixClient := radixfake.NewSimpleClientset()
+	radixClient := radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	kedaClient := kedafake.NewSimpleClientset()
 	secretProviderClient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, err := kube.New(kubeClient, radixClient, kedaClient, secretProviderClient)

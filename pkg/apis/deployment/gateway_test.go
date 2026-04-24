@@ -76,7 +76,7 @@ func (s *GatewayTestSuite) SetupSubTest() {
 
 func (s *GatewayTestSuite) setupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
-	radixClient := radixfake.NewSimpleClientset()
+	radixClient := radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.radixClient = radixClient
 	kedaClient := kedafake.NewSimpleClientset()
 	s.dynamicClient = test.CreateClient()
