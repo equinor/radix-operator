@@ -271,21 +271,17 @@ func getPushImageTag(pushImage bool) string {
 }
 
 func (job *Job) findJobCondition(jobStatus batchv1.JobStatus) radixv1.RadixJobCondition {
-	if jobStatus.Failed > 0 {
+	switch {
+	case kube.IsJobFailed(jobStatus):
 		return radixv1.JobFailed
-	}
-	if jobStatus.Active > 0 {
-		return radixv1.JobRunning
-
-	}
-	if jobStatus.Succeeded > 0 {
-
+	case kube.IsJobSucceeded(jobStatus):
 		if job.radixJob != nil && job.radixJob.Status.PipelineRunStatus != nil && job.radixJob.Status.PipelineRunStatus.Status != "" {
 			return job.radixJob.Status.PipelineRunStatus.Status
 		}
-
-		// Unknown, but pipeline runner exited successfully, so we assume succeeded
 		return radixv1.JobSucceeded
+	case kube.IsJobRunning(jobStatus):
+		return radixv1.JobRunning
+	default:
+		return radixv1.JobWaiting
 	}
-	return radixv1.JobWaiting
 }
