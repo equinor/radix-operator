@@ -102,11 +102,6 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 		kube.RadixRefreshBuildCache:    strconv.FormatBool(pipelineInfo.IsRefreshingBuildCache()),
 	}
 
-	// NB! To be removed: https://github.com/equinor/radix-platform/issues/1822
-	if previewOAuthAnnotation := radixApplication.GetObjectMeta().GetAnnotations()[annotations.PreviewOAuth2ProxyModeAnnotation]; previewOAuthAnnotation != "" {
-		deploymentAnnotations[annotations.PreviewOAuth2ProxyModeAnnotation] = previewOAuthAnnotation
-	}
-
 	if previewGatewayAnnotation := radixApplication.GetObjectMeta().GetAnnotations()[annotations.PreviewGatewayModeAnnotation]; previewGatewayAnnotation != "" {
 		deploymentAnnotations[annotations.PreviewGatewayModeAnnotation] = previewGatewayAnnotation
 	}

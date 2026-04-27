@@ -592,33 +592,15 @@ func Test_ConstructForTargetEnvironment_PreviewAnnotations(t *testing.T) {
 
 	tests := map[string]struct {
 		raAnnotations                    map[string]string
-		expectedPreviewOAuthAnnotation   string
 		expectedPreviewGatewayAnnotation string
 	}{
 		"no preview annotations on RA": {
 			raAnnotations:                    nil,
-			expectedPreviewOAuthAnnotation:   "",
-			expectedPreviewGatewayAnnotation: "",
-		},
-		"PreviewOAuth2ProxyModeAnnotation set on RA": {
-			raAnnotations:                    map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "env1,env2"},
-			expectedPreviewOAuthAnnotation:   "env1,env2",
 			expectedPreviewGatewayAnnotation: "",
 		},
 		"PreviewGatewayModeAnnotation set on RA": {
-			raAnnotations:                    map[string]string{annotations.PreviewGatewayModeAnnotation: "env1"},
-			expectedPreviewOAuthAnnotation:   "",
-			expectedPreviewGatewayAnnotation: "env1",
-		},
-		"both preview annotations set on RA": {
-			raAnnotations:                    map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "env1", annotations.PreviewGatewayModeAnnotation: "*"},
-			expectedPreviewOAuthAnnotation:   "env1",
-			expectedPreviewGatewayAnnotation: "*",
-		},
-		"empty preview annotations on RA are not copied": {
-			raAnnotations:                    map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "", annotations.PreviewGatewayModeAnnotation: ""},
-			expectedPreviewOAuthAnnotation:   "",
-			expectedPreviewGatewayAnnotation: "",
+			raAnnotations:                    map[string]string{annotations.PreviewGatewayModeAnnotation: "env1,env2"},
+			expectedPreviewGatewayAnnotation: "env1,env2",
 		},
 	}
 
@@ -643,7 +625,6 @@ func Test_ConstructForTargetEnvironment_PreviewAnnotations(t *testing.T) {
 			rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: envName}, "anycommit", "anytags", "anyhash", "anybuildsecrethash")
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.expectedPreviewOAuthAnnotation, rd.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation])
 			assert.Equal(t, tt.expectedPreviewGatewayAnnotation, rd.Annotations[annotations.PreviewGatewayModeAnnotation])
 		})
 	}

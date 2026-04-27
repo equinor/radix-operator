@@ -99,9 +99,8 @@ func (h *handler) Sync(ctx context.Context, _, name string) error {
 	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)
 	targetIngressNamespace := utils.GetEnvironmentNamespace(syncingAlias.Spec.AppName, syncingAlias.Spec.Environment)
 	componentIngressAnnotations := ingress.GetComponentAnnotationProvider(h.ingressConfiguration, targetIngressNamespace, h.oauth2DefaultConfig)
-	oauthIngressAnnotations := ingress.GetOAuthAnnotationProviders()
-	oauthProxyModeIngressAnnotations := ingress.GetOAuthProxyModeAnnotationProviders(h.ingressConfiguration, targetIngressNamespace)
-	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.kubeClient, h.kubeUtil, h.radixClient, h.dynamicClient, h.config, h.oauth2DefaultConfig, componentIngressAnnotations, oauthIngressAnnotations, oauthProxyModeIngressAnnotations)
+	oauthProxyIngressAnnotations := ingress.GetOAuthProxyAnnotationProviders(h.ingressConfiguration, targetIngressNamespace)
+	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.kubeClient, h.kubeUtil, h.radixClient, h.dynamicClient, h.config, h.oauth2DefaultConfig, componentIngressAnnotations, oauthProxyIngressAnnotations)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		h.events.RecordSyncErrorEvent(syncingAlias, err)

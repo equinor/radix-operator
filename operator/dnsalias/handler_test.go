@@ -42,7 +42,7 @@ func (s *handlerTestSuite) TearDownTest() {
 func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
 	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, config.Config{}, dnsalias.WithSyncerFactory(s.syncerFactory))
 
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
 
 	err := handler.Sync(context.Background(), "", "any")
@@ -63,11 +63,10 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 	expectedDnsAlias, err := s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), expectedDnsAlias, v1.CreateOptions{})
 	expectedTagretNamespace := utils.GetEnvironmentNamespace(expectedDnsAlias.Spec.AppName, expectedDnsAlias.Spec.Environment)
 	expectedComponentIngressAnnotations := ingress.GetComponentAnnotationProvider(ingress.IngressConfiguration{}, expectedTagretNamespace, expectedOauth2Cfg)
-	expectedOAuthIngressAnnotations := ingress.GetOAuthAnnotationProviders()
-	expectedOAuthProxyModeIngressAnnotations := ingress.GetOAuthProxyModeAnnotationProviders(ingress.IngressConfiguration{}, expectedTagretNamespace)
+	expectedOAuthProxyModeIngressAnnotations := ingress.GetOAuthProxyAnnotationProviders(ingress.IngressConfiguration{}, expectedTagretNamespace)
 	expectedError := fmt.Errorf("some error")
 	s.Require().NoError(err)
-	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg, expectedComponentIngressAnnotations, expectedOAuthIngressAnnotations, expectedOAuthProxyModeIngressAnnotations).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg, expectedComponentIngressAnnotations, expectedOAuthProxyModeIngressAnnotations).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
 
 	sut := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, c, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
@@ -91,10 +90,9 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 	expectedDnsAlias, err := s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), expectedDnsAlias, v1.CreateOptions{})
 	expectedTagretNamespace := utils.GetEnvironmentNamespace(expectedDnsAlias.Spec.AppName, expectedDnsAlias.Spec.Environment)
 	expectedComponentIngressAnnotations := ingress.GetComponentAnnotationProvider(ingress.IngressConfiguration{}, expectedTagretNamespace, expectedOauth2Cfg)
-	expectedOAuthIngressAnnotations := ingress.GetOAuthAnnotationProviders()
-	expectedOAuthProxyModeIngressAnnotations := ingress.GetOAuthProxyModeAnnotationProviders(ingress.IngressConfiguration{}, expectedTagretNamespace)
+	expectedOAuthProxyModeIngressAnnotations := ingress.GetOAuthProxyAnnotationProviders(ingress.IngressConfiguration{}, expectedTagretNamespace)
 	s.Require().NoError(err)
-	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg, expectedComponentIngressAnnotations, expectedOAuthIngressAnnotations, expectedOAuthProxyModeIngressAnnotations).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg, expectedComponentIngressAnnotations, expectedOAuthProxyModeIngressAnnotations).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
 
 	sut := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, c, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))

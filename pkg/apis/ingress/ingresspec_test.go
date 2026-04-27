@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/stretchr/testify/assert"
 	networkingv1 "k8s.io/api/networking/v1"
 )
@@ -112,65 +111,33 @@ func Test_BuildIngressSpecForOAuth2Component(t *testing.T) {
 		},
 	}
 
-	t.Run("proxy mode false", func(t *testing.T) {
-		actualSpec := ingress.BuildIngressSpecForOAuth2Component(component, hostName, tlsSecret, false)
-		expectedSpec := networkingv1.IngressSpec{
-			IngressClassName: pointers.Ptr("nginx"),
-			TLS: []networkingv1.IngressTLS{{
-				Hosts:      []string{hostName},
-				SecretName: tlsSecret,
-			}},
-			Rules: []networkingv1.IngressRule{{
-				Host: hostName,
-				IngressRuleValue: networkingv1.IngressRuleValue{
-					HTTP: &networkingv1.HTTPIngressRuleValue{
-						Paths: []networkingv1.HTTPIngressPath{{
-							Path:     oauthutil.SanitizePathPrefix(proxyPrefixPath),
-							PathType: pointers.Ptr(networkingv1.PathTypeImplementationSpecific),
-							Backend: networkingv1.IngressBackend{
-								Service: &networkingv1.IngressServiceBackend{
-									Name: utils.GetAuxOAuthProxyComponentServiceName(componentName),
-									Port: networkingv1.ServiceBackendPort{
-										Number: defaults.OAuthProxyPortNumber,
-									},
+	actualSpec := ingress.BuildIngressSpecForOAuth2Component(component, hostName, tlsSecret)
+	expectedSpec := networkingv1.IngressSpec{
+		IngressClassName: pointers.Ptr("nginx"),
+		TLS: []networkingv1.IngressTLS{{
+			Hosts:      []string{hostName},
+			SecretName: tlsSecret,
+		}},
+		Rules: []networkingv1.IngressRule{{
+			Host: hostName,
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{{
+						Path:     "/",
+						PathType: pointers.Ptr(networkingv1.PathTypeImplementationSpecific),
+						Backend: networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: utils.GetAuxOAuthProxyComponentServiceName(componentName),
+								Port: networkingv1.ServiceBackendPort{
+									Number: defaults.OAuthProxyPortNumber,
 								},
 							},
-						}},
-					},
+						},
+					}},
 				},
-			}},
-		}
-		assert.Equal(t, expectedSpec, actualSpec)
-	})
+			},
+		}},
+	}
+	assert.Equal(t, expectedSpec, actualSpec)
 
-	t.Run("proxy mode true", func(t *testing.T) {
-		actualSpec := ingress.BuildIngressSpecForOAuth2Component(component, hostName, tlsSecret, true)
-		expectedSpec := networkingv1.IngressSpec{
-			IngressClassName: pointers.Ptr("nginx"),
-			TLS: []networkingv1.IngressTLS{{
-				Hosts:      []string{hostName},
-				SecretName: tlsSecret,
-			}},
-			Rules: []networkingv1.IngressRule{{
-				Host: hostName,
-				IngressRuleValue: networkingv1.IngressRuleValue{
-					HTTP: &networkingv1.HTTPIngressRuleValue{
-						Paths: []networkingv1.HTTPIngressPath{{
-							Path:     "/",
-							PathType: pointers.Ptr(networkingv1.PathTypeImplementationSpecific),
-							Backend: networkingv1.IngressBackend{
-								Service: &networkingv1.IngressServiceBackend{
-									Name: utils.GetAuxOAuthProxyComponentServiceName(componentName),
-									Port: networkingv1.ServiceBackendPort{
-										Number: defaults.OAuthProxyPortNumber,
-									},
-								},
-							},
-						}},
-					},
-				},
-			}},
-		}
-		assert.Equal(t, expectedSpec, actualSpec)
-	})
 }

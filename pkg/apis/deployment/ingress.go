@@ -9,17 +9,11 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func (deploy *Deployment) isOAuth2ProxyModeEnabled() bool {
-	return annotations.OAuth2ProxyModeEnabledForEnvironment(deploy.radixDeployment.Annotations, deploy.radixDeployment.Spec.Environment) ||
-		annotations.OAuth2ProxyModeEnabledForEnvironment(deploy.registration.Annotations, deploy.radixDeployment.Spec.Environment)
-}
 
 func (deploy *Deployment) reconcileIngresses(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	logger := log.Ctx(ctx)
@@ -27,10 +21,9 @@ func (deploy *Deployment) reconcileIngresses(ctx context.Context, component radi
 
 	// When everyone is using proxy mode, or its enforced, cleanup this code (https://github.com/equinor/radix-platform/issues/1822)
 	oauth2enabled := component.GetAuthentication().GetOAuth2() != nil
-	oauth2PreviewProxyEnabled := oauth2enabled && deploy.isOAuth2ProxyModeEnabled()
-	logger.Debug().Msgf("Reconciling ingresses for component %s. OAuth2 enabled: %t, Proxy mode enabled: %t", component.GetName(), oauth2enabled, oauth2PreviewProxyEnabled)
+	logger.Debug().Msgf("Reconciling ingresses for component %s. OAuth2 enabled: %t", component.GetName(), oauth2enabled)
 
-	if component.IsPublic() && !oauth2PreviewProxyEnabled {
+	if component.IsPublic() && !oauth2enabled {
 		hosts = getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil)
 	}
 

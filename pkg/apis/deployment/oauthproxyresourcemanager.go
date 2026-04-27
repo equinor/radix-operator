@@ -42,30 +42,28 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotations, ingressAnnotationsProxyMode []ingress.AnnotationProvider, oauth2ProxyDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotations []ingress.AnnotationProvider, oauth2ProxyDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
-		rd:                          rd,
-		rr:                          rr,
-		kubeutil:                    kubeutil,
-		ingressAnnotations:          ingressAnnotations,
-		ingressAnnotationsProxyMode: ingressAnnotationsProxyMode,
-		oauth2DefaultConfig:         oauth2DefaultConfig,
-		oauth2ProxyDockerImage:      oauth2ProxyDockerImage,
-		externalRegistryAuthSecret:  externalRegistryAuthSecret,
-		logger:                      log.Logger.With().Str("resource_kind", radixv1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth2").Logger(),
+		rd:                         rd,
+		rr:                         rr,
+		kubeutil:                   kubeutil,
+		ingressAnnotations:         ingressAnnotations,
+		oauth2DefaultConfig:        oauth2DefaultConfig,
+		oauth2ProxyDockerImage:     oauth2ProxyDockerImage,
+		externalRegistryAuthSecret: externalRegistryAuthSecret,
+		logger:                     log.Logger.With().Str("resource_kind", radixv1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth2").Logger(),
 	}
 }
 
 type oauthProxyResourceManager struct {
-	rd                          *radixv1.RadixDeployment
-	rr                          *radixv1.RadixRegistration
-	kubeutil                    *kube.Kube
-	ingressAnnotations          []ingress.AnnotationProvider
-	ingressAnnotationsProxyMode []ingress.AnnotationProvider
-	oauth2DefaultConfig         defaults.OAuth2Config
-	oauth2ProxyDockerImage      string
-	externalRegistryAuthSecret  string
-	logger                      zerolog.Logger
+	rd                         *radixv1.RadixDeployment
+	rr                         *radixv1.RadixRegistration
+	kubeutil                   *kube.Kube
+	ingressAnnotations         []ingress.AnnotationProvider
+	oauth2DefaultConfig        defaults.OAuth2Config
+	oauth2ProxyDockerImage     string
+	externalRegistryAuthSecret string
+	logger                     zerolog.Logger
 }
 
 func (o *oauthProxyResourceManager) Sync(ctx context.Context) error {
@@ -425,11 +423,6 @@ func (o *oauthProxyResourceManager) garbageCollectIngressesNoLongerInSpec(ctx co
 	return nil
 }
 
-func (o *oauthProxyResourceManager) isProxyModeEnabled() bool {
-	return annotations.OAuth2ProxyModeEnabledForEnvironment(o.rd.Annotations, o.rd.Spec.Environment) ||
-		annotations.OAuth2ProxyModeEnabledForEnvironment(o.rr.Annotations, o.rd.Spec.Environment)
-}
-
 func (o *oauthProxyResourceManager) garbageCollectIngressesForComponent(ctx context.Context, component *radixv1.RadixDeployComponent, hosts []dnsInfo) error {
 	logger := log.Ctx(ctx)
 	selector := fmt.Sprintf("%s,!%s", radixlabels.ForAuxOAuthProxyIngress(o.rd.Spec.AppName, component), kube.RadixAliasLabel)
@@ -448,7 +441,7 @@ func (o *oauthProxyResourceManager) garbageCollectIngressesForComponent(ctx cont
 			return err
 		}
 		// build a dummy ingress spec to get path from
-		path = ingress.BuildIngressSpecForOAuth2Component(component, "", "", o.isProxyModeEnabled()).Rules[0].HTTP.Paths[0].Path
+		path = ingress.BuildIngressSpecForOAuth2Component(component, "", "").Rules[0].HTTP.Paths[0].Path
 	}
 
 	for _, ing := range existingIngresses.Items {
@@ -473,11 +466,7 @@ func (o *oauthProxyResourceManager) garbageCollectIngressesForComponent(ctx cont
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateIngress(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	annotationProviders := o.ingressAnnotations
-	if o.isProxyModeEnabled() {
-		annotationProviders = o.ingressAnnotationsProxyMode
-	}
-	annotations, err := ingress.BuildAnnotationsFromProviders(component, annotationProviders)
+	annotations, err := ingress.BuildAnnotationsFromProviders(component, o.ingressAnnotations)
 	if err != nil {
 		return fmt.Errorf("failed to build annotations: %w", err)
 	}
@@ -495,7 +484,7 @@ func (o *oauthProxyResourceManager) createOrUpdateIngress(ctx context.Context, c
 				),
 				OwnerReferences: owner,
 			},
-			Spec: ingress.BuildIngressSpecForOAuth2Component(component, host.fqdn, host.tlsSecret, o.isProxyModeEnabled()),
+			Spec: ingress.BuildIngressSpecForOAuth2Component(component, host.fqdn, host.tlsSecret),
 		}
 
 		if err := o.kubeutil.ApplyIngress(ctx, o.rd.Namespace, ing); err != nil {
@@ -774,9 +763,9 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 	return desiredDeployment, nil
 }
 
-func (o *oauthProxyResourceManager) getEnvVarsSidecarMode(component radixv1.RadixCommonDeployComponent) []corev1.EnvVar {
+func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
 	var envVars []corev1.EnvVar
-	oauth := component.GetAuthentication().OAuth2
+	var err error
 
 	addEnvVarIfSet := func(envVar string, value interface{}) {
 		rval := reflect.ValueOf(value)
@@ -790,83 +779,7 @@ func (o *oauthProxyResourceManager) getEnvVarsSidecarMode(component radixv1.Radi
 		}
 	}
 
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PROVIDER", Value: getOAuthProxyProvider(oauth)})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_HTTPONLY", Value: "true"})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_SECURE", Value: "true"})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PASS_BASIC_AUTH", Value: "false"})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", Value: "true"})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL", Value: "true"})
-	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", defaults.OAuthProxyPortNumber)})
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
-	envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyCookieSecretEnvironmentVariable, secretName, defaults.OAuthCookieSecretKeyName))
-
-	if oauth.GetUseAzureIdentity() {
-		envVars = append(envVars, corev1.EnvVar{Name: oauth2ProxyEntraIdFederatedTokenAuthEnvironmentVariable, Value: "true"})
-	} else {
-		envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyClientSecretEnvironmentVariable, secretName, defaults.OAuthClientSecretKeyName))
-	}
-
-	if oauth.IsSessionStoreTypeRedis() {
-		envVars = append(envVars, o.createEnvVarWithSecretRef(oauth2ProxyRedisPasswordEnvironmentVariable, secretName, defaults.OAuthRedisPasswordKeyName))
-	}
-
-	addEnvVarIfSet("OAUTH2_PROXY_CLIENT_ID", oauth.ClientID)
-	addEnvVarIfSet("OAUTH2_PROXY_SCOPE", oauth.Scope)
-	addEnvVarIfSet("OAUTH2_PROXY_SET_XAUTHREQUEST", oauth.SetXAuthRequestHeaders)
-	addEnvVarIfSet("OAUTH2_PROXY_PASS_ACCESS_TOKEN", oauth.SetXAuthRequestHeaders)
-	addEnvVarIfSet("OAUTH2_PROXY_SET_AUTHORIZATION_HEADER", oauth.SetAuthorizationHeader)
-	addEnvVarIfSet("OAUTH2_PROXY_PROXY_PREFIX", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
-	addEnvVarIfSet("OAUTH2_PROXY_LOGIN_URL", oauth.LoginURL)
-	addEnvVarIfSet("OAUTH2_PROXY_REDEEM_URL", oauth.RedeemURL)
-	addEnvVarIfSet("OAUTH2_PROXY_SESSION_STORE_TYPE", getSessionStoreType(oauth))
-
-	if oidc := oauth.OIDC; oidc != nil {
-		addEnvVarIfSet("OAUTH2_PROXY_OIDC_ISSUER_URL", oidc.IssuerURL)
-		addEnvVarIfSet("OAUTH2_PROXY_OIDC_JWKS_URL", oidc.JWKSURL)
-		addEnvVarIfSet("OAUTH2_PROXY_SKIP_OIDC_DISCOVERY", oidc.SkipDiscovery)
-		addEnvVarIfSet("OAUTH2_PROXY_INSECURE_OIDC_SKIP_NONCE", oidc.InsecureSkipVerifyNonce)
-	}
-
-	if cookie := oauth.Cookie; cookie != nil {
-		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_NAME", cookie.Name)
-		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_EXPIRE", cookie.Expire)
-		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_REFRESH", cookie.Refresh)
-		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_SAMESITE", cookie.SameSite)
-	}
-
-	if cookieStore := oauth.CookieStore; cookieStore != nil {
-		addEnvVarIfSet("OAUTH2_PROXY_SESSION_COOKIE_MINIMAL", cookieStore.Minimal)
-	}
-
-	if oauth.IsSessionStoreTypeSystemManaged() {
-		addEnvVarIfSet(oauthProxyRedisConnectionUrlEnvironmentVariable, o.getSystemManagedRedisStoreConnectionURL(component))
-	} else if oauth.IsSessionStoreTypeRedis() {
-		addEnvVarIfSet(oauthProxyRedisConnectionUrlEnvironmentVariable, oauth.GetRedisStoreConnectionURL())
-	}
-
-	if len(oauth.SkipAuthRoutes) > 0 {
-		addEnvVarIfSet(oauth2ProxySkipAuthRoutesEnvironmentVariable, strings.Join(oauth.SkipAuthRoutes, ","))
-	}
-
-	return envVars
-}
-
-func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
-	var envVars []corev1.EnvVar
 	oauth := component.GetAuthentication().OAuth2
-
-	addEnvVarIfSet := func(envVar string, value interface{}) {
-		rval := reflect.ValueOf(value)
-		if !rval.IsZero() {
-			switch rval.Kind() {
-			case reflect.String:
-				envVars = append(envVars, corev1.EnvVar{Name: envVar, Value: fmt.Sprint(rval)})
-			case reflect.Ptr:
-				envVars = append(envVars, corev1.EnvVar{Name: envVar, Value: fmt.Sprint(rval.Elem())})
-			}
-		}
-	}
 
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PROVIDER", Value: getOAuthProxyProvider(oauth)})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_HTTPONLY", Value: "true"})
@@ -934,23 +847,6 @@ func (o *oauthProxyResourceManager) getEnvVarsProxyMode(component radixv1.RadixC
 
 	if len(oauth.SkipAuthRoutes) > 0 {
 		addEnvVarIfSet(oauth2ProxySkipAuthRoutesEnvironmentVariable, strings.Join(oauth.SkipAuthRoutes, ","))
-	}
-
-	return envVars, nil
-}
-
-func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
-	var envVars []corev1.EnvVar
-	var err error
-
-	if o.isProxyModeEnabled() {
-		envVars, err = o.getEnvVarsProxyMode(component)
-
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		envVars = o.getEnvVarsSidecarMode(component)
 	}
 
 	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
