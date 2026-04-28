@@ -47,42 +47,6 @@ func Test_ForClusterAutoscalerSafeToEvict(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func Test_OAuth2ProxyModeEnabledForEnvironment(t *testing.T) {
-	tests := []struct {
-		name        string
-		annotations map[string]string
-		currentEnv  string
-		expected    bool
-	}{
-		{name: "nil annotations", annotations: nil, currentEnv: "dev", expected: false},
-		{name: "empty annotations", annotations: map[string]string{}, currentEnv: "dev", expected: false},
-		{name: "annotation missing", annotations: map[string]string{"other": "dev"}, currentEnv: "dev", expected: false},
-		{name: "wildcard matches any env", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "*"}, currentEnv: "qa", expected: true},
-		{name: "exact match single env", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev"}, currentEnv: "dev", expected: true},
-		{name: "no match single env", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev"}, currentEnv: "qa", expected: false},
-		{name: "match first in list", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}, currentEnv: "dev", expected: true},
-		{name: "match last in list", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}, currentEnv: "qa", expected: true},
-		{name: "no match in list", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}, currentEnv: "prod", expected: false},
-		{name: "case sensitive mismatch", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev,qa"}, currentEnv: "Qa", expected: false},
-		{name: "spaces around env trimmed", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev, qa , prod"}, currentEnv: "qa", expected: true},
-		{name: "empty value", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: ""}, currentEnv: "dev", expected: false},
-		{name: "empty currentEnv with empty entry", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: ""}, currentEnv: "", expected: true},
-		// Gateway API enabled implies OAuth2 proxy mode enabled
-		{name: "gateway api enabled for env enables oauth2", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev"}, currentEnv: "dev", expected: true},
-		{name: "gateway api enabled wildcard enables oauth2", annotations: map[string]string{PreviewGatewayModeAnnotation: "*"}, currentEnv: "qa", expected: true},
-		{name: "gateway api enabled for other env does not enable oauth2", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev"}, currentEnv: "qa", expected: false},
-		{name: "gateway api enabled in list enables oauth2", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev,qa"}, currentEnv: "qa", expected: true},
-		{name: "gateway api enabled without oauth2 annotation", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev"}, currentEnv: "dev", expected: true},
-		{name: "both gateway and oauth2 enabled", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev", PreviewOAuth2ProxyModeAnnotation: "dev"}, currentEnv: "dev", expected: true},
-		{name: "gateway api nil oauth2 set", annotations: map[string]string{PreviewOAuth2ProxyModeAnnotation: "dev"}, currentEnv: "dev", expected: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, OAuth2ProxyModeEnabledForEnvironment(tt.annotations, tt.currentEnv))
-		})
-	}
-}
-
 func Test_GatewayAPIEnabledForEnvironment(t *testing.T) {
 	tests := []struct {
 		name        string

@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	networkingv1 "k8s.io/api/networking/v1"
 )
 
@@ -33,14 +32,10 @@ func BuildIngressSpecForComponent(component radixv1.RadixCommonDeployComponent, 
 }
 
 // BuildIngressSpecForOAuth2Component Builds ingress spec for a component's oauth2 service
-func BuildIngressSpecForOAuth2Component(component radixv1.RadixCommonDeployComponent, hostname, tlsSecretName string, proxyMode bool) networkingv1.IngressSpec {
+func BuildIngressSpecForOAuth2Component(component radixv1.RadixCommonDeployComponent, hostname, tlsSecretName string) networkingv1.IngressSpec {
 	serviceName := utils.GetAuxOAuthProxyComponentServiceName(component.GetName())
-	path := oauthutil.SanitizePathPrefix(component.GetAuthentication().GetOAuth2().ProxyPrefix)
-	if proxyMode {
-		path = "/"
-	}
 
-	return buildIngressSpec(hostname, serviceName, tlsSecretName, defaults.OAuthProxyPortNumber, path)
+	return buildIngressSpec(hostname, serviceName, tlsSecretName, defaults.OAuthProxyPortNumber, "/")
 }
 
 func buildIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32, path string) networkingv1.IngressSpec {

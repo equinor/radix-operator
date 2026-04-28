@@ -136,7 +136,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetOAuthAnnotationProviders(), ingress.GetOAuthProxyModeAnnotationProviders(t.ingressConfiguration, rd.Namespace), t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetOAuthProxyAnnotationProviders(t.ingressConfiguration, rd.Namespace), t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2RedisDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 	}
 

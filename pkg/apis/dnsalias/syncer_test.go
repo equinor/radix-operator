@@ -36,17 +36,16 @@ import (
 
 type syncerTestSuite struct {
 	suite.Suite
-	kubeClient                      *kubefake.Clientset
-	radixClient                     *radixfake.Clientset
-	dynamicClient                   client.Client
-	testUtils                       test.Utils
-	promClient                      *prometheusfake.Clientset
-	ctrl                            *gomock.Controller
-	oauthConfig                     *defaults.MockOAuth2Config
-	componentIngressAnnotation      *ingress.MockAnnotationProvider
-	oauthIngressAnnotation          *ingress.MockAnnotationProvider
-	oauthProxyModeIngressAnnotation *ingress.MockAnnotationProvider
-	config                          config.Config
+	kubeClient                 *kubefake.Clientset
+	radixClient                *radixfake.Clientset
+	dynamicClient              client.Client
+	testUtils                  test.Utils
+	promClient                 *prometheusfake.Clientset
+	ctrl                       *gomock.Controller
+	oauthConfig                *defaults.MockOAuth2Config
+	componentIngressAnnotation *ingress.MockAnnotationProvider
+	oauthIngressAnnotation     *ingress.MockAnnotationProvider
+	config                     config.Config
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -79,7 +78,6 @@ func (s *syncerTestSuite) setupTest() {
 	s.oauthConfig = defaults.NewMockOAuth2Config(s.ctrl)
 	s.componentIngressAnnotation = ingress.NewMockAnnotationProvider(s.ctrl)
 	s.oauthIngressAnnotation = ingress.NewMockAnnotationProvider(s.ctrl)
-	s.oauthProxyModeIngressAnnotation = ingress.NewMockAnnotationProvider(s.ctrl)
 }
 
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
@@ -93,7 +91,6 @@ func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dns
 		s.oauthConfig,
 		[]ingress.AnnotationProvider{s.componentIngressAnnotation},
 		[]ingress.AnnotationProvider{s.oauthIngressAnnotation},
-		[]ingress.AnnotationProvider{s.oauthProxyModeIngressAnnotation},
 	)
 }
 
@@ -107,7 +104,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig, nil, nil, nil)
+	sut := dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -120,7 +117,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig, nil, nil, nil)
+	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -137,7 +134,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig, nil, nil, nil)
+	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig, nil, nil)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -292,7 +289,6 @@ func (s *syncerTestSuite) Test_OnSync_ComponentWithOAuth2_IngressSpec() {
 	)
 	var (
 		envNamespace     = utils.GetEnvironmentNamespace(appName, envName)
-		compIngressName  = fmt.Sprintf("%s.custom-alias", aliasName)
 		oauthIngressName = fmt.Sprintf("%s.custom-alias-aux-oauth", aliasName)
 	)
 
@@ -330,8 +326,7 @@ func (s *syncerTestSuite) Test_OnSync_ComponentWithOAuth2_IngressSpec() {
 	s.oauthConfig.EXPECT().MergeWith(rd.Spec.Components[0].Authentication.OAuth2).Times(1).Return(expectedOAuth, nil)
 	expectedComponent := rd.Spec.Components[0].DeepCopy()
 	expectedComponent.Authentication.OAuth2 = expectedOAuth
-	expectedCompIngressAnnotations := map[string]string{"any-comp-annotation-key": "any-comp-annotation-value"}
-	s.componentIngressAnnotation.EXPECT().GetAnnotations(expectedComponent).Times(1).Return(expectedCompIngressAnnotations, nil)
+
 	expectedOAuth2IngressAnnotations := map[string]string{"any-oauth2-annotation-key": "any-oauth2-annotation-value"}
 	s.oauthIngressAnnotation.EXPECT().GetAnnotations(expectedComponent).Times(1).Return(expectedOAuth2IngressAnnotations, nil)
 
@@ -339,7 +334,7 @@ func (s *syncerTestSuite) Test_OnSync_ComponentWithOAuth2_IngressSpec() {
 	s.Require().NoError(sut.OnSync(context.Background()))
 
 	ingresses, _ := s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	expectedIngressNames := []string{compIngressName, oauthIngressName}
+	expectedIngressNames := []string{oauthIngressName}
 	actualIngressNames := slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
 	s.Require().ElementsMatch(expectedIngressNames, actualIngressNames)
 
@@ -353,129 +348,13 @@ func (s *syncerTestSuite) Test_OnSync_ComponentWithOAuth2_IngressSpec() {
 	expectedLabels := map[string]string(labels.ForDNSAliasComponentIngress(dnsAlias))
 	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.DNSZone)
 
-	compIngress, _ := slice.FindFirst(ingresses.Items, func(ing networkingv1.Ingress) bool { return ing.Name == compIngressName })
-	s.Equal(expectedLabels, compIngress.Labels)
-	s.Equal(expectedCompIngressAnnotations, compIngress.Annotations)
-	s.ElementsMatch(expectedOwnerReferences, compIngress.OwnerReferences)
-	expectedIngressSpec := ingress.BuildIngressSpecForComponent(&rd.Spec.Components[0], expectedHostName, "")
-	s.Equal(expectedIngressSpec, compIngress.Spec)
-
 	oauthIngress, _ := slice.FindFirst(ingresses.Items, func(ing networkingv1.Ingress) bool { return ing.Name == oauthIngressName })
 	s.Equal(expectedLabels, oauthIngress.Labels)
 	s.Equal(expectedOAuth2IngressAnnotations, oauthIngress.Annotations)
 	s.ElementsMatch(expectedOwnerReferences, oauthIngress.OwnerReferences)
-	expectedIngressSpec = ingress.BuildIngressSpecForOAuth2Component(expectedComponent, expectedHostName, "", false)
+	expectedIngressSpec := ingress.BuildIngressSpecForOAuth2Component(expectedComponent, expectedHostName, "")
 	s.Equal(expectedIngressSpec, oauthIngress.Spec)
 }
-
-func (s *syncerTestSuite) Test_OnSync_ComponentWithOAuth2_ProxyMode_IngressSpec() {
-	const (
-		aliasName     = "any-alias"
-		appName       = "any-app"
-		envName       = "any-env"
-		componentName = "any-comp"
-	)
-	var (
-		envNamespace     = utils.GetEnvironmentNamespace(appName, envName)
-		oauthIngressName = fmt.Sprintf("%s.custom-alias-aux-oauth", aliasName)
-	)
-
-	tests := map[string]struct {
-		rdAnnotations map[string]string
-		rrAnnotations map[string]string
-	}{
-		"rd proxy mode enabled": {
-			rdAnnotations: map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: envName},
-			rrAnnotations: map[string]string{},
-		},
-		"rd proxy mode enabled, rr enabled for other env": {
-			rdAnnotations: map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: envName},
-			rrAnnotations: map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "other"},
-		},
-		"rr proxy mode enabled": {
-			rdAnnotations: map[string]string{},
-			rrAnnotations: map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: envName},
-		},
-		"rr proxy mode enabled, rd enabled for other env": {
-			rdAnnotations: map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "other"},
-			rrAnnotations: map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: envName},
-		},
-	}
-
-	for testName, test := range tests {
-		s.Run(testName, func() {
-
-			rrBuilder := utils.NewRegistrationBuilder().WithName(appName).WithAnnotations(test.rrAnnotations)
-			_, err := s.testUtils.ApplyRegistration(rrBuilder)
-			s.Require().NoError(err)
-
-			rdBuilder := utils.NewDeploymentBuilder().
-				WithAnnotations(test.rdAnnotations).
-				WithDeploymentName("any-rd").
-				WithAppName(appName).
-				WithEnvironment(envName).
-				WithComponents(
-					utils.NewDeployComponentBuilder().
-						WithName(componentName).
-						WithPort("metrics", 1000).
-						WithPort("http", 8000).
-						WithPublicPort("http").
-						WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "any-client-id"}}),
-				)
-			rd, err := s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
-			s.Require().NoError(err)
-
-			dnsAlias := &radixv1.RadixDNSAlias{
-				ObjectMeta: metav1.ObjectMeta{Name: aliasName},
-				Spec: radixv1.RadixDNSAliasSpec{
-					AppName:     appName,
-					Environment: envName,
-					Component:   componentName,
-				},
-			}
-			dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
-			s.Require().NoError(err)
-
-			expectedOAuth := &radixv1.OAuth2{ProxyPrefix: "/any/oauth/path"}
-			s.oauthConfig.EXPECT().MergeWith(rd.Spec.Components[0].Authentication.OAuth2).Times(1).Return(expectedOAuth, nil)
-			expectedComponent := rd.Spec.Components[0].DeepCopy()
-			expectedComponent.Authentication.OAuth2 = expectedOAuth
-			expectedOAuth2IngressAnnotations := map[string]string{"any-oauth2-annotation-key": "any-oauth2-annotation-value"}
-			s.oauthProxyModeIngressAnnotation.EXPECT().GetAnnotations(expectedComponent).Times(1).Return(expectedOAuth2IngressAnnotations, nil)
-
-			sut := s.createSyncer(dnsAlias)
-			s.Require().NoError(sut.OnSync(context.Background()))
-
-			ingresses, _ := s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-			expectedIngressNames := []string{oauthIngressName}
-			actualIngressNames := slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
-			s.Require().ElementsMatch(expectedIngressNames, actualIngressNames)
-
-			expectedOwnerReferences := []metav1.OwnerReference{{
-				APIVersion:         radixv1.SchemeGroupVersion.String(),
-				Kind:               "RadixDNSAlias",
-				Name:               aliasName,
-				Controller:         pointers.Ptr(true),
-				BlockOwnerDeletion: pointers.Ptr(true),
-			}}
-			expectedLabels := map[string]string(labels.ForDNSAliasComponentIngress(dnsAlias))
-			expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.DNSZone)
-
-			oauthIngress, _ := slice.FindFirst(ingresses.Items, func(ing networkingv1.Ingress) bool { return ing.Name == oauthIngressName })
-			s.Equal(expectedLabels, oauthIngress.Labels)
-			s.Equal(expectedOAuth2IngressAnnotations, oauthIngress.Annotations)
-			s.ElementsMatch(expectedOwnerReferences, oauthIngress.OwnerReferences)
-			expectedIngressSpec := ingress.BuildIngressSpecForOAuth2Component(expectedComponent, expectedHostName, "", true)
-			s.Equal(expectedIngressSpec, oauthIngress.Spec)
-		})
-	}
-
-}
-
-/*
-Errors:
-  - rr does not exist
-*/
 
 func (s *syncerTestSuite) Test_OnSync_GarbageCollect_Ingresses() {
 	const (
@@ -496,7 +375,7 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_Ingresses() {
 		rrBuilderMutator     func(rr utils.RegistrationBuilder)
 	}{
 		"no changes": {
-			expectedIngressNames: []string{compIngressName, oauthIngressName},
+			expectedIngressNames: []string{oauthIngressName},
 		},
 		"no oauth": {
 			rdBuilderFactory: func(rd utils.DeploymentBuilder) utils.DeploymentBuilder {
@@ -521,24 +400,6 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_Ingresses() {
 				return rd.WithCondition(radixv1.DeploymentInactive)
 			},
 			expectedIngressNames: []string{},
-		},
-		"proxy mode enabled for current env on rd, other env on rr": {
-			rdBuilderFactory: func(rd utils.DeploymentBuilder) utils.DeploymentBuilder {
-				return rd.WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: envName})
-			},
-			rrBuilderMutator: func(rr utils.RegistrationBuilder) {
-				rr.WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "other"})
-			},
-			expectedIngressNames: []string{oauthIngressName},
-		},
-		"proxy mode enabled for other env on rd, current env on rr": {
-			rdBuilderFactory: func(rd utils.DeploymentBuilder) utils.DeploymentBuilder {
-				return rd.WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "other"})
-			},
-			rrBuilderMutator: func(rr utils.RegistrationBuilder) {
-				rr.WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: envName})
-			},
-			expectedIngressNames: []string{oauthIngressName},
 		},
 		"no rd exist": {
 			rdBuilderFactory: func(rd utils.DeploymentBuilder) utils.DeploymentBuilder {
@@ -584,13 +445,12 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_Ingresses() {
 			s.oauthConfig.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{ProxyPrefix: "/any"}, nil)
 			s.componentIngressAnnotation.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(nil, nil)
 			s.oauthIngressAnnotation.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(nil, nil)
-			s.oauthProxyModeIngressAnnotation.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(nil, nil)
 
 			sut := s.createSyncer(dnsAlias)
 			s.Require().NoError(sut.OnSync(context.Background()))
 
 			ingresses, _ := s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-			s.Require().Len(ingresses.Items, 2)
+			s.Require().Len(ingresses.Items, 1)
 
 			// Run test
 			if test.rdBuilderFactory != nil {
@@ -648,6 +508,15 @@ func (s *syncerTestSuite) Test_OnSync_Errors() {
 		WithComponent(utils.NewDeployComponentBuilder().
 			WithName(compName).
 			WithPort("http", 8000).
+			WithPublicPort("http")).
+		BuildRD()
+	rdWithOAuth := utils.NewDeploymentBuilder().
+		WithDeploymentName("any-rd").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponent(utils.NewDeployComponentBuilder().
+			WithName(compName).
+			WithPort("http", 8000).
 			WithPublicPort("http").
 			WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
 		BuildRD()
@@ -664,7 +533,7 @@ func (s *syncerTestSuite) Test_OnSync_Errors() {
 	s.Run("oauth2Config.MergeWith returns error", func() {
 		_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 		s.Require().NoError(err)
-		_, err = s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+		_, err = s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rdWithOAuth, metav1.CreateOptions{})
 		s.Require().NoError(err)
 		_, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
 		s.Require().NoError(err)
@@ -695,7 +564,7 @@ func (s *syncerTestSuite) Test_OnSync_Errors() {
 	s.Run("oauth ingress annotation returns error", func() {
 		_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 		s.Require().NoError(err)
-		_, err = s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+		_, err = s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rdWithOAuth, metav1.CreateOptions{})
 		s.Require().NoError(err)
 		_, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
 		s.Require().NoError(err)
@@ -705,24 +574,6 @@ func (s *syncerTestSuite) Test_OnSync_Errors() {
 		s.componentIngressAnnotation.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(nil, nil)
 		expectedError := errors.New("any error")
 		s.oauthIngressAnnotation.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(nil, expectedError)
-		err = sut.OnSync(context.Background())
-		s.Require().ErrorIs(err, expectedError)
-	})
-
-	s.Run("oauth proxy mode ingress annotation returns error", func() {
-		rr := rr.DeepCopy()
-		rr.Annotations = map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: envName}
-		_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-		s.Require().NoError(err)
-		_, err = s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rd, metav1.CreateOptions{})
-		s.Require().NoError(err)
-		_, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
-		s.Require().NoError(err)
-
-		sut := s.createSyncer(dnsAlias)
-		s.oauthConfig.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{}, nil)
-		expectedError := errors.New("any error")
-		s.oauthProxyModeIngressAnnotation.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(nil, expectedError)
 		err = sut.OnSync(context.Background())
 		s.Require().ErrorIs(err, expectedError)
 	})
@@ -1281,7 +1132,6 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_HTTPRoutes() {
 			s.componentIngressAnnotation.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(nil, nil)
 			s.oauthConfig.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{ProxyPrefix: "/any"}, nil)
 			s.oauthIngressAnnotation.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(nil, nil)
-			s.oauthProxyModeIngressAnnotation.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(nil, nil)
 
 			// Initial sync - creates HTTPRoute
 			sut := s.createSyncer(dnsAlias)

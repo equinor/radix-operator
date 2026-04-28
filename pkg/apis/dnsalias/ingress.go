@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -47,7 +46,7 @@ func (s *syncer) createOrUpdateComponentIngress(ctx context.Context) error {
 			return false
 		}
 
-		if s.component.GetAuthentication().GetOAuth2() != nil && s.isProxyModeEnabled() {
+		if s.component.GetAuthentication().GetOAuth2() != nil {
 			return false
 		}
 
@@ -100,11 +99,7 @@ func (s *syncer) createOrUpdateOAuthIngress(ctx context.Context) error {
 		return nil
 	}
 
-	annotationProviders := s.oauthIngressAnnotations
-	if s.isProxyModeEnabled() {
-		annotationProviders = s.oauthProxyModeIngressAnnotations
-	}
-	annotations, err := ingress.BuildAnnotationsFromProviders(s.component, annotationProviders)
+	annotations, err := ingress.BuildAnnotationsFromProviders(s.component, s.oauthProxyIngressAnnotations)
 	if err != nil {
 		return fmt.Errorf("failed to build annotations: %w", err)
 	}
@@ -115,7 +110,7 @@ func (s *syncer) createOrUpdateOAuthIngress(ctx context.Context) error {
 			Labels:      radixlabels.ForDNSAliasComponentIngress(s.radixDNSAlias),
 			Annotations: annotations,
 		},
-		Spec: ingress.BuildIngressSpecForOAuth2Component(s.component, s.getHostName(), "", s.isProxyModeEnabled()),
+		Spec: ingress.BuildIngressSpecForOAuth2Component(s.component, s.getHostName(), ""),
 	}
 
 	if err := controllerutil.SetControllerReference(s.radixDNSAlias, ing, scheme); err != nil {
@@ -154,7 +149,7 @@ func (s *syncer) garbageCollectOAuthIngress(ctx context.Context) error {
 			return true
 		}
 
-		expectedPath := ingress.BuildIngressSpecForOAuth2Component(s.component, "", "", s.isProxyModeEnabled()).Rules[0].HTTP.Paths[0].Path
+		expectedPath := ingress.BuildIngressSpecForOAuth2Component(s.component, "", "").Rules[0].HTTP.Paths[0].Path
 		return ing.Spec.Rules[0].HTTP.Paths[0].Path != expectedPath
 	}
 
@@ -188,7 +183,7 @@ func (s *syncer) garbageCollectComponentIngress(ctx context.Context) error {
 			return true
 		}
 
-		return s.component.GetAuthentication().GetOAuth2() != nil && s.isProxyModeEnabled()
+		return s.component.GetAuthentication().GetOAuth2() != nil
 	}
 
 	if !mustDelete() {
@@ -213,18 +208,6 @@ func (s *syncer) buildComponentWithOAuthDefaults(component *radixv1.RadixDeployC
 	}
 	componentWithOAuthDefaults.Authentication.OAuth2 = oauth
 	return componentWithOAuthDefaults, nil
-}
-
-func (s *syncer) isProxyModeEnabled() bool {
-	var rdProxyMode, rrProxyMode bool
-
-	if s.rd != nil {
-		rdProxyMode = annotations.OAuth2ProxyModeEnabledForEnvironment(s.rd.Annotations, s.rd.Spec.Environment)
-	}
-
-	rrProxyMode = annotations.OAuth2ProxyModeEnabledForEnvironment(s.rr.Annotations, s.rd.Spec.Environment)
-
-	return rdProxyMode || rrProxyMode
 }
 
 func (s *syncer) getHostName() string {

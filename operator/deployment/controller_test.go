@@ -116,9 +116,9 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called")
 
-	// Sync should trigger when annotation radix.equinor.com/preview-oauth2-proxy-mode changes on RR
+	// Sync should trigger when annotation radix.equinor.com/preview-gateway-mode changes on RR
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
-	rr.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] = "any"
+	rr.Annotations[annotations.PreviewGatewayModeAnnotation] = "any"
 	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called")

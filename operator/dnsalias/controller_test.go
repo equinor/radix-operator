@@ -115,12 +115,12 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on ingress deletion")
 
-	// Sync should trigger when annotation radix.equinor.com/preview-oauth2-proxy-mode changes on RR
+	// Sync should trigger when annotation radix.equinor.com/preview-gateway-mode changes on RR
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	rr.Annotations[annotations.PreviewOAuth2ProxyModeAnnotation] = "any"
+	rr.Annotations[annotations.PreviewGatewayModeAnnotation] = "any"
 	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on updated radix.equinor.com/preview-oauth2-proxy-mode annotation")
+	s.WaitForSynced("Sync should be called on updated radix.equinor.com/preview-gateway-mode annotation")
 
 	// Delete the RadixDNSAlias should not trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)

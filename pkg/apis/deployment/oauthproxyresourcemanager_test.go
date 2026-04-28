@@ -15,7 +15,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -102,10 +101,9 @@ func (s *OAuthProxyResourceManagerTestSuite) TestNewOAuthProxyResourceManager() 
 	oauthConfig := defaults.NewMockOAuth2Config(ctrl)
 	rd := utils.NewDeploymentBuilder().BuildRD()
 	rr := utils.NewRegistrationBuilder().BuildRR()
-	ingressAnnotations := []ingress.AnnotationProvider{&ingress.MockAnnotationProvider{}}
-	ingressAnnotationsProxyMode := []ingress.AnnotationProvider{&ingress.MockAnnotationProvider{}, &ingress.MockAnnotationProvider{}}
+	ingressAnnotations := []ingress.AnnotationProvider{&ingress.MockAnnotationProvider{}, &ingress.MockAnnotationProvider{}}
 
-	oauthManager := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, oauthConfig, ingressAnnotations, ingressAnnotationsProxyMode, "proxy:123", "somesecret")
+	oauthManager := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, oauthConfig, ingressAnnotations, "proxy:123", "somesecret")
 	sut, ok := oauthManager.(*oauthProxyResourceManager)
 	s.True(ok)
 	s.Equal(rd, sut.rd)
@@ -113,7 +111,6 @@ func (s *OAuthProxyResourceManagerTestSuite) TestNewOAuthProxyResourceManager() 
 	s.Equal(s.kubeUtil, sut.kubeutil)
 	s.Equal(oauthConfig, sut.oauth2DefaultConfig)
 	s.Equal(ingressAnnotations, sut.ingressAnnotations)
-	s.Equal(ingressAnnotationsProxyMode, sut.ingressAnnotationsProxyMode)
 	s.Equal("proxy:123", sut.oauth2ProxyDockerImage)
 }
 
@@ -125,7 +122,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 	auth := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "1234"}}
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	baseComp := func() utils.DeployComponentBuilder {
-		return utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithAuthentication(auth)
+		return utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithAuthentication(auth)
 	}
 
 	tests := map[string]struct {
@@ -148,7 +145,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 	for name, test := range tests {
 		s.Run(name, func() {
 			s.oauth2Config.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{}, nil)
-			sut := NewOAuthProxyResourceManager(test.rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+			sut := NewOAuthProxyResourceManager(test.rd, rr, s.kubeUtil, s.oauth2Config, nil, "", "")
 			s.Require().NoError(sut.Sync(context.Background()))
 
 			deploys, _ := s.kubeClient.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
@@ -193,11 +190,11 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_Uninstall() {
 		s.Run(name, func() {
 			// Fixture
 			s.oauth2Config.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{}, nil)
-			component := utils.NewDeployComponentBuilder().WithName("any").WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}).
+			component := utils.NewDeployComponentBuilder().WithName("any").WithPublicPort("http").WithPort("http", 8080).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}).
 				WithDNSAppAlias(true).
 				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "foo1"}, radixv1.RadixDeployExternalDNS{FQDN: "foo2"})
 			rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(component)
-			sut := NewOAuthProxyResourceManager(rd.BuildRD(), rr, s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+			sut := NewOAuthProxyResourceManager(rd.BuildRD(), rr, s.kubeUtil, s.oauth2Config, nil, "", "")
 			s.Require().NoError(sut.Sync(context.Background()))
 			deploys, _ := s.kubeClient.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
 			s.Require().Len(deploys.Items, 1)
@@ -215,7 +212,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_Uninstall() {
 			// Test
 			component = test.testComponentModifier(component)
 			rd = rd.WithComponents(component)
-			sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr, s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+			sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr, s.kubeUtil, s.oauth2Config, nil, "", "")
 			s.Require().NoError(sut.Sync(context.Background()))
 			deploys, _ = s.kubeClient.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
 			if test.expectUninstall {
@@ -280,21 +277,21 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 			rd: utils.NewDeploymentBuilder().
 				WithAppName(appName).
 				WithEnvironment(envName).
-				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: componentAzureClientId}})).
+				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithPort("http", 8080).WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: componentAzureClientId}})).
 				BuildRD(),
 			expectedAuxOauthDeployCount: 0},
 		"Not created service account with Authentication, no OAuth2": {
 			rd: utils.NewDeploymentBuilder().
 				WithAppName(appName).
 				WithEnvironment(envName).
-				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: componentAzureClientId}}).WithAuthentication(&radixv1.Authentication{})).
+				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithPort("http", 8080).WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: componentAzureClientId}}).WithAuthentication(&radixv1.Authentication{})).
 				BuildRD(),
 			expectedAuxOauthDeployCount: 0},
 		"Not created service account with Authentication, OAuth2, false useAzureIdentity": {
 			rd: utils.NewDeploymentBuilder().
 				WithAppName(appName).
 				WithEnvironment(envName).
-				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: componentAzureClientId}}).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: oauth2ClientId}})).
+				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithPort("http", 8080).WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: componentAzureClientId}}).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: oauth2ClientId}})).
 				BuildRD(),
 			expectedAuxOauthDeployCount: 1,
 		},
@@ -302,7 +299,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 			rd: utils.NewDeploymentBuilder().
 				WithAppName(appName).
 				WithEnvironment(envName).
-				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(identity).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: oauth2ClientId, Credentials: radixv1.AzureWorkloadIdentity}})).
+				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithPort("http", 8080).WithIdentity(identity).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: oauth2ClientId, Credentials: radixv1.AzureWorkloadIdentity}})).
 				BuildRD(),
 			expectedAuxOauthDeployCount: 1,
 			expectedSa:                  auxOAuthServiceAccount,
@@ -311,7 +308,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 			rd: utils.NewDeploymentBuilder().
 				WithAppName(appName).
 				WithEnvironment(envName).
-				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: componentAzureClientId}}).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: oauth2ClientId}})).
+				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithPort("http", 8080).WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: componentAzureClientId}}).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: oauth2ClientId}})).
 				BuildRD(),
 			expectedAuxOauthDeployCount: 1,
 			existingSa:                  auxOAuthServiceAccount,
@@ -320,7 +317,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 			rd: utils.NewDeploymentBuilder().
 				WithAppName(appName).
 				WithEnvironment(envName).
-				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithIdentity(identity).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: oauth2ClientId, Credentials: radixv1.AzureWorkloadIdentity}})).
+				WithComponent(utils.NewDeployComponentBuilder().WithName(componentName1).WithPublicPort("http").WithPort("http", 8080).WithIdentity(identity).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: oauth2ClientId, Credentials: radixv1.AzureWorkloadIdentity}})).
 				BuildRD(),
 			expectedAuxOauthDeployCount: 1,
 			existingSa:                  auxOAuthServiceAccount,
@@ -331,7 +328,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 
 	for name, scenario := range scenarios {
 		s.Run(name, func() {
-			sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, nil, nil, defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()), "", "", zerolog.Nop()}
+			sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, nil, defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()), "", "", zerolog.Nop()}
 			if scenario.existingSa != nil {
 				_, err := s.kubeClient.CoreV1().ServiceAccounts(scenario.existingSa.Namespace).Create(context.Background(), scenario.existingSa, metav1.CreateOptions{})
 				s.NoError(err, "Failed to create service account")
@@ -398,7 +395,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_Oauth_DeploymentReplicas(
 	auth := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "1234"}}
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	baseComp := func() utils.DeployComponentBuilder {
-		return utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithAuthentication(auth)
+		return utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithAuthentication(auth)
 	}
 
 	tests := map[string]struct {
@@ -464,7 +461,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_Oauth_DeploymentReplicas(
 	for name, test := range tests {
 		s.Run(name, func() {
 			s.oauth2Config.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{}, nil)
-			sut := NewOAuthProxyResourceManager(test.rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+			sut := NewOAuthProxyResourceManager(test.rd, rr, s.kubeUtil, s.oauth2Config, nil, "", "")
 			s.Require().NoError(sut.Sync(context.Background()))
 
 			deploys, _ := s.kubeClient.AppsV1().Deployments(test.rd.Namespace).List(context.Background(), metav1.ListOptions{})
@@ -512,150 +509,6 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	rd := utils.NewDeploymentBuilder().
 		WithAppName(appName).
 		WithEnvironment(envName).
-		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: inputOAuth}).WithRuntime(&radixv1.Runtime{Architecture: "customarch"})).
-		BuildRD()
-
-	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, oauthProxyImage, "")
-	s.Require().NoError(sut.Sync(context.Background()))
-
-	actualDeploys, _ := s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualDeploys.Items, 1)
-
-	actualDeploy := actualDeploys.Items[0]
-	s.Equal(utils.GetAuxiliaryComponentDeploymentName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix), actualDeploy.Name)
-	s.ElementsMatch([]metav1.OwnerReference{getOwnerReferenceOfDeployment(rd)}, actualDeploy.OwnerReferences)
-
-	expectedDeployLabels := map[string]string{
-		kube.RadixAppLabel:                    appName,
-		kube.RadixAuxiliaryComponentLabel:     componentName,
-		kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType,
-	}
-	expectedPodLabels := map[string]string{
-		kube.RadixAppLabel:                    appName,
-		kube.RadixAppIDLabel:                  rr.Spec.AppID.String(),
-		kube.RadixAuxiliaryComponentLabel:     componentName,
-		kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType,
-	}
-	s.Equal(expectedDeployLabels, actualDeploy.Labels)
-	s.Len(actualDeploy.Spec.Template.Spec.Containers, 1)
-	s.Equal(expectedPodLabels, actualDeploy.Spec.Template.Labels)
-
-	defaultContainer := actualDeploy.Spec.Template.Spec.Containers[0]
-	s.Equal(oauthProxyImage, defaultContainer.Image)
-
-	s.Len(defaultContainer.Ports, 1)
-	s.Equal(defaults.OAuthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
-	s.Equal(defaults.OAuthProxyPortName, defaultContainer.Ports[0].Name)
-	s.NotNil(defaultContainer.ReadinessProbe)
-	s.Equal(defaults.OAuthProxyPortNumber, defaultContainer.ReadinessProbe.TCPSocket.Port.IntVal)
-
-	expectedAffinity := &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
-			{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-			{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
-		}}}}},
-	}
-	s.Equal(expectedAffinity, actualDeploy.Spec.Template.Spec.Affinity, "oauth2 aux deployment must not use component's runtime config")
-
-	s.Len(defaultContainer.Env, 31)
-	s.Equal("oidc", s.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))
-	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_HTTPONLY", defaultContainer.Env))
-	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_SECURE", defaultContainer.Env))
-	s.Equal("false", s.getEnvVarValueByName("OAUTH2_PROXY_PASS_BASIC_AUTH", defaultContainer.Env))
-	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", defaultContainer.Env))
-	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL", defaultContainer.Env))
-	s.Equal("*", s.getEnvVarValueByName("OAUTH2_PROXY_EMAIL_DOMAINS", defaultContainer.Env))
-	s.Equal(fmt.Sprintf("http://:%v", defaults.OAuthProxyPortNumber), s.getEnvVarValueByName("OAUTH2_PROXY_HTTP_ADDRESS", defaultContainer.Env))
-	s.Equal(returnOAuth.ClientID, s.getEnvVarValueByName("OAUTH2_PROXY_CLIENT_ID", defaultContainer.Env))
-	s.Equal(returnOAuth.Scope, s.getEnvVarValueByName("OAUTH2_PROXY_SCOPE", defaultContainer.Env))
-	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SET_XAUTHREQUEST", defaultContainer.Env))
-	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_PASS_ACCESS_TOKEN", defaultContainer.Env))
-	s.Equal("false", s.getEnvVarValueByName("OAUTH2_PROXY_SET_AUTHORIZATION_HEADER", defaultContainer.Env))
-	s.Equal("/"+returnOAuth.ProxyPrefix, s.getEnvVarValueByName("OAUTH2_PROXY_PROXY_PREFIX", defaultContainer.Env))
-	s.Equal(returnOAuth.LoginURL, s.getEnvVarValueByName("OAUTH2_PROXY_LOGIN_URL", defaultContainer.Env))
-	s.Equal(returnOAuth.RedeemURL, s.getEnvVarValueByName("OAUTH2_PROXY_REDEEM_URL", defaultContainer.Env))
-	s.Equal("redis", s.getEnvVarValueByName("OAUTH2_PROXY_SESSION_STORE_TYPE", defaultContainer.Env))
-	s.Equal(returnOAuth.OIDC.IssuerURL, s.getEnvVarValueByName("OAUTH2_PROXY_OIDC_ISSUER_URL", defaultContainer.Env))
-	s.Equal(returnOAuth.OIDC.JWKSURL, s.getEnvVarValueByName("OAUTH2_PROXY_OIDC_JWKS_URL", defaultContainer.Env))
-	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SKIP_OIDC_DISCOVERY", defaultContainer.Env))
-	s.Equal("false", s.getEnvVarValueByName("OAUTH2_PROXY_INSECURE_OIDC_SKIP_NONCE", defaultContainer.Env))
-	s.Equal(returnOAuth.Cookie.Name, s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_NAME", defaultContainer.Env))
-	s.Equal(returnOAuth.Cookie.Expire, s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_EXPIRE", defaultContainer.Env))
-	s.Equal(returnOAuth.Cookie.Refresh, s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_REFRESH", defaultContainer.Env))
-	s.Equal(string(returnOAuth.Cookie.SameSite), s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_SAMESITE", defaultContainer.Env))
-	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SESSION_COOKIE_MINIMAL", defaultContainer.Env))
-	s.Equal(returnOAuth.RedisStore.ConnectionURL, s.getEnvVarValueByName("OAUTH2_PROXY_REDIS_CONNECTION_URL", defaultContainer.Env))
-	s.Equal("POST=^/api/public-entity/?$,GET=^/skip/auth/routes/get,!=^/api", s.getEnvVarValueByName(oauth2ProxySkipAuthRoutesEnvironmentVariable, defaultContainer.Env))
-	secretName := utils.GetAuxiliaryComponentSecretName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
-	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthCookieSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyCookieSecretEnvironmentVariable, defaultContainer.Env))
-	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthClientSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyClientSecretEnvironmentVariable, defaultContainer.Env))
-	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthRedisPasswordKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(oauth2ProxyRedisPasswordEnvironmentVariable, defaultContainer.Env))
-
-	// Env var OAUTH2_PROXY_REDIS_PASSWORD and OAUTH2_PROXY_REDIS_CONNECTION_URL should not be present when SessionStoreType is cookie
-	returnOAuth.SessionStoreType = "cookie"
-	s.oauth2Config.EXPECT().MergeWith(inputOAuth).Times(1).Return(returnOAuth, nil)
-	s.Require().NoError(sut.Sync(context.Background()))
-
-	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 29, "Unexpected amount of env-vars")
-	s.False(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie")
-	s.False(s.getEnvVarExist("OAUTH2_PROXY_REDIS_CONNECTION_URL", actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_CONNECTION_URL should not be present when SessionStoreType is cookie")
-
-	// Env var OAUTH2_PROXY_REDIS_PASSWORD and OAUTH2_PROXY_REDIS_CONNECTION_URL should be present again when SessionStoreType is systemManaged redis
-	returnOAuth.SessionStoreType = radixv1.SessionStoreSystemManaged
-	s.oauth2Config.EXPECT().MergeWith(inputOAuth).Times(1).Return(returnOAuth, nil)
-	s.Require().NoError(sut.Sync(context.Background()))
-
-	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 31, "Unexpected amount of env-vars")
-	s.True(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie")
-	redisConnectUrlEnvVar, redisConnectUrlExists := slice.FindFirst(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, func(ev corev1.EnvVar) bool {
-		return ev.Name == "OAUTH2_PROXY_REDIS_CONNECTION_URL"
-	})
-	s.True(redisConnectUrlExists, "Env var OAUTH2_PROXY_REDIS_CONNECTION_URL should be present when SessionStoreType is systemManaged")
-	s.Equal("redis://server-aux-oauth-redis:6379", redisConnectUrlEnvVar.Value, "Invalid env var OAUTH2_PROXY_REDIS_CONNECTION_URL")
-}
-
-func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ProxyMode_DeploymentCreated() {
-	appName, envName, componentName, oauthProxyImage := "anyapp", "qa", "server", "anyoautproxyimage"
-	envNs := utils.GetEnvironmentNamespace(appName, envName)
-	inputOAuth := &radixv1.OAuth2{ClientID: "1234"}
-	returnOAuth := &radixv1.OAuth2{
-		ClientID:               commonUtils.RandString(20),
-		Scope:                  commonUtils.RandString(20),
-		SetXAuthRequestHeaders: pointers.Ptr(true),
-		SetAuthorizationHeader: pointers.Ptr(false),
-		ProxyPrefix:            commonUtils.RandString(20),
-		LoginURL:               commonUtils.RandString(20),
-		RedeemURL:              commonUtils.RandString(20),
-		SessionStoreType:       "redis",
-		Cookie: &radixv1.OAuth2Cookie{
-			Name:     commonUtils.RandString(20),
-			Expire:   commonUtils.RandString(20),
-			Refresh:  commonUtils.RandString(20),
-			SameSite: radixv1.CookieSameSiteType(commonUtils.RandString(20)),
-		},
-		CookieStore: &radixv1.OAuth2CookieStore{
-			Minimal: pointers.Ptr(true),
-		},
-		RedisStore: &radixv1.OAuth2RedisStore{
-			ConnectionURL: commonUtils.RandString(20),
-		},
-		OIDC: &radixv1.OAuth2OIDC{
-			IssuerURL:               commonUtils.RandString(20),
-			JWKSURL:                 commonUtils.RandString(20),
-			SkipDiscovery:           pointers.Ptr(true),
-			InsecureSkipVerifyNonce: pointers.Ptr(false),
-		},
-		SkipAuthRoutes: []string{"POST=^/api/public-entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"},
-	}
-	s.oauth2Config.EXPECT().MergeWith(inputOAuth).Times(1).Return(returnOAuth, nil)
-
-	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
-	rd := utils.NewDeploymentBuilder().
-		WithAppName(appName).
-		WithEnvironment(envName).
-		WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "dev,qa"}).
 		WithComponent(utils.NewDeployComponentBuilder().
 			WithName(componentName).
 			WithPublicPort("http").
@@ -668,7 +521,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ProxyMode_Depl
 			})).
 		BuildRD()
 
-	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, oauthProxyImage, "")
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, oauthProxyImage, "")
 	s.Require().NoError(sut.Sync(context.Background()))
 
 	actualDeploys, _ := s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
@@ -772,14 +625,13 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ProxyMode_Depl
 	s.Equal("redis://server-aux-oauth-redis:6379", redisConnectUrlEnvVar.Value, "Invalid env var OAUTH2_PROXY_REDIS_CONNECTION_URL")
 }
 
-func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ProxyMode_DeploymentFailed_Upstream_PublicPort_NotFound() {
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentFailed_Upstream_PublicPort_NotFound() {
 	appName, envName, componentName, oauthProxyImage := "anyapp", "qa", "server", "anyoautproxyimage"
 	s.oauth2Config.EXPECT().MergeWith(&radixv1.OAuth2{}).Times(1).Return(&radixv1.OAuth2{}, nil)
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	rd := utils.NewDeploymentBuilder().
 		WithEnvironment(envName).
-		WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"}).
 		WithComponent(utils.NewDeployComponentBuilder().
 			WithName(componentName).
 			WithPublicPort("http").
@@ -790,26 +642,25 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ProxyMode_Depl
 			})).
 		BuildRD()
 
-	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, oauthProxyImage, "")
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, oauthProxyImage, "")
 	err := sut.Sync(context.Background())
 	s.Require().ErrorContains(err, fmt.Sprintf("public port not found in list of ports for component '%s'", componentName))
 }
 
-func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ProxyMode_DeploymentFailed_Upstream_Ports_NotSet() {
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentFailed_Upstream_Ports_NotSet() {
 	appName, envName, componentName, oauthProxyImage := "anyapp", "qa", "server", "anyoautproxyimage"
 	s.oauth2Config.EXPECT().MergeWith(&radixv1.OAuth2{}).Times(1).Return(&radixv1.OAuth2{}, nil)
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	rd := utils.NewDeploymentBuilder().
 		WithEnvironment(envName).
-		WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"}).
 		WithComponent(utils.NewDeployComponentBuilder().
 			WithName(componentName).
 			WithPublicPort("http").
 			WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
 		BuildRD()
 
-	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, oauthProxyImage, "")
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, oauthProxyImage, "")
 	err := sut.Sync(context.Background())
 	s.Require().ErrorContains(err, fmt.Sprintf("no ports defined for component '%s'", componentName))
 }
@@ -824,9 +675,9 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_SecretCreated(
 	rd := utils.NewDeploymentBuilder().
 		WithAppName(appName).
 		WithEnvironment(envName).
-		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithPort("http", 8080).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
 		BuildRD()
-	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.Sync(context.Background()))
 
 	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType}
@@ -849,9 +700,9 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_RbacCreated() 
 	rd := utils.NewDeploymentBuilder().
 		WithAppName(appName).
 		WithEnvironment(envName).
-		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithPort("http", 8080).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
 		BuildRD()
-	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.Sync(context.Background()))
 
 	expectedRoles := []string{fmt.Sprintf("radix-app-adm-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)), fmt.Sprintf("radix-app-reader-%s", utils.GetAuxiliaryComponentDeploymentName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix))}
@@ -926,9 +777,9 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_SecretKe
 	rd := utils.NewDeploymentBuilder().
 		WithAppName(appName).
 		WithEnvironment(envName).
-		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithPort("http", 8080).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
 		BuildRD()
-	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.Sync(context.Background()))
 
 	// Keep redispassword if sessionstoretype is redis
@@ -961,9 +812,9 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ServiceCreated
 	rd := utils.NewDeploymentBuilder().
 		WithAppName(appName).
 		WithEnvironment(envName).
-		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithPort("http", 8080).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
 		BuildRD()
-	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.Sync(context.Background()))
 
 	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType}
@@ -986,42 +837,17 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_IngressesCreat
 		comp2Name = "comp2"
 	)
 
-	stdAnnotations1 := map[string]string{"foo1-1": "bar1", "foo1-2": "bar2"}
-	stdAnnotationProvider1 := ingress.NewMockAnnotationProvider(s.ctrl)
-	stdAnnotationProvider1.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(stdAnnotations1, nil)
-	stdAnnotations2 := map[string]string{"foo2-1": "baz1", "foo2-2": "baz2"}
-	stdAnnotationProvider2 := ingress.NewMockAnnotationProvider(s.ctrl)
-	stdAnnotationProvider2.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(stdAnnotations2, nil)
-	ingressAnnotationProviders := []ingress.AnnotationProvider{stdAnnotationProvider1, stdAnnotationProvider2}
 	proxyAnnotations := map[string]string{"proxy1": "bar1", "proxy2": "bar2"}
 	proxyAnnotatioProvider := ingress.NewMockAnnotationProvider(s.ctrl)
 	proxyAnnotatioProvider.EXPECT().GetAnnotations(gomock.Any()).AnyTimes().Return(proxyAnnotations, nil)
 	proxyAnnotationProviders := []ingress.AnnotationProvider{proxyAnnotatioProvider}
 
 	tests := map[string]struct {
-		rrAnnotations       map[string]string
-		rdAnnotations       map[string]string
 		comp1ExpectedPath   string
 		comp2ExpectedPath   string
 		expectedAnnotations map[string]string
 	}{
-		"proxy mode disabled": {
-			rdAnnotations:       nil,
-			rrAnnotations:       nil,
-			comp1ExpectedPath:   "/oauth2",
-			comp2ExpectedPath:   "/custompath",
-			expectedAnnotations: annotations.Merge(stdAnnotations1, stdAnnotations2),
-		},
-		"proxy mode enabled by RD": {
-			rdAnnotations:       map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			rrAnnotations:       nil,
-			comp1ExpectedPath:   "/",
-			comp2ExpectedPath:   "/",
-			expectedAnnotations: proxyAnnotations,
-		},
 		"proxy mode enabled by RR": {
-			rdAnnotations:       nil,
-			rrAnnotations:       map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
 			comp1ExpectedPath:   "/",
 			comp2ExpectedPath:   "/",
 			expectedAnnotations: proxyAnnotations,
@@ -1038,8 +864,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_IngressesCreat
 			comp1BaseLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: comp1Name, kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType}
 			comp2BaseLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: comp2Name, kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType}
 
-			rr := utils.NewRegistrationBuilder().WithName(appName).WithAnnotations(test.rrAnnotations).BuildRR()
-			rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithAnnotations(test.rdAnnotations).
+			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+			rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).
 				WithComponents(
 					utils.NewDeployComponentBuilder().
 						WithName(comp1Name).
@@ -1065,7 +891,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_IngressesCreat
 				).
 				BuildRD()
 
-			sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()), ingressAnnotationProviders, proxyAnnotationProviders, "", "")
+			sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()), proxyAnnotationProviders, "", "")
 			s.Require().NoError(sut.Sync(context.Background()))
 
 			actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
@@ -1169,7 +995,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_ComponentRemove
 	comp1 := utils.NewDeployComponentBuilder().WithName("c1").WithPort("http", 8000).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})
 	comp2 := utils.NewDeployComponentBuilder().WithName("c2").WithPort("http", 8000).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})
 	rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp1, comp2)
-	sut := NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut := NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.Sync(context.Background()))
 	actualDeployments, _ := s.kubeClient.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(actualDeployments.Items, 2)
@@ -1186,7 +1012,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_ComponentRemove
 
 	// Test garbage collect
 	rd = utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp1)
-	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.GarbageCollect(context.Background()))
 	actualDeployments, _ = s.kubeClient.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualDeployments.Items, 1)
@@ -1217,7 +1043,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_OAuthDisabled_R
 	rr := utils.NewRegistrationBuilder().WithName(appName)
 	comp := utils.NewDeployComponentBuilder().WithName("c1").WithPort("http", 8000).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})
 	rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp)
-	sut := NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut := NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.Sync(context.Background()))
 	actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(actualIngresses.Items, 2)
@@ -1225,7 +1051,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_OAuthDisabled_R
 	// Test garbage collect
 	comp.WithAuthentication(nil)
 	rd = utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp)
-	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.GarbageCollect(context.Background()))
 	actualIngresses, _ = s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualIngresses.Items, 0)
@@ -1248,7 +1074,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_IngressConfigRe
 		WithDNSAppAlias(true).
 		WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "foo1.example.com"}, radixv1.RadixDeployExternalDNS{FQDN: "foo2.example.com"})
 	rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp)
-	sut := NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut := NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.Sync(context.Background()))
 	actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
 	actualNames := slice.Map(actualIngresses.Items, func(o networkingv1.Ingress) string { return o.Name })
@@ -1256,7 +1082,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_IngressConfigRe
 
 	// Garbage collect no changes
 	rd = utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp)
-	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.GarbageCollect(context.Background()))
 	actualIngresses, _ = s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
 	actualNames = slice.Map(actualIngresses.Items, func(o networkingv1.Ingress) string { return o.Name })
@@ -1265,7 +1091,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_IngressConfigRe
 	// Garbage collect - disable app alias
 	comp = comp.WithDNSAppAlias(false)
 	rd = utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp)
-	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.GarbageCollect(context.Background()))
 	actualIngresses, _ = s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
 	actualNames = slice.Map(actualIngresses.Items, func(o networkingv1.Ingress) string { return o.Name })
@@ -1274,122 +1100,11 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_IngressConfigRe
 	// Garbage collect - remove an external dns alias
 	comp = comp.WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "foo2.example.com"})
 	rd = utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponents(comp)
-	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
+	sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, "", "")
 	s.Require().NoError(sut.GarbageCollect(context.Background()))
 	actualIngresses, _ = s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
 	actualNames = slice.Map(actualIngresses.Items, func(o networkingv1.Ingress) string { return o.Name })
 	s.ElementsMatch([]string{"c1-active-cluster-url-alias-aux-oauth", "c1-aux-oauth", "foo2.example.com-aux-oauth"}, actualNames)
-}
-
-func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_SwitchProxyMode() {
-	const (
-		appName = "anyapp"
-		envName = "dev"
-	)
-	var (
-		envNamespace = utils.GetEnvironmentNamespace(appName, envName)
-	)
-
-	tests := map[string]struct {
-		fixtureRDAnnotations   map[string]string
-		fixtureRRAnnotations   map[string]string
-		testRDAnnotations      map[string]string
-		testRRAnnotations      map[string]string
-		expectIngressesDeleted bool
-	}{
-		"non-proxy on fixture and test": {
-			fixtureRDAnnotations:   nil,
-			fixtureRRAnnotations:   nil,
-			testRDAnnotations:      nil,
-			testRRAnnotations:      nil,
-			expectIngressesDeleted: false,
-		},
-		"non-proxy on fixture, rd proxy on test": {
-			fixtureRDAnnotations:   nil,
-			fixtureRRAnnotations:   nil,
-			testRDAnnotations:      map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			testRRAnnotations:      nil,
-			expectIngressesDeleted: true,
-		},
-		"non-proxy on fixture, rr proxy on test": {
-			fixtureRDAnnotations:   nil,
-			fixtureRRAnnotations:   nil,
-			testRDAnnotations:      nil,
-			testRRAnnotations:      map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			expectIngressesDeleted: true,
-		},
-		"rd proxy on fixture, non-proxy on test": {
-			fixtureRDAnnotations:   map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			fixtureRRAnnotations:   nil,
-			testRDAnnotations:      nil,
-			testRRAnnotations:      nil,
-			expectIngressesDeleted: true,
-		},
-		"rd proxy on fixture, rd proxy on test": {
-			fixtureRDAnnotations:   map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			fixtureRRAnnotations:   nil,
-			testRDAnnotations:      map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			testRRAnnotations:      nil,
-			expectIngressesDeleted: false,
-		},
-		"rd proxy on fixture, rr proxy on test": {
-			fixtureRDAnnotations:   map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			fixtureRRAnnotations:   nil,
-			testRDAnnotations:      nil,
-			testRRAnnotations:      map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			expectIngressesDeleted: false,
-		},
-		"rr proxy on fixture, non-proxy on test": {
-			fixtureRDAnnotations:   nil,
-			fixtureRRAnnotations:   map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			testRDAnnotations:      nil,
-			testRRAnnotations:      nil,
-			expectIngressesDeleted: true,
-		},
-		"rr proxy on fixture, rd proxy on test": {
-			fixtureRDAnnotations:   nil,
-			fixtureRRAnnotations:   map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			testRDAnnotations:      map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			testRRAnnotations:      nil,
-			expectIngressesDeleted: false,
-		},
-		"rr proxy on fixture, rr proxy on test": {
-			fixtureRDAnnotations:   nil,
-			fixtureRRAnnotations:   map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			testRDAnnotations:      nil,
-			testRRAnnotations:      map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: "*"},
-			expectIngressesDeleted: false,
-		},
-	}
-
-	for name, test := range tests {
-		s.Run(name, func() {
-			s.oauth2Config.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{ProxyPrefix: "/oauth2"}, nil)
-
-			// Fixture
-			rr := utils.NewRegistrationBuilder().WithName(appName).WithAnnotations(test.fixtureRRAnnotations)
-			comp := utils.NewDeployComponentBuilder().WithName("c1").WithPort("http", 8000).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}}).
-				WithDNSAppAlias(true).
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "foo1.example.com"}, radixv1.RadixDeployExternalDNS{FQDN: "foo2.example.com"})
-			rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithAnnotations(test.fixtureRDAnnotations).WithComponents(comp)
-			sut := NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
-			s.Require().NoError(sut.Sync(context.Background()))
-			actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-			s.Require().NotEmpty(actualIngresses.Items)
-
-			// Test
-			rr = rr.WithAnnotations(test.testRRAnnotations)
-			rd = rd.WithAnnotations(test.testRDAnnotations)
-			sut = NewOAuthProxyResourceManager(rd.BuildRD(), rr.BuildRR(), s.kubeUtil, s.oauth2Config, nil, nil, "", "")
-			s.Require().NoError(sut.GarbageCollect(context.Background()))
-			actualIngresses, _ = s.kubeClient.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-			if test.expectIngressesDeleted {
-				s.Empty(actualIngresses.Items)
-			} else {
-				s.NotEmpty(actualIngresses.Items)
-			}
-		})
-	}
 }
 
 func (*OAuthProxyResourceManagerTestSuite) getEnvVarExist(name string, envvars []corev1.EnvVar) bool {

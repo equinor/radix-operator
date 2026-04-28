@@ -31,35 +31,33 @@ type Syncer interface {
 
 // DNSAlias is the aggregate-root for manipulating RadixDNSAliases
 type syncer struct {
-	kubeClient                       kubernetes.Interface
-	radixClient                      radixclient.Interface
-	dynamicClient                    client.Client
-	kubeUtil                         *kube.Kube
-	radixDNSAlias                    *radixv1.RadixDNSAlias
-	oauth2DefaultConfig              defaults.OAuth2Config
-	componentIngressAnnotations      []ingress.AnnotationProvider
-	oauthIngressAnnotations          []ingress.AnnotationProvider
-	oauthProxyModeIngressAnnotations []ingress.AnnotationProvider
-	rd                               *radixv1.RadixDeployment
-	rr                               *radixv1.RadixRegistration
-	component                        *radixv1.RadixDeployComponent
-	initMutex                        sync.Mutex
-	config                           config.Config
+	kubeClient                   kubernetes.Interface
+	radixClient                  radixclient.Interface
+	dynamicClient                client.Client
+	kubeUtil                     *kube.Kube
+	radixDNSAlias                *radixv1.RadixDNSAlias
+	oauth2DefaultConfig          defaults.OAuth2Config
+	componentIngressAnnotations  []ingress.AnnotationProvider
+	oauthProxyIngressAnnotations []ingress.AnnotationProvider
+	rd                           *radixv1.RadixDeployment
+	rr                           *radixv1.RadixRegistration
+	component                    *radixv1.RadixDeployComponent
+	initMutex                    sync.Mutex
+	config                       config.Config
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthIngressAnnotations []ingress.AnnotationProvider, oauthProxyModeIngressAnnotations []ingress.AnnotationProvider) Syncer {
+func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, oauth2Config defaults.OAuth2Config, componentIngressAnnotations []ingress.AnnotationProvider, oauthProxyIngressAnnotations []ingress.AnnotationProvider) Syncer {
 	return &syncer{
-		kubeClient:                       kubeClient,
-		radixClient:                      radixClient,
-		dynamicClient:                    dynamicClient,
-		kubeUtil:                         kubeUtil,
-		config:                           config,
-		oauth2DefaultConfig:              oauth2Config,
-		componentIngressAnnotations:      componentIngressAnnotations,
-		oauthIngressAnnotations:          oauthIngressAnnotations,
-		oauthProxyModeIngressAnnotations: oauthProxyModeIngressAnnotations,
-		radixDNSAlias:                    radixDNSAlias,
+		kubeClient:                   kubeClient,
+		radixClient:                  radixClient,
+		dynamicClient:                dynamicClient,
+		kubeUtil:                     kubeUtil,
+		config:                       config,
+		oauth2DefaultConfig:          oauth2Config,
+		componentIngressAnnotations:  componentIngressAnnotations,
+		oauthProxyIngressAnnotations: oauthProxyIngressAnnotations,
+		radixDNSAlias:                radixDNSAlias,
 	}
 }
 

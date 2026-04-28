@@ -42,17 +42,8 @@ func GetComponentAnnotationProvider(ingressConfiguration IngressConfiguration, n
 	}
 }
 
-// GetOAuthAnnotationProviders Gets annotation providers for a component's OAuth service in non-proxy mode
-func GetOAuthAnnotationProviders() []AnnotationProvider {
-	return []AnnotationProvider{
-		NewForceSslRedirectAnnotationProvider(),
-		NewIngressPublicAllowListAnnotationProvider(),
-		NewRedirectErrorPageAnnotationProvider(),
-	}
-}
-
 // GetAuxOAuthAnnotationProviders Gets annotation providers for a component's OAuth service in proxy mode
-func GetOAuthProxyModeAnnotationProviders(ingressConfiguration IngressConfiguration, namespace string) []AnnotationProvider {
+func GetOAuthProxyAnnotationProviders(ingressConfiguration IngressConfiguration, namespace string) []AnnotationProvider {
 	return []AnnotationProvider{
 		NewForceSslRedirectAnnotationProvider(),
 		NewIngressConfigurationAnnotationProvider(ingressConfiguration),

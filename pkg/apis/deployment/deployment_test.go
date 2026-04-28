@@ -2862,69 +2862,56 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	assert.Equal(t, int32(443), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
 }
 
-func TestObjectSynced_ToOAuth2ProxyMode_IngressesDeleted(t *testing.T) {
+func TestObjectSynced_ToggleOAuth2_IngressesReconciled(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
 	const (
-		appName   = "any-app"
-		envName   = "any-env"
-		comp1Name = "comp1"
-		comp2Name = "comp2"
+		appName  = "any-app"
+		envName  = "any-env"
+		compName = "comp2"
 	)
 
 	// Fixture
+	compBuilder := utils.NewDeployComponentBuilder().
+		WithName(compName).
+		WithDNSAppAlias(true).
+		WithPort("http", 8080).
+		WithPublicPort("http").
+		WithExternalDNS(
+			radixv1.RadixDeployExternalDNS{FQDN: "comp1a.example.com"},
+			radixv1.RadixDeployExternalDNS{FQDN: "comp1b.example.com"},
+		)
 	rdBuilder := utils.ARadixDeployment().
 		WithAppName(appName).
 		WithEnvironment(envName).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(comp1Name).
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithExternalDNS(
-					radixv1.RadixDeployExternalDNS{FQDN: "comp1a.example.com"},
-					radixv1.RadixDeployExternalDNS{FQDN: "comp1b.example.com"},
-				),
-			utils.NewDeployComponentBuilder().
-				WithName(comp2Name).
-				WithDNSAppAlias(true).
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithExternalDNS(
-					radixv1.RadixDeployExternalDNS{FQDN: "comp2a.example.com"},
-					radixv1.RadixDeployExternalDNS{FQDN: "comp2b.example.com"},
-				).
-				WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "any-client-id"}}),
-		)
+		WithComponents(compBuilder)
+	expectedIngressNames := []string{
+		fmt.Sprintf("%s-url-alias", appName),
+		compName,
+		fmt.Sprintf("%s-active-cluster-url-alias", compName),
+		"comp1a.example.com",
+		"comp1b.example.com",
+	}
 	rd, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
 	require.NoError(t, err)
 	ingresses, _ := client.NetworkingV1().Ingresses(rd.Namespace).List(context.Background(), metav1.ListOptions{})
 	actualIngressNames := slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
-	expectedIngressNames := []string{
-		comp1Name,
-		fmt.Sprintf("%s-active-cluster-url-alias", comp1Name),
-		"comp1a.example.com",
-		"comp1b.example.com",
-		fmt.Sprintf("%s-url-alias", appName),
-		comp2Name,
-		fmt.Sprintf("%s-active-cluster-url-alias", comp2Name),
-		"comp2a.example.com",
-		"comp2b.example.com",
-	}
 	require.ElementsMatch(t, expectedIngressNames, actualIngressNames)
 
-	// Enabled oauth2 proxy mode
-	rdBuilder = rdBuilder.WithAnnotations(map[string]string{annotations.PreviewOAuth2ProxyModeAnnotation: envName})
+	// Enabled oauth2
+	compBuilder.WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "any-client-id"}})
 	rd, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
 	require.NoError(t, err)
 	ingresses, _ = client.NetworkingV1().Ingresses(rd.Namespace).List(context.Background(), metav1.ListOptions{})
 	actualIngressNames = slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
-	expectedIngressNames = []string{
-		comp1Name,
-		fmt.Sprintf("%s-active-cluster-url-alias", comp1Name),
-		"comp1a.example.com",
-		"comp1b.example.com",
-	}
+	assert.Empty(t, actualIngressNames)
+
+	// Disable oauth2
+	compBuilder.WithAuthentication(nil)
+	rd, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
+	require.NoError(t, err)
+	ingresses, _ = client.NetworkingV1().Ingresses(rd.Namespace).List(context.Background(), metav1.ListOptions{})
+	actualIngressNames = slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
 	require.ElementsMatch(t, expectedIngressNames, actualIngressNames)
 }
 
