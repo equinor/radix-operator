@@ -672,6 +672,10 @@ type RadixDeployJobComponent struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
+
+	// Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave
+	// +optional
+	Cron CronSchedule `json:"cron,omitempty"`
 }
 
 func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {
