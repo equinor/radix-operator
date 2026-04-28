@@ -132,6 +132,7 @@ func (c *jobComponentsBuilder) buildJobComponent(ctx context.Context, radixJobCo
 		BatchStatusRules:     getRadixJobComponentBatchStatusRules(&radixJobComponent, environmentSpecificConfig),
 		FailurePolicy:        failurePolicy,
 		SafeToRestart:        getRadixJobComponentSafeToRestart(radixJobComponent, environmentSpecificConfig),
+		Cron:                 *radixJobComponent.Cron,
 	}
 	return &deployJob, nil
 }
