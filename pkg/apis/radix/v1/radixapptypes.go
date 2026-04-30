@@ -909,6 +909,24 @@ type RadixJobComponent struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
+
+	// Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave
+	// +optional
+	Cron *CronSchedule `json:"cron,omitempty"`
+}
+
+// CronSchedule defines a schedule on which to run the job and how to handle concurrent jobs
+type CronSchedule struct {
+	// The cron schedule for the job
+	// +kubebuilder:validation:MinItems:=1
+	// +kubebuilder:validation:MaxItems:=20
+	// +kubebuilder:validation:items:MinLength:=1
+	// +listType=set
+	Schedule []string `json:"schedule"`
+
+	// Specify how to handle concurrency when multiple instances of the job is started
+	// +kubebuilder:validation:MinLength=1
+	Concurrency string `json:"concurrency"`
 }
 
 // RadixJobComponentFailurePolicyRuleOnExitCodesOperator specifies the relationship between a job replica's exit code
