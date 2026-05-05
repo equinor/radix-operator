@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
@@ -113,13 +112,6 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	// Delete service should sync
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
 	err = s.KubeClient.CoreV1().Services(svc.Namespace).Delete(s.Ctx, svc.Name, metav1.DeleteOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called")
-
-	// Sync should trigger when annotation radix.equinor.com/preview-gateway-mode changes on RR
-	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(1).DoAndReturn(s.SyncedChannelCallback())
-	rr.Annotations[annotations.PreviewGatewayModeAnnotation] = "any"
-	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called")
 

@@ -50,13 +50,10 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 			route.Annotations = map[string]string{}
 		}
 
-		if s.isGatewayAPIEnabled() {
-			route.Annotations[annotations.PreviewGatewayModeAnnotation] = "true"
-			route.Annotations["external-dns.alpha.kubernetes.io/ttl"] = "30"
-		} else {
-			delete(route.Annotations, annotations.PreviewGatewayModeAnnotation)
-			delete(route.Annotations, "external-dns.alpha.kubernetes.io/ttl")
-		}
+		// Clean up deprecated PreviewGatewayModeAnnotation and external-dns TTL annotation, as they are not used anymore. This is to avoid confusion and to clean up old annotations from existing routes.
+		// TODO: After all annotations have been cleaned up, the code related to adding these annotations can be removed as well.
+		delete(route.Annotations, annotations.PreviewGatewayModeAnnotation) // nolint:staticcheck
+		delete(route.Annotations, "external-dns.alpha.kubernetes.io/ttl")
 
 		var backendRef gatewayapiv1.HTTPBackendRef
 		if oauth2enabled {
@@ -103,11 +100,4 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// isGatewayAPIEnabled checks if the gateway API is enabled for the deployment.
-// TODO: Remove this when everything is using gateway API, or when it's enforced, and cleanup the code related to this (
-func (s *syncer) isGatewayAPIEnabled() bool {
-	return annotations.GatewayAPIEnabledForEnvironment(s.rd.Annotations, s.rd.Spec.Environment) ||
-		annotations.GatewayAPIEnabledForEnvironment(s.rr.Annotations, s.rd.Spec.Environment)
 }

@@ -3,7 +3,6 @@ package annotations
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -14,6 +13,7 @@ const (
 	azureWorkloadIdentityClientIdAnnotation = "azure.workload.identity/client-id"
 	clusterAutoscaleSafeToEvictAnnotation   = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 
+	// Deprecated: Should not be used anymore
 	PreviewGatewayModeAnnotation = "radix.equinor.com/preview-gateway-mode"
 )
 
@@ -61,26 +61,4 @@ func ForClusterAutoscalerSafeToEvict(safeToEvict bool) map[string]string {
 
 func forAzureWorkloadIdentityClientId(clientId string) map[string]string {
 	return map[string]string{azureWorkloadIdentityClientIdAnnotation: clientId}
-}
-
-// GatewayAPIEnabledForEnvironment checks if the preview gateway mode is enabled for a given environment
-func GatewayAPIEnabledForEnvironment(annotations map[string]string, currentEnv string) bool {
-	if annotations == nil {
-		return false
-	}
-	targetEnvs, exists := annotations[PreviewGatewayModeAnnotation]
-	if !exists {
-		return false
-	}
-
-	if targetEnvs == "*" {
-		return true
-	}
-
-	for targetEnv := range strings.SplitSeq(targetEnvs, ",") {
-		if strings.TrimSpace(targetEnv) == currentEnv {
-			return true
-		}
-	}
-	return false
 }

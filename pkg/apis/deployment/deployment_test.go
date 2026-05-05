@@ -30,7 +30,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -5025,27 +5024,9 @@ func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 		},
 	}
 
-	t.Run("uses ClusterIssuer when gateway API is not enabled", func(t *testing.T) {
-		rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
-		rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment(envName).WithComponent(
-			utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
-		).BuildRD()
-		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-		require.NoError(t, err)
-		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
-		require.NoError(t, err)
-
-		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
-		require.NoError(t, syncer.OnSync(context.Background()))
-		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
-		require.NoError(t, err)
-		assert.Equal(t, clusterIssuer, cert.Spec.IssuerRef.Name)
-	})
-
-	t.Run("uses GatewayClusterIssuer when gateway API is enabled via RD annotation", func(t *testing.T) {
+	t.Run("uses GatewayClusterIssuer", func(t *testing.T) {
 		rr := utils.NewRegistrationBuilder().WithName("app2").BuildRR()
 		rd := utils.NewDeploymentBuilder().WithAppName("app2").WithEnvironment(envName).
-			WithAnnotations(map[string]string{annotations.PreviewGatewayModeAnnotation: envName}).
 			WithComponent(
 				utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
 			).BuildRD()
@@ -5059,42 +5040,6 @@ func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app2", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.Equal(t, gatewayClusterIssuer, cert.Spec.IssuerRef.Name)
-	})
-
-	t.Run("uses GatewayClusterIssuer when gateway API is enabled via RR annotation", func(t *testing.T) {
-		rr := utils.NewRegistrationBuilder().WithName("app3").WithAnnotations(map[string]string{annotations.PreviewGatewayModeAnnotation: envName}).BuildRR()
-		rd := utils.NewDeploymentBuilder().WithAppName("app3").WithEnvironment(envName).WithComponent(
-			utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
-		).BuildRD()
-		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-		require.NoError(t, err)
-		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app3", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
-		require.NoError(t, err)
-
-		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
-		require.NoError(t, syncer.OnSync(context.Background()))
-		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app3", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
-		require.NoError(t, err)
-		assert.Equal(t, gatewayClusterIssuer, cert.Spec.IssuerRef.Name)
-	})
-
-	t.Run("uses ClusterIssuer when gateway API annotation targets different environment", func(t *testing.T) {
-		rr := utils.NewRegistrationBuilder().WithName("app4").BuildRR()
-		rd := utils.NewDeploymentBuilder().WithAppName("app4").WithEnvironment(envName).
-			WithAnnotations(map[string]string{annotations.PreviewGatewayModeAnnotation: "other-env"}).
-			WithComponent(
-				utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
-			).BuildRD()
-		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-		require.NoError(t, err)
-		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app4", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
-		require.NoError(t, err)
-
-		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
-		require.NoError(t, syncer.OnSync(context.Background()))
-		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app4", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
-		require.NoError(t, err)
-		assert.Equal(t, clusterIssuer, cert.Spec.IssuerRef.Name)
 	})
 }
 

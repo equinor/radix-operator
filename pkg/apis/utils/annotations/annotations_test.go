@@ -46,31 +46,3 @@ func Test_ForClusterAutoscalerSafeToEvict(t *testing.T) {
 	expected = map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}
 	assert.Equal(t, expected, actual)
 }
-
-func Test_GatewayAPIEnabledForEnvironment(t *testing.T) {
-	tests := []struct {
-		name        string
-		annotations map[string]string
-		currentEnv  string
-		expected    bool
-	}{
-		{name: "nil annotations", annotations: nil, currentEnv: "dev", expected: false},
-		{name: "empty annotations", annotations: map[string]string{}, currentEnv: "dev", expected: false},
-		{name: "annotation missing", annotations: map[string]string{"other": "dev"}, currentEnv: "dev", expected: false},
-		{name: "wildcard matches any env", annotations: map[string]string{PreviewGatewayModeAnnotation: "*"}, currentEnv: "qa", expected: true},
-		{name: "exact match single env", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev"}, currentEnv: "dev", expected: true},
-		{name: "no match single env", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev"}, currentEnv: "qa", expected: false},
-		{name: "match first in list", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev,qa"}, currentEnv: "dev", expected: true},
-		{name: "match last in list", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev,qa"}, currentEnv: "qa", expected: true},
-		{name: "no match in list", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev,qa"}, currentEnv: "prod", expected: false},
-		{name: "case sensitive mismatch", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev,qa"}, currentEnv: "Qa", expected: false},
-		{name: "spaces around env trimmed", annotations: map[string]string{PreviewGatewayModeAnnotation: "dev, qa , prod"}, currentEnv: "qa", expected: true},
-		{name: "empty value", annotations: map[string]string{PreviewGatewayModeAnnotation: ""}, currentEnv: "dev", expected: false},
-		{name: "empty currentEnv with empty entry", annotations: map[string]string{PreviewGatewayModeAnnotation: ""}, currentEnv: "", expected: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, GatewayAPIEnabledForEnvironment(tt.annotations, tt.currentEnv))
-		})
-	}
-}
