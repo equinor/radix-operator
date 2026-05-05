@@ -5008,7 +5008,6 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 
 func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 	fqdn := "any.example.com"
-	clusterIssuer := "standard-issuer"
 	gatewayClusterIssuer := "gateway-issuer"
 	envName := "dev"
 
@@ -5017,7 +5016,6 @@ func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 
 	cfg := &config.Config{
 		CertificateAutomation: certificateconfig.AutomationConfig{
-			ClusterIssuer:        clusterIssuer,
 			GatewayClusterIssuer: gatewayClusterIssuer,
 			Duration:             10000 * time.Hour,
 			RenewBefore:          1000 * time.Hour,
