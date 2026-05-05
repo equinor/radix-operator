@@ -70,9 +70,10 @@ var testConfig = config.Config{
 		DeploymentHistoryLimit: 10,
 	},
 	CertificateAutomation: certificateconfig.AutomationConfig{
-		ClusterIssuer: "test-cert-issuer",
-		Duration:      10000 * time.Hour,
-		RenewBefore:   5000 * time.Hour,
+		ClusterIssuer:        "test-cert-iussuer",
+		GatewayClusterIssuer: "test-gateway-cert-issuer",
+		Duration:             10000 * time.Hour,
+		RenewBefore:          5000 * time.Hour,
 	},
 }
 
@@ -4698,7 +4699,7 @@ func Test_ExternalDNS_Legacy_ResourcesMigrated(t *testing.T) {
 		Duration:    &metav1.Duration{Duration: testConfig.CertificateAutomation.Duration},
 		RenewBefore: &metav1.Duration{Duration: testConfig.CertificateAutomation.RenewBefore},
 		IssuerRef: v1.ObjectReference{
-			Name:  testConfig.CertificateAutomation.ClusterIssuer,
+			Name:  testConfig.CertificateAutomation.GatewayClusterIssuer,
 			Kind:  "ClusterIssuer",
 			Group: "cert-manager.io",
 		},
@@ -4763,7 +4764,7 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 			Duration:    &metav1.Duration{Duration: testConfig.CertificateAutomation.Duration},
 			RenewBefore: &metav1.Duration{Duration: testConfig.CertificateAutomation.RenewBefore},
 			IssuerRef: v1.ObjectReference{
-				Name:  testConfig.CertificateAutomation.ClusterIssuer,
+				Name:  testConfig.CertificateAutomation.GatewayClusterIssuer,
 				Kind:  "ClusterIssuer",
 				Group: "cert-manager.io",
 			},
