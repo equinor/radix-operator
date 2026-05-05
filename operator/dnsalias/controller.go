@@ -160,35 +160,10 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 	}
 }
 
-func enqueueRadixDNSAliasesForAppName(ctx context.Context, controller *common.Controller, radixClient radixclient.Interface, appName string, logger *zerolog.Logger) {
-	logger.Debug().Msgf("Added or updated an RadixRegistration %s. Enqueue relevant RadixDNSAliases", appName)
-	radixDNSAliases, err := getRadixDNSAliasForApp(ctx, radixClient, appName)
-	if err != nil {
-		logger.Error().Err(err).Msgf("failed to get list of RadixDNSAliases for the application %s", appName)
-		return
-	}
-	for _, radixDNSAlias := range radixDNSAliases {
-		logger.Debug().Msgf("Enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
-		if err := controller.Enqueue(&radixDNSAlias); err != nil {
-			logger.Error().Err(err).Msgf("failed to enqueue RadixDNSAlias %s", radixDNSAlias.GetName())
-		}
-	}
-}
-
 func getRadixDNSAliasForAppAndEnvironment(radixClient radixclient.Interface, appName, envName string) ([]radixv1.RadixDNSAlias, error) {
 	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(context.Background(), metav1.ListOptions{
 		LabelSelector: radixlabels.Merge(radixlabels.ForApplicationName(appName),
 			radixlabels.ForEnvironmentName(envName)).String(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return radixDNSAliasList.Items, err
-}
-
-func getRadixDNSAliasForApp(ctx context.Context, radixClient radixclient.Interface, appName string) ([]radixv1.RadixDNSAlias, error) {
-	radixDNSAliasList, err := radixClient.RadixV1().RadixDNSAliases().List(ctx, metav1.ListOptions{
-		LabelSelector: radixlabels.ForApplicationName(appName).String(),
 	})
 	if err != nil {
 		return nil, err

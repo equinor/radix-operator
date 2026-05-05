@@ -342,8 +342,8 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificate(ctx context.Conte
 }
 
 func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
-	if len(deploy.config.CertificateAutomation.ClusterIssuer) == 0 {
-		return errors.New("cluster issuer not set in certificate automation config")
+	if len(deploy.config.CertificateAutomation.GatewayClusterIssuer) == 0 {
+		return errors.New("gateway cluster issuer not set in certificate automation config")
 	}
 
 	duration := deploy.config.CertificateAutomation.Duration

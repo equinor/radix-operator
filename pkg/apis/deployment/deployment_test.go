@@ -4943,9 +4943,9 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	// Duration and RenewBefore not below min values
 	cfg := &config.Config{
 		CertificateAutomation: certificateconfig.AutomationConfig{
-			ClusterIssuer: "anyissuer",
-			Duration:      10000 * time.Hour,
-			RenewBefore:   1000 * time.Hour,
+			GatewayClusterIssuer: "anyissuer",
+			Duration:             10000 * time.Hour,
+			RenewBefore:          1000 * time.Hour,
 		}}
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
@@ -4957,9 +4957,9 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	// Duration below min value
 	cfg = &config.Config{
 		CertificateAutomation: certificateconfig.AutomationConfig{
-			ClusterIssuer: "anyissuer",
-			Duration:      2159 * time.Hour,
-			RenewBefore:   1000 * time.Hour,
+			GatewayClusterIssuer: "anyissuer",
+			Duration:             2159 * time.Hour,
+			RenewBefore:          1000 * time.Hour,
 		}}
 
 	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
@@ -4971,9 +4971,9 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	// RenewBefore below min value
 	cfg = &config.Config{
 		CertificateAutomation: certificateconfig.AutomationConfig{
-			ClusterIssuer: "anyissuer",
-			Duration:      10000 * time.Hour,
-			RenewBefore:   359 * time.Hour,
+			GatewayClusterIssuer: "anyissuer",
+			Duration:             10000 * time.Hour,
+			RenewBefore:          359 * time.Hour,
 		}}
 
 	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
