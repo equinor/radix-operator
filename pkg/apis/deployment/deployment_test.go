@@ -70,7 +70,6 @@ var testConfig = config.Config{
 		DeploymentHistoryLimit: 10,
 	},
 	CertificateAutomation: certificateconfig.AutomationConfig{
-		ClusterIssuer:        "test-cert-iussuer",
 		GatewayClusterIssuer: "test-gateway-cert-issuer",
 		Duration:             10000 * time.Hour,
 		RenewBefore:          5000 * time.Hour,
