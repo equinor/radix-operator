@@ -155,8 +155,6 @@ spec:
               value: {{ .Values.radixBuildKitImageBuilder.image.repository }}:{{ .Values.radixBuildKitImageBuilder.image.tag | default "main-latest" }}
             - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE
               value: {{ .Values.gitClone.image.repository }}:{{ .Values.gitClone.image.tag | default "latest" }}
-            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER
-              value: {{ .Values.ingress.certificate.automation.clusterIssuer }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER
               value: {{ .Values.ingress.certificate.automation.gatewayClusterIssuer }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION

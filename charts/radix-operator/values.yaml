@@ -88,7 +88,6 @@ ingress:
 
   certificate:
     automation:
-      clusterIssuer: ""
       duration: "2160h"
       renewBefore: "720h"
       gatewayClusterIssuer: ""
