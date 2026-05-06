@@ -754,5 +754,5 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_BuildDeploy_OnlyEnabledCompo
 	s.Assert().Equal("registry.azurecr.io/myapp-dev1-api-server:abc123", imageParam.Value.ObjectVal["api-server"])
 	s.Assert().Equal("registry.azurecr.io/myapp-dev1-web-app:abc123", imageParam.Value.ObjectVal["web-app"])
 	// Disabled component is present in the param (declared in ParamSpec) but has empty value
-	s.Assert().NotContains(imageParam.Value.ObjectVal, "disabled-component")
+	s.Assert().Equal("", imageParam.Value.ObjectVal["disabled-component"])
 }
