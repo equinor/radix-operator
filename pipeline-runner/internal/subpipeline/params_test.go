@@ -392,3 +392,110 @@ func TestObjectParam(t *testing.T) {
 		})
 	}
 }
+
+func TestDynamicObjectParamSpec(t *testing.T) {
+	tests := map[string]struct {
+		paramName    string
+		keys         []string
+		expectedSpec pipelinev1.ParamSpec
+	}{
+		"returns object param spec with given keys": {
+			paramName: "radix-image",
+			keys:      []string{"api-server", "db-migrator"},
+			expectedSpec: pipelinev1.ParamSpec{
+				Name: "radix-image",
+				Type: pipelinev1.ParamTypeObject,
+				Properties: map[string]pipelinev1.PropertySpec{
+					"api-server":  {Type: pipelinev1.ParamTypeString},
+					"db-migrator": {Type: pipelinev1.ParamTypeString},
+				},
+			},
+		},
+		"returns empty properties for nil keys": {
+			paramName: "radix-image",
+			keys:      nil,
+			expectedSpec: pipelinev1.ParamSpec{
+				Name:       "radix-image",
+				Type:       pipelinev1.ParamTypeObject,
+				Properties: map[string]pipelinev1.PropertySpec{},
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			actual := subpipeline.DynamicObjectParamSpec(tt.paramName, tt.keys)
+			assert.Equal(t, tt.expectedSpec, actual)
+		})
+	}
+}
+
+func TestDynamicObjectParam(t *testing.T) {
+	tests := map[string]struct {
+		paramName     string
+		values        map[string]string
+		expectedParam pipelinev1.Param
+	}{
+		"returns object param with given values": {
+			paramName: "radix-image",
+			values:    map[string]string{"api-server": "registry/app-api:tag1", "web": "registry/app-web:tag1"},
+			expectedParam: pipelinev1.Param{
+				Name:  "radix-image",
+				Value: *pipelinev1.NewObject(map[string]string{"api-server": "registry/app-api:tag1", "web": "registry/app-web:tag1"}),
+			},
+		},
+		"returns object param with empty map": {
+			paramName: "radix-image",
+			values:    map[string]string{},
+			expectedParam: pipelinev1.Param{
+				Name:  "radix-image",
+				Value: *pipelinev1.NewObject(map[string]string{}),
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			actual := subpipeline.DynamicObjectParam(tt.paramName, tt.values)
+			assert.Equal(t, tt.expectedParam, actual)
+		})
+	}
+}
+
+func TestDynamicObjectParamReference(t *testing.T) {
+	tests := map[string]struct {
+		paramName          string
+		keys               []string
+		referenceParamName string
+		expectedParam      pipelinev1.Param
+	}{
+		"returns object param with references": {
+			paramName:          "radix-image",
+			keys:               []string{"api-server", "web"},
+			referenceParamName: "radix-image",
+			expectedParam: pipelinev1.Param{
+				Name: "radix-image",
+				Value: *pipelinev1.NewObject(map[string]string{
+					"api-server": "$(params.radix-image.api-server)",
+					"web":        "$(params.radix-image.web)",
+				}),
+			},
+		},
+		"returns empty object for nil keys": {
+			paramName:          "radix-image",
+			keys:               nil,
+			referenceParamName: "radix-image",
+			expectedParam: pipelinev1.Param{
+				Name:  "radix-image",
+				Value: *pipelinev1.NewObject(map[string]string{}),
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			actual := subpipeline.DynamicObjectParamReference(tt.paramName, tt.keys, tt.referenceParamName)
+			assert.Equal(t, tt.expectedParam, actual)
+		})
+	}
+}

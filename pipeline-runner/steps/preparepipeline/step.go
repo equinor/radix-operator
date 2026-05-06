@@ -254,6 +254,8 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 		}
 	}
 
+	pipelineInfo.EnvironmentSubPipelineImageParams = getComponentNames(pipelineInfo.RadixApplication)
+
 	var errs []error
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
 	timestamp := time.Now().Format("20060102150405")
@@ -418,6 +420,12 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 		return nil, fmt.Errorf("failed to generate radix param for tasks: %w", err)
 	}
 
+	var imageParamSpec *v1.ParamSpec
+	if imageKeys := getImageParamKeys(pipelineInfo.EnvironmentSubPipelineImageParams, envName); len(imageKeys) > 0 {
+		spec := internalsubpipeline.DynamicObjectParamSpec(model.SubPipelineImageParamName, imageKeys)
+		imageParamSpec = &spec
+	}
+
 	for _, task := range tasks {
 		originalTaskName := task.Name
 		task.ObjectMeta.Name = fmt.Sprintf("radix-task-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalTaskName), timestamp, hash)
@@ -453,6 +461,13 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 			return nil, fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
 		}
 		task.Spec.Params = append(task.Spec.Params, paramSpec)
+
+		if imageParamSpec != nil {
+			if slice.Any(task.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == imageParamSpec.Name }) {
+				return nil, fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", imageParamSpec.Name)
+			}
+			task.Spec.Params = append(task.Spec.Params, *imageParamSpec)
+		}
 
 		ensureCorrectSecureContext(&task)
 		taskMap[originalTaskName] = task
@@ -559,6 +574,18 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 		return fmt.Errorf("failed to generate radix param refs for pipeline tasks: %w", err)
 	}
 
+	imageKeys := getImageParamKeys(pipelineInfo.EnvironmentSubPipelineImageParams, envName)
+	var imageParamRef *v1.Param
+	if len(imageKeys) > 0 {
+		imageParamSpec := internalsubpipeline.DynamicObjectParamSpec(model.SubPipelineImageParamName, imageKeys)
+		if slice.Any(pipeline.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == imageParamSpec.Name }) {
+			return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", imageParamSpec.Name)
+		}
+		pipeline.Spec.Params = append(pipeline.Spec.Params, imageParamSpec)
+		ref := internalsubpipeline.DynamicObjectParamReference(model.SubPipelineImageParamName, imageKeys, model.SubPipelineImageParamName)
+		imageParamRef = &ref
+	}
+
 	for taskIndex, pipelineSpecTask := range pipeline.Spec.Tasks {
 		task, ok := taskMap[pipelineSpecTask.TaskRef.Name]
 		if !ok {
@@ -574,6 +601,12 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 			return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", paramSpec.Name, pipelineSpecTask.Name)
 		}
 		pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, paramRef)
+		if imageParamRef != nil {
+			if slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(p v1.Param) bool { return p.Name == imageParamRef.Name }) {
+				return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", imageParamRef.Name, pipelineSpecTask.Name)
+			}
+			pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, *imageParamRef)
+		}
 	}
 
 	if len(errs) > 0 {
@@ -738,4 +771,46 @@ func getTargetEnvironmentsForDeploy(ctx context.Context, pipelineInfo *model.Pip
 	}
 	log.Ctx(ctx).Info().Msgf("Target environment: %v", targetEnvironment)
 	return []string{targetEnvironment}, nil
+}
+
+// getComponentNames returns a map of environment names to component name maps (with empty values)
+// used as the property keys for the radix-image param
+func getComponentNames(ra *radixv1.RadixApplication) model.EnvironmentComponentImages {
+	if ra == nil {
+		return nil
+	}
+	var componentNames []string
+	for _, component := range ra.Spec.Components {
+		componentNames = append(componentNames, component.Name)
+	}
+	for _, jobComponent := range ra.Spec.Jobs {
+		componentNames = append(componentNames, jobComponent.Name)
+	}
+	if len(componentNames) == 0 {
+		return nil
+	}
+	result := make(model.EnvironmentComponentImages)
+	for _, env := range ra.Spec.Environments {
+		images := make(model.ComponentImages, len(componentNames))
+		for _, name := range componentNames {
+			images[name] = ""
+		}
+		result[env.Name] = images
+	}
+	return result
+}
+
+func getImageParamKeys(imageParams model.EnvironmentComponentImages, envName string) []string {
+	if imageParams == nil {
+		return nil
+	}
+	envImages, ok := imageParams[envName]
+	if !ok || len(envImages) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(envImages))
+	for k := range envImages {
+		keys = append(keys, k)
+	}
+	return keys
 }

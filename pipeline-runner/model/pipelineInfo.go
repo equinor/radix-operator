@@ -44,12 +44,22 @@ type PipelineInfo struct {
 
 	EnvironmentSubPipelineParams map[string]SubPipelineParams
 
+	// EnvironmentSubPipelineImageParams maps environment name to component image paths
+	EnvironmentSubPipelineImageParams EnvironmentComponentImages
+
 	StopPipeline        bool
 	StopPipelineMessage string
 }
 
+// ComponentImages maps component name to its full image path (registry/repo:tag)
+type ComponentImages map[string]string
+
+// EnvironmentComponentImages maps environment name to component images
+type EnvironmentComponentImages map[string]ComponentImages
+
 const (
 	subPipelineRadixParamName = "radix"
+	SubPipelineImageParamName = "radix-image"
 )
 
 type SubPipelineParams struct {

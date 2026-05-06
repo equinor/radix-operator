@@ -253,6 +253,10 @@ func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipeline
 		pipelineParams = append(pipelineParams, param)
 	}
 
+	if imageParams := step.getImageParams(targetEnv, pipelineInfo); len(imageParams) > 0 {
+		pipelineParams = append(pipelineParams, internalsubpipeline.DynamicObjectParam(model.SubPipelineImageParamName, imageParams))
+	}
+
 	return pipelineParams, nil
 }
 
@@ -270,4 +274,23 @@ func getPipelineParamSpecsMap(pipeline *pipelinev1.Pipeline) map[string]pipeline
 		paramSpecMap[paramSpec.Name] = paramSpec
 	}
 	return paramSpecMap
+}
+
+func (step *RunPipelinesStepImplementation) getImageParams(targetEnv string, pipelineInfo *model.PipelineInfo) map[string]string {
+	envImages, ok := pipelineInfo.EnvironmentSubPipelineImageParams[targetEnv]
+	if !ok || len(envImages) == 0 {
+		return nil
+	}
+	result := make(map[string]string, len(envImages))
+	for componentName := range envImages {
+		result[componentName] = ""
+	}
+	if deployImages, ok := pipelineInfo.DeployEnvironmentComponentImages[targetEnv]; ok {
+		for componentName, img := range deployImages {
+			if _, exists := result[componentName]; exists {
+				result[componentName] = img.ImagePath
+			}
+		}
+	}
+	return result
 }

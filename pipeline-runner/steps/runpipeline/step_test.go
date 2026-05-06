@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -483,4 +484,275 @@ func (s *stepTestSuite) Test_RunPipeline_AzureIdentityClientID() {
 			}
 		})
 	}
+}
+
+func (s *stepTestSuite) Test_RunPipeline_ImageParam() {
+	mockCtrl := gomock.NewController(s.T())
+	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
+	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
+	raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName).
+		WithEnvironment(internalTest.Env1, internalTest.BranchMain)
+	rr := rrBuilder.BuildRR()
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			AppName: internalTest.AppName,
+		},
+		RadixApplication: raBuilder.BuildRA(),
+		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{
+			{Environment: internalTest.Env1, PipelineFile: "pipeline.yaml"},
+		},
+		EnvironmentSubPipelineParams: map[string]model.SubPipelineParams{
+			internalTest.Env1: {Environment: internalTest.Env1},
+		},
+		EnvironmentSubPipelineImageParams: model.EnvironmentComponentImages{
+			internalTest.Env1: {"api-server": "", "web-app": ""},
+		},
+		DeployEnvironmentComponentImages: pipeline.DeployEnvironmentComponentImages{
+			internalTest.Env1: {
+				"api-server": {ImagePath: "registry.azurecr.io/myapp-dev-api-server:abc123"},
+				"web-app":    {ImagePath: "registry.azurecr.io/myapp-dev-web-app:abc123"},
+			},
+		},
+	}
+
+	ctx := context.Background()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+
+	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   internalTest.RadixPipelineJobName,
+			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+		},
+		Spec: pipelinev1.PipelineSpec{},
+	}, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+
+	pipelineRuns, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(pipelineRuns.Items, 1)
+
+	var imageParam *pipelinev1.Param
+	for i := range pipelineRuns.Items[0].Spec.Params {
+		if pipelineRuns.Items[0].Spec.Params[i].Name == model.SubPipelineImageParamName {
+			imageParam = &pipelineRuns.Items[0].Spec.Params[i]
+			break
+		}
+	}
+
+	s.Require().NotNil(imageParam, "missing radix-image parameter in PipelineRun")
+	s.Assert().Equal(pipelinev1.ParamTypeObject, imageParam.Value.Type)
+	s.Assert().Equal("registry.azurecr.io/myapp-dev-api-server:abc123", imageParam.Value.ObjectVal["api-server"])
+	s.Assert().Equal("registry.azurecr.io/myapp-dev-web-app:abc123", imageParam.Value.ObjectVal["web-app"])
+}
+
+func (s *stepTestSuite) Test_RunPipeline_ImageParam_NotInjectedWhenNoImages() {
+	mockCtrl := gomock.NewController(s.T())
+	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
+	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
+	raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName).
+		WithEnvironment(internalTest.Env1, internalTest.BranchMain)
+	rr := rrBuilder.BuildRR()
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			AppName: internalTest.AppName,
+		},
+		RadixApplication: raBuilder.BuildRA(),
+		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{
+			{Environment: internalTest.Env1, PipelineFile: "pipeline.yaml"},
+		},
+		EnvironmentSubPipelineParams: map[string]model.SubPipelineParams{
+			internalTest.Env1: {Environment: internalTest.Env1},
+		},
+	}
+
+	ctx := context.Background()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+
+	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   internalTest.RadixPipelineJobName,
+			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+		},
+		Spec: pipelinev1.PipelineSpec{},
+	}, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+
+	pipelineRuns, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(pipelineRuns.Items, 1)
+
+	for _, param := range pipelineRuns.Items[0].Spec.Params {
+		s.Assert().NotEqual(model.SubPipelineImageParamName, param.Name, "radix-image param should not be present when no images configured")
+	}
+}
+
+func (s *stepTestSuite) Test_RunPipeline_ImageParam_Promote_AllImagesPassedOn() {
+	mockCtrl := gomock.NewController(s.T())
+	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
+	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
+	raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName).
+		WithEnvironment(internalTest.Env1, internalTest.BranchMain).
+		WithEnvironment(internalTest.Env2, internalTest.BranchMain)
+	rr := rrBuilder.BuildRR()
+
+	// Simulate a promote pipeline: images from the source deployment are in DeployEnvironmentComponentImages for the target env
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			AppName:      internalTest.AppName,
+			PipelineType: string(radixv1.Promote),
+		},
+		RadixApplication: raBuilder.BuildRA(),
+		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{
+			{Environment: internalTest.Env2, PipelineFile: "pipeline.yaml"},
+		},
+		EnvironmentSubPipelineParams: map[string]model.SubPipelineParams{
+			internalTest.Env2: {Environment: internalTest.Env2},
+		},
+		EnvironmentSubPipelineImageParams: model.EnvironmentComponentImages{
+			internalTest.Env2: {"api-server": "", "web-app": "", "db-migrator": ""},
+		},
+		DeployEnvironmentComponentImages: pipeline.DeployEnvironmentComponentImages{
+			internalTest.Env2: {
+				"api-server":  {ImagePath: "registry.azurecr.io/myapp-dev1-api-server:promoted-tag"},
+				"web-app":     {ImagePath: "registry.azurecr.io/myapp-dev1-web-app:promoted-tag"},
+				"db-migrator": {ImagePath: "registry.azurecr.io/myapp-dev1-db-migrator:promoted-tag"},
+			},
+		},
+	}
+
+	ctx := context.Background()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+
+	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   internalTest.RadixPipelineJobName,
+			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env2, rr.Spec.AppID),
+		},
+		Spec: pipelinev1.PipelineSpec{},
+	}, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+
+	pipelineRuns, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(pipelineRuns.Items, 1)
+
+	var imageParam *pipelinev1.Param
+	for i := range pipelineRuns.Items[0].Spec.Params {
+		if pipelineRuns.Items[0].Spec.Params[i].Name == model.SubPipelineImageParamName {
+			imageParam = &pipelineRuns.Items[0].Spec.Params[i]
+			break
+		}
+	}
+
+	s.Require().NotNil(imageParam, "missing radix-image parameter in PipelineRun for promote")
+	s.Assert().Equal(pipelinev1.ParamTypeObject, imageParam.Value.Type)
+	s.Assert().Equal("registry.azurecr.io/myapp-dev1-api-server:promoted-tag", imageParam.Value.ObjectVal["api-server"])
+	s.Assert().Equal("registry.azurecr.io/myapp-dev1-web-app:promoted-tag", imageParam.Value.ObjectVal["web-app"])
+	s.Assert().Equal("registry.azurecr.io/myapp-dev1-db-migrator:promoted-tag", imageParam.Value.ObjectVal["db-migrator"])
+}
+
+func (s *stepTestSuite) Test_RunPipeline_ImageParam_BuildDeploy_OnlyEnabledComponents() {
+	mockCtrl := gomock.NewController(s.T())
+	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
+	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
+	raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName).
+		WithEnvironment(internalTest.Env1, internalTest.BranchMain)
+	rr := rrBuilder.BuildRR()
+
+	// Simulate build-deploy: EnvironmentSubPipelineImageParams declares all components (from radixconfig),
+	// but DeployEnvironmentComponentImages only has enabled ones (disabled-component is not present)
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			AppName:      internalTest.AppName,
+			PipelineType: string(radixv1.BuildDeploy),
+		},
+		RadixApplication: raBuilder.BuildRA(),
+		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{
+			{Environment: internalTest.Env1, PipelineFile: "pipeline.yaml"},
+		},
+		EnvironmentSubPipelineParams: map[string]model.SubPipelineParams{
+			internalTest.Env1: {Environment: internalTest.Env1},
+		},
+		EnvironmentSubPipelineImageParams: model.EnvironmentComponentImages{
+			internalTest.Env1: {"api-server": "", "web-app": "", "disabled-component": ""},
+		},
+		DeployEnvironmentComponentImages: pipeline.DeployEnvironmentComponentImages{
+			internalTest.Env1: {
+				// Only enabled components have entries here
+				"api-server": {ImagePath: "registry.azurecr.io/myapp-dev1-api-server:abc123"},
+				"web-app":    {ImagePath: "registry.azurecr.io/myapp-dev1-web-app:abc123"},
+				// "disabled-component" is NOT present — it was disabled for this environment
+			},
+		},
+	}
+
+	ctx := context.Background()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+
+	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   internalTest.RadixPipelineJobName,
+			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+		},
+		Spec: pipelinev1.PipelineSpec{},
+	}, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+
+	pipelineRuns, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(pipelineRuns.Items, 1)
+
+	var imageParam *pipelinev1.Param
+	for i := range pipelineRuns.Items[0].Spec.Params {
+		if pipelineRuns.Items[0].Spec.Params[i].Name == model.SubPipelineImageParamName {
+			imageParam = &pipelineRuns.Items[0].Spec.Params[i]
+			break
+		}
+	}
+
+	s.Require().NotNil(imageParam, "missing radix-image parameter in PipelineRun")
+	s.Assert().Equal(pipelinev1.ParamTypeObject, imageParam.Value.Type)
+	// Enabled components have their image paths
+	s.Assert().Equal("registry.azurecr.io/myapp-dev1-api-server:abc123", imageParam.Value.ObjectVal["api-server"])
+	s.Assert().Equal("registry.azurecr.io/myapp-dev1-web-app:abc123", imageParam.Value.ObjectVal["web-app"])
+	// Disabled component is present in the param (declared in ParamSpec) but has empty value
+	s.Assert().NotContains(imageParam.Value.ObjectVal, "disabled-component")
 }
