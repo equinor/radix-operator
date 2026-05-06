@@ -11,7 +11,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -101,29 +100,6 @@ func (s *ExternalDNSTestSuite) applyDeploymentWithSync(deploymentBuilder utils.D
 	rr, err := s.radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
-	}
-
-	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, nil, s.cfg)
-	if err := syncer.OnSync(context.Background()); err != nil {
-		return nil, err
-	}
-
-	return s.radixClient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(context.Background(), rd.GetName(), metav1.GetOptions{})
-}
-
-func (s *ExternalDNSTestSuite) applyDeploymentWithSyncAndAnnotations(deploymentBuilder utils.DeploymentBuilder, rrAnnotations map[string]string) (*radixv1.RadixDeployment, error) {
-	rd, err := s.testUtils.ApplyDeployment(context.Background(), deploymentBuilder)
-	if err != nil {
-		return nil, err
-	}
-
-	rr, err := s.radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	if rrAnnotations != nil {
-		rr.Annotations = rrAnnotations
 	}
 
 	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, nil, s.cfg)
@@ -838,63 +814,4 @@ func (s *ExternalDNSTestSuite) TestOAuth2BackendRef_WhenOAuth2Enabled() {
 	expectedOAuthServiceName := utils.GetAuxOAuthProxyComponentServiceName(edTestComponentName)
 	s.Equal(gatewayapiv1.ObjectName(expectedOAuthServiceName), route.Spec.Rules[0].BackendRefs[0].Name)
 	s.Equal(gatewayapiv1.PortNumber(defaults.OAuthProxyPortNumber), *route.Spec.Rules[0].BackendRefs[0].Port)
-}
-
-// Test that gateway mode annotation is set on external DNS HTTPRoute when gateway API is enabled
-func (s *ExternalDNSTestSuite) TestGatewayModeAnnotation_WhenGatewayAPIEnabled() {
-	externalDNSFQDN := "app.example.com"
-
-	_, err := s.applyDeploymentWithSyncAndAnnotations(
-		utils.ARadixDeployment().
-			WithAppName(edTestAppName).
-			WithEnvironment(edTestEnvName).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(edTestComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http").
-					WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: externalDNSFQDN, UseCertificateAutomation: false}),
-			).
-			WithJobComponents(),
-		map[string]string{annotations.PreviewGatewayModeAnnotation: edTestEnvName},
-	)
-	s.Require().NoError(err)
-
-	ctx := context.Background()
-	ns := s.namespace()
-
-	route, err := s.getHTTPRoute(ctx, externalDNSFQDN, ns)
-	s.Require().NoError(err)
-	s.Equal("true", route.Annotations[annotations.PreviewGatewayModeAnnotation])
-	s.Equal("30", route.Annotations["external-dns.alpha.kubernetes.io/ttl"])
-}
-
-// Test that gateway mode annotation is NOT set on external DNS HTTPRoute when gateway API is not enabled
-func (s *ExternalDNSTestSuite) TestNoGatewayModeAnnotation_WhenGatewayAPINotEnabled() {
-	externalDNSFQDN := "app.example.com"
-
-	_, err := s.applyDeploymentWithSync(
-		utils.ARadixDeployment().
-			WithAppName(edTestAppName).
-			WithEnvironment(edTestEnvName).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(edTestComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http").
-					WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: externalDNSFQDN, UseCertificateAutomation: false}),
-			).
-			WithJobComponents(),
-	)
-	s.Require().NoError(err)
-
-	ctx := context.Background()
-	ns := s.namespace()
-
-	route, err := s.getHTTPRoute(ctx, externalDNSFQDN, ns)
-	s.Require().NoError(err)
-	_, hasGatewayAnnotation := route.Annotations[annotations.PreviewGatewayModeAnnotation]
-	s.False(hasGatewayAnnotation, "should not have gateway mode annotation when not enabled")
-	_, hasTTLAnnotation := route.Annotations["external-dns.alpha.kubernetes.io/ttl"]
-	s.False(hasTTLAnnotation, "should not have TTL annotation when gateway not enabled")
 }

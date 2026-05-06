@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
@@ -100,10 +99,6 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 		kube.RadixUseBuildKit:          strconv.FormatBool(pipelineInfo.IsUsingBuildKit()),
 		kube.RadixUseBuildCache:        strconv.FormatBool(pipelineInfo.IsUsingBuildCache()),
 		kube.RadixRefreshBuildCache:    strconv.FormatBool(pipelineInfo.IsRefreshingBuildCache()),
-	}
-
-	if previewGatewayAnnotation := radixApplication.GetObjectMeta().GetAnnotations()[annotations.PreviewGatewayModeAnnotation]; previewGatewayAnnotation != "" {
-		deploymentAnnotations[annotations.PreviewGatewayModeAnnotation] = previewGatewayAnnotation
 	}
 
 	radixDeployment := &radixv1.RadixDeployment{

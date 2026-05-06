@@ -196,9 +196,6 @@ const (
 	// RadixBuildKitImageBuilderEnvironmentVariable Repository and tag for the buildkit image builder
 	RadixBuildKitImageBuilderEnvironmentVariable = "RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE"
 
-	// RadixCertificateAutomationClusterIssuerVariable Name of cluster isser to use for certificate automation
-	RadixCertificateAutomationClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER"
-
 	RadixCertificateAutomationGatewayClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER"
 
 	// RadixCertificateAutomationDurationVariable Defines duration for certificates issued by cluster issuer

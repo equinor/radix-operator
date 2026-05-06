@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/rs/zerolog/log"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -95,10 +94,6 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 
 	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromDeploymentAnnotation] = rd.GetName()
 	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromEnvironmentAnnotation] = pipelineInfo.PipelineArguments.FromEnvironment
-
-	if previewGatewayAnnotation := radixApplication.GetObjectMeta().GetAnnotations()[annotations.PreviewGatewayModeAnnotation]; previewGatewayAnnotation != "" {
-		radixDeployment.Annotations[annotations.PreviewGatewayModeAnnotation] = previewGatewayAnnotation
-	}
 
 	radixDeployment.ResourceVersion = ""
 	radixDeployment.Namespace = toNs

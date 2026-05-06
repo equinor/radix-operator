@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/rs/zerolog/log"
@@ -131,8 +130,7 @@ func NewController(ctx context.Context,
 			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
 				radixutils.ArrayEqualElements(newRr.Spec.AdUsers, oldRr.Spec.AdUsers) &&
 				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) &&
-				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdUsers, oldRr.Spec.ReaderAdUsers) &&
-				oldRr.Annotations[annotations.PreviewGatewayModeAnnotation] == newRr.Annotations[annotations.PreviewGatewayModeAnnotation] {
+				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdUsers, oldRr.Spec.ReaderAdUsers) {
 				return
 			}
 

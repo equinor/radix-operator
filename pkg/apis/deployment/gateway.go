@@ -94,13 +94,10 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 			route.Annotations = map[string]string{}
 		}
 
-		if deploy.isGatewayAPIEnabled() {
-			route.Annotations[annotations.PreviewGatewayModeAnnotation] = "true"
-			route.Annotations["external-dns.alpha.kubernetes.io/ttl"] = "30"
-		} else {
-			delete(route.Annotations, annotations.PreviewGatewayModeAnnotation)
-			delete(route.Annotations, "external-dns.alpha.kubernetes.io/ttl")
-		}
+		// Clean up deprecated PreviewGatewayModeAnnotation and external-dns TTL annotation, as they are not used anymore. This is to avoid confusion and to clean up old annotations from existing routes.
+		// TODO: After all annotations have been cleaned up, the code related to adding these annotations can be removed as well.
+		delete(route.Annotations, annotations.PreviewGatewayModeAnnotation) // nolint:staticcheck
+		delete(route.Annotations, "external-dns.alpha.kubernetes.io/ttl")
 
 		var backendRef gatewayapiv1.HTTPBackendRef
 		if oauth2enabled {
@@ -269,11 +266,4 @@ func (deploy *Deployment) garbageCollectListenerSetsNoLongerInSpec(ctx context.C
 	}
 
 	return nil
-}
-
-// isGatewayAPIEnabled checks if the gateway API is enabled for the deployment.
-// TODO: Remove this when everything is using gateway API, or when it's enforced, and cleanup the code related to this (
-func (deploy *Deployment) isGatewayAPIEnabled() bool {
-	return annotations.GatewayAPIEnabledForEnvironment(deploy.radixDeployment.Annotations, deploy.radixDeployment.Spec.Environment) ||
-		annotations.GatewayAPIEnabledForEnvironment(deploy.registration.Annotations, deploy.radixDeployment.Spec.Environment)
 }

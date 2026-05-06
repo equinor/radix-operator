@@ -114,13 +114,10 @@ func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Cont
 			route.Annotations = map[string]string{}
 		}
 
-		if deploy.isGatewayAPIEnabled() {
-			route.Annotations[annotations.PreviewGatewayModeAnnotation] = "true"
-			route.Annotations["external-dns.alpha.kubernetes.io/ttl"] = "30"
-		} else {
-			delete(route.Annotations, annotations.PreviewGatewayModeAnnotation)
-			delete(route.Annotations, "external-dns.alpha.kubernetes.io/ttl")
-		}
+		// Clean up deprecated PreviewGatewayModeAnnotation and external-dns TTL annotation, as they are not used anymore. This is to avoid confusion and to clean up old annotations from existing routes.
+		// TODO: After all annotations have been cleaned up, the code related to adding these annotations can be removed as well.
+		delete(route.Annotations, annotations.PreviewGatewayModeAnnotation) // nolint:staticcheck
+		delete(route.Annotations, "external-dns.alpha.kubernetes.io/ttl")
 
 		var backendRef gatewayapiv1.HTTPBackendRef
 		if oauth2enabled {
@@ -345,8 +342,8 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificate(ctx context.Conte
 }
 
 func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
-	if len(deploy.config.CertificateAutomation.ClusterIssuer) == 0 {
-		return errors.New("cluster issuer not set in certificate automation config")
+	if len(deploy.config.CertificateAutomation.GatewayClusterIssuer) == 0 {
+		return errors.New("gateway cluster issuer not set in certificate automation config")
 	}
 
 	duration := deploy.config.CertificateAutomation.Duration
@@ -356,11 +353,6 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 	renewBefore := deploy.config.CertificateAutomation.RenewBefore
 	if renewBefore < minCertRenewBefore {
 		renewBefore = minCertRenewBefore
-	}
-
-	clusterIssuer := deploy.config.CertificateAutomation.ClusterIssuer
-	if deploy.isGatewayAPIEnabled() {
-		clusterIssuer = deploy.config.CertificateAutomation.GatewayClusterIssuer
 	}
 
 	certificate := &cmv1.Certificate{
@@ -374,7 +366,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 			IssuerRef: cmmeta.ObjectReference{
 				Group: cm.GroupName,
 				Kind:  cmv1.ClusterIssuerKind,
-				Name:  clusterIssuer,
+				Name:  deploy.config.CertificateAutomation.GatewayClusterIssuer,
 			},
 			Duration:    &metav1.Duration{Duration: duration},
 			RenewBefore: &metav1.Duration{Duration: renewBefore},

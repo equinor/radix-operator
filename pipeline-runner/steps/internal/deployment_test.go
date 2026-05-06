@@ -13,7 +13,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -583,49 +582,6 @@ func Test_ConstructForTargetEnvironment_BuildKitAnnotations(t *testing.T) {
 			assert.Equal(t, scenario.expectedAnnotationUseBuildKit, rd.Annotations[kube.RadixUseBuildKit], "UseBuildKit annotation not as expected")
 			assert.Equal(t, scenario.expectedAnnotationUseBuildCache, rd.Annotations[kube.RadixUseBuildCache], "UseBuildCache annotation not as expected")
 			assert.Equal(t, scenario.expectedAnnotationRefreshBuildCache, rd.Annotations[kube.RadixRefreshBuildCache], "RefreshBuildCache annotation not as expected")
-		})
-	}
-}
-
-func Test_ConstructForTargetEnvironment_PreviewAnnotations(t *testing.T) {
-	const envName = "anyenv"
-
-	tests := map[string]struct {
-		raAnnotations                    map[string]string
-		expectedPreviewGatewayAnnotation string
-	}{
-		"no preview annotations on RA": {
-			raAnnotations:                    nil,
-			expectedPreviewGatewayAnnotation: "",
-		},
-		"PreviewGatewayModeAnnotation set on RA": {
-			raAnnotations:                    map[string]string{annotations.PreviewGatewayModeAnnotation: "env1,env2"},
-			expectedPreviewGatewayAnnotation: "env1,env2",
-		},
-	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			ra := utils.ARadixApplication().
-				WithEnvironment(envName, "main").
-				WithComponents(utils.AnApplicationComponent().WithName("app")).
-				BuildRA()
-			ra.ObjectMeta.Annotations = tt.raAnnotations
-
-			pipelineInfo := &model.PipelineInfo{
-				RadixApplication:                 ra,
-				DeployEnvironmentComponentImages: pipeline.DeployEnvironmentComponentImages{envName: make(pipeline.DeployComponentImages)},
-				PipelineArguments: model.PipelineArguments{
-					JobName:  "anyjob",
-					ImageTag: "anyimage",
-					Branch:   "anybranch",
-				},
-			}
-
-			rd, err := ConstructForTargetEnvironment(context.Background(), pipelineInfo, model.TargetEnvironment{Environment: envName}, "anycommit", "anytags", "anyhash", "anybuildsecrethash")
-			require.NoError(t, err)
-
-			assert.Equal(t, tt.expectedPreviewGatewayAnnotation, rd.Annotations[annotations.PreviewGatewayModeAnnotation])
 		})
 	}
 }
