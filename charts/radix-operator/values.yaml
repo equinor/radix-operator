@@ -270,18 +270,25 @@ radixApiServer:
   networkPolicy:
     enabled: true
     ingress:
-      - namespaceMatchLabels:
-          purpose: radix-base-ns
-        podMatchLabels:
-          app.kubernetes.io/name: ingress-nginx
-      - namespaceMatchLabels:
-          purpose: radix-base-ns
-        podMatchLabels:
-          app.kubernetes.io/name: prometheus
-      - namespaceMatchLabels:
-          purpose: radix-base-ns
-        podMatchLabels:
-          gateway.networking.k8s.io/gateway-name: gateway
+      from:
+        - namespaceSelector:
+            matchLabels:
+              purpose: radix-base-ns
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+        - namespaceSelector:
+            matchLabels:
+              purpose: radix-base-ns
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        - namespaceSelector:
+            matchLabels:
+              purpose: radix-base-ns
+          podSelector:
+            matchLabels:
+              gateway.networking.k8s.io/gateway-name: gateway
 
   autoscaling:
     enabled: true

@@ -14,12 +14,5 @@ spec:
     - Ingress
   ingress:
     - from:
-        {{- range .Values.radixApiServer.networkPolicy.ingress }}
-        - namespaceSelector:
-            matchLabels:
-              {{- toYaml .namespaceMatchLabels | nindent 14 }}
-          podSelector:
-            matchLabels:
-              {{- toYaml .podMatchLabels | nindent 14 }}
-        {{- end }}
+        {{- toYaml .Values.radixApiServer.networkPolicy.ingress.from | nindent 8 }}
 {{- end }}
