@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.114.1](https://github.com/equinor/radix-operator/compare/v1.114.0..v1.114.1) - 2026-05-06
+## [1.114.2](https://github.com/equinor/radix-operator/compare/v1.114.1..v1.114.2) - 2026-05-07
+
+### 🐛 Bug Fixes
+
+- Remove all code related to decomissioned external-dns (#1703) - ([7d4b897](https://github.com/equinor/radix-operator/commit/7d4b897b855c587615adeea1cc554536687299a6)) by @nilsgstrabo in [#1703](https://github.com/equinor/radix-operator/pull/1703)
+
+
+## [1.114.1](https://github.com/equinor/radix-operator/compare/v1.114.0..v1.114.1) - 2026-05-07
 
 ### 🐛 Bug Fixes
 
