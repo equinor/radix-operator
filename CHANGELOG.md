@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.114.1](https://github.com/equinor/radix-operator/compare/v1.114.0..v1.114.1) - 2026-05-06
+
+### 🐛 Bug Fixes
+
+- Remove deprecated PreviewGatewayModeAnnotation and clean up related logic (#1695) - ([8fe4ce3](https://github.com/equinor/radix-operator/commit/8fe4ce361dd105f4cee0b9bf4d5538b9c2122ff9)) by @Richard87 in [#1695](https://github.com/equinor/radix-operator/pull/1695)
+
+
 ## [1.114.0](https://github.com/equinor/radix-operator/compare/v1.113.1..v1.114.0) - 2026-04-29
 
 ### 🚀 Features
