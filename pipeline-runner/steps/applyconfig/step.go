@@ -70,6 +70,12 @@ func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 		}
 	}
 
+	if pipelineInfo.IsPipelineType(radixv1.Promote) {
+		if err := step.setPromoteDeployImages(ctx, pipelineInfo); err != nil {
+			return err
+		}
+	}
+
 	if err := step.validatePipelineInfo(pipelineInfo); err != nil {
 		return err
 	}
@@ -141,6 +147,35 @@ func (step *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.C
 		printEnvironmentComponentImageSources(ctx, componentImageSourceMap)
 	}
 
+	return nil
+}
+
+func (step *ApplyConfigStepImplementation) setPromoteDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.PipelineArguments.FromEnvironment == "" || pipelineInfo.PipelineArguments.DeploymentName == "" {
+		return nil
+	}
+
+	fromNs := operatorutils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
+	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(fromNs).Get(ctx, pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
+	if err != nil {
+		if kubeerrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to get source deployment for promote: %w", err)
+	}
+
+	toEnv := pipelineInfo.PipelineArguments.ToEnvironment
+	deployImages := make(pipeline.DeployComponentImages)
+	for _, component := range rd.Spec.Components {
+		deployImages[component.Name] = pipeline.DeployComponentImage{ImagePath: component.Image}
+	}
+	for _, job := range rd.Spec.Jobs {
+		deployImages[job.Name] = pipeline.DeployComponentImage{ImagePath: job.Image}
+	}
+
+	pipelineInfo.DeployEnvironmentComponentImages = pipeline.DeployEnvironmentComponentImages{
+		toEnv: deployImages,
+	}
 	return nil
 }
 
