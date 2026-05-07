@@ -219,6 +219,77 @@ radixJobScheduler:
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
 
+radixApiServer:
+  useProfiler: false
+  logLevel: info
+  logPretty: false
+  environment: qa # Should be qa or dev
+  prometheusUrl: http://prometheus-operator-prometheus.monitor.svc.cluster.local:9090
+  oidcAzureAudience: 6dae42f8-4368-4678-94ff-3960e28e3630
+  oidcAzureIssuer: https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/
+  oidcKubernetesIssuer: ""
+  oidcKubernetesAudience: ""
+  clusterOidcIssuers: ""
+  clusterEgressIps: ""
+
+  image:
+    repository: ghcr.io/equinor/radix/api-server
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+    pullSecrets: [] # List of image pull secret names to use for the radix-api-server image
+
+  resources:
+    limits:
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  securityContext:
+    privileged: false
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+
+  routes:
+    main:
+      enabled: true
+      annotations: {}
+      labels: {}
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: gateway
+          namespace: istio-system
+          sectionName: https
+      hostnames:
+        - api.radix.equinor.com
+        #  - "api.{{ .Values.dnsZone }}"
+        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.dnsZone }}"
+        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.clusterName }}.{{ .Values.dnsZone }}"
+      backendPort: 3002
+      filters:
+        - responseHeaderModifier:
+            add:
+              - name: Strict-Transport-Security
+                value: max-age=31536000; includeSubDomains
+          type: ResponseHeaderModifier
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+
 radixWebhook:
   logLevel: info
   logPretty: false
