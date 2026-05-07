@@ -12,9 +12,6 @@ import (
 const (
 	azureWorkloadIdentityClientIdAnnotation = "azure.workload.identity/client-id"
 	clusterAutoscaleSafeToEvictAnnotation   = "cluster-autoscaler.kubernetes.io/safe-to-evict"
-
-	// Deprecated: Should not be used anymore
-	PreviewGatewayModeAnnotation = "radix.equinor.com/preview-gateway-mode"
 )
 
 // Merge multiple maps into one

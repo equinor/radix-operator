@@ -6,7 +6,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/gateway"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,11 +48,6 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 		if route.Annotations == nil {
 			route.Annotations = map[string]string{}
 		}
-
-		// Clean up deprecated PreviewGatewayModeAnnotation and external-dns TTL annotation, as they are not used anymore. This is to avoid confusion and to clean up old annotations from existing routes.
-		// TODO: After all annotations have been cleaned up, the code related to adding these annotations can be removed as well.
-		delete(route.Annotations, annotations.PreviewGatewayModeAnnotation) // nolint:staticcheck
-		delete(route.Annotations, "external-dns.alpha.kubernetes.io/ttl")
 
 		var backendRef gatewayapiv1.HTTPBackendRef
 		if oauth2enabled {

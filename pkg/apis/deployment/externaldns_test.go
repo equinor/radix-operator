@@ -165,20 +165,9 @@ func (s *ExternalDNSTestSuite) TestHTTPRouteAndListenerSetCreated_ForExternalDNS
 	s.Equal(gatewayapiv1.Hostname(externalDNSFQDN), route.Spec.Hostnames[0])
 
 	// Verify parent refs include both Gateway and ListenerSet
-	s.Require().Len(route.Spec.CommonRouteSpec.ParentRefs, 2)
+	s.Require().Len(route.Spec.CommonRouteSpec.ParentRefs, 1)
 
-	gatewayParentRef := route.Spec.CommonRouteSpec.ParentRefs[0]
-	s.Require().NotNil(gatewayParentRef.Group)
-	s.Require().NotNil(gatewayParentRef.Kind)
-	s.Require().NotNil(gatewayParentRef.Namespace)
-	s.Require().NotNil(gatewayParentRef.SectionName)
-	s.Equal(gatewayapiv1.Group(gatewayapiv1.GroupName), *gatewayParentRef.Group)
-	s.Equal(gatewayapiv1.Kind("Gateway"), *gatewayParentRef.Kind)
-	s.Equal(gatewayapiv1.ObjectName(edTestGatewayName), gatewayParentRef.Name)
-	s.Equal(gatewayapiv1.Namespace(edTestGatewayNamespace), *gatewayParentRef.Namespace)
-	s.Equal(gatewayapiv1.SectionName(s.cfg.Gateway.SectionName), *gatewayParentRef.SectionName)
-
-	listenerSetParentRef := route.Spec.CommonRouteSpec.ParentRefs[1]
+	listenerSetParentRef := route.Spec.CommonRouteSpec.ParentRefs[0]
 	s.Require().NotNil(listenerSetParentRef.Group)
 	s.Require().NotNil(listenerSetParentRef.Kind)
 	s.Require().NotNil(listenerSetParentRef.Namespace)

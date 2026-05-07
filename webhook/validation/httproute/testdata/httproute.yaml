@@ -3,10 +3,6 @@ kind: HTTPRoute
 metadata:
   name: combined
   namespace: appNamespace
-  annotations:
-    radix.equinor.com/radix-preview-nextgen-router: "true"
-    external-dns.alpha.kubernetes.io/hostname: "sub1.hostname.com"
-    external-dns.alpha.kubernetes.io/ttl: "30"
 spec:
   parentRefs:
     - name: istio-gateway
