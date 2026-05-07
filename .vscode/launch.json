@@ -234,6 +234,30 @@
 			"mode": "test",
 			"program": "${workspaceFolder}/e2e",
 			"args": ["-test.v", "-test.timeout", "30m"]
+		},
+		{
+			"name": "Launch API Server",
+			"type": "go",
+			"request": "launch",
+			"mode": "auto",
+			"program": "${workspaceFolder}/api-server/main.go",
+			"env": {
+				"RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
+				"RADIX_DNS_ZONE": "dev.radix.equinor.com",
+				"RADIX_ENVIRONMENT": "qa",
+				"PROMETHEUS_URL": "http://localhost:9091",
+				"RADIX_APP": "radix-api",
+				"LOG_LEVEL": "info",
+				"LOG_PRETTY": "true",
+				"OIDC_AZURE_ISSUER": "https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/",
+				"OIDC_AZURE_AUDIENCE": "6dae42f8-4368-4678-94ff-3960e28e3630",
+				"OIDC_KUBERNETES_ISSUER": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/79c72762-ce8d-4874-90cd-a119a5050503/",
+				"OIDC_KUBERNETES_AUDIENCE": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/79c72762-ce8d-4874-90cd-a119a5050503/",
+				"RADIX_CLUSTERNAME": "weekly-40",
+				"RADIX_ACTIVE_CLUSTER_EGRESS_IPS": "192.168.84.0/30,10.0.0.0/30",
+				"CLUSTER_OIDC_ISSUERS": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/79c72762-ce8d-4874-90cd-a119a5050503/,https://test-issuer.internal.radix.equinor.com",
+				"CLUSTER_EGRESS_IPS": "0.0.0.0"
+			}
 		}
 	]
 }

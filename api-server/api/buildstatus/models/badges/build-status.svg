@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{{ sum 24 .OperationWidth .StatusWidth }}" height="20" role="img"
+     aria-label="Radix {{.Operation}}: {{.Status}}">
+    <title>{{.Operation}}: {{.Status}}</title>
+    <defs>
+        <clipPath id="borderRadius">
+            <rect width="100%" height="20" rx="5" fill="#fff"/>
+        </clipPath>
+        <linearGradient id="workflow-fill" x1="50%" y1="0%" x2="50%" y2="100%">
+            <stop stop-color="#555" offset="0%"/>
+            <stop stop-color="#333" offset="100%"/>
+        </linearGradient>
+        <linearGradient id="state-fill" x1="50%" y1="0%" x2="50%" y2="100%">
+            <stop stop-color="#bbb" stop-opacity=".1" offset="0%"/>
+            <stop stop-opacity=".1" offset="100%"/>
+        </linearGradient>
+    </defs>
+
+
+    <g clip-path="url(#borderRadius)" fill="none" fill-rule="evenodd">
+
+        <g font-family="'DejaVu Sans',Verdana,Geneva,sans-serif" font-size="11">
+            <rect fill="url(#workflow-fill)" x="0" y="0" width="{{ sum 19 .OperationWidth }}" height="20"/>
+            <text fill="#111" x="19" y="15" aria-hidden="true" fill-opacity=".3" textLength="{{ sum -5 .OperationWidth }}">{{.Operation}}</text>
+            <text fill="#FFFFFF" x="19" y="14" textLength="{{ sum -5 .OperationWidth }}">{{.Operation}}</text>
+        </g>
+
+        <g transform="translate({{ sum 19 .OperationWidth }})" font-family="'DejaVu Sans',Verdana,Geneva,sans-serif" font-size="11">
+            <rect x="0" width="{{ sum 5 .StatusWidth }}" height="20" fill="{{.StatusColor}}"/>
+            <rect fill="url(#state-fill)" x="0" y="0" width="{{ sum 5 .StatusWidth }}" height="20"/>
+            <text fill="#010101" x="4" y="15" fill-opacity=".3" aria-hidden="true" textLength="{{ sum -5 .StatusWidth }}">{{.Status}}</text>
+            <text fill="#FFFFFF" x="4" y="14" textLength="{{ sum -5 .StatusWidth }}">{{.Status}}</text>
+        </g>
+
+        <path stroke-width="2" transform="scale(0.35) translate(5,3)"
+              stroke="#FFFFFF"
+              d="
+                M19.5010505,19.0323946
+                C19.3403919,16.5578896 20.1560444,13.0799214 21.8618254,10.3568809
+                C24.1748936,6.66439148 27.8748111,4.5 33,4.5
+                L33.5,4.5
+                L33.5,5
+                C33.5,15.0701025 28.0593151,19.9048912 19.974951,19.4993722
+                L19.52992,19.477049
+                L19.5010505,19.0323946 Z
+                M27,11
+                C23.6666667,13.6666667 21.3333333,16.3333333 20,19
+                C17.3333333,23 19.6666667,31 27,43
+                M22,33
+                C27.6666667,37 33.3333333,38.4166667 39,37.25
+                M24,38
+                C20,41.3333333 16,42.3333333 12,41
+                M20,29 C19,33 16,37 8,38
+            "
+        />
+    </g>
+</svg>
