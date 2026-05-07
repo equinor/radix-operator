@@ -16,7 +16,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
@@ -114,11 +113,6 @@ func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Cont
 			route.Annotations = map[string]string{}
 		}
 
-		// Clean up deprecated PreviewGatewayModeAnnotation and external-dns TTL annotation, as they are not used anymore. This is to avoid confusion and to clean up old annotations from existing routes.
-		// TODO: After all annotations have been cleaned up, the code related to adding these annotations can be removed as well.
-		delete(route.Annotations, annotations.PreviewGatewayModeAnnotation) // nolint:staticcheck
-		delete(route.Annotations, "external-dns.alpha.kubernetes.io/ttl")
-
 		var backendRef gatewayapiv1.HTTPBackendRef
 		if oauth2enabled {
 			backendRef = gateway.BuildBackendRefForComponentOauth2Service(component)
@@ -153,16 +147,6 @@ func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Cont
 				},
 			},
 			CommonRouteSpec: gatewayapiv1.CommonRouteSpec{ParentRefs: []gatewayapiv1.ParentReference{
-				// The gateway must also be defined as parentref in order for external-dns to pick it up.
-				// Not sure if this is required when we route all traffic to Istio
-				// TODO: Check is gateway parentRef is required
-				{
-					Group:       new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
-					Kind:        new(gatewayapiv1.Kind("Gateway")),
-					Name:        gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
-					Namespace:   new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
-					SectionName: new(gatewayapiv1.SectionName(deploy.config.Gateway.SectionName)),
-				},
 				{
 					Group:     new(gatewayapiv1.Group(lsGVK.Group)),
 					Kind:      new(gatewayapiv1.Kind(lsGVK.Kind)),
