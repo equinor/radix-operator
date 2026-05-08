@@ -254,7 +254,11 @@ func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipeline
 	}
 
 	if imageParams := step.getImageParams(targetEnv, pipelineInfo); len(imageParams) > 0 {
-		pipelineParams = append(pipelineParams, internalsubpipeline.DynamicObjectParam(model.SubPipelineImageParamName, imageParams))
+		imageParam, err := internalsubpipeline.ObjectParam(model.SubPipelineImageParamName, imageParams)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate image params for pipeline: %w", err)
+		}
+		pipelineParams = append(pipelineParams, imageParam)
 	}
 
 	return pipelineParams, nil

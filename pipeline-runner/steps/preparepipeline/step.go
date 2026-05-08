@@ -421,8 +421,11 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 	}
 
 	var imageParamSpec *v1.ParamSpec
-	if imageKeys := getImageParamKeys(pipelineInfo.EnvironmentSubPipelineImageParams, envName); len(imageKeys) > 0 {
-		spec := internalsubpipeline.DynamicObjectParamSpec(model.SubPipelineImageParamName, imageKeys)
+	if envImages := getImageMap(pipelineInfo.EnvironmentSubPipelineImageParams, envName); len(envImages) > 0 {
+		spec, err := internalsubpipeline.ObjectParamSpec(model.SubPipelineImageParamName, envImages)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate image param for tasks: %w", err)
+		}
 		imageParamSpec = &spec
 	}
 
@@ -574,15 +577,21 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 		return fmt.Errorf("failed to generate radix param refs for pipeline tasks: %w", err)
 	}
 
-	imageKeys := getImageParamKeys(pipelineInfo.EnvironmentSubPipelineImageParams, envName)
+	envImages := getImageMap(pipelineInfo.EnvironmentSubPipelineImageParams, envName)
 	var imageParamRef *v1.Param
-	if len(imageKeys) > 0 {
-		imageParamSpec := internalsubpipeline.DynamicObjectParamSpec(model.SubPipelineImageParamName, imageKeys)
+	if len(envImages) > 0 {
+		imageParamSpec, err := internalsubpipeline.ObjectParamSpec(model.SubPipelineImageParamName, envImages)
+		if err != nil {
+			return fmt.Errorf("failed to generate image param for pipeline: %w", err)
+		}
 		if slice.Any(pipeline.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == imageParamSpec.Name }) {
 			return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", imageParamSpec.Name)
 		}
 		pipeline.Spec.Params = append(pipeline.Spec.Params, imageParamSpec)
-		ref := internalsubpipeline.DynamicObjectParamReference(model.SubPipelineImageParamName, imageKeys, model.SubPipelineImageParamName)
+		ref, err := internalsubpipeline.ObjectParamReference(model.SubPipelineImageParamName, envImages, imageParamSpec)
+		if err != nil {
+			return fmt.Errorf("failed to generate image param reference for pipeline: %w", err)
+		}
 		imageParamRef = &ref
 	}
 
@@ -800,7 +809,7 @@ func getComponentNames(ra *radixv1.RadixApplication) model.EnvironmentComponentI
 	return result
 }
 
-func getImageParamKeys(imageParams model.EnvironmentComponentImages, envName string) []string {
+func getImageMap(imageParams model.EnvironmentComponentImages, envName string) model.ComponentImages {
 	if imageParams == nil {
 		return nil
 	}
@@ -808,9 +817,5 @@ func getImageParamKeys(imageParams model.EnvironmentComponentImages, envName str
 	if !ok || len(envImages) == 0 {
 		return nil
 	}
-	keys := make([]string, 0, len(envImages))
-	for k := range envImages {
-		keys = append(keys, k)
-	}
-	return keys
+	return envImages
 }
