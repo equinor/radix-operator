@@ -8,6 +8,7 @@ import (
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=radixenvironments,scope=Cluster,shortName=re
+// +kubebuilder:metadata:annotations="helm.sh/resource-policy=keep"
 // +kubebuilder:subresource:status
 
 // RadixEnvironment is a Custom Resource Definition

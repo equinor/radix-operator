@@ -8,6 +8,7 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=radixalerts,shortName=ral
 // +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="helm.sh/resource-policy=keep"
 
 // RadixAlert describes configuration for setting up alerts for environments or pipeline jobs
 type RadixAlert struct {
