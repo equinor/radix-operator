@@ -104,6 +104,17 @@ mocks: bootstrap
 	mockgen -source ./job-scheduler/api/v1/handlers/batches/batch_handler.go -destination ./job-scheduler/api/v1/handlers/batches/mock/batch_mock.go -package mock
 	mockgen -source ./job-scheduler/pkg/notifications/notifier.go -destination ./job-scheduler/pkg/notifications/notifier_mock.go -package notifications
 	mockgen -source ./job-scheduler/pkg/batch/history.go -destination ./job-scheduler/pkg/batch/history_mock.go -package batch
+	mockgen -source ./api-server/api/buildstatus/models/buildstatus.go -destination ./api/test/mock/buildstatus_mock.go -package mock
+	mockgen -source ./api-server/api/deployments/deployment_handler.go -destination ./api/deployments/mock/deployment_handler_mock.go -package mock
+	mockgen -source ./api-server/api/metrics/prometheus/prometheus_client.go -destination ./api/metrics/prometheus/mock/prometheus_client_mock.go -package mock
+	mockgen -source ./api-server/api/metrics/metrics_handler.go -destination ./api/metrics/mock/metrics_handler_mock.go -package mock
+	mockgen -source ./api-server/api/environments/job_handler.go -destination ./api/environments/mock/job_handler_mock.go -package mock
+	mockgen -source ./api-server/api/environments/environment_handler.go -destination ./api/environments/mock/environment_handler_mock.go -package mock
+	mockgen -source ./api-server/api/utils/tlsvalidation/interface.go -destination ./api/utils/tlsvalidation/mock/tls_secret_validator_mock.go -package mock
+	mockgen -source ./api-server/api/events/event_handler.go -destination ./api/events/mock/event_handler_mock.go -package mock
+	mockgen -source ./api-server/api/environmentvariables/env_vars_handler.go -destination ./api/environmentvariables/env_vars_handler_mock.go -package environmentvariables
+	mockgen -source ./api-server/api/environmentvariables/env_vars_handler_factory.go -destination ./api/environmentvariables/env_vars_handler_factory_mock.go -package environmentvariables
+	mockgen -source ./api-server/api/utils/token/validator.go -destination ./api/utils/token/mock/validator_mock.go -package mock
 
 
 .PHONY: tidy
@@ -153,13 +164,21 @@ vendor:
 	go mod vendor
 
 .PHONY: swagger
-swagger: swagger-job-scheduler
+swagger: swagger-job-scheduler swagger-api-server
 
 .PHONY: swagger-job-scheduler
 swagger-job-scheduler: SHELL:=/bin/bash
 swagger-job-scheduler: bootstrap
-	swagger generate spec -w ./job-scheduler/ -o ./job-scheduler/swaggerui/html/swagger.json --scan-models --exclude-deps
-	swagger validate ./job-scheduler/swaggerui/html/swagger.json
+	cd job-scheduler && swagger generate spec -o ./swaggerui/html/swagger.json --scan-models --exclude-deps
+	cd job-scheduler && swagger validate ./swaggerui/html/swagger.json
+
+# This make command is only needed for local testing now
+# we also do make swagger inside Dockerfile
+.PHONY: swagger-api-server
+swagger-api-server: SHELL:=/bin/bash
+swagger-api-server: bootstrap
+	cd api-server && swagger generate spec -o ./swaggerui/html/swagger.json --scan-models --exclude-deps
+	cd api-server && swagger validate ./swaggerui/html/swagger.json
 
 .PHONY: code-gen
 code-gen: bootstrap
