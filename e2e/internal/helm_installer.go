@@ -37,7 +37,7 @@ func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releas
 		if err := cmd.Run(); err != nil {
 			if attempt < maxRetries {
 				fmt.Printf("helm install attempt %d/%d failed: %v. Retrying...\n", attempt, maxRetries, err)
-				time.Sleep(2 * time.Second)
+				time.Sleep(10 * time.Second)
 				continue
 			}
 			return fmt.Errorf("helm install failed after %d attempts: %w", maxRetries, err)
