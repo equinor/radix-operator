@@ -64,8 +64,30 @@ func ObjectParamSpec(paramName string, obj any) (pipelinev1.ParamSpec, error) {
 //
 // Example:
 //
+//	type MyParam struct {
+//		GitSSHUrl string `propname:"gitSSHUrl"`
+//		GitCommit string `propname:"gitCommit"`
+//	}
+//
+// OR:
+//
+// map[string]string{"gitSSHUrl": "github.com/somewhere/something", "gitCommit": "abcd1234"})
+//
 //	reference, _ := ObjectParamSpec("radix", MyParam{})
 //	param, _ := ObjectParamReference("source", MyParam{}, reference)
+//
+// This creates an object param named "source" with values referencing
+// "$(params.radix.<property>)" entries from the "radix" object parameter.
+//
+// Example output:
+//
+//	pipelinev1.Param{
+//		Name: "source",
+//		Value: *pipelinev1.NewObject(map[string]string{
+//			"gitSSHUrl": "$(params.radix.gitSSHUrl)",
+//			"gitCommit": "$(params.radix.gitCommit)",
+//		}),
+//	}
 func ObjectParamReference(paramName string, obj any, reference pipelinev1.ParamSpec) (pipelinev1.Param, error) {
 	if reference.Type != pipelinev1.ParamTypeObject {
 		return pipelinev1.Param{}, errors.New("reference param must be of type object")
