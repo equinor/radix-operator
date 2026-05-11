@@ -13,7 +13,7 @@ import (
 //   - A map[string]string: keys are used as property names.
 //   - A struct (or pointer to struct) with exported string fields tagged with propname.
 //
-// Example with struct:
+// Example:
 //
 //	type MyParam struct {
 //		GitSSHUrl string `propname:"gitSSHUrl"`
@@ -21,11 +21,25 @@ import (
 //		UnTagged  string
 //	}
 //
-//	spec, err := ObjectParamSpec("radix", MyParam{})
+// OR:
 //
-// Example with map:
+// map[string]string{"gitSSHUrl": "github.com/somewhere/womething", "gitCommit": "abcd1234"})
 //
-//	spec, err := ObjectParamSpec("radix-image", map[string]string{"api": "img:tag", "web": "img:tag2"})
+// This creates an object param named "radix" with properties "gitSSHUrl" and
+// "gitCommit", both typed as string.
+//
+// Example output:
+//
+//	pipelinev1.ParamSpec{
+//		Name: "radix",
+//		Type: pipelinev1.ParamTypeObject,
+//		Properties: map[string]pipelinev1.PropertySpec{
+//			"gitSSHUrl": {Type: pipelinev1.ParamTypeString},
+//			"gitCommit": {Type: pipelinev1.ParamTypeString},
+//		},
+//	}
+//
+//	spec, err := ObjectParamSpec("radix", data)
 func ObjectParamSpec(paramName string, obj any) (pipelinev1.ParamSpec, error) {
 	properties, err := toStringMap(obj)
 	if err != nil {
