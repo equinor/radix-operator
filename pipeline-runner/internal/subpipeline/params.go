@@ -23,7 +23,7 @@ import (
 //
 // OR:
 //
-// map[string]string{"gitSSHUrl": "github.com/somewhere/womething", "gitCommit": "abcd1234"})
+// map[string]string{"gitSSHUrl": "github.com/somewhere/womething", "gitCommit": "abc123"})
 //
 // This creates an object param named "radix" with properties "gitSSHUrl" and
 // "gitCommit", both typed as string.
@@ -71,7 +71,7 @@ func ObjectParamSpec(paramName string, obj any) (pipelinev1.ParamSpec, error) {
 //
 // OR:
 //
-// map[string]string{"gitSSHUrl": "github.com/somewhere/something", "gitCommit": "abcd1234"})
+// map[string]string{"gitSSHUrl": "git@github.com:equinor/radix-operator.git", "gitCommit": "abc123"})
 //
 //	reference, _ := ObjectParamSpec("radix", MyParam{})
 //	param, _ := ObjectParamReference("source", MyParam{}, reference)
@@ -116,13 +116,29 @@ func ObjectParamReference(paramName string, obj any, reference pipelinev1.ParamS
 //   - A map[string]string: used directly as param values.
 //   - A struct (or pointer to struct) with exported string fields tagged with propname.
 //
-// Example with struct:
+// Example:
+//
+//	 type MyParam struct {
+//		GitSSHUrl string `propname:"gitSSHUrl"`
+//		GitCommit string `propname:"gitCommit"`
+//	 	UnTagged  string
+//	 }
+//
+// OR:
+//
+//	 map[string]string{"gitSSHUrl": "git@github.com:equinor/radix-operator.git", "gitCommit": "abc123"})
 //
 //	param, err := ObjectParam("radix", MyParam{GitSSHUrl: "git@...", GitCommit: "abc123"})
 //
-// Example with map:
+// Example output:
 //
-//	param, err := ObjectParam("radix-image", map[string]string{"api": "registry/img:tag"})
+//	pipelinev1.Param{
+//		Name: "radix",
+//		Value: *pipelinev1.NewObject(map[string]string{
+//			"gitSSHUrl": "git@github.com:equinor/radix-operator.git",
+//			"gitCommit": "abc123",
+//		}),
+//	}
 func ObjectParam(paramName string, obj any) (pipelinev1.Param, error) {
 	properties, err := toStringMap(obj)
 	if err != nil {
