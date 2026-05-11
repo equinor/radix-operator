@@ -106,6 +106,7 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 				corev1.LabelArchStable: "amd64",
 				corev1.LabelOSStable:   "linux",
 			},
+			AutomountServiceAccountToken: new(false),
 		},
 	}
 	s.Assert().Equal(expected, l.Items[0].Spec.TaskRunTemplate)

@@ -222,6 +222,7 @@ func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipeline
 			corev1.LabelArchStable: "amd64",
 			corev1.LabelOSStable:   "linux",
 		},
+		AutomountServiceAccountToken: new(false),
 	}
 }
 

@@ -314,6 +314,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 					Volumes: []corev1.Volume{
 						o.getEmptyDirVolume(volumeNameRedisData),
 					},
+					AutomountServiceAccountToken: new(false),
 				},
 			},
 		},

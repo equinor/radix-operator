@@ -414,14 +414,15 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
 	s.Equal(expectedPodAnnotations, podTemplate.Annotations)
 	expectedPodSpec := corev1.PodSpec{
-		ImagePullSecrets:   []corev1.LocalObjectReference{{Name: "an-external-registry-secret"}},
-		RestartPolicy:      corev1.RestartPolicyNever,
-		Tolerations:        expectedTolerations,
-		Affinity:           expectedAffinity,
-		ServiceAccountName: "radix-pipeline",
-		SecurityContext:    expectedSecurityCtx,
-		Containers:         expectedContainers,
-		Volumes:            expectedVolumes,
+		ImagePullSecrets:             []corev1.LocalObjectReference{{Name: "an-external-registry-secret"}},
+		RestartPolicy:                corev1.RestartPolicyNever,
+		Tolerations:                  expectedTolerations,
+		Affinity:                     expectedAffinity,
+		ServiceAccountName:           "radix-pipeline",
+		AutomountServiceAccountToken: new(true),
+		SecurityContext:              expectedSecurityCtx,
+		Containers:                   expectedContainers,
+		Volumes:                      expectedVolumes,
 	}
 
 	actualInitContainers := podTemplate.Spec.InitContainers
