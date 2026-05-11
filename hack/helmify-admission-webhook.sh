@@ -28,6 +28,11 @@ sedi '/^---$/d' "$file"
 # Replace metadata name
 sedi 's/^  name: validating-webhook-configuration/  name: radix-webhook-configuration/' "$file"
 
+# Add annotations after name
+sedi '/^  name: radix-webhook-configuration/a\
+  annotations:\
+    helm.sh/hook-weight: "-5"\
+    helm.sh/hook: post-install,post-upgrade' "$file"
 
 # Replace service name, namespace, and add port
 sedi 's/^      name: webhook-service/      name: radix-webhook/' "$file"
