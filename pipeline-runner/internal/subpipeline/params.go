@@ -38,8 +38,6 @@ import (
 //			"gitCommit": {Type: pipelinev1.ParamTypeString},
 //		},
 //	}
-//
-//	spec, err := ObjectParamSpec("radix", data)
 func ObjectParamSpec(paramName string, obj any) (pipelinev1.ParamSpec, error) {
 	properties, err := toStringMap(obj)
 	if err != nil {
@@ -71,7 +69,7 @@ func ObjectParamSpec(paramName string, obj any) (pipelinev1.ParamSpec, error) {
 //
 // OR:
 //
-// map[string]string{"gitSSHUrl": "git@github.com:equinor/radix-operator.git", "gitCommit": "abc123"})
+//	map[string]string{"gitSSHUrl": "git@github.com:equinor/radix-operator.git", "gitCommit": "abc123"})
 //
 //	reference, _ := ObjectParamSpec("radix", MyParam{})
 //	param, _ := ObjectParamReference("source", MyParam{}, reference)
@@ -126,9 +124,7 @@ func ObjectParamReference(paramName string, obj any, reference pipelinev1.ParamS
 //
 // OR:
 //
-//	 map[string]string{"gitSSHUrl": "git@github.com:equinor/radix-operator.git", "gitCommit": "abc123"})
-//
-//	param, err := ObjectParam("radix", MyParam{GitSSHUrl: "git@...", GitCommit: "abc123"})
+//	map[string]string{"gitSSHUrl": "git@github.com:equinor/radix-operator.git", "gitCommit": "abc123"})
 //
 // Example output:
 //
