@@ -338,7 +338,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipeline
 
 func (step *PreparePipelinesStepImplementation) getPromoteSourceDeploymentGitInfo(ctx context.Context, sourceEnvName, sourceDeploymentName string) (string, string, error) {
 	ns := utils.GetEnvironmentNamespace(step.GetAppName(), sourceEnvName)
-	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(ns).Get(ctx, sourceDeploymentName, metav1.GetOptions{}) //step.GetKubeUtil().GetRadixDeployment(ctx, ns, sourceDeploymentName)
+	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(ns).Get(ctx, sourceDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return "", "", err
 	}
@@ -765,11 +765,7 @@ func getComponentNames(ra *radixv1.RadixApplication) model.EnvironmentComponentI
 	}
 	result := make(model.EnvironmentComponentImages)
 	for _, env := range ra.Spec.Environments {
-		images := make(model.ComponentImages, len(componentNames))
-		for _, name := range componentNames {
-			images[name] = ""
-		}
-		result[env.Name] = images
+		result[env.Name] = componentNames
 	}
 	return result
 }

@@ -306,7 +306,7 @@ func Test_GetSubPipelineParamReferencesForEnvironment_ImageParamRefsUseImageComp
 			},
 		},
 		EnvironmentSubPipelineImageParams: model.EnvironmentComponentImages{
-			envName: {"web": "", "redis": "", "compute": ""},
+			envName: {"web", "redis", "compute"},
 		},
 		DeployEnvironmentComponentImages: pipeline.DeployEnvironmentComponentImages{
 			envName: {
