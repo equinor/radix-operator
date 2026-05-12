@@ -415,18 +415,9 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 	taskMap := make(map[string]v1.Task)
 	hash := internal.GetJobNameHash(pipelineInfo)
 
-	paramSpec, err := pipelineInfo.EnvironmentSubPipelineParams[envName].AsObjectParamSpec()
+	paramSpecs, err := pipelineInfo.GetSubPipelineParamSpecsForEnvironment(envName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate radix param for tasks: %w", err)
-	}
-
-	var imageParamSpec *v1.ParamSpec
-	if envImages := getImageMap(pipelineInfo.EnvironmentSubPipelineImageParams, envName); len(envImages) > 0 {
-		spec, err := internalsubpipeline.ObjectParamSpec(model.SubPipelineImageParamName, envImages)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate image param for tasks: %w", err)
-		}
-		imageParamSpec = &spec
+		return nil, fmt.Errorf("failed to get sub-pipeline params for environment %s: %w", envName, err)
 	}
 
 	for _, task := range tasks {
@@ -460,17 +451,12 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 		}
 
-		if slice.Any(task.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == paramSpec.Name }) {
-			return nil, fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
-		}
-		task.Spec.Params = append(task.Spec.Params, paramSpec)
-
-		if imageParamSpec != nil {
-			if slice.Any(task.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == imageParamSpec.Name }) {
-				return nil, fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", imageParamSpec.Name)
+		for _, paramSpec := range paramSpecs {
+			if slice.Any(task.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == paramSpec.Name }) {
+				return nil, fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
 			}
-			task.Spec.Params = append(task.Spec.Params, *imageParamSpec)
 		}
+		task.Spec.Params = append(task.Spec.Params, paramSpecs...)
 
 		ensureCorrectSecureContext(&task)
 		taskMap[originalTaskName] = task
@@ -561,38 +547,21 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 		ensureAzureClientIdParamExistInPipelineParams(pipeline)
 	}
 
-	params := pipelineInfo.EnvironmentSubPipelineParams[envName]
-
-	paramSpec, err := params.AsObjectParamSpec()
+	paramSpecs, err := pipelineInfo.GetSubPipelineParamSpecsForEnvironment(envName)
 	if err != nil {
-		return fmt.Errorf("failed to generate radix param for pipeline: %w", err)
+		return fmt.Errorf("failed to get sub-pipeline params for environment %s: %w", envName, err)
 	}
-	if slice.Any(pipeline.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == paramSpec.Name }) {
-		return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
-	}
-	pipeline.Spec.Params = append(pipeline.Spec.Params, paramSpec)
 
-	paramRef, err := params.AsObjectParamReference()
+	for _, paramSpec := range paramSpecs {
+		if slice.Any(pipeline.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == paramSpec.Name }) {
+			return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
+		}
+	}
+	pipeline.Spec.Params = append(pipeline.Spec.Params, paramSpecs...)
+
+	paramRefs, err := pipelineInfo.GetSubPipelineParamReferencesForEnvironment(envName)
 	if err != nil {
-		return fmt.Errorf("failed to generate radix param refs for pipeline tasks: %w", err)
-	}
-
-	envImages := getImageMap(pipelineInfo.EnvironmentSubPipelineImageParams, envName)
-	var imageParamRef *v1.Param
-	if len(envImages) > 0 {
-		imageParamSpec, err := internalsubpipeline.ObjectParamSpec(model.SubPipelineImageParamName, envImages)
-		if err != nil {
-			return fmt.Errorf("failed to generate image param for pipeline: %w", err)
-		}
-		if slice.Any(pipeline.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == imageParamSpec.Name }) {
-			return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", imageParamSpec.Name)
-		}
-		pipeline.Spec.Params = append(pipeline.Spec.Params, imageParamSpec)
-		ref, err := internalsubpipeline.ObjectParamReference(model.SubPipelineImageParamName, envImages, imageParamSpec)
-		if err != nil {
-			return fmt.Errorf("failed to generate image param reference for pipeline: %w", err)
-		}
-		imageParamRef = &ref
+		return fmt.Errorf("failed to get sub-pipeline param references for environment %s: %w", envName, err)
 	}
 
 	for taskIndex, pipelineSpecTask := range pipeline.Spec.Tasks {
@@ -606,16 +575,12 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 		if azureClientIdPipelineParamExist {
 			ensureAzureClientIdParamExistInTaskParams(pipeline, taskIndex, task)
 		}
-		if slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(p v1.Param) bool { return p.Name == paramRef.Name }) {
-			return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", paramSpec.Name, pipelineSpecTask.Name)
-		}
-		pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, paramRef)
-		if imageParamRef != nil {
-			if slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(p v1.Param) bool { return p.Name == imageParamRef.Name }) {
-				return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", imageParamRef.Name, pipelineSpecTask.Name)
+		for _, paramRef := range paramRefs {
+			if slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(p v1.Param) bool { return p.Name == paramRef.Name }) {
+				return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", paramRef.Name, pipelineSpecTask.Name)
 			}
-			pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, *imageParamRef)
 		}
+		pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, paramRefs...)
 	}
 
 	if len(errs) > 0 {
@@ -807,15 +772,4 @@ func getComponentNames(ra *radixv1.RadixApplication) model.EnvironmentComponentI
 		result[env.Name] = images
 	}
 	return result
-}
-
-func getImageMap(imageParams model.EnvironmentComponentImages, envName string) model.ComponentImages {
-	if imageParams == nil {
-		return nil
-	}
-	envImages, ok := imageParams[envName]
-	if !ok || len(envImages) == 0 {
-		return nil
-	}
-	return envImages
 }

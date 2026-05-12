@@ -163,7 +163,7 @@ func (step *RunPipelinesStepImplementation) createPipelineRun(namespace string, 
 func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev1.Pipeline, targetEnv, timestamp string, pipelineInfo *model.PipelineInfo) (pipelinev1.PipelineRun, error) {
 	originalPipelineName := pipeline.ObjectMeta.Annotations[operatorDefaults.PipelineNameAnnotation]
 	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", internal.GetShortName(targetEnv), timestamp, internal.GetJobNameHash(pipelineInfo))
-	pipelineParams, err := step.getPipelineParams(pipeline, targetEnv, pipelineInfo)
+	pipelineParams, err := step.getPipelineParams(pipeline, targetEnv, pipelineInfo) //pipelineInfo.GetSubPipelineParamValuesForEnvironment(targetEnv) //
 	if err != nil {
 		return pipelinev1.PipelineRun{}, fmt.Errorf("failed to build params for pipeline: %w", err)
 	}
@@ -245,21 +245,11 @@ func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipeline
 		pipelineParams = append(pipelineParams, param)
 	}
 
-	if subPipelineParams, ok := pipelineInfo.EnvironmentSubPipelineParams[targetEnv]; ok {
-		param, err := subPipelineParams.AsObjectParam()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate radix params for pipeline: %w", err)
-		}
-		pipelineParams = append(pipelineParams, param)
+	paramRefs, err := pipelineInfo.GetSubPipelineParamReferencesForEnvironment(targetEnv)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sub-pipeline param references for environment %s: %w", targetEnv, err)
 	}
-
-	if imageParams := step.getImageParams(targetEnv, pipelineInfo); len(imageParams) > 0 {
-		imageParam, err := internalsubpipeline.ObjectParam(model.SubPipelineImageParamName, imageParams)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate image params for pipeline: %w", err)
-		}
-		pipelineParams = append(pipelineParams, imageParam)
-	}
+	pipelineParams = append(pipelineParams, paramRefs...)
 
 	return pipelineParams, nil
 }
