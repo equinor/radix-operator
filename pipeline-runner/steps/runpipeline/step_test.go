@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
@@ -165,7 +166,7 @@ func (s *stepTestSuite) Test_RunPipeline_RadixParam() {
 	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
-	paramSpec, err := model.SubPipelineParams{}.AsObjectParamSpec()
+	paramSpec, err := subpipeline.ObjectParamSpec("radix", model.SubPipelineParams{})
 	s.Require().NoError(err)
 
 	for _, targetEnv := range []string{internalTest.Env1, internalTest.Env2} {
@@ -189,11 +190,11 @@ func (s *stepTestSuite) Test_RunPipeline_RadixParam() {
 	s.Require().Len(pipelineRuns.Items, 2)
 
 	expectedParams := map[string]pipelinev1.Param{}
-	expectedEnv1Param, err := env1SubPipelineParam.AsObjectParam()
+	expectedEnv1Param, err := subpipeline.ObjectParam("radix", env1SubPipelineParam)
 	s.Require().NoError(err)
 	expectedParams[internalTest.Env1] = expectedEnv1Param
 
-	expectedEnv2Param, err := env2SubPipelineParam.AsObjectParam()
+	expectedEnv2Param, err := subpipeline.ObjectParam("radix", env2SubPipelineParam)
 	s.Require().NoError(err)
 	expectedParams[internalTest.Env2] = expectedEnv2Param
 
@@ -543,7 +544,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam() {
 
 	var imageParam *pipelinev1.Param
 	for i := range pipelineRuns.Items[0].Spec.Params {
-		if pipelineRuns.Items[0].Spec.Params[i].Name == model.SubPipelineImageParamName {
+		if pipelineRuns.Items[0].Spec.Params[i].Name == "radix-image" {
 			imageParam = &pipelineRuns.Items[0].Spec.Params[i]
 			break
 		}
@@ -602,7 +603,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_NotInjectedWhenNoImages() {
 	s.Require().Len(pipelineRuns.Items, 1)
 
 	for _, param := range pipelineRuns.Items[0].Spec.Params {
-		s.Assert().NotEqual(model.SubPipelineImageParamName, param.Name, "radix-image param should not be present when no images configured")
+		s.Assert().NotEqual("radix-image", param.Name, "radix-image param should not be present when no images configured")
 	}
 }
 
@@ -667,7 +668,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_Promote_AllImagesPassedOn() 
 
 	var imageParam *pipelinev1.Param
 	for i := range pipelineRuns.Items[0].Spec.Params {
-		if pipelineRuns.Items[0].Spec.Params[i].Name == model.SubPipelineImageParamName {
+		if pipelineRuns.Items[0].Spec.Params[i].Name == "radix-image" {
 			imageParam = &pipelineRuns.Items[0].Spec.Params[i]
 			break
 		}
@@ -742,7 +743,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_BuildDeploy_OnlyEnabledCompo
 
 	var imageParam *pipelinev1.Param
 	for i := range pipelineRuns.Items[0].Spec.Params {
-		if pipelineRuns.Items[0].Spec.Params[i].Name == model.SubPipelineImageParamName {
+		if pipelineRuns.Items[0].Spec.Params[i].Name == "radix-image" {
 			imageParam = &pipelineRuns.Items[0].Spec.Params[i]
 			break
 		}

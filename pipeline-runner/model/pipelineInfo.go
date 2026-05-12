@@ -4,15 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
-	internalsubpipeline "github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
-	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
-	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -51,65 +47,6 @@ type PipelineInfo struct {
 
 	StopPipeline        bool
 	StopPipelineMessage string
-}
-
-// ComponentImages maps component name to its full image path (registry/repo:tag)
-type ComponentImages map[string]string
-
-// EnvironmentComponentImages maps environment name to component images
-type EnvironmentComponentImages map[string]ComponentImages
-
-const (
-	subPipelineRadixParamName = "radix"
-	SubPipelineImageParamName = "radix-image"
-)
-
-type SubPipelineParams struct {
-	PipelineType string `propname:"pipeline-type"`
-	Environment  string `propname:"environment"`
-	GitSSHUrl    string `propname:"git-ssh-url"`
-	GitRef       string `propname:"git-ref"`
-	GitRefType   string `propname:"git-ref-type"`
-	GitCommit    string `propname:"git-commit"`
-	GitTags      string `propname:"git-tags"`
-}
-
-func (p PipelineInfo) GetSubPipelineParamSpecsForEnvironment(envName string) (v1.ParamSpecs, error) {
-	var specs v1.ParamSpecs
-
-	paramSpec, err := subpipeline.ObjectParamSpec(subPipelineRadixParamName, p.EnvironmentSubPipelineParams[envName])
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate radix param for tasks: %w", err)
-	}
-	specs = append(specs, paramSpec)
-
-	if envImages := p.EnvironmentSubPipelineImageParams[envName]; len(envImages) > 0 {
-		spec, err := internalsubpipeline.ObjectParamSpec(SubPipelineImageParamName, envImages)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate image param for tasks: %w", err)
-		}
-		specs = append(specs, spec)
-	}
-
-	return specs, nil
-}
-
-func (p PipelineInfo) GetSubPipelineParamReferencesForEnvironment(envName string) (pipelinev1.Params, error) {
-	paramSpecs, err := p.GetSubPipelineParamSpecsForEnvironment(envName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get sub-pipeline param specs for environment %s: %w", envName, err)
-	}
-
-	var refs pipelinev1.Params
-	for _, paramSpec := range paramSpecs {
-		paramRef, err := subpipeline.ObjectParamReference(paramSpec.Name, p.EnvironmentSubPipelineParams[envName], paramSpec)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate param reference for environment %s: %w", envName, err)
-		}
-		refs = append(refs, paramRef)
-	}
-
-	return refs, nil
 }
 
 type TargetEnvironment struct {
