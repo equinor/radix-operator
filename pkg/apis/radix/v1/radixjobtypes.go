@@ -16,6 +16,7 @@ import (
 // +kubebuilder:printcolumn:name="Reconciled",type="string",JSONPath=".status.reconciled",priority=1
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:path=radixjobs,shortName=rj
+// +kubebuilder:metadata:annotations="helm.sh/resource-policy=keep"
 // +kubebuilder:subresource:status
 
 // RadixJob describe a Radix job
