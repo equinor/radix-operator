@@ -1557,6 +1557,112 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 	}
 }
 
+func (s *stepTestSuite) Test_EnvironmentSubPipelineComponentNames() {
+	tests := map[string]struct {
+		ra       *radixv1.RadixApplication
+		expected model.EnvironmentComponentNames
+	}{
+		"no components and no jobs": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Environments: []radixv1.Environment{{Name: "dev"}},
+				},
+			},
+			expected: nil,
+		},
+		"no environments with components": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components: []radixv1.RadixComponent{{Name: "frontend"}},
+				},
+			},
+			expected: model.EnvironmentComponentNames{},
+		},
+		"single component single environment": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components:   []radixv1.RadixComponent{{Name: "frontend"}},
+					Environments: []radixv1.Environment{{Name: "dev"}},
+				},
+			},
+			expected: model.EnvironmentComponentNames{
+				"dev": {"frontend"},
+			},
+		},
+		"multiple components multiple environments": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components:   []radixv1.RadixComponent{{Name: "frontend"}, {Name: "backend"}},
+					Environments: []radixv1.Environment{{Name: "dev"}, {Name: "prod"}},
+				},
+			},
+			expected: model.EnvironmentComponentNames{
+				"dev":  {"frontend", "backend"},
+				"prod": {"frontend", "backend"},
+			},
+		},
+		"only job components": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Jobs:         []radixv1.RadixJobComponent{{Name: "compute"}},
+					Environments: []radixv1.Environment{{Name: "dev"}},
+				},
+			},
+			expected: model.EnvironmentComponentNames{
+				"dev": {"compute"},
+			},
+		},
+		"components and job components are merged": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components:   []radixv1.RadixComponent{{Name: "frontend"}},
+					Jobs:         []radixv1.RadixJobComponent{{Name: "compute"}},
+					Environments: []radixv1.Environment{{Name: "dev"}, {Name: "prod"}},
+				},
+			},
+			expected: model.EnvironmentComponentNames{
+				"dev":  {"frontend", "compute"},
+				"prod": {"frontend", "compute"},
+			},
+		},
+	}
+
+	for testName, testSpec := range tests {
+		s.Run(testName, func() {
+			pipelineInfo := &model.PipelineInfo{
+				Definition: &pipeline.Definition{},
+				PipelineArguments: model.PipelineArguments{
+					PipelineType:  string(radixv1.Deploy),
+					ToEnvironment: "dev",
+				},
+			}
+			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(testSpec.ra, nil).Times(1)
+			mockGitRepo := git.NewMockRepository(s.ctrl)
+			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
+			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("somecommit", nil)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(gomock.Any(), gomock.Any()).Return(false, "", nil, nil, nil).AnyTimes()
+			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+			mockOwnerReferenceFactory.EXPECT().Create().Return(&metav1.OwnerReference{}).AnyTimes()
+			step := preparepipeline.NewPreparePipelinesStep(
+				preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+				preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+				preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+				preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+			)
+			ctx := context.Background()
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
+
+			err := step.Run(ctx, pipelineInfo)
+			s.Require().NoError(err)
+			s.Equal(testSpec.expected, pipelineInfo.EnvironmentSubPipelineComponentNames)
+		})
+	}
+}
+
 func (s *stepTestSuite) applyRadixDeployments(rdList []radixv1.RadixDeployment) {
 	for _, rd := range rdList {
 		_, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: rd.GetNamespace()}}, metav1.CreateOptions{})
