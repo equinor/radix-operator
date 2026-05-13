@@ -163,7 +163,7 @@ func (step *RunPipelinesStepImplementation) createPipelineRun(namespace string, 
 func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev1.Pipeline, targetEnv, timestamp string, pipelineInfo *model.PipelineInfo) (pipelinev1.PipelineRun, error) {
 	originalPipelineName := pipeline.ObjectMeta.Annotations[operatorDefaults.PipelineNameAnnotation]
 	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", internal.GetShortName(targetEnv), timestamp, internal.GetJobNameHash(pipelineInfo))
-	pipelineParams, err := step.getPipelineParams(pipeline, targetEnv, pipelineInfo) //pipelineInfo.GetSubPipelineParamValuesForEnvironment(targetEnv) //
+	pipelineParams, err := step.getPipelineParams(pipeline, targetEnv, pipelineInfo)
 	if err != nil {
 		return pipelinev1.PipelineRun{}, fmt.Errorf("failed to build params for pipeline: %w", err)
 	}
