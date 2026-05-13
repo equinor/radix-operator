@@ -284,3 +284,77 @@ func Test_IsUsingBuildKit(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetSubPipelineParamReferencesForEnvironment_ImageParamRefsUseImageComponentNames(t *testing.T) {
+	// Regression test: before the fix, GetSubPipelineParamReferencesForEnvironment always used
+	// EnvironmentSubPipelineParams (a SubPipelineParams struct) as the source object for ObjectParamReference,
+	// even for the "radix-image" param. Since SubPipelineParams has no matching property names (web, redis, etc.),
+	// the resulting task param value was an empty object {} instead of the expected variable references
+	// (e.g. "$(params.radix-image.web)").
+
+	const envName = "dev"
+	p := model.PipelineInfo{
+		EnvironmentSubPipelineParams: map[string]model.SubPipelineParams{
+			envName: {
+				PipelineType: "build-deploy",
+				Environment:  envName,
+				GitSSHUrl:    "git@github.com:equinor/radix-operator.git",
+				GitRef:       "main",
+				GitRefType:   "branch",
+				GitCommit:    "abc123",
+				GitTags:      "",
+			},
+		},
+		EnvironmentSubPipelineComponentNames: model.EnvironmentComponentNames{
+			envName: {"web", "redis", "compute"},
+		},
+		DeployEnvironmentComponentImages: pipeline.DeployEnvironmentComponentImages{
+			envName: {
+				"web":     {ImagePath: "registry.example.io/myapp-dev-web:abc123"},
+				"redis":   {ImagePath: "registry.example.io/myapp-dev-redis:abc123"},
+				"compute": {ImagePath: "registry.example.io/myapp-dev-compute:abc123"},
+			},
+		},
+	}
+
+	refs, err := p.GetSubPipelineParamReferencesForEnvironment(envName)
+	require.NoError(t, err)
+	require.Len(t, refs, 2)
+
+	// Find the radix and radix-image params in the result
+	paramsByName := make(map[string]map[string]string)
+	for _, ref := range refs {
+		paramsByName[ref.Name] = ref.Value.ObjectVal
+	}
+
+	// "radix" references should use SubPipelineParams propname tags
+	radixRefs, ok := paramsByName["radix"]
+	require.True(t, ok, "expected 'radix' param reference")
+	assert.Equal(t, "$(params.radix.pipeline-type)", radixRefs["pipeline-type"])
+	assert.Equal(t, "$(params.radix.environment)", radixRefs["environment"])
+	assert.Equal(t, "$(params.radix.git-ref)", radixRefs["git-ref"])
+
+	// "radix-image" references must use the image component names, not an empty map
+	imageRefs, ok := paramsByName["radix-image"]
+	require.True(t, ok, "expected 'radix-image' param reference")
+	assert.NotEmpty(t, imageRefs, "radix-image param references must not be empty")
+	assert.Equal(t, "$(params.radix-image.web)", imageRefs["web"])
+	assert.Equal(t, "$(params.radix-image.redis)", imageRefs["redis"])
+	assert.Equal(t, "$(params.radix-image.compute)", imageRefs["compute"])
+
+	// GetSubPipelineParamValuesForEnvironment should carry the resolved image paths
+	values, err := p.GetSubPipelineParamValuesForEnvironment(envName)
+	require.NoError(t, err)
+	require.Len(t, values, 2)
+
+	valuesByName := make(map[string]map[string]string)
+	for _, v := range values {
+		valuesByName[v.Name] = v.Value.ObjectVal
+	}
+
+	imageValues, ok := valuesByName["radix-image"]
+	require.True(t, ok, "expected 'radix-image' param values")
+	assert.Equal(t, "registry.example.io/myapp-dev-web:abc123", imageValues["web"])
+	assert.Equal(t, "registry.example.io/myapp-dev-redis:abc123", imageValues["redis"])
+	assert.Equal(t, "registry.example.io/myapp-dev-compute:abc123", imageValues["compute"])
+}

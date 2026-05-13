@@ -51,6 +51,27 @@ func TestObjectParamSpec(t *testing.T) {
 				},
 			},
 		},
+		"returns object param spec from map[string]string": {
+			paramName: "radix-image",
+			obj:       map[string]string{"api-server": "registry/app-api:tag1", "db-migrator": "registry/app-db:tag1"},
+			expectedSpec: pipelinev1.ParamSpec{
+				Name: "radix-image",
+				Type: pipelinev1.ParamTypeObject,
+				Properties: map[string]pipelinev1.PropertySpec{
+					"api-server":  {Type: pipelinev1.ParamTypeString},
+					"db-migrator": {Type: pipelinev1.ParamTypeString},
+				},
+			},
+		},
+		"returns empty properties for empty map": {
+			paramName: "radix-image",
+			obj:       map[string]string{},
+			expectedSpec: pipelinev1.ParamSpec{
+				Name:       "radix-image",
+				Type:       pipelinev1.ParamTypeObject,
+				Properties: map[string]pipelinev1.PropertySpec{},
+			},
+		},
 		"accepts pointer to struct": {
 			paramName: "metadata",
 			obj: &validPointerParams{
@@ -91,7 +112,7 @@ func TestObjectParamSpec(t *testing.T) {
 		"returns error for non-struct input": {
 			paramName:           "radix",
 			obj:                 "not-a-struct",
-			expectedErrorString: "input must be struct or pointer to struct",
+			expectedErrorString: "input must be struct, pointer to struct, or map[string]string",
 		},
 		"returns error when tagged field is not string": {
 			paramName:           "radix",
@@ -266,6 +287,25 @@ func TestObjectParamReference(t *testing.T) {
 				Value: *pipelinev1.NewObject(map[string]string{}),
 			},
 		},
+		"returns object param with references from map[string]string": {
+			paramName: "radix-image",
+			obj:       map[string]string{"api-server": "", "web": ""},
+			reference: pipelinev1.ParamSpec{
+				Name: "radix-image",
+				Type: pipelinev1.ParamTypeObject,
+				Properties: map[string]pipelinev1.PropertySpec{
+					"api-server": {Type: pipelinev1.ParamTypeString},
+					"web":        {Type: pipelinev1.ParamTypeString},
+				},
+			},
+			expectedParam: pipelinev1.Param{
+				Name: "radix-image",
+				Value: *pipelinev1.NewObject(map[string]string{
+					"api-server": "$(params.radix-image.api-server)",
+					"web":        "$(params.radix-image.web)",
+				}),
+			},
+		},
 	}
 
 	for name, tt := range tests {
@@ -323,6 +363,22 @@ func TestObjectParam(t *testing.T) {
 				Value: *pipelinev1.NewObject(map[string]string{"gitSSHUrl": "git@example.com:repo.git", "gitCommit": "abc123"}),
 			},
 		},
+		"returns object param from map[string]string": {
+			paramName: "radix-image",
+			obj:       map[string]string{"api-server": "registry/app-api:tag1", "web": "registry/app-web:tag1"},
+			expectedParam: pipelinev1.Param{
+				Name:  "radix-image",
+				Value: *pipelinev1.NewObject(map[string]string{"api-server": "registry/app-api:tag1", "web": "registry/app-web:tag1"}),
+			},
+		},
+		"returns object param with empty map": {
+			paramName: "radix-image",
+			obj:       map[string]string{},
+			expectedParam: pipelinev1.Param{
+				Name:  "radix-image",
+				Value: *pipelinev1.NewObject(map[string]string{}),
+			},
+		},
 		"accepts pointer to struct": {
 			paramName: "metadata",
 			obj: &pointerParams{
@@ -357,7 +413,7 @@ func TestObjectParam(t *testing.T) {
 		"returns error for non-struct input": {
 			paramName:           "radix",
 			obj:                 "not-a-struct",
-			expectedErrorString: "input must be struct or pointer to struct",
+			expectedErrorString: "input must be struct, pointer to struct, or map[string]string",
 		},
 		"returns error when tagged field is not string": {
 			paramName:           "radix",
