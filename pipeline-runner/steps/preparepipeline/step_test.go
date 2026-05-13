@@ -1021,6 +1021,90 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 			},
 			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {},
 		},
+		"radix-image param spec added to pipeline, task params and task reference when components exist": {
+			fields: fields{
+				radixApplicationBuilder: utils.NewRadixApplicationBuilder().
+					WithAppName(appName).
+					WithEnvironment(internalTest.Env1, branchName).
+					WithComponent(utils.NewApplicationComponentBuilder().WithName("frontend")).
+					WithJobComponent(utils.NewApplicationJobComponentBuilder().WithName("compute").WithSchedulerPort(8888)),
+			},
+			args: args{
+				envName: envName,
+				pipeline: getTestPipeline(func(p *pipelinev1.Pipeline) {
+					p.ObjectMeta.Name = "pipeline1"
+					p.Spec.Tasks = []pipelinev1.PipelineTask{{Name: "task1", TaskRef: &pipelinev1.TaskRef{Name: "task1"}}}
+				}),
+				tasks:     []pipelinev1.Task{*getTestTask(nil)},
+				timestamp: "2020-01-01T00:00:00Z",
+			},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
+				tknPipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, tknPipeline.Spec.Tasks, 1)
+
+				expectedComponentNames := []string{"frontend", "compute"}
+
+				// pipeline.Spec.Params must have a radix-image object param spec with component names as properties
+				radixImagePipelineParamSpec := requireParamSpecByName(t, tknPipeline.Spec.Params, "radix-image")
+				assert.Equal(t, pipelinev1.ParamTypeObject, radixImagePipelineParamSpec.Type)
+				assert.ElementsMatch(t, expectedComponentNames, slices.Collect(maps.Keys(radixImagePipelineParamSpec.Properties)))
+
+				// pipeline.Spec.Tasks[0].Params must forward radix-image as object references
+				radixImageTaskParam := requireParamByName(t, tknPipeline.Spec.Tasks[0].Params, "radix-image")
+				assert.Equal(t, pipelinev1.ParamTypeObject, radixImageTaskParam.Value.Type)
+				assert.ElementsMatch(t, expectedComponentNames, slices.Collect(maps.Keys(radixImageTaskParam.Value.ObjectVal)))
+				for _, compName := range expectedComponentNames {
+					assert.Equal(t, fmt.Sprintf("$(params.radix-image.%s)", compName), radixImageTaskParam.Value.ObjectVal[compName])
+				}
+
+				// task.Spec.Params must have the same radix-image param spec
+				task, err := step.GetTektonClient().TektonV1().Tasks(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), tknPipeline.Spec.Tasks[0].TaskRef.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				radixImageTaskParamSpec := requireParamSpecByName(t, task.Spec.Params, "radix-image")
+				assert.Equal(t, radixImagePipelineParamSpec, radixImageTaskParamSpec)
+			},
+		},
+		"radix-image param spec not added when no components or jobs": {
+			fields: fields{
+				radixApplicationBuilder: utils.NewRadixApplicationBuilder().
+					WithAppName(appName).
+					WithEnvironment(internalTest.Env1, branchName),
+			},
+			args: args{
+				envName: envName,
+				pipeline: getTestPipeline(func(p *pipelinev1.Pipeline) {
+					p.ObjectMeta.Name = "pipeline1"
+					p.Spec.Tasks = []pipelinev1.PipelineTask{{Name: "task1", TaskRef: &pipelinev1.TaskRef{Name: "task1"}}}
+				}),
+				tasks:     []pipelinev1.Task{*getTestTask(nil)},
+				timestamp: "2020-01-01T00:00:00Z",
+			},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
+				tknPipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, tknPipeline.Spec.Tasks, 1)
+
+				for _, p := range tknPipeline.Spec.Params {
+					assert.NotEqual(t, "radix-image", p.Name, "radix-image must not appear in pipeline params")
+				}
+				for _, p := range tknPipeline.Spec.Tasks[0].Params {
+					assert.NotEqual(t, "radix-image", p.Name, "radix-image must not appear in pipeline task params")
+				}
+
+				task, err := step.GetTektonClient().TektonV1().Tasks(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), tknPipeline.Spec.Tasks[0].TaskRef.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				for _, p := range task.Spec.Params {
+					assert.NotEqual(t, "radix-image", p.Name, "radix-image must not appear in task spec params")
+				}
+			},
+		},
 	}
 	for testName, ts := range scenarios {
 		s.Run(testName, func() {
