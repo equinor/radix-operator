@@ -32,6 +32,7 @@ const DynamicTagNameInEnvironmentConfig = "{imageTagName}"
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=radixapplications,shortName=ra
+// +kubebuilder:metadata:annotations="helm.sh/resource-policy=keep"
 // +kubebuilder:subresource:status
 // RadixApplication describes an application
 type RadixApplication struct {

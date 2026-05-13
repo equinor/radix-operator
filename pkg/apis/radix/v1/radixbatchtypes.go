@@ -10,6 +10,7 @@ import (
 // +kubebuilder:printcolumn:name="Condition",type="string",JSONPath=".status.condition.type"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:path=radixbatches,shortName=rb
+// +kubebuilder:metadata:annotations="helm.sh/resource-policy=keep"
 // +kubebuilder:subresource:status
 
 // RadixBatch enables batch execution of Radix job components.

@@ -13,6 +13,7 @@ import (
 // +kubebuilder:printcolumn:name="Reconciled",type="date",JSONPath=".status.reconciled"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:path=radixregistrations,scope=Cluster,shortName=rr
+// +kubebuilder:metadata:annotations="helm.sh/resource-policy=keep"
 // +kubebuilder:subresource:status
 
 // RadixRegistration describe an application

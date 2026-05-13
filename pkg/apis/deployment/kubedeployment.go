@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
@@ -154,7 +153,7 @@ func (deploy *Deployment) createJobAuxDeployment(jobName, jobAuxDeploymentName s
 			},
 		},
 	}
-	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
+	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = new(false)
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()
 
@@ -285,7 +284,6 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.ObjectMeta.Labels = deploy.getDeploymentPodLabels(deployComponent)
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations = deploy.getDeploymentPodAnnotations(deployComponent)
 
-	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.getDeploymentPodImagePullSecrets()
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 
