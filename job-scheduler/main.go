@@ -20,6 +20,7 @@ import (
 	batchApi "github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/batches"
 	jobApi "github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/jobs"
 	"github.com/equinor/radix-operator/job-scheduler/models"
+	"github.com/equinor/radix-operator/job-scheduler/models/common"
 	"github.com/equinor/radix-operator/job-scheduler/pkg/batch"
 	"github.com/equinor/radix-operator/job-scheduler/pkg/notifications"
 	"github.com/equinor/radix-operator/job-scheduler/pkg/watcher"
@@ -28,6 +29,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/pflag"
@@ -36,6 +38,50 @@ import (
 const (
 	defaultProfilePort = "7070"
 )
+
+type cronServer struct {
+	cronInstance *cron.Cron
+}
+
+type cronJob struct {
+	schedule   string
+	jobHandler jobApi.JobHandler
+}
+
+func (cj cronJob) Run() {
+	desc := &common.JobScheduleDescription{
+		JobId: fmt.Sprintf("cron-%d", time.Now().Unix()),
+		// Payload not supported
+	}
+
+	if _, err := cj.jobHandler.CreateJob(context.Background(), desc); err != nil {
+		log.Error().Err(err).Msg("failed to create scheduled job")
+	}
+}
+
+func (cs *cronServer) start(ctx context.Context, jobs []cronJob) error {
+	cs.cronInstance = cron.New()
+
+	for _, job := range jobs {
+		if _, err := cs.cronInstance.AddJob(job.schedule, job); err != nil {
+			return err
+		}
+	}
+
+	cs.cronInstance.Start()
+	defer cs.cronInstance.Stop()
+
+	<-ctx.Done()
+
+	return nil
+}
+
+func (cs *cronServer) stop() {
+	if cs.cronInstance == nil {
+		return
+	}
+	cs.cronInstance.Stop()
+}
 
 func main() {
 	ctx := context.Background()
@@ -56,6 +102,21 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to initialize job watcher")
 	}
 	defer radixBatchWatcher.Stop()
+
+	jobHandler := jobApi.New(kubeUtil, env, radixDeployJobComponent)
+	schedules := radixDeployJobComponent.Cron.Schedule
+	cronJobs := make([]cronJob, 0, len(schedules))
+	for _, cronSchedule := range schedules {
+		cronJobs = append(cronJobs, cronJob{
+			schedule:   cronSchedule,
+			jobHandler: jobHandler,
+		})
+	}
+
+	cs := cronServer{}
+	go func() {
+		cs.start(ctx, cronJobs)
+	}()
 
 	runApiServer(ctx, kubeUtil, env, radixDeployJobComponent)
 }

@@ -1732,6 +1732,28 @@ spec:
                       items:
                         type: string
                       type: array
+                    cron:
+                      description: Set a cron schedule for when to run the job and
+                        how concurrency between multiple schedules should behave
+                      properties:
+                        concurrency:
+                          description: Specify how to handle concurrency when multiple
+                            instances of the job is started
+                          minLength: 1
+                          type: string
+                        schedule:
+                          description: The cron schedule for the job
+                          items:
+                            minLength: 1
+                            type: string
+                          maxItems: 20
+                          minItems: 1
+                          type: array
+                          x-kubernetes-list-type: set
+                      required:
+                      - concurrency
+                      - schedule
+                      type: object
                     environmentVariables:
                       additionalProperties:
                         type: string
