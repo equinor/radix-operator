@@ -644,32 +644,31 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 	if len(adGroups) == 0 {
 		return nil
 	}
-	radixApiAppNamespace := operatorUtils.GetEnvironmentNamespace(ah.config.AppName, ah.config.EnvironmentName)
 	name := fmt.Sprintf("access-validation-%s", appName)
 	labels := map[string]string{"radix-access-validation": "true"}
 	configMapName := fmt.Sprintf("%s-%s", name, strings.ToLower(operatorUtils.RandString(6)))
-	role, err := createRoleToGetConfigMap(ctx, ah.accounts.ServiceAccount.Client, radixApiAppNamespace, name, labels, configMapName)
+	role, err := createRoleToGetConfigMap(ctx, ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, name, labels, configMapName)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = deleteRole(context.Background(), ah.accounts.ServiceAccount.Client, radixApiAppNamespace, role.GetName())
+		err = deleteRole(context.Background(), ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, role.GetName())
 		if err != nil {
 			log.Ctx(ctx).Warn().Msgf("Failed to delete role %s: %v", role.GetName(), err)
 		}
 	}()
-	roleBinding, err := createRoleBindingForRole(ctx, ah.accounts.ServiceAccount.Client, radixApiAppNamespace, role, name, adGroups, labels)
+	roleBinding, err := createRoleBindingForRole(ctx, ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, role, name, adGroups, labels)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = deleteRoleBinding(context.Background(), ah.accounts.ServiceAccount.Client, radixApiAppNamespace, roleBinding.GetName())
+		err = deleteRoleBinding(context.Background(), ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, roleBinding.GetName())
 		if err != nil {
 			log.Ctx(ctx).Warn().Msgf("Failed to delete role binding %s: %v", roleBinding.GetName(), err)
 		}
 	}()
 
-	valid, err := ah.hasAccessToGetConfigMap(ctx, ah.accounts.UserAccount.Client, radixApiAppNamespace, configMapName)
+	valid, err := ah.hasAccessToGetConfigMap(ctx, ah.accounts.UserAccount.Client, ah.config.PodNamespace, configMapName)
 	if err != nil {
 		return err
 	}

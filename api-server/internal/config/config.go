@@ -15,8 +15,6 @@ type Config struct {
 	LogLevel       string `envconfig:"LOG_LEVEL" default:"info"`
 	LogPrettyPrint bool   `envconfig:"LOG_PRETTY" default:"false"`
 
-	AppName            string   `envconfig:"RADIX_APP" required:"true" desc:"Should be radix-api"`
-	EnvironmentName    string   `envconfig:"RADIX_ENVIRONMENT" required:"true" desc:"Should be qa or prod"`
 	DNSZone            string   `envconfig:"RADIX_DNS_ZONE" required:"true" desc:"should be <env>.radix.equinor.com"`
 	ClusterName        string   `envconfig:"RADIX_CLUSTERNAME" required:"true" desc:"Name of the cluster, e.g. weekly-40"`
 	ClusterEgressIps   []string `envconfig:"CLUSTER_EGRESS_IPS" required:"true" desc:"Comma separated list of Egress IPs of the cluster, e.g. 192.168.84.0/30,10.0.0.0/30"`
@@ -25,6 +23,7 @@ type Config struct {
 	AzureOidc      Oidc   `envconfig:"OIDC_AZURE" required:"true"`
 	KubernetesOidc Oidc   `envconfig:"OIDC_KUBERNETES" required:"true"`
 	PrometheusUrl  string `envconfig:"PROMETHEUS_URL" required:"true"`
+	PodNamespace   string `envconfig:"POD_NAMESPACE" required:"true" desc:"Kubernetes namespace where radix-api is deployed"`
 }
 
 type Oidc struct {

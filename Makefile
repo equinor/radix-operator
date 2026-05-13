@@ -155,6 +155,15 @@ deploy-webhook:
 	az acr login --name $(CONTAINER_REPO)
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-webhook:$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(TAG) --platform linux/arm64,linux/amd64 -f webhook.Dockerfile --push .
 
+.PHONY: build-api-server
+build-api-server:
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-api-server:$(VERSION) -t $(DOCKER_REGISTRY)/radix-api-server:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-api-server:$(TAG) --platform linux/arm64,linux/amd64 -f api-server.Dockerfile . --no-cache
+
+.PHONY: deploy-api-server
+deploy-api-server: 
+	az acr login --name $(CONTAINER_REPO)
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-api-server:$(VERSION) -t $(DOCKER_REGISTRY)/radix-api-server:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-api-server:$(TAG) --platform linux/arm64,linux/amd64 -f api-server.Dockerfile --push .
+
 ROOT_PACKAGE=github.com/equinor/radix-operator
 CUSTOM_RESOURCE_NAME=radix
 CUSTOM_RESOURCE_VERSION=v1
