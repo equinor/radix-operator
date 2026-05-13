@@ -42,8 +42,8 @@ type PipelineInfo struct {
 
 	EnvironmentSubPipelineParams map[string]SubPipelineParams
 
-	// EnvironmentSubPipelineImageParams maps environment name to component image paths
-	EnvironmentSubPipelineImageParams EnvironmentComponentImages
+	// EnvironmentSubPipelineComponentNames maps environment name to component image paths
+	EnvironmentSubPipelineComponentNames EnvironmentComponentNames
 
 	StopPipeline        bool
 	StopPipelineMessage string

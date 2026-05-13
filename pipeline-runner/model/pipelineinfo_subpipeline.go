@@ -22,8 +22,8 @@ type SubPipelineParams struct {
 	GitTags      string `propname:"git-tags"`
 }
 
-// EnvironmentComponentImages maps environment name to component images
-type EnvironmentComponentImages map[string][]string
+// EnvironmentComponentNames maps environment name to component images
+type EnvironmentComponentNames map[string][]string
 
 // GetSubPipelineParamSpecsForEnvironment returns the Tekton ParamSpecs to be appended to a Pipeline's
 // parameter declarations for the given environment. These specs define the shape of the reserved
@@ -37,7 +37,7 @@ func (p PipelineInfo) GetSubPipelineParamSpecsForEnvironment(envName string) (pi
 	}
 	specs = append(specs, paramSpec)
 
-	if envImages := p.EnvironmentSubPipelineImageParams[envName]; len(envImages) > 0 {
+	if envImages := p.EnvironmentSubPipelineComponentNames[envName]; len(envImages) > 0 {
 		spec, err := subpipeline.ObjectParamSpec(subPipelineImageParamName, sliceToMap(envImages))
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate image param for tasks: %w", err)
@@ -60,7 +60,7 @@ func (p PipelineInfo) GetSubPipelineParamValuesForEnvironment(envName string) (p
 	}
 	params = append(params, radixParam)
 
-	if envImages := p.EnvironmentSubPipelineImageParams[envName]; len(envImages) > 0 {
+	if envImages := p.EnvironmentSubPipelineComponentNames[envName]; len(envImages) > 0 {
 		mergedImages := make(map[string]string, len(envImages))
 		for _, image := range envImages {
 			mergedImages[image] = ""
@@ -107,7 +107,7 @@ func (p PipelineInfo) GetSubPipelineParamReferencesForEnvironment(envName string
 	}
 
 	if imageParamSpec, ok := paramSpecsByName[subPipelineImageParamName]; ok {
-		paramRef, err := subpipeline.ObjectParamReference(subPipelineImageParamName, sliceToMap(p.EnvironmentSubPipelineImageParams[envName]), imageParamSpec)
+		paramRef, err := subpipeline.ObjectParamReference(subPipelineImageParamName, sliceToMap(p.EnvironmentSubPipelineComponentNames[envName]), imageParamSpec)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate image param reference for environment %s: %w", envName, err)
 		}

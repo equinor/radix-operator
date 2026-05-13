@@ -508,7 +508,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam() {
 		EnvironmentSubPipelineParams: map[string]model.SubPipelineParams{
 			internalTest.Env1: {Environment: internalTest.Env1},
 		},
-		EnvironmentSubPipelineImageParams: model.EnvironmentComponentImages{
+		EnvironmentSubPipelineComponentNames: model.EnvironmentComponentNames{
 			internalTest.Env1: {"api-server", "web-app"},
 		},
 		DeployEnvironmentComponentImages: pipeline.DeployEnvironmentComponentImages{
@@ -631,7 +631,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_Promote_AllImagesPassedOn() 
 		EnvironmentSubPipelineParams: map[string]model.SubPipelineParams{
 			internalTest.Env2: {Environment: internalTest.Env2},
 		},
-		EnvironmentSubPipelineImageParams: model.EnvironmentComponentImages{
+		EnvironmentSubPipelineComponentNames: model.EnvironmentComponentNames{
 			internalTest.Env2: {"api-server", "web-app", "db-migrator"},
 		},
 		DeployEnvironmentComponentImages: pipeline.DeployEnvironmentComponentImages{
@@ -705,7 +705,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_BuildDeploy_OnlyEnabledCompo
 		EnvironmentSubPipelineParams: map[string]model.SubPipelineParams{
 			internalTest.Env1: {Environment: internalTest.Env1},
 		},
-		EnvironmentSubPipelineImageParams: model.EnvironmentComponentImages{
+		EnvironmentSubPipelineComponentNames: model.EnvironmentComponentNames{
 			internalTest.Env1: {"api-server", "web-app", "disabled-component"},
 		},
 		DeployEnvironmentComponentImages: pipeline.DeployEnvironmentComponentImages{

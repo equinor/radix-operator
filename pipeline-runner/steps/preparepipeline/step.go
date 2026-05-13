@@ -254,7 +254,7 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 		}
 	}
 
-	pipelineInfo.EnvironmentSubPipelineImageParams = getComponentNames(pipelineInfo.RadixApplication)
+	pipelineInfo.EnvironmentSubPipelineComponentNames = getComponentNames(pipelineInfo.RadixApplication)
 
 	var errs []error
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
@@ -749,7 +749,7 @@ func getTargetEnvironmentsForDeploy(ctx context.Context, pipelineInfo *model.Pip
 
 // getComponentNames returns a map of environment names to component name maps (with empty values)
 // used as the property keys for the radix-image param
-func getComponentNames(ra *radixv1.RadixApplication) model.EnvironmentComponentImages {
+func getComponentNames(ra *radixv1.RadixApplication) model.EnvironmentComponentNames {
 	if ra == nil {
 		return nil
 	}
@@ -763,7 +763,7 @@ func getComponentNames(ra *radixv1.RadixApplication) model.EnvironmentComponentI
 	if len(componentNames) == 0 {
 		return nil
 	}
-	result := make(model.EnvironmentComponentImages)
+	result := make(model.EnvironmentComponentNames)
 	for _, env := range ra.Spec.Environments {
 		result[env.Name] = componentNames
 	}
