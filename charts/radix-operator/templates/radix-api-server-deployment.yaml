@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radix-api-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-api-server.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "radix-api-server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "radix-api-server.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: radix-api-server
+
+      {{- with .Values.radixApiServer.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.radixApiServer.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.radixApiServer.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.radixApiServer.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.radixApiServer.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.radixApiServer.image.pullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+
+      containers:
+        - name: radix-api-server
+          image: {{ .Values.radixApiServer.image.repository }}:{{ .Values.radixApiServer.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: IfNotPresent
+
+          {{- with .Values.radixApiServer.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.radixApiServer.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          ports:
+            - containerPort: 3002
+              name: http
+            - containerPort: 9090
+              name: metrics
+          env:
+            - name: PORT
+              value: "3002"
+            - name: METRICS_PORT
+              value: "9090"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: RADIX_DNS_ZONE
+              value: {{ .Values.dnsZone | quote }}
+            - name: RADIX_CLUSTERNAME
+              value: {{ .Values.clusterName | quote }}
+            - name: USE_PROFILER
+              value: {{ .Values.radixApiServer.useProfiler | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.radixApiServer.logLevel | quote }}
+            - name: LOG_PRETTY
+              value: {{ .Values.radixApiServer.logPretty | quote }}
+            - name: PROMETHEUS_URL
+              value: {{ .Values.radixApiServer.prometheusUrl | quote }}
+            - name: OIDC_AZURE_AUDIENCE
+              value: {{ .Values.radixApiServer.oidcAzureAudience | quote }}
+            - name: OIDC_AZURE_ISSUER
+              value: {{ .Values.radixApiServer.oidcAzureIssuer | quote }}
+            - name: OIDC_KUBERNETES_ISSUER
+              value: {{ .Values.radixApiServer.oidcKubernetesIssuer | quote }}
+            - name: OIDC_KUBERNETES_AUDIENCE
+              value: {{ .Values.radixApiServer.oidcKubernetesAudience | quote }}
+            - name: CLUSTER_OIDC_ISSUERS
+              value: {{ .Values.radixApiServer.clusterOidcIssuers | quote }}
+            - name: CLUSTER_EGRESS_IPS
+              value: {{ .Values.radixApiServer.clusterEgressIps | quote }}

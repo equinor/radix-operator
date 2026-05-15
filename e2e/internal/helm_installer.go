@@ -9,7 +9,7 @@ import (
 
 // InstallRadixOperator installs the radix-operator Helm chart
 func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releaseName, chartPath string, values map[string]string) error {
-	// Build helm install command
+	// Build helm upgrade --install command
 	args := []string{
 		"install",
 		releaseName,

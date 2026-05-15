@@ -219,6 +219,129 @@ radixJobScheduler:
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
 
+radixApiServer:
+  useProfiler: false
+  logLevel: info
+  logPretty: false
+  prometheusUrl: ""
+  oidcAzureAudience: "" 
+  oidcAzureIssuer:  ""
+  oidcKubernetesIssuer: ""
+  oidcKubernetesAudience: ""
+  clusterOidcIssuers: ""
+  clusterEgressIps: ""
+
+  image:
+    repository: ghcr.io/equinor/radix/api-server
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+    pullSecrets: [] # List of image pull secret names to use for the radix-api-server image
+
+  resources:
+    limits:
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  securityContext:
+    privileged: false
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+    # maxUnavailable: 1
+
+  networkPolicy:
+    enabled: true
+    ingress:
+      from:
+        - namespaceSelector:
+            matchLabels:
+              purpose: radix-base-ns
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+        - namespaceSelector:
+            matchLabels:
+              purpose: radix-base-ns
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        - namespaceSelector:
+            matchLabels:
+              purpose: radix-base-ns
+          podSelector:
+            matchLabels:
+              gateway.networking.k8s.io/gateway-name: gateway
+
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+    # behavior:
+    #   scaleDown:
+    #     stabilizationWindowSeconds: 300
+    #     policies:
+    #       - type: Percent
+    #         value: 10
+    #         periodSeconds: 60
+    #   scaleUp:
+    #     stabilizationWindowSeconds: 0
+    #     policies:
+    #       - type: Percent
+    #         value: 100
+    #         periodSeconds: 15
+
+  routes:
+    main:
+      enabled: true
+      annotations: {}
+      labels: {}
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: gateway
+          namespace: istio-system
+          sectionName: https
+      hostnames:
+        - api.radix.equinor.com
+        #  - "api.{{ .Values.dnsZone }}"
+        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.dnsZone }}"
+        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.clusterName }}.{{ .Values.dnsZone }}"
+      backendPort: 3002
+      filters:
+        - responseHeaderModifier:
+            add:
+              - name: Strict-Transport-Security
+                value: max-age=31536000; includeSubDomains
+          type: ResponseHeaderModifier
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+
 radixWebhook:
   logLevel: info
   logPretty: false

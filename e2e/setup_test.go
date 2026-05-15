@@ -61,6 +61,12 @@ var componentSpecs = []struct {
 		ImageName:    "local-kind-repo/job-scheduler",
 		HelmValueKey: "radixJobScheduler.image",
 	},
+	{
+		Name:         "radix-api-server",
+		Dockerfile:   "api-server.Dockerfile",
+		ImageName:    "local-kind-repo/api-server",
+		HelmValueKey: "radixApiServer.image",
+	},
 }
 
 type Config struct {
@@ -155,10 +161,12 @@ func TestMain(m *testing.M) {
 
 	// Install Helm chart with custom image tags
 	helmValues := map[string]string{
-		"rbac.createApp.groups[0]":  "123",
-		"image.pullPolicy":          "IfNotPresent",
-		"ingress.gateway.name":      "test-gateway",
-		"ingress.gateway.namespace": "test-gateway-namespace",
+		"rbac.createApp.groups[0]":              "123",
+		"image.pullPolicy":                      "IfNotPresent",
+		"ingress.gateway.name":                  "test-gateway",
+		"ingress.gateway.namespace":             "test-gateway-namespace",
+		"radixApiServer.oidcKubernetesIssuer":   "unknown",
+		"radixApiServer.oidcKubernetesAudience": "unknown",
 	}
 	for _, spec := range componentSpecs {
 		helmValues[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName
