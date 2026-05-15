@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.114.3](https://github.com/equinor/radix-operator/compare/v1.114.2..v1.114.3) - 2026-05-13
+
+### 🐛 Bug Fixes
+
+- Explicitly set AutomountServiceAccountToken on all pods managed by Radix (#1710) - ([3139138](https://github.com/equinor/radix-operator/commit/3139138090cca20d3937189c962c1392728bef6f)) by @nilsgstrabo in [#1710](https://github.com/equinor/radix-operator/pull/1710)
+
+- Always keep CRDs (#1709) - ([20d04b6](https://github.com/equinor/radix-operator/commit/20d04b671462ed773e71133a7ffd7b4f06156564)) by @Richard87 in [#1709](https://github.com/equinor/radix-operator/pull/1709)
+
+
 ## [1.114.2](https://github.com/equinor/radix-operator/compare/v1.114.1..v1.114.2) - 2026-05-07
 
 ### 🐛 Bug Fixes
