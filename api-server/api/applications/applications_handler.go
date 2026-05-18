@@ -636,7 +636,12 @@ func (ah *ApplicationHandler) userIsAppAdmin(ctx context.Context, appName string
 				},
 			},
 		}, metav1.CreateOptions{})
-		return review.Status.Allowed, err
+
+		if err != nil {
+			return false, err
+		}
+
+		return review.Status.Allowed, nil
 	}
 }
 
