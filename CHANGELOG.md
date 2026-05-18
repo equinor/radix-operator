@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.114.3](https://github.com/equinor/radix-operator/compare/v1.114.2..v1.114.3) - 2026-05-13
+## [1.115.0](https://github.com/equinor/radix-operator/compare/v1.114.3..v1.115.0) - 2026-05-18
+
+### 🚀 Features
+
+- Add dynamic image parameter support for sub-pipelines (#1699) - ([c7ee370](https://github.com/equinor/radix-operator/commit/c7ee370d48153d5d359c856de20e3cc228250d7a)) by @Richard87 in [#1699](https://github.com/equinor/radix-operator/pull/1699)
+
+
+## [1.114.3](https://github.com/equinor/radix-operator/compare/v1.114.2..v1.114.3) - 2026-05-15
 
 ### 🐛 Bug Fixes
 
