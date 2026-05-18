@@ -20,7 +20,10 @@ func GetTektonPipelineRuns(ctx context.Context, tektonClient tektonclient.Interf
 			kube.RadixJobNameLabel: jobName,
 		}.String(),
 	})
-	return pipelineRunList.Items, err
+	if err != nil || pipelineRunList == nil {
+		return nil, err
+	}
+	return pipelineRunList.Items, nil
 }
 
 // GetPipelineRun Get Tekton PipelineRun for the Radix pipeline job
