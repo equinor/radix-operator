@@ -246,13 +246,11 @@ func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipeline
 		pipelineParams = append(pipelineParams, param)
 	}
 
-	if subPipelineParams, ok := pipelineInfo.EnvironmentSubPipelineParams[targetEnv]; ok {
-		param, err := subPipelineParams.AsObjectParam()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate radix params for pipeline: %w", err)
-		}
-		pipelineParams = append(pipelineParams, param)
+	paramValues, err := pipelineInfo.GetSubPipelineParamValuesForEnvironment(targetEnv)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sub-pipeline param values for environment %s: %w", targetEnv, err)
 	}
+	pipelineParams = append(pipelineParams, paramValues...)
 
 	return pipelineParams, nil
 }

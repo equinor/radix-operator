@@ -1675,6 +1675,135 @@ func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
 	s.Equal(expectedDeployComponentImages, pipelineInfo.DeployEnvironmentComponentImages)
 }
 
+func (s *applyConfigTestSuite) Test_Promote_DeployImagesSetFromSourceDeployment() {
+	appName, fromEnv, toEnv, deploymentName := "anyapp", "dev", "prod", "source-deployment"
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithEnvironmentNoBranch(fromEnv).
+		WithEnvironmentNoBranch(toEnv).
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp1").WithImage("any"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp2").WithImage("any"),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job1").WithImage("any"),
+		).
+		BuildRA()
+
+	sourceRd := utils.NewDeploymentBuilder().
+		WithDeploymentName(deploymentName).
+		WithAppName(appName).
+		WithEnvironment(fromEnv).
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithImage("comp1:tag-from-source"),
+			utils.NewDeployComponentBuilder().WithName("comp2").WithImage("comp2:tag-from-source"),
+		).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().WithName("job1").WithImage("job1:tag-from-source"),
+		).
+		BuildRD()
+
+	fromNs := utils.GetEnvironmentNamespace(appName, fromEnv)
+	_, _ = s.radixClient.RadixV1().RadixDeployments(fromNs).Create(context.Background(), sourceRd, metav1.CreateOptions{})
+
+	pipelineInfo := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			AppName:         appName,
+			PipelineType:    string(radixv1.Promote),
+			FromEnvironment: fromEnv,
+			ToEnvironment:   toEnv,
+			DeploymentName:  deploymentName,
+		},
+		RadixApplication: ra,
+	}
+
+	applyStep := applyconfig.NewApplyConfigStep()
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
+
+	expectedDeployImages := pipeline.DeployEnvironmentComponentImages{
+		toEnv: pipeline.DeployComponentImages{
+			"comp1": pipeline.DeployComponentImage{ImagePath: "comp1:tag-from-source"},
+			"comp2": pipeline.DeployComponentImage{ImagePath: "comp2:tag-from-source"},
+			"job1":  pipeline.DeployComponentImage{ImagePath: "job1:tag-from-source"},
+		},
+	}
+	s.Equal(expectedDeployImages, pipelineInfo.DeployEnvironmentComponentImages)
+}
+
+func (s *applyConfigTestSuite) Test_Promote_DeployImages_MissingFromEnvironmentOrDeploymentName_IsNoop() {
+	appName := "anyapp"
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithEnvironmentNoBranch("dev").
+		WithEnvironmentNoBranch("prod").
+		BuildRA()
+
+	tests := []struct {
+		name            string
+		fromEnvironment string
+		deploymentName  string
+	}{
+		{name: "missing fromEnvironment", fromEnvironment: "", deploymentName: "some-deployment"},
+		{name: "missing deploymentName", fromEnvironment: "dev", deploymentName: ""},
+		{name: "missing both", fromEnvironment: "", deploymentName: ""},
+	}
+
+	for _, ts := range tests {
+		s.Run(ts.name, func() {
+			pipelineInfo := model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					AppName:         appName,
+					PipelineType:    string(radixv1.Promote),
+					FromEnvironment: ts.fromEnvironment,
+					ToEnvironment:   "prod",
+					DeploymentName:  ts.deploymentName,
+				},
+				RadixApplication: ra,
+			}
+
+			applyStep := applyconfig.NewApplyConfigStep()
+			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+			s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
+			s.Empty(pipelineInfo.DeployEnvironmentComponentImages)
+		})
+	}
+}
+
+func (s *applyConfigTestSuite) Test_Promote_DeployImages_SourceDeploymentNotFound_IsNoop() {
+	appName, fromEnv, toEnv := "anyapp", "dev", "prod"
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithEnvironmentNoBranch(fromEnv).
+		WithEnvironmentNoBranch(toEnv).
+		BuildRA()
+
+	pipelineInfo := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			AppName:         appName,
+			PipelineType:    string(radixv1.Promote),
+			FromEnvironment: fromEnv,
+			ToEnvironment:   toEnv,
+			DeploymentName:  "nonexistent-deployment",
+		},
+		RadixApplication: ra,
+	}
+
+	applyStep := applyconfig.NewApplyConfigStep()
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
+	s.Empty(pipelineInfo.DeployEnvironmentComponentImages)
+}
+
 func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
 	appName, branchName := "anyapp", "anybranch"
 

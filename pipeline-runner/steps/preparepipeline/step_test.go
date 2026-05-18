@@ -1021,6 +1021,90 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 			},
 			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {},
 		},
+		"radix-image param spec added to pipeline, task params and task reference when components exist": {
+			fields: fields{
+				radixApplicationBuilder: utils.NewRadixApplicationBuilder().
+					WithAppName(appName).
+					WithEnvironment(internalTest.Env1, branchName).
+					WithComponent(utils.NewApplicationComponentBuilder().WithName("frontend")).
+					WithJobComponent(utils.NewApplicationJobComponentBuilder().WithName("compute").WithSchedulerPort(8888)),
+			},
+			args: args{
+				envName: envName,
+				pipeline: getTestPipeline(func(p *pipelinev1.Pipeline) {
+					p.ObjectMeta.Name = "pipeline1"
+					p.Spec.Tasks = []pipelinev1.PipelineTask{{Name: "task1", TaskRef: &pipelinev1.TaskRef{Name: "task1"}}}
+				}),
+				tasks:     []pipelinev1.Task{*getTestTask(nil)},
+				timestamp: "2020-01-01T00:00:00Z",
+			},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
+				tknPipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, tknPipeline.Spec.Tasks, 1)
+
+				expectedComponentNames := []string{"frontend", "compute"}
+
+				// pipeline.Spec.Params must have a radix-image object param spec with component names as properties
+				radixImagePipelineParamSpec := requireParamSpecByName(t, tknPipeline.Spec.Params, "radix-image")
+				assert.Equal(t, pipelinev1.ParamTypeObject, radixImagePipelineParamSpec.Type)
+				assert.ElementsMatch(t, expectedComponentNames, slices.Collect(maps.Keys(radixImagePipelineParamSpec.Properties)))
+
+				// pipeline.Spec.Tasks[0].Params must forward radix-image as object references
+				radixImageTaskParam := requireParamByName(t, tknPipeline.Spec.Tasks[0].Params, "radix-image")
+				assert.Equal(t, pipelinev1.ParamTypeObject, radixImageTaskParam.Value.Type)
+				assert.ElementsMatch(t, expectedComponentNames, slices.Collect(maps.Keys(radixImageTaskParam.Value.ObjectVal)))
+				for _, compName := range expectedComponentNames {
+					assert.Equal(t, fmt.Sprintf("$(params.radix-image.%s)", compName), radixImageTaskParam.Value.ObjectVal[compName])
+				}
+
+				// task.Spec.Params must have the same radix-image param spec
+				task, err := step.GetTektonClient().TektonV1().Tasks(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), tknPipeline.Spec.Tasks[0].TaskRef.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				radixImageTaskParamSpec := requireParamSpecByName(t, task.Spec.Params, "radix-image")
+				assert.Equal(t, radixImagePipelineParamSpec, radixImageTaskParamSpec)
+			},
+		},
+		"radix-image param spec not added when no components or jobs": {
+			fields: fields{
+				radixApplicationBuilder: utils.NewRadixApplicationBuilder().
+					WithAppName(appName).
+					WithEnvironment(internalTest.Env1, branchName),
+			},
+			args: args{
+				envName: envName,
+				pipeline: getTestPipeline(func(p *pipelinev1.Pipeline) {
+					p.ObjectMeta.Name = "pipeline1"
+					p.Spec.Tasks = []pipelinev1.PipelineTask{{Name: "task1", TaskRef: &pipelinev1.TaskRef{Name: "task1"}}}
+				}),
+				tasks:     []pipelinev1.Task{*getTestTask(nil)},
+				timestamp: "2020-01-01T00:00:00Z",
+			},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
+				tknPipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, tknPipeline.Spec.Tasks, 1)
+
+				for _, p := range tknPipeline.Spec.Params {
+					assert.NotEqual(t, "radix-image", p.Name, "radix-image must not appear in pipeline params")
+				}
+				for _, p := range tknPipeline.Spec.Tasks[0].Params {
+					assert.NotEqual(t, "radix-image", p.Name, "radix-image must not appear in pipeline task params")
+				}
+
+				task, err := step.GetTektonClient().TektonV1().Tasks(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), tknPipeline.Spec.Tasks[0].TaskRef.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+				for _, p := range task.Spec.Params {
+					assert.NotEqual(t, "radix-image", p.Name, "radix-image must not appear in task spec params")
+				}
+			},
+		},
 	}
 	for testName, ts := range scenarios {
 		s.Run(testName, func() {
@@ -1469,6 +1553,112 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 			err = step.Run(ctx, pipelineInfo)
 			s.Require().NoError(err)
 			s.ElementsMatch(pipelineInfo.TargetEnvironments, slice.Map(ts.expectedTargetEnvs, func(n string) model.TargetEnvironment { return model.TargetEnvironment{Environment: n} }))
+		})
+	}
+}
+
+func (s *stepTestSuite) Test_EnvironmentSubPipelineComponentNames() {
+	tests := map[string]struct {
+		ra       *radixv1.RadixApplication
+		expected model.EnvironmentComponentNames
+	}{
+		"no components and no jobs": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Environments: []radixv1.Environment{{Name: "dev"}},
+				},
+			},
+			expected: nil,
+		},
+		"no environments with components": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components: []radixv1.RadixComponent{{Name: "frontend"}},
+				},
+			},
+			expected: model.EnvironmentComponentNames{},
+		},
+		"single component single environment": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components:   []radixv1.RadixComponent{{Name: "frontend"}},
+					Environments: []radixv1.Environment{{Name: "dev"}},
+				},
+			},
+			expected: model.EnvironmentComponentNames{
+				"dev": {"frontend"},
+			},
+		},
+		"multiple components multiple environments": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components:   []radixv1.RadixComponent{{Name: "frontend"}, {Name: "backend"}},
+					Environments: []radixv1.Environment{{Name: "dev"}, {Name: "prod"}},
+				},
+			},
+			expected: model.EnvironmentComponentNames{
+				"dev":  {"frontend", "backend"},
+				"prod": {"frontend", "backend"},
+			},
+		},
+		"only job components": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Jobs:         []radixv1.RadixJobComponent{{Name: "compute"}},
+					Environments: []radixv1.Environment{{Name: "dev"}},
+				},
+			},
+			expected: model.EnvironmentComponentNames{
+				"dev": {"compute"},
+			},
+		},
+		"components and job components are merged": {
+			ra: &radixv1.RadixApplication{
+				Spec: radixv1.RadixApplicationSpec{
+					Components:   []radixv1.RadixComponent{{Name: "frontend"}},
+					Jobs:         []radixv1.RadixJobComponent{{Name: "compute"}},
+					Environments: []radixv1.Environment{{Name: "dev"}, {Name: "prod"}},
+				},
+			},
+			expected: model.EnvironmentComponentNames{
+				"dev":  {"frontend", "compute"},
+				"prod": {"frontend", "compute"},
+			},
+		},
+	}
+
+	for testName, testSpec := range tests {
+		s.Run(testName, func() {
+			pipelineInfo := &model.PipelineInfo{
+				Definition: &pipeline.Definition{},
+				PipelineArguments: model.PipelineArguments{
+					PipelineType:  string(radixv1.Deploy),
+					ToEnvironment: "dev",
+				},
+			}
+			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(testSpec.ra, nil).Times(1)
+			mockGitRepo := git.NewMockRepository(s.ctrl)
+			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
+			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("somecommit", nil)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(gomock.Any(), gomock.Any()).Return(false, "", nil, nil, nil).AnyTimes()
+			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+			mockOwnerReferenceFactory.EXPECT().Create().Return(&metav1.OwnerReference{}).AnyTimes()
+			step := preparepipeline.NewPreparePipelinesStep(
+				preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+				preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+				preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+				preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+			)
+			ctx := context.Background()
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, utils.NewRegistrationBuilder().BuildRR())
+
+			err := step.Run(ctx, pipelineInfo)
+			s.Require().NoError(err)
+			s.Equal(testSpec.expected, pipelineInfo.EnvironmentSubPipelineComponentNames)
 		})
 	}
 }

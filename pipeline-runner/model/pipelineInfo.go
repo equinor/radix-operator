@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
-	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -44,39 +42,11 @@ type PipelineInfo struct {
 
 	EnvironmentSubPipelineParams map[string]SubPipelineParams
 
+	// EnvironmentSubPipelineComponentNames maps environment name to component image paths
+	EnvironmentSubPipelineComponentNames EnvironmentComponentNames
+
 	StopPipeline        bool
 	StopPipelineMessage string
-}
-
-const (
-	subPipelineRadixParamName = "radix"
-)
-
-type SubPipelineParams struct {
-	PipelineType string `propname:"pipeline-type"`
-	Environment  string `propname:"environment"`
-	GitSSHUrl    string `propname:"git-ssh-url"`
-	GitRef       string `propname:"git-ref"`
-	GitRefType   string `propname:"git-ref-type"`
-	GitCommit    string `propname:"git-commit"`
-	GitTags      string `propname:"git-tags"`
-}
-
-func (s SubPipelineParams) AsObjectParamSpec() (pipelinev1.ParamSpec, error) {
-	return subpipeline.ObjectParamSpec(subPipelineRadixParamName, s)
-}
-
-func (s SubPipelineParams) AsObjectParamReference() (pipelinev1.Param, error) {
-	spec, err := subpipeline.ObjectParamSpec(subPipelineRadixParamName, s)
-	if err != nil {
-		return pipelinev1.Param{}, err
-	}
-
-	return subpipeline.ObjectParamReference(subPipelineRadixParamName, s, spec)
-}
-
-func (s SubPipelineParams) AsObjectParam() (pipelinev1.Param, error) {
-	return subpipeline.ObjectParam(subPipelineRadixParamName, s)
 }
 
 type TargetEnvironment struct {
