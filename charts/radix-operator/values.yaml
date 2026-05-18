@@ -224,8 +224,8 @@ radixApiServer:
   logLevel: info
   logPretty: false
   prometheusUrl: ""
-  oidcAzureAudience: "" 
-  oidcAzureIssuer:  ""
+  oidcAzureAudience: ""
+  oidcAzureIssuer: ""
   oidcKubernetesIssuer: ""
   oidcKubernetesAudience: ""
   clusterOidcIssuers: ""
@@ -269,25 +269,13 @@ radixApiServer:
   networkPolicy:
     enabled: true
     ingress:
-      from:
-        - namespaceSelector:
-            matchLabels:
-              purpose: radix-base-ns
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/name: ingress-nginx
-        - namespaceSelector:
-            matchLabels:
-              purpose: radix-base-ns
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/name: prometheus
-        - namespaceSelector:
-            matchLabels:
-              purpose: radix-base-ns
-          podSelector:
-            matchLabels:
-              gateway.networking.k8s.io/gateway-name: gateway
+      from: []
+        # - namespaceSelector:
+        #     matchLabels:
+        #       purpose: ingress
+        #   podSelector:
+        #     matchLabels:
+        #       gateway.networking.k8s.io/gateway-name: gateway
 
   autoscaling:
     enabled: true
