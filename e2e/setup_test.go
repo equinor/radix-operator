@@ -165,8 +165,12 @@ func TestMain(m *testing.M) {
 		"image.pullPolicy":                      "IfNotPresent",
 		"ingress.gateway.name":                  "test-gateway",
 		"ingress.gateway.namespace":             "test-gateway-namespace",
-		"radixApiServer.oidcKubernetesIssuer":   "unknown",
+		"radixApiServer.logLevel":               "debug",
+		"radixApiServer.logPretty":              "true",
+		"radixApiServer.oidcKubernetesIssuer":   "https://kubernetes.default.svc",
 		"radixApiServer.oidcKubernetesAudience": "unknown",
+		"radixApiServer.oidcAzureIssuer":        "https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/",
+		"radixApiServer.oidcAzureAudience":      "6dae42f8-4368-4678-94ff-3960e28e3630",
 	}
 	for _, spec := range componentSpecs {
 		helmValues[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName
