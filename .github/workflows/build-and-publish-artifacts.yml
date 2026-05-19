@@ -2,8 +2,8 @@ name: Build and deploy Docker and Helm
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+' # semver stable
-      - 'v[0-9]+.[0-9]+.[0-9]+-*' # semver with prerelease suffix
+      - "v[0-9]+.[0-9]+.[0-9]+" # semver stable
+      - "v[0-9]+.[0-9]+.[0-9]+-*" # semver with prerelease suffix
 permissions: {}
 jobs:
   metadata:
@@ -52,6 +52,8 @@ jobs:
             repository: /equinor/radix/webhook
           - file: job-scheduler.Dockerfile
             repository: /equinor/radix/job-scheduler
+          - file: api-server.Dockerfile
+            repository: /equinor/radix/api-server
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
@@ -112,7 +114,7 @@ jobs:
 
           helm package --version $version --app-version $version .
           helm push radix-operator-$version.tgz $helm_repo
-          
+
           # Use git to get list of generated packages
           helm_packages=$(ls *.tgz)
           echo "helm_packages="$helm_packages"" >>"$GITHUB_OUTPUT"
