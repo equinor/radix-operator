@@ -1,0 +1,24 @@
+{{- if .Values.radixApiServer.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: radix-api-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-api-server.labels" . | nindent 4 }}
+spec:
+  minReplicas: {{ .Values.radixApiServer.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.radixApiServer.autoscaling.maxReplicas }}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: radix-api-server
+  {{- with .Values.radixApiServer.autoscaling.metrics }}
+  metrics:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.radixApiServer.autoscaling.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

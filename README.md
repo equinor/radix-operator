@@ -19,6 +19,8 @@ The `radix-operator` and `radix-pipeline` are built using Github actions, then t
 
 The `radix-operator` project follows a **trunk-based development** approach.
 
+- Run `make test` and `make test-e2e` to test the operator
+
 ### 🔁 Workflow
 
 - **External contributors** should:

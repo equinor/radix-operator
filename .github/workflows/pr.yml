@@ -51,6 +51,8 @@ jobs:
   integration-test:
     name: Integration tests
     runs-on: ubuntu-latest
+    # This conditional ensures the job only runs if the PR is NOT a draft
+    if: github.event.pull_request.draft == false
     permissions:
       contents: read
     steps:
