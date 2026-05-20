@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.116.0](https://github.com/equinor/radix-operator/compare/v1.115.0..v1.116.0) - 2026-05-19
+
+### 🚀 Features
+
+- Bundle API server with Radix operator (#1707) - ([837f44c](https://github.com/equinor/radix-operator/commit/837f44c22b491acaf46f9241bd5ed925ff6be67f)) by @Richard87 in [#1707](https://github.com/equinor/radix-operator/pull/1707)
+
+
+### 🐛 Bug Fixes
+
+- Build api-server docker images (#1725) - ([962e381](https://github.com/equinor/radix-operator/commit/962e381e96101f8ad6f012a6fc2662e8ac1ab00c)) by @Richard87 in [#1725](https://github.com/equinor/radix-operator/pull/1725)
+
+
 ## [1.115.0](https://github.com/equinor/radix-operator/compare/v1.114.3..v1.115.0) - 2026-05-18
 
 ### 🚀 Features
