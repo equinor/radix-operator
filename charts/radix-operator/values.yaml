@@ -261,6 +261,10 @@ radixApiServer:
     readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
 
+  serviceMonitor:
+    enabled: true
+    interval: 5s
+
   podDisruptionBudget:
     enabled: true
     minAvailable: 1

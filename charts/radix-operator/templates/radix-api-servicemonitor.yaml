@@ -1,0 +1,19 @@
+{{- if .Values.radixApiServer.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: server
+  namespace: {{ .Release.Namespace }}
+spec:
+  endpoints:
+  - interval: {{ .Values.radixApiServer.serviceMonitor.interval }}
+    port: metrics
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "radix-api-server.selectorLabels" . | nindent 6 }}
+
+{{- end }}
