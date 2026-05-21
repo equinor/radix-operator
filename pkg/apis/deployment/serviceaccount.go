@@ -191,10 +191,10 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec(ctx context
 }
 
 // Is this a component/deployment where the service account is handled elsewhere,
-// e.g. radix-api and radix-github-webhook
+// e.g. radix-github-webhook
 func isServiceAccountForComponentPreinstalled(radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) bool {
 	isComponent := component.GetType() == radixv1.RadixComponentTypeComponent
-	return isComponent && (isRadixAPI(radixDeployment) || isRadixWebHook(radixDeployment))
+	return isComponent && isRadixWebHook(radixDeployment)
 }
 
 func componentRequiresServiceAccount(component radixv1.RadixCommonDeployComponent) bool {

@@ -23,7 +23,7 @@ type Config struct {
 	AzureOidc      Oidc   `envconfig:"OIDC_AZURE" required:"true"`
 	KubernetesOidc Oidc   `envconfig:"OIDC_KUBERNETES" required:"true"`
 	PrometheusUrl  string `envconfig:"PROMETHEUS_URL" required:"true"`
-	PodNamespace   string `envconfig:"POD_NAMESPACE" required:"true" desc:"Kubernetes namespace where radix-api is deployed"`
+	PodNamespace   string `envconfig:"POD_NAMESPACE" required:"true" desc:"Kubernetes namespace where radix api-server is deployed"`
 }
 
 type Oidc struct {

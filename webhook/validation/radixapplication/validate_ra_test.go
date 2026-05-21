@@ -39,7 +39,7 @@ func Test_ParseRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing.
 	radixClient := test.CreateClient("testdata/radixregistration.yaml")
 	ra := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 
-	validator := radixapplication.CreateOnlineValidator(radixClient, []string{"grafana"}, map[string]string{"api": "radix-api"})
+	validator := radixapplication.CreateOnlineValidator(radixClient, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 	wnrs, err := validator.Validate(context.Background(), ra)
 	assert.NoError(t, err)
 	assert.Empty(t, wnrs)
@@ -146,7 +146,7 @@ func Test_ComponentJobNameValidator(t *testing.T) {
 func Test_valid_ra_returns_true(t *testing.T) {
 	client := test.CreateClient("testdata/radixregistration.yaml")
 	validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
-	validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+	validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 	wnrs, err := validator.Validate(context.Background(), validRA)
 
 	assert.NoError(t, err)
@@ -157,7 +157,7 @@ func Test_missing_rr(t *testing.T) {
 	client := test.CreateClient()
 	validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 
-	validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+	validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 	wnrs, err := validator.Validate(context.Background(), validRA)
 
 	assert.Error(t, err)
@@ -645,7 +645,7 @@ func Test_invalid_ra(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectedError != nil {
@@ -928,7 +928,7 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			assert.NoError(t, err)
@@ -989,7 +989,7 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			assert.NoError(t, err)
@@ -1026,7 +1026,7 @@ func Test_InvalidRAComponentLimitRequest_Error(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			_, err := validator.Validate(context.Background(), validRA)
 
 			assert.Error(t, err, "Expected error for invalid resource format")
@@ -1062,7 +1062,7 @@ func Test_InvalidRAJobLimitRequest_Error(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			_, err := validator.Validate(context.Background(), validRA)
 
 			assert.Error(t, err, "Expected error for invalid resource format")
@@ -1169,7 +1169,7 @@ func Test_PublicPort(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isValid {
@@ -1257,7 +1257,7 @@ func Test_Variables(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isValid {
@@ -1785,7 +1785,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 				volumes := scenario.volumeMounts()
 				ra(validRA, volumes)
-				validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+				validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 				wnrs, err := validator.Validate(context.Background(), validRA)
 				if scenario.expectedError == nil {
 					assert.NoError(t, err)
@@ -2297,7 +2297,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isErrors == nil {
@@ -2477,7 +2477,7 @@ func Test_EgressConfig(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isValid {
@@ -2606,7 +2606,7 @@ func Test_validateNotificationsRA(t *testing.T) {
 			ra := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRa(ra)
 
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			_, err := validator.Validate(context.Background(), ra)
 
 			if testcase.expectedError == nil && err != nil {
@@ -2668,7 +2668,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 		},
 		{
 			name:                    "Reserved alias api for another app",
-			applicationBuilder:      utils.ARadixApplication().WithAppName("testapp").WithDNSAlias(radixv1.DNSAlias{Alias: "api", Environment: raEnv, Component: raComponentName}),
+			applicationBuilder:      utils.ARadixApplication().WithAppName("testapp").WithDNSAlias(radixv1.DNSAlias{Alias: "console", Environment: raEnv, Component: raComponentName}),
 			expectedValidationError: radixapplication.ErrDNSAliasReservedForRadixPlatformApplication,
 		},
 		{
@@ -2677,8 +2677,8 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 			expectedValidationError: radixapplication.ErrDNSAliasReservedForRadixPlatformService,
 		},
 		{
-			name:                    "Reserved alias api for this app",
-			applicationBuilder:      utils.ARadixApplication().WithAppName("radix-api").WithDNSAlias(radixv1.DNSAlias{Alias: "api", Environment: raEnv, Component: raComponentName}),
+			name:                    "Reserved alias console for this app",
+			applicationBuilder:      utils.ARadixApplication().WithAppName("radix-web-console").WithDNSAlias(radixv1.DNSAlias{Alias: "console", Environment: raEnv, Component: raComponentName}),
 			expectedValidationError: nil,
 		},
 	}
@@ -2687,7 +2687,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 		t.Run(ts.name, func(t *testing.T) {
 			client := test.CreateClient(
 				"testdata/radixregistration.yaml",
-				"testdata/radixregistration.radix-api.yaml",
+				"testdata/radixregistration.radix-web-console.yaml",
 				"testdata/radixregistration.anyapp2.yaml",
 				"testdata/dnsalias.anyapp1.yaml",
 				"testdata/dnsalias.anyapp2.yaml",
@@ -2695,7 +2695,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 
 			ra := ts.applicationBuilder.BuildRA()
 
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"api": "radix-api"})
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
 			wnrs, actualValidationErr := validator.Validate(context.Background(), ra)
 
 			if ts.expectedValidationError == nil {

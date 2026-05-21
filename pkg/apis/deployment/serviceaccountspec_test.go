@@ -6,7 +6,7 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -56,30 +56,6 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[1])
 		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Jobs[1].Name), spec.ServiceAccountName())
-	})
-
-	t.Run("radix api", func(t *testing.T) {
-		t.Parallel()
-		rd := utils.NewDeploymentBuilder().
-			WithRadixApplication(utils.ARadixApplication()).
-			WithAppName("radix-api").
-			WithEnvironment("test").
-			WithComponent(utils.NewDeployComponentBuilder().WithName("app")).
-			WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job")).
-			BuildRD()
-
-		spec := NewServiceAccountSpec(rd, &rd.Spec.Components[0])
-		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaults.RadixAPIServiceAccountName, spec.ServiceAccountName())
-
-		spec = NewServiceAccountSpec(rd, internal.NewJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
-		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
-
-		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
-		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
-
 	})
 
 	t.Run("radix webhook", func(t *testing.T) {

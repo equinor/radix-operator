@@ -4,7 +4,7 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 )
 
@@ -14,17 +14,6 @@ const defaultServiceAccountName = "default"
 type ServiceAccountSpec interface {
 	ServiceAccountName() string
 	AutomountServiceAccountToken() *bool
-}
-
-// Service account spec for Radix API deployment
-type radixAPIServiceAccountSpec struct{}
-
-func (spec *radixAPIServiceAccountSpec) ServiceAccountName() string {
-	return defaults.RadixAPIServiceAccountName
-}
-
-func (spec *radixAPIServiceAccountSpec) AutomountServiceAccountToken() *bool {
-	return pointers.Ptr(true)
 }
 
 // Service account spec for Radix GitHub Webhook deployment
@@ -69,10 +58,6 @@ func (spec *radixComponentServiceAccountSpec) AutomountServiceAccountToken() *bo
 func NewServiceAccountSpec(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ServiceAccountSpec {
 	isComponent := deployComponent.GetType() == v1.RadixComponentTypeComponent
 	isJobScheduler := internal.IsDeployComponentJobSchedulerDeployment(deployComponent)
-
-	if isComponent && isRadixAPI(radixDeploy) {
-		return &radixAPIServiceAccountSpec{}
-	}
 
 	if isComponent && isRadixWebHook(radixDeploy) {
 		return &radixWebhookServiceAccountSpec{}
