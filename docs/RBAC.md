@@ -190,7 +190,7 @@ These tables are at this moment manually created and maintained and can become o
 |             | AD-groups                  | radix-app-admin-build-secrets        | role        | application | radix-app-admin-build-secrets        | rolebinding        |
 |             | AD-groups                  | `application`-machine-user-token     | role        | application | `application`-machine-user-token     | rolebinding        |
 |             | rbac.createApp.groups      | radix-platform-user                  | clusterrole | global      | radix-platform-user-binding          | clusterrolebinding |
-| environment | radix-api                  | radix-api                            | clusterrole | global      | `environment`-radix-api              | clusterrolebinding |
+| environment | radix-api-server           | radix-api-server                     | clusterrole | global      | `environment`-radix-api-server       | clusterrolebinding |
 | application | radix-tekton               | radix-tekton                         | role        | application | radix-tekton                         | rolebinding        |
 | environment | radix-github-webhook       | radix-webhook                        | clusterrole | global      | `environment`-radix-github-webhook   | clusterrolebinding |
 | global      | radix-operator             | radix-operator                       | clusterrole | global      | radix-operator-new                   | clusterrolebinding |
