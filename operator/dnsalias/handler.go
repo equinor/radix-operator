@@ -22,15 +22,14 @@ import (
 
 // Handler Handler for radix dns aliases
 type handler struct {
-	kubeClient           kubernetes.Interface
-	kubeUtil             *kube.Kube
-	radixClient          radixclient.Interface
-	dynamicClient        client.Client
-	syncerFactory        internal.SyncerFactory
-	events               common.SyncEventRecorder
-	config               config.Config
-	ingressConfiguration ingress.IngressConfiguration
-	oauth2DefaultConfig  defaults.OAuth2Config
+	kubeClient          kubernetes.Interface
+	kubeUtil            *kube.Kube
+	radixClient         radixclient.Interface
+	dynamicClient       client.Client
+	syncerFactory       internal.SyncerFactory
+	events              common.SyncEventRecorder
+	config              config.Config
+	oauth2DefaultConfig defaults.OAuth2Config
 }
 
 // NewHandler creates a handler for managing RadixDNSAlias resources
@@ -66,13 +65,6 @@ type HandlerConfigOption func(*handler)
 func WithSyncerFactory(factory internal.SyncerFactory) HandlerConfigOption {
 	return func(h *handler) {
 		h.syncerFactory = factory
-	}
-}
-
-// WithIngressConfiguration sets the list of custom ingress confiigurations
-func WithIngressConfiguration(config ingress.IngressConfiguration) HandlerConfigOption {
-	return func(h *handler) {
-		h.ingressConfiguration = config
 	}
 }
 

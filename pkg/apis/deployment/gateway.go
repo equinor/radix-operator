@@ -23,21 +23,6 @@ import (
 
 type dnsType string
 
-func (dns dnsType) ToIngressLabels() kubelabels.Set {
-	switch dns {
-	case dnsTypeExternal:
-		return kubelabels.Set{kube.RadixExternalAliasLabel: "true"}
-	case dnsTypeAppAlias:
-		return kubelabels.Set{kube.RadixAppAliasLabel: "true"}
-	case dnsTypeClusterName:
-		return kubelabels.Set{kube.RadixDefaultAliasLabel: "true"}
-	case dnsTypeActiveCluster:
-		return kubelabels.Set{kube.RadixActiveClusterAliasLabel: "true"}
-	}
-
-	return nil
-}
-
 const (
 	dnsTypeExternal      dnsType = "external"
 	dnsTypeAppAlias      dnsType = "app-alias"
@@ -260,4 +245,32 @@ func (deploy *Deployment) garbageCollectListenerSetsNoLongerInSpec(ctx context.C
 	}
 
 	return nil
+}
+
+func getActiveClusterHostName(componentName, namespace string) string {
+	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
+	if dnsZone == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s-%s.%s", componentName, namespace, dnsZone)
+}
+
+func getHostName(componentName, namespace, clustername string) string {
+	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
+	if dnsZone == "" {
+		return ""
+	}
+	hostnameTemplate := "%s-%s.%s.%s"
+	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
+}
+func getAppAliasIngressName(appName string) string {
+	return fmt.Sprintf("%s-url-alias", appName)
+}
+
+func getActiveClusterIngressName(componentName string) string {
+	return fmt.Sprintf("%s-active-cluster-url-alias", componentName)
+}
+
+func getDefaultIngressName(componentName string) string {
+	return componentName
 }

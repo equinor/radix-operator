@@ -11,7 +11,6 @@ import (
 	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
@@ -24,7 +23,6 @@ import (
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
@@ -42,12 +40,11 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotations []ingress.AnnotationProvider, oauth2ProxyDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, oauth2ProxyDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
 		kubeutil:                   kubeutil,
-		ingressAnnotations:         ingressAnnotations,
 		oauth2DefaultConfig:        oauth2DefaultConfig,
 		oauth2ProxyDockerImage:     oauth2ProxyDockerImage,
 		externalRegistryAuthSecret: externalRegistryAuthSecret,
@@ -59,7 +56,6 @@ type oauthProxyResourceManager struct {
 	rd                         *radixv1.RadixDeployment
 	rr                         *radixv1.RadixRegistration
 	kubeutil                   *kube.Kube
-	ingressAnnotations         []ingress.AnnotationProvider
 	oauth2DefaultConfig        defaults.OAuth2Config
 	oauth2ProxyDockerImage     string
 	externalRegistryAuthSecret string
@@ -125,24 +121,6 @@ func (o *oauthProxyResourceManager) garbageCollect(ctx context.Context) error {
 		return fmt.Errorf("failed to garbage collect services no longer in spec: %w", err)
 	}
 
-	if err := o.garbageCollectIngressesNoLongerInSpec(ctx); err != nil {
-		return fmt.Errorf("failed to garbage collect ingresses no longer in spec: %w", err)
-	}
-
-	if err := o.garbageCollectIngresses(ctx); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (o *oauthProxyResourceManager) garbageCollectIngresses(ctx context.Context) error {
-	for _, comp := range o.rd.Spec.Components {
-		hosts := getComponentDNSInfo(ctx, &comp, *o.rd, *o.kubeutil)
-		if err := o.garbageCollectIngressesForComponent(ctx, &comp, hosts); err != nil {
-			return fmt.Errorf("failed to garbage collect ingresses for component %s: %w", comp.GetName(), err)
-		}
-	}
 	return nil
 }
 
@@ -266,10 +244,6 @@ func (o *oauthProxyResourceManager) install(ctx context.Context, component radix
 		return err
 	}
 
-	if err := o.createOrUpdateIngress(ctx, component); err != nil {
-		return err
-	}
-
 	if err := createOrUpdateOAuthProxyServiceAccount(ctx, o.kubeutil, o.rd, component); err != nil {
 		return fmt.Errorf("failed to create OAuth proxy service account: %w", err)
 	}
@@ -282,10 +256,6 @@ func (o *oauthProxyResourceManager) install(ctx context.Context, component radix
 func (o *oauthProxyResourceManager) uninstall(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
 	o.logger.Debug().Msgf("uninstall oauth proxy for the component %s", component.GetName())
 	if err := o.deleteDeployment(ctx, component); err != nil {
-		return err
-	}
-
-	if err := o.deleteIngresses(ctx, component); err != nil {
 		return err
 	}
 
@@ -317,22 +287,6 @@ func (o *oauthProxyResourceManager) deleteDeployment(ctx context.Context, compon
 
 	for _, deployment := range deployments {
 		if err := o.kubeutil.KubeClient().AppsV1().Deployments(deployment.Namespace).Delete(ctx, deployment.Name, metav1.DeleteOptions{}); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (o *oauthProxyResourceManager) deleteIngresses(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	selector := fmt.Sprintf("%s,!%s", radixlabels.ForAuxOAuthProxyIngress(o.rd.Spec.AppName, component), kube.RadixAliasLabel)
-	ingresses, err := o.kubeutil.ListIngressesWithSelector(ctx, o.rd.Namespace, selector)
-	if err != nil {
-		return err
-	}
-
-	for _, ingress := range ingresses {
-		if err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(ingress.Namespace).Delete(ctx, ingress.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
@@ -399,96 +353,6 @@ func (o *oauthProxyResourceManager) deleteRoles(ctx context.Context, component r
 	for _, role := range roles {
 		if err := o.kubeutil.KubeClient().RbacV1().Roles(role.Namespace).Delete(ctx, role.Name, metav1.DeleteOptions{}); err != nil {
 			return err
-		}
-	}
-
-	return nil
-}
-
-func (o *oauthProxyResourceManager) garbageCollectIngressesNoLongerInSpec(ctx context.Context) error {
-	ingresses, err := o.kubeutil.ListIngresses(ctx, o.rd.Namespace)
-	if err != nil {
-		return err
-	}
-
-	for _, ing := range ingresses {
-		if o.isEligibleForGarbageCollection(ing) {
-			err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{})
-			if err != nil && !kubeerrors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (o *oauthProxyResourceManager) garbageCollectIngressesForComponent(ctx context.Context, component *radixv1.RadixDeployComponent, hosts []dnsInfo) error {
-	logger := log.Ctx(ctx)
-	selector := fmt.Sprintf("%s,!%s", radixlabels.ForAuxOAuthProxyIngress(o.rd.Spec.AppName, component), kube.RadixAliasLabel)
-	existingIngresses, err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(o.rd.GetNamespace()).List(ctx, metav1.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return fmt.Errorf("failed to list ingresses: %w", err)
-	}
-	logger.Debug().Msgf("Garbage collecting ingresses for component %s. Found %d existing ingresses", component.GetName(), len(existingIngresses.Items))
-
-	isOAuthEnabled := component.GetAuthentication().GetOAuth2() != nil
-
-	var path string
-	if isOAuthEnabled {
-		component, err = o.buildComponentWithOAuthDefaults(component)
-		if err != nil {
-			return err
-		}
-		// build a dummy ingress spec to get path from
-		path = ingress.BuildIngressSpecForOAuth2Component(component, "", "").Rules[0].HTTP.Paths[0].Path
-	}
-
-	for _, ing := range existingIngresses.Items {
-		// should exist in list of hosts
-		found := false
-		for _, host := range hosts {
-			if isOAuthEnabled && len(ing.Spec.Rules) > 0 && ing.Spec.Rules[0].Host == host.fqdn && ing.Spec.Rules[0].HTTP.Paths[0].Path == path {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			logger.Info().Msgf("Garbage collecting ingress %s for component %s", ing.Name, component.GetName())
-			if err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(o.rd.GetNamespace()).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
-				return fmt.Errorf("failed to delete ingress %s: %w", ing.Name, err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func (o *oauthProxyResourceManager) createOrUpdateIngress(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	annotations, err := ingress.BuildAnnotationsFromProviders(component, o.ingressAnnotations)
-	if err != nil {
-		return fmt.Errorf("failed to build annotations: %w", err)
-	}
-	owner := []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)}
-	hosts := getComponentDNSInfo(ctx, component, *o.rd, *o.kubeutil)
-
-	for _, host := range hosts {
-		ing := &networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        oauthutil.GetAuxOAuthProxyIngressName(host.resourceName),
-				Annotations: annotations,
-				Labels: radixlabels.Merge(
-					radixlabels.ForAuxOAuthProxyIngress(o.rd.Spec.AppName, component),
-					host.dnsType.ToIngressLabels(),
-				),
-				OwnerReferences: owner,
-			},
-			Spec: ingress.BuildIngressSpecForOAuth2Component(component, host.fqdn, host.tlsSecret),
-		}
-
-		if err := o.kubeutil.ApplyIngress(ctx, o.rd.Namespace, ing); err != nil {
-			return fmt.Errorf("failed to reconcile ingress: %w", err)
 		}
 	}
 

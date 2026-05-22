@@ -3,7 +3,6 @@ package deployment
 import (
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -21,7 +20,6 @@ type DeploymentSyncerFactoryFunc func(
 	certClient certclient.Interface,
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
-	ingressAnnotationProviders []ingress.AnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
 	config *config.Config,
 ) DeploymentSyncer
@@ -34,11 +32,10 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	certClient certclient.Interface,
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
-	ingressAnnotationProviders []ingress.AnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
 	config *config.Config,
 ) DeploymentSyncer {
-	return f(kubeclient, kubeutil, radixclient, dynamicClient, certClient, registration, radixDeployment, ingressAnnotationProviders, auxResourceManagers, config)
+	return f(kubeclient, kubeutil, radixclient, dynamicClient, certClient, registration, radixDeployment, auxResourceManagers, config)
 }
 
 // DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
@@ -51,7 +48,6 @@ type DeploymentSyncerFactory interface {
 		certClient certclient.Interface,
 		registration *v1.RadixRegistration,
 		radixDeployment *v1.RadixDeployment,
-		ingressAnnotationProviders []ingress.AnnotationProvider,
 		auxResourceManagers []AuxiliaryResourceManager,
 		config *config.Config,
 	) DeploymentSyncer

@@ -6,11 +6,9 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	networkingv1 "k8s.io/api/networking/v1"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -124,79 +122,6 @@ func (s *syncer) createOrUpdateOAuthIngress(ctx context.Context) error {
 	return nil
 }
 
-func (s *syncer) garbageCollectOAuthIngress(ctx context.Context) error {
-	ingressName := oauth.GetAuxOAuthProxyIngressName(s.getIngressName())
-	namespace := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
-
-	ing, err := s.kubeClient.NetworkingV1().Ingresses(namespace).Get(ctx, ingressName, metav1.GetOptions{})
-	if err != nil {
-		if kubeerrors.IsNotFound(err) {
-			return nil
-		}
-		return fmt.Errorf("failed to get ingress: %w", err)
-	}
-
-	mustDelete := func() bool {
-		if s.component == nil {
-			return true
-		}
-
-		if !s.component.IsPublic() {
-			return true
-		}
-
-		if s.component.GetAuthentication().GetOAuth2() == nil {
-			return true
-		}
-
-		expectedPath := ingress.BuildIngressSpecForOAuth2Component(s.component, "", "").Rules[0].HTTP.Paths[0].Path
-		return ing.Spec.Rules[0].HTTP.Paths[0].Path != expectedPath
-	}
-
-	if !mustDelete() {
-		return nil
-	}
-
-	if err := s.kubeClient.NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
-		return fmt.Errorf("failed to delete ingress: %w", err)
-	}
-
-	return nil
-}
-
-func (s *syncer) garbageCollectComponentIngress(ctx context.Context) error {
-	namespace := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
-	ing, err := s.kubeClient.NetworkingV1().Ingresses(namespace).Get(ctx, s.getIngressName(), metav1.GetOptions{})
-	if err != nil {
-		if kubeerrors.IsNotFound(err) {
-			return nil
-		}
-		return fmt.Errorf("failed to get ingress: %w", err)
-	}
-
-	mustDelete := func() bool {
-		if s.component == nil {
-			return true
-		}
-
-		if !s.component.IsPublic() {
-			return true
-		}
-
-		return s.component.GetAuthentication().GetOAuth2() != nil
-	}
-
-	if !mustDelete() {
-		return nil
-	}
-
-	if err := s.kubeClient.NetworkingV1().Ingresses(ing.Namespace).Delete(ctx, ing.Name, metav1.DeleteOptions{}); err != nil {
-		return fmt.Errorf("failed to delete ingress: %w", err)
-	}
-
-	return nil
-}
-
 func (s *syncer) buildComponentWithOAuthDefaults(component *radixv1.RadixDeployComponent) (*radixv1.RadixDeployComponent, error) {
 	if component.GetAuthentication().GetOAuth2() == nil {
 		return component, nil
@@ -212,8 +137,4 @@ func (s *syncer) buildComponentWithOAuthDefaults(component *radixv1.RadixDeployC
 
 func (s *syncer) getHostName() string {
 	return fmt.Sprintf("%s.%s", s.radixDNSAlias.Name, s.config.DNSZone)
-}
-
-func (s *syncer) getIngressName() string {
-	return fmt.Sprintf("%s.custom-alias", s.radixDNSAlias.Name)
 }

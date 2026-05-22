@@ -1,7 +1,6 @@
 package oauth
 
 import (
-	"fmt"
 	"net/url"
 	"path"
 	"strings"
@@ -25,11 +24,6 @@ func SanitizePathPrefix(prefix string) string {
 	}
 
 	return strings.Join(escapedParts, "/")
-}
-
-// GetAuxOAuthProxyIngressName Get an ingress name for the auxiliary OAuth proxy component
-func GetAuxOAuthProxyIngressName(sourceIngressName string) string {
-	return fmt.Sprintf("%s-%s", sourceIngressName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 }
 
 // MergeAuxOAuthProxyComponentResourceLabels  Merge labels for object and aux OAuth proxy

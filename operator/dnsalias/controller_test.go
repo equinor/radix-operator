@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
@@ -13,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -77,38 +75,6 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	_, err = s.RadixClient.RadixV1().RadixDNSAliases().Update(context.Background(), alias, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called when updating RadixDNSAlias with no changes")
-
-	// Add Ingress with owner reference to RadixDNSAlias should not trigger sync
-	ing := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			OwnerReferences: []metav1.OwnerReference{{APIVersion: radixv1.SchemeGroupVersion.Identifier(), Kind: radixv1.KindRadixDNSAlias, Name: aliasName, Controller: pointers.Ptr(true)}},
-		},
-	}
-
-	envNamespace := utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)
-	s.Handler.EXPECT().Sync(gomock.Any(), envNamespace, aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	_, _ = s.KubeClient.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace(alias.Spec.AppName, alias.Spec.Environment)).Create(context.Background(), ing, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	s.WaitForNotSynced("Sync should not be called when adding ingress")
-
-	// Sync should not trigger on ingress update if resource version is unchanged
-	s.Handler.EXPECT().Sync(gomock.Any(), envNamespace, aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	ing, err = s.KubeClient.NetworkingV1().Ingresses(envNamespace).Update(context.Background(), ing, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForNotSynced("Sync should not be called on ingress update with no resource version change")
-
-	// Sync should trigger on ingress update if resource version is changed
-	ing.ResourceVersion = "2"
-	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	_, err = s.KubeClient.NetworkingV1().Ingresses(envNamespace).Update(context.Background(), ing, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on k8s ingress update with changed resource version")
-
-	// Sync should trigger when deleting ingress
-	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	err = s.KubeClient.NetworkingV1().Ingresses(envNamespace).Delete(context.Background(), ing.GetName(), metav1.DeleteOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on ingress deletion")
 
 	// Delete the RadixDNSAlias should not trigger a sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)

@@ -19,7 +19,8 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 	logger := log.Ctx(ctx)
 
 	namespace := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
-	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: s.getIngressName(), Namespace: namespace}}
+	routeName := fmt.Sprintf("%s.custom-alias", s.radixDNSAlias.Name)
+	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: namespace}}
 
 	if _, hasPublicPort := s.component.GetPublicPortNumber(); !hasPublicPort {
 		err := s.dynamicClient.Delete(ctx, route)

@@ -45,13 +45,6 @@ func WithOAuth2RedisDockerImage(image string) HandlerConfigOption {
 	}
 }
 
-// WithIngressConfiguration sets the list of custom ingress confiigurations
-func WithIngressConfiguration(config ingress.IngressConfiguration) HandlerConfigOption {
-	return func(h *handler) {
-		h.ingressConfiguration = config
-	}
-}
-
 // WithDeploymentSyncerFactory configures the deploymentSyncerFactory for the Handler
 func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) HandlerConfigOption {
 	return func(h *handler) {
@@ -71,7 +64,6 @@ type handler struct {
 	oauth2DefaultConfig     defaults.OAuth2Config
 	oauth2ProxyDockerImage  string
 	oauth2RedisDockerImage  string
-	ingressConfiguration    ingress.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 	config                  *config.Config
 }

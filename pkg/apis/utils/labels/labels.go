@@ -49,15 +49,6 @@ func ForComponentName(componentName string) kubelabels.Set {
 	}
 }
 
-// ForComponentIngress returns labels for a component's ingress object
-func ForComponentIngress(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixAppLabel:       appName,
-		kube.RadixComponentLabel: component.GetName(),
-	}
-
-}
-
 // ForComponentGatewayResources returns labels for a component's Gateway API resources
 func ForComponentGatewayResources(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
 	return kubelabels.Set{
@@ -279,40 +270,12 @@ func ForAuxOAuthProxyComponent(appName string, component radixv1.RadixCommonDepl
 	}
 }
 
-// ForAuxOAuthProxyIngress returns labels for oauth2 proxy ingress
-func ForAuxOAuthProxyIngress(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixAppLabel:                    appName,
-		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
-		kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType,
-	}
-}
-
 // ForAuxOAuthRedisComponent returns labels for application component aux Redis
 func ForAuxOAuthRedisComponent(appName string, component radixv1.RadixCommonDeployComponent) map[string]string {
 	return map[string]string{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
 		kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthRedisAuxiliaryComponentType,
-	}
-}
-
-// ForDNSAliasOAuthIngress returns DNS alias ingress labels for a component's oauth proxy
-func ForDNSAliasOAuthIngress(dnsAlias *radixv1.RadixDNSAlias) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixAppLabel:                    dnsAlias.Spec.AppName,
-		kube.RadixAuxiliaryComponentLabel:     dnsAlias.Spec.Component,
-		kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType,
-		kube.RadixAliasLabel:                  dnsAlias.Name,
-	}
-}
-
-// ForDNSAliasComponentIngress returns labels for DNS alias ingress
-func ForDNSAliasComponentIngress(dnsAlias *radixv1.RadixDNSAlias) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixAppLabel:       dnsAlias.Spec.AppName,
-		kube.RadixComponentLabel: dnsAlias.Spec.Component,
-		kube.RadixAliasLabel:     dnsAlias.Name,
 	}
 }
 
