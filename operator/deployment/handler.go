@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -128,13 +127,12 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, ingress.GetOAuthProxyAnnotationProviders(t.ingressConfiguration, rd.Namespace), t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2RedisDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 	}
 
-	ingressAnnotations := ingress.GetComponentAnnotationProvider(t.ingressConfiguration, rd.Namespace, t.oauth2DefaultConfig)
 	syncRD := rd.DeepCopy()
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.dynamicClient, t.certClient, radixRegistration, syncRD, ingressAnnotations, auxResourceManagers, t.config)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.dynamicClient, t.certClient, radixRegistration, syncRD, auxResourceManagers, t.config)
 	err = deployment.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRD, err)

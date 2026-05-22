@@ -149,7 +149,6 @@ func (s *handlerSuite) Test_Sync() {
 			oauthRedisImage = "redis:123"
 		)
 		oauthConfig := defaults.NewOAuth2Config()
-		ingressConfig := ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
 
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()

@@ -246,9 +246,6 @@ type RadixDeployComponent struct {
 	// +optional
 	Runtime *Runtime `json:"runtime,omitempty"`
 
-	// +optional
-	Network *Network `json:"network,omitempty"`
-
 	// GetCommand Entrypoint array. Not executed within a shell.
 	// +optional
 	Command []string `json:"command,omitempty"`
@@ -407,10 +404,6 @@ func (deployComponent *RadixDeployComponent) GetRuntime() *Runtime {
 	return deployComponent.Runtime
 }
 
-func (deployComponent *RadixDeployComponent) GetNetwork() *Network {
-	return deployComponent.Network
-}
-
 func (deployComponent *RadixDeployComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
 	deployComponent.EnvironmentVariables = envVars
 }
@@ -536,10 +529,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetReadOnlyFileSystem() *bool
 
 func (deployJobComponent *RadixDeployJobComponent) GetRuntime() *Runtime {
 	return deployJobComponent.Runtime
-}
-
-func (deployJobComponent *RadixDeployJobComponent) GetNetwork() *Network {
-	return nil
 }
 
 func (deployJobComponent *RadixDeployJobComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
@@ -715,7 +704,6 @@ type RadixCommonDeployComponent interface {
 	GetIdentity() *Identity
 	GetReadOnlyFileSystem() *bool
 	GetRuntime() *Runtime
-	GetNetwork() *Network
 	GetHealthChecks() *RadixHealthChecks
 	// GetCommand Entrypoint array. Not executed within a shell.
 	GetCommand() []string
