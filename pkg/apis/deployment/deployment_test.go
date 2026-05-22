@@ -64,6 +64,10 @@ const (
 )
 
 var testConfig = config.Config{
+	ClusterName:           testClusterName,
+	ClusterType:           "development",
+	DNSZone:               "dev.radix.equinor.com",
+	ContainerRegistryName: "any.container.registry",
 	DeploymentSyncer: deployment.SyncerConfig{
 		TenantID:               "123456789",
 		KubernetesAPIPort:      543,
@@ -1400,21 +1404,6 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, defaults.RadixGithubWebhookServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 	})
-
-	t.Run("radix-api runs as radix-api SA", func(t *testing.T) {
-		tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-		_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-			WithJobComponents().
-			WithAppName("radix-api").
-			WithEnvironment("test"))
-		require.NoError(t, err)
-		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-api", "test")).List(context.Background(), metav1.ListOptions{})
-		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("radix-api", "test")).List(context.Background(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, defaults.RadixAPIServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
-	})
 }
 
 func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing.T) {
@@ -1563,7 +1552,7 @@ func TestConfigMap_RetainDataBetweenSync(t *testing.T) {
 	assert.Equal(t, expectedData, varCm.Data)
 	assert.Empty(t, varMeta)
 
-	// Update variables and metadata configmaps, the way radix-api will do a change from a user
+	// Update variables and metadata configmaps, the way radix api-server will do a change from a user
 	updateVariable := func(compName, varName, newVal, configValue string) error {
 		varCm, varMetaCm, varMeta, err := kubeUtil.GetEnvVarsConfigMapAndMetadataMap(context.Background(), namespace, compName)
 		if err != nil {

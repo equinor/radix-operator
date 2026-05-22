@@ -14,6 +14,9 @@ type Config struct {
 	LogPretty bool
 	// DNSConfig Settings for the cluster DNS
 	DNSZone                 string
+	ClusterType             string
+	ClusterName             string
+	ContainerRegistryName   string
 	PipelineJobConfig       *pipelinejob.Config
 	CertificateAutomation   certificate.AutomationConfig
 	DeploymentSyncer        deployment.SyncerConfig

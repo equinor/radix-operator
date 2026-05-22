@@ -42,7 +42,7 @@ import (
 func main() {
 	c := config.MustParse()
 	setupLogger(c.LogLevel, c.LogPrettyPrint)
-	log.Info().Any("config", c).Msg("Starting radix-api")
+	log.Info().Any("config", c).Msg("Starting radix api-server")
 
 	servers := []*http.Server{
 		initializeServer(c),

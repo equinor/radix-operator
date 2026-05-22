@@ -12,11 +12,11 @@ COPY ./api-server ./api-server
 COPY ./job-scheduler ./job-scheduler
 COPY ./pkg ./pkg
 WORKDIR /src/api-server
-RUN go build -ldflags="-s -w" -o /build/radix-api
+RUN go build -ldflags="-s -w" -o /build/api-server
 
 # Final stage, ref https://github.com/GoogleContainerTools/distroless/blob/main/base/README.md for distroless
 FROM gcr.io/distroless/static
 WORKDIR /app
-COPY --from=builder /build/radix-api .
+COPY --from=builder /build/api-server .
 USER 1000
-ENTRYPOINT ["/app/radix-api"]
+ENTRYPOINT ["/app/api-server"]

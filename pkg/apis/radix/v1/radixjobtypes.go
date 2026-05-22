@@ -133,7 +133,7 @@ type RadixJobSpec struct {
 	// AppName Name of the Radix application
 	AppName string `json:"appName"`
 
-	// Deprecated: radix-api will be responsible for setting the CloneURL, it is taken from the RadixRegistration by the radix-operator
+	// Deprecated: radix api-server will be responsible for setting the CloneURL, it is taken from the RadixRegistration by the radix-operator
 	// CloneURL GitHub repository URL
 	// +kubebuilder:validation:Optional
 	CloneURL string `json:"cloneURL,omitempty"`
@@ -168,7 +168,7 @@ type RadixJobSpec struct {
 	// TriggeredBy Name of the user or UID oa a system principal which triggered the job
 	TriggeredBy string `json:"triggeredBy"`
 
-	// Deprecated: radix-api will be responsible for setting the RadixConfigFullName, it is taken from the RadixRegistration by the radix-operator
+	// Deprecated: radix api-server will be responsible for setting the RadixConfigFullName, it is taken from the RadixRegistration by the radix-operator
 	// RadixConfigFullName Full name of the radix config file within the cloned GitHUb repository
 	// +kubebuilder:validation:Optional
 	RadixConfigFullName string `json:"radixConfigFullName,omitempty"`

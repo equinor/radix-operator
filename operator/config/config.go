@@ -71,9 +71,12 @@ func getIntFromEnvVar(envVarName string, defaultValue int) int {
 func NewConfig() *apiconfig.Config {
 	viper.AutomaticEnv()
 	return &apiconfig.Config{
-		LogLevel:  viper.GetString(defaults.LogLevel),
-		LogPretty: viper.GetBool("LOG_PRETTY"),
-		DNSZone:   getDNSZone(),
+		LogLevel:              viper.GetString(defaults.LogLevel),
+		LogPretty:             viper.GetBool("LOG_PRETTY"),
+		DNSZone:               getDNSZone(),
+		ClusterType:           viper.GetString(defaults.OperatorClusterTypeEnvironmentVariable),
+		ClusterName:           viper.GetString(defaults.ClusternameEnvironmentVariable),
+		ContainerRegistryName: viper.GetString(defaults.ContainerRegistryEnvironmentVariable),
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),
 			PipelineJobsHistoryPeriodLimit:        getPipelineJobsHistoryPeriodLimit(),

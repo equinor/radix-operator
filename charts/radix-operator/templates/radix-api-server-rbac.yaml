@@ -12,7 +12,7 @@ kind: ClusterRole
 metadata:
   labels:
     {{- include "radix-api-server.labels" . | nindent 4 }}
-  name: radix-api
+  name: radix-api-server
 rules:
 - apiGroups:
   - radix.equinor.com
@@ -130,7 +130,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: radix-api
+  name: radix-api-server
 subjects:
 - kind: ServiceAccount
   name: radix-api-server

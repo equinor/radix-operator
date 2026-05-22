@@ -446,7 +446,7 @@ func applyDeploymentWithSyncWithComponentResources(t *testing.T, origRequests, o
 				WithResource(origRequests, origLimits)).
 			WithAppName("any-app").
 			WithEnvironment("test"))
-	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR()}
+	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR(), config: &testConfig}
 }
 
 func TestDeployment_createJobAuxDeployment(t *testing.T) {

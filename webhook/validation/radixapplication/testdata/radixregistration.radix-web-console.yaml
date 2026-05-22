@@ -1,9 +1,9 @@
 apiVersion: radix.equinor.com/v1
 kind: RadixRegistration
 metadata:
-  name: radix-api
+  name: radix-web-console
 spec:
-  cloneURL: "git@github.com:equinor/radix-api.git"
+  cloneURL: "git@github.com:equinor/radix-web-console.git"
   sharedSecret: "NotSoSecret"
   adGroups:
     - "a6a3b81b-34gd-sfsf-saf2-7986371ea35f"

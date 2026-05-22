@@ -100,7 +100,7 @@ func errorMissingExpectedDynamicImageTagName(componentName string) error {
 
 func getImageTagName(componentImage pipeline.DeployComponentImage, componentImageTagName string, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) string {
 	if componentImage.ImageTagName != "" {
-		return componentImage.ImageTagName // provided via radix-api build request
+		return componentImage.ImageTagName // provided via radix api-server build request
 	}
 	if commonUtils.IsNil(environmentSpecificConfig) {
 		return componentImageTagName
