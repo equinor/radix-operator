@@ -20,16 +20,15 @@ import (
 // GetEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
 // It requires service account having access to config map in default namespace.
 func GetEnvironmentVariablesForRadixOperator(ctx context.Context, kubeutil *kube.Kube, cfg *config.Config, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
-	envVarsConfigMap, _, err := kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, radixDeployment.GetNamespace(),
-		appName, deployComponent.GetName())
+	envVarsConfigMap, _, err := kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, radixDeployment.GetNamespace(), appName, deployComponent.GetName())
 	if err != nil {
 		return nil, err
 	}
 
-	return getEnvironmentVariables(ctx, appName, cfg, radixDeployment, deployComponent, envVarsConfigMap), nil
+	return getEnvironmentVariables(appName, cfg, radixDeployment, deployComponent, envVarsConfigMap), nil
 }
 
-func getEnvironmentVariables(ctx context.Context, appName string, cfg *config.Config, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, cfg *config.Config, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
 	var (
 		namespace          = radixDeployment.Namespace
 		currentEnvironment = radixDeployment.Spec.Environment
@@ -37,7 +36,7 @@ func getEnvironmentVariables(ctx context.Context, appName string, cfg *config.Co
 
 	var envVars = getEnvVars(envVarConfigMap, deployComponent.GetEnvironmentVariables())
 
-	envVars = appendDefaultEnvVars(ctx, envVars, cfg, currentEnvironment, namespace, appName, deployComponent)
+	envVars = appendDefaultEnvVars(envVars, cfg, currentEnvironment, namespace, appName, deployComponent)
 
 	if !internal.IsDeployComponentJobSchedulerDeployment(deployComponent) { // JobScheduler does not need env-vars for secrets and secret-refs
 		envVars = append(envVars, utils.GetEnvVarsFromSecrets(deployComponent.GetName(), deployComponent.GetSecrets())...)
@@ -110,7 +109,7 @@ func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1
 	}
 }
 
-func appendDefaultEnvVars(ctx context.Context, envVars []corev1.EnvVar, cfg *config.Config, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
+func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg *config.Config, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 
 	envVarSet.Add(defaults.RadixClusterTypeEnvironmentVariable, cfg.ClusterType)
@@ -118,6 +117,9 @@ func appendDefaultEnvVars(ctx context.Context, envVars []corev1.EnvVar, cfg *con
 	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, cfg.DNSZone)
 	envVarSet.Add(defaults.ClusternameEnvironmentVariable, cfg.ClusterName)
 	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)
+	envVarSet.Add(defaults.RadixAppEnvironmentVariable, appName)
+	envVarSet.Add(defaults.RadixComponentEnvironmentVariable, deployComponent.GetName())
+
 	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
 	if isPortPublic {
 		canonicalHostName := getHostName(deployComponent.GetName(), namespace, cfg.ClusterName)
@@ -125,8 +127,7 @@ func appendDefaultEnvVars(ctx context.Context, envVars []corev1.EnvVar, cfg *con
 		envVarSet.Add(defaults.PublicEndpointEnvironmentVariable, publicHostName)
 		envVarSet.Add(defaults.CanonicalEndpointEnvironmentVariable, canonicalHostName)
 	}
-	envVarSet.Add(defaults.RadixAppEnvironmentVariable, appName)
-	envVarSet.Add(defaults.RadixComponentEnvironmentVariable, deployComponent.GetName())
+
 	ports := deployComponent.GetPorts()
 	if len(ports) > 0 {
 		portNumbers, portNames := getPortNumbersAndNamesString(ports)
@@ -154,9 +155,7 @@ func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
 }
 
 func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
-	currentEnvVarsConfigMap, envVarsMetadataConfigMap,
-		err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, deploy.radixDeployment.GetNamespace(),
-		deploy.radixDeployment.Spec.AppName, deployComponent.GetName())
+	currentEnvVarsConfigMap, envVarsMetadataConfigMap, err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, deploy.radixDeployment.GetNamespace(), deploy.radixDeployment.Spec.AppName, deployComponent.GetName())
 	if err != nil {
 		return err
 	}

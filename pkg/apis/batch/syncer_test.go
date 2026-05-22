@@ -405,7 +405,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Equal(securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault)), kubejob.Spec.Template.Spec.Containers[0].SecurityContext)
 		s.Len(kubejob.Spec.Template.Spec.Containers[0].Resources.Limits, 0)
 		s.Len(kubejob.Spec.Template.Spec.Containers[0].Resources.Requests, 0)
-		s.Len(kubejob.Spec.Template.Spec.Containers[0].Env, 5)
+		s.Len(kubejob.Spec.Template.Spec.Containers[0].Env, 12)
 		s.True(slice.Any(kubejob.Spec.Template.Spec.Containers[0].Env, func(env corev1.EnvVar) bool {
 			return env.Name == "VAR1" && env.ValueFrom.ConfigMapKeyRef.Key == "VAR1" && env.ValueFrom.ConfigMapKeyRef.LocalObjectReference.Name == kube.GetEnvVarsConfigMapName(componentName)
 		}))

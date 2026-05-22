@@ -64,6 +64,10 @@ const (
 )
 
 var testConfig = config.Config{
+	ClusterName:           testClusterName,
+	ClusterType:           "development",
+	DNSZone:               "dev.radix.equinor.com",
+	ContainerRegistryName: "any.container.registry",
 	DeploymentSyncer: deployment.SyncerConfig{
 		TenantID:               "123456789",
 		KubernetesAPIPort:      543,

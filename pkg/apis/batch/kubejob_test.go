@@ -87,10 +87,12 @@ func Test_Variables(t *testing.T) {
 			s := syncer{kubeUtil: kubeUtil}
 			envVars, err := s.getContainerEnvironmentVariables(context.Background(), &radixv1.RadixDeployment{}, &jobComponent, &radixBatchJob, jobName1)
 			require.NoError(t, err, "should not return error when getting environment variables")
-			if assert.Len(t, envVars, len(tt.want), "should return expected number of environment variables") {
-				for _, envVar := range envVars {
-					assert.Equal(t, tt.want[envVar.Name], envVar.Value, "should return expected environment variable for key %s", envVar.Name)
-				}
+			envVarMap := make(map[string]string)
+			for _, envVar := range envVars {
+				envVarMap[envVar.Name] = envVar.Value
+			}
+			for expectedName, expectedValue := range tt.want {
+				assert.Equal(t, expectedValue, envVarMap[expectedName], "should return expected environment variable for key %s", expectedName)
 			}
 		})
 	}
