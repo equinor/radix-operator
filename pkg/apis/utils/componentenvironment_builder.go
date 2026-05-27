@@ -27,7 +27,6 @@ type RadixEnvironmentConfigBuilder interface {
 	WithHorizontalScaling(scaling *radixv1.RadixHorizontalScaling) RadixEnvironmentConfigBuilder
 	WithReadOnlyFileSystem(*bool) RadixEnvironmentConfigBuilder
 	WithRuntime(*radixv1.Runtime) RadixEnvironmentConfigBuilder
-	WithNetwork(*radixv1.Network) RadixEnvironmentConfigBuilder
 	WithCommand(strings []string) RadixEnvironmentConfigBuilder
 	WithArgs(strings []string) RadixEnvironmentConfigBuilder
 	WithRunAsUser(runAsUser *int64) RadixEnvironmentConfigBuilder
@@ -53,7 +52,6 @@ type radixEnvironmentConfigBuilder struct {
 	horizontalScaling       *radixv1.RadixHorizontalScaling
 	readOnlyFileSystem      *bool
 	runtime                 *radixv1.Runtime
-	network                 *radixv1.Network
 	healthChecks            *radixv1.RadixHealthChecks
 	command                 *[]string
 	args                    *[]string
@@ -186,11 +184,6 @@ func (ceb *radixEnvironmentConfigBuilder) WithRunAsUser(runAsUser *int64) RadixE
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithNetwork(network *radixv1.Network) RadixEnvironmentConfigBuilder {
-	ceb.network = network
-	return ceb
-}
-
 func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() radixv1.RadixEnvironmentConfig {
 	return radixv1.RadixEnvironmentConfig{
 		Environment:             ceb.environment,
@@ -213,7 +206,6 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() radixv1.Radix
 		HorizontalScaling:       ceb.horizontalScaling,
 		ReadOnlyFileSystem:      ceb.readOnlyFileSystem,
 		Runtime:                 ceb.runtime,
-		Network:                 ceb.network,
 		Command:                 ceb.command,
 		Args:                    ceb.args,
 		RunAsUser:               ceb.runAsUser,

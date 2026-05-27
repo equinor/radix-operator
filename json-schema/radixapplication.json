@@ -99,26 +99,6 @@
               "authentication": {
                 "description": "Configuration for TLS client certificate or OAuth2 authentication.\nMore info: https://www.radix.equinor.com/radix-config#authentication",
                 "properties": {
-                  "clientCertificate": {
-                    "description": "Configuration for TLS client certificate authentication.\nMore info: https://www.radix.equinor.com/radix-config#clientcertificate",
-                    "properties": {
-                      "passCertificateToUpstream": {
-                        "description": "Pass client certificate to backend in header ssl-client-cert.\nThis setting has no effect if verification is set to off.",
-                        "type": "boolean"
-                      },
-                      "verification": {
-                        "description": "Defines how the client certificate shall be verified.",
-                        "enum": [
-                          "on",
-                          "off",
-                          "optional",
-                          "optional_no_ca"
-                        ],
-                        "type": "string"
-                      }
-                    },
-                    "type": "object"
-                  },
                   "oauth2": {
                     "description": "Configuration for OAuth2 authentication.\nMore info: https://www.radix.equinor.com/radix-config#oauth2",
                     "properties": {
@@ -292,26 +272,6 @@
                     "authentication": {
                       "description": "Environment specific configuration for TLS client certificate or OAuth2 authentication.\nMore info: https://www.radix.equinor.com/radix-config#authentication",
                       "properties": {
-                        "clientCertificate": {
-                          "description": "Configuration for TLS client certificate authentication.\nMore info: https://www.radix.equinor.com/radix-config#clientcertificate",
-                          "properties": {
-                            "passCertificateToUpstream": {
-                              "description": "Pass client certificate to backend in header ssl-client-cert.\nThis setting has no effect if verification is set to off.",
-                              "type": "boolean"
-                            },
-                            "verification": {
-                              "description": "Defines how the client certificate shall be verified.",
-                              "enum": [
-                                "on",
-                                "off",
-                                "optional",
-                                "optional_no_ca"
-                              ],
-                              "type": "string"
-                            }
-                          },
-                          "type": "object"
-                        },
                         "oauth2": {
                           "description": "Configuration for OAuth2 authentication.\nMore info: https://www.radix.equinor.com/radix-config#oauth2",
                           "properties": {
@@ -1313,57 +1273,6 @@
                     "monitoring": {
                       "description": "Enabled or disables collection of custom Prometheus metrics.\nMore info: https://www.radix.equinor.com/radix-config#monitoring",
                       "type": "boolean"
-                    },
-                    "network": {
-                      "description": "Environment specific network settings.",
-                      "properties": {
-                        "ingress": {
-                          "description": "Ingress defines settings for ingress traffic.",
-                          "properties": {
-                            "public": {
-                              "description": "Public defines settings for public traffic.",
-                              "properties": {
-                                "allow": {
-                                  "description": "Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.\nAll IP addresses are allowed if this field is empty or not set.",
-                                  "items": {
-                                    "description": "IP address or CIDR.",
-                                    "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\\/([0-9]|[1-2][0-9]|3[0-2]))?$",
-                                    "type": "string"
-                                  },
-                                  "type": "array"
-                                },
-                                "proxyBodySize": {
-                                  "description": "Sets the maximum allowed size of the client request body.\nSizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, \"1024\", \"64k\", \"32m\", \"2g\"\nIf the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.\nSetting size to 0 disables checking of client request body size.",
-                                  "pattern": "^(?:0|[1-9][0-9]*[kKmMgG]?)$",
-                                  "type": "string"
-                                },
-                                "proxyBufferSize": {
-                                  "description": "Sets the size of the buffer used for reading the first part of the response received from the proxied server.\nThe size must be large enough to hold the response headers.\nSizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, \"1024\", \"64k\", \"32m\", \"2g\"\nIf the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.",
-                                  "pattern": "^(?:0|[1-9][0-9]*[kKmMgG]?)$",
-                                  "type": "string"
-                                },
-                                "proxyReadTimeout": {
-                                  "description": "Defines a timeout, in seconds, for reading a response from the proxied server.\nThe timeout is set only between two successive read operations, not for the transmission of the whole response.\nIf the proxied server does not transmit anything within this time, the connection is closed.",
-                                  "minimum": 0,
-                                  "type": "integer"
-                                },
-                                "proxyRequestBuffering": {
-                                  "description": "Defines if request buffering is enabled. Default is true.\nIf set to false, the request body will be sent to the proxied server immediately, without buffering.\nThis can be useful for large file uploads or streaming data.",
-                                  "type": "boolean"
-                                },
-                                "proxySendTimeout": {
-                                  "description": "Defines a timeout, in seconds, for transmitting a request to the proxied server.\nThe timeout is set only between two successive write operations, not for the transmission of the whole request.\nIf the proxied server does not receive anything within this time, the connection is closed.",
-                                  "minimum": 0,
-                                  "type": "integer"
-                                }
-                              },
-                              "type": "object"
-                            }
-                          },
-                          "type": "object"
-                        }
-                      },
-                      "type": "object"
                     },
                     "node": {
                       "description": "Deprecated: use Runtime.NodeType instead.\nEnvironment specific GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",
@@ -2662,13 +2571,6 @@
                 "description": "The imageTagName allows for flexible configuration of fixed images,\nbuilt outside of Radix, it can be also configured with separate tag for each environment.\nMore info: https://www.radix.equinor.com/radix-config#imagetagname",
                 "type": "string"
               },
-              "ingressConfiguration": {
-                "description": "Additional configuration settings for ingress traffic.\nMore info: https://www.radix.equinor.com/radix-config#ingressconfiguration",
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
               "monitoring": {
                 "description": "Enabled or disables collection of custom Prometheus metrics.\nMore info: https://www.radix.equinor.com/radix-config#monitoring",
                 "type": "boolean"
@@ -2695,57 +2597,6 @@
                 "minLength": 1,
                 "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                 "type": "string"
-              },
-              "network": {
-                "description": "Network settings.",
-                "properties": {
-                  "ingress": {
-                    "description": "Ingress defines settings for ingress traffic.",
-                    "properties": {
-                      "public": {
-                        "description": "Public defines settings for public traffic.",
-                        "properties": {
-                          "allow": {
-                            "description": "Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.\nAll IP addresses are allowed if this field is empty or not set.",
-                            "items": {
-                              "description": "IP address or CIDR.",
-                              "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\\/([0-9]|[1-2][0-9]|3[0-2]))?$",
-                              "type": "string"
-                            },
-                            "type": "array"
-                          },
-                          "proxyBodySize": {
-                            "description": "Sets the maximum allowed size of the client request body.\nSizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, \"1024\", \"64k\", \"32m\", \"2g\"\nIf the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.\nSetting size to 0 disables checking of client request body size.",
-                            "pattern": "^(?:0|[1-9][0-9]*[kKmMgG]?)$",
-                            "type": "string"
-                          },
-                          "proxyBufferSize": {
-                            "description": "Sets the size of the buffer used for reading the first part of the response received from the proxied server.\nThe size must be large enough to hold the response headers.\nSizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, \"1024\", \"64k\", \"32m\", \"2g\"\nIf the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.",
-                            "pattern": "^(?:0|[1-9][0-9]*[kKmMgG]?)$",
-                            "type": "string"
-                          },
-                          "proxyReadTimeout": {
-                            "description": "Defines a timeout, in seconds, for reading a response from the proxied server.\nThe timeout is set only between two successive read operations, not for the transmission of the whole response.\nIf the proxied server does not transmit anything within this time, the connection is closed.",
-                            "minimum": 0,
-                            "type": "integer"
-                          },
-                          "proxyRequestBuffering": {
-                            "description": "Defines if request buffering is enabled. Default is true.\nIf set to false, the request body will be sent to the proxied server immediately, without buffering.\nThis can be useful for large file uploads or streaming data.",
-                            "type": "boolean"
-                          },
-                          "proxySendTimeout": {
-                            "description": "Defines a timeout, in seconds, for transmitting a request to the proxied server.\nThe timeout is set only between two successive write operations, not for the transmission of the whole request.\nIf the proxied server does not receive anything within this time, the connection is closed.",
-                            "minimum": 0,
-                            "type": "integer"
-                          }
-                        },
-                        "type": "object"
-                      }
-                    },
-                    "type": "object"
-                  }
-                },
-                "type": "object"
               },
               "node": {
                 "description": "Deprecated: use Runtime.NodeType instead.\nDefines GPU requirements for the component.\nMore info: https://www.radix.equinor.com/radix-config#node",

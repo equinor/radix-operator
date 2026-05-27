@@ -1692,11 +1692,6 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 		copy(*out, *in)
 	}
 	in.SecretRefs.DeepCopyInto(&out.SecretRefs)
-	if in.IngressConfiguration != nil {
-		in, out := &in.IngressConfiguration, &out.IngressConfiguration
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.ExternalDNS != nil {
 		in, out := &in.ExternalDNS, &out.ExternalDNS
 		*out = make([]RadixDeployExternalDNS, len(*in))

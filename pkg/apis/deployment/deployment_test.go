@@ -25,7 +25,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -42,7 +41,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -808,117 +806,6 @@ func getDeploymentsForRadixJobAux(deployments []appsv1.Deployment) []appsv1.Depl
 	})
 }
 
-func TestObjectSynced_MultiComponent_AllClusters_ContainsAllIngresses(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-
-	// Test
-	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName("edcradix").
-		WithEnvironment("test").
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("app").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithDNSAppAlias(true).
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}),
-			utils.NewDeployComponentBuilder().
-				WithName("redis").
-				WithPort("http", 6379).
-				WithPublicPort(""),
-			utils.NewDeployComponentBuilder().
-				WithName("radixquote").
-				WithPort("http", 3000).
-				WithPublicPort("http")))
-
-	assert.NoError(t, err)
-	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
-
-	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	require.Equal(t, 7, len(ingresses.Items), "All ingresses for the two public components should appear")
-	require.Truef(t, ingressByNameExists("app", ingresses), "All ingresses for public component should exist")
-	require.Truef(t, ingressByNameExists("radixquote", ingresses), "All ingresses for public component should exist")
-
-	require.Truef(t, ingressByNameExists("some.alias.com", ingresses), "All ingresses for public component should exist")
-	require.Truef(t, ingressByNameExists("another.alias.com", ingresses), "All ingresses for public component should exist")
-	require.Truef(t, ingressByNameExists("edcradix-url-alias", ingresses), "All ingresses for public component should exist")
-
-	require.Truef(t, ingressByNameExists("app-active-cluster-url-alias", ingresses), "All ingresses for public component should exist")
-	require.Truef(t, ingressByNameExists("radixquote-active-cluster-url-alias", ingresses), "All ingresses for public component should exist")
-
-	appIngress := getIngressByName("app", ingresses)
-	assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", appIngress.Spec.Rules[0].Host)
-	assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", appIngress.Spec.TLS[0].Hosts[0])
-	assert.Equal(t, int32(8080), appIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, appIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Empty(t, appIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, appIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "true", appIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should be default")
-	assert.Equal(t, "app", appIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-
-	quoteIngress := getIngressByName("radixquote", ingresses)
-	assert.Equal(t, "radixquote-edcradix-test.AnyClusterName.dev.radix.equinor.com", quoteIngress.Spec.Rules[0].Host)
-	assert.Equal(t, "radixquote-edcradix-test.AnyClusterName.dev.radix.equinor.com", quoteIngress.Spec.TLS[0].Hosts[0])
-	assert.Equal(t, int32(3000), quoteIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, quoteIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Empty(t, quoteIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, quoteIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "true", quoteIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should be default")
-	assert.Equal(t, "radixquote", quoteIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-
-	someAliasIngress := getIngressByName("some.alias.com", ingresses)
-	assert.Equal(t, "some.alias.com", someAliasIngress.Spec.Rules[0].Host)
-	assert.Equal(t, "some.alias.com", someAliasIngress.Spec.TLS[0].Hosts[0])
-	assert.Equal(t, int32(8080), someAliasIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, someAliasIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Empty(t, someAliasIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Empty(t, someAliasIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
-	assert.Equal(t, "true", someAliasIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should be an external app alias")
-	assert.Equal(t, "app", someAliasIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-
-	anotherAliasIngress := getIngressByName("another.alias.com", ingresses)
-	assert.Equal(t, "another.alias.com", anotherAliasIngress.Spec.Rules[0].Host)
-	assert.Equal(t, "another.alias.com", anotherAliasIngress.Spec.TLS[0].Hosts[0])
-	assert.Equal(t, int32(8080), anotherAliasIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, anotherAliasIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Empty(t, anotherAliasIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Empty(t, anotherAliasIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
-	assert.Equal(t, "true", anotherAliasIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "app", anotherAliasIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-
-	edcIngress := getIngressByName("edcradix-url-alias", ingresses)
-	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", edcIngress.Spec.Rules[0].Host)
-	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", edcIngress.Spec.TLS[0].Hosts[0])
-	assert.Equal(t, int32(8080), edcIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, edcIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, edcIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Empty(t, edcIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
-	assert.Equal(t, "true", edcIngress.Labels[kube.RadixAppAliasLabel], "Ingress should be an app alias")
-	assert.Equal(t, "app", edcIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-
-	appActiveAliasIngress := getIngressByName("app-active-cluster-url-alias", ingresses)
-	assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", appActiveAliasIngress.Spec.Rules[0].Host)
-	assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", appActiveAliasIngress.Spec.TLS[0].Hosts[0])
-	assert.Equal(t, int32(8080), appActiveAliasIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, appActiveAliasIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
-	assert.Equal(t, "true", appActiveAliasIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should be an active cluster alias")
-	assert.Equal(t, "app", appActiveAliasIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-
-	radixQuoteIngress := getIngressByName("radixquote-active-cluster-url-alias", ingresses)
-	assert.Equal(t, "radixquote-edcradix-test.dev.radix.equinor.com", radixQuoteIngress.Spec.Rules[0].Host)
-	assert.Equal(t, "radixquote-edcradix-test.dev.radix.equinor.com", radixQuoteIngress.Spec.TLS[0].Hosts[0])
-	assert.Equal(t, int32(3000), radixQuoteIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, radixQuoteIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Empty(t, radixQuoteIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, radixQuoteIngress.Labels[kube.RadixDefaultAliasLabel], "Ingress should not be default")
-	assert.Equal(t, "true", radixQuoteIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should be an active cluster alias")
-	assert.Equal(t, "radixquote", radixQuoteIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-
-}
-
 func Test_ReconcileStatus(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
@@ -929,7 +816,7 @@ func Test_ReconcileStatus(t *testing.T) {
 
 	// First sync sets status
 	expectedGen := rd.Generation
-	sut := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, &config.Config{})
+	sut := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, &config.Config{})
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -942,7 +829,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	rd.Generation++
 	expectedGen = rd.Generation
-	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, &config.Config{})
+	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, &config.Config{})
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -958,7 +845,7 @@ func Test_ReconcileStatus(t *testing.T) {
 		return true, nil, errors.New(errorMsg)
 	})
 	rr.Generation++
-	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, &config.Config{})
+	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, &config.Config{})
 	err = sut.OnSync(context.Background())
 	assert.ErrorContains(t, err, errorMsg)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -1047,94 +934,6 @@ func TestObjectSynced_RunAsUser(t *testing.T) {
 			}
 		})
 	}
-
-}
-
-func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllIngresses(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-
-	// Test
-	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName("edcradix").
-		WithEnvironment("test").
-		WithJobComponents().
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("app").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithDNSAppAlias(true).
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "external1.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external2.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "external3.alias.com", UseCertificateAutomation: true}),
-			utils.NewDeployComponentBuilder().
-				WithName("redis").
-				WithPort("http", 6379).
-				WithPublicPort(""),
-			utils.NewDeployComponentBuilder().
-				WithName("radixquote").
-				WithPort("http", 3000).
-				WithPublicPort("http")))
-
-	assert.NoError(t, err)
-	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
-
-	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 8, len(ingresses.Items), "Number of ingresses was not according to public components, app alias and number of external aliases")
-	assert.Truef(t, ingressByNameExists("app", ingresses), "Cluster specific ingress for public component should exist")
-	assert.Truef(t, ingressByNameExists("radixquote", ingresses), "Cluster specific ingress for public component should exist")
-	assert.Truef(t, ingressByNameExists("edcradix-url-alias", ingresses), "Cluster specific ingress for public component should exist")
-	assert.Truef(t, ingressByNameExists("external1.alias.com", ingresses), "App should have external1 external alias")
-	assert.Truef(t, ingressByNameExists("external2.alias.com", ingresses), "App should have external2 external alias")
-	assert.Truef(t, ingressByNameExists("external3.alias.com", ingresses), "App should have external3 external alias")
-	assert.Truef(t, ingressByNameExists("app-active-cluster-url-alias", ingresses), "App should have another external alias")
-	assert.Truef(t, ingressByNameExists("radixquote-active-cluster-url-alias", ingresses), "Radixquote should have had an ingress")
-
-	appAlias := getIngressByName("edcradix-url-alias", ingresses)
-	assert.Equal(t, int32(8080), appAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Equal(t, "true", appAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Empty(t, appAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, appAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", appAlias.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Len(t, appAlias.Annotations, 0)
-	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", appAlias.Spec.Rules[0].Host, "App should have an external alias")
-
-	externalDNS1 := getIngressByName("external1.alias.com", ingresses)
-	assert.Equal(t, int32(8080), externalDNS1.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, externalDNS1.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "true", externalDNS1.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, externalDNS1.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", externalDNS1.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, "external1.alias.com", externalDNS1.Spec.Rules[0].Host, "App should have an external alias")
-
-	externalDNS2 := getIngressByName("external2.alias.com", ingresses)
-	assert.Equal(t, int32(8080), externalDNS2.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, externalDNS2.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "true", externalDNS2.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, externalDNS2.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", externalDNS2.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, "external2.alias.com", externalDNS2.Spec.Rules[0].Host, "App should have an external alias")
-
-	externalDNS3 := getIngressByName("external3.alias.com", ingresses)
-	assert.Equal(t, int32(8080), externalDNS3.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, externalDNS3.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "true", externalDNS3.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Empty(t, externalDNS3.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", externalDNS3.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-	assert.Equal(t, "external3.alias.com", externalDNS3.Spec.Rules[0].Host, "App should have an external alias")
-
-	appActiveClusterIngress := getIngressByName("app-active-cluster-url-alias", ingresses)
-	assert.Equal(t, int32(8080), appActiveClusterIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, appActiveClusterIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Empty(t, appActiveClusterIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "true", appActiveClusterIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", appActiveClusterIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
-
-	quoteActiveClusterIngress := getIngressByName("radixquote-active-cluster-url-alias", ingresses)
-	assert.Equal(t, int32(3000), quoteActiveClusterIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-	assert.Empty(t, quoteActiveClusterIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Empty(t, quoteActiveClusterIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "true", quoteActiveClusterIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "radixquote", quoteActiveClusterIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 }
 
@@ -1435,9 +1234,6 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 	services, _ := client.CoreV1().Services(envNamespace).List(context.Background(), metav1.ListOptions{})
 	expectedServices := getServicesForRadixComponents(&services.Items)
 	assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
-
-	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 2, len(ingresses.Items), "Number of ingresses was not according to public components")
 }
 
 func TestConfigMap_IsGarbageCollected(t *testing.T) {
@@ -1793,165 +1589,6 @@ func Test_BlobFuse2VolumeMountSecret_ExpectedKeysAndData(t *testing.T) {
 	}
 }
 
-func Test_ClientCertificate_Secrets(t *testing.T) {
-	tests := map[string]struct {
-		initialComp         func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder
-		initialExpectSecret bool
-		initialExpectedData map[string][]byte
-		setData             map[string][]byte
-		updateComp          func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder
-		updateExpectSecret  bool
-		updateExpectedData  map[string][]byte
-	}{
-		"no secret when ClientCertificate not set": {
-			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
-				return b.WithPort("http", 8080).WithPublicPort("http")
-			},
-			initialExpectSecret: false,
-		},
-		"no secret when Verificate is Off": {
-			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
-				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
-					ClientCertificate: &radixv1.ClientCertificate{
-						Verification: pointers.Ptr(radixv1.VerificationTypeOff),
-					},
-				})
-			},
-			initialExpectSecret: false,
-		},
-		"no secret when PublicPort not set": {
-			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
-				return b.WithPort("http", 8080).WithAuthentication(&radixv1.Authentication{
-					ClientCertificate: &radixv1.ClientCertificate{
-						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
-					},
-				})
-			},
-			initialExpectSecret: false,
-		},
-		"secret created when Verification is On": {
-			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
-				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
-					ClientCertificate: &radixv1.ClientCertificate{
-						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
-					},
-				})
-			},
-			initialExpectSecret: true,
-			initialExpectedData: map[string][]byte{"ca.crt": nil},
-		},
-		"secret created when Verification is Optional": {
-			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
-				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
-					ClientCertificate: &radixv1.ClientCertificate{
-						Verification: pointers.Ptr(radixv1.VerificationTypeOptional),
-					},
-				})
-			},
-			initialExpectSecret: true,
-			initialExpectedData: map[string][]byte{"ca.crt": nil},
-		},
-		"secret created when Verification is OptionalNoCa": {
-			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
-				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
-					ClientCertificate: &radixv1.ClientCertificate{
-						Verification: pointers.Ptr(radixv1.VerificationTypeOptionalNoCa),
-					},
-				})
-			},
-			initialExpectSecret: true,
-			initialExpectedData: map[string][]byte{"ca.crt": nil},
-		},
-		"secret created when PassCertificateToUpstream is true": {
-			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
-				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
-					ClientCertificate: &radixv1.ClientCertificate{
-						Verification:              pointers.Ptr(radixv1.VerificationTypeOff),
-						PassCertificateToUpstream: pointers.Ptr(true),
-					},
-				})
-			},
-			initialExpectSecret: true,
-			initialExpectedData: map[string][]byte{"ca.crt": nil},
-		},
-		"secret data persisted between syncs": {
-			initialComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
-				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
-					ClientCertificate: &radixv1.ClientCertificate{
-						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
-					},
-				})
-			},
-			initialExpectSecret: true,
-			initialExpectedData: map[string][]byte{"ca.crt": nil},
-			setData:             map[string][]byte{"ca.crt": []byte("updated cert")},
-			updateComp: func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder {
-				return b.WithPort("http", 8080).WithPublicPort("http").WithAuthentication(&radixv1.Authentication{
-					ClientCertificate: &radixv1.ClientCertificate{
-						Verification: pointers.Ptr(radixv1.VerificationTypeOn),
-					},
-				})
-			},
-			updateExpectSecret: true,
-			updateExpectedData: map[string][]byte{"ca.crt": []byte("updated cert")},
-		},
-	}
-
-	for testName, testSpec := range tests {
-		t.Run(testName, func(t *testing.T) {
-			appName, environment, componentName := "anyapp", "test", "anycomp"
-			secretName := utils.GetComponentClientCertificateSecretName(componentName)
-			namespace := utils.GetEnvironmentNamespace(appName, environment)
-			testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-			defer TeardownTest()
-
-			if testSpec.initialComp == nil {
-				testSpec.initialComp = func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder { return b }
-			}
-			if testSpec.updateComp == nil {
-				testSpec.updateComp = func(b utils.DeployComponentBuilder) utils.DeployComponentBuilder { return b }
-			}
-
-			initialRD := utils.ARadixDeployment().
-				WithDeploymentName("initial-rd").
-				WithAppName(appName).
-				WithEnvironment(environment).
-				WithComponents(testSpec.initialComp(utils.NewDeployComponentBuilder().WithName(componentName).WithSecrets([]string{"any"}))) // Need to fake creation of another k8s secret due to the way cleanup works
-			_, err := ApplyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, initialRD)
-			require.NoError(t, err)
-
-			initialSecret, err := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, metav1.GetOptions{})
-			if testSpec.initialExpectSecret {
-				require.NoError(t, err)
-				assert.Equal(t, testSpec.initialExpectedData, initialSecret.Data)
-				for k, v := range testSpec.setData {
-					initialSecret.Data[k] = v
-				}
-				_, err = client.CoreV1().Secrets(namespace).Update(context.Background(), initialSecret, metav1.UpdateOptions{})
-				require.NoError(t, err)
-			} else {
-				assert.True(t, kubeerrors.IsNotFound(err))
-			}
-
-			updateRD := utils.ARadixDeployment().
-				WithDeploymentName("updated-rd").
-				WithAppName(appName).
-				WithEnvironment(environment).
-				WithComponents(testSpec.updateComp(utils.NewDeployComponentBuilder().WithName(componentName).WithSecrets([]string{"any"})))
-			_, err = ApplyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, updateRD)
-			require.NoError(t, err)
-
-			updatedSecret, err := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, metav1.GetOptions{})
-			if testSpec.updateExpectSecret {
-				require.NoError(t, err)
-				assert.Equal(t, testSpec.updateExpectedData, updatedSecret.Data)
-			} else {
-				assert.True(t, kubeerrors.IsNotFound(err))
-			}
-		})
-	}
-}
-
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
@@ -2062,9 +1699,6 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	services, _ := client.CoreV1().Services(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, firstUID, services.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
-	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, firstUID, ingresses.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
-
 	time.Sleep(1 * time.Millisecond)
 	// This is one second newer deployment
 	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -2084,9 +1718,6 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 
 	services, _ = client.CoreV1().Services(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, services.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
-
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
 
 	// Re-apply the first  This should be ignored and cause an error as it is not the latest
 	rdBuilder := utils.ARadixDeployment().
@@ -2110,9 +1741,6 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 
 	services, _ = client.CoreV1().Services(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, services.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
-
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
 }
 
 func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testing.T) {
@@ -2157,51 +1785,6 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 	assert.Equal(t, "second_deployment", firstDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
 	secondDeployment = getDeploymentByName("second", deployments.Items)
 	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
-}
-
-func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	// Test
-	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithDeploymentName("a_deployment_name").
-		WithAppName("anyapp1").
-		WithEnvironment("test").
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("app").
-				WithPort("http", 8080).
-				WithAlwaysPullImageOnDeploy(true).
-				WithPublicPort("http"),
-			utils.NewDeployComponentBuilder().
-				WithName("app2").
-				WithPort("http", 8080).
-				WithAlwaysPullImageOnDeploy(false).
-				WithPublicPort("http"),
-			utils.NewDeployComponentBuilder().
-				WithName("app3").
-				WithPort("http", 8080).
-				WithPublicPort("http")))
-	require.NoError(t, err)
-	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
-	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
-
-	time.Sleep(1 * time.Second)
-
-	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithDeploymentName("a_deployment_name").
-		WithAppName("anyapp1").
-		WithEnvironment("test").
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("app").
-				WithPort("http", 8081).
-				WithAlwaysPullImageOnDeploy(true).
-				WithPublicPort("http")))
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 }
 
 func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultReplicaCount(t *testing.T) {
@@ -2566,44 +2149,6 @@ func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefault
 	assert.Equal(t, int32(1), *deployments.Items[0].Spec.Replicas)
 }
 
-func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	// Setup
-	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("dev").
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("frontend").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithDNSAppAlias(true)))
-	require.NoError(t, err)
-	// Test
-	ingresses, _ := client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
-	assert.Truef(t, ingressByNameExists("any-app-url-alias", ingresses), "App should have had an app alias ingress")
-	assert.Truef(t, ingressByNameExists("frontend", ingresses), "Cluster specific ingress for public component should exist")
-	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have another external alias")
-
-	// Remove app alias from dev
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("dev").
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("frontend").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithDNSAppAlias(false)))
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 2, len(ingresses.Items), "Alias ingress should have been removed")
-	assert.Truef(t, ingressByNameExists("frontend", ingresses), "Cluster specific ingress for public component should exist")
-	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have another external alias")
-}
-
 func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
@@ -2672,12 +2217,6 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 		assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
 	})
 
-	t.Run("validate ingress", func(t *testing.T) {
-		t.Parallel()
-		ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-		assert.Equal(t, 0, len(ingresses.Items), "Number of ingresses was not according to public components")
-	})
-
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
 		secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
@@ -2702,397 +2241,6 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.Background(), metav1.ListOptions{})
 		assert.ElementsMatch(t, []string{"radix-app-adm-componentTwoName", "radix-app-reader-componentTwoName"}, getRoleBindingNames(rolebindings))
 	})
-}
-
-func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	anyAppName := "anyappname"
-	anyEnvironmentName := "test"
-	componentOneName := "componentOneName"
-	componentTwoName := "componentTwoName"
-
-	// Test
-	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironmentName).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(componentOneName).
-				WithPort("http", 8080).
-				WithPublicPort("http"),
-			utils.NewDeployComponentBuilder().
-				WithName(componentTwoName).
-				WithPort("http", 6379).
-				WithPublicPort("http")))
-	require.NoError(t, err)
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
-	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(ingresses.Items), "Both components should be public")
-
-	// Remove public on component 2
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironmentName).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(componentOneName).
-				WithPort("http", 8080).
-				WithPublicPort("http"),
-			utils.NewDeployComponentBuilder().
-				WithName(componentTwoName).
-				WithPort("http", 6379).
-				WithPublicPort("")))
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 2, len(ingresses.Items), "Only component 1 should be public")
-
-	// Remove public on component 1
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironmentName).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(componentOneName).
-				WithPort("http", 8080).
-				WithPublicPort(""),
-			utils.NewDeployComponentBuilder().
-				WithName(componentTwoName).
-				WithPort("http", 6379).
-				WithPublicPort("")))
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 0, len(ingresses.Items), "No component should be public")
-}
-
-func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	anyAppName := "anyappname"
-	anyEnvironmentName := "test"
-	componentOneName := "componentOneName"
-
-	// New publicPort exists, old public does not exist
-	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironmentName).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(componentOneName).
-				WithPort("https", 443).
-				WithPort("http", 80).
-				WithPublicPort("http").
-				WithPublic(false)))
-
-	assert.NoError(t, err)
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
-	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 2, len(ingresses.Items), "Component should be public")
-	assert.Equal(t, int32(80), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
-	assert.Equal(t, int32(80), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
-
-	// New publicPort exists, old public exists (ignored)
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironmentName).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(componentOneName).
-				WithPort("https", 443).
-				WithPort("http", 80).
-				WithPublicPort("http").
-				WithPublic(true)))
-
-	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	require.Equal(t, 2, len(ingresses.Items), "Component should be public, should have 2 ingresses, for canonical hostname and public hostname")
-	assert.Equal(t, int32(80), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
-	assert.Equal(t, "componentOneName-anyappname-test.AnyClusterName.dev.radix.equinor.com", ingresses.Items[0].Spec.Rules[0].Host)
-	assert.Equal(t, []string{"componentOneName-anyappname-test.AnyClusterName.dev.radix.equinor.com"}, ingresses.Items[0].Spec.TLS[0].Hosts)
-
-	assert.Equal(t, int32(80), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
-	assert.Equal(t, "componentOneName-anyappname-test.dev.radix.equinor.com", ingresses.Items[1].Spec.Rules[0].Host)
-	assert.Equal(t, []string{"componentOneName-anyappname-test.dev.radix.equinor.com"}, ingresses.Items[1].Spec.TLS[0].Hosts)
-
-	// New publicPort does not exist, old public does not exist
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironmentName).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(componentOneName).
-				WithPort("https", 443).
-				WithPort("http", 80).
-				WithPublicPort("").
-				WithPublic(false)))
-
-	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 0, len(ingresses.Items), "Component should not be public")
-
-	// New publicPort does not exist, old public exists (used)
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironmentName).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(componentOneName).
-				WithPort("https", 443).
-				WithPort("http", 80).
-				WithPublicPort("https").
-				WithPublic(true)))
-
-	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	expectedIngresses := getIngressesForRadixComponents(&ingresses.Items)
-	assert.Equal(t, 2, len(expectedIngresses), "Component should be public")
-	assert.Equal(t, int32(443), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
-	assert.Equal(t, int32(443), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
-}
-
-func TestObjectSynced_ToggleOAuth2_IngressesReconciled(t *testing.T) {
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	const (
-		appName  = "any-app"
-		envName  = "any-env"
-		compName = "comp2"
-	)
-
-	// Fixture
-	compBuilder := utils.NewDeployComponentBuilder().
-		WithName(compName).
-		WithDNSAppAlias(true).
-		WithPort("http", 8080).
-		WithPublicPort("http").
-		WithExternalDNS(
-			radixv1.RadixDeployExternalDNS{FQDN: "comp1a.example.com"},
-			radixv1.RadixDeployExternalDNS{FQDN: "comp1b.example.com"},
-		)
-	rdBuilder := utils.ARadixDeployment().
-		WithAppName(appName).
-		WithEnvironment(envName).
-		WithComponents(compBuilder)
-	expectedIngressNames := []string{
-		fmt.Sprintf("%s-url-alias", appName),
-		compName,
-		fmt.Sprintf("%s-active-cluster-url-alias", compName),
-		"comp1a.example.com",
-		"comp1b.example.com",
-	}
-	rd, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
-	require.NoError(t, err)
-	ingresses, _ := client.NetworkingV1().Ingresses(rd.Namespace).List(context.Background(), metav1.ListOptions{})
-	actualIngressNames := slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
-	require.ElementsMatch(t, expectedIngressNames, actualIngressNames)
-
-	// Enabled oauth2
-	compBuilder.WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "any-client-id"}})
-	rd, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(rd.Namespace).List(context.Background(), metav1.ListOptions{})
-	actualIngressNames = slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
-	assert.Empty(t, actualIngressNames)
-
-	// Disable oauth2
-	compBuilder.WithAuthentication(nil)
-	rd, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(rd.Namespace).List(context.Background(), metav1.ListOptions{})
-	actualIngressNames = slice.Map(ingresses.Items, func(ing networkingv1.Ingress) string { return ing.Name })
-	require.ElementsMatch(t, expectedIngressNames, actualIngressNames)
-}
-
-func getIngressesForRadixComponents(ingresses *[]networkingv1.Ingress) []networkingv1.Ingress {
-	var result []networkingv1.Ingress
-	for _, ing := range *ingresses {
-		if val, ok := ing.Labels[kube.RadixComponentLabel]; ok && val != "job" {
-			result = append(result, ing)
-		}
-	}
-	return result
-}
-
-func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrectlyReconciled(t *testing.T) {
-	anyAppName := "any-app"
-	anyEnvironment := "dev"
-	anyComponentName := "frontend"
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	// Setup
-	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithJobComponents().
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(anyComponentName).
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"})))
-	require.NoError(t, err)
-	// Test
-	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-
-	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
-	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have had an external alias ingress")
-	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
-	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
-
-	// Remove app alias from dev
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithJobComponents().
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(anyComponentName).
-				WithPort("http", 8080).
-				WithPublicPort("http")))
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-
-	assert.Equal(t, 2, len(ingresses.Items), "External alias ingress should have been removed")
-	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
-	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
-}
-
-func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesProperlyReconciled(t *testing.T) {
-	anyAppName := "any-app"
-	anyEnvironment := "dev"
-	anyComponentName := "frontend"
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	// Setup
-
-	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(anyComponentName).
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "another.alias.com"}).
-				WithSecrets([]string{"a_secret"})))
-	require.NoError(t, err)
-	// Test
-	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(ingresses.Items), "Environment should have four ingresses")
-	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have had an external alias ingress")
-	assert.Truef(t, ingressByNameExists("another.alias.com", ingresses), "App should have had another external alias ingress")
-	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
-	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
-
-	externalAliasIngress := getIngressByName("some.alias.com", ingresses)
-	assert.Equal(t, "some.alias.com", externalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
-	assert.Equal(t, int32(8080), externalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
-
-	anotherExternalAliasIngress := getIngressByName("another.alias.com", ingresses)
-	assert.Equal(t, "another.alias.com", anotherExternalAliasIngress.GetName(), "App should have had another external alias ingress")
-	assert.Equal(t, "another.alias.com", anotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
-	assert.Equal(t, int32(8080), anotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
-
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(anyComponentName).
-				WithPort("http", 8081).
-				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "some.alias.com"}, radixv1.RadixDeployExternalDNS{FQDN: "yet.another.alias.com"}).
-				WithSecrets([]string{"a_secret"})))
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(ingresses.Items), "Environment should have four ingresses")
-	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have had an external alias ingress")
-	assert.Truef(t, ingressByNameExists("yet.another.alias.com", ingresses), "App should have had another external alias ingress")
-	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
-	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
-
-	externalAliasIngress = getIngressByName("some.alias.com", ingresses)
-	assert.Equal(t, "some.alias.com", externalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
-	assert.Equal(t, int32(8081), externalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
-
-	yetAnotherExternalAliasIngress := getIngressByName("yet.another.alias.com", ingresses)
-	assert.Equal(t, "yet.another.alias.com", yetAnotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
-	assert.Equal(t, int32(8081), yetAnotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
-
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(anyComponentName).
-				WithPort("http", 8081).
-				WithPublicPort("http").
-				WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: "yet.another.alias.com"}).
-				WithSecrets([]string{"a_secret"})))
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
-	assert.Truef(t, ingressByNameExists("yet.another.alias.com", ingresses), "App should have had another external alias ingress")
-	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
-	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
-
-	yetAnotherExternalAliasIngress = getIngressByName("yet.another.alias.com", ingresses)
-	assert.Equal(t, "yet.another.alias.com", yetAnotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
-	assert.Equal(t, int32(8081), yetAnotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
-
-	// Remove app alias from dev
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(anyComponentName).
-				WithPort("http", 8080).
-				WithPublicPort("http")))
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 2, len(ingresses.Items), "External alias ingress should have been removed")
-	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
-	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
-}
-
-func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
-	anyAppName := "any-app"
-	anyEnvironment := "dev"
-	anyComponentName := "frontend"
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-
-	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	radixDeployBuilder := utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(anyComponentName).
-				WithPort("http", 8080).
-				WithPublicPort("http"))
-
-	// Current cluster is active cluster
-	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, radixDeployBuilder)
-	require.NoError(t, err)
-	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
-	activeClusterIngress := getIngressByName(getActiveClusterIngressName(anyComponentName), ingresses)
-	assert.False(t, strings.Contains(activeClusterIngress.Spec.Rules[0].Host, testClusterName))
-	defaultIngress := getIngressByName(getDefaultIngressName(anyComponentName), ingresses)
-	assert.True(t, strings.Contains(defaultIngress.Spec.Rules[0].Host, testClusterName))
-
-	// Current cluster is not active cluster
-	_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, radixDeployBuilder)
-	require.NoError(t, err)
-	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses (canonical+public) ingress")
-	assert.True(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, testClusterName))
 }
 
 func TestNewDeploymentStatus(t *testing.T) {
@@ -4210,54 +3358,6 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 	})
 }
 
-func Test_IngressAnnotations_Called(t *testing.T) {
-	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-
-	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
-	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithDNSAppAlias(true)).BuildRD()
-	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	require.NoError(t, err)
-	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
-	require.NoError(t, err)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(3).Return(map[string]string{"foo": "x"}, nil)
-	annotations2 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(3).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
-
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1, annotations2}, nil, &config.Config{})
-	err = syncer.OnSync(context.Background())
-	require.NoError(t, err)
-	ingresses, _ := kubeclient.NetworkingV1().Ingresses("").List(context.Background(), metav1.ListOptions{})
-	assert.Len(t, ingresses.Items, 3)
-	expected := map[string]string{"bar": "y", "baz": "z", "foo": "x"}
-
-	for _, ingress := range ingresses.Items {
-		assert.Equal(t, expected, ingress.GetAnnotations())
-	}
-}
-
-func Test_IngressAnnotations_ReturnError(t *testing.T) {
-	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
-	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
-	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-	require.NoError(t, err)
-	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
-	require.NoError(t, err)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	annotations1 := ingress.NewMockAnnotationProvider(ctrl)
-	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(nil, errors.New("any error"))
-
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []ingress.AnnotationProvider{annotations1}, nil, &config.Config{})
-	err = syncer.OnSync(context.Background())
-	assert.Error(t, err)
-}
-
 func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 	defer TeardownTest()
@@ -4273,7 +3373,7 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(nil)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.NoError(t, err)
 }
@@ -4294,7 +3394,7 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(auxErr)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
@@ -4315,7 +3415,7 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(auxErr)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(0)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, []AuxiliaryResourceManager{auxResource}, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, &config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
@@ -4576,130 +3676,6 @@ func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 	assert.ElementsMatch(t, expectedBatchNames, actualBatchNames)
 }
 
-func Test_ExternalDNS_Legacy_ResourcesMigrated(t *testing.T) {
-	appName, envName, compName := "anyapp", "anyenv", "anycomp"
-	fqdnManual, fqdnAutomation := "app1.example.com", "app2.example.com"
-	certDataManual, keyDataManual, certDataAutomation, keyDataAutomation := "manualcert", "manualkey", "automationcert", "automationkey"
-	ns := utils.GetEnvironmentNamespace(appName, envName)
-
-	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-
-	// Setup legacy secrets
-	legacyManualSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   fqdnManual,
-			Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: compName, kube.RadixExternalAliasLabel: "true"},
-		},
-		Data: map[string][]byte{corev1.TLSPrivateKeyKey: []byte(keyDataManual), corev1.TLSCertKey: []byte(certDataManual)},
-	}
-	_, err := kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &legacyManualSecret, metav1.CreateOptions{})
-	require.NoError(t, err)
-	legacyAutomationSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        fqdnAutomation,
-			Labels:      map[string]string{"controller.cert-manager.io/fao": "true"},
-			Annotations: map[string]string{"anyannotation": "anyvalue"},
-		},
-		Data: map[string][]byte{corev1.TLSPrivateKeyKey: []byte(keyDataAutomation), corev1.TLSCertKey: []byte(certDataAutomation)},
-	}
-	_, err = kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &legacyAutomationSecret, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	// Setup legacy certificate
-	legacyCert := cmv1.Certificate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            fqdnAutomation,
-			Labels:          map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: compName, kube.RadixExternalAliasLabel: "true"},
-			OwnerReferences: []metav1.OwnerReference{{APIVersion: "networking.k8s.io/v1", Kind: "Ingress", Name: fqdnAutomation}},
-		},
-	}
-	_, err = certClient.CertmanagerV1().Certificates(ns).Create(context.Background(), &legacyCert, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	// Setup legacy ingresses
-	legacyAutomationIngress := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        fqdnAutomation,
-			Labels:      map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: compName, kube.RadixExternalAliasLabel: "true"},
-			Annotations: map[string]string{"radix.equinor.com/external-dns-use-certificate-automation": "true", "cert-manager.io/cluster-issuer": "any", "cert-manager.io/duration": "any", "cert-manager.io/renew-before": "any"},
-		},
-	}
-	_, err = kubeclient.NetworkingV1().Ingresses(ns).Create(context.Background(), &legacyAutomationIngress, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	legacyManualIngress := networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        fqdnManual,
-			Labels:      map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: compName, kube.RadixExternalAliasLabel: "true"},
-			Annotations: map[string]string{"radix.equinor.com/external-dns-use-certificate-automation": "false"},
-		},
-	}
-	_, err = kubeclient.NetworkingV1().Ingresses(ns).Create(context.Background(), &legacyManualIngress, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	// Apply RD
-	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithAppName(appName).
-			WithEnvironment(envName).
-			WithComponents(utils.NewDeployComponentBuilder().WithName(compName).WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(
-				radixv1.RadixDeployExternalDNS{FQDN: fqdnManual, UseCertificateAutomation: false},
-				radixv1.RadixDeployExternalDNS{FQDN: fqdnAutomation, UseCertificateAutomation: true},
-			)).
-			WithJobComponents(),
-	)
-	require.NoError(t, err)
-
-	// Manual secret: changed labels and annotations
-	manualSecret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), fqdnManual, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdnManual}, manualSecret.Labels)
-	assert.Empty(t, manualSecret.Annotations)
-	assert.Equal(t, []byte(keyDataManual), manualSecret.Data[corev1.TLSPrivateKeyKey])
-	assert.Equal(t, []byte(certDataManual), manualSecret.Data[corev1.TLSCertKey])
-
-	// Automation secret: retains original labels and annotations as these are controlled by the Certificate resource
-	automationSecret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), fqdnAutomation, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, legacyAutomationSecret.Labels, automationSecret.Labels)
-	assert.Equal(t, legacyAutomationSecret.Annotations, automationSecret.Annotations)
-	assert.Equal(t, []byte(keyDataAutomation), automationSecret.Data[corev1.TLSPrivateKeyKey])
-	assert.Equal(t, []byte(certDataAutomation), automationSecret.Data[corev1.TLSCertKey])
-
-	// Automation ingress: annotations removed
-	automationIngress, err := kubeclient.NetworkingV1().Ingresses(ns).Get(context.Background(), fqdnAutomation, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Empty(t, automationIngress.Annotations)
-
-	// Manual ingress: annotations removed
-	manualIngress, err := kubeclient.NetworkingV1().Ingresses(ns).Get(context.Background(), fqdnManual, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Empty(t, manualIngress.Annotations)
-
-	// Automation automationIngress: annotations removed
-	cert, err := certClient.CertmanagerV1().Certificates(ns).Get(context.Background(), fqdnAutomation, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdnAutomation}, cert.Labels)
-	assert.Empty(t, cert.OwnerReferences)
-	expectedCertSpec := cmv1.CertificateSpec{
-		DNSNames:    []string{fqdnAutomation},
-		Duration:    &metav1.Duration{Duration: testConfig.CertificateAutomation.Duration},
-		RenewBefore: &metav1.Duration{Duration: testConfig.CertificateAutomation.RenewBefore},
-		IssuerRef: v1.ObjectReference{
-			Name:  testConfig.CertificateAutomation.GatewayClusterIssuer,
-			Kind:  "ClusterIssuer",
-			Group: "cert-manager.io",
-		},
-		SecretName: fqdnAutomation,
-		SecretTemplate: &cmv1.CertificateSecretTemplate{
-			Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixExternalAliasFQDNLabel: fqdnAutomation},
-		},
-		PrivateKey: &cmv1.CertificatePrivateKey{RotationPolicy: cmv1.RotationPolicyAlways},
-	}
-	assert.Equal(t, expectedCertSpec, cert.Spec)
-}
-
 func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 	appName, envName := "anyapp", "anyenv"
 	fqdnManual1, fqdnManual2 := "foo1.example.com", "foo2.example.com"
@@ -4936,7 +3912,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 			RenewBefore:          1000 * time.Hour,
 		}}
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ := certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
@@ -4950,7 +3926,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 			RenewBefore:          1000 * time.Hour,
 		}}
 
-	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, 2160*time.Hour, cert.Spec.Duration.Duration)
@@ -4964,7 +3940,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 			RenewBefore:          359 * time.Hour,
 		}}
 
-	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
@@ -4991,7 +3967,7 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 			RenewBefore: 1000 * time.Hour,
 		}}
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	assert.ErrorContains(t, syncer.OnSync(context.Background()), "cluster issuer not set in certificate automation config")
 }
 
@@ -5022,7 +3998,7 @@ func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app2", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
 		require.NoError(t, err)
 
-		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, nil, cfg)
+		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 		require.NoError(t, syncer.OnSync(context.Background()))
 		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app2", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
 		require.NoError(t, err)
@@ -5130,7 +4106,7 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 				ContainerRegistryConfig: containerregistry.Config{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret},
 			}
 
-			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, nil, cfg)
+			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, cfg)
 			err = syncer.OnSync(context.Background())
 			require.NoError(t, err)
 			compDeployment, err := kubeclient.AppsV1().Deployments("app-dev").Get(context.Background(), "comp", metav1.GetOptions{})
@@ -5170,7 +4146,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 		return nil, err
 	}
 
-	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, nil, &testConfig)
+	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, &testConfig)
 	modifySyncer(deploymentSyncer)
 	err = deploymentSyncer.OnSync(context.Background())
 	if err != nil {
@@ -5193,7 +4169,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, nil, &testConfig)
+	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, &testConfig)
 	err = deployment.OnSync(context.Background())
 	if err != nil {
 		return err
@@ -5309,20 +4285,6 @@ func getServiceAccountByName(name string, serviceAccounts *corev1.ServiceAccount
 	}
 
 	return nil
-}
-
-func getIngressByName(name string, ingresses *networkingv1.IngressList) *networkingv1.Ingress {
-	for _, ingress := range ingresses.Items {
-		if ingress.Name == name {
-			return &ingress
-		}
-	}
-
-	return nil
-}
-
-func ingressByNameExists(name string, ingresses *networkingv1.IngressList) bool {
-	return getIngressByName(name, ingresses) != nil
 }
 
 func getRoleByName(name string, roles *rbacv1.RoleList) *rbacv1.Role {

@@ -471,7 +471,6 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	// Setup
 	kubeclient, radixclient, commonTestUtils := setupTest(t)
 
-	verification := v1.VerificationTypeOptional
 	_, err := commonTestUtils.ApplyDeployment(
 		context.Background(),
 		utils.NewDeploymentBuilder().
@@ -492,16 +491,17 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 							WithName("app").
 							WithAuthentication(
 								&v1.Authentication{
-									ClientCertificate: &v1.ClientCertificate{
-										PassCertificateToUpstream: pointers.Ptr(true),
+									OAuth2: &v1.OAuth2{
+										ClientID: "client-id",
 									},
 								},
 							).
 							WithEnvironmentConfigs(
 								utils.NewComponentEnvironmentBuilder().WithEnvironment(anyProdEnvironment).WithAuthentication(
 									&v1.Authentication{
-										ClientCertificate: &v1.ClientCertificate{
-											Verification: &verification,
+										OAuth2: &v1.OAuth2{
+											ClientID:               "client-id",
+											SetXAuthRequestHeaders: pointers.Ptr(true),
 										},
 									},
 								),
@@ -538,13 +538,13 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	assert.Equal(t, 1, len(rds.Items))
 
 	x0 := &v1.Authentication{
-		ClientCertificate: &v1.ClientCertificate{
-			Verification:              &verification,
-			PassCertificateToUpstream: pointers.Ptr(true),
+		OAuth2: &v1.OAuth2{
+			ClientID:               "client-id",
+			SetXAuthRequestHeaders: pointers.Ptr(true),
 		},
 	}
 	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication)
-	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication.ClientCertificate)
+	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication.OAuth2)
 	assert.Equal(t, x0, rds.Items[0].Spec.Components[0].Authentication)
 }
 

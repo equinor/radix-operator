@@ -176,7 +176,6 @@ func Test_invalid_ra(t *testing.T) {
 	unsupportedResource := "unsupportedResource"
 	invalidResourceValue := "asdfasd"
 	conflictingVariableName := "some-variable"
-	invalidCertificateVerification := radixv1.VerificationType("obviously_an_invalid_value")
 	name50charsLong := "a123456789a123456789a123456789a123456789a123456789"
 
 	var testScenarios = []struct {
@@ -357,20 +356,6 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"memory resource limit not set", nil, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
-		}},
-		{"invalid verificationType for component", radixapplication.ErrInvalidVerificationType, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Authentication = &radixv1.Authentication{
-				ClientCertificate: &radixv1.ClientCertificate{
-					Verification: &invalidCertificateVerification,
-				},
-			}
-		}},
-		{"invalid verificationType for environment", radixapplication.ErrInvalidVerificationType, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Authentication = &radixv1.Authentication{
-				ClientCertificate: &radixv1.ClientCertificate{
-					Verification: &invalidCertificateVerification,
-				},
-			}
 		}},
 		{"job name with oauth auxiliary name suffix", radixapplication.ErrComponentNameReservedSuffix, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Jobs[0].Name = oauthAuxSuffixJobName

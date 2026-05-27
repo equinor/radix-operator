@@ -1,6 +1,6 @@
 module github.com/equinor/radix-operator
 
-go 1.26.2
+go 1.26.3
 
 godebug default=go1.24
 
@@ -42,7 +42,6 @@ require (
 	golang.org/x/crypto v0.50.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
 	golang.org/x/sync v0.20.0
-	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.35.3
 	k8s.io/apiextensions-apiserver v0.35.2
 	k8s.io/apimachinery v0.35.3
@@ -172,6 +171,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/gengo/v2 v2.0.0-20250922181213-ec3ebc5fd46b // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5 // indirect

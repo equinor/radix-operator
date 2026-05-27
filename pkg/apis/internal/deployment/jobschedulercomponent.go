@@ -128,10 +128,6 @@ func (js *JobSchedulerComponent) IsDNSAppAlias() bool {
 	return js.radixJob.IsDNSAppAlias()
 }
 
-func (js *JobSchedulerComponent) GetIngressConfiguration() []string {
-	return js.radixJob.GetIngressConfiguration()
-}
-
 func (js *JobSchedulerComponent) GetNode() *radixv1.RadixNode {
 	// Job configuration in radixconfig.yaml contains section "node", which supposed to configure scheduled jobs by RadixDeployment
 	// "node" section settings should not be applied to the JobScheduler component itself
@@ -152,10 +148,6 @@ func (js *JobSchedulerComponent) GetReadOnlyFileSystem() *bool {
 
 func (js *JobSchedulerComponent) GetRuntime() *radixv1.Runtime {
 	return &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}
-}
-
-func (js *JobSchedulerComponent) GetNetwork() *radixv1.Network {
-	return js.radixJob.GetNetwork()
 }
 
 func (js *JobSchedulerComponent) GetHealthChecks() *radixv1.RadixHealthChecks {

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -57,19 +56,6 @@ func (deploy *Deployment) syncComponentSecrets(ctx context.Context, component ra
 	err = volumemount.GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx, deploy.kubeutil, namespace, component, secretsToManage)
 	if err != nil {
 		return err
-	}
-
-	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
-	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && ingress.IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
-		if err := deploy.createOrUpdateClientCertificateSecret(ctx, component.GetName(), clientCertificateSecretName); err != nil {
-			return err
-		}
-		secretsToManage = append(secretsToManage, clientCertificateSecretName)
-	} else if deploy.kubeutil.SecretExists(ctx, namespace, clientCertificateSecretName) {
-		err := deploy.kubeutil.DeleteSecret(ctx, namespace, clientCertificateSecretName)
-		if err != nil {
-			return err
-		}
 	}
 
 	secretRefsSecretNames, err := deploy.createSecretRefs(ctx, namespace, component)

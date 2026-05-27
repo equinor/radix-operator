@@ -35,13 +35,12 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 			continue
 		}
 		deployComponent := radixv1.RadixDeployComponent{
-			Name:                 componentName,
-			Public:               false,
-			IngressConfiguration: radixComponent.IngressConfiguration,
-			Ports:                radixComponent.Ports,
-			MonitoringConfig:     radixComponent.MonitoringConfig,
-			Secrets:              radixComponent.Secrets,
-			DNSAppAlias:          IsDNSAppAlias(env, componentName, dnsAppAlias),
+			Name:             componentName,
+			Public:           false,
+			Ports:            radixComponent.Ports,
+			MonitoringConfig: radixComponent.MonitoringConfig,
+			Secrets:          radixComponent.Secrets,
+			DNSAppAlias:      IsDNSAppAlias(env, componentName, dnsAppAlias),
 		}
 		deployComponent.Replicas = getRadixCommonComponentReplicas(&radixComponent, environmentSpecificConfig)
 
@@ -86,9 +85,6 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		if deployComponent.VolumeMounts, err = getRadixCommonComponentVolumeMounts(&radixComponent, environmentSpecificConfig); err != nil {
 			return nil, err
 		}
-		if deployComponent.Network, err = getRadixComponentNetwork(&radixComponent, environmentSpecificConfig); err != nil {
-			return nil, err
-		}
 		deployComponents = append(deployComponents, deployComponent)
 	}
 
@@ -128,24 +124,6 @@ func getRadixCommonComponentHealthChecks(r *radixv1.RadixComponent, config *radi
 	}
 
 	return hc
-}
-
-func getRadixComponentNetwork(component *radixv1.RadixComponent, environmentConfig *radixv1.RadixEnvironmentConfig) (*radixv1.Network, error) {
-	var dst *radixv1.Network
-	if component.Network != nil {
-		dst = component.Network.DeepCopy()
-	}
-
-	if environmentConfig != nil && environmentConfig.Network != nil {
-		if dst == nil {
-			dst = &radixv1.Network{}
-		}
-		if err := mergo.Merge(dst, environmentConfig.Network, mergo.WithOverride, mergo.WithOverrideEmptySlice, mergo.WithTransformers(mergoTranformers)); err != nil {
-			return nil, err
-		}
-	}
-
-	return dst, nil
 }
 
 func getRadixCommonComponentReadOnlyFileSystem(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *bool {

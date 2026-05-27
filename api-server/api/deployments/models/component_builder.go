@@ -4,12 +4,10 @@ import (
 	"errors"
 
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
 	"github.com/equinor/radix-operator/api-server/api/utils/secret"
 	volumemountUtils "github.com/equinor/radix-operator/api-server/api/utils/volumemount"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 )
@@ -56,7 +54,6 @@ type componentBuilder struct {
 	resources                 *radixv1.ResourceRequirements
 	runtime                   *radixv1.Runtime
 	replicasOverride          *int
-	network                   *Network
 }
 
 func (b *componentBuilder) WithStatus(status ComponentStatus) ComponentBuilder {
@@ -147,23 +144,18 @@ func (b *componentBuilder) WithComponent(component radixv1.RadixCommonDeployComp
 		}
 	}
 
-	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() {
-		if ingress.IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
-			b.secrets = append(b.secrets, utils.GetComponentClientCertificateSecretName(component.GetName()))
+	if auth := component.GetAuthentication(); auth != nil && auth.OAuth2 != nil && component.IsPublic() {
+		oauth2, err := defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()).MergeWith(auth.OAuth2)
+		if err != nil {
+			b.errors = append(b.errors, err)
 		}
-		if auth.OAuth2 != nil {
-			oauth2, err := defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()).MergeWith(auth.OAuth2)
-			if err != nil {
-				b.errors = append(b.errors, err)
-			}
-			if !auth.OAuth2.GetUseAzureIdentity() {
-				b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2ClientSecret)
-			}
-			b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2CookieSecret)
+		if !auth.OAuth2.GetUseAzureIdentity() {
+			b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2ClientSecret)
+		}
+		b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2CookieSecret)
 
-			if oauth2.SessionStoreType == radixv1.SessionStoreRedis {
-				b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2RedisPassword)
-			}
+		if oauth2.SessionStoreType == radixv1.SessionStoreRedis {
+			b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2RedisPassword)
 		}
 	}
 
@@ -182,22 +174,6 @@ func (b *componentBuilder) WithComponent(component radixv1.RadixCommonDeployComp
 	}
 
 	b.environmentVariables = component.GetEnvironmentVariables()
-
-	if network := component.GetNetwork(); network != nil {
-		b.network = &Network{}
-
-		if ing := network.Ingress; ing != nil {
-			b.network.Ingress = &Ingress{}
-
-			if publicIngress := ing.Public; publicIngress != nil {
-				b.network.Ingress.Public = &IngressPublic{}
-
-				if allow := publicIngress.Allow; allow != nil {
-					b.network.Ingress.Public.Allow = slice.Map(*allow, func(v radixv1.IPOrCIDR) string { return string(v) })
-				}
-			}
-		}
-	}
 
 	return b
 }
@@ -286,7 +262,6 @@ func (b *componentBuilder) BuildComponent() (*Component, error) {
 		CommitID:                 variables[defaults.RadixCommitHashEnvironmentVariable],
 		GitTags:                  variables[defaults.RadixGitTagsEnvironmentVariable],
 		Runtime:                  b.buildRuntimeModel(),
-		Network:                  b.network,
 	}
 	if b.resources != nil && (len(b.resources.Limits) > 0 || len(b.resources.Requests) > 0) {
 		component.Resources = pointers.Ptr(ConvertRadixResourceRequirements(*b.resources))

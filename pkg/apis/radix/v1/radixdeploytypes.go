@@ -151,7 +151,7 @@ type RadixDeployExternalDNS struct {
 	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
 }
 
-// RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
+// RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service etc
 type RadixDeployComponent struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
@@ -193,9 +193,6 @@ type RadixDeployComponent struct {
 
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
-
-	// +optional
-	IngressConfiguration []string `json:"ingressConfiguration,omitempty"`
 
 	// +optional
 	DNSAppAlias bool `json:"dnsAppAlias,omitempty"`
@@ -380,10 +377,6 @@ func (deployComponent *RadixDeployComponent) IsDNSAppAlias() bool {
 	return deployComponent.DNSAppAlias
 }
 
-func (deployComponent *RadixDeployComponent) GetIngressConfiguration() []string {
-	return deployComponent.IngressConfiguration
-}
-
 func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 	return &deployComponent.Node //nolint:staticcheck
 }
@@ -501,10 +494,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetExternalDNS() []RadixDeplo
 }
 func (deployJobComponent *RadixDeployJobComponent) IsDNSAppAlias() bool {
 	return false
-}
-
-func (deployJobComponent *RadixDeployJobComponent) GetIngressConfiguration() []string {
-	return nil
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
@@ -698,7 +687,6 @@ type RadixCommonDeployComponent interface {
 	IsPublic() bool
 	GetExternalDNS() []RadixDeployExternalDNS
 	IsDNSAppAlias() bool
-	GetIngressConfiguration() []string
 	GetNode() *RadixNode
 	GetAuthentication() *Authentication
 	GetIdentity() *Identity

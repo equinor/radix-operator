@@ -15,7 +15,6 @@ import (
 	config "github.com/equinor/radix-operator/pkg/apis/config"
 	defaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	dnsalias "github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	ingress "github.com/equinor/radix-operator/pkg/apis/ingress"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -49,15 +48,15 @@ func (m *MockSyncerFactory) EXPECT() *MockSyncerFactoryMockRecorder {
 }
 
 // CreateSyncer mocks base method.
-func (m *MockSyncerFactory) CreateSyncer(radixDNSAlias *v1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, dynamicClient client.Client, arg5 config.Config, oauth2Config defaults.OAuth2Config, componentIngressAnnotations, oauthProxyIngressAnnotation []ingress.AnnotationProvider) dnsalias.Syncer {
+func (m *MockSyncerFactory) CreateSyncer(radixDNSAlias *v1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient versioned.Interface, dynamicClient client.Client, arg5 config.Config, oauth2Config defaults.OAuth2Config) dnsalias.Syncer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateSyncer", radixDNSAlias, kubeClient, kubeUtil, radixClient, dynamicClient, arg5, oauth2Config, componentIngressAnnotations, oauthProxyIngressAnnotation)
+	ret := m.ctrl.Call(m, "CreateSyncer", radixDNSAlias, kubeClient, kubeUtil, radixClient, dynamicClient, arg5, oauth2Config)
 	ret0, _ := ret[0].(dnsalias.Syncer)
 	return ret0
 }
 
 // CreateSyncer indicates an expected call of CreateSyncer.
-func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(radixDNSAlias, kubeClient, kubeUtil, radixClient, dynamicClient, arg5, oauth2Config, componentIngressAnnotations, oauthProxyIngressAnnotation any) *gomock.Call {
+func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(radixDNSAlias, kubeClient, kubeUtil, radixClient, dynamicClient, arg5, oauth2Config any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), radixDNSAlias, kubeClient, kubeUtil, radixClient, dynamicClient, arg5, oauth2Config, componentIngressAnnotations, oauthProxyIngressAnnotation)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), radixDNSAlias, kubeClient, kubeUtil, radixClient, dynamicClient, arg5, oauth2Config)
 }

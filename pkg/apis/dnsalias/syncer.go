@@ -76,10 +76,6 @@ func (s *syncer) OnSync(ctx context.Context) error {
 }
 
 func (s *syncer) reconcile(ctx context.Context) error {
-	if err := s.syncIngresses(ctx); err != nil {
-		return fmt.Errorf("failed to reconcile ingresses: %w", err)
-	}
-
 	if err := s.reconcileHTTPRoute(ctx); err != nil {
 		return fmt.Errorf("failed to reconcile HTTPRoute: %w", err)
 	}
@@ -118,6 +114,19 @@ func (s *syncer) init(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (s *syncer) buildComponentWithOAuthDefaults(component *radixv1.RadixDeployComponent) (*radixv1.RadixDeployComponent, error) {
+	if component.GetAuthentication().GetOAuth2() == nil {
+		return component, nil
+	}
+	componentWithOAuthDefaults := component.DeepCopy()
+	oauth, err := s.oauth2DefaultConfig.MergeWith(componentWithOAuthDefaults.Authentication.OAuth2)
+	if err != nil {
+		return nil, err
+	}
+	componentWithOAuthDefaults.Authentication.OAuth2 = oauth
+	return componentWithOAuthDefaults, nil
 }
 
 // removeFinalizer removes the finalizer that was unneccessarily set to delete ingresses and cluster roles + binding

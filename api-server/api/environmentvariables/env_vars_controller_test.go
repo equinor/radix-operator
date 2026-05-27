@@ -218,7 +218,7 @@ func setupDeployment(commonTestUtils *commontest.Utils, kubeClient kubernetes.In
 		return err
 	}
 
-	deploymentSyncer := deployment.NewDeploymentSyncer(kubeClient, commonTestUtils.GetKubeUtil(), radixClient, dynamicClient, certClient, radixRegistration, rd, nil, nil, &config.Config{
+	deploymentSyncer := deployment.NewDeploymentSyncer(kubeClient, commonTestUtils.GetKubeUtil(), radixClient, dynamicClient, certClient, radixRegistration, rd, nil, &config.Config{
 		ClusterName:           clusterName,
 		ClusterType:           clusterType,
 		DNSZone:               "dev.radix.equinor.com",

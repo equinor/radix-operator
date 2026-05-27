@@ -48,14 +48,6 @@ func Test_defaultIngressNetworkPolicy(t *testing.T) {
 		assert.Nil(t, peer.NamespaceSelector)
 	})
 
-	t.Run("ingress allows ingress-nginx from radix-base-ns", func(t *testing.T) {
-		peer := np.Spec.Ingress[0].From[1]
-		require.NotNil(t, peer.PodSelector)
-		assert.Equal(t, "ingress-nginx", peer.PodSelector.MatchLabels["app.kubernetes.io/name"])
-		require.NotNil(t, peer.NamespaceSelector)
-		assert.Equal(t, "radix-base-ns", peer.NamespaceSelector.MatchLabels["purpose"])
-	})
-
 	t.Run("ingress allows prometheus from radix-base-ns", func(t *testing.T) {
 		peer := np.Spec.Ingress[0].From[2]
 		require.NotNil(t, peer.PodSelector)

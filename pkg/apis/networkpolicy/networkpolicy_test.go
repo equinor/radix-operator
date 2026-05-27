@@ -351,10 +351,6 @@ func TestUpdateEnvEgressRules_AllowRadixTrue_IncludesRadixEgressRule(t *testing.
 
 	require.Len(t, radixRule.To, 2)
 
-	// ingress-nginx peer
-	assert.Equal(t, map[string]string{"app.kubernetes.io/name": "ingress-nginx"}, radixRule.To[0].PodSelector.MatchLabels)
-	assert.Equal(t, map[string]string{"purpose": "radix-base-ns"}, radixRule.To[0].NamespaceSelector.MatchLabels)
-
 	// gateway peer
 	assert.Equal(t, map[string]string{"gateway.networking.k8s.io/gateway-name": gatewayName}, radixRule.To[1].PodSelector.MatchLabels)
 	assert.Equal(t, map[string]string{"purpose": "radix-base-ns"}, radixRule.To[1].NamespaceSelector.MatchLabels)

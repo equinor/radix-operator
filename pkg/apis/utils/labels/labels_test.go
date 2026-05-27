@@ -7,7 +7,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
 
@@ -149,32 +148,6 @@ func Test_ForPipelineJobPipelineType(t *testing.T) {
 func Test_ForRadixImageTag(t *testing.T) {
 	actual := ForRadixImageTag("anyimagetag")
 	expected := kubelabels.Set{kube.RadixImageTagLabel: "anyimagetag"}
-	assert.Equal(t, expected, actual)
-}
-
-func Test_ForDNSAliasComponentIngress(t *testing.T) {
-	alias := &radixv1.RadixDNSAlias{
-		ObjectMeta: v1.ObjectMeta{Name: "any-dns-alias"},
-		Spec: radixv1.RadixDNSAliasSpec{
-			AppName:   "any-app",
-			Component: "any-component",
-		},
-	}
-	actual := ForDNSAliasComponentIngress(alias)
-	expected := kubelabels.Set{kube.RadixAliasLabel: alias.Name, kube.RadixAppLabel: alias.Spec.AppName, kube.RadixComponentLabel: alias.Spec.Component}
-	assert.Equal(t, expected, actual)
-}
-
-func Test_ForDNSAliasOAuthIngress(t *testing.T) {
-	alias := &radixv1.RadixDNSAlias{
-		ObjectMeta: v1.ObjectMeta{Name: "any-dns-alias"},
-		Spec: radixv1.RadixDNSAliasSpec{
-			AppName:   "any-app",
-			Component: "any-component",
-		},
-	}
-	actual := ForDNSAliasOAuthIngress(alias)
-	expected := kubelabels.Set{kube.RadixAliasLabel: alias.Name, kube.RadixAppLabel: alias.Spec.AppName, kube.RadixAuxiliaryComponentLabel: alias.Spec.Component, kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType}
 	assert.Equal(t, expected, actual)
 }
 

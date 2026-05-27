@@ -67,7 +67,6 @@ rules:
   - clusterrolebindings
   - deployments
   - services
-  - ingresses
   - servicemonitors
   - networkpolicies
   - storageclasses

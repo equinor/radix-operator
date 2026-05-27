@@ -96,3 +96,7 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 
 	return nil
 }
+
+func (s *syncer) getHostName() string {
+	return fmt.Sprintf("%s.%s", s.radixDNSAlias.Name, s.config.DNSZone)
+}

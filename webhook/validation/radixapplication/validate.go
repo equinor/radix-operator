@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -481,40 +480,9 @@ func validateAuthentication(component *radixv1.RadixComponent, environments []ra
 			continue
 		}
 
-		if err := validateClientCertificate(combinedAuth.ClientCertificate); err != nil {
-			errs = append(errs, err)
-		}
-
 		errs = append(errs, validateOAuth(combinedAuth.OAuth2, component, environment.Name)...)
 	}
 	return errs
-}
-
-func validateClientCertificate(clientCertificate *radixv1.ClientCertificate) error {
-	if clientCertificate == nil {
-		return nil
-	}
-
-	return validateVerificationType(clientCertificate.Verification)
-}
-
-func validateVerificationType(verificationType *radixv1.VerificationType) error {
-	if verificationType == nil {
-		return nil
-	}
-
-	validValues := []string{
-		string(radixv1.VerificationTypeOff),
-		string(radixv1.VerificationTypeOn),
-		string(radixv1.VerificationTypeOptional),
-		string(radixv1.VerificationTypeOptionalNoCa),
-	}
-
-	actualValue := string(*verificationType)
-	if !commonUtils.ContainsString(validValues, actualValue) {
-		return fmt.Errorf("verification type '%s': %w", actualValue, ErrInvalidVerificationType)
-	}
-	return nil
 }
 
 func componentHasPublicPort(component *radixv1.RadixComponent) bool {
