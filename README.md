@@ -97,4 +97,4 @@ Want to contribute? Read our [contributing guidelines](./CONTRIBUTING.md)
 
 ## Security
 
-This is how we handle [security issues](./SECURITY.md).
+This is how we handle [security issues](./SECURITY.md)
