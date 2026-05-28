@@ -315,7 +315,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 
 	for name, scenario := range scenarios {
 		s.Run(name, func() {
-			sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, nil, "proxy:123", "somesecret", zerolog.Nop()}
+			sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, defaults.NewOAuth2Config(), "proxy:123", "somesecret", zerolog.Nop()}
 			if scenario.existingSa != nil {
 				_, err := s.kubeClient.CoreV1().ServiceAccounts(scenario.existingSa.Namespace).Create(context.Background(), scenario.existingSa, metav1.CreateOptions{})
 				s.NoError(err, "Failed to create service account")
