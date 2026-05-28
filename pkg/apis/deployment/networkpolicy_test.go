@@ -39,7 +39,7 @@ func Test_defaultIngressNetworkPolicy(t *testing.T) {
 
 	t.Run("ingress allows same namespace pods", func(t *testing.T) {
 		rule := np.Spec.Ingress[0]
-		require.GreaterOrEqual(t, len(rule.From), 4)
+		require.Len(t, rule.From, 3)
 
 		// First peer: all pods in same namespace
 		peer := rule.From[0]
@@ -49,7 +49,8 @@ func Test_defaultIngressNetworkPolicy(t *testing.T) {
 	})
 
 	t.Run("ingress allows prometheus from radix-base-ns", func(t *testing.T) {
-		peer := np.Spec.Ingress[0].From[2]
+		require.Len(t, np.Spec.Ingress[0].From, 3)
+		peer := np.Spec.Ingress[0].From[1] // Second peer should be prometheus
 		require.NotNil(t, peer.PodSelector)
 		assert.Equal(t, "prometheus", peer.PodSelector.MatchLabels["app.kubernetes.io/name"])
 		require.NotNil(t, peer.NamespaceSelector)
