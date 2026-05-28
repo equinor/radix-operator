@@ -58,7 +58,8 @@ func Test_defaultIngressNetworkPolicy(t *testing.T) {
 	})
 
 	t.Run("ingress allows gateway pods from radix-base-ns", func(t *testing.T) {
-		peer := np.Spec.Ingress[0].From[3]
+		require.Len(t, np.Spec.Ingress[0].From, 3)
+		peer := np.Spec.Ingress[0].From[2]
 		require.NotNil(t, peer.PodSelector)
 		assert.Equal(t, gatewayName, peer.PodSelector.MatchLabels["gateway.networking.k8s.io/gateway-name"])
 		require.NotNil(t, peer.NamespaceSelector)
