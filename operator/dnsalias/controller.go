@@ -146,7 +146,3 @@ func deepEqual(old, new *radixv1.RadixDNSAlias) bool {
 	return reflect.DeepEqual(new.Spec, old.Spec) &&
 		reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels)
 }
-
-func getOwner(ctx context.Context, radixClient radixclient.Interface, _, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixDNSAliases().Get(ctx, name, metav1.GetOptions{})
-}

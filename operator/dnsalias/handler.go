@@ -87,7 +87,7 @@ func (h *handler) Sync(ctx context.Context, _, name string) error {
 
 	syncingAlias := radixDNSAlias.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)
-	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.kubeClient, h.kubeUtil, h.radixClient, h.dynamicClient, h.config, h.oauth2DefaultConfig)
+	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.kubeUtil, h.radixClient, h.dynamicClient, h.config, h.oauth2DefaultConfig)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		h.events.RecordSyncErrorEvent(syncingAlias, err)
