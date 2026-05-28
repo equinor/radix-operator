@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.26.2-alpine3.23 AS builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.26.3-alpine3.23 AS builder
 ARG TARGETARCH
 ENV CGO_ENABLED=0 \
     GOOS=linux \
