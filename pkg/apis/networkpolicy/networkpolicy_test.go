@@ -349,11 +349,11 @@ func TestUpdateEnvEgressRules_AllowRadixTrue_IncludesRadixEgressRule(t *testing.
 	assert.Equal(t, &udp, radixRule.Ports[3].Protocol)
 	assert.Equal(t, int32(443), radixRule.Ports[3].Port.IntVal)
 
-	require.Len(t, radixRule.To, 2)
+	require.Len(t, radixRule.To, 1)
 
 	// gateway peer
-	assert.Equal(t, map[string]string{"gateway.networking.k8s.io/gateway-name": gatewayName}, radixRule.To[1].PodSelector.MatchLabels)
-	assert.Equal(t, map[string]string{"purpose": "radix-base-ns"}, radixRule.To[1].NamespaceSelector.MatchLabels)
+	assert.Equal(t, map[string]string{"gateway.networking.k8s.io/gateway-name": gatewayName}, radixRule.To[0].PodSelector.MatchLabels)
+	assert.Equal(t, map[string]string{"purpose": "radix-base-ns"}, radixRule.To[0].NamespaceSelector.MatchLabels)
 }
 
 func TestUpdateEnvEgressRules_AllowRadixFalse_ExcludesRadixEgressRule(t *testing.T) {
@@ -416,8 +416,8 @@ func TestUpdateEnvEgressRules_NoRulesButAllowRadixTrue_CreatesPolicyWithRadixRul
 
 	// Verify the radix rule is present (last one)
 	radixRule := egressRules[2]
-	require.Len(t, radixRule.To, 2)
-	assert.Equal(t, map[string]string{"app.kubernetes.io/name": "ingress-nginx"}, radixRule.To[0].PodSelector.MatchLabels)
+	require.Len(t, radixRule.To, 1)
+	assert.Equal(t, map[string]string{"gateway.networking.k8s.io/gateway-name": "test-gateway"}, radixRule.To[0].PodSelector.MatchLabels)
 }
 
 func TestUpdateEnvEgressRules_NoRulesButAllowRadixFalse_CreatesPolicyWithoutRadixRule(t *testing.T) {
@@ -626,8 +626,8 @@ func TestUpdateEnvEgressRules_GatewayNameFromConfig(t *testing.T) {
 	// radix rule is the last one
 	egressRules := policies[0].Spec.Egress
 	radixRule := egressRules[len(egressRules)-1]
-	require.Len(t, radixRule.To, 2)
-	assert.Equal(t, map[string]string{"gateway.networking.k8s.io/gateway-name": customGateway}, radixRule.To[1].PodSelector.MatchLabels)
+	require.Len(t, radixRule.To, 1)
+	assert.Equal(t, map[string]string{"gateway.networking.k8s.io/gateway-name": customGateway}, radixRule.To[0].PodSelector.MatchLabels)
 }
 
 func TestUpdateEnvEgressRules_PolicyTypeIsEgress(t *testing.T) {
@@ -677,5 +677,5 @@ func TestUpdateEnvEgressRules_EgressRuleOrdering(t *testing.T) {
 	// 2: own namespace
 	assert.Equal(t, map[string]string{kube.RadixAppLabel: appName, kube.RadixEnvLabel: envName}, egressRules[2].To[0].NamespaceSelector.MatchLabels, "third rule should be own-namespace")
 	// 3: allowRadix
-	assert.Len(t, egressRules[3].To, 2, "fourth rule should be the radix rule with ingress-nginx and gateway peers")
+	assert.Len(t, egressRules[3].To, 1, "fourth rule should be the radix rule with gateway resource")
 }
