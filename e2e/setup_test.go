@@ -161,6 +161,7 @@ func TestMain(m *testing.M) {
 
 	// Install Helm chart with custom image tags
 	helmValues := map[string]string{
+		"clusterName":                           "weekly-e2e",
 		"rbac.createApp.groups[0]":              "123",
 		"image.pullPolicy":                      "IfNotPresent",
 		"ingress.gateway.name":                  "test-gateway",
