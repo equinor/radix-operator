@@ -43,27 +43,20 @@ type cronServer struct {
 	cronInstance *cron.Cron
 }
 
-type cronJob struct {
-	schedule   string
-	jobHandler jobApi.JobHandler
-}
-
-func (cj cronJob) Run() {
-	desc := &common.JobScheduleDescription{
-		JobId: fmt.Sprintf("cron-%d", time.Now().Unix()),
-		// Payload not supported
-	}
-
-	if _, err := cj.jobHandler.CreateJob(context.Background(), desc); err != nil {
-		log.Error().Err(err).Msg("failed to create scheduled job")
-	}
-}
-
-func (cs *cronServer) start(ctx context.Context, jobs []cronJob) error {
+func (cs *cronServer) start(ctx context.Context, jobHandler jobApi.JobHandler, schedules []string) error {
 	cs.cronInstance = cron.New()
 
-	for _, job := range jobs {
-		if _, err := cs.cronInstance.AddJob(job.schedule, job); err != nil {
+	for _, schedule := range schedules {
+		s := schedule // safe capture pattern
+		if _, err := cs.cronInstance.AddFunc(s, func() {
+			desc := &common.JobScheduleDescription{
+				JobId: fmt.Sprintf("cron-%d", time.Now().Unix()),
+				// Payload not supported
+			}
+			if _, err := jobHandler.CreateJob(context.Background(), desc); err != nil {
+				log.Error().Err(err).Msg("failed to create scheduled job")
+			}
+		}); err != nil {
 			return err
 		}
 	}
@@ -105,17 +98,12 @@ func main() {
 
 	jobHandler := jobApi.New(kubeUtil, env, radixDeployJobComponent)
 	schedules := radixDeployJobComponent.Cron.Schedule
-	cronJobs := make([]cronJob, 0, len(schedules))
-	for _, cronSchedule := range schedules {
-		cronJobs = append(cronJobs, cronJob{
-			schedule:   cronSchedule,
-			jobHandler: jobHandler,
-		})
-	}
 
 	cs := cronServer{}
 	go func() {
-		cs.start(ctx, cronJobs)
+		if err := cs.start(ctx, jobHandler, schedules); err != nil {
+			log.Error().Err(err).Msg("failed to start cron server")
+		}
 	}()
 
 	runApiServer(ctx, kubeUtil, env, radixDeployJobComponent)
