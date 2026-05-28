@@ -74,7 +74,6 @@ func (s *syncerTestSuite) setupTest() {
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
 	return dnsalias.NewSyncer(
 		radixDNSAlias,
-		s.kubeClient,
 		s.testUtils.GetKubeUtil(),
 		s.radixClient,
 		s.dynamicClient,
@@ -93,7 +92,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut := dnsalias.NewSyncer(rda, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -106,7 +105,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut = dnsalias.NewSyncer(rda, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -118,12 +117,12 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// Sync with error
 	errorMsg := "any sync error"
-	s.kubeClient.PrependReactor("*", "*", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+	s.radixClient.PrependReactor("get", "radixregistrations", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, errors.New(errorMsg)
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.kubeClient, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut = dnsalias.NewSyncer(rda, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})

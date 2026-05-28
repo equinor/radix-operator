@@ -12,14 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-)
-
-const (
-	finalizer = "radix.equinor.com/dnsalias-finalizer"
 )
 
 // Syncer of  RadixDNSAliases
@@ -30,7 +23,6 @@ type Syncer interface {
 
 // DNSAlias is the aggregate-root for manipulating RadixDNSAliases
 type syncer struct {
-	kubeClient          kubernetes.Interface
 	radixClient         radixclient.Interface
 	dynamicClient       client.Client
 	kubeUtil            *kube.Kube
@@ -44,9 +36,8 @@ type syncer struct {
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, oauth2Config defaults.OAuth2Config) Syncer {
+func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, oauth2Config defaults.OAuth2Config) Syncer {
 	return &syncer{
-		kubeClient:          kubeClient,
 		radixClient:         radixClient,
 		dynamicClient:       dynamicClient,
 		kubeUtil:            kubeUtil,
@@ -63,19 +54,15 @@ func (s *syncer) OnSync(ctx context.Context) error {
 	s.initMutex.Lock()
 	defer s.initMutex.Unlock()
 
-	if err := s.removeFinalizer(ctx); err != nil {
-		return fmt.Errorf("failed to remove finalizer: %w", err)
-	}
+	return s.syncStatus(ctx, s.reconcile(ctx))
+}
+
+func (s *syncer) reconcile(ctx context.Context) error {
 
 	if err := s.init(ctx); err != nil {
 		return fmt.Errorf("failed to init: %w", err)
 	}
 
-	return s.syncStatus(ctx, s.reconcile(ctx))
-
-}
-
-func (s *syncer) reconcile(ctx context.Context) error {
 	if err := s.reconcileHTTPRoute(ctx); err != nil {
 		return fmt.Errorf("failed to reconcile HTTPRoute: %w", err)
 	}
@@ -127,22 +114,4 @@ func (s *syncer) buildComponentWithOAuthDefaults(component *radixv1.RadixDeployC
 	}
 	componentWithOAuthDefaults.Authentication.OAuth2 = oauth
 	return componentWithOAuthDefaults, nil
-}
-
-// removeFinalizer removes the finalizer that was unneccessarily set to delete ingresses and cluster roles + binding
-// ownerreference to the RadixDNSAlias will handle deletion automatically
-func (s *syncer) removeFinalizer(ctx context.Context) error {
-	log.Ctx(ctx).Info().Msg("Process finalizer")
-	if !controllerutil.ContainsFinalizer(s.radixDNSAlias, finalizer) {
-		return nil
-	}
-
-	controllerutil.RemoveFinalizer(s.radixDNSAlias, finalizer)
-	updated, err := s.radixClient.RadixV1().RadixDNSAliases().Update(ctx, s.radixDNSAlias, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to update RadixDNSAlias: %w", err)
-	}
-
-	s.radixDNSAlias = updated
-	return nil
 }
