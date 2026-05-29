@@ -151,13 +151,13 @@ func (s *RadixJobTestSuite) SetupSubTest() {
 }
 
 func (s *RadixJobTestSuite) Test_ReconcileStatus() {
-	qty := resource.MustParse("1")
+	qty := pipelinejob.MustParse("1")
 	cfg := &config.Config{
 		PipelineJobConfig: &pipelinejob.Config{
-			AppBuilderResourcesLimitsCPU:      &qty,
-			AppBuilderResourcesLimitsMemory:   &qty,
-			AppBuilderResourcesRequestsCPU:    &qty,
-			AppBuilderResourcesRequestsMemory: &qty,
+			AppBuilderResourcesLimitsCPU:      qty,
+			AppBuilderResourcesLimitsMemory:   qty,
+			AppBuilderResourcesRequestsCPU:    qty,
+			AppBuilderResourcesRequestsMemory: qty,
 		},
 	}
 	rr := &radixv1.RadixRegistration{}
@@ -1585,10 +1585,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 				DNSZone: "dev.radix.equinor.com",
 				PipelineJobConfig: &pipelinejob.Config{
 					PipelineJobsHistoryLimit:          3,
-					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
-					AppBuilderResourcesLimitsCPU:      pointers.Ptr(resource.MustParse("456m")),
-					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
-					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
+					AppBuilderResourcesRequestsCPU:    pipelinejob.MustParse("123m"),
+					AppBuilderResourcesLimitsCPU:      pipelinejob.MustParse("456m"),
+					AppBuilderResourcesRequestsMemory: pipelinejob.MustParse("1234Mi"),
+					AppBuilderResourcesLimitsMemory:   pipelinejob.MustParse("2345Mi"),
 					PipelineImage:                     "docker.io/anypipeline:tag",
 					GitCloneImage:                     "docker.io/git:any",
 				},
@@ -1603,8 +1603,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 			config: &config.Config{
 				DNSZone: "dev.radix.equinor.com",
 				PipelineJobConfig: &pipelinejob.Config{
-					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
-					AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2345Mi")),
+					AppBuilderResourcesRequestsMemory: pipelinejob.MustParse("1234Mi"),
+					AppBuilderResourcesLimitsMemory:   pipelinejob.MustParse("2345Mi"),
 					PipelineImage:                     "docker.io/anypipeline:tag",
 					GitCloneImage:                     "docker.io/git:any",
 				}},
@@ -1614,8 +1614,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 			config: &config.Config{
 				DNSZone: "dev.radix.equinor.com",
 				PipelineJobConfig: &pipelinejob.Config{
-					AppBuilderResourcesRequestsCPU:  pointers.Ptr(resource.MustParse("123m")),
-					AppBuilderResourcesLimitsMemory: pointers.Ptr(resource.MustParse("2345Mi")),
+					AppBuilderResourcesRequestsCPU:  pipelinejob.MustParse("123m"),
+					AppBuilderResourcesLimitsMemory: pipelinejob.MustParse("2345Mi"),
 					PipelineImage:                   "docker.io/anypipeline:tag",
 					GitCloneImage:                   "docker.io/git:any",
 				}},
@@ -1625,8 +1625,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 			config: &config.Config{
 				DNSZone: "dev.radix.equinor.com",
 				PipelineJobConfig: &pipelinejob.Config{
-					AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("123m")),
-					AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1234Mi")),
+					AppBuilderResourcesRequestsCPU:    pipelinejob.MustParse("123m"),
+					AppBuilderResourcesRequestsMemory: pipelinejob.MustParse("1234Mi"),
 					PipelineImage:                     "docker.io/anypipeline:tag",
 					GitCloneImage:                     "docker.io/git:any",
 				}},
@@ -1682,10 +1682,10 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 		DNSZone: "dev.radix.equinor.com",
 		PipelineJobConfig: &pipelinejob.Config{
 			PipelineJobsHistoryLimit:          historyLimit,
-			AppBuilderResourcesLimitsMemory:   pointers.Ptr(resource.MustParse("2000Mi")),
-			AppBuilderResourcesLimitsCPU:      pointers.Ptr(resource.MustParse("200m")),
-			AppBuilderResourcesRequestsCPU:    pointers.Ptr(resource.MustParse("100m")),
-			AppBuilderResourcesRequestsMemory: pointers.Ptr(resource.MustParse("1000Mi")),
+			AppBuilderResourcesLimitsMemory:   pipelinejob.MustParse("2000Mi"),
+			AppBuilderResourcesLimitsCPU:      pipelinejob.MustParse("200m"),
+			AppBuilderResourcesRequestsCPU:    pipelinejob.MustParse("100m"),
+			AppBuilderResourcesRequestsMemory: pipelinejob.MustParse("1000Mi"),
 			PipelineImage:                     "docker.io/anypipeline:tag",
 			GitCloneImage:                     "docker.io/git:any",
 		},

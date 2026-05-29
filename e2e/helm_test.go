@@ -22,7 +22,6 @@ func TestOpertorIsRunningWithCorrectVariables(t *testing.T) {
 		actualEnvVars[ev.Name] = ev.Value
 	}
 
-	// Expected env vars: empty string means presence-only check, non-empty means value check
 	expectedEnvVars := map[string]string{
 		defaults.OperatorDNSZoneEnvironmentVariable:                           "dev.radix.equinor.com",
 		defaults.RadixZoneEnvironmentVariable:                                 "xx",
