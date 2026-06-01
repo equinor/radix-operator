@@ -2,7 +2,7 @@ package deployment
 
 import (
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
-	"github.com/equinor/radix-operator/operator/config"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"

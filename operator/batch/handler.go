@@ -5,8 +5,8 @@ import (
 
 	"github.com/equinor/radix-operator/operator/batch/internal"
 	"github.com/equinor/radix-operator/operator/common"
-	"github.com/equinor/radix-operator/operator/config"
 	"github.com/equinor/radix-operator/pkg/apis/batch"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"

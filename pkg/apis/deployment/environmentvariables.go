@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	radixmaps "github.com/equinor/radix-common/utils/maps"
-	"github.com/equinor/radix-operator/operator/config"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"

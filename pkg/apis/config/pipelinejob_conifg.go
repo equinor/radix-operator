@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"github.com/equinor/radix-operator/operator/config/quantity"
+	"github.com/equinor/radix-operator/pkg/apis/config/quantity"
 	"github.com/rs/zerolog/log"
 )
 

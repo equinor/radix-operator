@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/equinor/radix-operator/operator/config"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
