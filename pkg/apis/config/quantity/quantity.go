@@ -1,4 +1,4 @@
-package pipelinejob
+package quantity
 
 import "k8s.io/apimachinery/pkg/api/resource"
 
@@ -15,20 +15,4 @@ func (q *Quantity) Decode(value string) error {
 	}
 	q.Quantity = parsed
 	return nil
-}
-
-// QuantityPtr creates a *Quantity from a *resource.Quantity, returning nil if input is nil
-func QuantityPtr(q *resource.Quantity) *Quantity {
-	if q == nil {
-		return nil
-	}
-	return &Quantity{Quantity: *q}
-}
-
-func MustParse(value string) *Quantity {
-	q := &Quantity{}
-	if err := q.Decode(value); err != nil {
-		panic(err)
-	}
-	return q
 }

@@ -11,8 +11,7 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
-	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
+	"github.com/equinor/radix-operator/pkg/apis/config/quantity"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -151,9 +150,9 @@ func (s *RadixJobTestSuite) SetupSubTest() {
 }
 
 func (s *RadixJobTestSuite) Test_ReconcileStatus() {
-	qty := pipelinejob.MustParse("1")
+	qty := createQuantity("1")
 	cfg := &config.Config{
-		PipelineJobConfig: &pipelinejob.Config{
+		PipelineJobConfig: config.PipelineJobConfig{
 			AppBuilderResourcesLimitsCPU:      qty,
 			AppBuilderResourcesLimitsMemory:   qty,
 			AppBuilderResourcesRequestsCPU:    qty,
@@ -1583,12 +1582,12 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		"Configured AppBuilderResources": {
 			config: &config.Config{
 				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: &pipelinejob.Config{
+				PipelineJobConfig: config.PipelineJobConfig{
 					PipelineJobsHistoryLimit:          3,
-					AppBuilderResourcesRequestsCPU:    pipelinejob.MustParse("123m"),
-					AppBuilderResourcesLimitsCPU:      pipelinejob.MustParse("456m"),
-					AppBuilderResourcesRequestsMemory: pipelinejob.MustParse("1234Mi"),
-					AppBuilderResourcesLimitsMemory:   pipelinejob.MustParse("2345Mi"),
+					AppBuilderResourcesRequestsCPU:    createQuantity("123m"),
+					AppBuilderResourcesLimitsCPU:      createQuantity("456m"),
+					AppBuilderResourcesRequestsMemory: createQuantity("1234Mi"),
+					AppBuilderResourcesLimitsMemory:   createQuantity("2345Mi"),
 					PipelineImage:                     "docker.io/anypipeline:tag",
 					GitCloneImage:                     "docker.io/git:any",
 				},
@@ -1602,9 +1601,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		"Missing config for ResourcesRequestsCPU": {
 			config: &config.Config{
 				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: &pipelinejob.Config{
-					AppBuilderResourcesRequestsMemory: pipelinejob.MustParse("1234Mi"),
-					AppBuilderResourcesLimitsMemory:   pipelinejob.MustParse("2345Mi"),
+				PipelineJobConfig: config.PipelineJobConfig{
+					AppBuilderResourcesRequestsMemory: createQuantity("1234Mi"),
+					AppBuilderResourcesLimitsMemory:   createQuantity("2345Mi"),
 					PipelineImage:                     "docker.io/anypipeline:tag",
 					GitCloneImage:                     "docker.io/git:any",
 				}},
@@ -1613,9 +1612,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		"Missing config for ResourcesRequestsMemory": {
 			config: &config.Config{
 				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: &pipelinejob.Config{
-					AppBuilderResourcesRequestsCPU:  pipelinejob.MustParse("123m"),
-					AppBuilderResourcesLimitsMemory: pipelinejob.MustParse("2345Mi"),
+				PipelineJobConfig: config.PipelineJobConfig{
+					AppBuilderResourcesRequestsCPU:  createQuantity("123m"),
+					AppBuilderResourcesLimitsMemory: createQuantity("2345Mi"),
 					PipelineImage:                   "docker.io/anypipeline:tag",
 					GitCloneImage:                   "docker.io/git:any",
 				}},
@@ -1624,9 +1623,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		"Missing config for ResourcesLimitsMemory": {
 			config: &config.Config{
 				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: &pipelinejob.Config{
-					AppBuilderResourcesRequestsCPU:    pipelinejob.MustParse("123m"),
-					AppBuilderResourcesRequestsMemory: pipelinejob.MustParse("1234Mi"),
+				PipelineJobConfig: config.PipelineJobConfig{
+					AppBuilderResourcesRequestsCPU:    createQuantity("123m"),
+					AppBuilderResourcesRequestsMemory: createQuantity("1234Mi"),
 					PipelineImage:                     "docker.io/anypipeline:tag",
 					GitCloneImage:                     "docker.io/git:any",
 				}},
@@ -1680,17 +1679,25 @@ func getJobContainerArgument(container corev1.Container, variableName string) st
 func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 	return &config.Config{
 		DNSZone: "dev.radix.equinor.com",
-		PipelineJobConfig: &pipelinejob.Config{
+		PipelineJobConfig: config.PipelineJobConfig{
 			PipelineJobsHistoryLimit:          historyLimit,
-			AppBuilderResourcesLimitsMemory:   pipelinejob.MustParse("2000Mi"),
-			AppBuilderResourcesLimitsCPU:      pipelinejob.MustParse("200m"),
-			AppBuilderResourcesRequestsCPU:    pipelinejob.MustParse("100m"),
-			AppBuilderResourcesRequestsMemory: pipelinejob.MustParse("1000Mi"),
+			AppBuilderResourcesLimitsMemory:   createQuantity("2000Mi"),
+			AppBuilderResourcesLimitsCPU:      createQuantity("200m"),
+			AppBuilderResourcesRequestsCPU:    createQuantity("100m"),
+			AppBuilderResourcesRequestsMemory: createQuantity("1000Mi"),
 			PipelineImage:                     "docker.io/anypipeline:tag",
 			GitCloneImage:                     "docker.io/git:any",
 		},
-		ContainerRegistryConfig: containerregistry.Config{
+		ContainerRegistryConfig: config.ContainerRegistryConfig{
 			ExternalRegistryAuthSecret: "an-external-registry-secret",
 		},
 	}
+}
+
+func createQuantity(value string) *quantity.Quantity {
+	q := &quantity.Quantity{}
+	if err := q.Decode(value); err != nil {
+		panic(err)
+	}
+	return q
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -103,4 +104,14 @@ func TestMustParse(t *testing.T) {
 	require.NotNil(t, cfg.TaskConfig)
 	assert.Equal(t, 720*time.Hour, cfg.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod)
 	assert.Equal(t, "0 0 * * *", cfg.TaskConfig.OrphanedEnvironmentsCleanupCron)
+}
+
+func Test_ImagePullSecretsFromDefaultAuth(t *testing.T) {
+	cfg := ContainerRegistryConfig{ExternalRegistryAuthSecret: ""}
+	assert.Len(t, cfg.ImagePullSecretsFromExternalRegistryAuth(), 0)
+
+	secretName := "a-secret"
+	cfg = ContainerRegistryConfig{ExternalRegistryAuthSecret: secretName}
+	expected := []corev1.LocalObjectReference{{Name: secretName}}
+	assert.ElementsMatch(t, expected, cfg.ImagePullSecretsFromExternalRegistryAuth())
 }

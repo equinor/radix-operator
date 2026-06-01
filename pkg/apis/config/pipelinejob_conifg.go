@@ -1,8 +1,9 @@
-package pipelinejob
+package config
 
 import (
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/config/quantity"
 	"github.com/rs/zerolog/log"
 )
 
@@ -13,19 +14,19 @@ const (
 )
 
 // Config for pipeline jobs
-type Config struct {
-	PipelineJobsHistoryLimit              int           `envconfig:"RADIX_PIPELINE_JOBS_HISTORY_LIMIT" required:"true" default:"3"`
-	PipelineJobsHistoryPeriodLimit        time.Duration `envconfig:"RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT" required:"true" default:"24h"`
-	DeploymentsHistoryLimitPerEnvironment int           `envconfig:"RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT" required:"true" default:"3"`
-	AppBuilderResourcesLimitsCPU          *Quantity     `envconfig:"RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU" required:"true"`
-	AppBuilderResourcesLimitsMemory       *Quantity     `envconfig:"RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY" required:"true"`
-	AppBuilderResourcesRequestsCPU        *Quantity     `envconfig:"RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU" required:"true"`
-	AppBuilderResourcesRequestsMemory     *Quantity     `envconfig:"RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY" required:"true"`
-	GitCloneImage                         string        `envconfig:"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE" required:"true"`
-	PipelineImage                         string        `envconfig:"RADIXOPERATOR_PIPELINE_IMAGE" required:"true"`
+type PipelineJobConfig struct {
+	PipelineJobsHistoryLimit              int                `envconfig:"RADIX_PIPELINE_JOBS_HISTORY_LIMIT" required:"true" default:"3"`
+	PipelineJobsHistoryPeriodLimit        time.Duration      `envconfig:"RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT" required:"true" default:"24h"`
+	DeploymentsHistoryLimitPerEnvironment int                `envconfig:"RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT" required:"true" default:"3"`
+	AppBuilderResourcesLimitsCPU          *quantity.Quantity `envconfig:"RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU" required:"true"`
+	AppBuilderResourcesLimitsMemory       *quantity.Quantity `envconfig:"RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY" required:"true"`
+	AppBuilderResourcesRequestsCPU        *quantity.Quantity `envconfig:"RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU" required:"true"`
+	AppBuilderResourcesRequestsMemory     *quantity.Quantity `envconfig:"RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY" required:"true"`
+	GitCloneImage                         string             `envconfig:"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE" required:"true"`
+	PipelineImage                         string             `envconfig:"RADIXOPERATOR_PIPELINE_IMAGE" required:"true"`
 }
 
-func (pjc *Config) MustValidate() {
+func (pjc *PipelineJobConfig) MustValidate() {
 	if pjc.PipelineJobsHistoryLimit < minPipelineJobsHistoryLimit {
 		log.Warn().Msgf("RADIX_PIPELINE_JOBS_HISTORY_LIMIT should be at least %d. Set to minimum value", minPipelineJobsHistoryLimit)
 		pjc.PipelineJobsHistoryLimit = minPipelineJobsHistoryLimit

@@ -21,8 +21,6 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
-	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -67,7 +65,7 @@ var testConfig = config.Config{
 	ClusterType:           "development",
 	DNSZone:               "dev.radix.equinor.com",
 	ContainerRegistryName: "any.container.registry",
-	DeploymentSyncer: deployment.SyncerConfig{
+	DeploymentSyncer: config.DeploymentSyncerConfig{
 		TenantID:               "123456789",
 		KubernetesAPIPort:      543,
 		DeploymentHistoryLimit: 10,
@@ -5126,7 +5124,7 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 			require.NoError(t, err)
 
 			cfg := &config.Config{
-				ContainerRegistryConfig: containerregistry.Config{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret},
+				ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret},
 			}
 
 			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, nil, cfg)
