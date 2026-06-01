@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/operator/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"

@@ -12,8 +12,8 @@ import (
 
 	commonmaps "github.com/equinor/radix-common/utils/maps"
 	commonslice "github.com/equinor/radix-common/utils/slice"
+	apiconfig "github.com/equinor/radix-operator/operator/config"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"

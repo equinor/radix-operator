@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/operator/common"
-	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
+	apiconfig "github.com/equinor/radix-operator/operator/config"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"

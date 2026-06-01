@@ -1,8 +1,8 @@
 package internal
 
 import (
+	"github.com/equinor/radix-operator/operator/config"
 	"github.com/equinor/radix-operator/pkg/apis/batch"
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"

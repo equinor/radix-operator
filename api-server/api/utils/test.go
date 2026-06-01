@@ -4,9 +4,9 @@ import (
 	"context"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/operator/config"
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"

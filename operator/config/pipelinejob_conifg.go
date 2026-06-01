@@ -3,7 +3,7 @@ package config
 import (
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/config/quantity"
+	"github.com/equinor/radix-operator/operator/config/quantity"
 	"github.com/rs/zerolog/log"
 )
 
@@ -13,7 +13,7 @@ const (
 	minDeploymentsHistoryLimit        = 3
 )
 
-// Config for pipeline jobs
+// Config for pipeline josb
 type PipelineJobConfig struct {
 	PipelineJobsHistoryLimit              int                `envconfig:"RADIX_PIPELINE_JOBS_HISTORY_LIMIT" required:"true" default:"3"`
 	PipelineJobsHistoryPeriodLimit        time.Duration      `envconfig:"RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT" required:"true" default:"24h"`

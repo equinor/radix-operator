@@ -12,7 +12,7 @@ package internal
 import (
 	reflect "reflect"
 
-	config "github.com/equinor/radix-operator/pkg/apis/config"
+	config "github.com/equinor/radix-operator/operator/config"
 	defaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	dnsalias "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	ingress "github.com/equinor/radix-operator/pkg/apis/ingress"

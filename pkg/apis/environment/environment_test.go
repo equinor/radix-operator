@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/operator/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
