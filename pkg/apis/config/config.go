@@ -1,7 +1,8 @@
 package config
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/config/certificate"
+	"time"
+
 	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
@@ -24,14 +25,18 @@ type Config struct {
 	DeploymentSyncer        deployment.SyncerConfig
 	ContainerRegistryConfig containerregistry.Config
 	TaskConfig              *task.Config
-	CertificateAutomation   certificate.AutomationConfig
+	CertificateAutomation   CertificateAutomationConfig
 	Gateway                 GatewayConfig
 
 	// SafeToRestartBatchJobThreshold is the threshold in seconds for determining the cluster-autoscaler safe-to-evict annotation on batch jobs.
 	// Jobs with timeLimitSeconds >= SafeToRestartBatchJobThreshold are marked as safe to evict.
 	SafeToRestartBatchJobThreshold int64 `envconfig:"RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD" default:"259200"`
 }
-
+type CertificateAutomationConfig struct {
+	GatewayClusterIssuer string        `envconfig:"RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER" required:"true"`
+	Duration             time.Duration `envconfig:"RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION" required:"true"`
+	RenewBefore          time.Duration `envconfig:"RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE" required:"true"`
+}
 type GatewayConfig struct {
 	Name        string `envconfig:"RADIXOPERATOR_INGRESS_GATEWAY_NAME" required:"true"`
 	Namespace   string `envconfig:"RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE" required:"true"`

@@ -21,7 +21,6 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	certificateconfig "github.com/equinor/radix-operator/pkg/apis/config/certificate"
 	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -73,7 +72,7 @@ var testConfig = config.Config{
 		KubernetesAPIPort:      543,
 		DeploymentHistoryLimit: 10,
 	},
-	CertificateAutomation: certificateconfig.AutomationConfig{
+	CertificateAutomation: config.CertificateAutomationConfig{
 		GatewayClusterIssuer: "test-gateway-cert-issuer",
 		Duration:             10000 * time.Hour,
 		RenewBefore:          5000 * time.Hour,
@@ -4930,7 +4929,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 
 	// Duration and RenewBefore not below min values
 	cfg := &config.Config{
-		CertificateAutomation: certificateconfig.AutomationConfig{
+		CertificateAutomation: config.CertificateAutomationConfig{
 			GatewayClusterIssuer: "anyissuer",
 			Duration:             10000 * time.Hour,
 			RenewBefore:          1000 * time.Hour,
@@ -4944,7 +4943,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 
 	// Duration below min value
 	cfg = &config.Config{
-		CertificateAutomation: certificateconfig.AutomationConfig{
+		CertificateAutomation: config.CertificateAutomationConfig{
 			GatewayClusterIssuer: "anyissuer",
 			Duration:             2159 * time.Hour,
 			RenewBefore:          1000 * time.Hour,
@@ -4958,7 +4957,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 
 	// RenewBefore below min value
 	cfg = &config.Config{
-		CertificateAutomation: certificateconfig.AutomationConfig{
+		CertificateAutomation: config.CertificateAutomationConfig{
 			GatewayClusterIssuer: "anyissuer",
 			Duration:             10000 * time.Hour,
 			RenewBefore:          359 * time.Hour,
@@ -4986,7 +4985,7 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 
 	// Duration and RenewBefore not below min values
 	cfg := &config.Config{
-		CertificateAutomation: certificateconfig.AutomationConfig{
+		CertificateAutomation: config.CertificateAutomationConfig{
 			Duration:    10000 * time.Hour,
 			RenewBefore: 1000 * time.Hour,
 		}}
@@ -5004,7 +5003,7 @@ func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 	defer TeardownTest()
 
 	cfg := &config.Config{
-		CertificateAutomation: certificateconfig.AutomationConfig{
+		CertificateAutomation: config.CertificateAutomationConfig{
 			GatewayClusterIssuer: gatewayClusterIssuer,
 			Duration:             10000 * time.Hour,
 			RenewBefore:          1000 * time.Hour,
