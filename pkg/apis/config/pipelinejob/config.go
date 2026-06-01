@@ -3,7 +3,6 @@ package pipelinejob
 import (
 	"time"
 
-	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog/log"
 )
 
@@ -26,12 +25,7 @@ type Config struct {
 	PipelineImage                         string        `envconfig:"RADIXOPERATOR_PIPELINE_IMAGE" required:"true"`
 }
 
-func MustParseConfig() *Config {
-	var pjc Config
-	if err := envconfig.Process("", &pjc); err != nil {
-		_ = envconfig.Usage("", &pjc)
-		log.Fatal().Msg(err.Error())
-	}
+func (pjc *Config) MustValidate() {
 	if pjc.PipelineJobsHistoryLimit < minPipelineJobsHistoryLimit {
 		log.Warn().Msgf("RADIX_PIPELINE_JOBS_HISTORY_LIMIT should be at least %d. Set to minimum value", minPipelineJobsHistoryLimit)
 		pjc.PipelineJobsHistoryLimit = minPipelineJobsHistoryLimit
@@ -50,5 +44,4 @@ func MustParseConfig() *Config {
 	if pjc.AppBuilderResourcesRequestsMemory.Cmp(pjc.AppBuilderResourcesLimitsMemory.Quantity) > 0 {
 		log.Fatal().Msg("RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY must be greate than RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY")
 	}
-	return &pjc
 }

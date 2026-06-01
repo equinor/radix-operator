@@ -3,7 +3,6 @@ package task
 import (
 	"time"
 
-	"github.com/kelseyhightower/envconfig"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 )
@@ -20,12 +19,7 @@ type Config struct {
 	OrphanedEnvironmentsCleanupCron string `envconfig:"RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON" default:"0 0 * * *"`
 }
 
-func MustParseConfig() *Config {
-	var tc Config
-	if err := envconfig.Process("", &tc); err != nil {
-		_ = envconfig.Usage("", &tc)
-		log.Fatal().Msg(err.Error())
-	}
+func (tc *Config) MustValidate() {
 	if tc.OrphanedRadixEnvironmentsRetentionPeriod < minOrphanedEnvironmentsRetentionPeriod {
 		log.Warn().Msgf("RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD must be at least %s. Set to maximum value", minOrphanedEnvironmentsRetentionPeriod)
 		tc.OrphanedRadixEnvironmentsRetentionPeriod = minOrphanedEnvironmentsRetentionPeriod
@@ -33,5 +27,4 @@ func MustParseConfig() *Config {
 	if _, err := cron.ParseStandard(tc.OrphanedEnvironmentsCleanupCron); err != nil {
 		log.Fatal().Msgf("RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON is not a valid cron expression: %v", err)
 	}
-	return &tc
 }

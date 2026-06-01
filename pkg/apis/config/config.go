@@ -20,12 +20,12 @@ type Config struct {
 	ClusterName           string `envconfig:"RADIX_CLUSTERNAME" required:"true"`
 	ContainerRegistryName string `envconfig:"RADIX_CONTAINER_REGISTRY" required:"true"`
 
-	PipelineJobConfig       *pipelinejob.Config          `ignored:"true"`
-	DeploymentSyncer        deployment.SyncerConfig      `ignored:"true"`
-	ContainerRegistryConfig containerregistry.Config     `ignored:"true"`
-	TaskConfig              *task.Config                 `ignored:"true"`
-	CertificateAutomation   certificate.AutomationConfig `envconfig:"RADIXOPERATOR_CERTIFICATE_AUTOMATION"`
-	Gateway                 GatewayConfig                `envconfig:"RADIXOPERATOR_INGRESS_GATEWAY"`
+	PipelineJobConfig       *pipelinejob.Config
+	DeploymentSyncer        deployment.SyncerConfig
+	ContainerRegistryConfig containerregistry.Config
+	TaskConfig              *task.Config
+	CertificateAutomation   certificate.AutomationConfig
+	Gateway                 GatewayConfig
 
 	// SafeToRestartBatchJobThreshold is the threshold in seconds for determining the cluster-autoscaler safe-to-evict annotation on batch jobs.
 	// Jobs with timeLimitSeconds >= SafeToRestartBatchJobThreshold are marked as safe to evict.
@@ -33,9 +33,9 @@ type Config struct {
 }
 
 type GatewayConfig struct {
-	Name        string `envconfig:"NAME" required:"true"`
-	Namespace   string `envconfig:"NAMESPACE" required:"true"`
-	SectionName string `envconfig:"SECTION_NAME" required:"true"`
+	Name        string `envconfig:"RADIXOPERATOR_INGRESS_GATEWAY_NAME" required:"true"`
+	Namespace   string `envconfig:"RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE" required:"true"`
+	SectionName string `envconfig:"RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME" required:"true"`
 }
 
 func MustParse() *Config {
@@ -44,24 +44,7 @@ func MustParse() *Config {
 		_ = envconfig.Usage("", &c)
 		log.Fatal().Msg(err.Error())
 	}
-
-	c.PipelineJobConfig = pipelinejob.MustParseConfig()
-
-	var ds deployment.SyncerConfig
-	if err := envconfig.Process("", &ds); err != nil {
-		_ = envconfig.Usage("", &ds)
-		log.Fatal().Msg(err.Error())
-	}
-	c.DeploymentSyncer = ds
-
-	var cr containerregistry.Config
-	if err := envconfig.Process("", &cr); err != nil {
-		_ = envconfig.Usage("", &cr)
-		log.Fatal().Msg(err.Error())
-	}
-	c.ContainerRegistryConfig = cr
-
-	c.TaskConfig = task.MustParseConfig()
-
+	c.PipelineJobConfig.MustValidate()
+	c.TaskConfig.MustValidate()
 	return &c
 }
