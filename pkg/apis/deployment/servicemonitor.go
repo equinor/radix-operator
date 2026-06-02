@@ -97,7 +97,7 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec(ctx contex
 		if !ok {
 			continue
 		}
-		if deploy.isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor, componentName) {
+		if deploy.isEligibleForGarbageCollectServiceMonitorsForComponent(componentName) {
 
 			if err := deploy.dynamicClient.Delete(ctx, serviceMonitor); err != nil {
 				return err
@@ -108,6 +108,6 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec(ctx contex
 	return nil
 }
 
-func (deploy *Deployment) isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor *monitoringv1.ServiceMonitor, componentName RadixComponentName) bool {
+func (deploy *Deployment) isEligibleForGarbageCollectServiceMonitorsForComponent(componentName RadixComponentName) bool {
 	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
 }

@@ -7,7 +7,7 @@ permissions: {}
 jobs:
   build:
     name: Build container images
-    runs-on: ubuntu-latest
+    runs-on: radix-runner
     permissions:
       contents: read
     strategy:
@@ -50,7 +50,7 @@ jobs:
 
   integration-test:
     name: Integration tests
-    runs-on: ubuntu-latest
+    runs-on: radix-runner
     # This conditional ensures the job only runs if the PR is NOT a draft
     if: github.event.pull_request.draft == false
     permissions:

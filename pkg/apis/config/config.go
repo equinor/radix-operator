@@ -1,37 +1,39 @@
 package config
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/config/certificate"
-	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
-	"github.com/equinor/radix-operator/pkg/apis/config/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/config/pipelinejob"
-	"github.com/equinor/radix-operator/pkg/apis/config/task"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/rs/zerolog/log"
 )
 
 // Config from environment variables
 type Config struct {
-	LogLevel  string
-	LogPretty bool
+	LogLevel  string `envconfig:"LOG_LEVEL" required:"true"`
+	LogPretty bool   `envconfig:"LOG_PRETTY" default:"false"`
 	// DNSConfig Settings for the cluster DNS
-	DNSZone                 string
-	ClusterType             string
-	ClusterName             string
-	ContainerRegistryName   string
-	PipelineJobConfig       *pipelinejob.Config
-	CertificateAutomation   certificate.AutomationConfig
-	DeploymentSyncer        deployment.SyncerConfig
-	ContainerRegistryConfig containerregistry.Config
-	TaskConfig              *task.Config
+	DNSZone               string `envconfig:"DNS_ZONE" required:"true"`
+	ClusterType           string `envconfig:"RADIXOPERATOR_CLUSTER_TYPE" required:"true"`
+	ClusterName           string `envconfig:"RADIX_CLUSTERNAME" required:"true"`
+	ContainerRegistryName string `envconfig:"RADIX_CONTAINER_REGISTRY" required:"true"`
 
-	Gateway GatewayConfig
+	PipelineJobConfig       PipelineJobConfig
+	DeploymentSyncer        DeploymentSyncerConfig
+	ContainerRegistryConfig ContainerRegistryConfig
+	TaskConfig              TaskConfig
+	CertificateAutomation   CertificateAutomationConfig
+	Gateway                 GatewayConfig
 
 	// SafeToRestartBatchJobThreshold is the threshold in seconds for determining the cluster-autoscaler safe-to-evict annotation on batch jobs.
 	// Jobs with timeLimitSeconds >= SafeToRestartBatchJobThreshold are marked as safe to evict.
-	SafeToRestartBatchJobThreshold int64
+	SafeToRestartBatchJobThreshold int64 `envconfig:"RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD" default:"259200"`
 }
 
-type GatewayConfig struct {
-	Name        string
-	Namespace   string
-	SectionName string
+func MustParse() *Config {
+	var c Config
+	if err := envconfig.Process("", &c); err != nil {
+		_ = envconfig.Usage("", &c)
+		log.Fatal().Msg(err.Error())
+	}
+	c.PipelineJobConfig.MustValidate()
+	c.TaskConfig.MustValidate()
+	return &c
 }
