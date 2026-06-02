@@ -19,7 +19,6 @@ import (
 	"github.com/equinor/radix-operator/operator/application"
 	"github.com/equinor/radix-operator/operator/batch"
 	"github.com/equinor/radix-operator/operator/common"
-	"github.com/equinor/radix-operator/operator/config"
 	"github.com/equinor/radix-operator/operator/deployment"
 	"github.com/equinor/radix-operator/operator/dnsalias"
 	"github.com/equinor/radix-operator/operator/environment"
@@ -119,7 +118,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	var app App
 	var err error
 
-	app.config = config.NewConfig()
+	app.config = apiconfig.MustParse()
 	initLogger(app.config)
 
 	app.opts, err = getInitParams()

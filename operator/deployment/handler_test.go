@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,7 +49,7 @@ func (s *handlerSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
-	s.config = &config.Config{LogLevel: "some_non_default_value", ContainerRegistryConfig: containerregistry.Config{ExternalRegistryAuthSecret: "anysecret"}} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
+	s.config = &config.Config{LogLevel: "some_non_default_value", ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: "anysecret"}} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
 	s.eventRecorder = &record.FakeRecorder{}
 }
 
