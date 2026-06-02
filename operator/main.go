@@ -339,7 +339,6 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller {
 	handler := dnsalias.NewHandler(
 		a.kubeUtil.KubeClient(),
-		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.dynamicClient,
 		a.eventRecorder,

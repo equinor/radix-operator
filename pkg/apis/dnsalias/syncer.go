@@ -25,22 +25,19 @@ type Syncer interface {
 type syncer struct {
 	radixClient         radixclient.Interface
 	dynamicClient       client.Client
-	kubeUtil            *kube.Kube
 	radixDNSAlias       *radixv1.RadixDNSAlias
 	oauth2DefaultConfig defaults.OAuth2Config
 	rd                  *radixv1.RadixDeployment
-	rr                  *radixv1.RadixRegistration
 	component           *radixv1.RadixDeployComponent
 	initMutex           sync.Mutex
 	config              config.Config
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, oauth2Config defaults.OAuth2Config) Syncer {
+func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, oauth2Config defaults.OAuth2Config) Syncer {
 	return &syncer{
 		radixClient:         radixClient,
 		dynamicClient:       dynamicClient,
-		kubeUtil:            kubeUtil,
 		config:              config,
 		oauth2DefaultConfig: oauth2Config,
 		radixDNSAlias:       radixDNSAlias,
@@ -71,18 +68,11 @@ func (s *syncer) reconcile(ctx context.Context) error {
 }
 
 func (s *syncer) init(ctx context.Context) error {
-	s.rr = nil
 	s.rd = nil
 	s.component = nil
 
-	rr, err := s.kubeUtil.GetRegistration(ctx, s.radixDNSAlias.Spec.AppName)
-	if err != nil {
-		return fmt.Errorf("failed to get RadixRegistration: %w", err)
-	}
-	s.rr = rr
-
 	ns := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
-	rd, err := kube.GetActiveDeployment(ctx, s.kubeUtil.RadixClient(), ns)
+	rd, err := kube.GetActiveDeployment(ctx, s.radixClient, ns)
 	if err != nil {
 		return fmt.Errorf("failed to get active RadixDeployment: %w", err)
 	}

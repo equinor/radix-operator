@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -29,7 +28,6 @@ type ControllerTestSuite struct {
 	SecretProviderClient      *secretproviderfake.Clientset
 	kedaClient                *kedafake.Clientset
 	PromClient                *prometheusfake.Clientset
-	KubeUtil                  *kube.Kube
 	EventRecorder             *record.FakeRecorder
 	RadixInformerFactory      informers.SharedInformerFactory
 	KubeInformerFactory       kubeinformers.SharedInformerFactory
@@ -48,7 +46,6 @@ func (s *ControllerTestSuite) SetupTest() {
 	s.DynamicClient = test.CreateClient()
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.SecretProviderClient = secretproviderfake.NewSimpleClientset()
-	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient, s.kedaClient, s.SecretProviderClient)
 	s.PromClient = prometheusfake.NewSimpleClientset()
 	s.EventRecorder = &record.FakeRecorder{}
 	s.RadixInformerFactory = informers.NewSharedInformerFactory(s.RadixClient, 0)

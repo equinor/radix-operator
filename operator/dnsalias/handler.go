@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -21,7 +20,6 @@ import (
 // Handler Handler for radix dns aliases
 type handler struct {
 	kubeClient          kubernetes.Interface
-	kubeUtil            *kube.Kube
 	radixClient         radixclient.Interface
 	dynamicClient       client.Client
 	syncerFactory       internal.SyncerFactory
@@ -33,7 +31,6 @@ type handler struct {
 // NewHandler creates a handler for managing RadixDNSAlias resources
 func NewHandler(
 	kubeClient kubernetes.Interface,
-	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
 	dynamicClient client.Client,
 	eventRecorder record.EventRecorder,
@@ -42,7 +39,6 @@ func NewHandler(
 
 	h := &handler{
 		kubeClient:    kubeClient,
-		kubeUtil:      kubeUtil,
 		radixClient:   radixClient,
 		dynamicClient: dynamicClient,
 		syncerFactory: internal.SyncerFactoryFunc(dnsalias.NewSyncer),
@@ -87,7 +83,7 @@ func (h *handler) Sync(ctx context.Context, _, name string) error {
 
 	syncingAlias := radixDNSAlias.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)
-	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.kubeUtil, h.radixClient, h.dynamicClient, h.config, h.oauth2DefaultConfig)
+	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.radixClient, h.dynamicClient, h.config, h.oauth2DefaultConfig)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		h.events.RecordSyncErrorEvent(syncingAlias, err)

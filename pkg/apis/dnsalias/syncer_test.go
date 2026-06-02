@@ -74,7 +74,6 @@ func (s *syncerTestSuite) setupTest() {
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
 	return dnsalias.NewSyncer(
 		radixDNSAlias,
-		s.testUtils.GetKubeUtil(),
 		s.radixClient,
 		s.dynamicClient,
 		s.config,
@@ -92,7 +91,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -105,7 +104,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -117,12 +116,12 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// Sync with error
 	errorMsg := "any sync error"
-	s.radixClient.PrependReactor("get", "radixregistrations", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+	s.radixClient.PrependReactor("list", "radixdeployments", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, errors.New(errorMsg)
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.testUtils.GetKubeUtil(), s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -170,15 +169,6 @@ func (s *syncerTestSuite) Test_OnSync_Errors() {
 			WithPublicPort("http").
 			WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
 		BuildRD()
-
-	s.Run("missing rr", func() {
-		_, err := s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
-		s.Require().NoError(err)
-		sut := s.createSyncer(dnsAlias)
-		err = sut.OnSync(context.Background())
-		s.Require().Error(err)
-		s.True(k8sErrors.IsNotFound(err))
-	})
 
 	s.Run("oauth2Config.MergeWith returns error", func() {
 		_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})

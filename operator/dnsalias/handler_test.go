@@ -38,9 +38,9 @@ func (s *handlerTestSuite) TearDownTest() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
-	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, config.Config{}, dnsalias.WithSyncerFactory(s.syncerFactory))
+	handler := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, config.Config{}, dnsalias.WithSyncerFactory(s.syncerFactory))
 
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
 
 	err := handler.Sync(context.Background(), "", "any")
@@ -61,10 +61,10 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 	expectedDnsAlias, err := s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), expectedDnsAlias, v1.CreateOptions{})
 	expectedError := fmt.Errorf("some error")
 	s.Require().NoError(err)
-	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.KubeUtil, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
 
-	sut := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, c, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
+	sut := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, c, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
 	actualError := sut.Sync(context.Background(), "", expectedDnsAlias.Name)
 	s.Equal(expectedError, actualError)
 }
@@ -84,9 +84,9 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 	}
 	expectedDnsAlias, err := s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), expectedDnsAlias, v1.CreateOptions{})
 	s.Require().NoError(err)
-	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.KubeUtil, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
 
-	sut := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, s.DynamicClient, s.EventRecorder, c, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
+	sut := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, c, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
 	s.NoError(sut.Sync(context.Background(), "", expectedDnsAlias.Name))
 }
