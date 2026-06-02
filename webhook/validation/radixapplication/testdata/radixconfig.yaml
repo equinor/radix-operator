@@ -49,9 +49,6 @@ spec:
         - environment: prod
           replicas: 4
           authentication:
-            clientCertificate:
-              verification: "on"
-              passCertificateToUpstream: true
             oauth2:
               clientId: 12cf
               sessionStoreType: redis

@@ -167,10 +167,6 @@ ROOT_PACKAGE=github.com/equinor/radix-operator
 CUSTOM_RESOURCE_NAME=radix
 CUSTOM_RESOURCE_VERSION=v1
 
-.PHONY: vendor
-vendor:
-	go mod vendor
-
 .PHONY: swagger
 swagger: swagger-job-scheduler swagger-api-server
 
@@ -260,7 +256,7 @@ HAS_YQ             := $(shell command -v yq;)
 HAS_SWAGGER        := $(shell command -v swagger;)
 
 .PHONY: bootstrap
-bootstrap: vendor
+bootstrap: 
 ifndef HAS_GOLANGCI_LINT
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
 endif
