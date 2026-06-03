@@ -8,9 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -22,21 +19,18 @@ import (
 
 // Handler Handler for radix dns aliases
 type handler struct {
-	kubeClient           kubernetes.Interface
-	kubeUtil             *kube.Kube
-	radixClient          radixclient.Interface
-	dynamicClient        client.Client
-	syncerFactory        internal.SyncerFactory
-	events               common.SyncEventRecorder
-	config               config.Config
-	ingressConfiguration ingress.IngressConfiguration
-	oauth2DefaultConfig  defaults.OAuth2Config
+	kubeClient          kubernetes.Interface
+	radixClient         radixclient.Interface
+	dynamicClient       client.Client
+	syncerFactory       internal.SyncerFactory
+	events              common.SyncEventRecorder
+	config              config.Config
+	oauth2DefaultConfig defaults.OAuth2Config
 }
 
 // NewHandler creates a handler for managing RadixDNSAlias resources
 func NewHandler(
 	kubeClient kubernetes.Interface,
-	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
 	dynamicClient client.Client,
 	eventRecorder record.EventRecorder,
@@ -45,7 +39,6 @@ func NewHandler(
 
 	h := &handler{
 		kubeClient:    kubeClient,
-		kubeUtil:      kubeUtil,
 		radixClient:   radixClient,
 		dynamicClient: dynamicClient,
 		syncerFactory: internal.SyncerFactoryFunc(dnsalias.NewSyncer),
@@ -66,13 +59,6 @@ type HandlerConfigOption func(*handler)
 func WithSyncerFactory(factory internal.SyncerFactory) HandlerConfigOption {
 	return func(h *handler) {
 		h.syncerFactory = factory
-	}
-}
-
-// WithIngressConfiguration sets the list of custom ingress confiigurations
-func WithIngressConfiguration(config ingress.IngressConfiguration) HandlerConfigOption {
-	return func(h *handler) {
-		h.ingressConfiguration = config
 	}
 }
 
@@ -97,10 +83,7 @@ func (h *handler) Sync(ctx context.Context, _, name string) error {
 
 	syncingAlias := radixDNSAlias.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)
-	targetIngressNamespace := utils.GetEnvironmentNamespace(syncingAlias.Spec.AppName, syncingAlias.Spec.Environment)
-	componentIngressAnnotations := ingress.GetComponentAnnotationProvider(h.ingressConfiguration, targetIngressNamespace, h.oauth2DefaultConfig)
-	oauthProxyIngressAnnotations := ingress.GetOAuthProxyAnnotationProviders(h.ingressConfiguration, targetIngressNamespace)
-	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.kubeClient, h.kubeUtil, h.radixClient, h.dynamicClient, h.config, h.oauth2DefaultConfig, componentIngressAnnotations, oauthProxyIngressAnnotations)
+	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.radixClient, h.dynamicClient, h.config, h.oauth2DefaultConfig)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		h.events.RecordSyncErrorEvent(syncingAlias, err)

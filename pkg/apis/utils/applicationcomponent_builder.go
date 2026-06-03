@@ -22,7 +22,6 @@ type RadixApplicationComponentBuilder interface {
 	WithSecretRefs(radixv1.RadixSecretRefs) RadixApplicationComponentBuilder
 	WithMonitoringConfig(radixv1.MonitoringConfig) RadixApplicationComponentBuilder
 	WithMonitoring(monitoring *bool) RadixApplicationComponentBuilder
-	WithIngressConfiguration(...string) RadixApplicationComponentBuilder
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithCommonEnvironmentVariable(string, string) RadixApplicationComponentBuilder
@@ -35,7 +34,6 @@ type RadixApplicationComponentBuilder interface {
 	WithReadOnlyFileSystem(*bool) RadixApplicationComponentBuilder
 	WithHorizontalScaling(scaling *radixv1.RadixHorizontalScaling) RadixApplicationComponentBuilder
 	WithRuntime(runtime *radixv1.Runtime) RadixApplicationComponentBuilder
-	WithNetwork(network *radixv1.Network) RadixApplicationComponentBuilder
 	WithReplicas(replicas *int) RadixApplicationComponentBuilder
 	WithCommand(command []string) RadixApplicationComponentBuilder
 	WithArgs(args []string) RadixApplicationComponentBuilder
@@ -50,32 +48,30 @@ type radixApplicationComponentBuilder struct {
 	image                   string
 	alwaysPullImageOnDeploy *bool
 	// Deprecated: For backwards compatibility public is still supported, new code should use publicPort instead
-	public               bool
-	publicPort           string
-	monitoringConfig     radixv1.MonitoringConfig
-	ports                []radixv1.ComponentPort
-	secrets              []string
-	secretRefs           radixv1.RadixSecretRefs
-	ingressConfiguration []string
-	environmentConfig    []RadixEnvironmentConfigBuilder
-	variables            radixv1.EnvVarsMap
-	resources            radixv1.ResourceRequirements
-	node                 radixv1.RadixNode
-	authentication       *radixv1.Authentication
-	volumeMounts         []radixv1.RadixVolumeMount
-	enabled              *bool
-	identity             *radixv1.Identity
-	readOnlyFileSystem   *bool
-	monitoring           *bool
-	imageTagName         string
-	horizontalScaling    *radixv1.RadixHorizontalScaling
-	runtime              *radixv1.Runtime
-	network              *radixv1.Network
-	healthChecks         *radixv1.RadixHealthChecks
-	replicas             *int
-	command              []string
-	args                 []string
-	runAsUser            *int64
+	public             bool
+	publicPort         string
+	monitoringConfig   radixv1.MonitoringConfig
+	ports              []radixv1.ComponentPort
+	secrets            []string
+	secretRefs         radixv1.RadixSecretRefs
+	environmentConfig  []RadixEnvironmentConfigBuilder
+	variables          radixv1.EnvVarsMap
+	resources          radixv1.ResourceRequirements
+	node               radixv1.RadixNode
+	authentication     *radixv1.Authentication
+	volumeMounts       []radixv1.RadixVolumeMount
+	enabled            *bool
+	identity           *radixv1.Identity
+	readOnlyFileSystem *bool
+	monitoring         *bool
+	imageTagName       string
+	horizontalScaling  *radixv1.RadixHorizontalScaling
+	runtime            *radixv1.Runtime
+	healthChecks       *radixv1.RadixHealthChecks
+	replicas           *int
+	command            []string
+	args               []string
+	runAsUser          *int64
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -145,11 +141,6 @@ func (rcb *radixApplicationComponentBuilder) WithMonitoringConfig(monitoringConf
 
 func (rcb *radixApplicationComponentBuilder) WithMonitoring(monitoring *bool) RadixApplicationComponentBuilder {
 	rcb.monitoring = monitoring
-	return rcb
-}
-
-func (rcb *radixApplicationComponentBuilder) WithIngressConfiguration(ingressConfiguration ...string) RadixApplicationComponentBuilder {
-	rcb.ingressConfiguration = ingressConfiguration
 	return rcb
 }
 
@@ -236,11 +227,6 @@ func (rcb *radixApplicationComponentBuilder) WithRuntime(runtime *radixv1.Runtim
 	return rcb
 }
 
-func (rcb *radixApplicationComponentBuilder) WithNetwork(network *radixv1.Network) RadixApplicationComponentBuilder {
-	rcb.network = network
-	return rcb
-}
-
 func (rcb *radixApplicationComponentBuilder) WithReplicas(replicas *int) RadixApplicationComponentBuilder {
 	rcb.replicas = replicas
 	return rcb
@@ -276,7 +262,6 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixCompo
 		Ports:                   rcb.ports,
 		Secrets:                 rcb.secrets,
 		SecretRefs:              rcb.secretRefs,
-		IngressConfiguration:    rcb.ingressConfiguration,
 		Public:                  rcb.public, //nolint:staticcheck
 		PublicPort:              rcb.publicPort,
 		MonitoringConfig:        rcb.monitoringConfig,
@@ -294,7 +279,6 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() radixv1.RadixCompo
 		HorizontalScaling:       rcb.horizontalScaling,
 		VolumeMounts:            rcb.volumeMounts,
 		Runtime:                 rcb.runtime,
-		Network:                 rcb.network,
 		Replicas:                rcb.replicas,
 		Command:                 rcb.command,
 		Args:                    rcb.args,

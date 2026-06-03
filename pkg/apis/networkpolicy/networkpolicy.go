@@ -219,14 +219,6 @@ func createAllowRadixEgressRule(gatewayName string) v1.NetworkPolicyEgressRule {
 		To: []v1.NetworkPolicyPeer{
 			{
 				PodSelector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{"app.kubernetes.io/name": "ingress-nginx"},
-				},
-				NamespaceSelector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{"purpose": "radix-base-ns"},
-				},
-			},
-			{
-				PodSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{"gateway.networking.k8s.io/gateway-name": gatewayName},
 				},
 				NamespaceSelector: &metav1.LabelSelector{

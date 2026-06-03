@@ -181,14 +181,6 @@ rules:
   - get
   - list
 - apiGroups:
-  - networking.k8s.io
-  resources:
-  - ingresses
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - autoscaling
   resources:
   - horizontalpodautoscalers

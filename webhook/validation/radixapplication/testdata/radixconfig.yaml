@@ -15,10 +15,7 @@ spec:
         - name: http
           port: 8080
       publicPort: http
-      authentication:
-        clientCertificate:
-          verification: optional
-          passCertificateToUpstream: false
+      authentication: {}
       resources:
         limits:
           memory: "128Mi"
@@ -45,19 +42,10 @@ spec:
           httpGet:
             port: 8000
             path: /healthz
-      network:
-        ingress:
-          public:
-            allow:
-              - 143.10.0.0/30
-              - 143.20.0.0
       environmentConfig:
         - environment: prod
           replicas: 4
           authentication:
-            clientCertificate:
-              verification: "on"
-              passCertificateToUpstream: true
             oauth2:
               clientId: 12cf
               sessionStoreType: redis
@@ -101,12 +89,6 @@ spec:
 
           runtime:
             architecture: amd64
-          network:
-            ingress:
-              public:
-                allow:
-                  - 144.10.0.0/30
-                  - 144.20.0.0
     - name: redis
       src: redis/
       ports:

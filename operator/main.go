@@ -29,7 +29,6 @@ import (
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/event"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -44,7 +43,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
-	"gopkg.in/yaml.v3"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -59,8 +57,7 @@ import (
 )
 
 const (
-	resyncPeriod            = 0
-	ingressConfigurationMap = "radix-operator-ingress-configmap"
+	resyncPeriod = 0
 )
 
 type Options struct {
@@ -86,7 +83,6 @@ type App struct {
 	secretProviderClient secretProviderClient.Interface
 	certClient           certclient.Interface
 	oauthDefaultConfig   defaults.OAuth2Config
-	ingressConfiguration ingress.IngressConfiguration
 	kubeUtil             *kube.Kube
 	config               *apiconfig.Config
 	kedaClient           kedav2.Interface
@@ -149,10 +145,6 @@ func initializeApp(ctx context.Context) (*App, error) {
 		app.radixInformerFactory,
 	)
 	app.oauthDefaultConfig = getOAuthDefaultConfig()
-	app.ingressConfiguration, err = loadIngressConfigFromMap(ctx, app.kubeUtil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load ingress configuration: %w", err)
-	}
 	return &app, nil
 }
 
@@ -347,12 +339,10 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller {
 	handler := dnsalias.NewHandler(
 		a.kubeUtil.KubeClient(),
-		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.dynamicClient,
 		a.eventRecorder,
 		*a.config,
-		dnsalias.WithIngressConfiguration(a.ingressConfiguration),
 		dnsalias.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 	)
 
@@ -384,7 +374,6 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.eventRecorder,
 		a.config,
 		deployment.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
-		deployment.WithIngressConfiguration(a.ingressConfiguration),
 		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),
 		deployment.WithOAuth2RedisDockerImage(oauth2RedisDockerImage),
 	)
@@ -433,19 +422,6 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.kubeUtil.RadixClient(),
 		handler, a.kubeInformerFactory,
 		a.radixInformerFactory)
-}
-
-func loadIngressConfigFromMap(ctx context.Context, kubeutil *kube.Kube) (ingress.IngressConfiguration, error) {
-	ingressConfig := ingress.IngressConfiguration{}
-	configMap, err := kubeutil.GetConfigMap(ctx, os.Getenv("POD_NAMESPACE"), ingressConfigurationMap)
-	if err != nil {
-		return ingressConfig, err
-	}
-
-	if err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &ingressConfig); err != nil {
-		return ingressConfig, err
-	}
-	return ingressConfig, nil
 }
 
 func startMetricsServer(ctx context.Context) error {

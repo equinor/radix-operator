@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -112,7 +111,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config)
 		err := h.Sync(context.Background(), namespace, nonExistingRdName)
@@ -124,7 +123,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config)
 		err := h.Sync(context.Background(), namespace, inactiveRdName)
@@ -136,7 +135,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
 		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config)
 		err := h.Sync(context.Background(), namespace, activeRdMissingRrName)
@@ -148,32 +147,23 @@ func (s *handlerSuite) Test_Sync() {
 			oauthRedisImage = "redis:123"
 		)
 		oauthConfig := defaults.NewOAuth2Config()
-		ingressConfig := ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
 
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
 		syncer := deployment.NewMockDeploymentSyncer(ctrl)
 		syncer.EXPECT().OnSync(gomock.Any()).Times(1)
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
-		expectedIngressAnnotations := []ingress.AnnotationProvider{
-			ingress.NewForceSslRedirectAnnotationProvider(),
-			ingress.NewIngressConfigurationAnnotationProvider(ingressConfig),
-			ingress.NewClientCertificateAnnotationProvider(activeRd.Namespace),
-			ingress.NewOAuth2AnnotationProvider(oauthConfig, activeRd.Namespace),
-			ingress.NewIngressPublicAllowListAnnotationProvider(),
-			ingress.NewIngressPublicConfigAnnotationProvider(),
-			ingress.NewRedirectErrorPageAnnotationProvider(),
-		}
+
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, ingress.GetOAuthProxyAnnotationProviders(ingressConfig, activeRd.Namespace), oauthProxyImage, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, oauthProxyImage, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, oauthRedisImage, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 		}
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, activeRd, gomock.Eq(expectedIngressAnnotations), gomock.Eq(expectedAuxResources), s.config).
+			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, activeRd, gomock.Eq(expectedAuxResources), s.config).
 			Return(syncer).
 			Times(1)
-		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, WithDeploymentSyncerFactory(factory), WithOAuth2ProxyDockerImage(oauthProxyImage), WithOAuth2RedisDockerImage(oauthRedisImage), WithOAuth2DefaultConfig(oauthConfig), WithIngressConfiguration(ingressConfig))
+		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, WithDeploymentSyncerFactory(factory), WithOAuth2ProxyDockerImage(oauthProxyImage), WithOAuth2RedisDockerImage(oauthRedisImage), WithOAuth2DefaultConfig(oauthConfig))
 		err := h.Sync(context.Background(), namespace, activeRdName)
 		s.NoError(err)
 	})
@@ -185,7 +175,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(syncer).
 			Times(1)
 		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, WithDeploymentSyncerFactory(factory))

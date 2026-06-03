@@ -606,35 +606,6 @@ func (s *secretHandlerTestSuite) TestSecretHandler_ChangeSecrets() {
 			},
 			expectedError: true,
 		},
-		{
-			name: "Change client certificate in the component",
-			components: []v1.RadixDeployComponent{{
-				Name: componentName1,
-			}},
-			secretName:                  "client-certificate1-clientcertca",
-			secretDataKey:               "ca.crt",
-			secretValue:                 "current client certificate\nline2\nline3",
-			secretExists:                true,
-			changingSecretComponentName: componentName1,
-			changingSecretName:          "client-certificate1" + suffix.ClientCertificate,
-			changingSecretParams: secretModels.SecretParameters{
-				SecretValue: "new client certificate\nline2\nline3",
-			},
-			expectedError: false,
-		},
-		{
-			name: "Failed change of not existing client certificate in the component",
-			components: []v1.RadixDeployComponent{{
-				Name: componentName1,
-			}},
-			secretExists:                false,
-			changingSecretComponentName: componentName1,
-			changingSecretName:          "client-certificate1" + suffix.ClientCertificate,
-			changingSecretParams: secretModels.SecretParameters{
-				SecretValue: "new client certificate\nline2\nline3",
-			},
-			expectedError: true,
-		},
 	}
 
 	for _, scenario := range scenarios {

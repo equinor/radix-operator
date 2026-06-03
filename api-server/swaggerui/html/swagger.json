@@ -6407,9 +6407,6 @@
           "x-go-name": "Name",
           "example": "server"
         },
-        "network": {
-          "$ref": "#/definitions/Network"
-        },
         "notifications": {
           "$ref": "#/definitions/Notifications"
         },
@@ -7417,34 +7414,6 @@
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/privateimagehubs/models"
     },
-    "Ingress": {
-      "description": "Ingress describes ingress configuration for a component",
-      "type": "object",
-      "properties": {
-        "public": {
-          "$ref": "#/definitions/IngressPublic"
-        }
-      },
-      "x-go-package": "github.com/equinor/radix-operator/api-server/api/deployments/models"
-    },
-    "IngressPublic": {
-      "description": "IngressPublic describes public ingress configuration for a component",
-      "type": "object",
-      "required": [
-        "allow"
-      ],
-      "properties": {
-        "allow": {
-          "description": "List of allowed IP addresses or CIDRs. All traffic is allowed if list is empty.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "Allow"
-        }
-      },
-      "x-go-package": "github.com/equinor/radix-operator/api-server/api/deployments/models"
-    },
     "Job": {
       "description": "Job holds general information about job",
       "type": "object",
@@ -7822,16 +7791,6 @@
         }
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/jobs/models"
-    },
-    "Network": {
-      "description": "Network describes network configuration for a component",
-      "type": "object",
-      "properties": {
-        "ingress": {
-          "$ref": "#/definitions/Ingress"
-        }
-      },
-      "x-go-package": "github.com/equinor/radix-operator/api-server/api/deployments/models"
     },
     "Node": {
       "description": "Node Defines node attributes, where pod should be scheduled",
@@ -8932,7 +8891,7 @@
           "example": "Consistent"
         },
         "type": {
-          "description": "Type of the secret\ngeneric SecretTypeGeneric\nazure-blob-fuse-volume SecretTypeAzureBlobFuseVolume\ncsi-azure-blob-volume SecretTypeCsiAzureBlobVolume\ncsi-azure-key-vault-creds SecretTypeCsiAzureKeyVaultCreds\ncsi-azure-key-vault-item SecretTypeCsiAzureKeyVaultItem\nclient-cert-auth SecretTypeClientCertificateAuth\noauth2-proxy SecretTypeOAuth2Proxy",
+          "description": "Type of the secret\ngeneric SecretTypeGeneric\nazure-blob-fuse-volume SecretTypeAzureBlobFuseVolume\ncsi-azure-blob-volume SecretTypeCsiAzureBlobVolume\ncsi-azure-key-vault-creds SecretTypeCsiAzureKeyVaultCreds\ncsi-azure-key-vault-item SecretTypeCsiAzureKeyVaultItem\noauth2-proxy SecretTypeOAuth2Proxy",
           "type": "string",
           "enum": [
             "generic",
@@ -8940,10 +8899,9 @@
             "csi-azure-blob-volume",
             "csi-azure-key-vault-creds",
             "csi-azure-key-vault-item",
-            "client-cert-auth",
             "oauth2-proxy"
           ],
-          "x-go-enum-desc": "generic SecretTypeGeneric\nazure-blob-fuse-volume SecretTypeAzureBlobFuseVolume\ncsi-azure-blob-volume SecretTypeCsiAzureBlobVolume\ncsi-azure-key-vault-creds SecretTypeCsiAzureKeyVaultCreds\ncsi-azure-key-vault-item SecretTypeCsiAzureKeyVaultItem\nclient-cert-auth SecretTypeClientCertificateAuth\noauth2-proxy SecretTypeOAuth2Proxy",
+          "x-go-enum-desc": "generic SecretTypeGeneric\nazure-blob-fuse-volume SecretTypeAzureBlobFuseVolume\ncsi-azure-blob-volume SecretTypeCsiAzureBlobVolume\ncsi-azure-key-vault-creds SecretTypeCsiAzureKeyVaultCreds\ncsi-azure-key-vault-item SecretTypeCsiAzureKeyVaultItem\noauth2-proxy SecretTypeOAuth2Proxy",
           "x-go-name": "Type",
           "example": "generic"
         },

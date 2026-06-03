@@ -59,7 +59,6 @@ func defaultIngressNetworkPolicy(appName, env string, owner []metav1.OwnerRefere
 						},
 						// namespace hosting prometheus and ingress-nginx need label "purpose:radix-base-ns"
 						// TODO: Make this configurable in helm values
-						createSelector(map[string]string{"app.kubernetes.io/name": "ingress-nginx"}, map[string]string{"purpose": "radix-base-ns"}),
 						createSelector(map[string]string{"app.kubernetes.io/name": "prometheus"}, map[string]string{"purpose": "radix-base-ns"}),
 						createSelector(map[string]string{"gateway.networking.k8s.io/gateway-name": gatewayName}, map[string]string{"purpose": "radix-base-ns"}),
 					},

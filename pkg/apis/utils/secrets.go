@@ -23,11 +23,6 @@ func GetExternalDnsTlsSecretName(externalDns radixv1.RadixDeployExternalDNS) str
 	return externalDns.FQDN
 }
 
-// GetComponentClientCertificateSecretName Gets name of the component secret that holds the ca.crt public key for client certificate authentication
-func GetComponentClientCertificateSecretName(componentame string) string {
-	return strings.ToLower(fmt.Sprintf("%s-clientcertca", componentame))
-}
-
 // GetAuxiliaryComponentSecretName Get secret name for AuxiliaryComponent
 func GetAuxiliaryComponentSecretName(componentName string, suffix string) string {
 	return GetComponentSecretName(GetAuxiliaryComponentDeploymentName(componentName, suffix))

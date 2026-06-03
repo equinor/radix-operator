@@ -2,8 +2,6 @@
 package suffix
 
 const (
-	//ClientCertificate Client certificate
-	ClientCertificate = "-clientcertca"
 	//OAuth2ClientSecret Client secret of OAuth2
 	OAuth2ClientSecret = "-oauth2proxy-clientsecret"
 	//OAuth2CookieSecret Cookie secret of OAuth2

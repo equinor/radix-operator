@@ -71,8 +71,6 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 		WithName(appName).
 		BuildRR()
 
-	certificateVerification := radixv1.VerificationTypeOptional
-
 	ra := utils.NewRadixApplicationBuilder().
 		WithAppName(appName).
 		WithEnvironment(envName, branch).
@@ -85,8 +83,8 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 				WithPort("http", 8080).
 				WithAuthentication(
 					&radixv1.Authentication{
-						ClientCertificate: &radixv1.ClientCertificate{
-							PassCertificateToUpstream: pointers.Ptr(true),
+						OAuth2: &radixv1.OAuth2{
+							ClientID: "client-id",
 						},
 					},
 				).
@@ -98,9 +96,9 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 						WithEnvironment(envName).
 						WithAuthentication(
 							&radixv1.Authentication{
-								ClientCertificate: &radixv1.ClientCertificate{
-									Verification:              &certificateVerification,
-									PassCertificateToUpstream: pointers.Ptr(false),
+								OAuth2: &radixv1.OAuth2{
+									ClientID:               "client-id",
+									SetXAuthRequestHeaders: pointers.Ptr(true),
 								},
 							},
 						).
@@ -111,8 +109,8 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 				WithPort("http", 6379).
 				WithAuthentication(
 					&radixv1.Authentication{
-						ClientCertificate: &radixv1.ClientCertificate{
-							PassCertificateToUpstream: pointers.Ptr(true),
+						OAuth2: &radixv1.OAuth2{
+							ClientID: "client-id",
 						},
 					},
 				).
@@ -192,24 +190,24 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 
 	s.Run("validate authentication variable", func() {
 		x0 := &radixv1.Authentication{
-			ClientCertificate: &radixv1.ClientCertificate{
-				Verification:              &certificateVerification,
-				PassCertificateToUpstream: pointers.Ptr(false),
+			OAuth2: &radixv1.OAuth2{
+				ClientID:               "client-id",
+				SetXAuthRequestHeaders: pointers.Ptr(true),
 			},
 		}
 
 		x1 := &radixv1.Authentication{
-			ClientCertificate: &radixv1.ClientCertificate{
-				PassCertificateToUpstream: pointers.Ptr(true),
+			OAuth2: &radixv1.OAuth2{
+				ClientID: "client-id",
 			},
 		}
 
 		s.NotNil(rdDev.Spec.Components[0].Authentication)
-		s.NotNil(rdDev.Spec.Components[0].Authentication.ClientCertificate)
+		s.NotNil(rdDev.Spec.Components[0].Authentication.OAuth2)
 		s.Equal(x0, rdDev.Spec.Components[0].Authentication)
 
 		s.NotNil(rdDev.Spec.Components[1].Authentication)
-		s.NotNil(rdDev.Spec.Components[1].Authentication.ClientCertificate)
+		s.NotNil(rdDev.Spec.Components[1].Authentication.OAuth2)
 		s.Equal(x1, rdDev.Spec.Components[1].Authentication)
 	})
 

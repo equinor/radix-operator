@@ -13,7 +13,6 @@ import (
 	radixinformersv1 "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -48,35 +47,7 @@ func NewController(ctx context.Context, kubeClient kubernetes.Interface,
 	logger.Info().Msg("Setting up event handlers")
 	addEventHandlersForRadixDNSAliases(radixDNSAliasInformer, controller, &logger)
 	addEventHandlersForRadixDeployments(radixInformerFactory, controller, radixClient, &logger)
-	addEventHandlersForIngresses(ctx, kubeInformerFactory, controller, &logger)
 	return controller
-}
-
-func addEventHandlersForIngresses(ctx context.Context, kubeInformerFactory kubeinformers.SharedInformerFactory, controller *common.Controller, logger *zerolog.Logger) {
-	ingressInformer := kubeInformerFactory.Networking().V1().Ingresses()
-	if _, err := ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			oldIng := oldObj.(metav1.Object)
-			newIng := newObj.(metav1.Object)
-			if oldIng.GetResourceVersion() == newIng.GetResourceVersion() {
-				logger.Debug().Msgf("updating Ingress %s has the same resource version. Do nothing.", newIng.GetName())
-				return
-			}
-			logger.Debug().Msgf("updated Ingress %s", newIng.GetName())
-			controller.HandleObject(ctx, newObj, radixv1.KindRadixDNSAlias, getOwner) // restore ingress if it does not correspond to RadixDNSAlias
-		},
-		DeleteFunc: func(obj interface{}) {
-			ing, converted := obj.(*networkingv1.Ingress)
-			if !converted {
-				logger.Error().Msg("Ingress object cast failed during deleted event received.")
-				return
-			}
-			logger.Debug().Msgf("deleted Ingress %s", ing.GetName())
-			controller.HandleObject(ctx, ing, radixv1.KindRadixDNSAlias, getOwner) // restore ingress if RadixDNSAlias exist
-		},
-	}); err != nil {
-		panic(err)
-	}
 }
 
 func addEventHandlersForRadixDeployments(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface, logger *zerolog.Logger) {
@@ -174,8 +145,4 @@ func getRadixDNSAliasForAppAndEnvironment(radixClient radixclient.Interface, app
 func deepEqual(old, new *radixv1.RadixDNSAlias) bool {
 	return reflect.DeepEqual(new.Spec, old.Spec) &&
 		reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels)
-}
-
-func getOwner(ctx context.Context, radixClient radixclient.Interface, _, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixDNSAliases().Get(ctx, name, metav1.GetOptions{})
 }

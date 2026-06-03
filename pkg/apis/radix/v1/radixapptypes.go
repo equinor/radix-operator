@@ -494,11 +494,6 @@ type RadixComponent struct {
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
 
-	// Additional configuration settings for ingress traffic.
-	// More info: https://www.radix.equinor.com/radix-config#ingressconfiguration
-	// +optional
-	IngressConfiguration []string `json:"ingressConfiguration,omitempty"`
-
 	// Configure environment specific settings for the component.
 	// More info: https://www.radix.equinor.com/radix-config#environmentconfig
 	// +listType=map
@@ -559,10 +554,6 @@ type RadixComponent struct {
 	// Runtime defines the target runtime requirements for the component
 	// +optional
 	Runtime *Runtime `json:"runtime,omitempty"`
-
-	// Network settings.
-	// +optional
-	Network *Network `json:"network,omitempty"`
 
 	// Entrypoint array. Not executed within a shell.
 	// The container image's ENTRYPOINT is used if this is not provided.
@@ -697,10 +688,6 @@ type RadixEnvironmentConfig struct {
 	// Runtime defines environment specific target runtime requirements for the component
 	// +optional
 	Runtime *Runtime `json:"runtime,omitempty"`
-
-	// Environment specific network settings.
-	// +optional
-	Network *Network `json:"network,omitempty"`
 
 	// Entrypoint array. Not executed within a shell.
 	// The container image's ENTRYPOINT is used if this is not provided.
@@ -1600,28 +1587,11 @@ type RadixAzureKeyVaultItem struct {
 
 // Authentication describes authentication options.
 type Authentication struct {
-	// Configuration for TLS client certificate authentication.
-	// More info: https://www.radix.equinor.com/radix-config#clientcertificate
-	// +optional
-	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty"`
 
 	// Configuration for OAuth2 authentication.
 	// More info: https://www.radix.equinor.com/radix-config#oauth2
 	// +optional
 	OAuth2 *OAuth2 `json:"oauth2,omitempty"`
-}
-
-// ClientCertificate Authentication client certificate parameters
-type ClientCertificate struct {
-	// Defines how the client certificate shall be verified.
-	// +kubebuilder:validation:Enum=on;off;optional;optional_no_ca
-	// +optional
-	Verification *VerificationType `json:"verification,omitempty"`
-
-	// Pass client certificate to backend in header ssl-client-cert.
-	// This setting has no effect if verification is set to off.
-	// +optional
-	PassCertificateToUpstream *bool `json:"passCertificateToUpstream,omitempty"`
 }
 
 // SessionStoreType type of session store
@@ -1634,20 +1604,6 @@ const (
 	SessionStoreRedis SessionStoreType = "redis"
 	// SessionStoreSystemManaged use redis for system storage configured by Radix
 	SessionStoreSystemManaged SessionStoreType = "systemManaged"
-)
-
-// VerificationType Certificate verification type
-type VerificationType string
-
-const (
-	// VerificationTypeOff Certificate verification is off
-	VerificationTypeOff VerificationType = "off"
-	// VerificationTypeOn Certificate verification is on
-	VerificationTypeOn VerificationType = "on"
-	// VerificationTypeOptional Certificate verification is optional
-	VerificationTypeOptional VerificationType = "optional"
-	// VerificationTypeOptionalNoCa Certificate verification is optional no certificate authority
-	VerificationTypeOptionalNoCa VerificationType = "optional_no_ca"
 )
 
 // CookieSameSiteType Cookie SameSite value
@@ -1874,83 +1830,6 @@ const (
 	// OperatorNotIn Values are not within the list
 	OperatorNotIn Operator = "NotIn"
 )
-
-// Network defines settings for network traffic.
-// Currently, only public ingress traffic is supported
-type Network struct {
-	// Ingress defines settings for ingress traffic.
-	// +optional
-	Ingress *Ingress `json:"ingress,omitempty"`
-
-	// If we decide to add support for egress configuration (managed by standard NetworkPolicy or more advanced systems like Cilium),
-	// we will add a `Egress` fields here.
-}
-
-// Ingress defines settings for ingress traffic.
-type Ingress struct {
-	// Public defines settings for public traffic.
-	// +optional
-	Public *IngressPublic `json:"public,omitempty"`
-
-	// If we decide to add support for private/internal ingress configuration (managed by NetworkPolicies),
-	// we will add a `Private` fields here.
-}
-
-// IP address or CIDR.
-// +kubebuilder:validation:Pattern=`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`
-type IPOrCIDR string
-
-// NGINX size format.
-//
-// +kubebuilder:validation:Pattern=`^(?:0|[1-9][0-9]*[kKmMgG]?)$`
-type NginxSizeFormat string
-
-// Ingress defines settings for ingress traffic.
-type IngressPublic struct {
-	// Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.
-	// All IP addresses are allowed if this field is empty or not set.
-	// +optional
-	Allow *[]IPOrCIDR `json:"allow,omitempty"`
-
-	// Defines a timeout, in seconds, for reading a response from the proxied server.
-	// The timeout is set only between two successive read operations, not for the transmission of the whole response.
-	// If the proxied server does not transmit anything within this time, the connection is closed.
-	//
-	// +kubebuilder:validation:Minimum=0
-	// +optional
-	ProxyReadTimeout *uint `json:"proxyReadTimeout,omitempty"`
-
-	// Defines a timeout, in seconds, for transmitting a request to the proxied server.
-	// The timeout is set only between two successive write operations, not for the transmission of the whole request.
-	// If the proxied server does not receive anything within this time, the connection is closed.
-	//
-	// +kubebuilder:validation:Minimum=0
-	// +optional
-	ProxySendTimeout *uint `json:"proxySendTimeout,omitempty"`
-
-	// Sets the maximum allowed size of the client request body.
-	// Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
-	// If the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.
-	// Setting size to 0 disables checking of client request body size.
-	//
-	// +optional
-	ProxyBodySize *NginxSizeFormat `json:"proxyBodySize,omitempty"`
-
-	// Sets the size of the buffer used for reading the first part of the response received from the proxied server.
-	// The size must be large enough to hold the response headers.
-	// Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
-	// If the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.
-	//
-	// +optional
-	ProxyBufferSize *NginxSizeFormat `json:"proxyBufferSize,omitempty"`
-
-	// Defines if request buffering is enabled. Default is true.
-	// If set to false, the request body will be sent to the proxied server immediately, without buffering.
-	// This can be useful for large file uploads or streaming data.
-	//
-	// +optional
-	ProxyRequestBuffering *bool `json:"proxyRequestBuffering,omitempty"`
-}
 
 // RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {

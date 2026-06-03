@@ -20,11 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-)
-
-const (
-	finalizer = "radix.equinor.com/environment-finalizer"
 )
 
 // Environment is the aggregate-root for manipulating RadixEnvironments
@@ -65,10 +60,6 @@ func NewEnvironment(
 // reconciled with current state.
 func (env *Environment) OnSync(ctx context.Context) error {
 
-	if err := env.removeFinalizer(ctx); err != nil {
-		return fmt.Errorf("failed to remove finalizer: %w", err)
-	}
-
 	if env.regConfig == nil {
 		return nil // RadixRegistration does not exist, possible it was deleted
 	}
@@ -93,24 +84,6 @@ func (env *Environment) reconcile(ctx context.Context) error {
 		return fmt.Errorf("failed to add egress rules: %w", err)
 	}
 
-	return nil
-}
-
-// removeFinalizer removes the finalizer that was unneccessarily set to delete ingresses and cluster roles + binding
-// ownerreference to the RadixDNSAlias will handle deletion automatically
-func (env *Environment) removeFinalizer(ctx context.Context) error {
-	log.Ctx(ctx).Info().Msg("Process finalizer")
-	if !controllerutil.ContainsFinalizer(env.config, finalizer) {
-		return nil
-	}
-
-	controllerutil.RemoveFinalizer(env.config, finalizer)
-	updated, err := env.radixclient.RadixV1().RadixEnvironments().Update(ctx, env.config, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-
-	env.config = updated
 	return nil
 }
 

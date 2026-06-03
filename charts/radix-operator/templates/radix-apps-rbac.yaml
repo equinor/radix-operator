@@ -21,7 +21,6 @@ rules:
   - "*"
   resources:
   - namespaces
-  - ingresses
   - deployments
   verbs:
   - get

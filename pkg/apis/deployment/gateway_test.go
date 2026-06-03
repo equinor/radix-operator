@@ -107,7 +107,7 @@ func (s *GatewayTestSuite) applyDeploymentWithSync(deploymentBuilder utils.Deplo
 		return nil, err
 	}
 
-	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, nil, s.cfg)
+	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, s.cfg)
 	if err := syncer.OnSync(context.Background()); err != nil {
 		return nil, err
 	}

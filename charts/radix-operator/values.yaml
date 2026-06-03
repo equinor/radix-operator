@@ -91,19 +91,6 @@ ingress:
       duration: "2160h"
       renewBefore: "720h"
       gatewayClusterIssuer: ""
-  configuration:
-    - name: websocketfriendly
-      annotations:
-        nginx.ingress.kubernetes.io/proxy-read-timeout: 3600
-        nginx.ingress.kubernetes.io/proxy-send-timeout: 3600
-    - name: stickysessions
-      annotations:
-        nginx.ingress.kubernetes.io/affinity: cookie
-        nginx.ingress.kubernetes.io/session-cookie-hash: sha1
-        nginx.ingress.kubernetes.io/session-cookie-name: INGRESSCOOKIE
-    - name: leastconnectedlb
-      annotations:
-        nginx.org/lb-method: random
 
 task:
   orphanedEnvironmentsRetentionPeriod: 720h

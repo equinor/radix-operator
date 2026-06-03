@@ -13,7 +13,6 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/utils/secret"
 	volumemountUtils "github.com/equinor/radix-operator/api-server/api/utils/volumemount"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -203,38 +202,7 @@ func getSecretsForAuthentication(ctx context.Context, secretList []corev1.Secret
 
 func getSecretsForComponentAuthentication(ctx context.Context, secretList []corev1.Secret, component radixv1.RadixCommonDeployComponent) []secretModels.Secret {
 	var secrets []secretModels.Secret
-	secrets = append(secrets, getSecretsForComponentAuthenticationClientCertificate(ctx, secretList, component)...)
 	secrets = append(secrets, getSecretsForComponentAuthenticationOAuth2(ctx, secretList, component)...)
-
-	return secrets
-}
-
-func getSecretsForComponentAuthenticationClientCertificate(ctx context.Context, secretList []corev1.Secret, component radixv1.RadixCommonDeployComponent) []secretModels.Secret {
-	var secrets []secretModels.Secret
-	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && ingress.IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
-		secretName := operatorutils.GetComponentClientCertificateSecretName(component.GetName())
-		secretStatus := secretModels.Consistent.String()
-		var metadata *kubequery.SecretMetadata
-
-		if secr, ok := slice.FindFirst(secretList, isSecretWithName(secretName)); ok {
-			metadata = kubequery.GetSecretMetadata(ctx, &secr)
-			secretValue := strings.TrimSpace(string(secr.Data["ca.crt"]))
-			if len(secretValue) == 0 || strings.EqualFold(secretValue, secretDefaultData) {
-				secretStatus = secretModels.Pending.String()
-			}
-		} else {
-			secretStatus = secretModels.Pending.String()
-		}
-
-		secrets = append(secrets, secretModels.Secret{
-			Name:        secretName,
-			DisplayName: "",
-			Type:        secretModels.SecretTypeClientCertificateAuth,
-			Component:   component.GetName(),
-			Status:      secretStatus,
-			Updated:     metadata.GetUpdated("ca.crt"),
-		})
-	}
 
 	return secrets
 }

@@ -151,7 +151,7 @@ type RadixDeployExternalDNS struct {
 	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
 }
 
-// RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
+// RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service etc
 type RadixDeployComponent struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
@@ -193,9 +193,6 @@ type RadixDeployComponent struct {
 
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
-
-	// +optional
-	IngressConfiguration []string `json:"ingressConfiguration,omitempty"`
 
 	// +optional
 	DNSAppAlias bool `json:"dnsAppAlias,omitempty"`
@@ -245,9 +242,6 @@ type RadixDeployComponent struct {
 
 	// +optional
 	Runtime *Runtime `json:"runtime,omitempty"`
-
-	// +optional
-	Network *Network `json:"network,omitempty"`
 
 	// GetCommand Entrypoint array. Not executed within a shell.
 	// +optional
@@ -383,10 +377,6 @@ func (deployComponent *RadixDeployComponent) IsDNSAppAlias() bool {
 	return deployComponent.DNSAppAlias
 }
 
-func (deployComponent *RadixDeployComponent) GetIngressConfiguration() []string {
-	return deployComponent.IngressConfiguration
-}
-
 func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 	return &deployComponent.Node //nolint:staticcheck
 }
@@ -405,10 +395,6 @@ func (deployComponent *RadixDeployComponent) GetReadOnlyFileSystem() *bool {
 
 func (deployComponent *RadixDeployComponent) GetRuntime() *Runtime {
 	return deployComponent.Runtime
-}
-
-func (deployComponent *RadixDeployComponent) GetNetwork() *Network {
-	return deployComponent.Network
 }
 
 func (deployComponent *RadixDeployComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
@@ -510,10 +496,6 @@ func (deployJobComponent *RadixDeployJobComponent) IsDNSAppAlias() bool {
 	return false
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetIngressConfiguration() []string {
-	return nil
-}
-
 func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
 	return &deployJobComponent.Node //nolint:staticcheck
 }
@@ -536,10 +518,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetReadOnlyFileSystem() *bool
 
 func (deployJobComponent *RadixDeployJobComponent) GetRuntime() *Runtime {
 	return deployJobComponent.Runtime
-}
-
-func (deployJobComponent *RadixDeployJobComponent) GetNetwork() *Network {
-	return nil
 }
 
 func (deployJobComponent *RadixDeployJobComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
@@ -709,13 +687,11 @@ type RadixCommonDeployComponent interface {
 	IsPublic() bool
 	GetExternalDNS() []RadixDeployExternalDNS
 	IsDNSAppAlias() bool
-	GetIngressConfiguration() []string
 	GetNode() *RadixNode
 	GetAuthentication() *Authentication
 	GetIdentity() *Identity
 	GetReadOnlyFileSystem() *bool
 	GetRuntime() *Runtime
-	GetNetwork() *Network
 	GetHealthChecks() *RadixHealthChecks
 	// GetCommand Entrypoint array. Not executed within a shell.
 	GetCommand() []string

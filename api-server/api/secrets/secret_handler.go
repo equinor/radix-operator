@@ -116,11 +116,6 @@ func (eh *SecretHandler) ChangeComponentSecret(ctx context.Context, appName, env
 		secretObjName = strings.TrimSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientSecretSuffix)
 		partName = defaults.CsiAzureKeyVaultCredsClientSecretPart
 
-	} else if strings.HasSuffix(secretName, suffix.ClientCertificate) {
-		// This is the account name part of the client certificate secret
-		secretObjName = secretName
-		partName = "ca.crt"
-
 	} else if strings.HasSuffix(secretName, suffix.OAuth2ClientSecret) {
 		var err error
 		if secretObjName, partName, err = eh.getOAuth2ClientSecretProps(ctx, appName, envName, componentName); err != nil {
