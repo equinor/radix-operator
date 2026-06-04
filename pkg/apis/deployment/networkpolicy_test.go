@@ -207,7 +207,7 @@ func Test_allowEgressNetworkByPortPolicy(t *testing.T) {
 	targetLabelKey := "my-label"
 	targetLabelValue := "my-value"
 
-	ports := []egreessPortPolicy{
+	ports := []egressPortPolicy{
 		{port: 80, protocol: corev1.ProtocolTCP},
 		{port: 443, protocol: corev1.ProtocolTCP},
 	}

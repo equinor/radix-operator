@@ -34,7 +34,7 @@ func GetEnvVarsFromAzureKeyVaultSecretRefs(radixDeploymentName, componentName st
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
 		for _, keyVaultItem := range azureKeyVault.Items {
 			if len(keyVaultItem.EnvVar) == 0 {
-				continue // Do not add cert,secret or key as environment variable - it will exist only as s file
+				continue // Do not add cert,secret or key as environment variable - it will exist only as a file
 			}
 			kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
 			secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)

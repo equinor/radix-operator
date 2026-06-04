@@ -74,7 +74,7 @@ func allowOauthAuxComponentEgressNetworkPolicy(appName string, env string, owner
 	// This is because egress rule must allow traffic to the login.microsoftonline.com FQDN.
 	// This FQDN has IP ranges 20.190.128.0/18 and 40.126.0.0/18 as of April 2022,
 	// but may change at some point in the future.
-	return allowEgressNetworkByPortPolicy("radix-allow-oauth-aux-egress", kube.RadixAuxiliaryComponentTypeLabel, radixv1.OAuthProxyAuxiliaryComponentType, appName, env, owner, []egreessPortPolicy{
+	return allowEgressNetworkByPortPolicy("radix-allow-oauth-aux-egress", kube.RadixAuxiliaryComponentTypeLabel, radixv1.OAuthProxyAuxiliaryComponentType, appName, env, owner, []egressPortPolicy{
 		{port: 53, protocol: corev1.ProtocolTCP},
 		{port: 53, protocol: corev1.ProtocolUDP},
 		{port: 443, protocol: corev1.ProtocolTCP},
@@ -87,19 +87,19 @@ func allowJobSchedulerServerEgressNetworkPolicy(appName string, env string, owne
 	// We allow outbound to entire Internet from the job scheduler server pods.
 	// This is because egress rule must allow traffic to public IP of k8s API server,
 	// and the public IP is dynamic.
-	return allowEgressNetworkByPortPolicy("radix-allow-job-scheduler-egress", kube.RadixPodIsJobSchedulerLabel, "true", appName, env, owner, []egreessPortPolicy{
+	return allowEgressNetworkByPortPolicy("radix-allow-job-scheduler-egress", kube.RadixPodIsJobSchedulerLabel, "true", appName, env, owner, []egressPortPolicy{
 		{port: 53, protocol: corev1.ProtocolTCP},
 		{port: 53, protocol: corev1.ProtocolUDP},
 		{port: kubernetesApiPort, protocol: corev1.ProtocolTCP},
 	})
 }
 
-type egreessPortPolicy struct {
+type egressPortPolicy struct {
 	port     int32
 	protocol corev1.Protocol
 }
 
-func allowEgressNetworkByPortPolicy(policyName string, targetLabelKey string, targetLabelValue string, appName string, env string, owner []metav1.OwnerReference, egressPorts []egreessPortPolicy) *v1.NetworkPolicy {
+func allowEgressNetworkByPortPolicy(policyName string, targetLabelKey string, targetLabelValue string, appName string, env string, owner []metav1.OwnerReference, egressPorts []egressPortPolicy) *v1.NetworkPolicy {
 	var egressPortsV1 []v1.NetworkPolicyPort
 	for _, port := range egressPorts {
 		egressPortsV1 = append(egressPortsV1, v1.NetworkPolicyPort{Port: &intstr.IntOrString{IntVal: port.port}, Protocol: &port.protocol})
