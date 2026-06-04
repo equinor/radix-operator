@@ -41,3 +41,36 @@ spec:
   lifecycle: production
   owner: team-radix
   system: Radix
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: radix-api-server
+  title: Radix API Server
+  description: "Radix API Server"
+  annotations:
+    github.com/project-slug: equinor/radix-operator
+spec:
+  type: openapi
+  lifecycle: production
+  owner: team-radix
+  system: system:default/Radix
+  definition:
+    $text: "./api-server/swaggerui/html/swagger.json"
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: radix-api-server
+  title: Radix API Server
+  description: "Radix API Server"
+  annotations:
+    github.com/project-slug: equinor/radix-operator
+spec:
+  type: service
+  lifecycle: production
+  owner: team-radix
+  system: system:default/Radix
+  providesApis:
+    - radix-api-server
