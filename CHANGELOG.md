@@ -2,7 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.116.0](https://github.com/equinor/radix-operator/compare/v1.115.0..v1.116.0) - 2026-05-19
+## [1.117.0](https://github.com/equinor/radix-operator/compare/v1.116.0..v1.117.0) - 2026-06-03
+
+### 🚀 Features
+
+- Remove radix-api related code, rename radix-api to radix api-server (#1742) - ([ca54a88](https://github.com/equinor/radix-operator/commit/ca54a88ba4037d3d21002db6c57ac7b286dfc81b)) by @Richard87 in [#1742](https://github.com/equinor/radix-operator/pull/1742)
+
+- Remove legacy ingress code (#1745) - ([2724954](https://github.com/equinor/radix-operator/commit/272495491be98848da0b94e7f9d6ff90497425ea)) by @herda1 in [#1745](https://github.com/equinor/radix-operator/pull/1745)
+
+
+### 🐛 Bug Fixes
+
+- *(tests)* Add missing env variable and add tests to verify configs are set  (#1749) - ([555203e](https://github.com/equinor/radix-operator/commit/555203ee78147eaeef5fac33d5ec4c8992b1f04d)) by @herda1 in [#1749](https://github.com/equinor/radix-operator/pull/1749)
+
+- Add ServiceMonitor for API server (#1732) - ([8665b11](https://github.com/equinor/radix-operator/commit/8665b119ad8a5597f83c436016da436d5d8acc8f)) by @Richard87 in [#1732](https://github.com/equinor/radix-operator/pull/1732)
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Add skill-creator from radix-internal (#1746) - ([72214eb](https://github.com/equinor/radix-operator/commit/72214eba5cba486f5574d64f83b30e3037da7eb4)) by @emirgens in [#1746](https://github.com/equinor/radix-operator/pull/1746)
+
+
+## New Contributors ❤️
+
+* @herda1 made their first contribution in [#1745](https://github.com/equinor/radix-operator/pull/1745)
+## [1.116.0](https://github.com/equinor/radix-operator/compare/v1.115.0..v1.116.0) - 2026-05-20
 
 ### 🚀 Features
 
