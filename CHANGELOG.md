@@ -2,7 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.117.0](https://github.com/equinor/radix-operator/compare/v1.116.0..v1.117.0) - 2026-06-03
+## [1.117.1](https://github.com/equinor/radix-operator/compare/v1.117.0..v1.117.1) - 2026-06-04
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump github.com/go-git/go-git/v5 (#1711) - ([655afa7](https://github.com/equinor/radix-operator/commit/655afa7ebb91c26251f6c4de86c9c1e93ac1c783)) by @dependabot[bot] in [#1711](https://github.com/equinor/radix-operator/pull/1711)
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Update README And Catalog-Info for Radix API Server (#1754) - ([4e8ff12](https://github.com/equinor/radix-operator/commit/4e8ff1294c162c93fbb233332e20beb9d87fb288)) by @Richard87 in [#1754](https://github.com/equinor/radix-operator/pull/1754)
+
+
+## [1.117.0](https://github.com/equinor/radix-operator/compare/v1.116.0..v1.117.0) - 2026-06-04
 
 ### 🚀 Features
 
