@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation"
 	"github.com/equinor/radix-operator/api-server/models"
 )
 
@@ -12,14 +11,11 @@ const rootPath = "/webhook/github"
 
 type githubController struct {
 	*models.DefaultController
-	tlsValidator tlsvalidation.Validator
 }
 
 // NewGithubWebhookController Constructor
-func NewGithubWebhookController(tlsValidator tlsvalidation.Validator) models.Controller {
-	return &githubController{
-		tlsValidator: tlsValidator,
-	}
+func NewGithubWebhookController() models.Controller {
+	return &githubController{}
 }
 
 // GetRoutes List the supported routes of this handler
