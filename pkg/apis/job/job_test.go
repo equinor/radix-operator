@@ -358,9 +358,15 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		{
 			Name:            "clone-config",
 			Image:           s.config.gitImage,
-			Command:         []string{"sh", "-c", "umask 002 && git config --global --add safe.directory /workspace && git clone  -b  --verbose --progress /workspace && (cd /workspace && git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && chmod -R g+r /workspace/.git"},
+			Command:         []string{"sh", "-c", `umask 002 && git config --global --add safe.directory "$RADIX_CLONE_DIR" && git clone -b "$RADIX_CLONE_BRANCH" --verbose --progress -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them") && chmod -R g+r "$RADIX_CLONE_DIR/.git"`},
 			ImagePullPolicy: corev1.PullIfNotPresent,
-			Env:             []corev1.EnvVar{{Name: "HOME", Value: "/home/clone"}},
+			Env: []corev1.EnvVar{
+				{Name: "HOME", Value: "/home/clone"},
+				{Name: "RADIX_CLONE_REPO", Value: ""},
+				{Name: "RADIX_CLONE_BRANCH", Value: ""},
+				{Name: "RADIX_CLONE_DIR", Value: "/workspace"},
+				{Name: "RADIX_CLONE_COMMIT", Value: ""},
+			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      "build-context",
