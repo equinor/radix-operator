@@ -900,11 +900,17 @@ type RadixJobComponent struct {
 
 	// Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave
 	// +optional
-	Cron *CronSchedule `json:"cron,omitempty"`
+	// +kubebuilder:validation:Enum=Allow;Forbid;Replace
+	Cron CronSchedule `json:"cron,omitzero"`
 }
 
 // CronSchedule defines a schedule on which to run the job and how to handle concurrent jobs
 type CronSchedule struct {
+	// The time zone for all schedules, will default to UTC if value is empty or omitted
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	TimeZone string `json:"timeZone"`
+
 	// The cron schedule for the job
 	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=20
@@ -914,6 +920,7 @@ type CronSchedule struct {
 
 	// Specify how to handle concurrency when multiple instances of the job is started
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Enum=Allow;Forbid;Replace
 	Concurrency string `json:"concurrency"`
 }
 

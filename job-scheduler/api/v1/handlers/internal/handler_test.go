@@ -252,7 +252,7 @@ func Test_CreateBatch(t *testing.T) {
 				if len(ts.batchDescription.JobScheduleDescriptions) > 0 {
 					jobScheduleDescription = &ts.batchDescription.JobScheduleDescriptions[0]
 				}
-				createdRadixBatch, err = h.CreateRadixBatchSingleJob(context.TODO(), jobScheduleDescription)
+				createdRadixBatch, err = h.CreateRadixBatchSingleJob(context.TODO(), jobScheduleDescription, false)
 			}
 			if ts.expectedError {
 				assert.NotNil(t, err)

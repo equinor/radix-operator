@@ -654,7 +654,7 @@ type RadixDeployJobComponent struct {
 
 	// Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave
 	// +optional
-	Cron CronSchedule `json:"cron,omitempty"`
+	Cron CronSchedule `json:"cron,omitzero"`
 }
 
 func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {

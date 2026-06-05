@@ -2746,11 +2746,7 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		*out = new(int64)
 		**out = **in
 	}
-	if in.Cron != nil {
-		in, out := &in.Cron, &out.Cron
-		*out = new(CronSchedule)
-		(*in).DeepCopyInto(*out)
-	}
+	in.Cron.DeepCopyInto(&out.Cron)
 	return
 }
 

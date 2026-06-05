@@ -9,6 +9,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -19,6 +20,7 @@ import (
 	jobControllers "github.com/equinor/radix-operator/job-scheduler/api/v1/controllers/jobs"
 	batchApi "github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/batches"
 	jobApi "github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/jobs"
+	"github.com/equinor/radix-operator/job-scheduler/internal"
 	"github.com/equinor/radix-operator/job-scheduler/models"
 	"github.com/equinor/radix-operator/job-scheduler/models/common"
 	"github.com/equinor/radix-operator/job-scheduler/pkg/batch"
@@ -29,31 +31,119 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/pflag"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
 	defaultProfilePort = "7070"
 )
 
+const (
+	concurrencyAllow   = "Allow"
+	concurrencyForbid  = "Forbid"
+	concurrencyReplace = "Replace"
+)
+
 type cronServer struct {
-	cronInstance *cron.Cron
+	kubeUtil     *kube.Kube
+	env          *models.Env
+	jobComponent *radixv1.RadixDeployJobComponent
+	jobHandler   jobApi.JobHandler
+
+	mu sync.Mutex
 }
 
-func (cs *cronServer) start(ctx context.Context, jobHandler jobApi.JobHandler, schedules []string) error {
-	cs.cronInstance = cron.New()
+func (cs *cronServer) findActiveCronBatches(ctx context.Context) ([]*radixv1.RadixBatch, error) {
+	jobName := cs.jobComponent.GetName()
+	cronBatches, err := internal.GetRadixBatches(
+		ctx,
+		cs.kubeUtil.RadixClient(),
+		cs.env.RadixDeploymentNamespace,
+		labels.ForComponentName(jobName),
+		labels.ForBatchCron(true),
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	for _, schedule := range schedules {
-		s := schedule // safe capture pattern
-		if _, err := cs.cronInstance.AddFunc(s, func() {
+	activeCronBatches := make([]*radixv1.RadixBatch, 0)
+	for _, b := range cronBatches {
+		if b.Status.Condition.Type == radixv1.BatchConditionTypeActive {
+			activeCronBatches = append(activeCronBatches, b)
+		}
+	}
+
+	return activeCronBatches, nil
+}
+
+func (cs *cronServer) prepareForRun(ctx context.Context) (bool, error) {
+	activeCronBatches, err := cs.findActiveCronBatches(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	if len(activeCronBatches) == 0 {
+		return true, nil
+	}
+
+	jobName := cs.jobComponent.GetName()
+	switch cs.jobComponent.Cron.Concurrency {
+	case concurrencyForbid:
+		log.Info().Msgf("skipping cron job %s: an active batch is already running (Forbid)", jobName)
+		return false, nil
+	case concurrencyReplace:
+		if err := cs.stopBatches(ctx, activeCronBatches); err != nil {
+			return false, fmt.Errorf("failed to stop active batch for cron job %s: %w", jobName, err)
+		}
+
+		log.Info().Msgf("stopped active batch(es) for cron job %s (Replace)", jobName)
+		return true, nil
+	case concurrencyAllow:
+		return true, nil
+	default:
+		log.Warn().Msgf("invalid concurrency value detected for cron job %s", jobName)
+		return false, nil
+	}
+}
+
+func (cs *cronServer) start(ctx context.Context) error {
+	tz, err := time.LoadLocation(cs.jobComponent.Cron.TimeZone)
+	if err != nil {
+		return fmt.Errorf("invalid timezone %q for cron job %s: %w",
+			cs.jobComponent.Cron.TimeZone, cs.jobComponent.GetName(), err)
+	}
+
+	cronInstance := cron.New(cron.WithLocation(tz))
+
+	for _, schedule := range cs.jobComponent.Cron.Schedule {
+		if _, err := cronInstance.AddFunc(schedule, func() {
+			cs.mu.Lock()
+			defer cs.mu.Unlock()
+
+			// Detach from ctx so a SIGTERM mid-callback cannot tear down the
+			// stop-then-create sequence used by the Replace concurrency mode.
+			runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+			defer cancel()
+
+			ok, err := cs.prepareForRun(runCtx)
+			if err != nil {
+				log.Err(err).Msg("failed to prepare cron run")
+				return
+			}
+			if !ok {
+				return
+			}
+
 			desc := &common.JobScheduleDescription{
-				JobId: fmt.Sprintf("cron-%d", time.Now().Unix()),
+				JobId: fmt.Sprintf("cron-%s", strings.ToLower(utils.RandString(8))),
 				// Payload not supported
 			}
-			if _, err := jobHandler.CreateJob(context.Background(), desc); err != nil {
+			if _, err := cs.jobHandler.CreateJob(runCtx, desc, true); err != nil {
 				log.Error().Err(err).Msg("failed to create scheduled job")
 			}
 		}); err != nil {
@@ -61,23 +151,35 @@ func (cs *cronServer) start(ctx context.Context, jobHandler jobApi.JobHandler, s
 		}
 	}
 
-	cs.cronInstance.Start()
-	defer cs.cronInstance.Stop()
+	cronInstance.Start()
 
 	<-ctx.Done()
+	<-cronInstance.Stop().Done()
 
 	return nil
 }
 
-func (cs *cronServer) stop() {
-	if cs.cronInstance == nil {
-		return
+func (cs *cronServer) stopBatches(ctx context.Context, batches []*radixv1.RadixBatch) error {
+	for _, b := range batches {
+		if err := batch.StopRadixBatch(
+			ctx,
+			cs.kubeUtil.RadixClient(),
+			cs.env.RadixAppName,
+			cs.env.RadixEnvironmentName,
+			cs.jobComponent.Name,
+			b.GetName(),
+		); err != nil {
+			return err
+		}
 	}
-	cs.cronInstance.Stop()
+
+	return nil
 }
 
 func main() {
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	env := models.NewEnv()
 	initLogger(env)
 
@@ -97,16 +199,28 @@ func main() {
 	defer radixBatchWatcher.Stop()
 
 	jobHandler := jobApi.New(kubeUtil, env, radixDeployJobComponent)
-	schedules := radixDeployJobComponent.Cron.Schedule
 
-	cs := cronServer{}
-	go func() {
-		if err := cs.start(ctx, jobHandler, schedules); err != nil {
-			log.Error().Err(err).Msg("failed to start cron server")
-		}
-	}()
+	cs := cronServer{
+		kubeUtil:     kubeUtil,
+		env:          env,
+		jobComponent: radixDeployJobComponent,
+		jobHandler:   jobHandler,
+	}
 
-	runApiServer(ctx, kubeUtil, env, radixDeployJobComponent)
+	g, gctx := errgroup.WithContext(ctx)
+	if len(radixDeployJobComponent.Cron.Schedule) > 0 {
+		g.Go(func() error {
+			return cs.start(gctx)
+		})
+	}
+	g.Go(func() error {
+		runApiServer(gctx, jobHandler, kubeUtil, env, radixDeployJobComponent)
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		log.Error().Err(err).Msg("server group exited with error")
+	}
 }
 
 func initLogger(env *models.Env) {
@@ -125,10 +239,7 @@ func initLogger(env *models.Env) {
 	zerolog.DefaultContextLogger = &log.Logger
 }
 
-func runApiServer(ctx context.Context, kubeUtil *kube.Kube, env *models.Env, radixDeployJobComponent *radixv1.RadixDeployJobComponent) {
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
+func runApiServer(ctx context.Context, jobHandler jobApi.JobHandler, kubeUtil *kube.Kube, env *models.Env, radixDeployJobComponent *radixv1.RadixDeployJobComponent) {
 	fs := initializeFlagSet()
 	port := fs.StringP("port", "p", env.RadixPort, "Port where API will be served")
 	parseFlagsFromArgs(fs)
@@ -140,7 +251,7 @@ func runApiServer(ctx context.Context, kubeUtil *kube.Kube, env *models.Env, rad
 	}
 	apiServer := &http.Server{
 		Addr:        fmt.Sprintf(":%s", *port),
-		Handler:     router.NewServer(env, getControllers(kubeUtil, env, radixDeployJobComponent)...),
+		Handler:     router.NewServer(env, getControllers(jobHandler, kubeUtil, env, radixDeployJobComponent)...),
 		BaseContext: func(_ net.Listener) context.Context { return ctx },
 	}
 	servers = append(servers, apiServer)
@@ -170,9 +281,9 @@ func getKubeUtil() *kube.Kube {
 	return kubeUtil
 }
 
-func getControllers(kubeUtil *kube.Kube, env *models.Env, radixDeployJobComponent *radixv1.RadixDeployJobComponent) []controllers.Controller {
+func getControllers(jobHandler jobApi.JobHandler, kubeUtil *kube.Kube, env *models.Env, radixDeployJobComponent *radixv1.RadixDeployJobComponent) []controllers.Controller {
 	return []controllers.Controller{
-		jobControllers.New(jobApi.New(kubeUtil, env, radixDeployJobComponent)),
+		jobControllers.New(jobHandler),
 		batchControllers.New(batchApi.New(kubeUtil, env, radixDeployJobComponent)),
 	}
 }

@@ -3465,9 +3465,19 @@
               },
               "cron": {
                 "description": "Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave",
+                "enum": [
+                  "Allow",
+                  "Forbid",
+                  "Replace"
+                ],
                 "properties": {
                   "concurrency": {
                     "description": "Specify how to handle concurrency when multiple instances of the job is started",
+                    "enum": [
+                      "Allow",
+                      "Forbid",
+                      "Replace"
+                    ],
                     "minLength": 1,
                     "type": "string"
                   },
@@ -3481,6 +3491,11 @@
                     "minItems": 1,
                     "type": "array",
                     "x-kubernetes-list-type": "set"
+                  },
+                  "timeZone": {
+                    "description": "The time zone for all schedules, will default to UTC if value is empty or omitted",
+                    "minLength": 1,
+                    "type": "string"
                   }
                 },
                 "required": [
