@@ -80,5 +80,5 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 	s.Handler.EXPECT().Sync(gomock.Any(), "", aliasName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	err = s.RadixClient.RadixV1().RadixDNSAliases().Delete(context.Background(), alias.GetName(), metav1.DeleteOptions{})
 	s.Require().NoError(err)
-	s.WaitForNotSynced("Sync should be called when deleting RadixDNSAlias")
+	s.WaitForNotSynced("Sync should not be called when deleting RadixDNSAlias")
 }
