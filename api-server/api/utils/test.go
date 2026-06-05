@@ -40,7 +40,7 @@ func ApplyApplicationWithSync(client kubernetes.Interface, radixclient radixclie
 	}
 
 	kubeUtils, _ := kube.New(client, radixclient, kedaClient, nil)
-	
+
 	_, err = commonTestUtils.ApplyApplication(applicationBuilder)
 	if err != nil {
 		return err
