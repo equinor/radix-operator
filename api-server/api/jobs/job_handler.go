@@ -29,10 +29,6 @@ import (
 	duckv1 "knative.dev/pkg/apis/duck/v1"
 )
 
-const (
-	WorkerImage = "radix-pipeline"
-)
-
 // JobHandler Instance variables
 type JobHandler struct {
 	accounts       models.Accounts

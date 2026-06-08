@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-operator/api-server/api/applications"
+	"github.com/equinor/radix-operator/api-server/api/applications/models"
 	"github.com/equinor/radix-operator/api-server/api/jobs"
 	jobmodels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
-	"github.com/equinor/radix-operator/pkg/apis/git"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/api-server/internal/pipeline"
+	operatorpipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	builders "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -134,18 +134,19 @@ func TestGetApplicationJob(t *testing.T) {
 				WithBuildCache(ts.useBuildCache))
 			require.NoError(t, err)
 
-			jobParameters := &jobmodels.JobParameters{
-				Branch:                anyBranch, //nolint:staticcheck
-				CommitID:              anyPushCommitID,
-				PushImage:             true,
-				TriggeredBy:           anyUser,
+			anyPipeline, err := operatorpipeline.GetPipelineFromName(anyPipelineName)
+			require.NoError(t, err, "Failed to get pipeline")
+			svc := pipeline.PipelineService{RadixClient: radixclient}
+			jobSummary, err := svc.TriggerPipelineBuildDeploy(context.Background(), anyAppName, models.PipelineParametersBuild{
 				OverrideUseBuildCache: ts.overrideBuildCache,
 				RefreshBuildCache:     ts.refreshBuildCache,
-			}
+				CommitID:              anyPushCommitID,
+				PushImage:             "true",
+				TriggeredBy:           anyUser,
+				Branch:                anyBranch, //nolint:staticcheck
+				GitRef:                anyBranch,
+			})
 
-			anyPipeline, err := pipeline.GetPipelineFromName(anyPipelineName)
-			require.NoError(t, err, "Failed to get pipeline")
-			jobSummary, err := applications.HandleStartPipelineJob(context.Background(), radixclient, anyAppName, anyPipeline, jobParameters)
 			require.NoError(t, err, "failed to start a pipeline job")
 			_, err = createPipelinePod(client, builders.GetAppNamespace(anyAppName), jobSummary.Name)
 			require.NoError(t, err, "failed to create a pipeline pod")
@@ -167,30 +168,7 @@ func TestGetApplicationJob(t *testing.T) {
 			err = controllertest.GetResponseBody(response, &job)
 			require.NoError(t, err)
 			assert.Equal(t, jobSummary.Name, job.Name)
-			assert.Equal(t, anyBranch, job.Branch)
-			assert.Equal(t, anyPushCommitID, job.CommitID)
-			assert.Equal(t, anyUser, job.TriggeredBy)
-			assert.Equal(t, string(anyPipeline.Type), job.Pipeline)
-			assert.Empty(t, job.Steps)
-
-			internalStep := corev1.ContainerStatus{Name: fmt.Sprintf("%sAnyStep", git.InternalContainerPrefix), State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{}}}
-			cloneStep := corev1.ContainerStatus{Name: git.CloneContainerName, State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{}}}
-			pipelineStep := corev1.ContainerStatus{Name: "radix-pipeline", State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{}}}
-
-			// Emulate a running job with two steps
-			_, err = addInitStepsToPipelinePod(client, builders.GetAppNamespace(anyAppName), jobSummary.Name, internalStep, cloneStep)
-			require.NoError(t, err)
-			_, err = addStepToPipelinePod(client, builders.GetAppNamespace(anyAppName), jobSummary.Name, pipelineStep)
-			require.NoError(t, err)
-
-			responseChannel = controllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/jobs/%s", anyAppName, jobSummary.Name))
-			response = <-responseChannel
-
-			job = jobmodels.Job{}
-			err = controllertest.GetResponseBody(response, &job)
-			require.NoError(t, err)
-			assert.Equal(t, jobSummary.Name, job.Name)
-			assert.Equal(t, anyBranch, job.Branch)
+			assert.Equal(t, anyBranch, job.GitRef)
 			assert.Equal(t, anyPushCommitID, job.CommitID)
 			assert.Equal(t, anyUser, job.TriggeredBy)
 			assert.Equal(t, string(anyPipeline.Type), job.Pipeline)

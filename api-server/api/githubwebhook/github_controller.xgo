@@ -146,6 +146,7 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 
 	switch e := payload.(type) {
 	case *github.PushEvent:
+
 		gitRef, gitRefType := getGitRefWithType(e)
 		commitID := getCommitID(e)
 		sshURL := e.Repo.GetSSHURL()

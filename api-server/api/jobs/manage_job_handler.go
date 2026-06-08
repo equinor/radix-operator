@@ -66,14 +66,14 @@ func (jh JobHandler) RerunJob(ctx context.Context, appName, jobName string) erro
 	return nil
 }
 func (jh JobHandler) createPipelineJob(ctx context.Context, appName string, job *radixv1.RadixJob) (*jobModels.JobSummary, error) {
-	log.Ctx(ctx).Info().Msgf("Starting job: %s, %s", job.GetName(), WorkerImage)
+	log.Ctx(ctx).Info().Msgf("Starting job: %s", job.GetName())
 	appNamespace := k8sObjectUtils.GetAppNamespace(appName)
 	job, err := jh.userAccount.RadixClient.RadixV1().RadixJobs(appNamespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	log.Ctx(ctx).Info().Msgf("Started job: %s, %s", job.GetName(), WorkerImage)
+	log.Ctx(ctx).Info().Msgf("Started job: %s", job.GetName())
 	return jobModels.GetSummaryFromRadixJob(job), nil
 }
 
@@ -111,10 +111,8 @@ func (jh JobHandler) getPipelineJobByName(ctx context.Context, appName string, j
 }
 
 func GetUniqueJobName() (string, string) {
-	var jobName []string
 	randomStr := strings.ToLower(radixutils.RandString(5))
 	timestamp := time.Now().Format("20060102150405")
-	jobName = append(jobName, WorkerImage, "-", timestamp, "-", randomStr)
 
-	return strings.Join(jobName, ""), randomStr
+	return fmt.Sprintf("radix-pipeline-%s-%s", timestamp, randomStr), randomStr
 }
