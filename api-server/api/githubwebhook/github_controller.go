@@ -1,14 +1,18 @@
 package githubwebhook
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 
+	"github.com/equinor/radix-operator/api-server/api/applications"
 	"github.com/equinor/radix-operator/api-server/api/githubwebhook/metrics"
 	"github.com/google/go-github/v72/github"
+	"github.com/rs/zerolog"
 
 	"github.com/equinor/radix-operator/api-server/models"
 )
@@ -51,11 +55,14 @@ type WebhookResponse struct {
 
 type githubController struct {
 	*models.DefaultController
+	applicationHandlerFactory applications.ApplicationHandlerFactory
 }
 
 // NewGithubWebhookController Constructor
-func NewGithubWebhookController() models.Controller {
-	return &githubController{}
+func NewGithubWebhookController(ah applications.ApplicationHandlerFactory) models.Controller {
+	return &githubController{
+		applicationHandlerFactory: ah,
+	}
 }
 
 // GetRoutes List the supported routes of this handler
@@ -97,7 +104,25 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 
 	metrics.IncreaseAllCounter()
 
-	event := r.Header.Get(githubEventHeader)
+	event := github.WebHookType(r)
+
+	writeErrorResponse := func(statusCode int, err error) {
+		c.JSONResponseWithCode(w, r, statusCode, WebhookResponse{
+			Ok:    false,
+			Event: event,
+			Error: err.Error(),
+		})
+	}
+
+	writeSuccessResponse := func(statusCode int, message string) {
+		zerolog.Ctx(r.Context()).Info().Msg(message)
+		c.JSONResponseWithCode(w, r, statusCode, WebhookResponse{
+			Ok:      true,
+			Event:   event,
+			Message: message,
+		})
+	}
+
 	if len(strings.TrimSpace(event)) == 0 {
 		metrics.IncreaseNotGithubEventCounter()
 		c.ErrorResponse(w, r, errors.New(notAGithubEventMessage))
@@ -111,8 +136,8 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 		writeErrorResponse(http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err))
 		return
 	}
-	webhookEventType := github.WebHookType(r)
-	payload, err := github.ParseWebHook(webhookEventType, body)
+
+	payload, err := github.ParseWebHook(event, body)
 	if err != nil {
 		metrics.IncreaseFailedParsingCounter()
 		writeErrorResponse(http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err))
@@ -176,4 +201,94 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 
 	appName := r.URL.Query().Get("appName")
 	c.ErrorResponse(w, r, errors.New("not implemented"))
+}
+
+func getApiGitRefType(gitRefsType string) string {
+	switch gitRefsType {
+	case "heads":
+		return "branch"
+	case "tags":
+		return "tag"
+	}
+	return ""
+}
+
+func getCommitID(e *github.PushEvent) string {
+	if e.Ref != nil && strings.HasPrefix(*e.Ref, "refs/tags/") && e.BaseRef == nil {
+		// The property After has not an existing commit-ID, but other object ID
+		// in the event for an "annotated tag", which can be created with a command
+		// `git tag tag-name -m "annotation message"
+		// https://git-scm.com/book/en/v2/Git-Basics-Tagging
+		return *e.HeadCommit.ID
+	}
+	return *e.After
+}
+
+func getApplicationSummaryForSingleRegisteredApplication(appName string, applicationSummaries []*models.ApplicationSummary) (*models.ApplicationSummary, error) {
+	if len(appName) == 0 || strings.EqualFold(applicationSummaries[0].Name, appName) {
+		return applicationSummaries[0], nil
+	}
+	return nil, errors.New(unmatchedRepoMessageByAppName)
+}
+
+func getApplicationSummaryForMultipleRegisteredApplications(appName string, applicationSummaries []*models.ApplicationSummary) (*models.ApplicationSummary, error) {
+	if len(appName) == 0 {
+		return nil, errors.New(multipleMatchingReposMessageWithoutAppName)
+	}
+	for _, applicationSummary := range applicationSummaries {
+		if strings.EqualFold(applicationSummary.Name, appName) {
+			return applicationSummary, nil
+		}
+	}
+	return nil, errors.New(unmatchedAppForMultipleMatchingReposMessage)
+}
+
+func getPushTriggeredBy(pushEvent *github.PushEvent) string {
+	sender := pushEvent.GetSender()
+	if sender != nil {
+		return sender.GetLogin()
+	}
+
+	headCommit := pushEvent.GetHeadCommit()
+	if headCommit != nil {
+		author := headCommit.GetAuthor()
+		if author != nil {
+			return author.GetLogin()
+		}
+	}
+
+	pusher := pushEvent.GetPusher()
+	if pusher != nil {
+		return pusher.GetLogin()
+	}
+	return ""
+}
+
+func getGitRefWithType(pushEvent *github.PushEvent) (string, string) {
+	ref := strings.Split(*pushEvent.Ref, "/")
+	gitRef := strings.Join(ref[2:], "/") // Remove refs/heads from ref
+	gitRefType := ref[1]
+	return gitRef, getApiGitRefType(gitRefType)
+}
+
+func isPushEventForRefDeletion(pushEvent *github.PushEvent) bool {
+	// Deleted refers to the Ref in the Push event. See https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#push
+	if pushEvent.Deleted != nil {
+		return *pushEvent.Deleted
+	}
+	return false
+}
+
+func validatePayload(header http.Header, payload []byte, sharedSecret []byte) error {
+	signature := header.Get(github.SHA256SignatureHeader)
+	contentType, _, err := mime.ParseMediaType(header.Get("Content-Type"))
+	if err != nil {
+		return err
+	}
+
+	if _, err = github.ValidatePayloadFromBody(contentType, bytes.NewBuffer(payload), signature, sharedSecret); err != nil {
+		return err
+	}
+
+	return nil
 }
