@@ -2,12 +2,52 @@ package githubwebhook
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
+
+	"github.com/equinor/radix-operator/api-server/api/githubwebhook/metrics"
+	"github.com/google/go-github/v72/github"
 
 	"github.com/equinor/radix-operator/api-server/models"
 )
 
-const rootPath = "/webhook/github"
+const rootPath = "/webhooks/github"
+const githubEventHeader = "x-github-event"
+
+var (
+	notAGithubEventMessage                      = "Not a Github event"
+	unhandledEventTypeMessage                   = func(eventType string) string { return fmt.Sprintf("Unhandled event type %s", eventType) }
+	unmatchedRepoMessage                        = "Unable to match repo with any Radix application"
+	multipleMatchingReposMessageWithoutAppName  = "Unable to match repo with unique Radix application without appName request parameter"
+	unmatchedRepoMessageByAppName               = "Unable to match repo with unique Radix application by appName request parameter"
+	unmatchedAppForMultipleMatchingReposMessage = "Unable to match repo with multiple Radix applications by appName request parameter"
+
+	webhookIncorrectConfiguration = func(appName string, err error) string {
+		return fmt.Sprintf("Webhook is not configured correctly for Radix application %s. ApiError was: %s", appName, err)
+	}
+	webhookCorrectConfiguration = func(appName string) string {
+		return fmt.Sprintf("Webhook is configured correctly with for Radix application %s", appName)
+	}
+	refDeletionPushEventUnsupportedMessage = func(refName string) string {
+		return fmt.Sprintf("Deletion of %s not supported, aborting", refName)
+	}
+	createPipelineJobErrorMessage = func(appName string, apiError error) string {
+		return fmt.Sprintf("Failed to create pipeline job for Radix application %s. ApiError was: %s", appName, apiError)
+	}
+	createPipelineJobSuccessMessage = func(jobName, appName, gitRefs, gitRefsType, commitID string) string {
+		return fmt.Sprintf("Pipeline job %s created for Radix application %s on %s %s for commit %s", jobName, appName, gitRefsType, gitRefs, commitID)
+	}
+)
+
+// WebhookResponse The response structure
+type WebhookResponse struct {
+	Ok      bool   `json:"ok"`
+	Event   string `json:"event"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
 
 type githubController struct {
 	*models.DefaultController
@@ -32,10 +72,21 @@ func (c *githubController) GetRoutes() models.Routes {
 	return routes
 }
 func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /webhook/github githubwebhook handleGithubWebhook
+	// swagger:operation POST /webhooks/github webhook handleGithubWebhook
 	// ---
 	// summary: Handle GitHub webhook events
 	// description: This endpoint receives GitHub webhook events and processes them accordingly.
+	// parameters:
+	//   - name: X-GitHub-Event
+	//     in: header
+	//     description: The type of GitHub event (e.g., push, pull_request)
+	//     required: true
+	//     type: string
+	//   - name: appName
+	//     in: query
+	//     description: The name of the application associated with the webhook event
+	//     required: true
+	//     type: string
 	// responses:
 	//   '200':
 	//     description: Webhook event processed successfully
@@ -44,6 +95,85 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 	//   '500':
 	//     description: Internal server error while processing the webhook event
 
-	// /api/v1/webhooks/github?appName=XXXX
+	metrics.IncreaseAllCounter()
+
+	event := r.Header.Get(githubEventHeader)
+	if len(strings.TrimSpace(event)) == 0 {
+		metrics.IncreaseNotGithubEventCounter()
+		c.ErrorResponse(w, r, errors.New(notAGithubEventMessage))
+		return
+	}
+
+	// Need to parse webhook before validation because the secret is taken from the matching repo
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		metrics.IncreaseFailedParsingCounter()
+		writeErrorResponse(http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err))
+		return
+	}
+	webhookEventType := github.WebHookType(r)
+	payload, err := github.ParseWebHook(webhookEventType, body)
+	if err != nil {
+		metrics.IncreaseFailedParsingCounter()
+		writeErrorResponse(http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err))
+		return
+	}
+
+	switch e := payload.(type) {
+	case *github.PushEvent:
+		gitRef, gitRefType := getGitRefWithType(e)
+		commitID := getCommitID(e)
+		sshURL := e.Repo.GetSSHURL()
+		triggeredBy := getPushTriggeredBy(e)
+
+		metrics.IncreasePushGithubEventTypeCounter(sshURL, gitRef, gitRefType, commitID)
+
+		if isPushEventForRefDeletion(e) {
+			writeSuccessResponse(http.StatusAccepted, refDeletionPushEventUnsupportedMessage(*e.Ref))
+			return
+		}
+
+		applicationSummary, err := wh.getApplication(r, body, sshURL)
+		if err != nil {
+			metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
+			writeErrorResponse(http.StatusBadRequest, err)
+			return
+		}
+
+		metrics.IncreasePushGithubEventTypeTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID, applicationSummary.Name)
+		jobSummary, err := wh.apiServer.TriggerPipeline(r.Context(), applicationSummary.Name, gitRef, gitRefType, commitID, triggeredBy)
+		if err != nil {
+			if e, ok := err.(*radix.ApiError); ok && e.Code == 400 {
+				writeSuccessResponse(http.StatusAccepted, createPipelineJobErrorMessage(applicationSummary.Name, err))
+				return
+			}
+			metrics.IncreasePushGithubEventTypeFailedTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID)
+			writeErrorResponse(http.StatusBadRequest, errors.New(createPipelineJobErrorMessage(applicationSummary.Name, err)))
+			return
+		}
+
+		writeSuccessResponse(http.StatusOK, createPipelineJobSuccessMessage(jobSummary.Name, jobSummary.AppName, jobSummary.GetGitRefOrDefault(), jobSummary.GetGitRefTypeOrDefault(), jobSummary.CommitID))
+
+	case *github.PingEvent:
+		// sshURL := getSSHUrlFromPingURL(*e.Hook.URL)
+		sshURL := e.Repo.GetSSHURL()
+		metrics.IncreasePingGithubEventTypeCounter(sshURL)
+
+		applicationSummary, err := wh.getApplication(c.Request, body, sshURL)
+		if err != nil {
+			metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
+			writeErrorResponse(http.StatusBadRequest, err)
+			return
+		}
+
+		writeSuccessResponse(http.StatusOK, webhookCorrectConfiguration(applicationSummary.Name))
+
+	default:
+		metrics.IncreaseUnsupportedGithubEventTypeCounter()
+		writeErrorResponse(http.StatusBadRequest, errors.New(unhandledEventTypeMessage(webhookEventType)))
+		return
+	}
+
+	appName := r.URL.Query().Get("appName")
 	c.ErrorResponse(w, r, errors.New("not implemented"))
 }
