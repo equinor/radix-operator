@@ -14,7 +14,7 @@ import (
 
 	applicationmodels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	"github.com/equinor/radix-operator/api-server/api/githubwebhook/metrics"
-	"github.com/equinor/radix-operator/api-server/internal/pipeline"
+	"github.com/equinor/radix-operator/api-server/internal/pipelineservice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/go-github/v72/github"
@@ -105,7 +105,7 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 	//   '500':
 	//     description: Internal server error while processing the webhook event
 
-	pipelineSvc := pipeline.New(accounts.ServiceAccount.RadixClient)
+	pipelineSvc := pipelineservice.New(accounts.ServiceAccount.RadixClient)
 	appName := r.URL.Query().Get("appName")
 	metrics.IncreaseAllCounter()
 

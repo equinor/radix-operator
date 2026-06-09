@@ -21,7 +21,7 @@ import (
 	apimodels "github.com/equinor/radix-operator/api-server/api/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/warningcollector"
 	"github.com/equinor/radix-operator/api-server/internal/config"
-	"github.com/equinor/radix-operator/api-server/internal/pipeline"
+	"github.com/equinor/radix-operator/api-server/internal/pipelineservice"
 	"github.com/equinor/radix-operator/api-server/models"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
@@ -52,7 +52,7 @@ type ApplicationHandler struct {
 	config                          config.Config
 	hasAccessToGetConfigMap         hasAccessToGetConfigMapFunc
 	getWarningCollectionFromContext CollectContextWarningsFunc
-	pipelineSvc                     *pipeline.PipelineService
+	pipelineSvc                     *pipelineservice.PipelineService
 }
 
 // NewApplicationHandler Constructor
@@ -63,7 +63,7 @@ func NewApplicationHandler(accounts models.Accounts, config config.Config, hasAc
 		config:                          config,
 		hasAccessToGetConfigMap:         hasAccessToGetConfigMap,
 		getWarningCollectionFromContext: warningcollector.GetWarningCollectionFromContext,
-		pipelineSvc:                     &pipeline.PipelineService{RadixClient: accounts.UserAccount.RadixClient},
+		pipelineSvc:                     &pipelineservice.PipelineService{RadixClient: accounts.UserAccount.RadixClient},
 	}
 
 	for _, option := range options {

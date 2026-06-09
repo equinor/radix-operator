@@ -12,7 +12,7 @@ import (
 	jobmodels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
-	"github.com/equinor/radix-operator/api-server/internal/pipeline"
+	"github.com/equinor/radix-operator/api-server/internal/pipelineservice"
 	operatorpipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -136,7 +136,7 @@ func TestGetApplicationJob(t *testing.T) {
 
 			anyPipeline, err := operatorpipeline.GetPipelineFromName(anyPipelineName)
 			require.NoError(t, err, "Failed to get pipeline")
-			svc := pipeline.PipelineService{RadixClient: radixclient}
+			svc := pipelineservice.PipelineService{RadixClient: radixclient}
 			jobSummary, err := svc.TriggerPipelineBuildDeploy(context.Background(), anyAppName, models.PipelineParametersBuild{
 				OverrideUseBuildCache: ts.overrideBuildCache,
 				RefreshBuildCache:     ts.refreshBuildCache,
