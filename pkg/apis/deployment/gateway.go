@@ -133,10 +133,10 @@ func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeplo
 		appAlias := os.Getenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
 		if appAlias != "" {
 			info = append(info, dnsInfo{
-				fqdn:         fmt.Sprintf("%s.%s", rd.Spec.AppName, appAlias),
+				fqdn:         fmt.Sprintf("%s.%s", rd.Spec.AppName, appAlias), //nolint:staticcheck
 				tlsSecret:    "",
 				dnsType:      dnsTypeAppAlias,
-				resourceName: getAppAliasIngressName(rd.Spec.AppName),
+				resourceName: getAppAliasIngressName(rd.Spec.AppName), //nolint:staticcheck
 			})
 		}
 	}

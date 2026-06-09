@@ -28,11 +28,11 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 	var replicaSummaryList []deploymentModels.ReplicaSummary
 	var auxResource deploymentModels.AuxiliaryResource
 	var horizontalScalingSummary *deploymentModels.HorizontalScalingSummary
-	deployments, err := kubequery.GetDeploymentsForEnvironment(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment)
+	deployments, err := kubequery.GetDeploymentsForEnvironment(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
-	pods, err := kubequery.GetPodsForEnvironmentComponents(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment)
+	pods, err := kubequery.GetPodsForEnvironmentComponents(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		componentPods := getComponentPodsByNamespace(pods, component.GetName())
 		componentPodNames = getPodNames(componentPods)
 		environmentVariables = getRadixEnvironmentVariables(componentPods)
-		eventList, err := kubequery.GetEventsForEnvironment(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment)
+		eventList, err := kubequery.GetEventsForEnvironment(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment) //nolint:staticcheck
 		if err != nil {
 			return nil, err
 		}
@@ -52,7 +52,7 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		replicaSummaryList = getReplicaSummaryList(componentPods, lastEventWarnings)
 		auxResource = getAuxiliaryResources(pods, deployments, rd, component)
 
-		kd, _ := slice.FindFirst(deployments, predicate.IsDeploymentForComponent(rd.Spec.AppName, component.GetName()))
+		kd, _ := slice.FindFirst(deployments, predicate.IsDeploymentForComponent(rd.Spec.AppName, component.GetName())) //nolint:staticcheck
 		status = eh.ComponentStatuser(component, &kd, rd)
 	}
 
@@ -66,7 +66,7 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 	}
 
 	if component.GetType() == v1.RadixComponentTypeComponent {
-		horizontalScalingSummary = models.GetHpaSummary(rd.Spec.AppName, component.GetName(), hpas, scaledObjects)
+		horizontalScalingSummary = models.GetHpaSummary(rd.Spec.AppName, component.GetName(), hpas, scaledObjects) //nolint:staticcheck
 	}
 
 	return componentBuilder.
@@ -172,13 +172,13 @@ func getAuxiliaryResourceDeployment(podList []corev1.Pod, deploymentList []appsv
 		Type: auxType,
 	}
 
-	kd, ok := slice.FindFirst(deploymentList, predicate.IsDeploymentForAuxComponent(rd.Spec.AppName, component.GetName(), auxType))
+	kd, ok := slice.FindFirst(deploymentList, predicate.IsDeploymentForAuxComponent(rd.Spec.AppName, component.GetName(), auxType)) //nolint:staticcheck
 	if !ok {
 		auxResourceDeployment.Status = deploymentModels.ComponentReconciling.String()
 		return auxResourceDeployment
 	}
 
-	pods := slice.FindAll(podList, predicate.IsPodForAuxComponent(rd.Spec.AppName, rd.Spec.Environment, auxType))
+	pods := slice.FindAll(podList, predicate.IsPodForAuxComponent(rd.Spec.AppName, rd.Spec.Environment, auxType)) //nolint:staticcheck
 
 	auxResourceDeployment.ReplicaList = getReplicaSummaryList(pods, nil)
 	auxResourceDeployment.Status = deploymentModels.ComponentStatusFromDeployment(component, &kd, rd).String()

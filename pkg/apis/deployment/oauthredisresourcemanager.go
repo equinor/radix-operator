@@ -118,7 +118,7 @@ func (o *oauthRedisResourceManager) garbageCollectServices(ctx context.Context) 
 }
 
 func (o *oauthRedisResourceManager) isEligibleForGarbageCollection(object metav1.Object) bool {
-	if appName := object.GetLabels()[kube.RadixAppLabel]; appName != o.rd.Spec.AppName {
+	if appName := object.GetLabels()[kube.RadixAppLabel]; appName != o.rd.Spec.AppName { //nolint:staticcheck
 		return false
 	}
 	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != v1.OAuthRedisAuxiliaryComponentType {
@@ -152,7 +152,7 @@ func (o *oauthRedisResourceManager) uninstall(ctx context.Context, component v1.
 }
 
 func (o *oauthRedisResourceManager) deleteDeployment(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component)).String()
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component)).String() //nolint:staticcheck
 	deployments, err := o.kubeutil.ListDeploymentsWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -167,7 +167,7 @@ func (o *oauthRedisResourceManager) deleteDeployment(ctx context.Context, compon
 }
 
 func (o *oauthRedisResourceManager) deleteServices(ctx context.Context, component v1.RadixCommonDeployComponent) error {
-	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component)).String()
+	selector := labels.SelectorFromValidatedSet(radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component)).String() //nolint:staticcheck
 	services, err := o.kubeutil.ListServicesWithSelector(ctx, o.rd.Namespace, selector)
 	if err != nil {
 		return err
@@ -195,7 +195,7 @@ func (o *oauthRedisResourceManager) buildServiceSpec(component v1.RadixCommonDep
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component),
+			Selector: radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
 			Ports: []corev1.ServicePort{
 				{
 					Port:       v1.OAuthRedisPortNumber,
@@ -205,7 +205,7 @@ func (o *oauthRedisResourceManager) buildServiceSpec(component v1.RadixCommonDep
 			},
 		},
 	}
-	oauthutil.MergeAuxOAuthRedisComponentResourceLabels(service, o.rd.Spec.AppName, component)
+	oauthutil.MergeAuxOAuthRedisComponentResourceLabels(service, o.rd.Spec.AppName, component) //nolint:staticcheck
 	return service
 }
 
@@ -264,12 +264,12 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointers.Ptr(replicas),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component),
+				MatchLabels: radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: radixlabels.Merge(
-						radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component),
+						radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
 					),
 				},
 				Spec: corev1.PodSpec{
@@ -319,7 +319,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 			},
 		},
 	}
-	oauthutil.MergeAuxOAuthRedisComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component)
+	oauthutil.MergeAuxOAuthRedisComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component) //nolint:staticcheck
 	return desiredDeployment, nil
 }
 

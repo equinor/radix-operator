@@ -240,6 +240,7 @@ delete-temp-resources:
 
 .PHONY: lint
 lint: bootstrap
+	go fmt ./...
 	golangci-lint run
 
 .PHONY: generate

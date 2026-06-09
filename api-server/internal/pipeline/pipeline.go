@@ -9,13 +9,12 @@ import (
 	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
-	jobModels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	jobmodels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
+	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,8 +25,6 @@ import (
 	jobController "github.com/equinor/radix-operator/api-server/api/jobs"
 
 	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
-
-	k8sObjectUtils "github.com/equinor/radix-operator/pkg/apis/utils"
 )
 
 type PipelineService struct {
@@ -124,12 +121,12 @@ func (svc *PipelineService) TriggerPipelineApplyConfig(ctx context.Context, appN
 }
 
 // TriggerPipelineBuild Triggers build pipeline for an application
-func (svc *PipelineService) TriggerPipelineBuild(ctx context.Context, appName string, pipelineParameters applicationModels.PipelineParametersBuild) (*jobModels.JobSummary, error) {
+func (svc *PipelineService) TriggerPipelineBuild(ctx context.Context, appName string, pipelineParameters applicationModels.PipelineParametersBuild) (*jobmodels.JobSummary, error) {
 	return svc.triggerPipelineBuildOrBuildDeploy(ctx, appName, radixv1.Build, pipelineParameters)
 }
 
 // TriggerPipelineBuildDeploy Triggers build-deploy pipeline for an application
-func (svc *PipelineService) TriggerPipelineBuildDeploy(ctx context.Context, appName string, pipelineParameters applicationModels.PipelineParametersBuild) (*jobModels.JobSummary, error) {
+func (svc *PipelineService) TriggerPipelineBuildDeploy(ctx context.Context, appName string, pipelineParameters applicationModels.PipelineParametersBuild) (*jobmodels.JobSummary, error) {
 	return svc.triggerPipelineBuildOrBuildDeploy(ctx, appName, radixv1.BuildDeploy, pipelineParameters)
 }
 
@@ -150,7 +147,7 @@ func (svc *PipelineService) triggerPipelineBuildOrBuildDeploy(ctx context.Contex
 
 	// Check if branch is mapped
 	if !applicationconfig.IsConfigBranch(jobParameters.GitRef, radixRegistration) {
-		ra, err := svc.RadixClient.RadixV1().RadixApplications(operatorUtils.GetAppNamespace(appName)).Get(ctx, appName, metav1.GetOptions{})
+		ra, err := svc.RadixClient.RadixV1().RadixApplications(operatorutils.GetAppNamespace(appName)).Get(ctx, appName, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -177,7 +174,7 @@ func (svc *PipelineService) triggerPipelineBuildOrBuildDeploy(ctx context.Contex
 const radixGitHubWebhookUserNameRegEx = `^system:serviceaccount:radix-github-webhook-[\w]+:radix-github-webhook$`
 
 // startPipelineJob Handles the creation of a pipeline jobController for an application
-func (svc *PipelineService) startPipelineJob(ctx context.Context, appName string, pipeline radixv1.RadixPipelineType, jobParameters *jobModels.JobParameters) (*jobModels.JobSummary, error) {
+func (svc *PipelineService) startPipelineJob(ctx context.Context, appName string, pipeline radixv1.RadixPipelineType, jobParameters *jobmodels.JobParameters) (*jobmodels.JobSummary, error) {
 	if _, err := svc.RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{}); err != nil {
 		return nil, err
 	}
@@ -189,18 +186,18 @@ func (svc *PipelineService) startPipelineJob(ctx context.Context, appName string
 	return svc.createPipelineJob(ctx, appName, job)
 }
 
-func (svc *PipelineService) createPipelineJob(ctx context.Context, appName string, job *radixv1.RadixJob) (*jobModels.JobSummary, error) {
+func (svc *PipelineService) createPipelineJob(ctx context.Context, appName string, job *radixv1.RadixJob) (*jobmodels.JobSummary, error) {
 	log.Ctx(ctx).Info().Msgf("Starting jobController: %s", job.GetName())
-	appNamespace := k8sObjectUtils.GetAppNamespace(appName)
+	appNamespace := operatorutils.GetAppNamespace(appName)
 	job, err := svc.RadixClient.RadixV1().RadixJobs(appNamespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
 	log.Ctx(ctx).Info().Msgf("Started jobController: %s", job.GetName())
-	return jobModels.GetSummaryFromRadixJob(job), nil
+	return jobmodels.GetSummaryFromRadixJob(job), nil
 }
 
-func buildPipelineJob(ctx context.Context, appName string, pipeline radixv1.RadixPipelineType, jobSpec *jobModels.JobParameters) (*radixv1.RadixJob, error) {
+func buildPipelineJob(ctx context.Context, appName string, pipeline radixv1.RadixPipelineType, jobSpec *jobmodels.JobParameters) (*radixv1.RadixJob, error) {
 	jobName, imageTag := jobController.GetUniqueJobName()
 	if len(jobSpec.ImageTag) > 0 {
 		imageTag = jobSpec.ImageTag

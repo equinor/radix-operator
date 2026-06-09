@@ -237,22 +237,6 @@ func createPipelinePod(kubeclient kubernetes.Interface, namespace, jobName strin
 	return kubeclient.CoreV1().Pods(namespace).Create(context.Background(), podSpec, metav1.CreateOptions{})
 }
 
-func addInitStepsToPipelinePod(kubeclient kubernetes.Interface, namespace, jobName string, initSteps ...corev1.ContainerStatus) (*corev1.Pod, error) {
-	pipelinePod, _ := kubeclient.CoreV1().Pods(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
-	podStatus := pipelinePod.Status
-	podStatus.InitContainerStatuses = append(podStatus.InitContainerStatuses, initSteps...)
-	pipelinePod.Status = podStatus
-	return kubeclient.CoreV1().Pods(namespace).Update(context.Background(), pipelinePod, metav1.UpdateOptions{})
-}
-
-func addStepToPipelinePod(kubeclient kubernetes.Interface, namespace, jobName string, jobStep corev1.ContainerStatus) (*corev1.Pod, error) {
-	pipelinePod, _ := kubeclient.CoreV1().Pods(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
-	podStatus := pipelinePod.Status
-	podStatus.ContainerStatuses = append(podStatus.ContainerStatuses, jobStep)
-	pipelinePod.Status = podStatus
-	return kubeclient.CoreV1().Pods(namespace).Update(context.Background(), pipelinePod, metav1.UpdateOptions{})
-}
-
 func getPodSpecForAPipelineJob(jobName string) *corev1.Pod {
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{

@@ -672,7 +672,7 @@ func (s *deployConfigTestSuite) createRadixApplication(props raProps) *radixv1.R
 func (s *deployConfigTestSuite) createRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps, ra *radixv1.RadixApplication) map[string]radixv1.RadixDeployment {
 	rdList := s.buildRadixDeployments(deploymentBuildersProps, ra, nil)
 	for _, rd := range rdList {
-		_, err := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).Create(context.Background(), &rd, metav1.CreateOptions{})
+		_, err := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).Create(context.Background(), &rd, metav1.CreateOptions{}) //nolint:staticcheck
 		s.Require().NoError(err)
 	}
 	return slice.Reduce(rdList, make(map[string]radixv1.RadixDeployment), func(acc map[string]radixv1.RadixDeployment, rd radixv1.RadixDeployment) map[string]radixv1.RadixDeployment {

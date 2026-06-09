@@ -147,7 +147,7 @@ func (h *Handler) createRadixBatchOrJob(ctx context.Context, batchScheduleDescri
 		return nil, apiErrors.NewNotFound("job component", radixComponentName)
 	}
 
-	appName := radixDeployment.Spec.AppName
+	appName := radixDeployment.Spec.AppName //nolint:staticcheck
 
 	createdRadixBatch, err := h.createRadixBatch(ctx, namespace, appName, radixDeployment.GetName(), *radixJobComponent, batchScheduleDescription, radixBatchType)
 	if err != nil {

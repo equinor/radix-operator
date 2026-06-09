@@ -47,7 +47,7 @@ func configureRbacForRadixGithubWebhook(ctx context.Context, deploy *Deployment)
 
 func configureRbacForRadixJobComponents(ctx context.Context, deploy *Deployment) ConfigureDeploymentRbacFunc {
 	namespace := deploy.radixDeployment.Namespace
-	appName := deploy.radixDeployment.Spec.AppName
+	appName := deploy.radixDeployment.Spec.AppName //nolint:staticcheck
 
 	return func() error {
 		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(ctx, namespace, defaults.RadixJobSchedulerServiceName)
@@ -67,7 +67,7 @@ func configureRbacForRadixJobComponents(ctx context.Context, deploy *Deployment)
 }
 
 func isRadixWebHook(rd *v1.RadixDeployment) bool {
-	return rd.Spec.AppName == "radix-github-webhook"
+	return rd.Spec.AppName == "radix-github-webhook" //nolint:staticcheck
 }
 
 func hasJobComponent(rd *v1.RadixDeployment) bool {

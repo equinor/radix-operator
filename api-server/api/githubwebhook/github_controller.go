@@ -35,7 +35,7 @@ var (
 	unmatchedAppForMultipleMatchingReposMessage = "Unable to match repo with multiple Radix applications by appName request parameter"
 
 	webhookIncorrectConfiguration = func(appName string, err error) error {
-		return fmt.Errorf("Webhook is not configured correctly for Radix application %s. ApiError was: %w", appName, err)
+		return fmt.Errorf("webhook is not configured correctly for Radix application %s. ApiError was: %w", appName, err)
 	}
 	webhookCorrectConfiguration = func(appName string) string {
 		return fmt.Sprintf("Webhook is configured correctly with for Radix application %s", appName)
