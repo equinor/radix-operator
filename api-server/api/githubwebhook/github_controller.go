@@ -205,6 +205,12 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 			writeErrorResponse(http.StatusBadRequest, err)
 			return
 		}
+		err = validatePayload(r.Header, body, []byte(rr.Spec.SharedSecret))
+		if err != nil {
+			metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
+			writeErrorResponse(http.StatusBadRequest, webhookIncorrectConfiguration(rr.Name, err))
+			return
+		}
 
 		writeSuccessResponse(http.StatusOK, webhookCorrectConfiguration(rr.Name))
 
