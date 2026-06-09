@@ -34,6 +34,12 @@ type PipelineService struct {
 	RadixClient radixclient.Interface
 }
 
+func New(radixClient radixclient.Interface) *PipelineService {
+	return &PipelineService{
+		RadixClient: radixClient,
+	}
+}
+
 // TriggerPipelinePromote Triggers promote pipeline for an application
 func (svc *PipelineService) TriggerPipelinePromote(ctx context.Context, appName string, pipelineParameters applicationModels.PipelineParametersPromote) (*jobmodels.JobSummary, error) {
 

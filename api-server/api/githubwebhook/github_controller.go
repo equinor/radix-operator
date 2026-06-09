@@ -2,6 +2,7 @@ package githubwebhook
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,10 +10,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/equinor/radix-operator/api-server/api/applications"
 	"github.com/equinor/radix-operator/api-server/api/githubwebhook/metrics"
+	"github.com/equinor/radix-operator/api-server/internal/pipeline"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/go-github/v72/github"
 	"github.com/rs/zerolog"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/equinor/radix-operator/api-server/models"
 )
@@ -55,14 +59,11 @@ type WebhookResponse struct {
 
 type githubController struct {
 	*models.DefaultController
-	applicationHandlerFactory applications.ApplicationHandlerFactory
 }
 
 // NewGithubWebhookController Constructor
-func NewGithubWebhookController(ah applications.ApplicationHandlerFactory) models.Controller {
-	return &githubController{
-		applicationHandlerFactory: ah,
-	}
+func NewGithubWebhookController() models.Controller {
+	return &githubController{}
 }
 
 // GetRoutes List the supported routes of this handler
@@ -102,6 +103,8 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 	//   '500':
 	//     description: Internal server error while processing the webhook event
 
+	pipelineSvc := pipeline.New(accounts.ServiceAccount.RadixClient)
+	appName := r.URL.Query().Get("appName")
 	metrics.IncreaseAllCounter()
 
 	event := github.WebHookType(r)
@@ -159,22 +162,26 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 			return
 		}
 
-		applicationSummary, err := wh.getApplication(r, body, sshURL)
+		rr, err := getRadixRegistration(r.Context(), appName, sshURL, accounts.ServiceAccount.RadixClient)
 		if err != nil {
 			metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
 			writeErrorResponse(http.StatusBadRequest, err)
 			return
 		}
+		err = validatePayload(req.Header, body, []byte(*rr.Spec.SharedSecret))
+		if err != nil {
+			return nil, errors.New(webhookIncorrectConfiguration(rr.Name, err))
+		}
 
-		metrics.IncreasePushGithubEventTypeTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID, applicationSummary.Name)
-		jobSummary, err := wh.apiServer.TriggerPipeline(r.Context(), applicationSummary.Name, gitRef, gitRefType, commitID, triggeredBy)
+		metrics.IncreasePushGithubEventTypeTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID, rr.Name)
+		jobSummary, err := wh.apiServer.TriggerPipeline(r.Context(), rr.Name, gitRef, gitRefType, commitID, triggeredBy)
 		if err != nil {
 			if e, ok := err.(*radix.ApiError); ok && e.Code == 400 {
-				writeSuccessResponse(http.StatusAccepted, createPipelineJobErrorMessage(applicationSummary.Name, err))
+				writeSuccessResponse(http.StatusAccepted, createPipelineJobErrorMessage(rr.Name, err))
 				return
 			}
 			metrics.IncreasePushGithubEventTypeFailedTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID)
-			writeErrorResponse(http.StatusBadRequest, errors.New(createPipelineJobErrorMessage(applicationSummary.Name, err)))
+			writeErrorResponse(http.StatusBadRequest, errors.New(createPipelineJobErrorMessage(rr.Name, err)))
 			return
 		}
 
@@ -204,6 +211,29 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 	c.ErrorResponse(w, r, errors.New("not implemented"))
 }
 
+func getRadixRegistration(ctx context.Context, appName, sshURL string, radixClient radixclient.Interface) (*models.ApplicationSummary, error) {
+	radixRegistationList, err := radixClient.RadixV1().RadixRegistrations().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	filteredRegistrations := make([]radixv1.RadixRegistration, 0, len(radixRegistationList.Items))
+	for _, rr := range radixRegistationList.Items {
+		if strings.EqualFold(rr.Spec.CloneURL, sshURL) {
+			filteredRegistrations = append(filteredRegistrations, rr)
+		}
+	}
+
+	if len(filteredRegistrations) == 0 {
+		return nil, errors.New(unmatchedRepoMessage)
+	}
+	if len(filteredRegistrations) == 1 {
+		return getApplicationSummaryForSingleRegisteredApplication(appName, filteredRegistrations[0])
+	}
+	return getApplicationSummaryForMultipleRegisteredApplications(appName, filteredRegistrations)
+
+}
+
 func getApiGitRefType(gitRefsType string) string {
 	switch gitRefsType {
 	case "heads":
@@ -225,20 +255,20 @@ func getCommitID(e *github.PushEvent) string {
 	return *e.After
 }
 
-func getApplicationSummaryForSingleRegisteredApplication(appName string, applicationSummaries []*models.ApplicationSummary) (*models.ApplicationSummary, error) {
-	if len(appName) == 0 || strings.EqualFold(applicationSummaries[0].Name, appName) {
-		return applicationSummaries[0], nil
+func getApplicationSummaryForSingleRegisteredApplication(appName string, rr radixv1.RadixRegistration) (*radixv1.RadixRegistration, error) {
+	if len(appName) == 0 || strings.EqualFold(rr.Name, appName) {
+		return &rr, nil
 	}
 	return nil, errors.New(unmatchedRepoMessageByAppName)
 }
 
-func getApplicationSummaryForMultipleRegisteredApplications(appName string, applicationSummaries []*models.ApplicationSummary) (*models.ApplicationSummary, error) {
+func getApplicationSummaryForMultipleRegisteredApplications(appName string, rrs []radixv1.RadixRegistration) (*radixv1.RadixRegistration, error) {
 	if len(appName) == 0 {
 		return nil, errors.New(multipleMatchingReposMessageWithoutAppName)
 	}
-	for _, applicationSummary := range applicationSummaries {
-		if strings.EqualFold(applicationSummary.Name, appName) {
-			return applicationSummary, nil
+	for _, rr := range rrs {
+		if strings.EqualFold(rr.Name, appName) {
+			return &rr, nil
 		}
 	}
 	return nil, errors.New(unmatchedAppForMultipleMatchingReposMessage)
