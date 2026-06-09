@@ -9,8 +9,10 @@ import (
 	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
+	jobController "github.com/equinor/radix-operator/api-server/api/jobs"
 	jobmodels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
+	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -19,12 +21,6 @@ import (
 	"github.com/rs/zerolog/log"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"regexp"
-
-	jobController "github.com/equinor/radix-operator/api-server/api/jobs"
-
-	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
 )
 
 type PipelineService struct {
@@ -38,7 +34,7 @@ func New(radixClient radixclient.Interface) *PipelineService {
 }
 
 // TriggerPipelinePromote Triggers promote pipeline for an application
-func (svc *PipelineService) TriggerPipelinePromote(ctx context.Context, appName string, pipelineParameters applicationModels.PipelineParametersPromote) (*jobmodels.JobSummary, error) {
+func (svc *PipelineService) TriggerPipelinePromote(ctx context.Context, appName string, triggeredFromWebhook bool, pipelineParameters applicationModels.PipelineParametersPromote) (*jobmodels.JobSummary, error) {
 
 	deploymentName := pipelineParameters.DeploymentName
 	fromEnvironment := pipelineParameters.FromEnvironment
@@ -58,7 +54,7 @@ func (svc *PipelineService) TriggerPipelinePromote(ctx context.Context, appName 
 
 	jobParameters := pipelineParameters.MapPipelineParametersPromoteToJobParameter()
 	jobParameters.CommitID = radixDeployment.GetLabels()[kube.RadixCommitLabel]
-	jobSummary, err := svc.startPipelineJob(ctx, appName, radixv1.Promote, jobParameters)
+	jobSummary, err := svc.startPipelineJob(ctx, appName, radixv1.Promote, triggeredFromWebhook, jobParameters)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +82,7 @@ func (svc *PipelineService) getRadixDeploymentForPromotePipeline(ctx context.Con
 }
 
 // TriggerPipelineDeploy Triggers deploy pipeline for an application
-func (svc *PipelineService) TriggerPipelineDeploy(ctx context.Context, appName string, pipelineParameters applicationModels.PipelineParametersDeploy) (*jobmodels.JobSummary, error) {
+func (svc *PipelineService) TriggerPipelineDeploy(ctx context.Context, appName string, triggeredFromWebhook bool, pipelineParameters applicationModels.PipelineParametersDeploy) (*jobmodels.JobSummary, error) {
 
 	toEnvironment := pipelineParameters.ToEnvironment
 
@@ -98,7 +94,7 @@ func (svc *PipelineService) TriggerPipelineDeploy(ctx context.Context, appName s
 
 	jobParameters := pipelineParameters.MapPipelineParametersDeployToJobParameter()
 
-	jobSummary, err := svc.startPipelineJob(ctx, appName, radixv1.Deploy, jobParameters)
+	jobSummary, err := svc.startPipelineJob(ctx, appName, radixv1.Deploy, triggeredFromWebhook, jobParameters)
 	if err != nil {
 		return nil, err
 	}
@@ -107,12 +103,12 @@ func (svc *PipelineService) TriggerPipelineDeploy(ctx context.Context, appName s
 }
 
 // TriggerPipelineApplyConfig Triggers apply config pipeline for an application
-func (svc *PipelineService) TriggerPipelineApplyConfig(ctx context.Context, appName string, pipelineParameters applicationModels.PipelineParametersApplyConfig) (*jobmodels.JobSummary, error) {
+func (svc *PipelineService) TriggerPipelineApplyConfig(ctx context.Context, appName string, triggeredFromWebhook bool, pipelineParameters applicationModels.PipelineParametersApplyConfig) (*jobmodels.JobSummary, error) {
 	log.Ctx(ctx).Info().Msgf("Creating apply config pipeline jobController for %s", appName)
 
 	jobParameters := pipelineParameters.MapPipelineParametersApplyConfigToJobParameter()
 
-	jobSummary, err := svc.startPipelineJob(ctx, appName, radixv1.ApplyConfig, jobParameters)
+	jobSummary, err := svc.startPipelineJob(ctx, appName, radixv1.ApplyConfig, triggeredFromWebhook, jobParameters)
 	if err != nil {
 		return nil, err
 	}
@@ -121,16 +117,16 @@ func (svc *PipelineService) TriggerPipelineApplyConfig(ctx context.Context, appN
 }
 
 // TriggerPipelineBuild Triggers build pipeline for an application
-func (svc *PipelineService) TriggerPipelineBuild(ctx context.Context, appName string, pipelineParameters applicationModels.PipelineParametersBuild) (*jobmodels.JobSummary, error) {
-	return svc.triggerPipelineBuildOrBuildDeploy(ctx, appName, radixv1.Build, pipelineParameters)
+func (svc *PipelineService) TriggerPipelineBuild(ctx context.Context, appName string, triggeredFromWebhook bool, pipelineParameters applicationModels.PipelineParametersBuild) (*jobmodels.JobSummary, error) {
+	return svc.triggerPipelineBuildOrBuildDeploy(ctx, appName, radixv1.Build, triggeredFromWebhook, pipelineParameters)
 }
 
 // TriggerPipelineBuildDeploy Triggers build-deploy pipeline for an application
-func (svc *PipelineService) TriggerPipelineBuildDeploy(ctx context.Context, appName string, pipelineParameters applicationModels.PipelineParametersBuild) (*jobmodels.JobSummary, error) {
-	return svc.triggerPipelineBuildOrBuildDeploy(ctx, appName, radixv1.BuildDeploy, pipelineParameters)
+func (svc *PipelineService) TriggerPipelineBuildDeploy(ctx context.Context, appName string, triggeredFromWebhook bool, pipelineParameters applicationModels.PipelineParametersBuild) (*jobmodels.JobSummary, error) {
+	return svc.triggerPipelineBuildOrBuildDeploy(ctx, appName, radixv1.BuildDeploy, triggeredFromWebhook, pipelineParameters)
 }
 
-func (svc *PipelineService) triggerPipelineBuildOrBuildDeploy(ctx context.Context, appName string, pipeline radixv1.RadixPipelineType, pipelineParameters applicationModels.PipelineParametersBuild) (*jobmodels.JobSummary, error) {
+func (svc *PipelineService) triggerPipelineBuildOrBuildDeploy(ctx context.Context, appName string, pipeline radixv1.RadixPipelineType, triggeredFromWebhook bool, pipelineParameters applicationModels.PipelineParametersBuild) (*jobmodels.JobSummary, error) {
 	jobParameters := pipelineParameters.MapPipelineParametersBuildToJobParameter()
 	envName := pipelineParameters.ToEnvironment
 	commitID := pipelineParameters.CommitID
@@ -163,7 +159,7 @@ func (svc *PipelineService) triggerPipelineBuildOrBuildDeploy(ctx context.Contex
 
 	log.Ctx(ctx).Info().Str("envName", envName).Msgf("Creating build pipeline job for %s on %s %s for commit %s", appName, jobParameters.GitRefType, jobParameters.GitRef, commitID)
 
-	jobSummary, err := svc.startPipelineJob(ctx, appName, pipeline, jobParameters)
+	jobSummary, err := svc.startPipelineJob(ctx, appName, pipeline, triggeredFromWebhook, jobParameters)
 	if err != nil {
 		return nil, err
 	}
@@ -171,15 +167,13 @@ func (svc *PipelineService) triggerPipelineBuildOrBuildDeploy(ctx context.Contex
 	return jobSummary, nil
 }
 
-const radixGitHubWebhookUserNameRegEx = `^system:serviceaccount:radix-github-webhook-[\w]+:radix-github-webhook$`
-
 // startPipelineJob Handles the creation of a pipeline jobController for an application
-func (svc *PipelineService) startPipelineJob(ctx context.Context, appName string, pipeline radixv1.RadixPipelineType, jobParameters *jobmodels.JobParameters) (*jobmodels.JobSummary, error) {
+func (svc *PipelineService) startPipelineJob(ctx context.Context, appName string, pipeline radixv1.RadixPipelineType, triggeredFromWebhook bool, jobParameters *jobmodels.JobParameters) (*jobmodels.JobSummary, error) {
 	if _, err := svc.RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{}); err != nil {
 		return nil, err
 	}
 
-	job, err := buildPipelineJob(ctx, appName, pipeline, jobParameters)
+	job, err := buildPipelineJob(ctx, appName, pipeline, triggeredFromWebhook, jobParameters)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +191,7 @@ func (svc *PipelineService) createPipelineJob(ctx context.Context, appName strin
 	return jobmodels.GetSummaryFromRadixJob(job), nil
 }
 
-func buildPipelineJob(ctx context.Context, appName string, pipeline radixv1.RadixPipelineType, jobSpec *jobmodels.JobParameters) (*radixv1.RadixJob, error) {
+func buildPipelineJob(ctx context.Context, appName string, pipeline radixv1.RadixPipelineType, triggeredFromWebhook bool, jobSpec *jobmodels.JobParameters) (*radixv1.RadixJob, error) {
 	jobName, imageTag := jobController.GetUniqueJobName()
 	if len(jobSpec.ImageTag) > 0 {
 		imageTag = jobSpec.ImageTag
@@ -207,11 +201,6 @@ func buildPipelineJob(ctx context.Context, appName string, pipeline radixv1.Radi
 	var promoteSpec radixv1.RadixPromoteSpec
 	var deploySpec radixv1.RadixDeploySpec
 	var applyConfigSpec radixv1.RadixApplyConfigSpec
-
-	triggeredFromWebhook, err := getTriggeredFromWebhook(ctx)
-	if err != nil {
-		return nil, err
-	}
 
 	switch pipeline {
 	case radixv1.BuildDeploy, radixv1.Build:
@@ -269,15 +258,6 @@ func buildPipelineJob(ctx context.Context, appName string, pipeline radixv1.Radi
 	}
 
 	return &job, nil
-}
-
-func getTriggeredFromWebhook(ctx context.Context) (bool, error) {
-	re, err := regexp.Compile(radixGitHubWebhookUserNameRegEx)
-	if err != nil {
-		return false, err
-	}
-	userIdGithubWebhookSa := re.Match([]byte(auth.GetOriginator(ctx)))
-	return userIdGithubWebhookSa, nil
 }
 
 func getTriggeredBy(ctx context.Context, triggeredBy string) string {

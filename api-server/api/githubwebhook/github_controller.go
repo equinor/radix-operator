@@ -179,7 +179,7 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 
 		metrics.IncreasePushGithubEventTypeTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID, rr.Name)
 
-		jobSummary, err := pipelineSvc.TriggerPipelineBuildDeploy(r.Context(), rr.Name, applicationmodels.PipelineParametersBuild{
+		jobSummary, err := pipelineSvc.TriggerPipelineBuildDeploy(r.Context(), rr.Name, true, applicationmodels.PipelineParametersBuild{
 			CommitID:    commitID,
 			PushImage:   "true",
 			TriggeredBy: triggeredBy,

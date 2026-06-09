@@ -137,7 +137,7 @@ func TestGetApplicationJob(t *testing.T) {
 			anyPipeline, err := operatorpipeline.GetPipelineFromName(anyPipelineName)
 			require.NoError(t, err, "Failed to get pipeline")
 			svc := pipelineservice.PipelineService{RadixClient: radixclient}
-			jobSummary, err := svc.TriggerPipelineBuildDeploy(context.Background(), anyAppName, models.PipelineParametersBuild{
+			jobSummary, err := svc.TriggerPipelineBuildDeploy(context.Background(), anyAppName, false,models.PipelineParametersBuild{
 				OverrideUseBuildCache: ts.overrideBuildCache,
 				RefreshBuildCache:     ts.refreshBuildCache,
 				CommitID:              anyPushCommitID,

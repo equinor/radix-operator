@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -351,7 +352,7 @@ func (ah *ApplicationHandler) TriggerPipelineBuild(ctx context.Context, appName 
 		return nil, err
 	}
 
-	return ah.pipelineSvc.TriggerPipelineBuild(ctx, appName, pipelineParameters)
+	return ah.pipelineSvc.TriggerPipelineBuild(ctx, appName, false, pipelineParameters)
 }
 
 // TriggerPipelineBuildDeploy Triggers build-deploy pipeline for an application
@@ -361,8 +362,8 @@ func (ah *ApplicationHandler) TriggerPipelineBuildDeploy(ctx context.Context, ap
 	if err := json.NewDecoder(r.Body).Decode(&pipelineParameters); err != nil {
 		return nil, err
 	}
-
-	return ah.pipelineSvc.TriggerPipelineBuildDeploy(ctx, appName, pipelineParameters)
+	//IsTriggeredFromWebhook is used for backwards compatibility while radix-github-webhook is still deployed
+	return ah.pipelineSvc.TriggerPipelineBuildDeploy(ctx, appName, isTriggeredFromWebhook(ctx), pipelineParameters)
 }
 
 // TriggerPipelinePromote Triggers promote pipeline for an application
@@ -373,7 +374,7 @@ func (ah *ApplicationHandler) TriggerPipelinePromote(ctx context.Context, appNam
 		return nil, err
 	}
 
-	return ah.pipelineSvc.TriggerPipelinePromote(ctx, appName, pipelineParameters)
+	return ah.pipelineSvc.TriggerPipelinePromote(ctx, appName, false, pipelineParameters)
 }
 
 // TriggerPipelineDeploy Triggers deploy pipeline for an application
@@ -383,7 +384,7 @@ func (ah *ApplicationHandler) TriggerPipelineDeploy(ctx context.Context, appName
 		return nil, err
 	}
 
-	return ah.pipelineSvc.TriggerPipelineDeploy(ctx, appName, pipelineParameters)
+	return ah.pipelineSvc.TriggerPipelineDeploy(ctx, appName, false, pipelineParameters)
 }
 
 // TriggerPipelineApplyConfig Triggers apply config pipeline for an application
@@ -393,7 +394,7 @@ func (ah *ApplicationHandler) TriggerPipelineApplyConfig(ctx context.Context, ap
 		return nil, err
 	}
 
-	return ah.pipelineSvc.TriggerPipelineApplyConfig(ctx, appName, pipelineParameters)
+	return ah.pipelineSvc.TriggerPipelineApplyConfig(ctx, appName, false, pipelineParameters)
 }
 
 // RegenerateDeployKey Regenerates deploy key and secret and returns the new key
@@ -605,4 +606,11 @@ func createRoleBindingForRole(ctx context.Context, kubeClient kubernetes.Interfa
 
 func deleteRoleBinding(ctx context.Context, kubeClient kubernetes.Interface, namespace, roleBindingName string) error {
 	return kubeClient.RbacV1().RoleBindings(namespace).Delete(ctx, roleBindingName, metav1.DeleteOptions{})
+}
+
+var radixGitHubWebhookUserNameRegEx = regexp.MustCompile(`^system:serviceaccount:radix-github-webhook-[\w]+:radix-github-webhook$`)
+
+func isTriggeredFromWebhook(ctx context.Context) bool {
+	userIdGithubWebhookSa := radixGitHubWebhookUserNameRegEx.Match([]byte(auth.GetOriginator(ctx)))
+	return userIdGithubWebhookSa
 }
