@@ -186,8 +186,6 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 			//Branch:      gitRef, //nolint:staticcheck
 			GitRef: gitRef,
 		})
-
-		//jobSummary, err := wh.apiServer.TriggerPipeline(r.Context(), rr.Name, gitRef, gitRefType, commitID, triggeredBy)
 		if err != nil {
 			metrics.IncreasePushGithubEventTypeFailedTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID)
 			writeErrorResponse(http.StatusBadRequest, errors.New(createPipelineJobErrorMessage(rr.Name, err)))
