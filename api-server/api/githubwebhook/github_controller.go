@@ -95,7 +95,7 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 	//   - name: appName
 	//     in: query
 	//     description: The name of the application associated with the webhook event
-	//     required: true
+	//     required: false
 	//     type: string
 	// responses:
 	//   '200':
@@ -105,28 +105,9 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 	//   '500':
 	//     description: Internal server error while processing the webhook event
 
-	pipelineSvc := pipelineservice.New(accounts.ServiceAccount.RadixClient)
-	appName := r.URL.Query().Get("appName")
 	metrics.IncreaseAllCounter()
 
 	event := github.WebHookType(r)
-
-	writeErrorResponse := func(statusCode int, err error) {
-		c.JSONResponseWithCode(w, r, statusCode, WebhookResponse{
-			Ok:    false,
-			Event: event,
-			Error: err.Error(),
-		})
-	}
-
-	writeSuccessResponse := func(statusCode int, message string) {
-		zerolog.Ctx(r.Context()).Info().Msg(message)
-		c.JSONResponseWithCode(w, r, statusCode, WebhookResponse{
-			Ok:      true,
-			Event:   event,
-			Message: message,
-		})
-	}
 
 	if len(strings.TrimSpace(event)) == 0 {
 		metrics.IncreaseNotGithubEventCounter()
@@ -138,87 +119,94 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		metrics.IncreaseFailedParsingCounter()
-		writeErrorResponse(http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err))
+		c.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err), event)
 		return
 	}
 
 	payload, err := github.ParseWebHook(event, body)
 	if err != nil {
 		metrics.IncreaseFailedParsingCounter()
-		writeErrorResponse(http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err))
+		c.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err), event)
 		return
 	}
+	appName := r.URL.Query().Get("appName")
 
 	switch e := payload.(type) {
 	case *github.PushEvent:
-
-		gitRef, gitRefType := getGitRefWithType(e)
-		commitID := getCommitID(e)
-		sshURL := e.Repo.GetSSHURL()
-		triggeredBy := getPushTriggeredBy(e)
-
-		metrics.IncreasePushGithubEventTypeCounter(sshURL, gitRef, gitRefType, commitID)
-
-		if isPushEventForRefDeletion(e) {
-			writeSuccessResponse(http.StatusAccepted, refDeletionPushEventUnsupportedMessage(*e.Ref))
-			return
-		}
-
-		rr, err := getRadixRegistration(r.Context(), appName, sshURL, accounts.ServiceAccount.RadixClient)
-		if err != nil {
-			metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
-			writeErrorResponse(http.StatusBadRequest, err)
-			return
-		}
-		err = validatePayload(r.Header, body, []byte(rr.Spec.SharedSecret))
-		if err != nil {
-			metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
-			writeErrorResponse(http.StatusBadRequest, webhookIncorrectConfiguration(rr.Name, err))
-			return
-		}
-
-		metrics.IncreasePushGithubEventTypeTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID, rr.Name)
-
-		jobSummary, err := pipelineSvc.TriggerPipelineBuildDeploy(r.Context(), rr.Name, true, applicationmodels.PipelineParametersBuild{
-			CommitID:    commitID,
-			PushImage:   "true",
-			TriggeredBy: triggeredBy,
-			//Branch:      gitRef, //nolint:staticcheck
-			GitRef: gitRef,
-		})
-		if err != nil {
-			metrics.IncreasePushGithubEventTypeFailedTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID)
-			writeErrorResponse(http.StatusBadRequest, errors.New(createPipelineJobErrorMessage(rr.Name, err)))
-			log.Ctx(r.Context()).Error().Err(err).Msgf("Failed to create pipeline job for Radix application %s on %s %s for commit %s", rr.Name, gitRefType, gitRef, commitID)
-			return
-		}
-
-		writeSuccessResponse(http.StatusOK, createPipelineJobSuccessMessage(jobSummary.Name, jobSummary.AppName, jobSummary.GitRef, jobSummary.GitRefType, jobSummary.CommitID))
-
+		c.handlePushEvent(e, w, r, appName, accounts, body, event)
 	case *github.PingEvent:
-		sshURL := e.Repo.GetSSHURL()
-		metrics.IncreasePingGithubEventTypeCounter(sshURL)
-
-		rr, err := getRadixRegistration(r.Context(), appName, sshURL, accounts.ServiceAccount.RadixClient)
-		if err != nil {
-			metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
-			writeErrorResponse(http.StatusBadRequest, err)
-			return
-		}
-		err = validatePayload(r.Header, body, []byte(rr.Spec.SharedSecret))
-		if err != nil {
-			metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
-			writeErrorResponse(http.StatusBadRequest, webhookIncorrectConfiguration(rr.Name, err))
-			return
-		}
-
-		writeSuccessResponse(http.StatusOK, webhookCorrectConfiguration(rr.Name))
-
+		c.handlePingEvent(e, w, r, appName, accounts, body, event)
 	default:
 		metrics.IncreaseUnsupportedGithubEventTypeCounter()
-		writeErrorResponse(http.StatusBadRequest, errors.New(unhandledEventTypeMessage(event)))
+		c.writeErrorResponse(w, r, http.StatusBadRequest, errors.New(unhandledEventTypeMessage(event)), event)
 		return
 	}
+}
+
+func (c *githubController) handlePingEvent(e *github.PingEvent, w http.ResponseWriter, r *http.Request, appName string, accounts models.Accounts, body []byte, event string) {
+	sshURL := e.Repo.GetSSHURL()
+	metrics.IncreasePingGithubEventTypeCounter(sshURL)
+
+	rr, err := getRadixRegistration(r.Context(), appName, sshURL, accounts.ServiceAccount.RadixClient)
+	if err != nil {
+		metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, err, event)
+		return
+	}
+	err = validatePayload(r.Header, body, []byte(rr.Spec.SharedSecret))
+	if err != nil {
+		metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, webhookIncorrectConfiguration(rr.Name, err), event)
+		return
+	}
+
+	c.writeSuccessResponse(w, r, http.StatusOK, webhookCorrectConfiguration(rr.Name), event)
+}
+
+func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseWriter, r *http.Request, appName string, accounts models.Accounts, body []byte, event string) {
+	pipelineSvc := pipelineservice.New(accounts.ServiceAccount.RadixClient)
+	gitRef, gitRefType := getGitRefWithType(e)
+	commitID := getCommitID(e)
+	sshURL := e.Repo.GetSSHURL()
+	triggeredBy := getPushTriggeredBy(e)
+
+	metrics.IncreasePushGithubEventTypeCounter(sshURL, gitRef, gitRefType, commitID)
+
+	if isPushEventForRefDeletion(e) {
+		c.writeSuccessResponse(w, r, http.StatusAccepted, refDeletionPushEventUnsupportedMessage(*e.Ref), event)
+		return
+	}
+
+	rr, err := getRadixRegistration(r.Context(), appName, sshURL, accounts.ServiceAccount.RadixClient)
+	if err != nil {
+		metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, err, event)
+		return
+	}
+	err = validatePayload(r.Header, body, []byte(rr.Spec.SharedSecret))
+	if err != nil {
+		metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, webhookIncorrectConfiguration(rr.Name, err), event)
+		return
+	}
+
+	metrics.IncreasePushGithubEventTypeTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID, rr.Name)
+
+	jobSummary, err := pipelineSvc.TriggerPipelineBuildDeploy(r.Context(), rr.Name, true, applicationmodels.PipelineParametersBuild{
+		CommitID:    commitID,
+		PushImage:   "true",
+		TriggeredBy: triggeredBy,
+		//Branch:      gitRef, //nolint:staticcheck
+		GitRef: gitRef,
+	})
+	if err != nil {
+		metrics.IncreasePushGithubEventTypeFailedTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, errors.New(createPipelineJobErrorMessage(rr.Name, err)), event)
+		log.Ctx(r.Context()).Error().Err(err).Msgf("Failed to create pipeline job for Radix application %s on %s %s for commit %s", rr.Name, gitRefType, gitRef, commitID)
+		return
+	}
+
+	c.writeSuccessResponse(w, r, http.StatusOK, createPipelineJobSuccessMessage(jobSummary.Name, jobSummary.AppName, jobSummary.GitRef, jobSummary.GitRefType, jobSummary.CommitID), event)
 }
 
 func getRadixRegistration(ctx context.Context, appName, sshURL string, radixClient radixclient.Interface) (*radixv1.RadixRegistration, error) {
@@ -332,4 +320,21 @@ func validatePayload(header http.Header, payload []byte, sharedSecret []byte) er
 	}
 
 	return nil
+}
+
+func (c *githubController) writeErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int, err error, event string) {
+	c.JSONResponseWithCode(w, r, statusCode, WebhookResponse{
+		Ok:    false,
+		Event: event,
+		Error: err.Error(),
+	})
+}
+
+func (c *githubController) writeSuccessResponse(w http.ResponseWriter, r *http.Request, statusCode int, message string, event string) {
+	zerolog.Ctx(r.Context()).Info().Msg(message)
+	c.JSONResponseWithCode(w, r, statusCode, WebhookResponse{
+		Ok:      true,
+		Event:   event,
+		Message: message,
+	})
 }
