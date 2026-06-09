@@ -3,7 +3,6 @@ package githubwebhook
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -18,21 +17,10 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/go-github/v72/github"
-	"github.com/rs/zerolog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/equinor/radix-operator/api-server/models"
 )
-
-const rootPath = "/webhooks/github"
-
-// WebhookResponse The response structure
-type WebhookResponse struct {
-	Ok      bool   `json:"ok"`
-	Event   string `json:"event"`
-	Message string `json:"message,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
 
 type githubController struct {
 	*models.DefaultController
@@ -47,7 +35,7 @@ func NewGithubWebhookController() models.Controller {
 func (c *githubController) GetRoutes() models.Routes {
 	routes := models.Routes{
 		models.Route{
-			Path:                      rootPath,
+			Path:                      "/webhooks/github",
 			Method:                    "POST",
 			HandlerFunc:               c.HandleGithubWebhook,
 			AllowUnauthenticatedUsers: true,
@@ -86,7 +74,7 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 
 	if len(strings.TrimSpace(event)) == 0 {
 		metrics.IncreaseNotGithubEventCounter()
-		c.ErrorResponse(w, r, errors.New(notAGithubEventMessage))
+		c.ErrorResponse(w, r, ErrNotAGithubEventMessage)
 		return
 	}
 
@@ -113,7 +101,7 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 		c.handlePingEvent(e, w, r, appName, accounts, body, event)
 	default:
 		metrics.IncreaseUnsupportedGithubEventTypeCounter()
-		c.writeErrorResponse(w, r, http.StatusBadRequest, errors.New(unhandledEventTypeMessage(event)), event)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, unhandledEventTypeMessage(event), event)
 		return
 	}
 }
@@ -135,7 +123,7 @@ func (c *githubController) handlePingEvent(e *github.PingEvent, w http.ResponseW
 		return
 	}
 
-	c.writeSuccessResponse(w, r, http.StatusOK, webhookCorrectConfiguration(rr.Name), event)
+	c.writeSuccessResponse(w, r, http.StatusOK, fmt.Sprintf("Webhook is configured correctly with for Radix application %s", rr.Name), event)
 }
 
 func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseWriter, r *http.Request, appName string, accounts models.Accounts, body []byte, event string) {
@@ -148,7 +136,7 @@ func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseW
 	metrics.IncreasePushGithubEventTypeCounter(sshURL, gitRef, gitRefType, commitID)
 
 	if isPushEventForRefDeletion(e) {
-		c.writeSuccessResponse(w, r, http.StatusAccepted, refDeletionPushEventUnsupportedMessage(*e.Ref), event)
+		c.writeSuccessResponse(w, r, http.StatusAccepted, fmt.Sprintf("Deletion of %s not supported, aborting", *e.Ref), event)
 		return
 	}
 
@@ -176,12 +164,12 @@ func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseW
 	})
 	if err != nil {
 		metrics.IncreasePushGithubEventTypeFailedTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID)
-		c.writeErrorResponse(w, r, http.StatusBadRequest, errors.New(createPipelineJobErrorMessage(rr.Name, err)), event)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, createPipelineJobErrorMessage(rr.Name, err), event)
 		log.Ctx(r.Context()).Error().Err(err).Msgf("Failed to create pipeline job for Radix application %s on %s %s for commit %s", rr.Name, gitRefType, gitRef, commitID)
 		return
 	}
 
-	c.writeSuccessResponse(w, r, http.StatusOK, createPipelineJobSuccessMessage(jobSummary.Name, jobSummary.AppName, jobSummary.GitRef, jobSummary.GitRefType, jobSummary.CommitID), event)
+	c.writeSuccessResponse(w, r, http.StatusOK, fmt.Sprintf("Pipeline job %s created for Radix application %s on %s %s for commit %s", jobSummary.Name, jobSummary.AppName, jobSummary.GitRefType, jobSummary.GitRef, jobSummary.CommitID), event)
 }
 
 func getRadixRegistration(ctx context.Context, appName, sshURL string, radixClient radixclient.Interface) (*radixv1.RadixRegistration, error) {
@@ -198,7 +186,7 @@ func getRadixRegistration(ctx context.Context, appName, sshURL string, radixClie
 	}
 
 	if len(filteredRegistrations) == 0 {
-		return nil, errors.New(unmatchedRepoMessage)
+		return nil, ErrUnmatchedRepoMessage
 	}
 	if len(filteredRegistrations) == 1 {
 		return getApplicationSummaryForSingleRegisteredApplication(appName, filteredRegistrations[0])
@@ -232,19 +220,19 @@ func getApplicationSummaryForSingleRegisteredApplication(appName string, rr radi
 	if len(appName) == 0 || strings.EqualFold(rr.Name, appName) {
 		return &rr, nil
 	}
-	return nil, errors.New(unmatchedRepoMessageByAppName)
+	return nil, ErrUnmatchedRepoMessageByAppName
 }
 
 func getApplicationSummaryForMultipleRegisteredApplications(appName string, rrs []radixv1.RadixRegistration) (*radixv1.RadixRegistration, error) {
 	if len(appName) == 0 {
-		return nil, errors.New(multipleMatchingReposMessageWithoutAppName)
+		return nil, ErrMultipleMatchingReposMessageWithoutAppName
 	}
 	for _, rr := range rrs {
 		if strings.EqualFold(rr.Name, appName) {
 			return &rr, nil
 		}
 	}
-	return nil, errors.New(unmatchedAppForMultipleMatchingReposMessage)
+	return nil, ErrUnmatchedAppForMultipleMatchingReposMessage
 }
 
 func getPushTriggeredBy(pushEvent *github.PushEvent) string {
@@ -295,21 +283,4 @@ func validatePayload(header http.Header, payload []byte, sharedSecret []byte) er
 	}
 
 	return nil
-}
-
-func (c *githubController) writeErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int, err error, event string) {
-	c.JSONResponseWithCode(w, r, statusCode, WebhookResponse{
-		Ok:    false,
-		Event: event,
-		Error: err.Error(),
-	})
-}
-
-func (c *githubController) writeSuccessResponse(w http.ResponseWriter, r *http.Request, statusCode int, message string, event string) {
-	zerolog.Ctx(r.Context()).Info().Msg(message)
-	c.JSONResponseWithCode(w, r, statusCode, WebhookResponse{
-		Ok:      true,
-		Event:   event,
-		Message: message,
-	})
 }

@@ -131,7 +131,7 @@ func TestNewGithubWebhookController_GetRoutes(t *testing.T) {
 	routes := controller.GetRoutes()
 
 	require.Len(t, routes, 1)
-	assert.Equal(t, rootPath, routes[0].Path)
+	assert.Equal(t, "/webhooks/github", routes[0].Path)
 	assert.Equal(t, http.MethodPost, routes[0].Method)
 	assert.True(t, routes[0].AllowUnauthenticatedUsers)
 	assert.NotNil(t, routes[0].HandlerFunc)
@@ -177,7 +177,7 @@ func TestHandleGithubWebhook_Ping_MatchingRepo(t *testing.T) {
 	resp := decodeWebhookResponse(t, rr)
 	assert.True(t, resp.Ok)
 	assert.Equal(t, pingEventType, resp.Event)
-	assert.Equal(t, webhookCorrectConfiguration(appName), resp.Message)
+	assert.Equal(t, "Webhook is configured correctly with for Radix application "+appName, resp.Message)
 }
 
 func TestHandleGithubWebhook_Ping_UnmatchedRepo(t *testing.T) {
@@ -192,7 +192,7 @@ func TestHandleGithubWebhook_Ping_UnmatchedRepo(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
 	resp := decodeWebhookResponse(t, rr)
 	assert.False(t, resp.Ok)
-	assert.Equal(t, unmatchedRepoMessage, resp.Error)
+	assert.Equal(t, ErrUnmatchedRepoMessage.Error(), resp.Error)
 }
 
 func TestHandleGithubWebhook_Push_RefDeletion(t *testing.T) {
@@ -208,7 +208,7 @@ func TestHandleGithubWebhook_Push_RefDeletion(t *testing.T) {
 	assert.Equal(t, http.StatusAccepted, rr.Result().StatusCode)
 	resp := decodeWebhookResponse(t, rr)
 	assert.True(t, resp.Ok)
-	assert.Equal(t, refDeletionPushEventUnsupportedMessage("refs/heads/main"), resp.Message)
+	assert.Equal(t, "Deletion of refs/heads/main not supported, aborting", resp.Message)
 }
 
 func TestHandleGithubWebhook_Push_UnmatchedRepo(t *testing.T) {
@@ -223,7 +223,7 @@ func TestHandleGithubWebhook_Push_UnmatchedRepo(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
 	resp := decodeWebhookResponse(t, rr)
 	assert.False(t, resp.Ok)
-	assert.Equal(t, unmatchedRepoMessage, resp.Error)
+	assert.Equal(t, ErrUnmatchedRepoMessage.Error(), resp.Error)
 }
 
 func TestHandleGithubWebhook_Push_InvalidSignature(t *testing.T) {
@@ -300,7 +300,7 @@ func TestHandleGithubWebhook_Ping_MultipleReposWithoutAppName(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
 	resp := decodeWebhookResponse(t, rr)
 	assert.False(t, resp.Ok)
-	assert.Equal(t, multipleMatchingReposMessageWithoutAppName, resp.Error)
+	assert.Equal(t, ErrMultipleMatchingReposMessageWithoutAppName.Error(), resp.Error)
 }
 
 func TestHandleGithubWebhook_Push_RepoMatching(t *testing.T) {
@@ -319,21 +319,21 @@ func TestHandleGithubWebhook_Push_RepoMatching(t *testing.T) {
 			appNames:       []string{"app1", "app2"},
 			queryAppName:   "",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  multipleMatchingReposMessageWithoutAppName,
+			expectedError:  ErrMultipleMatchingReposMessageWithoutAppName.Error(),
 		},
 		{
 			name:           "multiple apps unmatched appName",
 			appNames:       []string{"app1", "app2"},
 			queryAppName:   "app3",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  unmatchedAppForMultipleMatchingReposMessage,
+			expectedError:  ErrUnmatchedAppForMultipleMatchingReposMessage.Error(),
 		},
 		{
 			name:           "single app unmatched appName",
 			appNames:       []string{"app1"},
 			queryAppName:   "app3",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  unmatchedRepoMessageByAppName,
+			expectedError:  ErrUnmatchedRepoMessageByAppName.Error(),
 		},
 		{
 			name:           "single app matched appName",
@@ -398,7 +398,7 @@ func TestHandleGithubWebhook_Push_TriggerPipelineError(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
 	resp := decodeWebhookResponse(t, rr)
 	assert.False(t, resp.Ok)
-	assert.Contains(t, resp.Error, "Failed to create pipeline job for Radix application "+appName)
+	assert.Contains(t, resp.Error, "failed to create pipeline job for Radix application "+appName)
 }
 
 func TestGetGitRefWithType(t *testing.T) {
