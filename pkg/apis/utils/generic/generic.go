@@ -10,7 +10,7 @@ func InstantiateGenericStruct[TObj any]() TObj {
 	valueType := value.Type()
 
 	switch valueType.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// If TObj is a pointer type, we need to get the element type
 		valueType = valueType.Elem()
 		return reflect.New(valueType).Interface().(TObj)
