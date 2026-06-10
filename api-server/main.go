@@ -22,6 +22,7 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/deployments"
 	"github.com/equinor/radix-operator/api-server/api/environments"
 	"github.com/equinor/radix-operator/api-server/api/environmentvariables"
+	"github.com/equinor/radix-operator/api-server/api/githubwebhook"
 	"github.com/equinor/radix-operator/api-server/api/jobs"
 	"github.com/equinor/radix-operator/api-server/api/metrics"
 	"github.com/equinor/radix-operator/api-server/api/metrics/prometheus"
@@ -176,6 +177,6 @@ func getControllers(config config.Config) ([]models.Controller, error) {
 		alerting.NewAlertingController(),
 		secrets.NewSecretController(tlsvalidation.DefaultValidator()),
 		configuration.NewConfigurationController(configuration.Init(config)),
-		// githubwebhook.NewGithubWebhookController(),
+		githubwebhook.NewGithubWebhookController(),
 	}, nil
 }
