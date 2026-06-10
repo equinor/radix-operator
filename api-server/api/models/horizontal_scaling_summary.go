@@ -85,6 +85,10 @@ func resolveHorizontalScalingTriggersCurrentUtilization(scalingConfig radixv1.Ra
 		return nil, false
 	}
 
+	if len(scalingConfig.Triggers) != len(kedaScaler.Spec.Triggers) {
+		return nil, false
+	}
+
 	for triggerConfigIndex, triggerConfig := range scalingConfig.Triggers {
 		if kedaScaler.Spec.Triggers[triggerConfigIndex].Name != triggerConfig.Name || kedaScaler.Spec.Triggers[triggerConfigIndex].Type != triggerConfig.Type() {
 			return nil, false
