@@ -7,12 +7,10 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
-	"github.com/equinor/radix-operator/api-server/api/utils/horizontalscaling"
 	"github.com/equinor/radix-operator/api-server/api/utils/predicate"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func buildHpaSummary(appName string, component radixv1.RadixCommonDeployComponent, hpaList []autoscalingv2.HorizontalPodAutoscaler, scalerList []v1alpha1.ScaledObject) *deploymentModels.HorizontalScalingSummary {
@@ -87,7 +85,6 @@ func resolveHorizontalScalingTriggersCurrentUtilization(scalingConfig radixv1.Ra
 		return nil, false
 	}
 
-	// Verify that triggers defined in Radix matches triggers in defined in Keda
 	for triggerConfigIndex, triggerConfig := range scalingConfig.Triggers {
 		if kedaScaler.Spec.Triggers[triggerConfigIndex].Name != triggerConfig.Name || kedaScaler.Spec.Triggers[triggerConfigIndex].Type != triggerConfig.Type() {
 			return nil, false
@@ -198,25 +195,4 @@ func buildIdentityForHorizontalScalingTrigger(trigger radixv1.RadixHorizontalSca
 			Namespace:          "keda",
 		},
 	}
-}
-
-func getHpaMetrics(hpa *autoscalingv2.HorizontalPodAutoscaler, resourceName corev1.ResourceName) (*int32, *int32) {
-	currentResourceUtil := getHpaCurrentMetric(hpa, resourceName)
-
-	// find resource utilization target
-	var targetResourceUtil *int32
-	targetResourceMetric := horizontalscaling.GetHpaMetric(hpa, resourceName)
-	if targetResourceMetric != nil {
-		targetResourceUtil = targetResourceMetric.Resource.Target.AverageUtilization
-	}
-	return currentResourceUtil, targetResourceUtil
-}
-
-func getHpaCurrentMetric(hpa *autoscalingv2.HorizontalPodAutoscaler, resourceName corev1.ResourceName) *int32 {
-	for _, metric := range hpa.Status.CurrentMetrics {
-		if metric.Resource != nil && metric.Resource.Name == resourceName {
-			return metric.Resource.Current.AverageUtilization
-		}
-	}
-	return nil
 }

@@ -20,11 +20,13 @@ import (
 // getComponentStateFromSpec Returns a component with the current state
 func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *v1.RadixDeployment, component v1.RadixCommonDeployComponent) (*deploymentModels.Component, error) {
 
-	var componentPodNames []string
-	var environmentVariables map[string]string
-	var replicaSummaryList []deploymentModels.ReplicaSummary
-	var auxResource deploymentModels.AuxiliaryResource
-	// var horizontalScalingSummary *deploymentModels.HorizontalScalingSummary
+	var (
+		componentPodNames    []string
+		environmentVariables map[string]string
+		replicaSummaryList   []deploymentModels.ReplicaSummary
+		auxResource          deploymentModels.AuxiliaryResource
+	)
+
 	deployments, err := kubequery.GetDeploymentsForEnvironment(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment)
 	if err != nil {
 		return nil, err
@@ -62,10 +64,6 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		componentBuilder.WithNotifications(jobComponent.Notifications)
 	}
 
-	// if component.GetType() == v1.RadixComponentTypeComponent {
-	// 	horizontalScalingSummary = models.GetHpaSummary(rd.Spec.AppName, component.GetName(), hpas, scaledObjects)
-	// }
-
 	return componentBuilder.
 		WithComponent(component).
 		WithStatus(status).
@@ -73,7 +71,6 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		WithReplicaSummaryList(replicaSummaryList).
 		WithRadixEnvironmentVariables(environmentVariables).
 		WithAuxiliaryResource(auxResource).
-		// WithHorizontalScalingSummary(horizontalScalingSummary).
 		BuildComponent()
 }
 
@@ -94,8 +91,6 @@ func getComponentPodsByNamespace(allPods []corev1.Pod, componentName string) []c
 	})
 
 	for _, pod := range pods {
-		pod := pod
-
 		// A previous version of the job-scheduler added the "radix-job-type" label to job pods.
 		// For backward compatibility, we need to ignore these pods in the list of pods returned for a component
 		if _, isScheduledJobPod := pod.GetLabels()[kube.RadixJobTypeLabel]; isScheduledJobPod {
