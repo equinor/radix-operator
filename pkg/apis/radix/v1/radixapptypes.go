@@ -900,7 +900,6 @@ type RadixJobComponent struct {
 
 	// Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave
 	// +optional
-	// +kubebuilder:validation:Enum=Allow;Forbid;Replace
 	Cron CronSchedule `json:"cron,omitzero"`
 }
 

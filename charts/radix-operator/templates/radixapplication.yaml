@@ -3478,10 +3478,6 @@ spec:
                     cron:
                       description: Set a cron schedule for when to run the job and
                         how concurrency between multiple schedules should behave
-                      enum:
-                      - Allow
-                      - Forbid
-                      - Replace
                       properties:
                         concurrency:
                           description: Specify how to handle concurrency when multiple
