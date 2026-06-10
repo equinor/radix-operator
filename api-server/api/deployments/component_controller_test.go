@@ -581,12 +581,8 @@ func TestGetComponents_WithHorizontalScaling(t *testing.T) {
 			assert.Equal(t, scenario.maxReplicas, *components[0].HorizontalScalingSummary.MaxReplicas)
 			assert.EqualValues(t, 2, components[0].HorizontalScalingSummary.CurrentReplicas)
 			assert.EqualValues(t, 4, components[0].HorizontalScalingSummary.DesiredReplicas)
-			assert.Nil(t, components[0].HorizontalScalingSummary.CurrentCPUUtilizationPercentage)                            // nolint:staticcheck // SA1019: Ignore linting deprecated fields
-			assert.Equal(t, scenario.targetCpu, components[0].HorizontalScalingSummary.TargetCPUUtilizationPercentage)       // nolint:staticcheck // SA1019: Ignore linting deprecated fields
-			assert.Nil(t, components[0].HorizontalScalingSummary.CurrentMemoryUtilizationPercentage)                         // nolint:staticcheck // SA1019: Ignore linting deprecated fields
-			assert.Equal(t, scenario.targetMemory, components[0].HorizontalScalingSummary.TargetMemoryUtilizationPercentage) // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 
-			memoryTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTriggerStatus) bool {
+			memoryTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTrigger) bool {
 				return s.Name == "memory"
 			})
 			if scenario.targetMemory == nil {
@@ -599,7 +595,7 @@ func TestGetComponents_WithHorizontalScaling(t *testing.T) {
 				assert.Equal(t, "memory", memoryTrigger.Type)
 			}
 
-			cpuTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTriggerStatus) bool {
+			cpuTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTrigger) bool {
 				return s.Name == "cpu"
 			})
 			if scenario.targetCpu == nil {
@@ -612,7 +608,7 @@ func TestGetComponents_WithHorizontalScaling(t *testing.T) {
 				assert.Equal(t, "cpu", cpuTrigger.Type)
 			}
 
-			cronTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTriggerStatus) bool {
+			cronTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTrigger) bool {
 				return s.Name == "cron"
 			})
 			if scenario.targetCron == nil {
@@ -625,7 +621,7 @@ func TestGetComponents_WithHorizontalScaling(t *testing.T) {
 				assert.Equal(t, "cron", cronTrigger.Type)
 			}
 
-			azureServiceBusTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTriggerStatus) bool {
+			azureServiceBusTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTrigger) bool {
 				return s.Name == "azure-servicebus"
 			})
 			if scenario.targetAzureServiceBus == nil {
@@ -638,7 +634,7 @@ func TestGetComponents_WithHorizontalScaling(t *testing.T) {
 				assert.Equal(t, "azure-servicebus", azureServiceBusTrigger.Type)
 			}
 
-			azureEventHubTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTriggerStatus) bool {
+			azureEventHubTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTrigger) bool {
 				return s.Name == "azure-eventhub"
 			})
 			if scenario.targetAzureEventHub == nil {
@@ -829,11 +825,16 @@ func createHorizontalScalingObjects(name string, minReplicas *int32, maxReplicas
 
 func TestGetComponents_WithIdentity(t *testing.T) {
 	// Setup
+	const (
+		appName = "any-app"
+		envName = "prod"
+	)
+
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
 
 	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("prod").
+		WithAppName(appName).
+		WithEnvironment(envName).
 		WithDeploymentName(anyDeployName).
 		WithJobComponents(
 			operatorUtils.NewDeployJobComponentBuilder().
@@ -867,9 +868,21 @@ func TestGetComponents_WithIdentity(t *testing.T) {
 	err = controllertest.GetResponseBody(response, &components)
 	require.NoError(t, err)
 
-	assert.Equal(t, &deploymentModels.Identity{Azure: &deploymentModels.AzureIdentity{ClientId: "job-clientid", ServiceAccountName: operatorUtils.GetComponentServiceAccountName("job1"), AzureKeyVaults: []string{"job-key-vault3"}}}, getComponentByName("job1", components).Identity)
+	assert.Equal(t,
+		&deploymentModels.Identity{Azure: &deploymentModels.AzureIdentity{
+			ClientId:           "job-clientid",
+			ServiceAccountName: operatorUtils.GetComponentServiceAccountName("job1"),
+			Namespace:          operatorUtils.GetEnvironmentNamespace(appName, envName),
+			AzureKeyVaults:     []string{"job-key-vault3"}}},
+		getComponentByName("job1", components).Identity)
 	assert.Nil(t, getComponentByName("job2", components).Identity)
-	assert.Equal(t, &deploymentModels.Identity{Azure: &deploymentModels.AzureIdentity{ClientId: "comp-clientid", ServiceAccountName: operatorUtils.GetComponentServiceAccountName("comp1"), AzureKeyVaults: []string{"comp-key-vault3"}}}, getComponentByName("comp1", components).Identity)
+	assert.Equal(t,
+		&deploymentModels.Identity{Azure: &deploymentModels.AzureIdentity{
+			ClientId:           "comp-clientid",
+			ServiceAccountName: operatorUtils.GetComponentServiceAccountName("comp1"),
+			Namespace:          operatorUtils.GetEnvironmentNamespace(appName, envName),
+			AzureKeyVaults:     []string{"comp-key-vault3"}}},
+		getComponentByName("comp1", components).Identity)
 	assert.Nil(t, getComponentByName("comp2", components).Identity)
 }
 

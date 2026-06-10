@@ -91,6 +91,23 @@ type RadixHorizontalScalingTrigger struct {
 	AzureEventHub *RadixHorizontalScalingAzureEventHubTrigger `json:"azureEventHub,omitempty"`
 }
 
+func (t RadixHorizontalScalingTrigger) Type() string {
+	switch {
+	case t.Cpu != nil:
+		return "cpu"
+	case t.Memory != nil:
+		return "memory"
+	case t.Cron != nil:
+		return "cron"
+	case t.AzureServiceBus != nil:
+		return "azure-servicebus"
+	case t.AzureEventHub != nil:
+		return "azure-eventhub"
+	}
+
+	return ""
+}
+
 // RadixHorizontalScalingCPUTrigger defines configuration for a CPU trigger.
 type RadixHorizontalScalingCPUTrigger struct {
 	// Value - the target value is the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods.

@@ -6215,7 +6215,8 @@
       "type": "object",
       "required": [
         "clientId",
-        "serviceAccountName"
+        "serviceAccountName",
+        "namespace"
       ],
       "properties": {
         "azureKeyVaults": {
@@ -6230,6 +6231,11 @@
           "description": "ClientId is the client ID of an Azure User Assigned Managed Identity\nor the application ID of an Azure AD Application Registration",
           "type": "string",
           "x-go-name": "ClientId"
+        },
+        "namespace": {
+          "description": "The namespace to use when configuring Kubernetes Federation Credentials for the identity",
+          "type": "string",
+          "x-go-name": "Namespace"
         },
         "serviceAccountName": {
           "description": "The Service Account name to use when configuring Kubernetes Federation Credentials for the identity",
@@ -7254,20 +7260,6 @@
           "x-go-name": "CooldownPeriod",
           "example": 300
         },
-        "currentCPUUtilizationPercentage": {
-          "description": "Deprecated: Component current average CPU utilization over all pods, represented as a percentage of requested CPU. Use Triggers instead. Will be removed from Radix API 2025-01-01.",
-          "type": "integer",
-          "format": "int32",
-          "x-go-name": "CurrentCPUUtilizationPercentage",
-          "example": 70
-        },
-        "currentMemoryUtilizationPercentage": {
-          "description": "Deprecated: Component current average memory utilization over all pods, represented as a percentage of requested memory. Use Triggers instead. Will be removed from Radix API 2025-01-01.",
-          "type": "integer",
-          "format": "int32",
-          "x-go-name": "CurrentMemoryUtilizationPercentage",
-          "example": 80
-        },
         "currentReplicas": {
           "description": "CurrentReplicas returns the current number of replicas",
           "type": "integer",
@@ -7303,32 +7295,18 @@
           "x-go-name": "PollingInterval",
           "example": 30
         },
-        "targetCPUUtilizationPercentage": {
-          "description": "Deprecated: Component target average CPU utilization over all pods. Use Triggers instead. Will be removed from Radix API 2025-01-01.",
-          "type": "integer",
-          "format": "int32",
-          "x-go-name": "TargetCPUUtilizationPercentage",
-          "example": 80
-        },
-        "targetMemoryUtilizationPercentage": {
-          "description": "Deprecated: Component target average memory utilization over all pods. use Triggers instead. Will be removed from Radix API 2025-01-01.",
-          "type": "integer",
-          "format": "int32",
-          "x-go-name": "TargetMemoryUtilizationPercentage",
-          "example": 80
-        },
         "triggers": {
           "description": "Triggers lists status of all triggers found in radixconfig.yaml",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/HorizontalScalingSummaryTriggerStatus"
+            "$ref": "#/definitions/HorizontalScalingSummaryTrigger"
           },
           "x-go-name": "Triggers"
         }
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/deployments/models"
     },
-    "HorizontalScalingSummaryTriggerStatus": {
+    "HorizontalScalingSummaryTrigger": {
       "type": "object",
       "properties": {
         "currentUtilization": {
@@ -7340,6 +7318,9 @@
           "description": "Error contains short description if trigger have problems",
           "type": "string",
           "x-go-name": "Error"
+        },
+        "identity": {
+          "$ref": "#/definitions/Identity"
         },
         "name": {
           "description": "Name of trigger",

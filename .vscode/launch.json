@@ -253,7 +253,8 @@
 				"OIDC_KUBERNETES_AUDIENCE": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/79c72762-ce8d-4874-90cd-a119a5050503/",
 				"RADIX_CLUSTERNAME": "weekly-40",
 				"CLUSTER_OIDC_ISSUERS": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/79c72762-ce8d-4874-90cd-a119a5050503/,https://test-issuer.internal.radix.equinor.com",
-				"CLUSTER_EGRESS_IPS": "0.0.0.0"
+				"CLUSTER_EGRESS_IPS": "0.0.0.0",
+				"POD_NAMESPACE": "default"
 			}
 		}
 	]

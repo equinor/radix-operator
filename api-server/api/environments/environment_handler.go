@@ -419,15 +419,6 @@ func (eh EnvironmentHandler) getRadixCommonComponentUpdater(ctx context.Context,
 		updater = &radixDeployJobComponentUpdater{base: baseUpdater}
 	}
 
-	hpas, err := kubequery.GetHorizontalPodAutoscalersForEnvironment(ctx, eh.accounts.UserAccount.Client, appName, envName)
-	if err != nil {
-		return nil, err
-	}
-	scalers, err := kubequery.GetScaledObjectsForEnvironment(ctx, eh.accounts.UserAccount.KedaClient, appName, envName)
-	if err != nil {
-		return nil, err
-	}
-
 	baseUpdater.componentIndex = componentIndex
 	baseUpdater.componentToPatch = componentToPatch
 
@@ -436,7 +427,7 @@ func (eh EnvironmentHandler) getRadixCommonComponentUpdater(ctx context.Context,
 		return nil, err
 	}
 	baseUpdater.environmentConfig = utils.GetComponentEnvironmentConfig(ra, envName, componentName)
-	baseUpdater.componentState, err = eh.getComponentStateFromSpec(ctx, rd, componentToPatch, hpas, scalers)
+	baseUpdater.componentState, err = eh.getComponentStateFromSpec(ctx, rd, componentToPatch)
 	if err != nil {
 		return nil, err
 	}

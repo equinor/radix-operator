@@ -6,28 +6,25 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
-	"github.com/equinor/radix-operator/api-server/api/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/event"
 	"github.com/equinor/radix-operator/api-server/api/utils/predicate"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	crdUtils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 )
 
 // getComponentStateFromSpec Returns a component with the current state
-func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *v1.RadixDeployment, component v1.RadixCommonDeployComponent, hpas []autoscalingv2.HorizontalPodAutoscaler, scaledObjects []v1alpha1.ScaledObject) (*deploymentModels.Component, error) {
+func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *v1.RadixDeployment, component v1.RadixCommonDeployComponent) (*deploymentModels.Component, error) {
 
 	var componentPodNames []string
 	var environmentVariables map[string]string
 	var replicaSummaryList []deploymentModels.ReplicaSummary
 	var auxResource deploymentModels.AuxiliaryResource
-	var horizontalScalingSummary *deploymentModels.HorizontalScalingSummary
+	// var horizontalScalingSummary *deploymentModels.HorizontalScalingSummary
 	deployments, err := kubequery.GetDeploymentsForEnvironment(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment)
 	if err != nil {
 		return nil, err
@@ -56,7 +53,7 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		status = eh.ComponentStatuser(component, &kd, rd)
 	}
 
-	componentBuilder := deploymentModels.NewComponentBuilder()
+	componentBuilder := deploymentModels.NewComponentBuilder(rd)
 	if jobComponent, ok := component.(*v1.RadixDeployJobComponent); ok {
 		componentBuilder.WithSchedulerPort(&jobComponent.SchedulerPort)
 		if jobComponent.Payload != nil {
@@ -65,9 +62,9 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		componentBuilder.WithNotifications(jobComponent.Notifications)
 	}
 
-	if component.GetType() == v1.RadixComponentTypeComponent {
-		horizontalScalingSummary = models.GetHpaSummary(rd.Spec.AppName, component.GetName(), hpas, scaledObjects)
-	}
+	// if component.GetType() == v1.RadixComponentTypeComponent {
+	// 	horizontalScalingSummary = models.GetHpaSummary(rd.Spec.AppName, component.GetName(), hpas, scaledObjects)
+	// }
 
 	return componentBuilder.
 		WithComponent(component).
@@ -76,7 +73,7 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		WithReplicaSummaryList(replicaSummaryList).
 		WithRadixEnvironmentVariables(environmentVariables).
 		WithAuxiliaryResource(auxResource).
-		WithHorizontalScalingSummary(horizontalScalingSummary).
+		// WithHorizontalScalingSummary(horizontalScalingSummary).
 		BuildComponent()
 }
 
