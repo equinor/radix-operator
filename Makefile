@@ -126,12 +126,12 @@ build-pipeline:
 
 .PHONY: deploy-pipeline
 deploy-pipeline:
-	az acr login --name $(CONTAINER_REPO)
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) --platform linux/arm64,linux/amd64 -f pipeline.Dockerfile --push .
 
 .PHONY: deploy-pipeline-arm64
 deploy-pipeline-arm64:
-	az acr login --name $(CONTAINER_REPO)
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) --platform linux/arm64 -f pipeline.Dockerfile --push .
 
 .PHONY: build-operator
@@ -140,7 +140,7 @@ build-operator:
 
 .PHONY: deploy-operator
 deploy-operator: build-operator
-	az acr login --name $(CONTAINER_REPO)
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(TAG)
@@ -151,7 +151,7 @@ build-webhook:
 
 .PHONY: deploy-webhook
 deploy-webhook:
-	az acr login --name $(CONTAINER_REPO)
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-webhook:$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(TAG) --platform linux/arm64,linux/amd64 -f webhook.Dockerfile --push .
 
 .PHONY: build-api-server
@@ -160,7 +160,7 @@ build-api-server:
 
 .PHONY: deploy-api-server
 deploy-api-server: 
-	az acr login --name $(CONTAINER_REPO)
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-api-server:$(VERSION) -t $(DOCKER_REGISTRY)/radix-api-server:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-api-server:$(TAG) --platform linux/arm64,linux/amd64 -f api-server.Dockerfile --push .
 
 ROOT_PACKAGE=github.com/equinor/radix-operator

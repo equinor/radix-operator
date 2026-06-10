@@ -159,7 +159,7 @@ func TestHandleGithubWebhook_UnhandledEventType(t *testing.T) {
 	resp := decodeWebhookResponse(t, rr)
 	assert.False(t, resp.Ok)
 	assert.Equal(t, "pull_request", resp.Event)
-	assert.Equal(t, unhandledEventTypeMessage("pull_request"), resp.Error)
+	assert.Equal(t, unhandledEventTypeMessage("pull_request").Error(), resp.Error)
 }
 
 func TestHandleGithubWebhook_Ping_MatchingRepo(t *testing.T) {
