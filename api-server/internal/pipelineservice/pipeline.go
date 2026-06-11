@@ -242,7 +242,7 @@ func buildPipelineJob(ctx context.Context, appName string, pipeline radixv1.Radi
 				kube.RadixAppLabel: appName,
 			},
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: jobSpec.Branch, //nolint:staticcheck
+				kube.RadixBranchAnnotation: jobSpec.GitRef,
 			},
 		},
 		Spec: radixv1.RadixJobSpec{
