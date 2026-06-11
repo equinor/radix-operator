@@ -182,17 +182,17 @@ type AzureIdentity struct {
 	// or the application ID of an Azure AD Application Registration
 	//
 	// required: true
-	ClientId string `json:"clientId,omitempty"`
+	ClientId string `json:"clientId"`
 
 	// The Service Account name to use when configuring Kubernetes Federation Credentials for the identity
 	//
 	// required: true
-	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+	ServiceAccountName string `json:"serviceAccountName"`
 
 	// The namespace to use when configuring Kubernetes Federation Credentials for the identity
 	//
 	// required: true
-	Namespace string `json:"namespace,omitempty"`
+	Namespace string `json:"namespace"`
 
 	// The Azure Key Vaults names, which use Azure Identity
 	//
