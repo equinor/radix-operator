@@ -213,7 +213,7 @@ func setupDeployment(commonTestUtils *commontest.Utils, kubeClient kubernetes.In
 		return err
 	}
 
-	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{}) //nolint:staticcheck
 	if err != nil {
 		return err
 	}

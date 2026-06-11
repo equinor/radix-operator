@@ -155,7 +155,7 @@ func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
 }
 
 func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
-	currentEnvVarsConfigMap, envVarsMetadataConfigMap, err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, deploy.radixDeployment.GetNamespace(), deploy.radixDeployment.Spec.AppName, deployComponent.GetName())
+	currentEnvVarsConfigMap, envVarsMetadataConfigMap, err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, deploy.radixDeployment.GetNamespace(), deploy.radixDeployment.Spec.AppName, deployComponent.GetName()) //nolint:staticcheck
 	if err != nil {
 		return err
 	}

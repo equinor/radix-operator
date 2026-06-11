@@ -5749,6 +5749,42 @@
           }
         }
       }
+    },
+    "/webhooks/github": {
+      "post": {
+        "description": "This endpoint receives GitHub webhook events and processes them accordingly.",
+        "tags": [
+          "webhook"
+        ],
+        "summary": "Handle GitHub webhook events",
+        "operationId": "handleGithubWebhook",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The type of GitHub event (e.g., push, pull_request)",
+            "name": "X-GitHub-Event",
+            "in": "header",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The name of the application associated with the webhook event",
+            "name": "appName",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook event processed successfully"
+          },
+          "400": {
+            "description": "Bad request, e.g., invalid payload or signature"
+          },
+          "500": {
+            "description": "Internal server error while processing the webhook event"
+          }
+        }
+      }
     }
   },
   "definitions": {

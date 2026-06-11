@@ -64,6 +64,8 @@ spec:
             description: RadixDeploymentSpec is the spec for a deployment
             properties:
               appname:
+                description: 'Deprecated: Use app-name from deployment namespace label
+                  instead.'
                 maxLength: 253
                 minLength: 1
                 pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$

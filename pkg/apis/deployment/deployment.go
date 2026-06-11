@@ -103,7 +103,7 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 	}
 
 	if err := deploy.syncStatus(ctx, deploy.syncDeployment(ctx)); err != nil {
-		return fmt.Errorf("failed to sync deployment %s for application %s: %w", deploy.radixDeployment.Name, deploy.radixDeployment.Spec.AppName, err)
+		return fmt.Errorf("failed to sync deployment %s for application %s: %w", deploy.radixDeployment.Name, deploy.radixDeployment.Spec.AppName, err) //nolint:staticcheck
 	}
 
 	deploy.maintainHistoryLimit(ctx, deploy.config.DeploymentSyncer.DeploymentHistoryLimit)

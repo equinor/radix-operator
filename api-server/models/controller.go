@@ -3,6 +3,7 @@ package models
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -48,9 +49,26 @@ func logError(ctx context.Context, err error) {
 }
 
 // JSONResponse Marshals response with header
-func (c *DefaultController) JSONResponse(w http.ResponseWriter, r *http.Request, result interface{}) {
+func (c *DefaultController) JSONResponse(w http.ResponseWriter, r *http.Request, result any) {
 	err := radixhttp.JSONResponse(w, r, result)
 	if err != nil {
+		log.Ctx(r.Context()).Err(err).Msg("failed to write response")
+	}
+}
+
+// JSONResponse Marshals response with header and code
+func (c *DefaultController) JSONResponseWithCode(w http.ResponseWriter, r *http.Request, code int, body any) {
+	bodyJson, err := json.Marshal(body)
+	if err != nil {
+		log.Ctx(r.Context()).Err(err).Msg("failed to marshal response")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("Internal Server Error"))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	if _, err := w.Write(bodyJson); err != nil {
 		log.Ctx(r.Context()).Err(err).Msg("failed to write response")
 	}
 }

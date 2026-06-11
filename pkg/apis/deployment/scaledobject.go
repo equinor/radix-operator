@@ -132,7 +132,7 @@ func (deploy *Deployment) garbageCollectTriggerAuthsNoLongerInSpec(ctx context.C
 }
 
 func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.RadixHorizontalScaling) *kedav1.ScaledObject {
-	appName := deploy.radixDeployment.Spec.AppName
+	appName := deploy.radixDeployment.Spec.AppName //nolint:staticcheck
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
 	}
@@ -362,7 +362,7 @@ func (deploy *Deployment) getTriggerAuthentication(componentName, triggerName st
 		ObjectMeta: metav1.ObjectMeta{
 			Name: utils.GetTriggerAuthenticationName(componentName, triggerName),
 			Labels: map[string]string{
-				kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName,
+				kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName, //nolint:staticcheck
 				kube.RadixComponentLabel: componentName,
 				kube.RadixTriggerLabel:   triggerName,
 			},

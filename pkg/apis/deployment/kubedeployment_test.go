@@ -176,7 +176,7 @@ func Test_DoNot_SyncAppID_WhenAddedLater(t *testing.T) {
 	rd, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
 	require.NoError(t, err, "failed to apply deployment1")
 
-	rr, err := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{})
+	rr, err := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{}) //nolint:staticcheck
 	require.NoError(t, err)
 
 	rr.Spec.AppID = v1.ULID{ULID: ulid.Make()} // Set a new app ID
@@ -398,7 +398,7 @@ func Test_CommandAndArgs(t *testing.T) {
 			assert.Empty(t, job2.GetCommand(), "command in job 2 should be empty")
 			assert.Empty(t, job2.GetArgs(), "args in job 2 should be empty")
 
-			deploymentList, err := kubeClient.AppsV1().Deployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).List(context.Background(), metav1.ListOptions{})
+			deploymentList, err := kubeClient.AppsV1().Deployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).List(context.Background(), metav1.ListOptions{}) //nolint:staticcheck
 			require.NoError(t, err, "failed to list deployments")
 			deployments := slice.Reduce(deploymentList.Items, make(map[string]*appsv1.Deployment, len(deploymentList.Items)), func(acc map[string]*appsv1.Deployment, depl appsv1.Deployment) map[string]*appsv1.Deployment {
 				acc[depl.Name] = &depl
