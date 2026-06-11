@@ -128,7 +128,12 @@ func (c *githubController) handlePingEvent(e *github.PingEvent, w http.ResponseW
 
 func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseWriter, r *http.Request, appName string, accounts models.Accounts, body []byte, event string) {
 	pipelineSvc := pipelineservice.New(accounts.ServiceAccount.RadixClient)
-	gitRef, gitRefType := getGitRefWithType(e)
+	gitRef, gitRefType, err := getGitRefWithType(e)
+	if err != nil {
+		metrics.IncreaseFailedParsingCounter()
+		c.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Errorf("could not parse git ref: %w", err), event)
+		return
+	}
 	commitID := getCommitID(e)
 	sshURL := e.Repo.GetSSHURL()
 	triggeredBy := getPushTriggeredBy(e)
@@ -256,11 +261,18 @@ func getPushTriggeredBy(pushEvent *github.PushEvent) string {
 	return ""
 }
 
-func getGitRefWithType(pushEvent *github.PushEvent) (string, string) {
+func getGitRefWithType(pushEvent *github.PushEvent) (string, string, error) {
+	if pushEvent.Ref == nil {
+		return "", "", fmt.Errorf("ref is nil in push event")
+	}
+
 	ref := strings.Split(*pushEvent.Ref, "/")
+	if len(ref) < 3 {
+		return "", "", fmt.Errorf("invalid ref format: %s", *pushEvent.Ref)
+	}
 	gitRef := strings.Join(ref[2:], "/") // Remove refs/heads from ref
 	gitRefType := ref[1]
-	return gitRef, getApiGitRefType(gitRefType)
+	return gitRef, getApiGitRefType(gitRefType), nil
 }
 
 func isPushEventForRefDeletion(pushEvent *github.PushEvent) bool {
