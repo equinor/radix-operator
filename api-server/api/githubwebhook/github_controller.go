@@ -82,7 +82,7 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 10*1024*1024)) // Limit request body to 10MB to prevent abuse
 	if err != nil {
 		metrics.IncreaseFailedParsingCounter()
-		c.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err), event)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Errorf("could not parse webhook: %w", err), event)
 		return
 	}
 
