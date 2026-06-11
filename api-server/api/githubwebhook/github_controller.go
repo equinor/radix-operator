@@ -123,7 +123,7 @@ func (c *githubController) handlePingEvent(e *github.PingEvent, w http.ResponseW
 		return
 	}
 
-	c.writeSuccessResponse(w, r, http.StatusOK, fmt.Sprintf("Webhook is configured correctly with for Radix application %s", rr.Name), event)
+	c.writeSuccessResponse(w, r, http.StatusOK, fmt.Sprintf("Webhook is configured correctly for Radix application %s", rr.Name), event)
 }
 
 func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseWriter, r *http.Request, appName string, accounts models.Accounts, body []byte, event string) {
