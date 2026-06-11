@@ -206,7 +206,7 @@ func buildPipelineJob(ctx context.Context, appName string, pipeline radixv1.Radi
 	case radixv1.BuildDeploy, radixv1.Build:
 		buildSpec = radixv1.RadixBuildSpec{
 			ImageTag:              imageTag,
-			Branch:                jobSpec.Branch, //nolint:staticcheck
+			Branch:                jobSpec.GitRef, //nolint:staticcheck
 			ToEnvironment:         jobSpec.ToEnvironment,
 			CommitID:              jobSpec.CommitID,
 			PushImage:             jobSpec.PushImage,
