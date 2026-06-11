@@ -79,7 +79,7 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 	}
 
 	// Need to parse webhook before validation because the secret is taken from the matching repo
-	body, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 10*1024*1024)) // Limit request body to 10MB to prevent abuse
 	if err != nil {
 		metrics.IncreaseFailedParsingCounter()
 		c.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err), event)
