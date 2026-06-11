@@ -177,7 +177,7 @@ func TestHandleGithubWebhook_Ping_MatchingRepo(t *testing.T) {
 	resp := decodeWebhookResponse(t, rr)
 	assert.True(t, resp.Ok)
 	assert.Equal(t, pingEventType, resp.Event)
-	assert.Equal(t, "Webhook is configured correctly with for Radix application "+appName, resp.Message)
+	assert.Equal(t, "Webhook is configured correctly for Radix application "+appName, resp.Message)
 }
 
 func TestHandleGithubWebhook_Ping_UnmatchedRepo(t *testing.T) {
@@ -293,8 +293,9 @@ func TestHandleGithubWebhook_Ping_MultipleReposWithoutAppName(t *testing.T) {
 
 	body := pingEventBody(t, sshURL)
 	rr := executeWebhookRequest(t, radixClient, webhookPath, map[string]string{
-		"Content-Type":   "application/json",
-		"X-GitHub-Event": pingEventType,
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pingEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
 	}, body)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
@@ -326,14 +327,14 @@ func TestHandleGithubWebhook_Push_RepoMatching(t *testing.T) {
 			appNames:       []string{"app1", "app2"},
 			queryAppName:   "app3",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  ErrUnmatchedAppForMultipleMatchingReposMessage.Error(),
+			expectedError:  "failed to get Radix registration for application app3: radixregistrations.radix.equinor.com \"app3\" not found",
 		},
 		{
 			name:           "single app unmatched appName",
 			appNames:       []string{"app1"},
 			queryAppName:   "app3",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  ErrUnmatchedRepoMessageByAppName.Error(),
+			expectedError:  "failed to get Radix registration for application app3: radixregistrations.radix.equinor.com \"app3\" not found",
 		},
 		{
 			name:           "single app matched appName",
@@ -415,7 +416,8 @@ func TestGetGitRefWithType(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.ref, func(t *testing.T) {
-			gitRef, gitRefType := getGitRefWithType(&github.PushEvent{Ref: github.Ptr(scenario.ref)})
+			gitRef, gitRefType, err := getGitRefWithType(&github.PushEvent{Ref: github.Ptr(scenario.ref)})
+			require.NoError(t, err)
 			assert.Equal(t, scenario.expectedGitRef, gitRef)
 			assert.Equal(t, scenario.expectedType, gitRefType)
 		})
@@ -430,28 +432,31 @@ func TestGetApiGitRefType(t *testing.T) {
 
 func TestGetCommitID(t *testing.T) {
 	t.Run("push event returns After", func(t *testing.T) {
-		commitID := getCommitID(&github.PushEvent{
+		commitID, err := getCommitID(&github.PushEvent{
 			Ref:   github.Ptr("refs/heads/master"),
 			After: github.Ptr("after-commit-id"),
 		})
+		require.NoError(t, err)
 		assert.Equal(t, "after-commit-id", commitID)
 	})
 
 	t.Run("annotated tag returns head commit ID", func(t *testing.T) {
-		commitID := getCommitID(&github.PushEvent{
+		commitID, err := getCommitID(&github.PushEvent{
 			Ref:        github.Ptr("refs/tags/v1"),
 			After:      github.Ptr("annotated-tag-object-id"),
 			HeadCommit: &github.HeadCommit{ID: github.Ptr("head-commit-id")},
 		})
+		require.NoError(t, err)
 		assert.Equal(t, "head-commit-id", commitID)
 	})
 
 	t.Run("lightweight tag with base ref returns After", func(t *testing.T) {
-		commitID := getCommitID(&github.PushEvent{
+		commitID, err := getCommitID(&github.PushEvent{
 			Ref:     github.Ptr("refs/tags/v1"),
 			After:   github.Ptr("after-commit-id"),
 			BaseRef: github.Ptr("refs/heads/master"),
 		})
+		require.NoError(t, err)
 		assert.Equal(t, "after-commit-id", commitID)
 	})
 }

@@ -183,6 +183,18 @@ func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseW
 }
 
 func getRadixRegistration(ctx context.Context, appName, sshURL string, radixClient radixclient.Interface) (*radixv1.RadixRegistration, error) {
+	if len(appName) > 0 {
+		rr, err := radixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get Radix registration for application %s: %w", appName, err)
+		}
+		if !strings.EqualFold(rr.Spec.CloneURL, sshURL) {
+			return nil, ErrUnmatchedRepoMessageByAppName
+		}
+		return rr, nil
+	}
+
+	// If we dont have a appName, there must be exactly 1 matching Radix application for the repo
 	radixRegistationList, err := radixClient.RadixV1().RadixRegistrations().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -194,14 +206,14 @@ func getRadixRegistration(ctx context.Context, appName, sshURL string, radixClie
 			filteredRegistrations = append(filteredRegistrations, rr)
 		}
 	}
+	if len(filteredRegistrations) == 1 {
+		return &filteredRegistrations[0], nil
+	}
 
 	if len(filteredRegistrations) == 0 {
 		return nil, ErrUnmatchedRepoMessage
 	}
-	if len(filteredRegistrations) == 1 {
-		return getApplicationSummaryForSingleRegisteredApplication(appName, filteredRegistrations[0])
-	}
-	return getApplicationSummaryForMultipleRegisteredApplications(appName, filteredRegistrations)
+	return nil, ErrMultipleMatchingReposMessageWithoutAppName
 
 }
 
@@ -233,25 +245,6 @@ func getCommitID(e *github.PushEvent) (string, error) {
 	}
 
 	return *e.After, nil
-}
-
-func getApplicationSummaryForSingleRegisteredApplication(appName string, rr radixv1.RadixRegistration) (*radixv1.RadixRegistration, error) {
-	if len(appName) == 0 || strings.EqualFold(rr.Name, appName) {
-		return &rr, nil
-	}
-	return nil, ErrUnmatchedRepoMessageByAppName
-}
-
-func getApplicationSummaryForMultipleRegisteredApplications(appName string, rrs []radixv1.RadixRegistration) (*radixv1.RadixRegistration, error) {
-	if len(appName) == 0 {
-		return nil, ErrMultipleMatchingReposMessageWithoutAppName
-	}
-	for _, rr := range rrs {
-		if strings.EqualFold(rr.Name, appName) {
-			return &rr, nil
-		}
-	}
-	return nil, ErrUnmatchedAppForMultipleMatchingReposMessage
 }
 
 func getPushTriggeredBy(pushEvent *github.PushEvent) string {

@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	ErrNotAGithubEventMessage                      = errors.New("not a Github event")
+	ErrNotAGithubEventMessage                      = errors.New("not a GitHub event")
 	ErrUnmatchedRepoMessage                        = errors.New("unable to match repo with any Radix application")
 	ErrMultipleMatchingReposMessageWithoutAppName  = errors.New("unable to match repo with unique Radix application without appName request parameter")
 	ErrUnmatchedRepoMessageByAppName               = errors.New("unable to match repo with unique Radix application by appName request parameter")
