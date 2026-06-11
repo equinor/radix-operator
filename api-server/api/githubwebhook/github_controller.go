@@ -89,7 +89,7 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 	payload, err := github.ParseWebHook(event, body)
 	if err != nil {
 		metrics.IncreaseFailedParsingCounter()
-		c.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Errorf("could not parse webhook: err=%s ", err), event)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Errorf("could not parse webhook: %w", err), event)
 		return
 	}
 	appName := r.URL.Query().Get("appName")
