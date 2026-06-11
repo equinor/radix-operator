@@ -526,6 +526,7 @@ func Test_GetComponents_HorizontalScaling_Utilization(t *testing.T) {
 		mutateHPA                func(*v2.HorizontalPodAutoscaler)
 		expectCurrentUtilization bool
 		expectCurrentReplicas    bool
+		expectErrorByType        map[string]string
 	}
 
 	testScenarios := map[string]testScenario{
@@ -591,6 +592,24 @@ func Test_GetComponents_HorizontalScaling_Utilization(t *testing.T) {
 			},
 			expectCurrentUtilization: false,
 			expectCurrentReplicas:    true,
+		},
+		"external scaler health has failures": {
+			createScaledObject: true,
+			createHPA:          true,
+			mutateScaledObject: func(so *v1alpha1.ScaledObject) {
+				for metricName, status := range so.Status.Health {
+					if strings.Contains(metricName, "-azure-servicebus-") {
+						status.Status = "Failing"
+						status.NumberOfFailures = pointers.Ptr[int32](3)
+						so.Status.Health[metricName] = status
+					}
+				}
+			},
+			expectCurrentUtilization: true,
+			expectCurrentReplicas:    true,
+			expectErrorByType: map[string]string{
+				"azure-servicebus": "Number of failures: 3",
+			},
 		},
 	}
 
@@ -674,8 +693,10 @@ func Test_GetComponents_HorizontalScaling_Utilization(t *testing.T) {
 			}
 
 			currentByType := map[string]string{}
+			errorByType := map[string]string{}
 			for _, trigger := range summary.Triggers {
 				currentByType[trigger.Type] = trigger.CurrentUtilization
+				errorByType[trigger.Type] = trigger.Error
 			}
 
 			if scenario.expectCurrentUtilization {
@@ -688,6 +709,15 @@ func Test_GetComponents_HorizontalScaling_Utilization(t *testing.T) {
 				for _, trigger := range summary.Triggers {
 					assert.Empty(t, trigger.CurrentUtilization)
 				}
+			}
+
+			for _, trigger := range summary.Triggers {
+				expectedError := ""
+				if scenario.expectErrorByType != nil {
+					expectedError = scenario.expectErrorByType[trigger.Type]
+				}
+
+				assert.Equal(t, expectedError, errorByType[trigger.Type])
 			}
 		})
 	}

@@ -33,7 +33,7 @@ func buildHpaSummary(appName string, component radixv1.RadixCommonDeployComponen
 		}
 	}
 
-	currentUtilization, hasCurrentUtilization := resolveHorizontalScalingTriggersCurrentUtilization(*scalingConfig, kedaScaler, hpa)
+	currentUtilization, hasCurrentUtilization := resolveHorizontalScalingTriggersCurrentState(*scalingConfig, kedaScaler, hpa)
 	triggers := []deploymentModels.HorizontalScalingSummaryTrigger{}
 
 	for triggerConfigIndex, triggerConfig := range scalingConfig.Triggers {
@@ -42,11 +42,11 @@ func buildHpaSummary(appName string, component radixv1.RadixCommonDeployComponen
 			Type:              triggerConfig.Type(),
 			Identity:          buildIdentityForHorizontalScalingTrigger(triggerConfig),
 			TargetUtilization: resolveHorizontalScalingTargetUtilization(triggerConfig),
-			Error:             "",
 		}
 
 		if hasCurrentUtilization {
-			trigger.CurrentUtilization = currentUtilization[triggerConfigIndex].value
+			trigger.CurrentUtilization = currentUtilization[triggerConfigIndex].utilization
+			trigger.Error = currentUtilization[triggerConfigIndex].errorMsg
 		}
 
 		triggers = append(triggers, trigger)
@@ -67,12 +67,12 @@ func buildHpaSummary(appName string, component radixv1.RadixCommonDeployComponen
 	return &hpaSummary
 }
 
-type horizontalScalingCurrentUtilization struct {
-	value    string
-	errorMsg string
+type horizontalScalingCurrentState struct {
+	utilization string
+	errorMsg    string
 }
 
-func resolveHorizontalScalingTriggersCurrentUtilization(scalingConfig radixv1.RadixHorizontalScaling, kedaScaler *v1alpha1.ScaledObject, hpa *autoscalingv2.HorizontalPodAutoscaler) ([]horizontalScalingCurrentUtilization, bool) {
+func resolveHorizontalScalingTriggersCurrentState(scalingConfig radixv1.RadixHorizontalScaling, kedaScaler *v1alpha1.ScaledObject, hpa *autoscalingv2.HorizontalPodAutoscaler) ([]horizontalScalingCurrentState, bool) {
 	if kedaScaler == nil || hpa == nil {
 		return nil, false
 	}
@@ -95,31 +95,41 @@ func resolveHorizontalScalingTriggersCurrentUtilization(scalingConfig radixv1.Ra
 		}
 	}
 
-	utilization := make([]horizontalScalingCurrentUtilization, len(kedaScaler.Spec.Triggers))
+	triggerStates := make([]horizontalScalingCurrentState, len(kedaScaler.Spec.Triggers))
 
 	var externalMetricsPos, resourceMetricsPos int
 	for kedaTriggerIndex, kedaTrigger := range kedaScaler.Spec.Triggers {
-		externalMetricPrefix := fmt.Sprintf("s%v-%s-", kedaTriggerIndex, kedaTrigger.Type)
-		if externalMetricsPos < len(kedaScaler.Status.ExternalMetricNames) && strings.HasPrefix(kedaScaler.Status.ExternalMetricNames[externalMetricsPos], externalMetricPrefix) {
-			value, ok := getHorizontalScalingCurrentUtilization(hpa, externalMetricsPos, kedaScaler.Status.ExternalMetricNames[externalMetricsPos], autoscalingv2.ExternalMetricSourceType)
+		if externalMetricPrefix := fmt.Sprintf("s%v-%s-", kedaTriggerIndex, kedaTrigger.Type); externalMetricsPos < len(kedaScaler.Status.ExternalMetricNames) && strings.HasPrefix(kedaScaler.Status.ExternalMetricNames[externalMetricsPos], externalMetricPrefix) {
+			externalMetricName := kedaScaler.Status.ExternalMetricNames[externalMetricsPos]
+
+			value, ok := getHorizontalScalingCurrentUtilization(hpa, externalMetricsPos, externalMetricName, autoscalingv2.ExternalMetricSourceType)
 			if !ok {
 				return nil, false
 			}
-			utilization[kedaTriggerIndex] = horizontalScalingCurrentUtilization{value: value}
+
+			var errorMsg string
+			if health, ok := kedaScaler.Status.Health[externalMetricName]; ok && health.Status != "Happy" {
+				errorMsg = fmt.Sprintf("Number of failures: %d", *health.NumberOfFailures)
+			}
+
+			triggerStates[kedaTriggerIndex] = horizontalScalingCurrentState{utilization: value, errorMsg: errorMsg}
+
 			externalMetricsPos++
 		} else if resourceMetricsPos < len(kedaScaler.Status.ResourceMetricNames) && kedaScaler.Status.ResourceMetricNames[resourceMetricsPos] == kedaTrigger.Type {
 			value, ok := getHorizontalScalingCurrentUtilization(hpa, len(kedaScaler.Status.ExternalMetricNames)+resourceMetricsPos, kedaScaler.Status.ResourceMetricNames[resourceMetricsPos], autoscalingv2.ResourceMetricSourceType)
 			if !ok {
 				return nil, false
 			}
-			utilization[kedaTriggerIndex] = horizontalScalingCurrentUtilization{value: value}
+
+			triggerStates[kedaTriggerIndex] = horizontalScalingCurrentState{utilization: value}
+
 			resourceMetricsPos++
 		} else {
 			return nil, false
 		}
 	}
 
-	return utilization, true
+	return triggerStates, true
 }
 
 func getHorizontalScalingCurrentUtilization(hpa *autoscalingv2.HorizontalPodAutoscaler, index int, metricName string, metricType autoscalingv2.MetricSourceType) (string, bool) {
