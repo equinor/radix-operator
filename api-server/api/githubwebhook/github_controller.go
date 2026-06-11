@@ -74,7 +74,7 @@ func (c *githubController) HandleGithubWebhook(accounts models.Accounts, w http.
 
 	if len(strings.TrimSpace(event)) == 0 {
 		metrics.IncreaseNotGithubEventCounter()
-		c.ErrorResponse(w, r, ErrNotAGithubEventMessage)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, ErrNotAGithubEventMessage, "none")
 		return
 	}
 
