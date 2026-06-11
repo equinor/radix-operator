@@ -14,6 +14,7 @@ type WebhookResponse struct {
 }
 
 func (c *githubController) writeErrorResponse(w http.ResponseWriter, r *http.Request, statusCode int, err error, event string) {
+	log.Ctx(r.Context()).Warn().Err(err).Msg("Error handling GitHub webhook event")
 	c.JSONResponseWithCode(w, r, statusCode, WebhookResponse{
 		Ok:    false,
 		Event: event,

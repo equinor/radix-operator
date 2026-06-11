@@ -134,7 +134,12 @@ func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseW
 		c.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Errorf("could not parse git ref: %w", err), event)
 		return
 	}
-	commitID := getCommitID(e)
+	commitID, err := getCommitID(e)
+	if err != nil {
+		metrics.IncreaseFailedParsingCounter()
+		c.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Errorf("could not parse commit ID: %w", err), event)
+		return
+	}
 	sshURL := e.Repo.GetSSHURL()
 	triggeredBy := getPushTriggeredBy(e)
 
@@ -210,15 +215,24 @@ func getApiGitRefType(gitRefsType string) string {
 	return ""
 }
 
-func getCommitID(e *github.PushEvent) string {
-	if e.Ref != nil && strings.HasPrefix(*e.Ref, "refs/tags/") && e.BaseRef == nil {
+func getCommitID(e *github.PushEvent) (string, error) {
+	if e == nil {
+		return "", fmt.Errorf("push event is nil")
+	}
+
+	if e.Ref != nil && strings.HasPrefix(*e.Ref, "refs/tags/") && e.BaseRef == nil && e.HeadCommit != nil && e.HeadCommit.ID != nil {
 		// The property After has not an existing commit-ID, but other object ID
 		// in the event for an "annotated tag", which can be created with a command
 		// `git tag tag-name -m "annotation message"
 		// https://git-scm.com/book/en/v2/Git-Basics-Tagging
-		return *e.HeadCommit.ID
+		return *e.HeadCommit.ID, nil
 	}
-	return *e.After
+
+	if e.After == nil {
+		return "", fmt.Errorf("after property is nil in push event")
+	}
+
+	return *e.After, nil
 }
 
 func getApplicationSummaryForSingleRegisteredApplication(appName string, rr radixv1.RadixRegistration) (*radixv1.RadixRegistration, error) {
