@@ -117,10 +117,10 @@ func enqueueRadixDNSAliasesForRadixDeployment(controller *common.Controller, rad
 	if !rd.Status.ActiveTo.IsZero() {
 		return // skip not active RadixDeployments
 	}
-	logger.Debug().Msgf("Added or updated an active RadixDeployment %s to application %s in the environment %s. Enqueue relevant RadixDNSAliases", rd.GetName(), rd.Spec.AppName, rd.Spec.Environment)
-	radixDNSAliases, err := getRadixDNSAliasForAppAndEnvironment(radixClient, rd.Spec.AppName, rd.Spec.Environment)
+	logger.Debug().Msgf("Added or updated an active RadixDeployment %s to application %s in the environment %s. Enqueue relevant RadixDNSAliases", rd.GetName(), rd.Spec.AppName, rd.Spec.Environment) //nolint:staticcheck
+	radixDNSAliases, err := getRadixDNSAliasForAppAndEnvironment(radixClient, rd.Spec.AppName, rd.Spec.Environment)                                                                                    //nolint:staticcheck
 	if err != nil {
-		logger.Error().Err(err).Msgf("failed to get list of RadixDNSAliases for the application %s", rd.Spec.AppName)
+		logger.Error().Err(err).Msgf("failed to get list of RadixDNSAliases for the application %s", rd.Spec.AppName) //nolint:staticcheck
 		return
 	}
 	for _, radixDNSAlias := range radixDNSAliases {

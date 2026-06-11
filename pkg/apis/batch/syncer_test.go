@@ -77,7 +77,7 @@ func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.K
 
 func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent) *corev1.ConfigMap {
 	initialEnvVarsConfigMap, _, _ := kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), rd.GetNamespace(),
-		rd.Spec.AppName, deployComponent.GetName())
+		rd.Spec.AppName, deployComponent.GetName()) //nolint:staticcheck
 	desiredConfigMap := initialEnvVarsConfigMap.DeepCopy()
 	for envVarName, envVarValue := range deployComponent.GetEnvironmentVariables() {
 		if strings.HasPrefix(envVarName, "RADIX_") {

@@ -68,7 +68,7 @@ func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *
 		ObjectMeta: metav1.ObjectMeta{
 			Name: component.GetName(),
 			Labels: map[string]string{
-				kube.RadixAppLabel:       radixDeployment.Spec.AppName,
+				kube.RadixAppLabel:       radixDeployment.Spec.AppName, //nolint:staticcheck
 				kube.RadixComponentLabel: component.GetName(),
 			},
 			OwnerReferences: ownerReference,

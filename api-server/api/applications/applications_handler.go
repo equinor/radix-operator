@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -21,11 +22,10 @@ import (
 	apimodels "github.com/equinor/radix-operator/api-server/api/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/warningcollector"
 	"github.com/equinor/radix-operator/api-server/internal/config"
+	"github.com/equinor/radix-operator/api-server/internal/pipelineservice"
 	"github.com/equinor/radix-operator/api-server/models"
-	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -53,6 +53,7 @@ type ApplicationHandler struct {
 	config                          config.Config
 	hasAccessToGetConfigMap         hasAccessToGetConfigMapFunc
 	getWarningCollectionFromContext CollectContextWarningsFunc
+	pipelineSvc                     *pipelineservice.PipelineService
 }
 
 // NewApplicationHandler Constructor
@@ -63,6 +64,7 @@ func NewApplicationHandler(accounts models.Accounts, config config.Config, hasAc
 		config:                          config,
 		hasAccessToGetConfigMap:         hasAccessToGetConfigMap,
 		getWarningCollectionFromContext: warningcollector.GetWarningCollectionFromContext,
+		pipelineSvc:                     &pipelineservice.PipelineService{RadixClient: accounts.UserAccount.RadixClient},
 	}
 
 	for _, option := range options {
@@ -344,79 +346,35 @@ func (ah *ApplicationHandler) GetSupportedPipelines() []string {
 
 // TriggerPipelineBuild Triggers build pipeline for an application
 func (ah *ApplicationHandler) TriggerPipelineBuild(ctx context.Context, appName string, r *http.Request) (*jobModels.JobSummary, error) {
-	pipelineName := "build"
-	jobSummary, err := ah.triggerPipelineBuildOrBuildDeploy(ctx, appName, pipelineName, r)
-	if err != nil {
+	var pipelineParameters applicationModels.PipelineParametersBuild
+
+	if err := json.NewDecoder(r.Body).Decode(&pipelineParameters); err != nil {
 		return nil, err
 	}
-	return jobSummary, nil
+
+	return ah.pipelineSvc.TriggerPipelineBuild(ctx, appName, false, pipelineParameters)
 }
 
 // TriggerPipelineBuildDeploy Triggers build-deploy pipeline for an application
 func (ah *ApplicationHandler) TriggerPipelineBuildDeploy(ctx context.Context, appName string, r *http.Request) (*jobModels.JobSummary, error) {
-	pipelineName := "build-deploy"
-	jobSummary, err := ah.triggerPipelineBuildOrBuildDeploy(ctx, appName, pipelineName, r)
-	if err != nil {
+	var pipelineParameters applicationModels.PipelineParametersBuild
+
+	if err := json.NewDecoder(r.Body).Decode(&pipelineParameters); err != nil {
 		return nil, err
 	}
-	return jobSummary, nil
+	//IsTriggeredFromWebhook is used for backwards compatibility while radix-github-webhook is still deployed
+	return ah.pipelineSvc.TriggerPipelineBuildDeploy(ctx, appName, isTriggeredFromWebhook(ctx), pipelineParameters)
 }
 
 // TriggerPipelinePromote Triggers promote pipeline for an application
 func (ah *ApplicationHandler) TriggerPipelinePromote(ctx context.Context, appName string, r *http.Request) (*jobModels.JobSummary, error) {
 	var pipelineParameters applicationModels.PipelineParametersPromote
+
 	if err := json.NewDecoder(r.Body).Decode(&pipelineParameters); err != nil {
 		return nil, err
 	}
 
-	deploymentName := pipelineParameters.DeploymentName
-	fromEnvironment := pipelineParameters.FromEnvironment
-	toEnvironment := pipelineParameters.ToEnvironment
-
-	if strings.TrimSpace(deploymentName) == "" || strings.TrimSpace(fromEnvironment) == "" || strings.TrimSpace(toEnvironment) == "" {
-		return nil, radixhttp.ValidationError("Radix Application Pipeline", "Deployment name, from environment and to environment are required for \"promote\" pipeline")
-	}
-
-	log.Ctx(ctx).Info().Msgf("Creating promote pipeline jobController for %s using deployment %s from environment %s into environment %s", appName, deploymentName, fromEnvironment, toEnvironment)
-
-	pipeline, err := jobPipeline.GetPipelineFromName("promote")
-	if err != nil {
-		return nil, err
-	}
-
-	radixDeployment, err := ah.getRadixDeploymentForPromotePipeline(ctx, appName, fromEnvironment, deploymentName)
-	if err != nil {
-		return nil, err
-	}
-	pipelineParameters.DeploymentName = radixDeployment.GetName()
-
-	jobParameters := pipelineParameters.MapPipelineParametersPromoteToJobParameter()
-	jobParameters.CommitID = radixDeployment.GetLabels()[kube.RadixCommitLabel]
-	jobSummary, err := HandleStartPipelineJob(ctx, ah.accounts.UserAccount.RadixClient, appName, pipeline, jobParameters)
-	if err != nil {
-		return nil, err
-	}
-
-	return jobSummary, nil
-}
-
-func (ah *ApplicationHandler) getRadixDeploymentForPromotePipeline(ctx context.Context, appName string, envName, deploymentName string) (*v1.RadixDeployment, error) {
-	radixDeployment, err := kubequery.GetRadixDeploymentByName(ctx, ah.accounts.UserAccount.RadixClient, appName, envName, deploymentName)
-	if err == nil {
-		return radixDeployment, nil
-	}
-	if !k8serrors.IsNotFound(err) {
-		return nil, fmt.Errorf("failed to get deployment %s for the app %s, environment %s: %v", deploymentName, appName, envName, err)
-	}
-	envRadixDeployments, err := kubequery.GetRadixDeploymentsForEnvironment(ctx, ah.accounts.UserAccount.RadixClient, appName, envName)
-	if err != nil {
-		return nil, err
-	}
-	radixDeployments := slice.FindAll(envRadixDeployments, func(rd v1.RadixDeployment) bool { return strings.HasSuffix(rd.Name, deploymentName) })
-	if len(radixDeployments) != 1 {
-		return nil, errors.New("invalid or not existing deployment name")
-	}
-	return &radixDeployments[0], nil
+	return ah.pipelineSvc.TriggerPipelinePromote(ctx, appName, false, pipelineParameters)
 }
 
 // TriggerPipelineDeploy Triggers deploy pipeline for an application
@@ -426,27 +384,7 @@ func (ah *ApplicationHandler) TriggerPipelineDeploy(ctx context.Context, appName
 		return nil, err
 	}
 
-	toEnvironment := pipelineParameters.ToEnvironment
-
-	if strings.TrimSpace(toEnvironment) == "" {
-		return nil, radixhttp.ValidationError("Radix Application Pipeline", "To environment is required for \"deploy\" pipeline")
-	}
-
-	log.Ctx(ctx).Info().Msgf("Creating deploy pipeline jobController for %s into environment %s", appName, toEnvironment)
-
-	pipeline, err := jobPipeline.GetPipelineFromName("deploy")
-	if err != nil {
-		return nil, err
-	}
-
-	jobParameters := pipelineParameters.MapPipelineParametersDeployToJobParameter()
-
-	jobSummary, err := HandleStartPipelineJob(ctx, ah.accounts.UserAccount.RadixClient, appName, pipeline, jobParameters)
-	if err != nil {
-		return nil, err
-	}
-
-	return jobSummary, nil
+	return ah.pipelineSvc.TriggerPipelineDeploy(ctx, appName, false, pipelineParameters)
 }
 
 // TriggerPipelineApplyConfig Triggers apply config pipeline for an application
@@ -456,74 +394,7 @@ func (ah *ApplicationHandler) TriggerPipelineApplyConfig(ctx context.Context, ap
 		return nil, err
 	}
 
-	log.Ctx(ctx).Info().Msgf("Creating apply config pipeline jobController for %s", appName)
-
-	pipeline, err := jobPipeline.GetPipelineFromName("apply-config")
-	if err != nil {
-		return nil, err
-	}
-
-	jobParameters := pipelineParameters.MapPipelineParametersApplyConfigToJobParameter()
-
-	jobSummary, err := HandleStartPipelineJob(ctx, ah.accounts.UserAccount.RadixClient, appName, pipeline, jobParameters)
-	if err != nil {
-		return nil, err
-	}
-
-	return jobSummary, nil
-}
-
-func (ah *ApplicationHandler) triggerPipelineBuildOrBuildDeploy(ctx context.Context, appName, pipelineName string, r *http.Request) (*jobModels.JobSummary, error) {
-	var pipelineParameters applicationModels.PipelineParametersBuild
-	userAccount := ah.getUserAccount()
-
-	if err := json.NewDecoder(r.Body).Decode(&pipelineParameters); err != nil {
-		return nil, err
-	}
-	jobParameters := pipelineParameters.MapPipelineParametersBuildToJobParameter()
-	envName := pipelineParameters.ToEnvironment
-	commitID := pipelineParameters.CommitID
-
-	if strings.TrimSpace(appName) == "" || strings.TrimSpace(jobParameters.GitRef) == "" {
-		return nil, applicationModels.AppNameAndBranchAreRequiredForStartingPipeline()
-	}
-
-	log.Ctx(ctx).Info().Msgf("Creating build pipeline jobController for %s on %s %s for commit %s", appName, jobParameters.GitRefType, jobParameters.GitRef, commitID)
-	radixRegistration, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if branch is mapped
-	if !applicationconfig.IsConfigBranch(jobParameters.GitRef, radixRegistration) {
-		ra, err := userAccount.RadixClient.RadixV1().RadixApplications(operatorUtils.GetAppNamespace(appName)).Get(ctx, appName, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		targetEnvironments := applicationconfig.GetAllTargetEnvironments(jobParameters.GitRef, jobParameters.GitRefType, ra)
-		if len(targetEnvironments) == 0 {
-			return nil, applicationModels.UnmatchedBranchToEnvironment(jobParameters.GitRef)
-		}
-
-		if len(envName) > 0 && !slice.Any(targetEnvironments, func(targetEnvName string) bool { return targetEnvName == envName }) {
-			return nil, applicationModels.EnvironmentNotMappedToBranch(envName, jobParameters.GitRef)
-		}
-	}
-
-	pipeline, err := jobPipeline.GetPipelineFromName(pipelineName)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Ctx(ctx).Info().Msgf("Creating build pipeline job for %s on %s %s for commit %s%s", appName, jobParameters.GitRefType, jobParameters.GitRef, commitID,
-		radixutils.TernaryString(len(envName) > 0, fmt.Sprintf(", for environment %s", envName), ""))
-
-	jobSummary, err := HandleStartPipelineJob(ctx, ah.accounts.UserAccount.RadixClient, appName, pipeline, jobParameters)
-	if err != nil {
-		return nil, err
-	}
-
-	return jobSummary, nil
+	return ah.pipelineSvc.TriggerPipelineApplyConfig(ctx, appName, false, pipelineParameters)
 }
 
 // RegenerateDeployKey Regenerates deploy key and secret and returns the new key
@@ -735,4 +606,11 @@ func createRoleBindingForRole(ctx context.Context, kubeClient kubernetes.Interfa
 
 func deleteRoleBinding(ctx context.Context, kubeClient kubernetes.Interface, namespace, roleBindingName string) error {
 	return kubeClient.RbacV1().RoleBindings(namespace).Delete(ctx, roleBindingName, metav1.DeleteOptions{})
+}
+
+var radixGitHubWebhookUserNameRegEx = regexp.MustCompile(`^system:serviceaccount:radix-github-webhook-[\w]+:radix-github-webhook$`)
+
+func isTriggeredFromWebhook(ctx context.Context) bool {
+	userIdGithubWebhookSa := radixGitHubWebhookUserNameRegEx.Match([]byte(auth.GetOriginator(ctx)))
+	return userIdGithubWebhookSa
 }

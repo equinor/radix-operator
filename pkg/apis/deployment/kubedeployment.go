@@ -113,7 +113,7 @@ func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace st
 }
 
 func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
-	log.Ctx(ctx).Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
+	log.Ctx(ctx).Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName) //nolint:staticcheck
 
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -169,7 +169,7 @@ func (deploy *Deployment) createJobAuxDeployment(jobName, jobAuxDeploymentName s
 }
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
-	log.Ctx(ctx).Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
+	log.Ctx(ctx).Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName) //nolint:staticcheck
 
 	desiredDeployment := currentDeployment.DeepCopy()
 	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
@@ -192,7 +192,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context,
 func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	commitID := getDeployComponentCommitId(deployComponent)
 	lbs := radixlabels.Merge(
-		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName), //nolint:staticcheck
 		radixlabels.ForApplicationID(deploy.registration.Spec.AppID),
 		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForCommitId(commitID),
@@ -208,7 +208,7 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 
 func (deploy *Deployment) getJobAuxDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
-		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName), //nolint:staticcheck
 		radixlabels.ForApplicationID(deploy.registration.Spec.AppID),
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
 		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
@@ -237,7 +237,7 @@ func (deploy *Deployment) getDeploymentPodImagePullSecrets() []corev1.LocalObjec
 func (deploy *Deployment) getDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	commitID := getDeployComponentCommitId(deployComponent)
 	return radixlabels.Merge(
-		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName), //nolint:staticcheck
 		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForComponentType(deployComponent.GetType()),
 		radixlabels.ForCommitId(commitID),
@@ -250,7 +250,7 @@ func getDeployComponentCommitId(deployComponent v1.RadixCommonDeployComponent) s
 
 func (deploy *Deployment) getJobAuxDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
-		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName), //nolint:staticcheck
 		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
 	)
 }
@@ -264,7 +264,7 @@ func (deploy *Deployment) getDeploymentAnnotations() map[string]string {
 }
 
 func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
-	appName, componentName := deploy.radixDeployment.Spec.AppName, deployComponent.GetName()
+	appName, componentName := deploy.radixDeployment.Spec.AppName, deployComponent.GetName() //nolint:staticcheck
 
 	desiredDeployment.ObjectMeta.Name = deployComponent.GetName()
 	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}

@@ -179,7 +179,7 @@ func (h *pvcVolumeResourceHandler) getComponentPvcByNameMap(ctx context.Context)
 }
 
 func (h *pvcVolumeResourceHandler) matchComponentVolumeMountLabels(radixVolumeMount radixv1.RadixVolumeMount, pv corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) bool {
-	appName := h.radixDeployment.Spec.AppName
+	appName := h.radixDeployment.Spec.AppName //nolint:staticcheck
 	namespace := h.radixDeployment.Namespace
 	componentName := h.deployComponent.GetName()
 	expectedPvLabels := radixlabels.ForBlobCSIAzurePersistentVolume(appName, namespace, componentName, radixVolumeMount)
@@ -211,7 +211,7 @@ func (h *pvcVolumeResourceHandler) buildPvc(pvName, pvcName string, radixVolumeM
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pvcName,
 			Namespace: h.radixDeployment.Namespace,
-			Labels:    radixlabels.ForBlobCSIAzurePersistentVolumeClaim(h.radixDeployment.Spec.AppName, h.deployComponent.GetName(), *radixVolumeMount),
+			Labels:    radixlabels.ForBlobCSIAzurePersistentVolumeClaim(h.radixDeployment.Spec.AppName, h.deployComponent.GetName(), *radixVolumeMount), //nolint:staticcheck
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{h.getVolumeMountAccessMode(radixVolumeMount)},
@@ -232,15 +232,15 @@ func (h *pvcVolumeResourceHandler) buildPv(pvName, pvcName string, radixVolumeMo
 	var specBuilder persistentVolumeSpecBuilder
 	switch {
 	case radixVolumeMount.HasBlobFuse2():
-		specBuilder = newBlobfuse2PersistentVolumeBuilder(h.radixDeployment.Spec.AppName, h.radixDeployment.Spec.Environment, h.deployComponent, radixVolumeMount)
+		specBuilder = newBlobfuse2PersistentVolumeBuilder(h.radixDeployment.Spec.AppName, h.radixDeployment.Spec.Environment, h.deployComponent, radixVolumeMount) //nolint:staticcheck
 	case radixVolumeMount.HasDeprecatedVolume():
-		specBuilder = newDeprecatedPersistentVolumeSpecBuilder(h.radixDeployment.Spec.AppName, h.radixDeployment.Spec.Environment, h.deployComponent, radixVolumeMount)
+		specBuilder = newDeprecatedPersistentVolumeSpecBuilder(h.radixDeployment.Spec.AppName, h.radixDeployment.Spec.Environment, h.deployComponent, radixVolumeMount) //nolint:staticcheck
 	}
 
 	pv := corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pvName,
-			Labels: radixlabels.ForBlobCSIAzurePersistentVolume(h.radixDeployment.Spec.AppName, namespace, componentName, radixVolumeMount),
+			Labels: radixlabels.ForBlobCSIAzurePersistentVolume(h.radixDeployment.Spec.AppName, namespace, componentName, radixVolumeMount), //nolint:staticcheck
 		},
 		Spec: specBuilder.BuildSpec(pvcName, namespace),
 	}
