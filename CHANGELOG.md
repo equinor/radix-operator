@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.117.3](https://github.com/equinor/radix-operator/compare/v1.117.2..v1.117.3) - 2026-06-05
+## [1.118.0](https://github.com/equinor/radix-operator/compare/v1.117.3..v1.118.0) - 2026-06-12
+
+### 🚀 Features
+
+- Migrate GitHub webhook to api-server (#1767) - ([9fa268e](https://github.com/equinor/radix-operator/commit/9fa268e87e5458c9172db3ff96a70a528218b2cd)) by @Richard87 in [#1767](https://github.com/equinor/radix-operator/pull/1767)
+
+
+## [1.117.3](https://github.com/equinor/radix-operator/compare/v1.117.2..v1.117.3) - 2026-06-10
 
 ### 🐛 Bug Fixes
 
