@@ -2842,3 +2842,99 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 		})
 	}
 }
+
+func Test_CronScheduleValidator(t *testing.T) {
+	var testScenarios = []struct {
+		name        string
+		schedule    []string
+		expectError bool
+	}{
+		{
+			name:        "no schedule is valid",
+			schedule:    nil,
+			expectError: false,
+		},
+		{
+			name:        "empty schedule is valid",
+			schedule:    []string{},
+			expectError: false,
+		},
+		{
+			name:        "valid standard cron expression",
+			schedule:    []string{"* * * * *"},
+			expectError: false,
+		},
+		{
+			name:        "valid step cron expression",
+			schedule:    []string{"*/1 * * * *"},
+			expectError: false,
+		},
+		{
+			name:        "valid day-of-week cron expression",
+			schedule:    []string{"* * * * 1"},
+			expectError: false,
+		},
+		{
+			name:        "valid descriptor @daily",
+			schedule:    []string{"@daily"},
+			expectError: false,
+		},
+		{
+			name:        "valid descriptor @every",
+			schedule:    []string{"@every 1h30m"},
+			expectError: false,
+		},
+		{
+			name:        "multiple valid schedules",
+			schedule:    []string{"* * * * 1", "*/1 * * * *", "@daily"},
+			expectError: false,
+		},
+		{
+			name:        "too few fields is invalid",
+			schedule:    []string{"* * 1"},
+			expectError: true,
+		},
+		{
+			name:        "too many fields is invalid",
+			schedule:    []string{"* * * * * *"},
+			expectError: true,
+		},
+		{
+			name:        "out of range value is invalid",
+			schedule:    []string{"99 * * * *"},
+			expectError: true,
+		},
+		{
+			name:        "non-cron text is invalid",
+			schedule:    []string{"not-a-cron"},
+			expectError: true,
+		},
+		{
+			name:        "unknown descriptor is invalid",
+			schedule:    []string{"@hourlyy"},
+			expectError: true,
+		},
+		{
+			name:        "one invalid schedule among valid ones fails",
+			schedule:    []string{"* * * * *", "* * 1", "@daily"},
+			expectError: true,
+		},
+	}
+
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA.Spec.Jobs[0].Cron.Schedule = testcase.schedule
+			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			_, err := validator.Validate(context.Background(), validRA)
+
+			if testcase.expectError {
+				assert.Error(t, err)
+				assert.ErrorIs(t, err, radixapplication.ErrCronScheduleInvalid)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

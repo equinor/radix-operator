@@ -15,6 +15,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
+	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -67,6 +68,7 @@ func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, re
 		createRRExistValidator(client),
 		createDNSAliasAvailableValidator(client, reservedDNSAliases, reservedDNSAppAliases),
 		createNamespaceUsableValidator(client),
+		createCronScheduleValidator(client),
 	}
 
 	return &Validator{
@@ -374,6 +376,22 @@ func createNamespaceUsableValidator(kubeClient client.Client) validatorFunc {
 				errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, ErrEnvironmentNameIsNotAvailable))
 			}
 		}
+		return nil, errs
+	}
+}
+
+func createCronScheduleValidator(kubeClient client.Client) validatorFunc {
+	return func(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
+		var errs []error
+
+		for _, j := range ra.Spec.Jobs {
+			for _, cs := range j.Cron.Schedule {
+				if _, err := cron.ParseStandard(cs); err != nil {
+					errs = append(errs, fmt.Errorf("cron schedule '%s' for job '%s': %w", cs, j.Name, ErrCronScheduleInvalid))
+				}
+			}
+		}
+
 		return nil, errs
 	}
 }
