@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -388,6 +389,12 @@ func createCronScheduleValidator(kubeClient client.Client) validatorFunc {
 			for _, cs := range j.Cron.Schedule {
 				if _, err := cron.ParseStandard(cs); err != nil {
 					errs = append(errs, fmt.Errorf("cron schedule '%s' for job '%s': %w", cs, j.Name, ErrCronScheduleInvalid))
+				}
+			}
+
+			if j.Cron.TimeZone != "" {
+				if _, err := time.LoadLocation(j.Cron.TimeZone); err != nil {
+					errs = append(errs, fmt.Errorf("cron time zone '%s' for job '%s': %w", j.Cron.TimeZone, j.Name, ErrCronTimeZoneInvalid))
 				}
 			}
 		}

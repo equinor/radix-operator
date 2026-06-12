@@ -2938,3 +2938,59 @@ func Test_CronScheduleValidator(t *testing.T) {
 		})
 	}
 }
+
+func Test_CronTimeZoneValidator(t *testing.T) {
+	var testScenarios = []struct {
+		name        string
+		timeZone    string
+		expectError bool
+	}{
+		{
+			name:        "empty time zone is valid (defaults to UTC)",
+			timeZone:    "",
+			expectError: false,
+		},
+		{
+			name:        "UTC is valid",
+			timeZone:    "UTC",
+			expectError: false,
+		},
+		{
+			name:        "named time zone is valid",
+			timeZone:    "Europe/Oslo",
+			expectError: false,
+		},
+		{
+			name:        "another named time zone is valid",
+			timeZone:    "America/New_York",
+			expectError: false,
+		},
+		{
+			name:        "unknown time zone is invalid",
+			timeZone:    "Not/AZone",
+			expectError: true,
+		},
+		{
+			name:        "garbage value is invalid",
+			timeZone:    "not-a-timezone",
+			expectError: true,
+		},
+	}
+
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA.Spec.Jobs[0].Cron.TimeZone = testcase.timeZone
+			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			_, err := validator.Validate(context.Background(), validRA)
+
+			if testcase.expectError {
+				assert.Error(t, err)
+				assert.ErrorIs(t, err, radixapplication.ErrCronTimeZoneInvalid)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
