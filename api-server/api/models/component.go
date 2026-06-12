@@ -54,10 +54,10 @@ func buildComponent(
 	secretList []corev1.Secret, certs []cmv1.Certificate, certRequests []cmv1.CertificateRequest,
 	lastEventWarnings map[string]string, tlsValidator tlsvalidation.Validator, scaledObjects []v1alpha1.ScaledObject,
 ) *deploymentModels.Component {
-	builder := deploymentModels.NewComponentBuilder().
+	builder := deploymentModels.NewComponentBuilder(rd).
 		WithComponent(radixComponent).
 		WithStatus(deploymentModels.ConsistentComponent).
-		WithHorizontalScalingSummary(GetHpaSummary(ra.Name, radixComponent.GetName(), hpaList, scaledObjects)).
+		WithHorizontalScalingSummary(buildHpaSummary(ra.Name, radixComponent, hpaList, scaledObjects)).
 		WithExternalDNS(getComponentExternalDNS(ra.Name, radixComponent, secretList, certs, certRequests, tlsValidator))
 
 	var kd *appsv1.Deployment

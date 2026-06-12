@@ -31,6 +31,7 @@ type ComponentBuilder interface {
 }
 
 type componentBuilder struct {
+	rd                        *radixv1.RadixDeployment
 	componentName             string
 	componentType             string
 	status                    ComponentStatus
@@ -161,10 +162,13 @@ func (b *componentBuilder) WithComponent(component radixv1.RadixCommonDeployComp
 
 	if identity := component.GetIdentity(); identity != nil {
 		b.identity = &Identity{}
+
 		if azure := identity.Azure; azure != nil {
 			b.identity.Azure = &AzureIdentity{}
 			b.identity.Azure.ClientId = azure.ClientId
 			b.identity.Azure.ServiceAccountName = utils.GetComponentServiceAccountName(component.GetName())
+			b.identity.Azure.Namespace = b.rd.Namespace
+
 			for _, azureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
 				if azureKeyVault.UseAzureIdentity != nil && *azureKeyVault.UseAzureIdentity {
 					b.identity.Azure.AzureKeyVaults = append(b.identity.Azure.AzureKeyVaults, azureKeyVault.Name)
@@ -270,6 +274,6 @@ func (b *componentBuilder) BuildComponent() (*Component, error) {
 }
 
 // NewComponentBuilder Constructor for application component
-func NewComponentBuilder() ComponentBuilder {
-	return &componentBuilder{}
+func NewComponentBuilder(rd *radixv1.RadixDeployment) ComponentBuilder {
+	return &componentBuilder{rd: rd}
 }
