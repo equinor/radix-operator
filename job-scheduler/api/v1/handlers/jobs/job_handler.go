@@ -27,7 +27,7 @@ type JobHandler interface {
 	// GetJob Get status of a job
 	GetJob(ctx context.Context, jobName string) (*modelsv1.JobStatus, error)
 	// CreateJob Create a job with parameters
-	CreateJob(ctx context.Context, jobScheduleDescription *common.JobScheduleDescription) (*modelsv1.JobStatus, error)
+	CreateJob(ctx context.Context, jobScheduleDescription *common.JobScheduleDescription, isCronJob bool) (*modelsv1.JobStatus, error)
 	// CopyJob creates a copy of an existing job with deploymentName as value for radixDeploymentJobRef.name
 	CopyJob(ctx context.Context, jobName string, deploymentName string) (*modelsv1.JobStatus, error)
 	// DeleteJob Delete a job
@@ -117,10 +117,10 @@ func (handler *jobHandler) GetJob(ctx context.Context, jobName string) (*modelsv
 }
 
 // CreateJob Create a job with parameters
-func (handler *jobHandler) CreateJob(ctx context.Context, jobScheduleDescription *common.JobScheduleDescription) (*modelsv1.JobStatus, error) {
+func (handler *jobHandler) CreateJob(ctx context.Context, jobScheduleDescription *common.JobScheduleDescription, isCronJob bool) (*modelsv1.JobStatus, error) {
 	logger := log.Ctx(ctx)
 	logger.Debug().Msgf("Create job for namespace: %s", handler.GetEnv().RadixDeploymentNamespace)
-	radixBatch, err := handler.CreateRadixBatchSingleJob(ctx, jobScheduleDescription)
+	radixBatch, err := handler.CreateRadixBatchSingleJob(ctx, jobScheduleDescription, isCronJob)
 	if err != nil {
 		return nil, err
 	}

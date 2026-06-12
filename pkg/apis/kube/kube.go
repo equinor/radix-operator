@@ -81,6 +81,7 @@ const (
 	RadixBatchNameLabel                 = "radix-batch-name"
 	RadixBatchJobNameLabel              = "radix-batch-job-name"
 	RadixBatchTypeLabel                 = "radix-batch-type"
+	RadixBatchCronLabel                 = "radix-batch-cron"
 	RadixAccessValidationLabel          = "radix-access-validation"
 	RadixPipelineTypeLabels             = "radix-pipeline"
 	RadixTriggerLabel                   = "radix-keda-trigger"

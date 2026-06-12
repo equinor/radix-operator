@@ -117,4 +117,7 @@ var (
 	ErrVolumeMountWithUseAzureIdentityMissingResourceGroup  = errors.New("missing resource group")
 	ErrInvalidBlobFuse2BlockCachePrefetchCount              = errors.New("prefetchCount must be 0 or greater than 10")
 	WarnDeprecatedFieldVolumeMountTypeUsed                  = "deprecated: field 'type' in volumeMount is deprecated. Use BlobFuse2 volume mount type instead."
+
+	ErrCronScheduleInvalid = errors.New("cron schedule format is invalid")
+	ErrCronTimeZoneInvalid = errors.New("cron time zone is invalid")
 )
