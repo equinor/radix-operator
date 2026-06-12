@@ -97,7 +97,7 @@ func (cs *cronServer) prepareForRun(ctx context.Context) (bool, error) {
 		log.Info().Msgf("skipping cron job %s: an active batch is already running (Forbid)", jobName)
 		return false, nil
 	case concurrencyReplace:
-		if err := cs.stopBatches(ctx, activeCronBatches); err != nil {
+		if err := cs.stopBatchJobs(ctx, activeCronBatches); err != nil {
 			return false, fmt.Errorf("failed to stop active batch for cron job %s: %w", jobName, err)
 		}
 
@@ -159,15 +159,16 @@ func (cs *cronServer) start(ctx context.Context) error {
 	return nil
 }
 
-func (cs *cronServer) stopBatches(ctx context.Context, batches []*radixv1.RadixBatch) error {
+func (cs *cronServer) stopBatchJobs(ctx context.Context, batches []*radixv1.RadixBatch) error {
 	for _, b := range batches {
-		if err := batch.StopRadixBatch(
+		if err := batch.StopRadixBatchJob(
 			ctx,
 			cs.kubeUtil.RadixClient(),
 			cs.env.RadixAppName,
 			cs.env.RadixEnvironmentName,
 			cs.jobComponent.Name,
 			b.GetName(),
+			"",
 		); err != nil {
 			return err
 		}
