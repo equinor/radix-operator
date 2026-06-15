@@ -44,7 +44,7 @@ func (transformer RuntimeTransformer) Transformer(t reflect.Type) func(dst, src 
 	}
 
 	return func(dst, src reflect.Value) error {
-		if dst.Kind() != reflect.Ptr || src.Kind() != reflect.Ptr {
+		if dst.Kind() != reflect.Pointer || src.Kind() != reflect.Pointer {
 			return nil
 		}
 		if !src.IsNil() {

@@ -160,7 +160,7 @@ func (b *deploymentBuilder) withRefreshBuildCache(value string) *deploymentBuild
 func (b *deploymentBuilder) withComponentSummariesFromRadixDeployment(rd *v1.RadixDeployment) *deploymentBuilder {
 	components := make([]*ComponentSummary, 0, len(rd.Spec.Components)+len(rd.Spec.Jobs))
 	for _, component := range rd.Spec.Components {
-		componentDto, err := NewComponentBuilder().WithComponent(&component).BuildComponentSummary()
+		componentDto, err := NewComponentBuilder(rd).WithComponent(&component).BuildComponentSummary()
 		if err != nil {
 			b.errors = append(b.errors, err)
 			continue
@@ -168,7 +168,7 @@ func (b *deploymentBuilder) withComponentSummariesFromRadixDeployment(rd *v1.Rad
 		components = append(components, componentDto)
 	}
 	for _, component := range rd.Spec.Jobs {
-		componentDto, err := NewComponentBuilder().WithComponent(&component).BuildComponentSummary()
+		componentDto, err := NewComponentBuilder(rd).WithComponent(&component).BuildComponentSummary()
 		if err != nil {
 			b.errors = append(b.errors, err)
 			continue

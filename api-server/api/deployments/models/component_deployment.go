@@ -182,12 +182,17 @@ type AzureIdentity struct {
 	// or the application ID of an Azure AD Application Registration
 	//
 	// required: true
-	ClientId string `json:"clientId,omitempty"`
+	ClientId string `json:"clientId"`
 
 	// The Service Account name to use when configuring Kubernetes Federation Credentials for the identity
 	//
 	// required: true
-	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+	ServiceAccountName string `json:"serviceAccountName"`
+
+	// The namespace to use when configuring Kubernetes Federation Credentials for the identity
+	//
+	// required: true
+	Namespace string `json:"namespace"`
 
 	// The Azure Key Vaults names, which use Azure Identity
 	//
@@ -477,27 +482,7 @@ type HorizontalScalingSummary struct {
 	// Triggers lists status of all triggers found in radixconfig.yaml
 	//
 	// required: true
-	Triggers []HorizontalScalingSummaryTriggerStatus `json:"triggers"`
-
-	// Deprecated: Component current average CPU utilization over all pods, represented as a percentage of requested CPU. Use Triggers instead. Will be removed from Radix API 2025-01-01.
-	//
-	// example: 70
-	CurrentCPUUtilizationPercentage *int32 `json:"currentCPUUtilizationPercentage"`
-
-	// Deprecated: Component target average CPU utilization over all pods. Use Triggers instead. Will be removed from Radix API 2025-01-01.
-	//
-	// example: 80
-	TargetCPUUtilizationPercentage *int32 `json:"targetCPUUtilizationPercentage"`
-
-	// Deprecated: Component current average memory utilization over all pods, represented as a percentage of requested memory. Use Triggers instead. Will be removed from Radix API 2025-01-01.
-	//
-	// example: 80
-	CurrentMemoryUtilizationPercentage *int32 `json:"currentMemoryUtilizationPercentage"`
-
-	// Deprecated: Component target average memory utilization over all pods. use Triggers instead. Will be removed from Radix API 2025-01-01.
-	//
-	// example: 80
-	TargetMemoryUtilizationPercentage *int32 `json:"targetMemoryUtilizationPercentage"`
+	Triggers []HorizontalScalingSummaryTrigger `json:"triggers"`
 
 	// CurrentReplicas returns the current number of replicas
 	// example: 1
@@ -510,18 +495,23 @@ type HorizontalScalingSummary struct {
 	DesiredReplicas int32 `json:"desiredReplicas"`
 }
 
-type HorizontalScalingSummaryTriggerStatus struct {
+type HorizontalScalingSummaryTrigger struct {
 	// Name of trigger
 	Name string `json:"name"`
+
+	// Type of trigger
+	Type string `json:"type"`
+
+	// External identity information
+	//
+	// required: false
+	Identity *Identity `json:"identity,omitempty"`
 
 	// CurrentUtilization is the last measured utilization
 	CurrentUtilization string `json:"currentUtilization"`
 
 	// TargetUtilization  is the average target across replicas
 	TargetUtilization string `json:"targetUtilization"`
-
-	// Type of trigger
-	Type string `json:"type"`
 
 	// Error contains short description if trigger have problems
 	Error string `json:"error,omitempty"`

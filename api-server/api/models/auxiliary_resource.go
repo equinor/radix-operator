@@ -33,6 +33,7 @@ func getOAuth2AuxiliaryResource(rd *radixv1.RadixDeployment, component radixv1.R
 			Azure: &deploymentModels.AzureIdentity{
 				ClientId:           oauth2.ClientID,
 				ServiceAccountName: oauth2.GetServiceAccountName(component.GetName()),
+				Namespace:          rd.Namespace,
 			},
 		}
 	}

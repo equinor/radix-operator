@@ -638,7 +638,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDepl
 			switch rval.Kind() {
 			case reflect.String:
 				envVars = append(envVars, corev1.EnvVar{Name: envVar, Value: fmt.Sprint(rval)})
-			case reflect.Ptr:
+			case reflect.Pointer:
 				envVars = append(envVars, corev1.EnvVar{Name: envVar, Value: fmt.Sprint(rval.Elem())})
 			}
 		}
