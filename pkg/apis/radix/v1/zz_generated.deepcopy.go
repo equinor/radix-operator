@@ -2860,6 +2860,7 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 		*out = new(int64)
 		**out = **in
 	}
+	in.Cron.DeepCopyInto(&out.Cron)
 	return
 }
 

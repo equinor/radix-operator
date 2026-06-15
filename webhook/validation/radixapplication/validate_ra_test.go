@@ -2925,7 +2925,11 @@ func Test_CronScheduleValidator(t *testing.T) {
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
-			validRA.Spec.Jobs[0].Cron.Schedule = testcase.schedule
+			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
+				WithName("cronjob").
+				WithSchedulerPort(8888).
+				WithCron(radixv1.CronSchedule{Schedule: testcase.schedule}).
+				BuildJobComponent())
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
 			_, err := validator.Validate(context.Background(), validRA)
 
@@ -2981,7 +2985,11 @@ func Test_CronTimeZoneValidator(t *testing.T) {
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
-			validRA.Spec.Jobs[0].Cron.TimeZone = testcase.timeZone
+			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
+				WithName("cronjob").
+				WithSchedulerPort(8888).
+				WithCron(radixv1.CronSchedule{TimeZone: testcase.timeZone, Schedule: []string{"* * * * *"}}).
+				BuildJobComponent())
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
 			_, err := validator.Validate(context.Background(), validRA)
 
