@@ -194,6 +194,7 @@ func (step *PreparePipelinesStepImplementation) setBuildInfo(ctx context.Context
 	if err != nil {
 		return err
 	}
+	//resolved commit is set to pipeline info even if commitID is provided in pipeline arguments, to ensure that the commit exists and is valid, and to get the tags for the commit. If commitID is provided, it will be used in build pipeline, but if it's not provided, the resolved commit will be used.
 	pipelineInfo.GitCommitHash = commit
 	pipelineInfo.GitTags = tags
 
