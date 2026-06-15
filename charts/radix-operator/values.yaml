@@ -332,7 +332,6 @@ radixWebhook:
     canary: radix-canary-golang
     console: radix-web-console
     cost-api: radix-cost-allocation-api
-    webhook: radix-github-webhook
 
   reservedDNSAliases:
     - grafana

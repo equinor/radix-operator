@@ -17,10 +17,6 @@ import (
 )
 
 func (deploy *Deployment) createOrUpdateServiceAccount(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	if isServiceAccountForComponentPreinstalled(deploy.radixDeployment, component) {
-		return nil
-	}
-
 	if !componentRequiresServiceAccount(component) {
 		return nil
 	}
@@ -36,10 +32,6 @@ func (deploy *Deployment) createOrUpdateServiceAccount(ctx context.Context, comp
 }
 
 func createOrUpdateOAuthProxyServiceAccount(ctx context.Context, kubeUtil *kube.Kube, radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) error {
-	if isServiceAccountForComponentPreinstalled(radixDeployment, component) {
-		return nil
-	}
-
 	if !component.GetAuthentication().GetOAuth2().GetUseAzureIdentity() {
 		return nil
 	}
@@ -112,10 +104,6 @@ func buildServiceAccount(namespace, name string, labels kubelabels.Set, identity
 }
 
 func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) error {
-	if isServiceAccountForComponentPreinstalled(deploy.radixDeployment, component) {
-		return nil
-	}
-
 	if componentRequiresServiceAccount(component) {
 		return nil
 	}
@@ -135,10 +123,6 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent
 }
 
 func garbageCollectServiceAccountNoLongerInSpecForOAuthProxyComponent(ctx context.Context, kubeUtil *kube.Kube, radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) error {
-	if isServiceAccountForComponentPreinstalled(radixDeployment, component) {
-		return nil
-	}
-
 	if component.GetAuthentication().GetOAuth2().GetUseAzureIdentity() {
 		return nil
 	}
@@ -188,13 +172,6 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec(ctx context
 	}
 
 	return nil
-}
-
-// Is this a component/deployment where the service account is handled elsewhere,
-// e.g. radix-github-webhook
-func isServiceAccountForComponentPreinstalled(radixDeployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) bool {
-	isComponent := component.GetType() == radixv1.RadixComponentTypeComponent
-	return isComponent && isRadixWebHook(radixDeployment)
 }
 
 func componentRequiresServiceAccount(component radixv1.RadixCommonDeployComponent) bool {

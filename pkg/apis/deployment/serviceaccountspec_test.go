@@ -58,7 +58,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Jobs[1].Name), spec.ServiceAccountName())
 	})
 
-	t.Run("radix webhook", func(t *testing.T) {
+	t.Run("radix webhook has no special service account", func(t *testing.T) {
 		t.Parallel()
 		rd := utils.NewDeploymentBuilder().
 			WithRadixApplication(utils.ARadixApplication()).
@@ -70,7 +70,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec := NewServiceAccountSpec(rd, &rd.Spec.Components[0])
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaults.RadixGithubWebhookServiceAccountName, spec.ServiceAccountName())
+		assert.Equal(t, "", spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, internal.NewJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
