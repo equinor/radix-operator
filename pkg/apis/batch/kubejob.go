@@ -162,7 +162,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 		failurePolicy = operatorUtils.GetPodFailurePolicy(batchJob.FailurePolicy)
 	}
 
-	serviceAccountSpec := deployment.NewServiceAccountSpec(rd, jobComponent)
+	serviceAccountSpec := deployment.NewServiceAccountSpec(jobComponent)
 	volumes = s.appendPayloadSecretVolumes(batchJob, jobComponent, volumes)
 
 	job := &batchv1.Job{

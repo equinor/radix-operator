@@ -1184,22 +1184,6 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
-
-	t.Run("webhook runs as radix-github-webhook SA", func(t *testing.T) {
-		tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-		_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
-			WithJobComponents().
-			WithAppName("radix-github-webhook").
-			WithEnvironment("test"))
-		require.NoError(t, err)
-		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(context.Background(), metav1.ListOptions{})
-		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(context.Background(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, defaults.RadixGithubWebhookServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
-
-	})
 }
 
 func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing.T) {

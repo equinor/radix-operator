@@ -287,7 +287,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.getDeploymentPodImagePullSecrets()
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 
-	spec := NewServiceAccountSpec(deploy.radixDeployment, deployComponent)
+	spec := NewServiceAccountSpec(deployComponent)
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = spec.AutomountServiceAccountToken()
 	desiredDeployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)

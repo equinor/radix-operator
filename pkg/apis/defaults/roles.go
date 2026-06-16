@@ -1,12 +1,6 @@
 package defaults
 
 const (
-	// RadixGithubWebhookRoleName Name of the cluster role with RBAC for radix-github-webhook service account
-	RadixGithubWebhookRoleName = "radix-webhook"
-
-	// RadixGithubWebhookServiceAccountName Name of the service account representing the webhook
-	RadixGithubWebhookServiceAccountName = "radix-github-webhook"
-
 	// AppAdminRoleName Name of role which grants access to manage the CI/CD of their applications
 	AppAdminRoleName = "radix-app-admin"
 
