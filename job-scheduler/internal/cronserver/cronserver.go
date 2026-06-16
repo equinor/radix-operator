@@ -48,13 +48,19 @@ func New(kubeUtil *kube.Kube, env *models.Env, jobComponent *radixv1.RadixDeploy
 
 // Start runs the cron scheduler until the context is cancelled.
 func (s *Server) Start(ctx context.Context) error {
-	tz, err := time.LoadLocation(s.jobComponent.Cron.TimeZone)
-	if err != nil {
-		return fmt.Errorf("invalid timezone %q for cron job %s: %w",
-			s.jobComponent.Cron.TimeZone, s.jobComponent.GetName(), err)
+	// time.LoadLocation("") already defaults to UTC, but guard explicitly so a
+	// whitespace-only timezone (which the RA validator rejects) cannot slip
+	// through if the job component is ever created without validation.
+	loc := time.UTC
+	if tz := strings.TrimSpace(s.jobComponent.Cron.TimeZone); tz != "" {
+		var err error
+		if loc, err = time.LoadLocation(tz); err != nil {
+			return fmt.Errorf("invalid timezone %q for cron job %s: %w",
+				tz, s.jobComponent.GetName(), err)
+		}
 	}
 
-	cronInstance := cron.New(cron.WithLocation(tz))
+	cronInstance := cron.New(cron.WithLocation(loc))
 
 	for _, schedule := range s.jobComponent.Cron.Schedule {
 		if _, err := cronInstance.AddFunc(schedule, func() {
