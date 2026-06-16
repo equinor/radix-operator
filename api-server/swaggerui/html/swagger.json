@@ -7592,6 +7592,12 @@
           "x-go-name": "RerunFromJob",
           "example": "radix-pipeline-20231011104617-urynf"
         },
+        "resolvedCommitID": {
+          "description": "ResolvedCommitID the commit ID resolved by the pipeline runner. Set when the pipeline job runs,\neven if CommitID was not provided in the pipeline arguments (e.g. manual trigger).",
+          "type": "string",
+          "x-go-name": "ResolvedCommitID",
+          "example": "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
+        },
         "started": {
           "description": "Started timestamp",
           "type": "string",
@@ -7779,6 +7785,12 @@
           "type": "boolean",
           "x-go-name": "RefreshBuildCache",
           "x-nullable": true
+        },
+        "resolvedCommitID": {
+          "description": "ResolvedCommitID the commit ID resolved by the pipeline runner. Set when the pipeline job runs,\neven if CommitID was not provided in the pipeline arguments (e.g. manual trigger).",
+          "type": "string",
+          "x-go-name": "ResolvedCommitID",
+          "example": "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
         },
         "started": {
           "description": "Started timestamp",
