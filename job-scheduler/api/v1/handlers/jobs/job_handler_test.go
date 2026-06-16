@@ -131,10 +131,10 @@ func TestCreateJob(t *testing.T) {
 		assert.Equal(t, "", jobStatus.BatchName)
 		radixBatch, err := radixClient.RadixV1().RadixBatches(envNamespace).Get(context.TODO(), batchName, metav1.GetOptions{})
 		require.NoError(t, err)
-		assert.Len(t, radixBatch.Labels, 4)
 		assert.Equal(t, appName, radixBatch.Labels[kube.RadixAppLabel])
 		assert.Equal(t, appJobComponent, radixBatch.Labels[kube.RadixComponentLabel])
 		assert.Equal(t, string(kube.RadixBatchTypeJob), radixBatch.Labels[kube.RadixBatchTypeLabel])
+		assert.Equal(t, "false", radixBatch.Labels[kube.RadixBatchCronLabel])
 		require.Len(t, radixBatch.Spec.Jobs, 1)
 		expectedJob := radixv1.RadixBatchJob{Name: batchJobName}
 		assert.Equal(t, expectedJob, radixBatch.Spec.Jobs[0])
