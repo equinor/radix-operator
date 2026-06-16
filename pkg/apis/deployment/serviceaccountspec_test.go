@@ -33,27 +33,27 @@ func Test_ServiceAccountSpec(t *testing.T) {
 			).
 			BuildRD()
 
-		spec := NewServiceAccountSpec(rd, &rd.Spec.Components[0])
+		spec := NewServiceAccountSpec(&rd.Spec.Components[0])
 		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, &rd.Spec.Components[1])
+		spec = NewServiceAccountSpec(&rd.Spec.Components[1])
 		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Components[1].Name), spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, internal.NewJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
+		spec = NewServiceAccountSpec(internal.NewJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
+		spec = NewServiceAccountSpec(&rd.Spec.Jobs[0])
 		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, internal.NewJobSchedulerComponent(&rd.Spec.Jobs[1], rd))
+		spec = NewServiceAccountSpec(internal.NewJobSchedulerComponent(&rd.Spec.Jobs[1], rd))
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[1])
+		spec = NewServiceAccountSpec(&rd.Spec.Jobs[1])
 		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Jobs[1].Name), spec.ServiceAccountName())
 	})
@@ -68,15 +68,15 @@ func Test_ServiceAccountSpec(t *testing.T) {
 			WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job")).
 			BuildRD()
 
-		spec := NewServiceAccountSpec(rd, &rd.Spec.Components[0])
-		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, "", spec.ServiceAccountName())
+		spec := NewServiceAccountSpec(&rd.Spec.Components[0])
+		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, "default", spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, internal.NewJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
+		spec = NewServiceAccountSpec(internal.NewJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, pointers.Ptr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
+		spec = NewServiceAccountSpec(&rd.Spec.Jobs[0])
 		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 

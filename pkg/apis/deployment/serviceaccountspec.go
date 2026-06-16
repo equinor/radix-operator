@@ -44,7 +44,7 @@ func (spec *radixComponentServiceAccountSpec) AutomountServiceAccountToken() *bo
 }
 
 // NewServiceAccountSpec Create ServiceAccountSpec based on RadixDeployment and RadixCommonDeployComponent
-func NewServiceAccountSpec(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ServiceAccountSpec {
+func NewServiceAccountSpec(deployComponent v1.RadixCommonDeployComponent) ServiceAccountSpec {
 	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		return &jobSchedulerServiceAccountSpec{}
 	}
