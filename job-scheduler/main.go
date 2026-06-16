@@ -77,7 +77,7 @@ func main() {
 	})
 
 	if err := g.Wait(); err != nil {
-		log.Error().Err(err).Msg("server group exited with error")
+		log.Fatal().Err(err).Msg("server group exited with error")
 	}
 }
 
