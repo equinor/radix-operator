@@ -420,6 +420,58 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 	assert.Equal(t, numbers.Int64Ptr(200), env2Job[0].TimeLimitSeconds)
 }
 
+func Test_GetRadixJobComponents_Cron(t *testing.T) {
+	commonCron := radixv1.CronSchedule{
+		TimeZone:    "UTC",
+		Schedule:    []string{"0 * * * *"},
+		Concurrency: "Allow",
+	}
+	envCron := radixv1.CronSchedule{
+		TimeZone:    "Europe/Oslo",
+		Schedule:    []string{"30 2 * * *"},
+		Concurrency: "Forbid",
+	}
+
+	scenarios := []struct {
+		name                 string
+		commonCron           radixv1.CronSchedule
+		configureEnvironment bool
+		environmentCron      radixv1.CronSchedule
+		expected             radixv1.CronSchedule
+	}{
+		{name: "use common cron when no environment config", commonCron: commonCron, configureEnvironment: false, expected: commonCron},
+		{name: "override common cron with environment cron", commonCron: commonCron, configureEnvironment: true, environmentCron: envCron, expected: envCron},
+		{name: "environment config without cron clears common cron", commonCron: commonCron, configureEnvironment: true, environmentCron: radixv1.CronSchedule{}, expected: radixv1.CronSchedule{}},
+		{name: "use environment cron when common cron is empty", commonCron: radixv1.CronSchedule{}, configureEnvironment: true, environmentCron: envCron, expected: envCron},
+	}
+
+	const envName = "dev"
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			t.Parallel()
+			jobBuilder := utils.NewApplicationJobComponentBuilder().
+				WithName("anyjob").
+				WithCron(scenario.commonCron)
+			if scenario.configureEnvironment {
+				jobBuilder = jobBuilder.WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment(envName).
+						WithCron(scenario.environmentCron),
+				)
+			}
+			ra := utils.NewRadixApplicationBuilder().
+				WithJobComponents(jobBuilder).
+				BuildRA()
+
+			builder := jobComponentsBuilder{ra: ra, env: envName, componentImages: pipeline.DeployComponentImages{}}
+			jobs, err := builder.JobComponents(context.Background())
+			require.NoError(t, err)
+			require.Len(t, jobs, 1)
+			assert.Equal(t, scenario.expected, jobs[0].Cron)
+		})
+	}
+}
+
 func Test_GetRadixJobComponents_BackoffLimit(t *testing.T) {
 	devEnvName, prodEnvName := "dev", "prod"
 	scenarios := []struct {
