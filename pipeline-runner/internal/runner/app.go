@@ -139,7 +139,6 @@ func printPipelineDescription(ctx context.Context, pipelineInfo *model.PipelineI
 	}
 }
 
-// here is stored
 // UpdateStatus updates the status of the pipeline job. It ignores any cancelled context, and creates its own 30s deadline
 func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJobCondition) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)

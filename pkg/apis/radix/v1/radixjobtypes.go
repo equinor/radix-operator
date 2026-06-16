@@ -86,11 +86,10 @@ type RadixJobStatus struct {
 }
 
 type RadixJobPipelineRunStatus struct {
-	UsedBuildKit   bool              `json:"usedBuildKit"`
-	UsedBuildCache bool              `json:"usedBuildCache"`
-	Status         RadixJobCondition `json:"status"`
-	//add resolved commit id to the status to be able to correlate pipeline run with the commit that triggered it, and to be able to use it in build pipeline when commitID is not provided in pipeline arguments, but is resolved in prepare step
-	ResolvedCommitID string `json:"resolvedCommitID,omitempty"`
+	UsedBuildKit     bool              `json:"usedBuildKit"`
+	UsedBuildCache   bool              `json:"usedBuildCache"`
+	Status           RadixJobCondition `json:"status"`
+	ResolvedCommitID string            `json:"resolvedCommitID,omitempty"`
 }
 
 // RadixJobCondition Holds the condition of a job
@@ -205,7 +204,7 @@ type RadixBuildSpec struct {
 	//
 	// +optional
 	ToEnvironment string `json:"toEnvironment,omitempty"`
-	//
+
 	// CommitID, from which the image to be built
 	//
 	// +optional
