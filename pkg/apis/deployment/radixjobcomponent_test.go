@@ -421,12 +421,12 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 }
 
 func Test_GetRadixJobComponents_Cron(t *testing.T) {
-	commonCron := radixv1.CronSchedule{
+	commonCron := &radixv1.CronSchedule{
 		TimeZone:    "UTC",
 		Schedule:    []string{"0 * * * *"},
 		Concurrency: "Allow",
 	}
-	envCron := radixv1.CronSchedule{
+	envCron := &radixv1.CronSchedule{
 		TimeZone:    "Europe/Oslo",
 		Schedule:    []string{"30 2 * * *"},
 		Concurrency: "Forbid",
@@ -434,15 +434,15 @@ func Test_GetRadixJobComponents_Cron(t *testing.T) {
 
 	scenarios := []struct {
 		name                 string
-		commonCron           radixv1.CronSchedule
+		commonCron           *radixv1.CronSchedule
 		configureEnvironment bool
-		environmentCron      radixv1.CronSchedule
-		expected             radixv1.CronSchedule
+		environmentCron      *radixv1.CronSchedule
+		expected             *radixv1.CronSchedule
 	}{
 		{name: "use common cron when no environment config", commonCron: commonCron, configureEnvironment: false, expected: commonCron},
 		{name: "override common cron with environment cron", commonCron: commonCron, configureEnvironment: true, environmentCron: envCron, expected: envCron},
-		{name: "environment config without cron clears common cron", commonCron: commonCron, configureEnvironment: true, environmentCron: radixv1.CronSchedule{}, expected: radixv1.CronSchedule{}},
-		{name: "use environment cron when common cron is empty", commonCron: radixv1.CronSchedule{}, configureEnvironment: true, environmentCron: envCron, expected: envCron},
+		{name: "environment config without cron falls back to common cron", commonCron: commonCron, configureEnvironment: true, environmentCron: nil, expected: commonCron},
+		{name: "use environment cron when common cron is unset", commonCron: nil, configureEnvironment: true, environmentCron: envCron, expected: envCron},
 	}
 
 	const envName = "dev"

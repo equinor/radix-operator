@@ -386,6 +386,9 @@ func createCronScheduleValidator(kubeClient client.Client) validatorFunc {
 		var errs []error
 
 		for _, j := range ra.Spec.Jobs {
+			if j.Cron == nil {
+				continue
+			}
 			for _, cs := range j.Cron.Schedule {
 				if _, err := cron.ParseStandard(cs); err != nil {
 					errs = append(errs, fmt.Errorf("cron schedule %q for job %q is invalid: %w (%v)", cs, j.Name, ErrCronScheduleInvalid, err))

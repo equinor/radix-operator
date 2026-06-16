@@ -182,8 +182,8 @@ func getRadixJobComponentSafeToRestart(radixJobComponent v1.RadixJobComponent, e
 	return radixJobComponent.SafeToRestart
 }
 
-func getRadixJobComponentCron(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) v1.CronSchedule {
-	if environmentSpecificConfig != nil {
+func getRadixJobComponentCron(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) *v1.CronSchedule {
+	if environmentSpecificConfig != nil && environmentSpecificConfig.Cron != nil {
 		return environmentSpecificConfig.Cron
 	}
 	return radixJobComponent.Cron

@@ -34,7 +34,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithRunAsUser(runAsUser *int64) RadixApplicationJobComponentBuilder
 	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) RadixApplicationJobComponentBuilder
 	WithSafeToRestart(*bool) RadixApplicationJobComponentBuilder
-	WithCron(v1.CronSchedule) RadixApplicationJobComponentBuilder
+	WithCron(*v1.CronSchedule) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -68,7 +68,7 @@ type radixApplicationJobComponentBuilder struct {
 	args               []string
 	runAsUser          *int64
 	safeToRestart      *bool
-	cron               v1.CronSchedule
+	cron               *v1.CronSchedule
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -239,7 +239,7 @@ func (rcb *radixApplicationJobComponentBuilder) WithSafeToRestart(safeToRestart 
 	return rcb
 }
 
-func (rcb *radixApplicationJobComponentBuilder) WithCron(cron v1.CronSchedule) RadixApplicationJobComponentBuilder {
+func (rcb *radixApplicationJobComponentBuilder) WithCron(cron *v1.CronSchedule) RadixApplicationJobComponentBuilder {
 	rcb.cron = cron
 	return rcb
 }

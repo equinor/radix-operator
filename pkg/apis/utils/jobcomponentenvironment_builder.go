@@ -30,7 +30,7 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithRunAsUser(runAsUser *int64) RadixJobComponentEnvironmentConfigBuilder
 	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) RadixJobComponentEnvironmentConfigBuilder
 	WithSafeToRestart(*bool) RadixJobComponentEnvironmentConfigBuilder
-	WithCron(v1.CronSchedule) RadixJobComponentEnvironmentConfigBuilder
+	WithCron(*v1.CronSchedule) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
 
@@ -59,7 +59,7 @@ type radixJobComponentEnvironmentConfigBuilder struct {
 	args               *[]string
 	runAsUser          *int64
 	safeToRestart      *bool
-	cron               v1.CronSchedule
+	cron               *v1.CronSchedule
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
@@ -188,7 +188,7 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithSafeToRestart(safeToRe
 	return ceb
 }
 
-func (ceb *radixJobComponentEnvironmentConfigBuilder) WithCron(cron v1.CronSchedule) RadixJobComponentEnvironmentConfigBuilder {
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithCron(cron *v1.CronSchedule) RadixJobComponentEnvironmentConfigBuilder {
 	ceb.cron = cron
 	return ceb
 }

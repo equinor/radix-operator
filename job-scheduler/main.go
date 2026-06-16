@@ -66,7 +66,7 @@ func main() {
 	cs := cronserver.New(kubeUtil, env, radixDeployJobComponent, jobHandler)
 
 	g, gctx := errgroup.WithContext(ctx)
-	if len(radixDeployJobComponent.Cron.Schedule) > 0 {
+	if radixDeployJobComponent.Cron != nil && len(radixDeployJobComponent.Cron.Schedule) > 0 {
 		g.Go(func() error {
 			return cs.Start(gctx)
 		})

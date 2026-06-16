@@ -900,7 +900,7 @@ type RadixJobComponent struct {
 
 	// Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave
 	// +optional
-	Cron CronSchedule `json:"cron,omitzero"`
+	Cron *CronSchedule `json:"cron,omitempty"`
 }
 
 // CronSchedule defines a schedule on which to run the job and how to handle concurrent jobs
@@ -1134,7 +1134,7 @@ type RadixJobComponentEnvironmentConfig struct {
 
 	// Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave
 	// +optional
-	Cron CronSchedule `json:"cron,omitzero"`
+	Cron *CronSchedule `json:"cron,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received

@@ -1905,7 +1905,11 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 		*out = new(int64)
 		**out = **in
 	}
-	in.Cron.DeepCopyInto(&out.Cron)
+	if in.Cron != nil {
+		in, out := &in.Cron, &out.Cron
+		*out = new(CronSchedule)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -2746,7 +2750,11 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		*out = new(int64)
 		**out = **in
 	}
-	in.Cron.DeepCopyInto(&out.Cron)
+	if in.Cron != nil {
+		in, out := &in.Cron, &out.Cron
+		*out = new(CronSchedule)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -2860,7 +2868,11 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 		*out = new(int64)
 		**out = **in
 	}
-	in.Cron.DeepCopyInto(&out.Cron)
+	if in.Cron != nil {
+		in, out := &in.Cron, &out.Cron
+		*out = new(CronSchedule)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
