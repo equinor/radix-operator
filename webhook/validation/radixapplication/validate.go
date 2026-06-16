@@ -394,7 +394,7 @@ func createCronScheduleValidator(kubeClient client.Client) validatorFunc {
 
 			if j.Cron.TimeZone != "" {
 				if _, err := time.LoadLocation(j.Cron.TimeZone); err != nil {
-					errs = append(errs, fmt.Errorf("cron time zone '%s' for job '%s': %w", j.Cron.TimeZone, j.Name, ErrCronTimeZoneInvalid))
+					errs = append(errs, fmt.Errorf("cron time zone %q for job %q is invalid: %w (%v)", j.Cron.TimeZone, j.Name, ErrCronTimeZoneInvalid, err))
 				}
 			}
 		}
