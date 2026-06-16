@@ -234,10 +234,6 @@ spec:
                   the pipeline run execution
                 properties:
                   resolvedCommitID:
-                    description: add resolved commit id to the status to be able to
-                      correlate pipeline run with the commit that triggered it, and
-                      to be able to use it in build pipeline when commitID is not
-                      provided in pipeline arguments, but is resolved in prepare step
                     type: string
                   status:
                     description: RadixJobCondition Holds the condition of a job
