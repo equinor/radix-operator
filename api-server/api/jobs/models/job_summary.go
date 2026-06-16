@@ -155,6 +155,13 @@ type JobSummary struct {
 	// enum: branch,tag,""
 	// example: branch
 	GitRefType string `json:"gitRefType,omitempty"`
+
+	// ResolvedCommitID the commit ID resolved by the pipeline runner. Set when the pipeline job runs,
+	// even if CommitID was not provided in the pipeline arguments (e.g. manual trigger).
+	//
+	// required: false
+	// example: 4faca8595c5283a9d0f17a623b9255a0d9866a2e
+	ResolvedCommitID string `json:"resolvedCommitID,omitempty"`
 }
 
 // GetSummaryFromRadixJob Used to get job summary from a radix job
@@ -196,6 +203,7 @@ func GetSummaryFromRadixJob(job *radixv1.RadixJob) *JobSummary {
 		pipelineJob.UseBuildCache = IsUsingBuildCache(job)
 		pipelineJob.OverrideUseBuildCache = job.Spec.Build.OverrideUseBuildCache
 		pipelineJob.RefreshBuildCache = job.Spec.Build.RefreshBuildCache
+		pipelineJob.ResolvedCommitID = GetResolvedCommitID(job)
 	case radixv1.Deploy:
 		pipelineJob.ImageTagNames = job.Spec.Deploy.ImageTagNames
 		pipelineJob.CommitID = job.Spec.Deploy.CommitID
@@ -209,6 +217,13 @@ func GetSummaryFromRadixJob(job *radixv1.RadixJob) *JobSummary {
 	}
 
 	return pipelineJob
+}
+
+func GetResolvedCommitID(job *radixv1.RadixJob) string {
+	if job != nil && job.Status.PipelineRunStatus != nil {
+		return job.Status.PipelineRunStatus.ResolvedCommitID
+	}
+	return ""
 }
 
 func IsUsingBuildKit(job *radixv1.RadixJob) *bool {

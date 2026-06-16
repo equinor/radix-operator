@@ -183,4 +183,11 @@ type Job struct {
 	// enum: branch,tag,""
 	// example: branch
 	GitRefType string `json:"gitRefType,omitempty"`
+
+	// ResolvedCommitID the commit ID resolved by the pipeline runner. Set when the pipeline job runs,
+	// even if CommitID was not provided in the pipeline arguments (e.g. manual trigger).
+	//
+	// required: false
+	// example: 4faca8595c5283a9d0f17a623b9255a0d9866a2e
+	ResolvedCommitID string `json:"resolvedCommitID,omitempty"`
 }

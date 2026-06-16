@@ -365,6 +365,7 @@ func (jh JobHandler) getJobFromRadixJob(ctx context.Context, job *v1.RadixJob, j
 		jobModel.UseBuildCache = jobModels.IsUsingBuildCache(job)
 		jobModel.OverrideUseBuildCache = job.Spec.Build.OverrideUseBuildCache
 		jobModel.RefreshBuildCache = job.Spec.Build.RefreshBuildCache
+		jobModel.ResolvedCommitID = jobModels.GetResolvedCommitID(job)
 	case v1.Deploy:
 		jobModel.ImageTagNames = job.Spec.Deploy.ImageTagNames
 		jobModel.DeployedToEnvironment = job.Spec.Deploy.ToEnvironment
