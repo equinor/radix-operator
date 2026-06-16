@@ -908,8 +908,7 @@ type CronSchedule struct {
 	// The time zone for all schedules, will default to UTC if value is empty or omitted
 	// +optional
 	// +kubebuilder:validation:MinLength=1
-	TimeZone string `json:"timeZone"`
-
+	TimeZone string `json:"timeZone,omitempty"`
 	// The cron schedule for the job
 	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=20
