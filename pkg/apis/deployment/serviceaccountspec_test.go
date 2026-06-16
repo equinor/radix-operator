@@ -79,6 +79,5 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		spec = NewServiceAccountSpec(&rd.Spec.Jobs[0])
 		assert.Equal(t, pointers.Ptr(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
-
 	})
 }
