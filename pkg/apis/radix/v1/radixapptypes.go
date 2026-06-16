@@ -909,6 +909,7 @@ type CronSchedule struct {
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	TimeZone string `json:"timeZone,omitempty"`
+	
 	// The cron schedule for the job
 	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=20
