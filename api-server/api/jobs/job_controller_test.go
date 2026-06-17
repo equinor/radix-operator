@@ -80,6 +80,7 @@ func TestGetApplicationJob(t *testing.T) {
 			refreshBuildCache:     new(false),
 			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
+			expectedCommitID:      anyPushCommitID,
 		},
 		"OverrideCacheEnabled": {
 			useBuildKit:           new(true),
@@ -88,6 +89,7 @@ func TestGetApplicationJob(t *testing.T) {
 			refreshBuildCache:     new(false),
 			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
+			expectedCommitID:      anyPushCommitID,
 		},
 		"RefreshCacheEnabled": {
 			useBuildKit:           new(true),
@@ -96,6 +98,7 @@ func TestGetApplicationJob(t *testing.T) {
 			refreshBuildCache:     new(true),
 			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
+			expectedCommitID:      anyPushCommitID,
 		},
 		"PipelineRunUsedBuildKit": {
 			useBuildKit:           new(true),
@@ -105,6 +108,7 @@ func TestGetApplicationJob(t *testing.T) {
 			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: true, UsedBuildCache: true},
 			expectedUseBuildKit:   new(true),
 			expectedUseBuildCache: new(true),
+			expectedCommitID:      anyPushCommitID,
 		},
 		"PipelineRunNotUsedBuildKit": {
 			useBuildKit:           new(true),
@@ -114,6 +118,7 @@ func TestGetApplicationJob(t *testing.T) {
 			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: false, UsedBuildCache: false},
 			expectedUseBuildKit:   new(false),
 			expectedUseBuildCache: new(false),
+			expectedCommitID:      anyPushCommitID,
 		},
 		"PipelineRunWithResolvedCommitID": {
 			useBuildKit:           new(true),

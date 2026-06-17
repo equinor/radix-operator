@@ -199,12 +199,12 @@ func GetSummaryFromRadixJob(job *radixv1.RadixJob) *JobSummary {
 		pipelineJob.RefreshBuildCache = job.Spec.Build.RefreshBuildCache
 	case radixv1.Deploy:
 		pipelineJob.ImageTagNames = job.Spec.Deploy.ImageTagNames
-		pipelineJob.CommitID = cmp.Or(GetResolvedCommitID(job), job.Spec.Deploy.CommitID)
+		pipelineJob.CommitID = job.Spec.Deploy.CommitID
 	case radixv1.Promote:
 		pipelineJob.PromotedFromDeployment = job.Spec.Promote.DeploymentName
 		pipelineJob.PromotedFromEnvironment = job.Spec.Promote.FromEnvironment
 		pipelineJob.PromotedToEnvironment = job.Spec.Promote.ToEnvironment
-		pipelineJob.CommitID = cmp.Or(GetResolvedCommitID(job), job.Spec.Promote.CommitID)
+		pipelineJob.CommitID = job.Spec.Promote.CommitID
 	case radixv1.ApplyConfig:
 		pipelineJob.DeployExternalDNS = pointers.Ptr(job.Spec.ApplyConfig.DeployExternalDNS)
 	}
