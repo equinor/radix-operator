@@ -2997,7 +2997,7 @@ func Test_CronTimeZoneValidator(t *testing.T) {
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
 				WithSchedulerPort(8888).
-				WithCron(&radixv1.CronSchedule{TimeZone: testcase.timeZone, Schedule: []string{"* * * * *"}}).
+				WithCron(&radixv1.CronSchedule{TimeZone: testcase.timeZone, Schedule: []string{"* * * * *"}, Concurrency: "Allow"}).
 				BuildJobComponent())
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
 			_, err := validator.Validate(context.Background(), validRA)
