@@ -389,9 +389,13 @@ func cronScheduleValidator(_ context.Context, ra *radixv1.RadixApplication) ([]s
 		if j.Cron == nil {
 			continue
 		}
-		for _, cs := range j.Cron.Schedule {
-			if _, err := cron.ParseStandard(cs); err != nil {
-				errs = append(errs, fmt.Errorf("cron schedule %q for job %q is invalid: %w (%v)", cs, j.Name, ErrCronScheduleInvalid, err))
+		if len(j.Cron.Schedule) == 0 {
+			errs = append(errs, fmt.Errorf("cron schedule for job %q: %w", j.Name, ErrCronScheduleEmpty))
+		} else {
+			for _, cs := range j.Cron.Schedule {
+				if _, err := cron.ParseStandard(cs); err != nil {
+					errs = append(errs, fmt.Errorf("cron schedule %q for job %q is invalid: %w (%v)", cs, j.Name, ErrCronScheduleInvalid, err))
+				}
 			}
 		}
 

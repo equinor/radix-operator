@@ -2848,16 +2848,19 @@ func Test_CronScheduleValidator(t *testing.T) {
 		name        string
 		schedule    []string
 		expectError bool
+		errorIs     error
 	}{
 		{
-			name:        "no schedule is valid",
+			name:        "nil schedule is invalid when cron is set",
 			schedule:    nil,
-			expectError: false,
+			expectError: true,
+			errorIs:     radixapplication.ErrCronScheduleEmpty,
 		},
 		{
-			name:        "empty schedule is valid",
+			name:        "empty schedule is invalid when cron is set",
 			schedule:    []string{},
-			expectError: false,
+			expectError: true,
+			errorIs:     radixapplication.ErrCronScheduleEmpty,
 		},
 		{
 			name:        "valid standard cron expression",
@@ -2893,31 +2896,37 @@ func Test_CronScheduleValidator(t *testing.T) {
 			name:        "too few fields is invalid",
 			schedule:    []string{"* * 1"},
 			expectError: true,
+			errorIs:     radixapplication.ErrCronScheduleInvalid,
 		},
 		{
 			name:        "too many fields is invalid",
 			schedule:    []string{"* * * * * *"},
 			expectError: true,
+			errorIs:     radixapplication.ErrCronScheduleInvalid,
 		},
 		{
 			name:        "out of range value is invalid",
 			schedule:    []string{"99 * * * *"},
 			expectError: true,
+			errorIs:     radixapplication.ErrCronScheduleInvalid,
 		},
 		{
 			name:        "non-cron text is invalid",
 			schedule:    []string{"not-a-cron"},
 			expectError: true,
+			errorIs:     radixapplication.ErrCronScheduleInvalid,
 		},
 		{
 			name:        "unknown descriptor is invalid",
 			schedule:    []string{"@hourlyy"},
 			expectError: true,
+			errorIs:     radixapplication.ErrCronScheduleInvalid,
 		},
 		{
 			name:        "one invalid schedule among valid ones fails",
 			schedule:    []string{"* * * * *", "* * 1", "@daily"},
 			expectError: true,
+			errorIs:     radixapplication.ErrCronScheduleInvalid,
 		},
 	}
 
@@ -2935,7 +2944,7 @@ func Test_CronScheduleValidator(t *testing.T) {
 
 			if testcase.expectError {
 				assert.Error(t, err)
-				assert.ErrorIs(t, err, radixapplication.ErrCronScheduleInvalid)
+				assert.ErrorIs(t, err, testcase.errorIs)
 			} else {
 				assert.NoError(t, err)
 			}

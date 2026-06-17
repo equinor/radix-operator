@@ -119,5 +119,6 @@ var (
 	WarnDeprecatedFieldVolumeMountTypeUsed                  = "deprecated: field 'type' in volumeMount is deprecated. Use BlobFuse2 volume mount type instead."
 
 	ErrCronScheduleInvalid = errors.New("cron schedule format is invalid")
+	ErrCronScheduleEmpty   = errors.New("cron schedule must contain at least one entry")
 	ErrCronTimeZoneInvalid = errors.New("cron time zone is invalid")
 )
