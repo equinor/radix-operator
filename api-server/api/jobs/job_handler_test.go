@@ -120,6 +120,9 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob() {
 				{Name: step1Name, PodName: step1Pod, Condition: step1Condition, Started: &step1Started, Ended: &step1Ended, Components: step1Components},
 				{Name: step2Name},
 			},
+			PipelineRunStatus: &radixv1.RadixJobPipelineRunStatus{
+				ResolvedCommitID: commitId,
+			},
 		},
 	}
 	_, err := s.radixClient.RadixV1().RadixJobs(rj.Namespace).Create(context.Background(), rj, metav1.CreateOptions{})

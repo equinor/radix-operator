@@ -1,6 +1,7 @@
 package models
 
 import (
+	"cmp"
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -155,13 +156,6 @@ type JobSummary struct {
 	// enum: branch,tag,""
 	// example: branch
 	GitRefType string `json:"gitRefType,omitempty"`
-
-	// ResolvedCommitID the commit ID resolved by the pipeline runner. Set when the pipeline job runs,
-	// even if CommitID was not provided in the pipeline arguments (e.g. manual trigger).
-	//
-	// required: false
-	// example: 4faca8595c5283a9d0f17a623b9255a0d9866a2e
-	ResolvedCommitID string `json:"resolvedCommitID,omitempty"`
 }
 
 // GetSummaryFromRadixJob Used to get job summary from a radix job
@@ -198,20 +192,19 @@ func GetSummaryFromRadixJob(job *radixv1.RadixJob) *JobSummary {
 		pipelineJob.Branch = job.Spec.Build.Branch //nolint:staticcheck
 		pipelineJob.GitRef = job.Spec.Build.GitRef
 		pipelineJob.GitRefType = string(job.Spec.Build.GitRefType)
-		pipelineJob.CommitID = job.Spec.Build.CommitID
+		pipelineJob.CommitID = cmp.Or(GetResolvedCommitID(job), job.Spec.Build.CommitID)
 		pipelineJob.UseBuildKit = IsUsingBuildKit(job)
 		pipelineJob.UseBuildCache = IsUsingBuildCache(job)
 		pipelineJob.OverrideUseBuildCache = job.Spec.Build.OverrideUseBuildCache
 		pipelineJob.RefreshBuildCache = job.Spec.Build.RefreshBuildCache
-		pipelineJob.ResolvedCommitID = GetResolvedCommitID(job)
 	case radixv1.Deploy:
 		pipelineJob.ImageTagNames = job.Spec.Deploy.ImageTagNames
-		pipelineJob.CommitID = job.Spec.Deploy.CommitID
+		pipelineJob.CommitID = cmp.Or(GetResolvedCommitID(job), job.Spec.Deploy.CommitID)
 	case radixv1.Promote:
 		pipelineJob.PromotedFromDeployment = job.Spec.Promote.DeploymentName
 		pipelineJob.PromotedFromEnvironment = job.Spec.Promote.FromEnvironment
 		pipelineJob.PromotedToEnvironment = job.Spec.Promote.ToEnvironment
-		pipelineJob.CommitID = job.Spec.Promote.CommitID
+		pipelineJob.CommitID = cmp.Or(GetResolvedCommitID(job), job.Spec.Promote.CommitID)
 	case radixv1.ApplyConfig:
 		pipelineJob.DeployExternalDNS = pointers.Ptr(job.Spec.ApplyConfig.DeployExternalDNS)
 	}

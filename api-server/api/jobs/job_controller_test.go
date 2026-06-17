@@ -64,14 +64,14 @@ func setupTest(t *testing.T) (*commontest.Utils, *controllertest.Utils, kubernet
 
 func TestGetApplicationJob(t *testing.T) {
 	scenarios := map[string]struct {
-		useBuildKit              *bool
-		useBuildCache            *bool
-		overrideBuildCache       *bool
-		refreshBuildCache        *bool
-		pipelineRunStatus        *v1.RadixJobPipelineRunStatus
-		expectedUseBuildKit      *bool
-		expectedUseBuildCache    *bool
-		expectedResolvedCommitID string
+		useBuildKit           *bool
+		useBuildCache         *bool
+		overrideBuildCache    *bool
+		refreshBuildCache     *bool
+		pipelineRunStatus     *v1.RadixJobPipelineRunStatus
+		expectedUseBuildKit   *bool
+		expectedUseBuildCache *bool
+		expectedCommitID      string
 	}{
 		"NoPipelineRunStatus": {
 			useBuildKit:           new(true),
@@ -116,14 +116,14 @@ func TestGetApplicationJob(t *testing.T) {
 			expectedUseBuildCache: new(false),
 		},
 		"PipelineRunWithResolvedCommitID": {
-			useBuildKit:              new(true),
-			useBuildCache:            new(true),
-			overrideBuildCache:       new(false),
-			refreshBuildCache:        new(false),
-			pipelineRunStatus:        &v1.RadixJobPipelineRunStatus{UsedBuildKit: true, UsedBuildCache: true, ResolvedCommitID: "abc123def456"},
-			expectedUseBuildKit:      new(true),
-			expectedUseBuildCache:    new(true),
-			expectedResolvedCommitID: "abc123def456",
+			useBuildKit:           new(true),
+			useBuildCache:         new(true),
+			overrideBuildCache:    new(false),
+			refreshBuildCache:     new(false),
+			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: true, UsedBuildCache: true, ResolvedCommitID: "abc123def456"},
+			expectedUseBuildKit:   new(true),
+			expectedUseBuildCache: new(true),
+			expectedCommitID:      "abc123def456",
 		},
 	}
 
@@ -180,7 +180,7 @@ func TestGetApplicationJob(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, jobSummary.Name, job.Name)
 			assert.Equal(t, anyBranch, job.GitRef)
-			assert.Equal(t, anyPushCommitID, job.CommitID)
+			assert.Equal(t, ts.expectedCommitID, job.CommitID)
 			assert.Equal(t, anyUser, job.TriggeredBy)
 			assert.Equal(t, string(anyPipeline.Type), job.Pipeline)
 
@@ -189,7 +189,6 @@ func TestGetApplicationJob(t *testing.T) {
 			assert.Equal(t, ts.expectedUseBuildCache, job.UseBuildCache, "Invalid UseBuildCache")
 			assert.Equal(t, ts.overrideBuildCache, job.OverrideUseBuildCache, "Invalid OverrideUseBuildCache")
 			assert.Equal(t, ts.refreshBuildCache, job.RefreshBuildCache, "Invalid RefreshBuildCache")
-			assert.Equal(t, ts.expectedResolvedCommitID, job.ResolvedCommitID, "Invalid ResolvedCommitID")
 		})
 	}
 }

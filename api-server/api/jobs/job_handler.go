@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"sort"
@@ -360,21 +361,20 @@ func (jh JobHandler) getJobFromRadixJob(ctx context.Context, job *v1.RadixJob, j
 		jobModel.GitRef = job.Spec.Build.GitRef
 		jobModel.GitRefType = string(job.Spec.Build.GitRefType)
 		jobModel.DeployedToEnvironment = job.Spec.Build.ToEnvironment
-		jobModel.CommitID = job.Spec.Build.CommitID
+		jobModel.CommitID = cmp.Or(jobModels.GetResolvedCommitID(job), job.Spec.Build.CommitID)
 		jobModel.UseBuildKit = jobModels.IsUsingBuildKit(job)
 		jobModel.UseBuildCache = jobModels.IsUsingBuildCache(job)
 		jobModel.OverrideUseBuildCache = job.Spec.Build.OverrideUseBuildCache
 		jobModel.RefreshBuildCache = job.Spec.Build.RefreshBuildCache
-		jobModel.ResolvedCommitID = jobModels.GetResolvedCommitID(job)
 	case v1.Deploy:
 		jobModel.ImageTagNames = job.Spec.Deploy.ImageTagNames
 		jobModel.DeployedToEnvironment = job.Spec.Deploy.ToEnvironment
-		jobModel.CommitID = job.Spec.Deploy.CommitID
+		jobModel.CommitID = cmp.Or(jobModels.GetResolvedCommitID(job), job.Spec.Deploy.CommitID)
 	case v1.Promote:
 		jobModel.PromotedFromDeployment = job.Spec.Promote.DeploymentName
 		jobModel.PromotedFromEnvironment = job.Spec.Promote.FromEnvironment
 		jobModel.PromotedToEnvironment = job.Spec.Promote.ToEnvironment
-		jobModel.CommitID = job.Spec.Promote.CommitID
+		jobModel.CommitID = cmp.Or(jobModels.GetResolvedCommitID(job), job.Spec.Promote.CommitID)
 	case v1.ApplyConfig:
 		jobModel.DeployExternalDNS = pointers.Ptr(job.Spec.ApplyConfig.DeployExternalDNS)
 	}
