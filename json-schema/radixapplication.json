@@ -3488,7 +3488,7 @@
                     "x-kubernetes-list-type": "set"
                   },
                   "timeZone": {
-                    "description": "The time zone for all schedules, will default to UTC if value is empty or omitted",
+                    "description": "The time zone for all schedules, will default to UTC if omitted. If specified, it must not be empty.",
                     "minLength": 1,
                     "type": "string"
                   }
@@ -3621,7 +3621,7 @@
                           "x-kubernetes-list-type": "set"
                         },
                         "timeZone": {
-                          "description": "The time zone for all schedules, will default to UTC if value is empty or omitted",
+                          "description": "The time zone for all schedules, will default to UTC if omitted. If specified, it must not be empty.",
                           "minLength": 1,
                           "type": "string"
                         }

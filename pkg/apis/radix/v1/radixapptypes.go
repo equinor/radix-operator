@@ -905,7 +905,7 @@ type RadixJobComponent struct {
 
 // CronSchedule defines a schedule on which to run the job and how to handle concurrent jobs
 type CronSchedule struct {
-	// The time zone for all schedules, will default to UTC if value is empty or omitted
+	// The time zone for all schedules, will default to UTC if omitted. If specified, it must not be empty.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	TimeZone string `json:"timeZone,omitempty"`
