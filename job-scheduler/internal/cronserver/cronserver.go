@@ -67,6 +67,9 @@ func (s *Server) Start(ctx context.Context) error {
 
 	for _, schedule := range s.jobComponent.Cron.Schedule {
 		if _, err := cronInstance.AddFunc(schedule, func() {
+			if ctx.Err() != nil {
+				return
+			}
 			s.mu.Lock()
 			defer s.mu.Unlock()
 
