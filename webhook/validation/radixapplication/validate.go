@@ -52,7 +52,9 @@ var (
 		branchNameValidator,
 		horizontalScalingValidator,
 		volumeMountValidator,
-		notificationValidator}
+		notificationValidator,
+		cronScheduleValidator,
+	}
 )
 
 // validatorFunc defines a validatorFunc function for a RadixApplication
@@ -69,7 +71,6 @@ func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, re
 		createRRExistValidator(client),
 		createDNSAliasAvailableValidator(client, reservedDNSAliases, reservedDNSAppAliases),
 		createNamespaceUsableValidator(client),
-		createCronScheduleValidator(client),
 	}
 
 	return &Validator{
@@ -381,29 +382,27 @@ func createNamespaceUsableValidator(kubeClient client.Client) validatorFunc {
 	}
 }
 
-func createCronScheduleValidator(kubeClient client.Client) validatorFunc {
-	return func(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
-		var errs []error
+func cronScheduleValidator(_ context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
+	var errs []error
 
-		for _, j := range ra.Spec.Jobs {
-			if j.Cron == nil {
-				continue
-			}
-			for _, cs := range j.Cron.Schedule {
-				if _, err := cron.ParseStandard(cs); err != nil {
-					errs = append(errs, fmt.Errorf("cron schedule %q for job %q is invalid: %w (%v)", cs, j.Name, ErrCronScheduleInvalid, err))
-				}
-			}
-
-			if j.Cron.TimeZone != "" {
-				if _, err := time.LoadLocation(j.Cron.TimeZone); err != nil {
-					errs = append(errs, fmt.Errorf("cron time zone %q for job %q is invalid: %w (%v)", j.Cron.TimeZone, j.Name, ErrCronTimeZoneInvalid, err))
-				}
+	for _, j := range ra.Spec.Jobs {
+		if j.Cron == nil {
+			continue
+		}
+		for _, cs := range j.Cron.Schedule {
+			if _, err := cron.ParseStandard(cs); err != nil {
+				errs = append(errs, fmt.Errorf("cron schedule %q for job %q is invalid: %w (%v)", cs, j.Name, ErrCronScheduleInvalid, err))
 			}
 		}
 
-		return nil, errs
+		if j.Cron.TimeZone != "" {
+			if _, err := time.LoadLocation(j.Cron.TimeZone); err != nil {
+				errs = append(errs, fmt.Errorf("cron time zone %q for job %q is invalid: %w (%v)", j.Cron.TimeZone, j.Name, ErrCronTimeZoneInvalid, err))
+			}
+		}
 	}
+
+	return nil, errs
 }
 
 func validateComponentOrJobName(componentName, componentType string) error {
