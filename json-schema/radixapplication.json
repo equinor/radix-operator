@@ -3467,7 +3467,7 @@
                 "description": "Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave",
                 "properties": {
                   "concurrency": {
-                    "description": "Specify how to handle concurrency when multiple instances of the job is started",
+                    "description": "Specify how to handle concurrency when multiple instances of the job are started",
                     "enum": [
                       "Allow",
                       "Forbid",
@@ -3600,7 +3600,7 @@
                       "description": "Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave",
                       "properties": {
                         "concurrency": {
-                          "description": "Specify how to handle concurrency when multiple instances of the job is started",
+                          "description": "Specify how to handle concurrency when multiple instances of the job are started",
                           "enum": [
                             "Allow",
                             "Forbid",

@@ -3481,7 +3481,7 @@ spec:
                       properties:
                         concurrency:
                           description: Specify how to handle concurrency when multiple
-                            instances of the job is started
+                            instances of the job are started
                           enum:
                           - Allow
                           - Forbid
@@ -3620,7 +3620,7 @@ spec:
                             properties:
                               concurrency:
                                 description: Specify how to handle concurrency when
-                                  multiple instances of the job is started
+                                  multiple instances of the job are started
                                 enum:
                                 - Allow
                                 - Forbid
