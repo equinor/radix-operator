@@ -411,6 +411,13 @@ func validateCronSchedule(target string, cronSchedule *radixv1.CronSchedule) []e
 		}
 	}
 
+	switch strings.TrimSpace(cronSchedule.Concurrency) {
+	case "Allow", "Forbid", "Replace":
+		// ok
+	default:
+		errs = append(errs, fmt.Errorf("cron concurrency %q for %s is invalid: %w", cronSchedule.Concurrency, target, ErrCronConcurrencyInvalid))
+	}
+
 	if cronSchedule.TimeZone != "" {
 		if _, err := time.LoadLocation(cronSchedule.TimeZone); err != nil {
 			errs = append(errs, fmt.Errorf("cron time zone %q for %s is invalid: %w (%v)", cronSchedule.TimeZone, target, ErrCronTimeZoneInvalid, err))
