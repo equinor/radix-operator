@@ -3070,3 +3070,63 @@ func Test_CronTimeZoneValidator(t *testing.T) {
 		})
 	}
 }
+
+func Test_CronConcurrencyValidator(t *testing.T) {
+	var testScenarios = []struct {
+		name        string
+		concurrency string
+		expectError bool
+	}{
+		{
+			name:        "Allow is valid",
+			concurrency: "Allow",
+			expectError: false,
+		},
+		{
+			name:        "Forbid is valid",
+			concurrency: "Forbid",
+			expectError: false,
+		},
+		{
+			name:        "Replace is valid",
+			concurrency: "Replace",
+			expectError: false,
+		},
+		{
+			name:        "empty concurrency is invalid",
+			concurrency: "",
+			expectError: true,
+		},
+		{
+			name:        "unknown value is invalid",
+			concurrency: "Skip",
+			expectError: true,
+		},
+		{
+			name:        "wrong case is invalid",
+			concurrency: "allow",
+			expectError: true,
+		},
+	}
+
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
+				WithName("cronjob").
+				WithSchedulerPort(8888).
+				WithCron(&radixv1.CronSchedule{Schedule: []string{"* * * * *"}, Concurrency: testcase.concurrency}).
+				BuildJobComponent())
+			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			_, err := validator.Validate(context.Background(), validRA)
+
+			if testcase.expectError {
+				assert.Error(t, err)
+				assert.ErrorIs(t, err, radixapplication.ErrCronConcurrencyInvalid)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
