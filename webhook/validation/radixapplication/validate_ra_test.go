@@ -2952,6 +2952,65 @@ func Test_CronScheduleValidator(t *testing.T) {
 	}
 }
 
+func Test_CronScheduleValidator_EnvironmentConfig(t *testing.T) {
+	var testScenarios = []struct {
+		name        string
+		schedule    []string
+		timeZone    string
+		expectError bool
+		errorIs     error
+	}{
+		{
+			name:        "valid env-level cron passes",
+			schedule:    []string{"* * * * *"},
+			timeZone:    "Europe/Oslo",
+			expectError: false,
+		},
+		{
+			name:        "empty env-level schedule is invalid",
+			schedule:    []string{},
+			expectError: true,
+			errorIs:     radixapplication.ErrCronScheduleEmpty,
+		},
+		{
+			name:        "invalid env-level schedule is rejected",
+			schedule:    []string{"99 * * * *"},
+			expectError: true,
+			errorIs:     radixapplication.ErrCronScheduleInvalid,
+		},
+		{
+			name:        "invalid env-level time zone is rejected",
+			schedule:    []string{"* * * * *"},
+			timeZone:    "Not/AZone",
+			expectError: true,
+			errorIs:     radixapplication.ErrCronTimeZoneInvalid,
+		},
+	}
+
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
+				WithName("cronjob").
+				WithSchedulerPort(8888).
+				WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().
+					WithEnvironment("dev").
+					WithCron(&radixv1.CronSchedule{Schedule: testcase.schedule, TimeZone: testcase.timeZone, Concurrency: "Allow"})).
+				BuildJobComponent())
+			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			_, err := validator.Validate(context.Background(), validRA)
+
+			if testcase.expectError {
+				assert.Error(t, err)
+				assert.ErrorIs(t, err, testcase.errorIs)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func Test_CronTimeZoneValidator(t *testing.T) {
 	var testScenarios = []struct {
 		name        string

@@ -386,27 +386,38 @@ func cronScheduleValidator(_ context.Context, ra *radixv1.RadixApplication) ([]s
 	var errs []error
 
 	for _, j := range ra.Spec.Jobs {
-		if j.Cron == nil {
-			continue
-		}
-		if len(j.Cron.Schedule) == 0 {
-			errs = append(errs, fmt.Errorf("cron schedule for job %q: %w", j.Name, ErrCronScheduleEmpty))
-		} else {
-			for _, cs := range j.Cron.Schedule {
-				if _, err := cron.ParseStandard(cs); err != nil {
-					errs = append(errs, fmt.Errorf("cron schedule %q for job %q is invalid: %w (%v)", cs, j.Name, ErrCronScheduleInvalid, err))
-				}
-			}
-		}
-
-		if j.Cron.TimeZone != "" {
-			if _, err := time.LoadLocation(j.Cron.TimeZone); err != nil {
-				errs = append(errs, fmt.Errorf("cron time zone %q for job %q is invalid: %w (%v)", j.Cron.TimeZone, j.Name, ErrCronTimeZoneInvalid, err))
-			}
+		errs = append(errs, validateCronSchedule(fmt.Sprintf("job %q", j.Name), j.Cron)...)
+		for _, envConfig := range j.EnvironmentConfig {
+			errs = append(errs, validateCronSchedule(fmt.Sprintf("job %q in environment %q", j.Name, envConfig.Environment), envConfig.Cron)...)
 		}
 	}
 
 	return nil, errs
+}
+
+func validateCronSchedule(target string, cronSchedule *radixv1.CronSchedule) []error {
+	if cronSchedule == nil {
+		return nil
+	}
+
+	var errs []error
+	if len(cronSchedule.Schedule) == 0 {
+		errs = append(errs, fmt.Errorf("cron schedule for %s: %w", target, ErrCronScheduleEmpty))
+	} else {
+		for _, cs := range cronSchedule.Schedule {
+			if _, err := cron.ParseStandard(cs); err != nil {
+				errs = append(errs, fmt.Errorf("cron schedule %q for %s is invalid: %w (%v)", cs, target, ErrCronScheduleInvalid, err))
+			}
+		}
+	}
+
+	if cronSchedule.TimeZone != "" {
+		if _, err := time.LoadLocation(cronSchedule.TimeZone); err != nil {
+			errs = append(errs, fmt.Errorf("cron time zone %q for %s is invalid: %w (%v)", cronSchedule.TimeZone, target, ErrCronTimeZoneInvalid, err))
+		}
+	}
+
+	return errs
 }
 
 func validateComponentOrJobName(componentName, componentType string) error {
