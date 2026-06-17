@@ -52,9 +52,8 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	// time.LoadLocation("") already defaults to UTC, but guard explicitly so a
-	// whitespace-only timezone (which the RA validator rejects) cannot slip
-	// through if the job component is ever created without validation.
+	// time.LoadLocation("") already defaults to UTC; treat an empty/whitespace timezone as omitted
+	// so the scheduler doesn't fail to start if the job component is created without prior validation.
 	loc := time.UTC
 	if tz := strings.TrimSpace(s.jobComponent.Cron.TimeZone); tz != "" {
 		var err error
