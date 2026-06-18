@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"sort"
@@ -360,7 +361,7 @@ func (jh JobHandler) getJobFromRadixJob(ctx context.Context, job *v1.RadixJob, j
 		jobModel.GitRef = job.Spec.Build.GitRef
 		jobModel.GitRefType = string(job.Spec.Build.GitRefType)
 		jobModel.DeployedToEnvironment = job.Spec.Build.ToEnvironment
-		jobModel.CommitID = job.Spec.Build.CommitID
+		jobModel.CommitID = cmp.Or(jobModels.GetResolvedCommitID(job), job.Spec.Build.CommitID)
 		jobModel.UseBuildKit = jobModels.IsUsingBuildKit(job)
 		jobModel.UseBuildCache = jobModels.IsUsingBuildCache(job)
 		jobModel.OverrideUseBuildCache = job.Spec.Build.OverrideUseBuildCache

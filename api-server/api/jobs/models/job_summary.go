@@ -1,6 +1,7 @@
 package models
 
 import (
+	"cmp"
 	"time"
 
 	"github.com/equinor/radix-common/utils/pointers"
@@ -191,7 +192,7 @@ func GetSummaryFromRadixJob(job *radixv1.RadixJob) *JobSummary {
 		pipelineJob.Branch = job.Spec.Build.Branch //nolint:staticcheck
 		pipelineJob.GitRef = job.Spec.Build.GitRef
 		pipelineJob.GitRefType = string(job.Spec.Build.GitRefType)
-		pipelineJob.CommitID = job.Spec.Build.CommitID
+		pipelineJob.CommitID = cmp.Or(GetResolvedCommitID(job), job.Spec.Build.CommitID)
 		pipelineJob.UseBuildKit = IsUsingBuildKit(job)
 		pipelineJob.UseBuildCache = IsUsingBuildCache(job)
 		pipelineJob.OverrideUseBuildCache = job.Spec.Build.OverrideUseBuildCache
@@ -209,6 +210,13 @@ func GetSummaryFromRadixJob(job *radixv1.RadixJob) *JobSummary {
 	}
 
 	return pipelineJob
+}
+
+func GetResolvedCommitID(job *radixv1.RadixJob) string {
+	if job != nil && job.Status.PipelineRunStatus != nil {
+		return job.Status.PipelineRunStatus.ResolvedCommitID
+	}
+	return ""
 }
 
 func IsUsingBuildKit(job *radixv1.RadixJob) *bool {

@@ -164,6 +164,7 @@ func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJ
 		rj.Status.PipelineRunStatus.UsedBuildCache = cli.pipelineInfo.IsUsingBuildCache()
 		rj.Status.PipelineRunStatus.UsedBuildKit = cli.pipelineInfo.IsUsingBuildKit()
 		rj.Status.PipelineRunStatus.Status = condition
+		rj.Status.PipelineRunStatus.ResolvedCommitID = cli.pipelineInfo.GitCommitHash
 
 		return cli.dynamicClient.Status().Update(ctx, rj)
 	})

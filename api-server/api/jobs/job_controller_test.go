@@ -71,6 +71,7 @@ func TestGetApplicationJob(t *testing.T) {
 		pipelineRunStatus     *v1.RadixJobPipelineRunStatus
 		expectedUseBuildKit   *bool
 		expectedUseBuildCache *bool
+		expectedCommitID      string
 	}{
 		"NoPipelineRunStatus": {
 			useBuildKit:           new(true),
@@ -79,6 +80,7 @@ func TestGetApplicationJob(t *testing.T) {
 			refreshBuildCache:     new(false),
 			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
+			expectedCommitID:      anyPushCommitID,
 		},
 		"OverrideCacheEnabled": {
 			useBuildKit:           new(true),
@@ -87,6 +89,7 @@ func TestGetApplicationJob(t *testing.T) {
 			refreshBuildCache:     new(false),
 			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
+			expectedCommitID:      anyPushCommitID,
 		},
 		"RefreshCacheEnabled": {
 			useBuildKit:           new(true),
@@ -95,6 +98,7 @@ func TestGetApplicationJob(t *testing.T) {
 			refreshBuildCache:     new(true),
 			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
+			expectedCommitID:      anyPushCommitID,
 		},
 		"PipelineRunUsedBuildKit": {
 			useBuildKit:           new(true),
@@ -104,6 +108,7 @@ func TestGetApplicationJob(t *testing.T) {
 			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: true, UsedBuildCache: true},
 			expectedUseBuildKit:   new(true),
 			expectedUseBuildCache: new(true),
+			expectedCommitID:      anyPushCommitID,
 		},
 		"PipelineRunNotUsedBuildKit": {
 			useBuildKit:           new(true),
@@ -113,6 +118,17 @@ func TestGetApplicationJob(t *testing.T) {
 			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: false, UsedBuildCache: false},
 			expectedUseBuildKit:   new(false),
 			expectedUseBuildCache: new(false),
+			expectedCommitID:      anyPushCommitID,
+		},
+		"PipelineRunWithResolvedCommitID": {
+			useBuildKit:           new(true),
+			useBuildCache:         new(true),
+			overrideBuildCache:    new(false),
+			refreshBuildCache:     new(false),
+			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: true, UsedBuildCache: true, ResolvedCommitID: "abc123def456"},
+			expectedUseBuildKit:   new(true),
+			expectedUseBuildCache: new(true),
+			expectedCommitID:      "abc123def456",
 		},
 	}
 
@@ -169,7 +185,7 @@ func TestGetApplicationJob(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, jobSummary.Name, job.Name)
 			assert.Equal(t, anyBranch, job.GitRef)
-			assert.Equal(t, anyPushCommitID, job.CommitID)
+			assert.Equal(t, ts.expectedCommitID, job.CommitID)
 			assert.Equal(t, anyUser, job.TriggeredBy)
 			assert.Equal(t, string(anyPipeline.Type), job.Pipeline)
 

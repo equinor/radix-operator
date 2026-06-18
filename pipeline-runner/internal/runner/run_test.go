@@ -43,13 +43,15 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 	useBuildCache := true
 
 	tests := []struct {
-		name               string
-		stepRunFunc        func(context.Context, *model.PipelineInfo) error
-		pipelineArgs       model.PipelineArguments
-		expectRunError     bool
-		expectedStatus     v1.RadixJobCondition
-		expectedBuildKit   bool
-		expectedBuildCache bool
+		name                     string
+		stepRunFunc              func(context.Context, *model.PipelineInfo) error
+		pipelineArgs             model.PipelineArguments
+		gitCommitHash            string
+		expectRunError           bool
+		expectedStatus           v1.RadixJobCondition
+		expectedBuildKit         bool
+		expectedBuildCache       bool
+		expectedResolvedCommitID string
 	}{
 		{
 			name:               "step succeeds",
@@ -85,6 +87,15 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 			expectedBuildKit:   true,
 			expectedBuildCache: true,
 		},
+		{
+			name:                     "resolved commit id is stored in status",
+			stepRunFunc:              func(_ context.Context, _ *model.PipelineInfo) error { return nil },
+			gitCommitHash:            "abc123def456",
+			expectedStatus:           v1.JobSucceeded,
+			expectedBuildKit:         true,
+			expectedBuildCache:       true,
+			expectedResolvedCommitID: "abc123def456",
+		},
 	}
 
 	for _, tt := range tests {
@@ -108,6 +119,7 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 					Definition:        &pipeline.Definition{Type: v1.Deploy},
 					PipelineArguments: tt.pipelineArgs,
 					Steps:             []model.Step{step},
+					GitCommitHash:     tt.gitCommitHash,
 				},
 			}
 
@@ -123,6 +135,7 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, status.Status)
 			assert.Equal(t, tt.expectedBuildKit, status.UsedBuildKit)
 			assert.Equal(t, tt.expectedBuildCache, status.UsedBuildCache)
+			assert.Equal(t, tt.expectedResolvedCommitID, status.ResolvedCommitID)
 		})
 	}
 }

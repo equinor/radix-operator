@@ -233,6 +233,8 @@ spec:
                 description: PipelineRunStatus provides additional information about
                   the pipeline run execution
                 properties:
+                  resolvedCommitID:
+                    type: string
                   status:
                     description: RadixJobCondition Holds the condition of a job
                     type: string
