@@ -14,7 +14,6 @@ import (
 	"github.com/equinor/radix-operator/job-scheduler/pkg/batch"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
@@ -85,7 +84,6 @@ func (s *Server) Start(ctx context.Context) error {
 			}
 
 			desc := &common.JobScheduleDescription{
-				JobId: fmt.Sprintf("cron-%s", strings.ToLower(utils.RandString(8))),
 				// Payload not supported
 			}
 			if _, err := s.jobHandler.CreateJob(runCtx, desc, true); err != nil {
