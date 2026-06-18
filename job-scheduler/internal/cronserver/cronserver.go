@@ -83,10 +83,7 @@ func (s *Server) Start(ctx context.Context) error {
 				return
 			}
 
-			desc := &common.JobScheduleDescription{
-				// Payload not supported
-			}
-			if _, err := s.jobHandler.CreateJob(runCtx, desc, true); err != nil {
+			if _, err := s.jobHandler.CreateJob(runCtx, &common.JobScheduleDescription{}, true); err != nil {
 				log.Error().Err(err).Msg("failed to create scheduled job")
 			}
 		}); err != nil {
