@@ -100,6 +100,7 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 			cli.UpdateStatus(ctx, v1.JobStoppedNoChanges)
 			return nil
 		}
+		cli.UpdateStatus(ctx, v1.JobRunning)
 	}
 	cli.UpdateStatus(ctx, v1.JobSucceeded)
 	return nil
