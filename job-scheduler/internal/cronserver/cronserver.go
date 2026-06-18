@@ -125,7 +125,7 @@ func (s *Server) findActiveCronBatches(ctx context.Context) ([]*radixv1.RadixBat
 	return activeCronBatches, nil
 }
 
-func (s *Server) prepareForRun(ctx context.Context) (bool, error) {
+func (s *Server) shouldRun(ctx context.Context) (bool, error) {
 	activeCronBatches, err := s.findActiveCronBatches(ctx)
 	if err != nil {
 		return false, err
