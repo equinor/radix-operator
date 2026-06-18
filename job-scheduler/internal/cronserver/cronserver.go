@@ -26,7 +26,6 @@ const (
 	concurrencyReplace = "Replace"
 )
 
-// Server runs cron schedules for a Radix job component, creating batch jobs when schedules fire.
 type Server struct {
 	kubeUtil     *kube.Kube
 	env          *models.Env
@@ -36,7 +35,6 @@ type Server struct {
 	mu sync.Mutex
 }
 
-// New creates a new cron Server for the given job component.
 func New(kubeUtil *kube.Kube, env *models.Env, jobComponent *radixv1.RadixDeployJobComponent, jobHandler jobApi.JobHandler) *Server {
 	return &Server{
 		kubeUtil:     kubeUtil,
@@ -46,7 +44,6 @@ func New(kubeUtil *kube.Kube, env *models.Env, jobComponent *radixv1.RadixDeploy
 	}
 }
 
-// Start runs the cron scheduler until the context is cancelled.
 func (s *Server) Start(ctx context.Context) error {
 	if s.jobComponent.Cron == nil {
 		return nil
