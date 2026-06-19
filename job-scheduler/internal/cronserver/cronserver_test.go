@@ -68,7 +68,7 @@ func batchHasStoppedJob(t *testing.T, radixClient radixclient.Interface, batchNa
 	return false
 }
 
-func Test_prepareForRun(t *testing.T) {
+func Test_shouldRun(t *testing.T) {
 	tests := []struct {
 		name        string
 		concurrency string
@@ -126,7 +126,7 @@ func Test_prepareForRun(t *testing.T) {
 			}
 			s, radixClient := newTestServer(t, jobComponent, tt.batches...)
 
-			ok, err := s.prepareForRun(context.Background())
+			ok, err := s.shouldRun(context.Background())
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantOK, ok)
 
