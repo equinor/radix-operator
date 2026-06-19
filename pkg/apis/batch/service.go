@@ -24,7 +24,7 @@ func (s *syncer) reconcileService(ctx context.Context, batchJob *radixv1.RadixBa
 		return nil
 	}
 
-	service := s.buildService(batchJob.Name, rd.Spec.AppName, jobComponent.GetPorts())
+	service := s.buildService(batchJob.Name, rd.Spec.AppName, jobComponent.GetPorts()) //nolint:staticcheck
 	return s.kubeUtil.ApplyService(ctx, s.radixBatch.GetNamespace(), service)
 }
 

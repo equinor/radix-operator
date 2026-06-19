@@ -33,6 +33,7 @@ func getOAuth2AuxiliaryResource(rd *radixv1.RadixDeployment, component radixv1.R
 			Azure: &deploymentModels.AzureIdentity{
 				ClientId:           oauth2.ClientID,
 				ServiceAccountName: oauth2.GetServiceAccountName(component.GetName()),
+				Namespace:          rd.Namespace,
 			},
 		}
 	}
@@ -42,12 +43,12 @@ func getOAuth2AuxiliaryResource(rd *radixv1.RadixDeployment, component radixv1.R
 
 func getAuxiliaryResourceDeployment(rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, auxType string, deploymentList []appsv1.Deployment, podList []corev1.Pod, eventWarnings map[string]string) deploymentModels.AuxiliaryResourceDeployment {
 	var auxResourceDeployment deploymentModels.AuxiliaryResourceDeployment
-	deployment, exists := slice.FindFirst(deploymentList, predicate.IsDeploymentForAuxComponent(rd.Spec.AppName, component.GetName(), auxType))
+	deployment, exists := slice.FindFirst(deploymentList, predicate.IsDeploymentForAuxComponent(rd.Spec.AppName, component.GetName(), auxType)) //nolint:staticcheck
 	if !exists {
 		auxResourceDeployment.Status = deploymentModels.ComponentReconciling.String()
 		return auxResourceDeployment
 	}
-	auxPods := slice.FindAll(podList, predicate.IsPodForAuxComponent(rd.Spec.AppName, component.GetName(), auxType))
+	auxPods := slice.FindAll(podList, predicate.IsPodForAuxComponent(rd.Spec.AppName, component.GetName(), auxType)) //nolint:staticcheck
 	auxResourceDeployment.ReplicaList = BuildReplicaSummaryList(auxPods, eventWarnings)
 	auxResourceDeployment.Status = deploymentModels.ComponentStatusFromDeployment(component, &deployment, rd).String()
 	auxResourceDeployment.Type = auxType

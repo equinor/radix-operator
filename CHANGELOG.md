@@ -2,7 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.117.3](https://github.com/equinor/radix-operator/compare/v1.117.2..v1.117.3) - 2026-06-05
+## [1.119.1](https://github.com/equinor/radix-operator/compare/v1.119.0..v1.119.1) - 2026-06-18
+
+### 🐛 Bug Fixes
+
+- *(pipeline-runner)* Update status while running (#1787) - ([493c8e2](https://github.com/equinor/radix-operator/commit/493c8e252a050a149f1782e278805e785fb310d5)) by @herda1 in [#1787](https://github.com/equinor/radix-operator/pull/1787)
+
+- *(radix-job)* Add resolved commit id and store it (#1781) - ([208c1a8](https://github.com/equinor/radix-operator/commit/208c1a8905433c87a72de977df8d5c886cc2b500)) by @herda1 in [#1781](https://github.com/equinor/radix-operator/pull/1781)
+
+
+## [1.119.0](https://github.com/equinor/radix-operator/compare/v1.118.0..v1.119.0) - 2026-06-16
+
+### 🚀 Features
+
+- *(api-server)* Add namespace to identity and include identity in hpa triggers (#1773) - ([59488e8](https://github.com/equinor/radix-operator/commit/59488e821a947b5f9d0fe58e9973d4de425c5282)) by @nilsgstrabo in [#1773](https://github.com/equinor/radix-operator/pull/1773)
+
+
+### 🐛 Bug Fixes
+
+- Remove custom service account and roles for GitHub webhook (#1780) - ([53ce3bf](https://github.com/equinor/radix-operator/commit/53ce3bfca78160930ebe6214c74c82a4dd36dfdb)) by @Richard87 in [#1780](https://github.com/equinor/radix-operator/pull/1780)
+
+
+## [1.118.0](https://github.com/equinor/radix-operator/compare/v1.117.3..v1.118.0) - 2026-06-12
+
+### 🚀 Features
+
+- Migrate GitHub webhook to api-server (#1767) - ([9fa268e](https://github.com/equinor/radix-operator/commit/9fa268e87e5458c9172db3ff96a70a528218b2cd)) by @Richard87 in [#1767](https://github.com/equinor/radix-operator/pull/1767)
+
+
+## [1.117.3](https://github.com/equinor/radix-operator/compare/v1.117.2..v1.117.3) - 2026-06-10
 
 ### 🐛 Bug Fixes
 

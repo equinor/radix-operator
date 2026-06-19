@@ -132,7 +132,7 @@ func (deploy *Deployment) garbageCollectTriggerAuthsNoLongerInSpec(ctx context.C
 }
 
 func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.RadixHorizontalScaling) *kedav1.ScaledObject {
-	appName := deploy.radixDeployment.Spec.AppName
+	appName := deploy.radixDeployment.Spec.AppName //nolint:staticcheck
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
 	}
@@ -193,7 +193,7 @@ func getScalingTriggers(componentName string, config *radixv1.RadixHorizontalSca
 func getCpuTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
 	return kedav1.ScaleTriggers{
 		Name:       trigger.Name,
-		Type:       "cpu",
+		Type:       trigger.Type(),
 		MetricType: autoscalingv2.UtilizationMetricType,
 		Metadata: map[string]string{
 			"value": strconv.Itoa(trigger.Cpu.Value),
@@ -204,7 +204,7 @@ func getCpuTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTr
 func getMemoryTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
 	return kedav1.ScaleTriggers{
 		Name:       trigger.Name,
-		Type:       "memory",
+		Type:       trigger.Type(),
 		MetricType: autoscalingv2.UtilizationMetricType,
 		Metadata: map[string]string{
 			"value": strconv.Itoa(trigger.Memory.Value),
@@ -215,7 +215,7 @@ func getMemoryTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.Scal
 func getCronTrigger(trigger radixv1.RadixHorizontalScalingTrigger) kedav1.ScaleTriggers {
 	return kedav1.ScaleTriggers{
 		Name: trigger.Name,
-		Type: "cron",
+		Type: trigger.Type(),
 		Metadata: map[string]string{
 			"start":           trigger.Cron.Start,
 			"end":             trigger.Cron.End,
@@ -230,7 +230,7 @@ func getAzureServiceBus(componentName string, trigger radixv1.RadixHorizontalSca
 
 	scaleTriggers := kedav1.ScaleTriggers{
 		Name: trigger.Name,
-		Type: "azure-servicebus",
+		Type: trigger.Type(),
 	}
 
 	if auth := trigger.AzureServiceBus.Authentication.Identity.Azure; auth.ClientId != "" {
@@ -271,7 +271,7 @@ func getAzureEventHub(componentName string, trigger radixv1.RadixHorizontalScali
 
 	scaleTriggers := kedav1.ScaleTriggers{
 		Name: trigger.Name,
-		Type: "azure-eventhub",
+		Type: trigger.Type(),
 	}
 
 	if auth := trigger.AzureEventHub.Authentication; auth != nil && (*auth).Identity.Azure.ClientId != "" {
@@ -362,7 +362,7 @@ func (deploy *Deployment) getTriggerAuthentication(componentName, triggerName st
 		ObjectMeta: metav1.ObjectMeta{
 			Name: utils.GetTriggerAuthenticationName(componentName, triggerName),
 			Labels: map[string]string{
-				kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName,
+				kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName, //nolint:staticcheck
 				kube.RadixComponentLabel: componentName,
 				kube.RadixTriggerLabel:   triggerName,
 			},

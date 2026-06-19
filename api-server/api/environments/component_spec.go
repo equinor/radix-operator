@@ -6,33 +6,32 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
-	"github.com/equinor/radix-operator/api-server/api/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/event"
 	"github.com/equinor/radix-operator/api-server/api/utils/predicate"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	crdUtils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 )
 
 // getComponentStateFromSpec Returns a component with the current state
-func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *v1.RadixDeployment, component v1.RadixCommonDeployComponent, hpas []autoscalingv2.HorizontalPodAutoscaler, scaledObjects []v1alpha1.ScaledObject) (*deploymentModels.Component, error) {
+func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *v1.RadixDeployment, component v1.RadixCommonDeployComponent) (*deploymentModels.Component, error) {
 
-	var componentPodNames []string
-	var environmentVariables map[string]string
-	var replicaSummaryList []deploymentModels.ReplicaSummary
-	var auxResource deploymentModels.AuxiliaryResource
-	var horizontalScalingSummary *deploymentModels.HorizontalScalingSummary
-	deployments, err := kubequery.GetDeploymentsForEnvironment(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment)
+	var (
+		componentPodNames    []string
+		environmentVariables map[string]string
+		replicaSummaryList   []deploymentModels.ReplicaSummary
+		auxResource          deploymentModels.AuxiliaryResource
+	)
+
+	deployments, err := kubequery.GetDeploymentsForEnvironment(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
-	pods, err := kubequery.GetPodsForEnvironmentComponents(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment)
+	pods, err := kubequery.GetPodsForEnvironmentComponents(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +43,7 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		componentPods := getComponentPodsByNamespace(pods, component.GetName())
 		componentPodNames = getPodNames(componentPods)
 		environmentVariables = getRadixEnvironmentVariables(componentPods)
-		eventList, err := kubequery.GetEventsForEnvironment(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment)
+		eventList, err := kubequery.GetEventsForEnvironment(ctx, eh.accounts.UserAccount.Client, rd.Spec.AppName, rd.Spec.Environment) //nolint:staticcheck
 		if err != nil {
 			return nil, err
 		}
@@ -52,21 +51,17 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		replicaSummaryList = getReplicaSummaryList(componentPods, lastEventWarnings)
 		auxResource = getAuxiliaryResources(pods, deployments, rd, component)
 
-		kd, _ := slice.FindFirst(deployments, predicate.IsDeploymentForComponent(rd.Spec.AppName, component.GetName()))
+		kd, _ := slice.FindFirst(deployments, predicate.IsDeploymentForComponent(rd.Spec.AppName, component.GetName())) //nolint:staticcheck
 		status = eh.ComponentStatuser(component, &kd, rd)
 	}
 
-	componentBuilder := deploymentModels.NewComponentBuilder()
+	componentBuilder := deploymentModels.NewComponentBuilder(rd)
 	if jobComponent, ok := component.(*v1.RadixDeployJobComponent); ok {
 		componentBuilder.WithSchedulerPort(&jobComponent.SchedulerPort)
 		if jobComponent.Payload != nil {
 			componentBuilder.WithScheduledJobPayloadPath(jobComponent.Payload.Path)
 		}
 		componentBuilder.WithNotifications(jobComponent.Notifications)
-	}
-
-	if component.GetType() == v1.RadixComponentTypeComponent {
-		horizontalScalingSummary = models.GetHpaSummary(rd.Spec.AppName, component.GetName(), hpas, scaledObjects)
 	}
 
 	return componentBuilder.
@@ -76,7 +71,6 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		WithReplicaSummaryList(replicaSummaryList).
 		WithRadixEnvironmentVariables(environmentVariables).
 		WithAuxiliaryResource(auxResource).
-		WithHorizontalScalingSummary(horizontalScalingSummary).
 		BuildComponent()
 }
 
@@ -97,8 +91,6 @@ func getComponentPodsByNamespace(allPods []corev1.Pod, componentName string) []c
 	})
 
 	for _, pod := range pods {
-		pod := pod
-
 		// A previous version of the job-scheduler added the "radix-job-type" label to job pods.
 		// For backward compatibility, we need to ignore these pods in the list of pods returned for a component
 		if _, isScheduledJobPod := pod.GetLabels()[kube.RadixJobTypeLabel]; isScheduledJobPod {
@@ -172,13 +164,13 @@ func getAuxiliaryResourceDeployment(podList []corev1.Pod, deploymentList []appsv
 		Type: auxType,
 	}
 
-	kd, ok := slice.FindFirst(deploymentList, predicate.IsDeploymentForAuxComponent(rd.Spec.AppName, component.GetName(), auxType))
+	kd, ok := slice.FindFirst(deploymentList, predicate.IsDeploymentForAuxComponent(rd.Spec.AppName, component.GetName(), auxType)) //nolint:staticcheck
 	if !ok {
 		auxResourceDeployment.Status = deploymentModels.ComponentReconciling.String()
 		return auxResourceDeployment
 	}
 
-	pods := slice.FindAll(podList, predicate.IsPodForAuxComponent(rd.Spec.AppName, rd.Spec.Environment, auxType))
+	pods := slice.FindAll(podList, predicate.IsPodForAuxComponent(rd.Spec.AppName, rd.Spec.Environment, auxType)) //nolint:staticcheck
 
 	auxResourceDeployment.ReplicaList = getReplicaSummaryList(pods, nil)
 	auxResourceDeployment.Status = deploymentModels.ComponentStatusFromDeployment(component, &kd, rd).String()

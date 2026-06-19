@@ -87,7 +87,7 @@ func (db *DeploymentBuilderStruct) WithRadixDeployment(radixDeployment *v1.Radix
 	_, imageTag := GetAppAndTagPairFromName(radixDeployment.Name)
 
 	db.WithImageTag(imageTag)
-	db.WithAppName(radixDeployment.Spec.AppName)
+	db.WithAppName(radixDeployment.Spec.AppName) //nolint:staticcheck
 	db.WithEnvironment(radixDeployment.Spec.Environment)
 	db.WithJobName(radixDeployment.GetLabels()[kube.RadixJobNameLabel])
 	db.WithCreated(radixDeployment.CreationTimestamp.Time)

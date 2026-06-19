@@ -105,6 +105,7 @@ const (
 
 // RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
+	// Deprecated: Use app-name from deployment namespace label instead.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253

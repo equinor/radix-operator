@@ -9,7 +9,6 @@ import (
 	radixhttp "github.com/equinor/radix-common/net/http"
 	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/equinor/radix-common/utils/slice"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	"github.com/equinor/radix-operator/api-server/api/utils"
@@ -17,7 +16,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -520,53 +518,156 @@ func TestGetComponents_ReplicaStatus_Pending(t *testing.T) {
 	assert.Equal(t, message, job.ReplicaList[0].StatusMessage)
 }
 
-func TestGetComponents_WithHorizontalScaling(t *testing.T) {
-	// Setup
-
-	testScenarios := []struct {
-		name                  string
-		deploymentName        string
-		minReplicas           int32
-		maxReplicas           int32
-		targetCpu             *int32
-		targetMemory          *int32
-		targetCron            *int32
-		targetAzureServiceBus *int32
-		targetAzureEventHub   *int32
-	}{
-		{"targetCpu and targetMemory are nil", "dep1", 2, 6, nil, nil, nil, nil, nil},
-		{"targetCpu is nil, targetMemory is non-nil", "dep2", 2, 6, nil, pointers.Ptr[int32](75), nil, nil, nil},
-		{"targetCpu is non-nil, targetMemory is nil", "dep3", 2, 6, pointers.Ptr[int32](60), nil, nil, nil, nil},
-		{"targetCpu and targetMemory are non-nil", "dep4", 2, 6, pointers.Ptr[int32](62), pointers.Ptr[int32](79), nil, nil, nil},
-		{"Test CRON trigger is found", "dep5", 2, 6, nil, nil, pointers.Ptr[int32](5), nil, nil},
-		{"Test Azure Service Bus trigger is found", "dep6", 2, 6, nil, nil, nil, pointers.Ptr[int32](15), nil},
-		{"Test Azure Event Hub trigger is found", "dep6", 2, 6, nil, nil, nil, nil, pointers.Ptr[int32](20)},
+func Test_GetComponents_HorizontalScaling_Utilization(t *testing.T) {
+	type testScenario struct {
+		createScaledObject       bool
+		createHPA                bool
+		mutateScaledObject       func(*v1alpha1.ScaledObject)
+		mutateHPA                func(*v2.HorizontalPodAutoscaler)
+		expectCurrentUtilization bool
+		expectCurrentReplicas    bool
+		expectErrorByType        map[string]string
 	}
 
-	for _, scenario := range testScenarios {
-		t.Run(scenario.name, func(t *testing.T) {
+	testScenarios := map[string]testScenario{
+		"valid scaledobject and hpa": {
+			createScaledObject:       true,
+			createHPA:                true,
+			expectCurrentUtilization: true,
+			expectCurrentReplicas:    true,
+		},
+		"missing scaledobject and hpa": {
+			createScaledObject:       false,
+			createHPA:                false,
+			expectCurrentUtilization: false,
+			expectCurrentReplicas:    false,
+		},
+		"valid scaledobject without hpa": {
+			createScaledObject:       true,
+			createHPA:                false,
+			expectCurrentUtilization: false,
+			expectCurrentReplicas:    false,
+		},
+		"scaledobject points to non-existing hpa": {
+			createScaledObject: true,
+			createHPA:          true,
+			mutateScaledObject: func(so *v1alpha1.ScaledObject) {
+				so.Status.HpaName = "hpa-does-not-exist"
+			},
+			expectCurrentUtilization: false,
+			expectCurrentReplicas:    false,
+		},
+		"invalid scaledobject trigger mismatch": {
+			createScaledObject: true,
+			createHPA:          true,
+			mutateScaledObject: func(so *v1alpha1.ScaledObject) {
+				so.Spec.Triggers[0].Name = "invalid-trigger"
+			},
+			expectCurrentUtilization: false,
+			expectCurrentReplicas:    true,
+		},
+		"invalid scaledobject metric names count mismatch": {
+			createScaledObject: true,
+			createHPA:          true,
+			mutateScaledObject: func(so *v1alpha1.ScaledObject) {
+				so.Status.ExternalMetricNames = append(so.Status.ExternalMetricNames, "extra")
+			},
+			expectCurrentUtilization: false,
+			expectCurrentReplicas:    true,
+		},
+		"invalid hpa metric count mismatch": {
+			createScaledObject: true,
+			createHPA:          true,
+			mutateHPA: func(hpa *v2.HorizontalPodAutoscaler) {
+				hpa.Status.CurrentMetrics = hpa.Status.CurrentMetrics[:len(hpa.Status.CurrentMetrics)-1]
+			},
+			expectCurrentUtilization: false,
+			expectCurrentReplicas:    true,
+		},
+		"invalid hpa metric type": {
+			createScaledObject: true,
+			createHPA:          true,
+			mutateHPA: func(hpa *v2.HorizontalPodAutoscaler) {
+				hpa.Status.CurrentMetrics[0].Type = v2.ResourceMetricSourceType
+			},
+			expectCurrentUtilization: false,
+			expectCurrentReplicas:    true,
+		},
+		"external scaler health has failures": {
+			createScaledObject: true,
+			createHPA:          true,
+			mutateScaledObject: func(so *v1alpha1.ScaledObject) {
+				for metricName, status := range so.Status.Health {
+					if strings.Contains(metricName, "-azure-servicebus-") {
+						status.Status = "Failing"
+						status.NumberOfFailures = pointers.Ptr[int32](3)
+						so.Status.Health[metricName] = status
+					}
+				}
+			},
+			expectCurrentUtilization: true,
+			expectCurrentReplicas:    true,
+			expectErrorByType: map[string]string{
+				"azure-servicebus": "Number of failures: 3",
+			},
+		},
+	}
+
+	for name, scenario := range testScenarios {
+		t.Run(name, func(t *testing.T) {
+			horizontalScaling := createHorizontalScalingConfig()
 			commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
 			err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 				WithAppName(anyAppName).
 				WithEnvironment("prod").
-				WithDeploymentName(scenario.deploymentName).
+				WithDeploymentName("dep-hpa").
 				WithJobComponents().
 				WithComponents(
 					operatorUtils.NewDeployComponentBuilder().
 						WithName("frontend").
 						WithPort("http", 8080).
-						WithPublicPort("http")))
+						WithPublicPort("http").
+						WithHorizontalScaling(horizontalScaling)))
 			require.NoError(t, err)
 
 			ns := operatorUtils.GetEnvironmentNamespace(anyAppName, "prod")
-			scaler, hpa := createHorizontalScalingObjects("frontend", numbers.Int32Ptr(scenario.minReplicas), scenario.maxReplicas, scenario.targetCpu, scenario.targetMemory, scenario.targetCron, scenario.targetAzureServiceBus, scenario.targetAzureEventHub)
-			_, err = kedaClient.KedaV1alpha1().ScaledObjects(ns).Create(context.Background(), &scaler, metav1.CreateOptions{})
-			require.NoError(t, err)
-			_, err = client.AutoscalingV2().HorizontalPodAutoscalers(ns).Create(context.Background(), &hpa, metav1.CreateOptions{})
-			require.NoError(t, err)
 
-			// Test
-			endpoint := createGetComponentsEndpoint(anyAppName, scenario.deploymentName)
+			// ApplyDeploymentWithSync creates autoscaling objects for the configured component.
+			// Remove them to make each subtest deterministic for ScaledObject/HPA presence and validity.
+			scaledObjects, err := kedaClient.KedaV1alpha1().ScaledObjects(ns).List(context.Background(), metav1.ListOptions{})
+			require.NoError(t, err)
+			for _, scaledObject := range scaledObjects.Items {
+				err = kedaClient.KedaV1alpha1().ScaledObjects(ns).Delete(context.Background(), scaledObject.Name, metav1.DeleteOptions{})
+				require.NoError(t, err)
+			}
+
+			hpas, err := client.AutoscalingV2().HorizontalPodAutoscalers(ns).List(context.Background(), metav1.ListOptions{})
+			require.NoError(t, err)
+			for _, existingHPA := range hpas.Items {
+				err = client.AutoscalingV2().HorizontalPodAutoscalers(ns).Delete(context.Background(), existingHPA.Name, metav1.DeleteOptions{})
+				require.NoError(t, err)
+			}
+
+			scaledObject, hpa := createHorizontalScalingObjects("frontend", horizontalScaling)
+
+			if scenario.mutateScaledObject != nil {
+				scenario.mutateScaledObject(&scaledObject)
+			}
+			if scenario.mutateHPA != nil {
+				scenario.mutateHPA(&hpa)
+			}
+
+			if scenario.createScaledObject {
+				_, err = kedaClient.KedaV1alpha1().ScaledObjects(ns).Create(context.Background(), &scaledObject, metav1.CreateOptions{})
+				require.NoError(t, err)
+			}
+
+			if scenario.createHPA {
+				_, err = client.AutoscalingV2().HorizontalPodAutoscalers(ns).Create(context.Background(), &hpa, metav1.CreateOptions{})
+				require.NoError(t, err)
+			}
+
+			endpoint := createGetComponentsEndpoint(anyAppName, "dep-hpa")
 			responseChannel := controllerTestUtils.ExecuteRequest("GET", endpoint)
 			response := <-responseChannel
 
@@ -575,219 +676,165 @@ func TestGetComponents_WithHorizontalScaling(t *testing.T) {
 			var components []deploymentModels.Component
 			err = controllertest.GetResponseBody(response, &components)
 			require.NoError(t, err)
-			require.NotNil(t, components[0].HorizontalScalingSummary)
+			require.NotEmpty(t, components)
 
-			assert.Equal(t, scenario.minReplicas, *components[0].HorizontalScalingSummary.MinReplicas)
-			assert.Equal(t, scenario.maxReplicas, *components[0].HorizontalScalingSummary.MaxReplicas)
-			assert.EqualValues(t, 2, components[0].HorizontalScalingSummary.CurrentReplicas)
-			assert.EqualValues(t, 4, components[0].HorizontalScalingSummary.DesiredReplicas)
-			assert.Nil(t, components[0].HorizontalScalingSummary.CurrentCPUUtilizationPercentage)                            // nolint:staticcheck // SA1019: Ignore linting deprecated fields
-			assert.Equal(t, scenario.targetCpu, components[0].HorizontalScalingSummary.TargetCPUUtilizationPercentage)       // nolint:staticcheck // SA1019: Ignore linting deprecated fields
-			assert.Nil(t, components[0].HorizontalScalingSummary.CurrentMemoryUtilizationPercentage)                         // nolint:staticcheck // SA1019: Ignore linting deprecated fields
-			assert.Equal(t, scenario.targetMemory, components[0].HorizontalScalingSummary.TargetMemoryUtilizationPercentage) // nolint:staticcheck // SA1019: Ignore linting deprecated fields
+			frontend := getComponentByName("frontend", components)
+			require.NotNil(t, frontend)
+			require.NotNil(t, frontend.HorizontalScalingSummary)
 
-			memoryTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTriggerStatus) bool {
-				return s.Name == "memory"
-			})
-			if scenario.targetMemory == nil {
-				assert.False(t, ok)
+			summary := frontend.HorizontalScalingSummary
+
+			if scenario.expectCurrentReplicas {
+				assert.EqualValues(t, 2, summary.CurrentReplicas)
+				assert.EqualValues(t, 4, summary.DesiredReplicas)
 			} else {
-				require.True(t, ok)
-				assert.Equal(t, fmt.Sprintf("%d", *scenario.targetMemory), memoryTrigger.TargetUtilization)
-				assert.Empty(t, memoryTrigger.CurrentUtilization)
-				assert.Empty(t, memoryTrigger.Error)
-				assert.Equal(t, "memory", memoryTrigger.Type)
+				assert.Zero(t, summary.CurrentReplicas)
+				assert.Zero(t, summary.DesiredReplicas)
 			}
 
-			cpuTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTriggerStatus) bool {
-				return s.Name == "cpu"
-			})
-			if scenario.targetCpu == nil {
-				assert.False(t, ok)
-			} else {
-				require.True(t, ok)
-				assert.Equal(t, fmt.Sprintf("%d", *scenario.targetCpu), cpuTrigger.TargetUtilization)
-				assert.Empty(t, cpuTrigger.CurrentUtilization)
-				assert.Empty(t, cpuTrigger.Error)
-				assert.Equal(t, "cpu", cpuTrigger.Type)
+			currentByType := map[string]string{}
+			errorByType := map[string]string{}
+			for _, trigger := range summary.Triggers {
+				currentByType[trigger.Type] = trigger.CurrentUtilization
+				errorByType[trigger.Type] = trigger.Error
 			}
 
-			cronTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTriggerStatus) bool {
-				return s.Name == "cron"
-			})
-			if scenario.targetCron == nil {
-				assert.False(t, ok)
+			if scenario.expectCurrentUtilization {
+				assert.Equal(t, "60", currentByType["cpu"])
+				assert.Equal(t, "75", currentByType["memory"])
+				assert.Equal(t, "5", currentByType["cron"])
+				assert.Equal(t, "15", currentByType["azure-servicebus"])
+				assert.Equal(t, "20", currentByType["azure-eventhub"])
 			} else {
-				require.True(t, ok)
-				assert.Equal(t, fmt.Sprintf("%d", *scenario.targetCron), cronTrigger.TargetUtilization)
-				assert.Equal(t, fmt.Sprintf("%d", *scenario.targetCron), cronTrigger.CurrentUtilization)
-				assert.Empty(t, cronTrigger.Error)
-				assert.Equal(t, "cron", cronTrigger.Type)
+				for _, trigger := range summary.Triggers {
+					assert.Empty(t, trigger.CurrentUtilization)
+				}
 			}
 
-			azureServiceBusTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTriggerStatus) bool {
-				return s.Name == "azure-servicebus"
-			})
-			if scenario.targetAzureServiceBus == nil {
-				assert.False(t, ok)
-			} else {
-				require.True(t, ok)
-				assert.Equal(t, fmt.Sprintf("%d", *scenario.targetAzureServiceBus), azureServiceBusTrigger.TargetUtilization)
-				assert.Equal(t, fmt.Sprintf("%d", *scenario.targetAzureServiceBus), azureServiceBusTrigger.CurrentUtilization)
-				assert.Empty(t, azureServiceBusTrigger.Error)
-				assert.Equal(t, "azure-servicebus", azureServiceBusTrigger.Type)
-			}
+			for _, trigger := range summary.Triggers {
+				expectedError := ""
+				if scenario.expectErrorByType != nil {
+					expectedError = scenario.expectErrorByType[trigger.Type]
+				}
 
-			azureEventHubTrigger, ok := slice.FindFirst(components[0].HorizontalScalingSummary.Triggers, func(s deploymentModels.HorizontalScalingSummaryTriggerStatus) bool {
-				return s.Name == "azure-eventhub"
-			})
-			if scenario.targetAzureEventHub == nil {
-				assert.False(t, ok)
-			} else {
-				require.True(t, ok)
-				assert.Equal(t, fmt.Sprintf("%d", *scenario.targetAzureEventHub), azureEventHubTrigger.TargetUtilization)
-				assert.Equal(t, fmt.Sprintf("%d", *scenario.targetAzureEventHub), azureEventHubTrigger.CurrentUtilization)
-				assert.Empty(t, azureEventHubTrigger.Error)
-				assert.Equal(t, "azure-eventhub", azureEventHubTrigger.Type)
+				assert.Equal(t, expectedError, errorByType[trigger.Type])
 			}
 		})
 	}
 }
 
-func createHorizontalScalingObjects(name string, minReplicas *int32, maxReplicas int32, targetCpu *int32, targetMemory *int32, targetCron *int32, targetAzureServiceBus *int32, targetAzureEventHub *int32) (v1alpha1.ScaledObject, v2.HorizontalPodAutoscaler) {
+func createHorizontalScalingConfig() *v1.RadixHorizontalScaling {
+	return &v1.RadixHorizontalScaling{
+		MinReplicas: pointers.Ptr[int32](2),
+		MaxReplicas: 6,
+		Triggers: []v1.RadixHorizontalScalingTrigger{
+			{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 60}},
+			{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 75}},
+			{Name: "cron", Cron: &v1.RadixHorizontalScalingCronTrigger{Start: "0 8 * * 1-5", End: "0 16 * * 1-5", Timezone: "Europe/Oslo", DesiredReplicas: 5}},
+			{Name: "servicebus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{Namespace: "ns-prod", QueueName: "orders", MessageCount: pointers.Ptr(15), Authentication: v1.RadixHorizontalScalingAuthentication{Identity: v1.RadixHorizontalScalingRequiredIdentity{Azure: v1.AzureIdentity{ClientId: "service-bus-client-id"}}}}},
+			{Name: "eventhub", AzureEventHub: &v1.RadixHorizontalScalingAzureEventHubTrigger{UnprocessedEventThreshold: pointers.Ptr(20), EventHubNamespace: "ehns", EventHubName: "orders", StorageAccount: "storage", Container: "container", Authentication: &v1.RadixHorizontalScalingAuthentication{Identity: v1.RadixHorizontalScalingRequiredIdentity{Azure: v1.AzureIdentity{ClientId: "event-hub-client-id"}}}}},
+		},
+	}
+}
+
+func createHorizontalScalingObjects(name string, scaling *v1.RadixHorizontalScaling) (v1alpha1.ScaledObject, v2.HorizontalPodAutoscaler) {
 	var triggers []v1alpha1.ScaleTriggers
-	var metrics []v2.MetricSpec
 	resourceMetricNames := []string{}
 	externalMetricNames := []string{}
 	health := map[string]v1alpha1.HealthStatus{}
-	metricStatus := []v2.MetricStatus{}
+	externalMetricStatus := []v2.MetricStatus{}
+	resourceMetricStatus := []v2.MetricStatus{}
 
-	if targetCpu != nil {
-		resourceMetricNames = append(resourceMetricNames, "cpu")
-		triggers = append(triggers, v1alpha1.ScaleTriggers{
-			Type: "cpu",
-			Name: "cpu",
-			Metadata: map[string]string{
-				"value": fmt.Sprintf("%d", *targetCpu),
-			},
-			AuthenticationRef: nil,
-			MetricType:        "Utilization",
-		})
-		metrics = append(metrics, v2.MetricSpec{
-			Resource: &v2.ResourceMetricSource{
-				Name: "cpu",
-				Target: v2.MetricTarget{
-					Type:               "cpu",
-					AverageUtilization: targetCpu,
-				},
-			},
-		})
-	}
-
-	if targetMemory != nil {
-		resourceMetricNames = append(resourceMetricNames, "memory")
-		triggers = append(triggers, v1alpha1.ScaleTriggers{
-			Type: "memory",
-			Name: "memory",
-			Metadata: map[string]string{
-				"value": fmt.Sprintf("%d", *targetMemory),
-			},
-			MetricType: "Utilization",
-		})
-		metrics = append(metrics, v2.MetricSpec{
-			Resource: &v2.ResourceMetricSource{
-				Name: "memory",
-				Target: v2.MetricTarget{
-					Type:               "memory",
-					AverageUtilization: targetMemory,
-				},
-			},
-		})
-	}
-
-	if targetCron != nil {
-		externalMetricName := fmt.Sprintf("s%d-cron-Europe-Oslo-08xx1-5-016xx1-5", len(triggers))
-		externalMetricNames = append(externalMetricNames, externalMetricName)
-		triggers = append(triggers, v1alpha1.ScaleTriggers{
-			Type: "cron",
-			Name: "cron",
-			Metadata: map[string]string{
-				"end":             "0 16 * * 1-5",
-				"start":           "0 8 * * 1-5",
-				"timezone":        "Europe/Oslo",
-				"desiredReplicas": fmt.Sprintf("%d", *targetCron),
-			},
-		})
-		health[externalMetricName] = v1alpha1.HealthStatus{
-			NumberOfFailures: pointers.Ptr[int32](0),
-			Status:           "Happy",
+	for triggerIndex, trigger := range scaling.Triggers {
+		scaleTrigger := v1alpha1.ScaleTriggers{
+			Type: trigger.Type(),
+			Name: trigger.Name,
 		}
-		metricStatus = append(metricStatus, v2.MetricStatus{
-			Type: "External",
-			External: &v2.ExternalMetricStatus{
-				Current: v2.MetricValueStatus{
-					AverageValue: resource.NewQuantity(int64(*targetCron), resource.DecimalSI),
+
+		switch trigger.Type() {
+		case "cpu":
+			value := int32(trigger.Cpu.Value)
+			scaleTrigger.Metadata = map[string]string{"value": fmt.Sprintf("%d", trigger.Cpu.Value)}
+			scaleTrigger.MetricType = "Utilization"
+			resourceMetricNames = append(resourceMetricNames, "cpu")
+			resourceMetricStatus = append(resourceMetricStatus, v2.MetricStatus{
+				Type: v2.ResourceMetricSourceType,
+				Resource: &v2.ResourceMetricStatus{
+					Name: "cpu",
+					Current: v2.MetricValueStatus{
+						AverageUtilization: &value,
+					},
 				},
-				Metric: v2.MetricIdentifier{
-					Name: externalMetricName,
+			})
+		case "memory":
+			value := int32(trigger.Memory.Value)
+			scaleTrigger.Metadata = map[string]string{"value": fmt.Sprintf("%d", trigger.Memory.Value)}
+			scaleTrigger.MetricType = "Utilization"
+			resourceMetricNames = append(resourceMetricNames, "memory")
+			resourceMetricStatus = append(resourceMetricStatus, v2.MetricStatus{
+				Type: v2.ResourceMetricSourceType,
+				Resource: &v2.ResourceMetricStatus{
+					Name: "memory",
+					Current: v2.MetricValueStatus{
+						AverageUtilization: &value,
+					},
 				},
-			},
-		})
+			})
+		case "cron":
+			externalMetricName := fmt.Sprintf("s%d-cron-Europe-Oslo-08xx1-5-016xx1-5", triggerIndex)
+			scaleTrigger.Metadata = map[string]string{
+				"end":             trigger.Cron.End,
+				"start":           trigger.Cron.Start,
+				"timezone":        trigger.Cron.Timezone,
+				"desiredReplicas": fmt.Sprintf("%d", trigger.Cron.DesiredReplicas),
+			}
+			externalMetricNames = append(externalMetricNames, externalMetricName)
+			health[externalMetricName] = v1alpha1.HealthStatus{NumberOfFailures: pointers.Ptr[int32](0), Status: "Happy"}
+			externalMetricStatus = append(externalMetricStatus, v2.MetricStatus{
+				Type: v2.ExternalMetricSourceType,
+				External: &v2.ExternalMetricStatus{
+					Current: v2.MetricValueStatus{AverageValue: resource.NewQuantity(int64(trigger.Cron.DesiredReplicas), resource.DecimalSI)},
+					Metric:  v2.MetricIdentifier{Name: externalMetricName},
+				},
+			})
+		case "azure-servicebus":
+			messageCount := 5
+			if trigger.AzureServiceBus.MessageCount != nil {
+				messageCount = *trigger.AzureServiceBus.MessageCount
+			}
+			externalMetricName := fmt.Sprintf("s%d-azure-servicebus-orders", triggerIndex)
+			scaleTrigger.Metadata = map[string]string{"messageCount": fmt.Sprintf("%d", messageCount)}
+			externalMetricNames = append(externalMetricNames, externalMetricName)
+			health[externalMetricName] = v1alpha1.HealthStatus{NumberOfFailures: pointers.Ptr[int32](0), Status: "Happy"}
+			externalMetricStatus = append(externalMetricStatus, v2.MetricStatus{
+				Type: v2.ExternalMetricSourceType,
+				External: &v2.ExternalMetricStatus{
+					Current: v2.MetricValueStatus{AverageValue: resource.NewQuantity(int64(messageCount), resource.DecimalSI)},
+					Metric:  v2.MetricIdentifier{Name: externalMetricName},
+				},
+			})
+		case "azure-eventhub":
+			threshold := 64
+			if trigger.AzureEventHub.UnprocessedEventThreshold != nil {
+				threshold = *trigger.AzureEventHub.UnprocessedEventThreshold
+			}
+			externalMetricName := fmt.Sprintf("s%d-azure-eventhub-orders", triggerIndex)
+			scaleTrigger.Metadata = map[string]string{"unprocessedEventThreshold": fmt.Sprintf("%d", threshold)}
+			externalMetricNames = append(externalMetricNames, externalMetricName)
+			health[externalMetricName] = v1alpha1.HealthStatus{NumberOfFailures: pointers.Ptr[int32](0), Status: "Happy"}
+			externalMetricStatus = append(externalMetricStatus, v2.MetricStatus{
+				Type: v2.ExternalMetricSourceType,
+				External: &v2.ExternalMetricStatus{
+					Current: v2.MetricValueStatus{AverageValue: resource.NewQuantity(int64(threshold), resource.DecimalSI)},
+					Metric:  v2.MetricIdentifier{Name: externalMetricName},
+				},
+			})
+		}
+
+		triggers = append(triggers, scaleTrigger)
 	}
 
-	if targetAzureServiceBus != nil {
-		externalMetricName := fmt.Sprintf("s%d-azure-servicebus-orders", len(triggers))
-		externalMetricNames = append(externalMetricNames, externalMetricName)
-		triggers = append(triggers, v1alpha1.ScaleTriggers{
-			Type: "azure-servicebus",
-			Name: "azure-servicebus",
-			Metadata: map[string]string{
-				"messageCount": fmt.Sprintf("%d", *targetAzureServiceBus),
-			},
-		})
-		health[externalMetricName] = v1alpha1.HealthStatus{
-			NumberOfFailures: pointers.Ptr[int32](0),
-			Status:           "Happy",
-		}
-		metricStatus = append(metricStatus, v2.MetricStatus{
-			Type: "External",
-			External: &v2.ExternalMetricStatus{
-				Current: v2.MetricValueStatus{
-					AverageValue: resource.NewQuantity(int64(*targetAzureServiceBus), resource.DecimalSI),
-				},
-				Metric: v2.MetricIdentifier{
-					Name: externalMetricName,
-				},
-			},
-		})
-	}
-
-	if targetAzureEventHub != nil {
-		externalMetricName := fmt.Sprintf("s%d-azure-eventhub-orders", len(triggers))
-		externalMetricNames = append(externalMetricNames, externalMetricName)
-		triggers = append(triggers, v1alpha1.ScaleTriggers{
-			Type: "azure-eventhub",
-			Name: "azure-eventhub",
-			Metadata: map[string]string{
-				"unprocessedEventThreshold": fmt.Sprintf("%d", *targetAzureEventHub),
-			},
-		})
-		health[externalMetricName] = v1alpha1.HealthStatus{
-			NumberOfFailures: pointers.Ptr[int32](0),
-			Status:           "Happy",
-		}
-		metricStatus = append(metricStatus, v2.MetricStatus{
-			Type: "External",
-			External: &v2.ExternalMetricStatus{
-				Current: v2.MetricValueStatus{
-					AverageValue: resource.NewQuantity(int64(*targetAzureEventHub), resource.DecimalSI),
-				},
-				Metric: v2.MetricIdentifier{
-					Name: externalMetricName,
-				},
-			},
-		})
-	}
+	metricStatus := append(externalMetricStatus, resourceMetricStatus...)
 
 	scaler := v1alpha1.ScaledObject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -795,8 +842,8 @@ func createHorizontalScalingObjects(name string, minReplicas *int32, maxReplicas
 			Labels: labelselector.ForComponent(anyAppName, "frontend"),
 		},
 		Spec: v1alpha1.ScaledObjectSpec{
-			MinReplicaCount: minReplicas,
-			MaxReplicaCount: &maxReplicas,
+			MinReplicaCount: scaling.MinReplicas,
+			MaxReplicaCount: &scaling.MaxReplicas,
 			Triggers:        triggers,
 		},
 		Status: v1alpha1.ScaledObjectStatus{
@@ -813,9 +860,8 @@ func createHorizontalScalingObjects(name string, minReplicas *int32, maxReplicas
 			Labels: labelselector.ForComponent(anyAppName, "frontend"),
 		},
 		Spec: v2.HorizontalPodAutoscalerSpec{
-			MinReplicas: minReplicas,
-			MaxReplicas: maxReplicas,
-			Metrics:     metrics,
+			MinReplicas: scaling.MinReplicas,
+			MaxReplicas: scaling.MaxReplicas,
 		},
 		Status: v2.HorizontalPodAutoscalerStatus{
 			CurrentMetrics:  metricStatus,
@@ -829,11 +875,16 @@ func createHorizontalScalingObjects(name string, minReplicas *int32, maxReplicas
 
 func TestGetComponents_WithIdentity(t *testing.T) {
 	// Setup
+	const (
+		appName = "any-app"
+		envName = "prod"
+	)
+
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
 
 	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("prod").
+		WithAppName(appName).
+		WithEnvironment(envName).
 		WithDeploymentName(anyDeployName).
 		WithJobComponents(
 			operatorUtils.NewDeployJobComponentBuilder().
@@ -867,9 +918,21 @@ func TestGetComponents_WithIdentity(t *testing.T) {
 	err = controllertest.GetResponseBody(response, &components)
 	require.NoError(t, err)
 
-	assert.Equal(t, &deploymentModels.Identity{Azure: &deploymentModels.AzureIdentity{ClientId: "job-clientid", ServiceAccountName: operatorUtils.GetComponentServiceAccountName("job1"), AzureKeyVaults: []string{"job-key-vault3"}}}, getComponentByName("job1", components).Identity)
+	assert.Equal(t,
+		&deploymentModels.Identity{Azure: &deploymentModels.AzureIdentity{
+			ClientId:           "job-clientid",
+			ServiceAccountName: operatorUtils.GetComponentServiceAccountName("job1"),
+			Namespace:          operatorUtils.GetEnvironmentNamespace(appName, envName),
+			AzureKeyVaults:     []string{"job-key-vault3"}}},
+		getComponentByName("job1", components).Identity)
 	assert.Nil(t, getComponentByName("job2", components).Identity)
-	assert.Equal(t, &deploymentModels.Identity{Azure: &deploymentModels.AzureIdentity{ClientId: "comp-clientid", ServiceAccountName: operatorUtils.GetComponentServiceAccountName("comp1"), AzureKeyVaults: []string{"comp-key-vault3"}}}, getComponentByName("comp1", components).Identity)
+	assert.Equal(t,
+		&deploymentModels.Identity{Azure: &deploymentModels.AzureIdentity{
+			ClientId:           "comp-clientid",
+			ServiceAccountName: operatorUtils.GetComponentServiceAccountName("comp1"),
+			Namespace:          operatorUtils.GetEnvironmentNamespace(appName, envName),
+			AzureKeyVaults:     []string{"comp-key-vault3"}}},
+		getComponentByName("comp1", components).Identity)
 	assert.Nil(t, getComponentByName("comp2", components).Identity)
 }
 
@@ -974,6 +1037,342 @@ func getContainerState(message string, status deploymentModels.ContainerStatus) 
 	}
 
 	return containerState
+}
+
+func Test_HorizontalScalingSummary_Identity(t *testing.T) {
+	type testScenario struct {
+		triggers           []v1.RadixHorizontalScalingTrigger
+		expectedIdentities map[string]*deploymentModels.Identity // key is trigger name
+	}
+
+	testScenarios := map[string]testScenario{
+		"cpu trigger has no identity": {
+			triggers: []v1.RadixHorizontalScalingTrigger{
+				{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 60}},
+			},
+			expectedIdentities: map[string]*deploymentModels.Identity{
+				"cpu": nil,
+			},
+		},
+		"memory trigger has no identity": {
+			triggers: []v1.RadixHorizontalScalingTrigger{
+				{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 75}},
+			},
+			expectedIdentities: map[string]*deploymentModels.Identity{
+				"memory": nil,
+			},
+		},
+		"cron trigger has no identity": {
+			triggers: []v1.RadixHorizontalScalingTrigger{
+				{Name: "cron", Cron: &v1.RadixHorizontalScalingCronTrigger{Start: "0 8 * * 1-5", End: "0 16 * * 1-5", Timezone: "Europe/Oslo", DesiredReplicas: 5}},
+			},
+			expectedIdentities: map[string]*deploymentModels.Identity{
+				"cron": nil,
+			},
+		},
+		"azure-servicebus trigger with identity": {
+			triggers: []v1.RadixHorizontalScalingTrigger{
+				{Name: "servicebus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
+					Namespace:    "ns-prod",
+					QueueName:    "orders",
+					MessageCount: pointers.Ptr(15),
+					Authentication: v1.RadixHorizontalScalingAuthentication{
+						Identity: v1.RadixHorizontalScalingRequiredIdentity{
+							Azure: v1.AzureIdentity{ClientId: "service-bus-client-id"},
+						},
+					},
+				}},
+			},
+			expectedIdentities: map[string]*deploymentModels.Identity{
+				"servicebus": {
+					Azure: &deploymentModels.AzureIdentity{
+						ClientId:           "service-bus-client-id",
+						ServiceAccountName: "keda-operator",
+						Namespace:          "keda",
+					},
+				},
+			},
+		},
+		"azure-servicebus trigger without identity": {
+			triggers: []v1.RadixHorizontalScalingTrigger{
+				{Name: "servicebus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
+					Namespace:    "ns-prod",
+					QueueName:    "orders",
+					MessageCount: pointers.Ptr(15),
+				}},
+			},
+			expectedIdentities: map[string]*deploymentModels.Identity{
+				"servicebus": nil,
+			},
+		},
+		"azure-eventhub trigger with identity": {
+			triggers: []v1.RadixHorizontalScalingTrigger{
+				{Name: "eventhub", AzureEventHub: &v1.RadixHorizontalScalingAzureEventHubTrigger{
+					UnprocessedEventThreshold: pointers.Ptr(20),
+					EventHubNamespace:         "ehns",
+					EventHubName:              "orders",
+					StorageAccount:            "storage",
+					Container:                 "container",
+					Authentication: &v1.RadixHorizontalScalingAuthentication{
+						Identity: v1.RadixHorizontalScalingRequiredIdentity{
+							Azure: v1.AzureIdentity{ClientId: "event-hub-client-id"},
+						},
+					},
+				}},
+			},
+			expectedIdentities: map[string]*deploymentModels.Identity{
+				"eventhub": {
+					Azure: &deploymentModels.AzureIdentity{
+						ClientId:           "event-hub-client-id",
+						ServiceAccountName: "keda-operator",
+						Namespace:          "keda",
+					},
+				},
+			},
+		},
+		"azure-eventhub trigger without identity": {
+			triggers: []v1.RadixHorizontalScalingTrigger{
+				{Name: "eventhub", AzureEventHub: &v1.RadixHorizontalScalingAzureEventHubTrigger{
+					UnprocessedEventThreshold: pointers.Ptr(20),
+					EventHubNamespace:         "ehns",
+					EventHubName:              "orders",
+					StorageAccount:            "storage",
+					Container:                 "container",
+				}},
+			},
+			expectedIdentities: map[string]*deploymentModels.Identity{
+				"eventhub": nil,
+			},
+		},
+		"multiple triggers with mixed identities": {
+			triggers: []v1.RadixHorizontalScalingTrigger{
+				{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 60}},
+				{Name: "servicebus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
+					Namespace:    "ns-prod",
+					QueueName:    "orders",
+					MessageCount: pointers.Ptr(15),
+					Authentication: v1.RadixHorizontalScalingAuthentication{
+						Identity: v1.RadixHorizontalScalingRequiredIdentity{
+							Azure: v1.AzureIdentity{ClientId: "service-bus-client-id"},
+						},
+					},
+				}},
+				{Name: "eventhub", AzureEventHub: &v1.RadixHorizontalScalingAzureEventHubTrigger{
+					UnprocessedEventThreshold: pointers.Ptr(20),
+					EventHubNamespace:         "ehns",
+					EventHubName:              "orders",
+					StorageAccount:            "storage",
+					Container:                 "container",
+				}},
+			},
+			expectedIdentities: map[string]*deploymentModels.Identity{
+				"cpu": nil,
+				"servicebus": {
+					Azure: &deploymentModels.AzureIdentity{
+						ClientId:           "service-bus-client-id",
+						ServiceAccountName: "keda-operator",
+						Namespace:          "keda",
+					},
+				},
+				"eventhub": nil,
+			},
+		},
+	}
+
+	for name, scenario := range testScenarios {
+		t.Run(name, func(t *testing.T) {
+			commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
+			horizontalScaling := &v1.RadixHorizontalScaling{
+				MinReplicas: pointers.Ptr[int32](1),
+				MaxReplicas: 5,
+				Triggers:    scenario.triggers,
+			}
+
+			err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+				WithAppName(anyAppName).
+				WithEnvironment("dev").
+				WithDeploymentName("dep-identity").
+				WithJobComponents().
+				WithComponents(
+					operatorUtils.NewDeployComponentBuilder().
+						WithName("component").
+						WithHorizontalScaling(horizontalScaling)))
+			require.NoError(t, err)
+
+			endpoint := createGetComponentsEndpoint(anyAppName, "dep-identity")
+			responseChannel := controllerTestUtils.ExecuteRequest("GET", endpoint)
+			response := <-responseChannel
+
+			assert.Equal(t, 200, response.Code)
+
+			var components []deploymentModels.Component
+			err = controllertest.GetResponseBody(response, &components)
+			require.NoError(t, err)
+			require.NotEmpty(t, components)
+
+			component := getComponentByName("component", components)
+			require.NotNil(t, component)
+			require.NotNil(t, component.HorizontalScalingSummary)
+
+			summary := component.HorizontalScalingSummary
+
+			// Verify all triggers are present
+			assert.Equal(t, len(scenario.triggers), len(summary.Triggers))
+
+			// Verify identity for each trigger
+			for _, trigger := range summary.Triggers {
+				expectedIdentity, hasExpected := scenario.expectedIdentities[trigger.Name]
+				require.True(t, hasExpected, "trigger name %s not in expected identities", trigger.Name)
+
+				if expectedIdentity == nil {
+					assert.Nil(t, trigger.Identity, "trigger %s should not have identity", trigger.Name)
+				} else {
+					require.NotNil(t, trigger.Identity, "trigger %s should have identity", trigger.Name)
+					require.NotNil(t, trigger.Identity.Azure, "trigger %s should have Azure identity", trigger.Name)
+					assert.Equal(t, expectedIdentity.Azure.ClientId, trigger.Identity.Azure.ClientId)
+					assert.Equal(t, expectedIdentity.Azure.ServiceAccountName, trigger.Identity.Azure.ServiceAccountName)
+					assert.Equal(t, expectedIdentity.Azure.Namespace, trigger.Identity.Azure.Namespace)
+				}
+			}
+		})
+	}
+}
+
+func Test_HorizontalScalingSummary_Properties(t *testing.T) {
+	type testScenario struct {
+		horizontalScaling *v1.RadixHorizontalScaling
+		expectedValue     *deploymentModels.HorizontalScalingSummary
+	}
+
+	testScenarios := map[string]testScenario{
+		"verify min and max replicas": {
+			horizontalScaling: &v1.RadixHorizontalScaling{
+				MinReplicas: pointers.Ptr[int32](2),
+				MaxReplicas: 10,
+				Triggers: []v1.RadixHorizontalScalingTrigger{
+					{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 60}},
+				},
+			},
+			expectedValue: &deploymentModels.HorizontalScalingSummary{
+				MinReplicas: pointers.Ptr[int32](2),
+				MaxReplicas: pointers.Ptr[int32](10),
+				Triggers: []deploymentModels.HorizontalScalingSummaryTrigger{
+					{Name: "cpu", Type: "cpu", TargetUtilization: "60"},
+				},
+			},
+		},
+		"verify cooldown and polling intervals": {
+			horizontalScaling: &v1.RadixHorizontalScaling{
+				MinReplicas:     pointers.Ptr[int32](1),
+				MaxReplicas:     5,
+				CooldownPeriod:  pointers.Ptr[int32](120),
+				PollingInterval: pointers.Ptr[int32](45),
+				Triggers: []v1.RadixHorizontalScalingTrigger{
+					{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 75}},
+				},
+			},
+			expectedValue: &deploymentModels.HorizontalScalingSummary{
+				MinReplicas:     pointers.Ptr[int32](1),
+				MaxReplicas:     pointers.Ptr[int32](5),
+				CooldownPeriod:  pointers.Ptr[int32](120),
+				PollingInterval: pointers.Ptr[int32](45),
+				Triggers: []deploymentModels.HorizontalScalingSummaryTrigger{
+					{Name: "memory", Type: "memory", TargetUtilization: "75"},
+				},
+			},
+		},
+		"verify multiple triggers are set": {
+			horizontalScaling: &v1.RadixHorizontalScaling{
+				MinReplicas: pointers.Ptr[int32](1),
+				MaxReplicas: 8,
+				Triggers: []v1.RadixHorizontalScalingTrigger{
+					{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 60}},
+					{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 75}},
+					{Name: "cron", Cron: &v1.RadixHorizontalScalingCronTrigger{Start: "0 8 * * 1-5", End: "0 16 * * 1-5", Timezone: "Europe/Oslo", DesiredReplicas: 5}},
+				},
+			},
+			expectedValue: &deploymentModels.HorizontalScalingSummary{
+				MinReplicas: pointers.Ptr[int32](1),
+				MaxReplicas: pointers.Ptr[int32](8),
+				Triggers: []deploymentModels.HorizontalScalingSummaryTrigger{
+					{Name: "cpu", Type: "cpu", TargetUtilization: "60"},
+					{Name: "memory", Type: "memory", TargetUtilization: "75"},
+					{Name: "cron", Type: "cron", TargetUtilization: "5"},
+				},
+			},
+		},
+		"verify deprecated resources are present without triggers": {
+			horizontalScaling: &v1.RadixHorizontalScaling{
+				MinReplicas: pointers.Ptr[int32](2),
+				MaxReplicas: 9,
+				RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{
+					Cpu:    &v1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](55)},
+					Memory: &v1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](70)},
+				},
+			},
+			expectedValue: &deploymentModels.HorizontalScalingSummary{
+				MinReplicas: pointers.Ptr[int32](2),
+				MaxReplicas: pointers.Ptr[int32](9),
+				Triggers:    []deploymentModels.HorizontalScalingSummaryTrigger{},
+			},
+		},
+		"verify all properties together": {
+			horizontalScaling: &v1.RadixHorizontalScaling{
+				MinReplicas:     pointers.Ptr[int32](3),
+				MaxReplicas:     12,
+				CooldownPeriod:  pointers.Ptr[int32](300),
+				PollingInterval: pointers.Ptr[int32](30),
+				Triggers: []v1.RadixHorizontalScalingTrigger{
+					{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 80}},
+					{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 85}},
+				},
+			},
+			expectedValue: &deploymentModels.HorizontalScalingSummary{
+				MinReplicas:     pointers.Ptr[int32](3),
+				MaxReplicas:     pointers.Ptr[int32](12),
+				CooldownPeriod:  pointers.Ptr[int32](300),
+				PollingInterval: pointers.Ptr[int32](30),
+				Triggers: []deploymentModels.HorizontalScalingSummaryTrigger{
+					{Name: "cpu", Type: "cpu", TargetUtilization: "80"},
+					{Name: "memory", Type: "memory", TargetUtilization: "85"},
+				},
+			},
+		},
+	}
+
+	for name, scenario := range testScenarios {
+		t.Run(name, func(t *testing.T) {
+			commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
+
+			err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+				WithAppName(anyAppName).
+				WithEnvironment("dev").
+				WithDeploymentName("dep-props").
+				WithJobComponents().
+				WithComponents(
+					operatorUtils.NewDeployComponentBuilder().
+						WithName("component").
+						WithHorizontalScaling(scenario.horizontalScaling)))
+			require.NoError(t, err)
+
+			endpoint := createGetComponentsEndpoint(anyAppName, "dep-props")
+			responseChannel := controllerTestUtils.ExecuteRequest("GET", endpoint)
+			response := <-responseChannel
+
+			assert.Equal(t, 200, response.Code)
+
+			var components []deploymentModels.Component
+			err = controllertest.GetResponseBody(response, &components)
+			require.NoError(t, err)
+			require.NotEmpty(t, components)
+
+			component := getComponentByName("component", components)
+			require.NotNil(t, component)
+			require.NotNil(t, component.HorizontalScalingSummary)
+
+			assert.Equal(t, scenario.expectedValue, component.HorizontalScalingSummary)
+		})
+	}
 }
 
 func getComponentByName(name string, components []deploymentModels.Component) *deploymentModels.Component {

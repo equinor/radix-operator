@@ -100,6 +100,7 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 			cli.UpdateStatus(ctx, v1.JobStoppedNoChanges)
 			return nil
 		}
+		cli.UpdateStatus(ctx, v1.JobRunning)
 	}
 	cli.UpdateStatus(ctx, v1.JobSucceeded)
 	return nil
@@ -164,6 +165,7 @@ func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJ
 		rj.Status.PipelineRunStatus.UsedBuildCache = cli.pipelineInfo.IsUsingBuildCache()
 		rj.Status.PipelineRunStatus.UsedBuildKit = cli.pipelineInfo.IsUsingBuildKit()
 		rj.Status.PipelineRunStatus.Status = condition
+		rj.Status.PipelineRunStatus.ResolvedCommitID = cli.pipelineInfo.GitCommitHash
 
 		return cli.dynamicClient.Status().Update(ctx, rj)
 	})

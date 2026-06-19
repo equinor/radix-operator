@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-operator/api-server/api/applications"
+	"github.com/equinor/radix-operator/api-server/api/applications/models"
 	"github.com/equinor/radix-operator/api-server/api/jobs"
 	jobmodels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
-	"github.com/equinor/radix-operator/pkg/apis/git"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/api-server/internal/pipelineservice"
+	operatorpipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	builders "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -71,6 +71,7 @@ func TestGetApplicationJob(t *testing.T) {
 		pipelineRunStatus     *v1.RadixJobPipelineRunStatus
 		expectedUseBuildKit   *bool
 		expectedUseBuildCache *bool
+		expectedCommitID      string
 	}{
 		"NoPipelineRunStatus": {
 			useBuildKit:           new(true),
@@ -79,6 +80,7 @@ func TestGetApplicationJob(t *testing.T) {
 			refreshBuildCache:     new(false),
 			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
+			expectedCommitID:      anyPushCommitID,
 		},
 		"OverrideCacheEnabled": {
 			useBuildKit:           new(true),
@@ -87,6 +89,7 @@ func TestGetApplicationJob(t *testing.T) {
 			refreshBuildCache:     new(false),
 			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
+			expectedCommitID:      anyPushCommitID,
 		},
 		"RefreshCacheEnabled": {
 			useBuildKit:           new(true),
@@ -95,6 +98,7 @@ func TestGetApplicationJob(t *testing.T) {
 			refreshBuildCache:     new(true),
 			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
+			expectedCommitID:      anyPushCommitID,
 		},
 		"PipelineRunUsedBuildKit": {
 			useBuildKit:           new(true),
@@ -104,6 +108,7 @@ func TestGetApplicationJob(t *testing.T) {
 			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: true, UsedBuildCache: true},
 			expectedUseBuildKit:   new(true),
 			expectedUseBuildCache: new(true),
+			expectedCommitID:      anyPushCommitID,
 		},
 		"PipelineRunNotUsedBuildKit": {
 			useBuildKit:           new(true),
@@ -113,6 +118,17 @@ func TestGetApplicationJob(t *testing.T) {
 			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: false, UsedBuildCache: false},
 			expectedUseBuildKit:   new(false),
 			expectedUseBuildCache: new(false),
+			expectedCommitID:      anyPushCommitID,
+		},
+		"PipelineRunWithResolvedCommitID": {
+			useBuildKit:           new(true),
+			useBuildCache:         new(true),
+			overrideBuildCache:    new(false),
+			refreshBuildCache:     new(false),
+			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: true, UsedBuildCache: true, ResolvedCommitID: "abc123def456"},
+			expectedUseBuildKit:   new(true),
+			expectedUseBuildCache: new(true),
+			expectedCommitID:      "abc123def456",
 		},
 	}
 
@@ -134,18 +150,19 @@ func TestGetApplicationJob(t *testing.T) {
 				WithBuildCache(ts.useBuildCache))
 			require.NoError(t, err)
 
-			jobParameters := &jobmodels.JobParameters{
-				Branch:                anyBranch, //nolint:staticcheck
-				CommitID:              anyPushCommitID,
-				PushImage:             true,
-				TriggeredBy:           anyUser,
+			anyPipeline, err := operatorpipeline.GetPipelineFromName(anyPipelineName)
+			require.NoError(t, err, "Failed to get pipeline")
+			svc := pipelineservice.PipelineService{RadixClient: radixclient}
+			jobSummary, err := svc.TriggerPipelineBuildDeploy(context.Background(), anyAppName, false, models.PipelineParametersBuild{
 				OverrideUseBuildCache: ts.overrideBuildCache,
 				RefreshBuildCache:     ts.refreshBuildCache,
-			}
+				CommitID:              anyPushCommitID,
+				PushImage:             "true",
+				TriggeredBy:           anyUser,
+				Branch:                anyBranch, //nolint:staticcheck
+				GitRef:                anyBranch,
+			})
 
-			anyPipeline, err := pipeline.GetPipelineFromName(anyPipelineName)
-			require.NoError(t, err, "Failed to get pipeline")
-			jobSummary, err := applications.HandleStartPipelineJob(context.Background(), radixclient, anyAppName, anyPipeline, jobParameters)
 			require.NoError(t, err, "failed to start a pipeline job")
 			_, err = createPipelinePod(client, builders.GetAppNamespace(anyAppName), jobSummary.Name)
 			require.NoError(t, err, "failed to create a pipeline pod")
@@ -167,31 +184,8 @@ func TestGetApplicationJob(t *testing.T) {
 			err = controllertest.GetResponseBody(response, &job)
 			require.NoError(t, err)
 			assert.Equal(t, jobSummary.Name, job.Name)
-			assert.Equal(t, anyBranch, job.Branch)
-			assert.Equal(t, anyPushCommitID, job.CommitID)
-			assert.Equal(t, anyUser, job.TriggeredBy)
-			assert.Equal(t, string(anyPipeline.Type), job.Pipeline)
-			assert.Empty(t, job.Steps)
-
-			internalStep := corev1.ContainerStatus{Name: fmt.Sprintf("%sAnyStep", git.InternalContainerPrefix), State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{}}}
-			cloneStep := corev1.ContainerStatus{Name: git.CloneContainerName, State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{}}}
-			pipelineStep := corev1.ContainerStatus{Name: "radix-pipeline", State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{}}}
-
-			// Emulate a running job with two steps
-			_, err = addInitStepsToPipelinePod(client, builders.GetAppNamespace(anyAppName), jobSummary.Name, internalStep, cloneStep)
-			require.NoError(t, err)
-			_, err = addStepToPipelinePod(client, builders.GetAppNamespace(anyAppName), jobSummary.Name, pipelineStep)
-			require.NoError(t, err)
-
-			responseChannel = controllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/jobs/%s", anyAppName, jobSummary.Name))
-			response = <-responseChannel
-
-			job = jobmodels.Job{}
-			err = controllertest.GetResponseBody(response, &job)
-			require.NoError(t, err)
-			assert.Equal(t, jobSummary.Name, job.Name)
-			assert.Equal(t, anyBranch, job.Branch)
-			assert.Equal(t, anyPushCommitID, job.CommitID)
+			assert.Equal(t, anyBranch, job.GitRef)
+			assert.Equal(t, ts.expectedCommitID, job.CommitID)
 			assert.Equal(t, anyUser, job.TriggeredBy)
 			assert.Equal(t, string(anyPipeline.Type), job.Pipeline)
 
@@ -257,22 +251,6 @@ func TestGetPipelineJobLogsError(t *testing.T) {
 func createPipelinePod(kubeclient kubernetes.Interface, namespace, jobName string) (*corev1.Pod, error) {
 	podSpec := getPodSpecForAPipelineJob(jobName)
 	return kubeclient.CoreV1().Pods(namespace).Create(context.Background(), podSpec, metav1.CreateOptions{})
-}
-
-func addInitStepsToPipelinePod(kubeclient kubernetes.Interface, namespace, jobName string, initSteps ...corev1.ContainerStatus) (*corev1.Pod, error) {
-	pipelinePod, _ := kubeclient.CoreV1().Pods(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
-	podStatus := pipelinePod.Status
-	podStatus.InitContainerStatuses = append(podStatus.InitContainerStatuses, initSteps...)
-	pipelinePod.Status = podStatus
-	return kubeclient.CoreV1().Pods(namespace).Update(context.Background(), pipelinePod, metav1.UpdateOptions{})
-}
-
-func addStepToPipelinePod(kubeclient kubernetes.Interface, namespace, jobName string, jobStep corev1.ContainerStatus) (*corev1.Pod, error) {
-	pipelinePod, _ := kubeclient.CoreV1().Pods(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
-	podStatus := pipelinePod.Status
-	podStatus.ContainerStatuses = append(podStatus.ContainerStatuses, jobStep)
-	pipelinePod.Status = podStatus
-	return kubeclient.CoreV1().Pods(namespace).Update(context.Background(), pipelinePod, metav1.UpdateOptions{})
 }
 
 func getPodSpecForAPipelineJob(jobName string) *corev1.Pod {

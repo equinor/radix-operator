@@ -16,17 +16,6 @@ type ServiceAccountSpec interface {
 	AutomountServiceAccountToken() *bool
 }
 
-// Service account spec for Radix GitHub Webhook deployment
-type radixWebhookServiceAccountSpec struct{}
-
-func (spec *radixWebhookServiceAccountSpec) ServiceAccountName() string {
-	return defaults.RadixGithubWebhookServiceAccountName
-}
-
-func (spec *radixWebhookServiceAccountSpec) AutomountServiceAccountToken() *bool {
-	return pointers.Ptr(true)
-}
-
 // Service account spec for Radix job scheduler deployment
 type jobSchedulerServiceAccountSpec struct{}
 
@@ -55,15 +44,8 @@ func (spec *radixComponentServiceAccountSpec) AutomountServiceAccountToken() *bo
 }
 
 // NewServiceAccountSpec Create ServiceAccountSpec based on RadixDeployment and RadixCommonDeployComponent
-func NewServiceAccountSpec(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ServiceAccountSpec {
-	isComponent := deployComponent.GetType() == v1.RadixComponentTypeComponent
-	isJobScheduler := internal.IsDeployComponentJobSchedulerDeployment(deployComponent)
-
-	if isComponent && isRadixWebHook(radixDeploy) {
-		return &radixWebhookServiceAccountSpec{}
-	}
-
-	if isJobScheduler {
+func NewServiceAccountSpec(deployComponent v1.RadixCommonDeployComponent) ServiceAccountSpec {
+	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		return &jobSchedulerServiceAccountSpec{}
 	}
 

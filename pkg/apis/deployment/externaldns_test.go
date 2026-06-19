@@ -97,7 +97,7 @@ func (s *ExternalDNSTestSuite) applyDeploymentWithSync(deploymentBuilder utils.D
 		return nil, err
 	}
 
-	rr, err := s.radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{})
+	rr, err := s.radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{}) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}

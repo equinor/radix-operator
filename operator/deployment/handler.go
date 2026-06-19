@@ -110,16 +110,16 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 
 		return err
 	}
-	logger := log.Ctx(ctx).With().Str("app_name", rd.Spec.AppName).Logger()
+	logger := log.Ctx(ctx).With().Str("app_name", rd.Spec.AppName).Logger() //nolint:staticcheck
 	ctx = logger.WithContext(ctx)
 	logger.Debug().Msgf("Sync deployment %s", rd.Name)
 
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(ctx, rd.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(ctx, rd.Spec.AppName, metav1.GetOptions{}) //nolint:staticcheck
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			logger.Debug().Msgf("RadixRegistration %s no longer exists", rd.Spec.AppName)
+			logger.Debug().Msgf("RadixRegistration %s no longer exists", rd.Spec.AppName) //nolint:staticcheck
 			return nil
 		}
 

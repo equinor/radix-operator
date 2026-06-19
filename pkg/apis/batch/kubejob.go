@@ -115,7 +115,7 @@ func (s *syncer) deleteJobs(ctx context.Context, jobsToDelete []*batchv1.Job) er
 }
 
 func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment, volumes []corev1.Volume) (*batchv1.Job, error) {
-	jobLabels := s.batchJobIdentifierLabel(batchJob.Name, rd.Spec.AppName)
+	jobLabels := s.batchJobIdentifierLabel(batchJob.Name, rd.Spec.AppName) //nolint:staticcheck
 	podLabels := radixlabels.Merge(
 		jobLabels,
 		radixlabels.ForPodWithRadixIdentity(jobComponent.Identity),
@@ -162,7 +162,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 		failurePolicy = operatorUtils.GetPodFailurePolicy(batchJob.FailurePolicy)
 	}
 
-	serviceAccountSpec := deployment.NewServiceAccountSpec(rd, jobComponent)
+	serviceAccountSpec := deployment.NewServiceAccountSpec(jobComponent)
 	volumes = s.appendPayloadSecretVolumes(batchJob, jobComponent, volumes)
 
 	job := &batchv1.Job{
@@ -304,7 +304,7 @@ func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv
 }
 
 func (s *syncer) getContainerEnvironmentVariables(ctx context.Context, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob, kubeJobName string) ([]corev1.EnvVar, error) {
-	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(ctx, s.kubeUtil, &s.config, rd.Spec.AppName, rd, jobComponent)
+	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(ctx, s.kubeUtil, &s.config, rd.Spec.AppName, rd, jobComponent) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
