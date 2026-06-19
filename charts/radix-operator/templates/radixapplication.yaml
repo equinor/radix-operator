@@ -3486,7 +3486,6 @@ spec:
                           - Allow
                           - Forbid
                           - Replace
-                          minLength: 1
                           type: string
                         schedule:
                           description: The cron schedule for the job
@@ -3625,7 +3624,6 @@ spec:
                                 - Allow
                                 - Forbid
                                 - Replace
-                                minLength: 1
                                 type: string
                               schedule:
                                 description: The cron schedule for the job

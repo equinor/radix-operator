@@ -3473,7 +3473,6 @@
                       "Forbid",
                       "Replace"
                     ],
-                    "minLength": 1,
                     "type": "string"
                   },
                   "schedule": {
@@ -3606,7 +3605,6 @@
                             "Forbid",
                             "Replace"
                           ],
-                          "minLength": 1,
                           "type": "string"
                         },
                         "schedule": {

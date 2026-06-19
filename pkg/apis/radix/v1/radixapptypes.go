@@ -918,7 +918,6 @@ type CronSchedule struct {
 	Schedule []string `json:"schedule"`
 
 	// Specify how to handle concurrency when multiple instances of the job are started
-	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Enum=Allow;Forbid;Replace
 	Concurrency string `json:"concurrency"`
 }
