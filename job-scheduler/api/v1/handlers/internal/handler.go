@@ -108,7 +108,7 @@ func (h *Handler) CreateBatch(ctx context.Context, batchScheduleDescription *com
 		return nil, apiErrors.NewInvalidWithReason("BatchScheduleDescription", "empty job description list ")
 	}
 
-	radixBatch, err := h.createRadixBatchOrJob(ctx, *batchScheduleDescription, kube.RadixBatchTypeBatch)
+	radixBatch, err := h.createRadixBatchOrJob(ctx, *batchScheduleDescription, kube.RadixBatchTypeBatch, false)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (h *Handler) CopyBatch(ctx context.Context, sourceBatchName, deploymentName
 	return batch.CopyRadixBatchOrJob(ctx, h.kubeUtil.RadixClient(), sourceRadixBatch, "", h.radixDeployJobComponent, deploymentName)
 }
 
-func (h *Handler) createRadixBatchOrJob(ctx context.Context, batchScheduleDescription common.BatchScheduleDescription, radixBatchType kube.RadixBatchType) (*modelsv1.BatchStatus, error) {
+func (h *Handler) createRadixBatchOrJob(ctx context.Context, batchScheduleDescription common.BatchScheduleDescription, radixBatchType kube.RadixBatchType, isCronJob bool) (*modelsv1.BatchStatus, error) {
 	logger := log.Ctx(ctx)
 	namespace := h.env.RadixDeploymentNamespace
 	radixComponentName := h.env.RadixComponentName
@@ -149,7 +149,7 @@ func (h *Handler) createRadixBatchOrJob(ctx context.Context, batchScheduleDescri
 
 	appName := radixDeployment.Spec.AppName //nolint:staticcheck
 
-	createdRadixBatch, err := h.createRadixBatch(ctx, namespace, appName, radixDeployment.GetName(), *radixJobComponent, batchScheduleDescription, radixBatchType)
+	createdRadixBatch, err := h.createRadixBatch(ctx, namespace, appName, radixDeployment.GetName(), *radixJobComponent, batchScheduleDescription, radixBatchType, isCronJob)
 	if err != nil {
 		return nil, apiErrors.NewFromError(err)
 	}
@@ -160,7 +160,7 @@ func (h *Handler) createRadixBatchOrJob(ctx context.Context, batchScheduleDescri
 }
 
 // CreateRadixBatchSingleJob Create a batch single job with parameters
-func (h *Handler) CreateRadixBatchSingleJob(ctx context.Context, jobScheduleDescription *common.JobScheduleDescription) (*modelsv1.BatchStatus, error) {
+func (h *Handler) CreateRadixBatchSingleJob(ctx context.Context, jobScheduleDescription *common.JobScheduleDescription, isCronJob bool) (*modelsv1.BatchStatus, error) {
 	logger := log.Ctx(ctx)
 	logger.Info().Msg("Create Radix Batch single job")
 	if jobScheduleDescription == nil {
@@ -169,7 +169,7 @@ func (h *Handler) CreateRadixBatchSingleJob(ctx context.Context, jobScheduleDesc
 	radixBatchJob, err := h.createRadixBatchOrJob(ctx, common.BatchScheduleDescription{
 		JobScheduleDescriptions:        []common.JobScheduleDescription{*jobScheduleDescription},
 		DefaultRadixJobComponentConfig: nil,
-	}, kube.RadixBatchTypeJob)
+	}, kube.RadixBatchTypeJob, isCronJob)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +215,7 @@ func (h *Handler) StopAllSingleRadixJobs(ctx context.Context) error {
 	return batch.StopAllRadixBatches(ctx, h.kubeUtil.RadixClient(), h.env.RadixAppName, h.env.RadixEnvironmentName, h.env.RadixComponentName, kube.RadixBatchTypeJob)
 }
 
-func (h *Handler) createRadixBatch(ctx context.Context, namespace, appName, radixDeploymentName string, radixJobComponent radixv1.RadixDeployJobComponent, batchScheduleDescription common.BatchScheduleDescription, radixBatchType kube.RadixBatchType) (*radixv1.RadixBatch, error) {
+func (h *Handler) createRadixBatch(ctx context.Context, namespace, appName, radixDeploymentName string, radixJobComponent radixv1.RadixDeployJobComponent, batchScheduleDescription common.BatchScheduleDescription, radixBatchType kube.RadixBatchType, isCronJob bool) (*radixv1.RadixBatch, error) {
 	logger := log.Ctx(ctx)
 	batchName := internal.GenerateBatchName(radixJobComponent.GetName())
 	logger.Debug().Msgf("Create Radix Batch %s", batchName)
@@ -232,6 +232,7 @@ func (h *Handler) createRadixBatch(ctx context.Context, namespace, appName, radi
 				radixLabels.ForApplicationName(appName),
 				radixLabels.ForComponentName(radixJobComponentName),
 				radixLabels.ForBatchType(radixBatchType),
+				radixLabels.ForBatchCron(isCronJob),
 			),
 		},
 		Spec: radixv1.RadixBatchSpec{

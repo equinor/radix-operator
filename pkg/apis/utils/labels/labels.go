@@ -1,6 +1,8 @@
 package labels
 
 import (
+	"strconv"
+
 	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -95,6 +97,14 @@ func IsComponentSelector() kubelabels.Selector {
 func ForBatchType(batchType kube.RadixBatchType) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixBatchTypeLabel: string(batchType),
+	}
+}
+
+// ForBatchCron returns labels describing if the job is a cron job or not,
+// e.g. "radix-batch-cron": "true"
+func ForBatchCron(batchCron bool) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixBatchCronLabel: strconv.FormatBool(batchCron),
 	}
 }
 

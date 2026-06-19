@@ -204,8 +204,8 @@
 				"USE_PROFILER": "false",
 				"RADIX_APP": "jacob-dev",
 				"RADIX_ENVIRONMENT": "dev",
-				"RADIX_COMPONENT": "run-as-user",
-				"RADIX_DEPLOYMENT": "dev-a4ee1-skkn8ioj",
+				"RADIX_COMPONENT": "cron-job",
+				"RADIX_DEPLOYMENT": "dev-kxyz6-ntszobl6",
 				"RADIX_PORTS": "3000"
 			}
 		},

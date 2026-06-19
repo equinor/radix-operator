@@ -2,7 +2,7 @@ ENVIRONMENT ?= dev
 VERSION 	?= latest
 
 DNS_ZONE = dev.radix.equinor.com
-BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD | sed 's|/|-|g')
 
 CRD_TEMP_DIR := ./.temp-resources/
 CRD_CHART_DIR := ./charts/radix-operator/templates/

@@ -34,6 +34,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithRunAsUser(runAsUser *int64) RadixApplicationJobComponentBuilder
 	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) RadixApplicationJobComponentBuilder
 	WithSafeToRestart(*bool) RadixApplicationJobComponentBuilder
+	WithCron(*v1.CronSchedule) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -67,6 +68,7 @@ type radixApplicationJobComponentBuilder struct {
 	args               []string
 	runAsUser          *int64
 	safeToRestart      *bool
+	cron               *v1.CronSchedule
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -237,6 +239,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithSafeToRestart(safeToRestart 
 	return rcb
 }
 
+func (rcb *radixApplicationJobComponentBuilder) WithCron(cron *v1.CronSchedule) RadixApplicationJobComponentBuilder {
+	rcb.cron = cron
+	return rcb
+}
+
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
 	var environmentConfig = make([]v1.RadixJobComponentEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -278,6 +285,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Args:               rcb.args,
 		RunAsUser:          rcb.runAsUser,
 		SafeToRestart:      rcb.safeToRestart,
+		Cron:               rcb.cron,
 	}
 }
 

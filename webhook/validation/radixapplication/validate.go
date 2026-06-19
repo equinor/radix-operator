@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -15,6 +16,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
+	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -50,7 +52,9 @@ var (
 		branchNameValidator,
 		horizontalScalingValidator,
 		volumeMountValidator,
-		notificationValidator}
+		notificationValidator,
+		cronScheduleValidator,
+	}
 )
 
 // validatorFunc defines a validatorFunc function for a RadixApplication
@@ -376,6 +380,51 @@ func createNamespaceUsableValidator(kubeClient client.Client) validatorFunc {
 		}
 		return nil, errs
 	}
+}
+
+func cronScheduleValidator(_ context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
+	var errs []error
+
+	for _, j := range ra.Spec.Jobs {
+		errs = append(errs, validateCronSchedule(fmt.Sprintf("job %q", j.Name), j.Cron)...)
+		for _, envConfig := range j.EnvironmentConfig {
+			errs = append(errs, validateCronSchedule(fmt.Sprintf("job %q in environment %q", j.Name, envConfig.Environment), envConfig.Cron)...)
+		}
+	}
+
+	return nil, errs
+}
+
+func validateCronSchedule(target string, cronSchedule *radixv1.CronSchedule) []error {
+	if cronSchedule == nil {
+		return nil
+	}
+
+	var errs []error
+	if len(cronSchedule.Schedule) == 0 {
+		errs = append(errs, fmt.Errorf("cron schedule for %s: %w", target, ErrCronScheduleEmpty))
+	} else {
+		for _, cs := range cronSchedule.Schedule {
+			if _, err := cron.ParseStandard(cs); err != nil {
+				errs = append(errs, fmt.Errorf("cron schedule %q for %s is invalid: %w (%v)", cs, target, ErrCronScheduleInvalid, err))
+			}
+		}
+	}
+
+	switch strings.TrimSpace(cronSchedule.Concurrency) {
+	case "Allow", "Forbid", "Replace":
+		// ok
+	default:
+		errs = append(errs, fmt.Errorf("cron concurrency %q for %s is invalid: %w", cronSchedule.Concurrency, target, ErrCronConcurrencyInvalid))
+	}
+
+	if cronSchedule.TimeZone != "" {
+		if _, err := time.LoadLocation(cronSchedule.TimeZone); err != nil {
+			errs = append(errs, fmt.Errorf("cron time zone %q for %s is invalid: %w (%v)", cronSchedule.TimeZone, target, ErrCronTimeZoneInvalid, err))
+		}
+	}
+
+	return errs
 }
 
 func validateComponentOrJobName(componentName, componentType string) error {
