@@ -74,7 +74,7 @@ func (s *Server) Start(ctx context.Context) error {
 			runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 			defer cancel()
 
-			ok, err := s.prepareForRun(runCtx)
+			ok, err := s.shouldRun(runCtx)
 			if err != nil {
 				log.Err(err).Msg("failed to prepare cron run")
 				return
@@ -97,29 +97,6 @@ func (s *Server) Start(ctx context.Context) error {
 	<-cronInstance.Stop().Done()
 
 	return nil
-}
-
-func (s *Server) findActiveCronBatches(ctx context.Context) ([]*radixv1.RadixBatch, error) {
-	jobName := s.jobComponent.GetName()
-	cronBatches, err := internal.GetRadixBatches(
-		ctx,
-		s.kubeUtil.RadixClient(),
-		s.env.RadixDeploymentNamespace,
-		labels.ForComponentName(jobName),
-		labels.ForBatchCron(true),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	activeCronBatches := make([]*radixv1.RadixBatch, 0)
-	for _, b := range cronBatches {
-		if b.Status.Condition.Type == radixv1.BatchConditionTypeActive {
-			activeCronBatches = append(activeCronBatches, b)
-		}
-	}
-
-	return activeCronBatches, nil
 }
 
 func (s *Server) shouldRun(ctx context.Context) (bool, error) {
@@ -150,6 +127,29 @@ func (s *Server) shouldRun(ctx context.Context) (bool, error) {
 		log.Warn().Msgf("invalid concurrency value detected for cron job %s", jobName)
 		return false, nil
 	}
+}
+
+func (s *Server) findActiveCronBatches(ctx context.Context) ([]*radixv1.RadixBatch, error) {
+	jobName := s.jobComponent.GetName()
+	cronBatches, err := internal.GetRadixBatches(
+		ctx,
+		s.kubeUtil.RadixClient(),
+		s.env.RadixDeploymentNamespace,
+		labels.ForComponentName(jobName),
+		labels.ForBatchCron(true),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	activeCronBatches := make([]*radixv1.RadixBatch, 0)
+	for _, b := range cronBatches {
+		if b.Status.Condition.Type == radixv1.BatchConditionTypeActive {
+			activeCronBatches = append(activeCronBatches, b)
+		}
+	}
+
+	return activeCronBatches, nil
 }
 
 func (s *Server) stopBatchJobs(ctx context.Context, batches []*radixv1.RadixBatch) error {

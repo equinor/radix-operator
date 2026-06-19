@@ -129,7 +129,7 @@
 				"USE_PROFILER": "true",
 				"APP_ALIAS_BASE_URL": "app.dev.radix.equinor.com",
 				"DNS_ZONE": "dev.radix.equinor.com",
-				"RADIX_CLUSTERNAME": "weekly-23",
+				"RADIX_CLUSTERNAME": "weekly-24",
 				"RADIXOPERATOR_CLUSTER_TYPE": "development",
 				"RADIXOPERATOR_DEFAULT_APP_ADMIN_GROUPS": "64b28659-4fe4-4222-8497-85dd7e43e25b",
 				"RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU": "2000m",
@@ -185,7 +185,7 @@
 				"RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON": "0 0 * * *",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
-				"RADIXOPERATOR_PIPELINE_IMAGE": "ghcr.io/equinor/radix/pipeline:1.114.1",
+				"RADIXOPERATOR_PIPELINE_IMAGE": "radixdev.azurecr.io/radix-pipeline:feature-cron-jobs-dev",
 				"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE": "docker.io/alpine/git:2.45.2",
 				"RADIXOPERATOR_INGRESS_GATEWAY_NAME": "gateway",
 				"RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE": "istio-system",
@@ -204,8 +204,8 @@
 				"USE_PROFILER": "false",
 				"RADIX_APP": "jacob-dev",
 				"RADIX_ENVIRONMENT": "dev",
-				"RADIX_COMPONENT": "run-as-user",
-				"RADIX_DEPLOYMENT": "dev-a4ee1-skkn8ioj",
+				"RADIX_COMPONENT": "cron-job",
+				"RADIX_DEPLOYMENT": "dev-kxyz6-ntszobl6",
 				"RADIX_PORTS": "3000"
 			}
 		},
