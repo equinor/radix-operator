@@ -423,12 +423,12 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 func Test_GetRadixJobComponents_Cron(t *testing.T) {
 	commonCron := &radixv1.CronSchedule{
 		TimeZone:    "UTC",
-		Schedule:    []string{"0 * * * *"},
+		Schedules:   []string{"0 * * * *"},
 		Concurrency: "Allow",
 	}
 	envCron := &radixv1.CronSchedule{
 		TimeZone:    "Europe/Oslo",
-		Schedule:    []string{"30 2 * * *"},
+		Schedules:   []string{"30 2 * * *"},
 		Concurrency: "Forbid",
 	}
 

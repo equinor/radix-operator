@@ -61,7 +61,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	cronInstance := cron.New(cron.WithLocation(loc))
 
-	for _, schedule := range s.jobComponent.Cron.Schedule {
+	for _, schedule := range s.jobComponent.Cron.Schedules {
 		if _, err := cronInstance.AddFunc(schedule, func() {
 			if ctx.Err() != nil {
 				return

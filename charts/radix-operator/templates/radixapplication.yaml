@@ -3487,8 +3487,8 @@ spec:
                           - Forbid
                           - Replace
                           type: string
-                        schedule:
-                          description: The cron schedule for the job
+                        schedules:
+                          description: The cron schedules for the job
                           items:
                             minLength: 1
                             type: string
@@ -3503,7 +3503,7 @@ spec:
                           type: string
                       required:
                       - concurrency
-                      - schedule
+                      - schedules
                       type: object
                     dockerfileName:
                       description: |-
@@ -3625,8 +3625,8 @@ spec:
                                 - Forbid
                                 - Replace
                                 type: string
-                              schedule:
-                                description: The cron schedule for the job
+                              schedules:
+                                description: The cron schedules for the job
                                 items:
                                   minLength: 1
                                   type: string
@@ -3642,7 +3642,7 @@ spec:
                                 type: string
                             required:
                             - concurrency
-                            - schedule
+                            - schedules
                             type: object
                           dockerfileName:
                             description: |-
