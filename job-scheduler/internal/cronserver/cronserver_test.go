@@ -154,8 +154,8 @@ func Test_Start_timezone(t *testing.T) {
 			jobComponent := &radixv1.RadixDeployJobComponent{
 				Name: testJobComponent,
 				Cron: &radixv1.CronSchedule{
-					TimeZone: tt.timeZone,
-					Schedule: []string{"0 0 1 1 *"}, // once a year, will not fire during the test
+					TimeZone:  tt.timeZone,
+					Schedules: []string{"0 0 1 1 *"}, // once a year, will not fire during the test
 				},
 			}
 			s, _ := newTestServer(t, jobComponent)
@@ -178,7 +178,7 @@ func Test_Start_invalidScheduleReturnsError(t *testing.T) {
 	jobComponent := &radixv1.RadixDeployJobComponent{
 		Name: testJobComponent,
 		Cron: &radixv1.CronSchedule{
-			Schedule: []string{"not-a-valid-cron-expression"},
+			Schedules: []string{"not-a-valid-cron-expression"},
 		},
 	}
 	s, _ := newTestServer(t, jobComponent)

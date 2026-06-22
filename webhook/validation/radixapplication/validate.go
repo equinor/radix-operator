@@ -401,10 +401,10 @@ func validateCronSchedule(target string, cronSchedule *radixv1.CronSchedule) []e
 	}
 
 	var errs []error
-	if len(cronSchedule.Schedule) == 0 {
+	if len(cronSchedule.Schedules) == 0 {
 		errs = append(errs, fmt.Errorf("cron schedule for %s: %w", target, ErrCronScheduleEmpty))
 	} else {
-		for _, cs := range cronSchedule.Schedule {
+		for _, cs := range cronSchedule.Schedules {
 			if _, err := cron.ParseStandard(cs); err != nil {
 				errs = append(errs, fmt.Errorf("cron schedule %q for %s is invalid: %w (%v)", cs, target, ErrCronScheduleInvalid, err))
 			}

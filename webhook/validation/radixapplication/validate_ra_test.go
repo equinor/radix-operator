@@ -2937,7 +2937,7 @@ func Test_CronScheduleValidator(t *testing.T) {
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
 				WithSchedulerPort(8888).
-				WithCron(&radixv1.CronSchedule{Schedule: testcase.schedule, Concurrency: "Allow"}).
+				WithCron(&radixv1.CronSchedule{Schedules: testcase.schedule, Concurrency: "Allow"}).
 				BuildJobComponent())
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
 			_, err := validator.Validate(context.Background(), validRA)
@@ -2996,7 +2996,7 @@ func Test_CronScheduleValidator_EnvironmentConfig(t *testing.T) {
 				WithSchedulerPort(8888).
 				WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().
 					WithEnvironment("dev").
-					WithCron(&radixv1.CronSchedule{Schedule: testcase.schedule, TimeZone: testcase.timeZone, Concurrency: "Allow"})).
+					WithCron(&radixv1.CronSchedule{Schedules: testcase.schedule, TimeZone: testcase.timeZone, Concurrency: "Allow"})).
 				BuildJobComponent())
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
 			_, err := validator.Validate(context.Background(), validRA)
@@ -3056,7 +3056,7 @@ func Test_CronTimeZoneValidator(t *testing.T) {
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
 				WithSchedulerPort(8888).
-				WithCron(&radixv1.CronSchedule{TimeZone: testcase.timeZone, Schedule: []string{"* * * * *"}, Concurrency: "Allow"}).
+				WithCron(&radixv1.CronSchedule{TimeZone: testcase.timeZone, Schedules: []string{"* * * * *"}, Concurrency: "Allow"}).
 				BuildJobComponent())
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
 			_, err := validator.Validate(context.Background(), validRA)
@@ -3116,7 +3116,7 @@ func Test_CronConcurrencyValidator(t *testing.T) {
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
 				WithSchedulerPort(8888).
-				WithCron(&radixv1.CronSchedule{Schedule: []string{"* * * * *"}, Concurrency: testcase.concurrency}).
+				WithCron(&radixv1.CronSchedule{Schedules: []string{"* * * * *"}, Concurrency: testcase.concurrency}).
 				BuildJobComponent())
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
 			_, err := validator.Validate(context.Background(), validRA)
