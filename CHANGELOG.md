@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.120.0](https://github.com/equinor/radix-operator/compare/v1.119.1..v1.120.0) - 2026-06-23
+
+### 🚀 Features
+
+- Implement Cron jobs (#1662) - ([beb5c1f](https://github.com/equinor/radix-operator/commit/beb5c1f3e50825142ebcd4a3431e1b4de5f8a708)) by @jacobsolbergholm in [#1662](https://github.com/equinor/radix-operator/pull/1662)
+
+- Remove redundant validation check. (#1794) - ([317c1a5](https://github.com/equinor/radix-operator/commit/317c1a52565f4f58205ff78d03986fb5cb241b8c)) by @jacobsolbergholm in [#1794](https://github.com/equinor/radix-operator/pull/1794)
+
+
 ## [1.119.1](https://github.com/equinor/radix-operator/compare/v1.119.0..v1.119.1) - 2026-06-18
 
 ### 🐛 Bug Fixes
