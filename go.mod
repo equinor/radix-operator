@@ -51,7 +51,7 @@ require (
 	k8s.io/klog/v2 v2.140.0
 	knative.dev/pkg v0.0.0-20260318013857-98d5a706d4fd
 	sigs.k8s.io/controller-runtime v0.22.1
-	sigs.k8s.io/gateway-api v1.4.0
+	sigs.k8s.io/gateway-api v1.5.1
 	sigs.k8s.io/secrets-store-csi-driver v1.4.5
 	sigs.k8s.io/yaml v1.6.0
 )
@@ -106,7 +106,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
-	github.com/mailru/easyjson v0.9.0 // indirect
+	github.com/mailru/easyjson v0.9.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.21 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
