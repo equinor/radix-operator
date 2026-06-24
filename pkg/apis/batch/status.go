@@ -2,7 +2,7 @@ package batch
 
 import (
 	"context"
-	stdErrors "errors"
+	"errors"
 	"sort"
 	"strings"
 
@@ -13,10 +13,9 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
-func (s *syncer) syncStatus(ctx context.Context, reconcileError error) error {
+func (s *syncer) syncStatus(ctx context.Context, reconcileErr error) error {
 	jobStatuses, err := s.buildJobStatuses(ctx)
 	if err != nil {
 		return err
@@ -31,6 +30,7 @@ func (s *syncer) syncStatus(ctx context.Context, reconcileError error) error {
 	}
 
 	err = s.updateStatus(ctx, func(currStatus *radixv1.RadixBatchStatus) {
+		now := metav1.NewTime(s.clock.Now())
 		currStatus.JobStatuses = jobStatuses
 		currStatus.Condition.Type = conditionType
 		currStatus.Condition.Reason = ""
@@ -42,24 +42,33 @@ func (s *syncer) syncStatus(ctx context.Context, reconcileError error) error {
 			currStatus.Condition.CompletionTime = nil
 		case radixv1.BatchConditionTypeActive:
 			if currStatus.Condition.ActiveTime == nil {
-				currStatus.Condition.ActiveTime = &metav1.Time{Time: s.clock.Now()}
+				currStatus.Condition.ActiveTime = &now
 			}
 			currStatus.Condition.CompletionTime = nil
 		case radixv1.BatchConditionTypeCompleted:
-			now := &metav1.Time{Time: s.clock.Now()}
 			if currStatus.Condition.ActiveTime == nil {
-				currStatus.Condition.ActiveTime = now
+				currStatus.Condition.ActiveTime = &now
 			}
 			if currStatus.Condition.CompletionTime == nil {
-				currStatus.Condition.CompletionTime = now
+				currStatus.Condition.CompletionTime = &now
 			}
+		}
+
+		currStatus.Reconciled = now
+		currStatus.ObservedGeneration = s.radixBatch.Generation
+		if reconcileErr != nil {
+			currStatus.ReconcileStatus = radixv1.RadixBatchReconcileFailed
+			currStatus.Message = reconcileErr.Error()
+		} else {
+			currStatus.ReconcileStatus = radixv1.RadixBatchReconcileSucceeded
+			currStatus.Message = ""
 		}
 	})
 	if err != nil {
 		return err
 	}
 
-	if status := reconcileStatus(nil); stdErrors.As(reconcileError, &status) {
+	if status := reconcileStatus(nil); errors.As(reconcileErr, &status) {
 		// Do not return an error if reconcileError indicates
 		// invalid RadixDeployment reference as long as all jobs are in a done state
 		if status.Status().Reason == invalidDeploymentReferenceReason && slice.All(jobStatuses, isJobStatusDone) {
@@ -71,27 +80,18 @@ func (s *syncer) syncStatus(ctx context.Context, reconcileError error) error {
 		}
 	}
 
-	return reconcileError
+	return reconcileErr
 }
 
 func (s *syncer) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixBatchStatus)) error {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		radixBatch, err := s.radixClient.RadixV1().RadixBatches(s.radixBatch.GetNamespace()).Get(ctx, s.radixBatch.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		changeStatusFunc(&radixBatch.Status)
-		updatedRadixBatch, err := s.radixClient.
-			RadixV1().
-			RadixBatches(radixBatch.GetNamespace()).
-			UpdateStatus(ctx, radixBatch, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		s.radixBatch = updatedRadixBatch
-		return nil
-	})
-	return err
+	updateObj := s.radixBatch.DeepCopy()
+	changeStatusFunc(&updateObj.Status)
+	updateObj, err := s.radixClient.RadixV1().RadixBatches(updateObj.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	s.radixBatch = updateObj
+	return nil
 }
 
 func (s *syncer) buildJobStatuses(ctx context.Context) ([]radixv1.RadixBatchJobStatus, error) {
@@ -156,17 +156,17 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 	status.StartTime = job.Status.StartTime
 	status.Failed = job.Status.Failed
 
-	if condition, ok := slice.FindFirst(job.Status.Conditions, hasOneOfConditionTypes(batchv1.JobComplete, batchv1.JobSuccessCriteriaMet)); ok {
+	if condition, ok := slice.FindFirst(job.Status.Conditions, kube.JobHasOneOfConditionTypes(batchv1.JobComplete, batchv1.JobSuccessCriteriaMet)); ok {
 		status.Phase = radixv1.BatchJobPhaseSucceeded
 		status.EndTime = pointers.Ptr(condition.LastTransitionTime)
 		status.Reason = condition.Reason
 		status.Message = condition.Message
-	} else if condition, ok := slice.FindFirst(job.Status.Conditions, hasOneOfConditionTypes(batchv1.JobFailed)); ok {
+	} else if condition, ok := slice.FindFirst(job.Status.Conditions, kube.JobHasOneOfConditionTypes(batchv1.JobFailed)); ok {
 		status.Phase = radixv1.BatchJobPhaseFailed
 		status.EndTime = pointers.Ptr(condition.LastTransitionTime)
 		status.Reason = condition.Reason
 		status.Message = condition.Message
-	} else if job.Status.Active > 0 {
+	} else if kube.IsJobRunning(job.Status) {
 		status.Phase = radixv1.BatchJobPhaseActive
 		if job.Status.Ready != nil && *job.Status.Ready > 0 {
 			status.Phase = radixv1.BatchJobPhaseRunning

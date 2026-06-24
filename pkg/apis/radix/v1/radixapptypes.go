@@ -30,10 +30,10 @@ const (
 const DynamicTagNameInEnvironmentConfig = "{imageTagName}"
 
 // +genclient
-// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=radixapplications,shortName=ra
-
+// +kubebuilder:metadata:annotations="helm.sh/resource-policy=keep"
+// +kubebuilder:subresource:status
 // RadixApplication describes an application
 type RadixApplication struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -42,6 +42,36 @@ type RadixApplication struct {
 	// Specification for an application.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/
 	Spec RadixApplicationSpec `json:"spec"`
+
+	// Status is the observed state of the RadixApplication
+	// +kubebuilder:validation:Optional
+	Status RadixApplicationStatus `json:"status,omitzero"`
+}
+
+type RadixApplicationReconcileStatus string
+
+const (
+	RadixApplicationReconcileSucceeded RadixApplicationReconcileStatus = "Succeeded"
+	RadixApplicationReconcileFailed    RadixApplicationReconcileStatus = "Failed"
+)
+
+// RadixApplicationStatus is the observed state of the RadixApplication
+type RadixApplicationStatus struct {
+	// Reconciled is the timestamp of the last successful reconciliation
+	// +kubebuilder:validation:Optional
+	Reconciled metav1.Time `json:"reconciled,omitzero"`
+
+	// ObservedGeneration is the generation observed by the controller
+	// +kubebuilder:validation:Optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ReconcileStatus indicates whether the last reconciliation succeeded or failed
+	// +kubebuilder:validation:Optional
+	ReconcileStatus RadixApplicationReconcileStatus `json:"reconcileStatus,omitempty"`
+
+	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
+	// +kubebuilder:validation:Optional
+	Message string `json:"message,omitempty"`
 }
 
 // GetComponentByName returns the component matching the name parameter, or nil if not found
@@ -101,6 +131,7 @@ type RadixApplicationSpec struct {
 
 	// List of job specification for the application.
 	// More info: https://www.radix.equinor.com/radix-config#jobs
+	//
 	// +listType=map
 	// +listMapKey=name
 	// +optional
@@ -108,6 +139,7 @@ type RadixApplicationSpec struct {
 
 	// List of component specification for the application.
 	// More info: https://www.radix.equinor.com/radix-config#components
+	//
 	// +listType=map
 	// +listMapKey=name
 	// +optional
@@ -155,6 +187,9 @@ type EnvVarsMap map[string]string
 type BuildSpec struct {
 	// Defines a list of secrets that will be passed as ARGs when building Dockerfile.
 	// The secrets can also be accessed in sub-pipelines.
+	// +kubebuilder:validation:items:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
+	// +kubebuilder:validation:items:MaxLength=253
+	// +listType=set
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -183,6 +218,7 @@ type Environment struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +kubebuilder:validation:XValidation:rule="self != 'app'",message="environment name 'app' is reserved"
 	Name string `json:"name"`
 
 	// Build configuration for the environment.
@@ -328,18 +364,21 @@ type DNSAlias struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$`
+	// +required
 	Alias string `json:"alias"`
 
 	// Name of the environment for the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +required
 	Environment string `json:"environment"`
 
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +required
 	Component string `json:"component"`
 }
 
@@ -445,6 +484,8 @@ type RadixComponent struct {
 
 	// List of secret environment variable names.
 	// More info: https://www.radix.equinor.com/radix-config#secrets
+	// +kubebuilder:validation:items:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
+	// +listType=set
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -452,11 +493,6 @@ type RadixComponent struct {
 	// More info: https://www.radix.equinor.com/radix-config#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
-
-	// Additional configuration settings for ingress traffic.
-	// More info: https://www.radix.equinor.com/radix-config#ingressconfiguration
-	// +optional
-	IngressConfiguration []string `json:"ingressConfiguration,omitempty"`
 
 	// Configure environment specific settings for the component.
 	// More info: https://www.radix.equinor.com/radix-config#environmentconfig
@@ -518,10 +554,6 @@ type RadixComponent struct {
 	// Runtime defines the target runtime requirements for the component
 	// +optional
 	Runtime *Runtime `json:"runtime,omitempty"`
-
-	// Network settings.
-	// +optional
-	Network *Network `json:"network,omitempty"`
 
 	// Entrypoint array. Not executed within a shell.
 	// The container image's ENTRYPOINT is used if this is not provided.
@@ -657,10 +689,6 @@ type RadixEnvironmentConfig struct {
 	// +optional
 	Runtime *Runtime `json:"runtime,omitempty"`
 
-	// Environment specific network settings.
-	// +optional
-	Network *Network `json:"network,omitempty"`
-
 	// Entrypoint array. Not executed within a shell.
 	// The container image's ENTRYPOINT is used if this is not provided.
 	// Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
@@ -725,8 +753,8 @@ type RadixJobComponent struct {
 	// More info: https://www.radix.equinor.com/radix-config#schedulerport
 	// +kubebuilder:validation:Minimum=1024
 	// +kubebuilder:validation:Maximum=65535
-	// +optional
-	SchedulerPort *int32 `json:"schedulerPort,omitempty"`
+	// +required
+	SchedulerPort int32 `json:"schedulerPort"`
 
 	// Defines the path where the job payload is mounted.
 	// More info: https://www.radix.equinor.com/radix-config#payload
@@ -753,6 +781,8 @@ type RadixJobComponent struct {
 
 	// List of secret environment variable names.
 	// More info: https://www.radix.equinor.com/radix-config#secrets-2
+	// +kubebuilder:validation:items:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
+	// +listType=set
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -799,6 +829,11 @@ type RadixJobComponent struct {
 	// +optional
 	// +kubebuilder:validation:Minimum:=0
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
+
+	// Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.
+	// If not set, the value is determined by timeLimitSeconds, check radix documentation for details.
+	// +optional
+	SafeToRestart *bool `json:"safeToRestart,omitempty"`
 
 	// Configuration for workload identity (federated credentials).
 	// More info: https://www.radix.equinor.com/radix-config#identity-2
@@ -862,6 +897,29 @@ type RadixJobComponent struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
+
+	// Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave
+	// +optional
+	Cron *CronSchedule `json:"cron,omitempty"`
+}
+
+// CronSchedule defines schedules on which to run the job and how to handle concurrent jobs
+type CronSchedule struct {
+	// The time zone for all schedules, will default to UTC if omitted. If specified, it must not be empty.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	TimeZone string `json:"timeZone,omitempty"`
+
+	// The cron schedules for the job
+	// +kubebuilder:validation:MinItems:=1
+	// +kubebuilder:validation:MaxItems:=20
+	// +kubebuilder:validation:items:MinLength:=1
+	// +listType=set
+	Schedules []string `json:"schedules"`
+
+	// Specify how to handle concurrency when multiple instances of the job are started
+	// +kubebuilder:validation:Enum=Allow;Forbid;Replace
+	Concurrency string `json:"concurrency"`
 }
 
 // RadixJobComponentFailurePolicyRuleOnExitCodesOperator specifies the relationship between a job replica's exit code
@@ -1005,6 +1063,11 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +kubebuilder:validation:Minimum:=0
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
 
+	// Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.
+	// If not set, the value is determined by timeLimitSeconds, check radix documentation for details.
+	// +optional
+	SafeToRestart *bool `json:"safeToRestart,omitempty"`
+
 	// Environment specific configuration for workload identity (federated credentials).
 	// More info: https://www.radix.equinor.com/radix-config#identity-2
 	// +optional
@@ -1067,6 +1130,10 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
+
+	// Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave
+	// +optional
+	Cron *CronSchedule `json:"cron,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -1074,6 +1141,7 @@ type RadixJobComponentEnvironmentConfig struct {
 type RadixJobComponentPayload struct {
 	// Path to the folder where payload is mounted
 	// +kubebuilder:validation:MinLength=1
+	// +required
 	Path string `json:"path"`
 }
 
@@ -1424,9 +1492,10 @@ type RadixNode struct {
 
 // MonitoringConfig Monitoring configuration
 type MonitoringConfig struct {
-	// Defines which port in the ports list where metrics is served.
+	// Defines which port in the ports list where metrics is served. If not specified, the first port is used.
 	// +kubebuilder:validation:MaxLength=15
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	// +optional
 	PortName string `json:"portName,omitempty"`
 
 	// Defines the path where metrics is served.
@@ -1445,6 +1514,8 @@ const (
 // RadixSecretRefs defines secret vault
 type RadixSecretRefs struct {
 	// List of Azure Key Vaults to get secrets from.
+	// +listType=map
+	// +listMapKey=name
 	// +optional
 	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults,omitempty"`
 }
@@ -1497,9 +1568,11 @@ type RadixAzureKeyVaultItem struct {
 	// Name of a secret, key or certificate in the keyvault.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=127
+	// +kubebuilder:validation:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
 	Name string `json:"name"`
 
 	// Defines the name of the environment variable that will contain the value of the secret, key or certificate.
+	// +kubebuilder:validation:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
 	// +optional
 	EnvVar string `json:"envVar,omitempty"`
 
@@ -1510,6 +1583,7 @@ type RadixAzureKeyVaultItem struct {
 
 	// Alias overrides the default file name used when mounting the secret, key or certificate.
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
 	// +optional
 	Alias *string `json:"alias,omitempty"`
 
@@ -1540,28 +1614,11 @@ type RadixAzureKeyVaultItem struct {
 
 // Authentication describes authentication options.
 type Authentication struct {
-	// Configuration for TLS client certificate authentication.
-	// More info: https://www.radix.equinor.com/radix-config#clientcertificate
-	// +optional
-	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty"`
 
 	// Configuration for OAuth2 authentication.
 	// More info: https://www.radix.equinor.com/radix-config#oauth2
 	// +optional
 	OAuth2 *OAuth2 `json:"oauth2,omitempty"`
-}
-
-// ClientCertificate Authentication client certificate parameters
-type ClientCertificate struct {
-	// Defines how the client certificate shall be verified.
-	// +kubebuilder:validation:Enum=on;off;optional;optional_no_ca
-	// +optional
-	Verification *VerificationType `json:"verification,omitempty"`
-
-	// Pass client certificate to backend in header ssl-client-cert.
-	// This setting has no effect if verification is set to off.
-	// +optional
-	PassCertificateToUpstream *bool `json:"passCertificateToUpstream,omitempty"`
 }
 
 // SessionStoreType type of session store
@@ -1574,20 +1631,6 @@ const (
 	SessionStoreRedis SessionStoreType = "redis"
 	// SessionStoreSystemManaged use redis for system storage configured by Radix
 	SessionStoreSystemManaged SessionStoreType = "systemManaged"
-)
-
-// VerificationType Certificate verification type
-type VerificationType string
-
-const (
-	// VerificationTypeOff Certificate verification is off
-	VerificationTypeOff VerificationType = "off"
-	// VerificationTypeOn Certificate verification is on
-	VerificationTypeOn VerificationType = "on"
-	// VerificationTypeOptional Certificate verification is optional
-	VerificationTypeOptional VerificationType = "optional"
-	// VerificationTypeOptionalNoCa Certificate verification is optional no certificate authority
-	VerificationTypeOptionalNoCa VerificationType = "optional_no_ca"
 )
 
 // CookieSameSiteType Cookie SameSite value
@@ -1737,6 +1780,8 @@ type Identity struct {
 // AzureIdentity properties for Azure AD Workload Identity
 type AzureIdentity struct {
 	// Defines the Client ID for a user defined managed identity or application ID for an application registration.
+	// +kubebuilder:validation:Format=uuid
+	// +required
 	ClientId string `json:"clientId"`
 }
 
@@ -1812,83 +1857,6 @@ const (
 	// OperatorNotIn Values are not within the list
 	OperatorNotIn Operator = "NotIn"
 )
-
-// Network defines settings for network traffic.
-// Currently, only public ingress traffic is supported
-type Network struct {
-	// Ingress defines settings for ingress traffic.
-	// +optional
-	Ingress *Ingress `json:"ingress,omitempty"`
-
-	// If we decide to add support for egress configuration (managed by standard NetworkPolicy or more advanced systems like Cilium),
-	// we will add a `Egress` fields here.
-}
-
-// Ingress defines settings for ingress traffic.
-type Ingress struct {
-	// Public defines settings for public traffic.
-	// +optional
-	Public *IngressPublic `json:"public,omitempty"`
-
-	// If we decide to add support for private/internal ingress configuration (managed by NetworkPolicies),
-	// we will add a `Private` fields here.
-}
-
-// IP address or CIDR.
-// +kubebuilder:validation:Pattern=`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`
-type IPOrCIDR string
-
-// NGINX size format.
-//
-// +kubebuilder:validation:Pattern=`^(?:0|[1-9][0-9]*[kKmMgG]?)$`
-type NginxSizeFormat string
-
-// Ingress defines settings for ingress traffic.
-type IngressPublic struct {
-	// Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.
-	// All IP addresses are allowed if this field is empty or not set.
-	// +optional
-	Allow *[]IPOrCIDR `json:"allow,omitempty"`
-
-	// Defines a timeout, in seconds, for reading a response from the proxied server.
-	// The timeout is set only between two successive read operations, not for the transmission of the whole response.
-	// If the proxied server does not transmit anything within this time, the connection is closed.
-	//
-	// +kubebuilder:validation:Minimum=0
-	// +optional
-	ProxyReadTimeout *uint `json:"proxyReadTimeout,omitempty"`
-
-	// Defines a timeout, in seconds, for transmitting a request to the proxied server.
-	// The timeout is set only between two successive write operations, not for the transmission of the whole request.
-	// If the proxied server does not receive anything within this time, the connection is closed.
-	//
-	// +kubebuilder:validation:Minimum=0
-	// +optional
-	ProxySendTimeout *uint `json:"proxySendTimeout,omitempty"`
-
-	// Sets the maximum allowed size of the client request body.
-	// Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
-	// If the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.
-	// Setting size to 0 disables checking of client request body size.
-	//
-	// +optional
-	ProxyBodySize *NginxSizeFormat `json:"proxyBodySize,omitempty"`
-
-	// Sets the size of the buffer used for reading the first part of the response received from the proxied server.
-	// The size must be large enough to hold the response headers.
-	// Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
-	// If the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.
-	//
-	// +optional
-	ProxyBufferSize *NginxSizeFormat `json:"proxyBufferSize,omitempty"`
-
-	// Defines if request buffering is enabled. Default is true.
-	// If set to false, the request body will be sent to the proxied server immediately, without buffering.
-	// This can be useful for large file uploads or streaming data.
-	//
-	// +optional
-	ProxyRequestBuffering *bool `json:"proxyRequestBuffering,omitempty"`
-}
 
 // RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {

@@ -9,27 +9,17 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
 
-const (
-	// SuccessSynced is used as part of the Event 'reason' when a Registration is synced
-	SuccessSynced = "Synced"
-
-	// MessageResourceSynced is the message used for an Event fired when a Registration
-	// is synced successfully
-	MessageResourceSynced = "Radix Registration synced successfully"
-)
-
-// Handler Handler for radix registrations
-type Handler struct {
+// handler handler for radix registrations
+type handler struct {
 	kubeclient  kubernetes.Interface
 	kubeutil    *kube.Kube
 	radixclient radixclient.Interface
-	hasSynced   common.HasSynced
+	events      common.SyncEventRecorder
 }
 
 // NewHandler creates a handler which deals with RadixRegistration resources
@@ -37,20 +27,20 @@ func NewHandler(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	hasSynced common.HasSynced) Handler {
+	eventRecorder record.EventRecorder) common.Handler {
 
-	handler := Handler{
+	handler := &handler{
 		kubeclient:  kubeclient,
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
-		hasSynced:   hasSynced,
+		events:      common.NewSyncEventRecorder(eventRecorder),
 	}
 
 	return handler
 }
 
 // Sync Is created on sync of resource
-func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	registration, err := t.kubeutil.GetRegistration(ctx, name)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
@@ -66,15 +56,13 @@ func (t *Handler) Sync(ctx context.Context, namespace, name string, eventRecorde
 
 	syncRegistration := registration.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync registration %s", syncRegistration.Name)
-	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
+	application := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
 	err = application.OnSync(ctx)
 	if err != nil {
-		// TODO: should we record a Warning event when there is an error, similar to batch handler? Possibly do it in common.Controller?
-		// Put back on queue.
+		t.events.RecordSyncErrorEvent(syncRegistration, err)
 		return err
 	}
 
-	t.hasSynced(true)
-	eventRecorder.Event(syncRegistration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	t.events.RecordSyncSuccessEvent(syncRegistration)
 	return nil
 }

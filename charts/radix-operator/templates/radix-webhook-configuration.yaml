@@ -1,10 +1,55 @@
-{{ if .Values.radixWebhook.enabled }}
-
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: radix-webhook-configuration
+  annotations:
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook: post-install,post-upgrade
 webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: radix-webhook
+      namespace: {{ .Release.Namespace }}
+      path: /gateway/v1/httproute/validation
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: httproute.validate.gateway.networking.k8s.io
+  rules:
+  - apiGroups:
+    - gateway.networking.k8s.io
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - httproutes
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: radix-webhook
+      namespace: {{ .Release.Namespace }}
+      path: /radix/v1/radixapplication/validation
+      port: 443
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: radixapplication.validate.radix.equinor.com
+  rules:
+  - apiGroups:
+    - radix.equinor.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - radixapplications
+  sideEffects: None
 - admissionReviewVersions:
   - v1
   clientConfig:
@@ -15,7 +60,7 @@ webhooks:
       port: 443
   failurePolicy: Fail
   matchPolicy: Equivalent
-  name: validate.radix.equinor.com
+  name: radixregistration.validate.radix.equinor.com
   rules:
   - apiGroups:
     - radix.equinor.com
@@ -27,5 +72,3 @@ webhooks:
     resources:
     - radixregistrations
   sideEffects: None
-
-{{ end }}

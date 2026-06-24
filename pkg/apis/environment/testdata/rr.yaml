@@ -5,8 +5,9 @@ metadata:
   uid: 06f85c67-1b2e-11e9-8b32-460b5df101fc
 spec:
   repository: "https://github.com/equinor/testapp"
-  cloneURL: "git@github.com:equinor/testapp"
+  cloneURL: "git@github.com:equinor/testapp.git"
   adGroups: ["Tardis"]
   adUsers: ["TardisUser"]
   readerAdGroups: ["ReaderAdGroupsTest"]
   readerAdUsers: ["ReaderAdUserTest"]
+  configBranch: "main"

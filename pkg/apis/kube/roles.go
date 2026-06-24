@@ -24,13 +24,13 @@ func (kubeutil *Kube) ApplyRole(ctx context.Context, namespace string, role *rba
 	if err != nil && errors.IsNotFound(err) {
 		createdRole, err := kubeutil.kubeClient.RbacV1().Roles(namespace).Create(ctx, role, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create Role object: %v", err)
+			return fmt.Errorf("failed to create Role object: %w", err)
 		}
 
 		logger.Debug().Msgf("Created Role: %s in namespace %s", createdRole.Name, namespace)
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get role object: %v", err)
+		return fmt.Errorf("failed to get role object: %w", err)
 	}
 
 	logger.Debug().Msgf("Role object %s already exists in namespace %s, updating the object now", role.GetName(), namespace)
@@ -42,27 +42,27 @@ func (kubeutil *Kube) ApplyRole(ctx context.Context, namespace string, role *rba
 
 	oldRoleJSON, err := json.Marshal(oldRole)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old role object: %v", err)
+		return fmt.Errorf("failed to marshal old role object: %w", err)
 	}
 
 	newRoleJSON, err := json.Marshal(newRole)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new role object: %v", err)
+		return fmt.Errorf("failed to marshal new role object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleJSON, newRoleJSON, rbacv1.Role{})
 	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch role objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch role objects: %w", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		patchedRole, err := kubeutil.kubeClient.RbacV1().Roles(namespace).Patch(ctx, role.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to patch role object: %v", err)
+			return fmt.Errorf("failed to patch role object: %w", err)
 		}
 		logger.Debug().Msgf("Patched role: %s in namespace %s", patchedRole.Name, namespace)
 	} else {
-		logger.Debug().Msgf("No need to patch role: %s ", role.GetName())
+		logger.Debug().Msgf("No need to patch role: %s", role.GetName())
 	}
 
 	return nil
@@ -76,13 +76,13 @@ func (kubeutil *Kube) ApplyClusterRole(ctx context.Context, clusterrole *rbacv1.
 	if err != nil && errors.IsNotFound(err) {
 		createdClusterRole, err := kubeutil.kubeClient.RbacV1().ClusterRoles().Create(ctx, clusterrole, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create cluster role object: %v", err)
+			return fmt.Errorf("failed to create cluster role object: %w", err)
 		}
 
 		logger.Debug().Msgf("Created cluster role: %s", createdClusterRole.Name)
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get cluster role object: %v", err)
+		return fmt.Errorf("failed to get cluster role object: %w", err)
 	}
 
 	logger.Debug().Msgf("Cluster role object %s already exists, updating the object now", clusterrole.GetName())
@@ -94,27 +94,27 @@ func (kubeutil *Kube) ApplyClusterRole(ctx context.Context, clusterrole *rbacv1.
 
 	oldClusterRoleJSON, err := json.Marshal(oldClusterRole)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old cluster role object: %v", err)
+		return fmt.Errorf("failed to marshal old cluster role object: %w", err)
 	}
 
 	newClusterRoleJSON, err := json.Marshal(newClusterRole)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new cluster role object: %v", err)
+		return fmt.Errorf("failed to marshal new cluster role object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleJSON, newClusterRoleJSON, rbacv1.ClusterRole{})
 	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch cluster role objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch cluster role objects: %w", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		patchedClusterRole, err := kubeutil.kubeClient.RbacV1().ClusterRoles().Patch(ctx, clusterrole.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to patch clusterrole object: %v", err)
+			return fmt.Errorf("failed to patch clusterrole object: %w", err)
 		}
 		logger.Debug().Msgf("Patched clusterrole: %s", patchedClusterRole.Name)
 	} else {
-		logger.Debug().Msgf("No need to patch clusterrole: %s ", clusterrole.GetName())
+		logger.Debug().Msgf("No need to patch clusterrole: %s", clusterrole.GetName())
 	}
 
 	return nil
@@ -268,11 +268,11 @@ func (kubeutil *Kube) DeleteRole(ctx context.Context, namespace, name string) er
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get role object: %v", err)
+		return fmt.Errorf("failed to get role object: %w", err)
 	}
 	err = kubeutil.kubeClient.RbacV1().Roles(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to delete role object: %v", err)
+		return fmt.Errorf("failed to delete role object: %w", err)
 	}
 	return nil
 }
@@ -281,7 +281,7 @@ func (kubeutil *Kube) DeleteRole(ctx context.Context, namespace, name string) er
 func (kubeutil *Kube) DeleteClusterRole(ctx context.Context, name string) error {
 	err := kubeutil.kubeClient.RbacV1().ClusterRoles().Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to delete cluster role object: %v", err)
+		return fmt.Errorf("failed to delete cluster role object: %w", err)
 	}
 	return nil
 }

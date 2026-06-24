@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
@@ -22,17 +21,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubelabels "k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-	"sigs.k8s.io/yaml"
 )
 
 const (
-	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
-	ResultContent = "ResultContent"
-	runAsUser     = 1000
-	runAsGroup    = 1000
-	fsGroup       = 1000
+	runAsUser  = 1000
+	runAsGroup = 1000
+	fsGroup    = 1000
 )
 
 func (job *Job) createPipelineJob(ctx context.Context) error {
@@ -48,11 +42,7 @@ func (job *Job) createPipelineJob(ctx context.Context) error {
 }
 
 func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) {
-	radixRegistration, err := job.radixclient.RadixV1().RadixRegistrations().Get(ctx, job.radixJob.Spec.AppName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	radixConfigFullName := getRadixConfigFullName(radixRegistration)
+	radixConfigFullName := getRadixConfigFullName(job.registration)
 	log.Ctx(ctx).Info().Msgf("Using image: %s", job.config.PipelineJobConfig.PipelineImage)
 
 	backOffLimit := int32(0)
@@ -70,7 +60,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 		return nil, err
 	}
 
-	initContainers := job.getInitContainersForRadixConfig(radixRegistration, workspace)
+	initContainers := job.getInitContainersForRadixConfig(workspace)
 
 	jobCfg := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -91,8 +81,9 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
 				},
 				Spec: corev1.PodSpec{
-					ImagePullSecrets:   job.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth(),
-					ServiceAccountName: defaults.PipelineServiceAccountName,
+					ImagePullSecrets:             job.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth(),
+					ServiceAccountName:           defaults.PipelineServiceAccountName,
+					AutomountServiceAccountToken: new(true),
 					SecurityContext: securitycontext.Pod(
 						securitycontext.WithPodFSGroup(fsGroup),
 						securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
@@ -146,7 +137,8 @@ func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) string
 	return radixConfigFullName
 }
 
-func (job *Job) getInitContainersForRadixConfig(rr *radixv1.RadixRegistration, workspace string) []corev1.Container {
+func (job *Job) getInitContainersForRadixConfig(workspace string) []corev1.Container {
+	rr := job.registration
 	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, job.config.PipelineJobConfig.GitCloneImage)
 }
 
@@ -201,8 +193,6 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 		fmt.Sprintf("--%s=%s", defaults.ContainerRegistryEnvironmentVariable, containerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.AppContainerRegistryEnvironmentVariable, appContainerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
-		fmt.Sprintf("--%s=%s", defaults.RadixReservedAppDNSAliasesEnvironmentVariable, maps.ToString(job.config.DNSConfig.ReservedAppDNSAliases)),
-		fmt.Sprintf("--%s=%s", defaults.RadixReservedDNSAliasesEnvironmentVariable, strings.Join(job.config.DNSConfig.ReservedDNSAliases, ",")),
 		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
 		fmt.Sprintf("--%s=%v", defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, job.radixJob.Spec.TriggeredFromWebhook),
@@ -281,52 +271,18 @@ func getPushImageTag(pushImage bool) string {
 	return "0"
 }
 
-func (job *Job) getJobConditionFromJobStatus(ctx context.Context, jobStatus batchv1.JobStatus) (radixv1.RadixJobCondition, error) {
-	if jobStatus.Failed > 0 {
-		return radixv1.JobFailed, nil
-	}
-	if jobStatus.Active > 0 {
-		return radixv1.JobRunning, nil
-
-	}
-	if jobStatus.Succeeded > 0 {
-		jobResult, err := job.getRadixJobResult(ctx)
-		if err != nil {
-			return radixv1.JobSucceeded, err
+func (job *Job) findJobCondition(jobStatus batchv1.JobStatus) radixv1.RadixJobCondition {
+	switch {
+	case kube.IsJobFailed(jobStatus):
+		return radixv1.JobFailed
+	case kube.IsJobSucceeded(jobStatus):
+		if job.radixJob != nil && job.radixJob.Status.PipelineRunStatus != nil && job.radixJob.Status.PipelineRunStatus.Status != "" {
+			return job.radixJob.Status.PipelineRunStatus.Status
 		}
-		if jobResult.Result == radixv1.RadixJobResultStoppedNoChanges || job.radixJob.Status.Condition == radixv1.JobStoppedNoChanges {
-			return radixv1.JobStoppedNoChanges, nil
-		}
-		return radixv1.JobSucceeded, nil
+		return radixv1.JobSucceeded
+	case kube.IsJobRunning(jobStatus):
+		return radixv1.JobRunning
+	default:
+		return radixv1.JobWaiting
 	}
-	return radixv1.JobWaiting, nil
-}
-
-func (job *Job) getRadixJobResult(ctx context.Context) (*radixv1.RadixJobResult, error) {
-	namespace := job.radixJob.GetNamespace()
-	jobName := job.radixJob.GetName()
-	configMaps, err := job.kubeutil.ListConfigMapsWithSelector(ctx, namespace, getRadixPipelineJobResultConfigMapSelector(jobName))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ConfigMaps while garbage collecting config-maps in %s. Error: %w", namespace, err)
-	}
-	if len(configMaps) > 1 {
-		return nil, fmt.Errorf("unexpected multiple Radix pipeline result ConfigMaps for the job %s in %s", jobName, job.radixJob.GetNamespace())
-	}
-	radixJobResult := &radixv1.RadixJobResult{}
-	if len(configMaps) == 0 {
-		return radixJobResult, nil
-	}
-	if resultContent, ok := configMaps[0].Data[ResultContent]; ok && len(resultContent) > 0 {
-		err = yaml.Unmarshal([]byte(resultContent), radixJobResult)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return radixJobResult, nil
-}
-
-func getRadixPipelineJobResultConfigMapSelector(jobName string) string {
-	radixJobNameReq, _ := kubelabels.NewRequirement(kube.RadixJobNameLabel, selection.Equals, []string{jobName})
-	pipelineResultConfigMapReq, _ := kubelabels.NewRequirement(kube.RadixConfigMapTypeLabel, selection.Equals, []string{string(kube.RadixPipelineResultConfigMap)})
-	return kubelabels.NewSelector().Add(*radixJobNameReq, *pipelineResultConfigMapReq).String()
 }

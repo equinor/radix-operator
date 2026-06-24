@@ -28,30 +28,32 @@ func CloneInitContainersWithSourceCode(sshURL, branch, commitID, directory, gitI
 
 // CloneInitContainersWithContainerName The sidecars for cloning a git repo. Lfs is to support large files in cloned source code, it is not needed for Radix config ot SubPipeline
 func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory string, useLfs, skipBlobs bool, cloneContainerName, gitImage string) []corev1.Container {
+	// User-controlled values (sshURL, branch, commitID, directory) are passed as environment variables
+	// and referenced via quoted "$VAR" in shell commands to prevent shell injection.
 	commands := []string{
 		"umask 002", // make sure all users and groups have read+execute access to the files, since different users may access it (default is 022 and group+write for backwards compatibility)
-		fmt.Sprintf("git config --global --add safe.directory %s", directory),
+		`git config --global --add safe.directory "$RADIX_CLONE_DIR"`,
 	}
 
 	cloneArgs := []string{
-		fmt.Sprintf("-b %s", branch),
+		`-b "$RADIX_CLONE_BRANCH"`,
 		"--verbose",
 		"--progress",
 	}
 	if skipBlobs {
 		cloneArgs = append(cloneArgs, "--filter=blob:none")
 	}
-	commands = append(commands, fmt.Sprintf("git clone %s %s %s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\")", sshURL, strings.Join(cloneArgs, " "), directory))
+	commands = append(commands, fmt.Sprintf(`git clone %s -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them")`, strings.Join(cloneArgs, " ")))
 
 	if len(commitID) > 0 {
-		commands = append(commands, fmt.Sprintf("cd %[1]s && echo \"Checking out commit %[2]s\" && git merge-base --is-ancestor %[2]s HEAD && git checkout -q %[2]s && cd -", directory, commitID))
+		commands = append(commands, `cd "$RADIX_CLONE_DIR" && echo "Checking out commit $RADIX_CLONE_COMMIT" && git merge-base --is-ancestor "$RADIX_CLONE_COMMIT" HEAD && git checkout -q "$RADIX_CLONE_COMMIT" && cd -`)
 	}
 
 	if useLfs {
-		commands = append(commands, fmt.Sprintf("cd %s && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -", directory))
+		commands = append(commands, `cd "$RADIX_CLONE_DIR" && if [ -n "$(git lfs ls-files 2>/dev/null)" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd -`)
 	}
 
-	commands = append(commands, fmt.Sprintf("chmod -R g+r %s/.git", directory))
+	commands = append(commands, `chmod -R g+r "$RADIX_CLONE_DIR/.git"`)
 
 	gitCloneCmd := []string{"sh", "-c", strings.Join(commands, " && ")}
 
@@ -62,10 +64,11 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         gitCloneCmd,
 			Env: []corev1.EnvVar{
-				{
-					Name:  "HOME",
-					Value: CloneRepoHomeVolumePath,
-				},
+				{Name: "HOME", Value: CloneRepoHomeVolumePath},
+				{Name: "RADIX_CLONE_REPO", Value: sshURL},
+				{Name: "RADIX_CLONE_BRANCH", Value: branch},
+				{Name: "RADIX_CLONE_DIR", Value: directory},
+				{Name: "RADIX_CLONE_COMMIT", Value: commitID},
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{

@@ -1,21 +1,6 @@
 package defaults
 
 const (
-	// RadixGithubWebhookRoleName Name of the cluster role with RBAC for radix-github-webhook service account
-	RadixGithubWebhookRoleName = "radix-webhook"
-
-	// RadixGithubWebhookServiceAccountName Name of the service account representing the webhook
-	RadixGithubWebhookServiceAccountName = "radix-github-webhook"
-
-	// RadixAPIRoleName Name of the cluster role with RBAC for radix-api service account
-	RadixAPIRoleName = "radix-api"
-
-	// RadixAccessValidationRoleName Name of the cluster role with RBAC for AD access validation
-	RadixAccessValidationRoleName = "radix-access-validation"
-
-	// RadixAPIServiceAccountName Name of the service account representing the Radix API
-	RadixAPIServiceAccountName = "radix-api"
-
 	// AppAdminRoleName Name of role which grants access to manage the CI/CD of their applications
 	AppAdminRoleName = "radix-app-admin"
 
@@ -39,9 +24,6 @@ const (
 
 	// RadixPipelineRRRoleNamePrefix Role of to get RadixRegistrations for pipeline job
 	RadixPipelineRRRoleNamePrefix = "radix-pipeline-rr"
-
-	// RadixPipelineRadixDNSAliasRoleNamePrefix Role of to get RadixDNSAliases for pipeline job
-	RadixPipelineRadixDNSAliasRoleNamePrefix = "radix-pipeline-rda"
 
 	// RadixApplicationAdminRadixDNSAliasRoleNamePrefix Role of to get RadixDNSAliases for application admin
 	RadixApplicationAdminRadixDNSAliasRoleNamePrefix = "radix-platform-user-rda"

@@ -8,11 +8,13 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
-	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
-	"github.com/golang/mock/gomock"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type handlerTestSuite struct {
@@ -20,13 +22,6 @@ type handlerTestSuite struct {
 	syncerFactory *internal.MockSyncerFactory
 	syncer        *dnsaliasapi.MockSyncer
 }
-
-const (
-	appName1   = "appName1"
-	env1       = "env1"
-	component1 = "component1"
-	alias1     = "alias1"
-)
 
 func (s *handlerTestSuite) SetupTest() {
 	s.ControllerTestSuite.SetupTest()
@@ -43,38 +38,55 @@ func (s *handlerTestSuite) TearDownTest() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
-	dnsConfig := &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
-	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
-		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
+	handler := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, config.Config{}, dnsalias.WithSyncerFactory(s.syncerFactory))
 
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
 
-	err := handler.Sync(context.Background(), "", alias1, s.EventRecorder)
+	err := handler.Sync(context.Background(), "", "any")
 	s.Require().NoError(err)
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
-	dnsConfig := &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
-	s.Require().NoError(commonTest.RegisterRadixDNSAlias(context.Background(), s.RadixClient, appName1, env1, component1, alias1), "create existing RadixDNSAlias")
-	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
-		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
+	c := config.Config{}
+	expectedOauth2Cfg := defaults.NewMockOAuth2Config(s.MockCtrl)
+	expectedDnsAlias := &radixv1.RadixDNSAlias{
+		ObjectMeta: v1.ObjectMeta{Name: "any-dns-alias"},
+		Spec: radixv1.RadixDNSAliasSpec{
+			AppName:     "any-app",
+			Component:   "any-component",
+			Environment: "any-env",
+		},
+	}
+	expectedDnsAlias, err := s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), expectedDnsAlias, v1.CreateOptions{})
 	expectedError := fmt.Errorf("some error")
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(s.syncer).Times(1)
+	s.Require().NoError(err)
+	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
 
-	actualError := handler.Sync(context.Background(), "", alias1, s.EventRecorder)
+	sut := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, c, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
+	actualError := sut.Sync(context.Background(), "", expectedDnsAlias.Name)
 	s.Equal(expectedError, actualError)
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
-	dnsConfig := &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
-	s.Require().NoError(commonTest.RegisterRadixDNSAlias(context.Background(), s.RadixClient, appName1, env1, component1, alias1), "create existing RadixDNSAlias")
-	handler := dnsalias.NewHandler(s.KubeClient, s.KubeUtil, s.RadixClient, dnsConfig,
-		func(synced bool) {}, dnsalias.WithSyncerFactory(s.syncerFactory))
-	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), dnsConfig, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(s.syncer).Times(1)
+	c := config.Config{
+		DNSZone: "any.zone.com",
+	}
+	expectedOauth2Cfg := defaults.NewMockOAuth2Config(s.MockCtrl)
+	expectedDnsAlias := &radixv1.RadixDNSAlias{
+		ObjectMeta: v1.ObjectMeta{Name: "any-dns-alias"},
+		Spec: radixv1.RadixDNSAliasSpec{
+			AppName:     "any-app",
+			Component:   "any-component",
+			Environment: "any-env",
+		},
+	}
+	expectedDnsAlias, err := s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), expectedDnsAlias, v1.CreateOptions{})
+	s.Require().NoError(err)
+	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.RadixClient, s.DynamicClient, c, expectedOauth2Cfg).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
 
-	err := handler.Sync(context.Background(), "", alias1, s.EventRecorder)
-	s.Require().Nil(err)
+	sut := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, c, dnsalias.WithSyncerFactory(s.syncerFactory), dnsalias.WithOAuth2DefaultConfig(expectedOauth2Cfg))
+	s.NoError(sut.Sync(context.Background(), "", expectedDnsAlias.Name))
 }

@@ -7,19 +7,20 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
-	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 var overrideUseBuildCache, refreshBuildCache model.BoolPtr
@@ -32,9 +33,7 @@ var overrideUseBuildCache, refreshBuildCache model.BoolPtr
 // - a secret radix-snyk-service-account with access token to SNYK service account
 
 func main() {
-	pipelineArgs := &model.PipelineArguments{
-		DNSConfig: &dnsaliasconfig.DNSConfig{ReservedAppDNSAliases: make(map[string]string)},
-	}
+	pipelineArgs := &model.PipelineArguments{}
 	logger.InitLogger(pipelineArgs.LogLevel)
 
 	cmd := &cobra.Command{
@@ -43,25 +42,15 @@ func main() {
 			ctx, cancelCtx := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 			defer cancelCtx()
 
-			runner, err := prepareRunner(ctx, pipelineArgs)
+			cli, err := prepareRunner(ctx, pipelineArgs)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to prepare runner")
 				os.Exit(1)
 			}
 
-			err = runner.Run(ctx)
-
-			teardownCtx, cancelTeardownCtx := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancelTeardownCtx()
-
+			err = cli.Run(ctx)
 			if err != nil {
 				os.Exit(2)
-			}
-
-			err = runner.CreateResultConfigMap(teardownCtx)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to create result ConfigMap")
-				os.Exit(3)
 			}
 
 			os.Exit(0)
@@ -79,14 +68,21 @@ func main() {
 
 // runs os.Exit(1) if error
 func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (*runner.PipelineRunner, error) {
-	client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, _, tektonClient := utils.GetKubernetesClient(ctx)
+	kubeclient, radixClient, kedaClient, secretProviderClient, _, tektonClient := utils.GetKubernetesClient()
+
+	cfg := k8sconfig.GetConfigOrDie()
+	cfg.WarningHandler = utils.ZerologWarningHandlerAdapter(log.Warn)
+	dynamicClient, err := client.New(cfg, client.Options{Scheme: scheme.NewScheme()})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize dynamic client: %w", err)
+	}
 
 	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {
 		return nil, err
 	}
 
-	pipelineRunner := runner.NewRunner(client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, tektonClient, pipelineDefinition, pipelineArgs.AppName)
+	pipelineRunner := runner.NewRunner(kubeclient, radixClient, kedaClient, dynamicClient, secretProviderClient, tektonClient, pipelineDefinition, pipelineArgs.AppName)
 
 	err = pipelineRunner.PrepareRun(ctx, pipelineArgs)
 	if err != nil {
@@ -131,8 +127,6 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	var debug string
 	cmd.Flags().StringVar(&debug, "DEBUG", "false", "Debug information")
 	cmd.Flags().StringToStringVar(&pipelineArgs.ImageTagNames, defaults.RadixImageTagNameEnvironmentVariable, make(map[string]string), "Image tag names for components (optional)")
-	cmd.Flags().StringToStringVar(&pipelineArgs.DNSConfig.ReservedAppDNSAliases, defaults.RadixReservedAppDNSAliasesEnvironmentVariable, make(map[string]string), "The list of DNS aliases, reserved for Radix platform Radix application")
-	cmd.Flags().StringSliceVar(&pipelineArgs.DNSConfig.ReservedDNSAliases, defaults.RadixReservedDNSAliasesEnvironmentVariable, make([]string, 0), "The list of DNS aliases, reserved for Radix platform services")
 	cmd.Flags().StringSliceVar(&pipelineArgs.ComponentsToDeploy, defaults.RadixComponentsToDeployVariable, make([]string, 0), "The list of components to deploy (optional)")
 	// Git clone init container images
 	cmd.Flags().StringVar(&pipelineArgs.GitCloneGitImage, defaults.RadixGitCloneGitImageEnvironmentVariable, "alpine/git:latest", "Container image with git used by git clone init containers")
@@ -142,13 +136,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
-		return fmt.Errorf("failed to parse command arguments. Error: %v", err)
-	}
-	if len(pipelineArgs.DNSConfig.ReservedAppDNSAliases) == 0 {
-		return fmt.Errorf("missing DNS aliases, reserved for Radix platform Radix application")
-	}
-	if len(pipelineArgs.DNSConfig.ReservedDNSAliases) == 0 {
-		return fmt.Errorf("missing DNS aliases, reserved for Radix platform services")
+		return fmt.Errorf("failed to parse command arguments: %w", err)
 	}
 	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)
 	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(radixv1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push

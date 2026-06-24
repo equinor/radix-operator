@@ -2,6 +2,7 @@ package batch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -13,18 +14,16 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-	_ "github.com/equinor/radix-operator/pkg/apis/test"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -33,29 +32,36 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 type syncerTestSuite struct {
 	suite.Suite
-	kubeClient  *fake.Clientset
-	radixClient *fakeradix.Clientset
-	kubeUtil    *kube.Kube
-	promClient  *prometheusfake.Clientset
-	certClient  *certfake.Clientset
-	kedaClient  *kedafake.Clientset
+	kubeClient    *fake.Clientset
+	radixClient   *fakeradix.Clientset
+	kubeUtil      *kube.Kube
+	dynamicClient client.Client
+	certClient    *certfake.Clientset
+	kedaClient    *kedafake.Clientset
 }
 
 func TestSyncerTestSuite(t *testing.T) {
 	suite.Run(t, new(syncerTestSuite))
 }
 
-func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
+func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, cfg *config.Config, options ...SyncerOption) Syncer {
 	defaultRR := utils.ARadixRegistration().BuildRR()
 
-	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, defaultRR, forJob, config, options...)
+	if cfg == nil {
+		cfg = &config.Config{}
+	}
+
+	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, defaultRR, forJob, *cfg, options...)
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
@@ -71,7 +77,7 @@ func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.K
 
 func (s *syncerTestSuite) ensurePopulatedEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment, deployComponent radixv1.RadixCommonDeployComponent) *corev1.ConfigMap {
 	initialEnvVarsConfigMap, _, _ := kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), rd.GetNamespace(),
-		rd.Spec.AppName, deployComponent.GetName())
+		rd.Spec.AppName, deployComponent.GetName()) //nolint:staticcheck
 	desiredConfigMap := initialEnvVarsConfigMap.DeepCopy()
 	for envVarName, envVarValue := range deployComponent.GetEnvironmentVariables() {
 		if strings.HasPrefix(envVarName, "RADIX_") {
@@ -95,14 +101,82 @@ func (s *syncerTestSuite) SetupSubTest() {
 
 func (s *syncerTestSuite) setupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
-	s.radixClient = fakeradix.NewSimpleClientset()
+	s.radixClient = fakeradix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.kedaClient = kedafake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
+	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, secretproviderfake.NewSimpleClientset())
 	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
+}
+
+func (s *syncerTestSuite) Test_ReconcileStatus() {
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "any-rd", Namespace: "any-ns"},
+		Spec: radixv1.RadixDeploymentSpec{
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{Name: "job"},
+			},
+		},
+	}
+	rd, err := s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(s.T().Context(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	rb := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: "any-name", Namespace: rd.Namespace, Generation: 42},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{
+					Name: rd.Name,
+				},
+				Job: "job",
+			},
+		},
+	}
+	rb, err = s.radixClient.RadixV1().RadixBatches(rb.Namespace).Create(context.Background(), rb, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	// First sync sets status
+	expectedGen := rb.Generation
+	sut := s.createSyncer(rb, nil)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rb, err = s.radixClient.RadixV1().RadixBatches(rb.Namespace).Get(context.Background(), rb.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixBatchReconcileSucceeded, rb.Status.ReconcileStatus)
+	s.Empty(rb.Status.Message)
+	s.Equal(expectedGen, rb.Status.ObservedGeneration)
+	s.False(rb.Status.Reconciled.IsZero())
+
+	// Second sync with updated generation
+	rb.Generation++
+	expectedGen = rb.Generation
+	sut = s.createSyncer(rb, nil)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rb, err = s.radixClient.RadixV1().RadixBatches(rb.Namespace).Get(context.Background(), rb.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixBatchReconcileSucceeded, rb.Status.ReconcileStatus)
+	s.Empty(rb.Status.Message)
+	s.Equal(expectedGen, rb.Status.ObservedGeneration)
+	s.False(rb.Status.Reconciled.IsZero())
+
+	// Sync with error
+	errorMsg := "any sync error"
+	s.radixClient.PrependReactor("get", "radixdeployments", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New(errorMsg)
+	})
+	rb.Generation++
+	expectedGen = rb.Generation
+	sut = s.createSyncer(rb, nil)
+	err = sut.OnSync(context.Background())
+	s.Require().ErrorContains(err, errorMsg)
+	rb, err = s.radixClient.RadixV1().RadixBatches(rb.Namespace).Get(context.Background(), rb.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixBatchReconcileFailed, rb.Status.ReconcileStatus)
+	s.Contains(rb.Status.Message, errorMsg)
+	s.Equal(expectedGen, rb.Status.ObservedGeneration)
+	s.False(rb.Status.Reconciled.IsZero())
 }
 
 func (s *syncerTestSuite) Test_ShouldSkipReconcileResourcesWhenBatchConditionIsDone() {
@@ -320,7 +394,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Equal(expectedJobLabels, kubejob.Labels, "job labels")
 		expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAppIDLabel: "00000000000000000000000001", kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
 		s.Equal(expectedPodLabels, kubejob.Spec.Template.Labels, "pod labels")
-		expectedPodAnnotations := map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}
+		expectedPodAnnotations := map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}
 		s.Equal(expectedPodAnnotations, kubejob.Spec.Template.Annotations)
 		s.Equal(ownerReference(batch), kubejob.OwnerReferences)
 		s.Equal(numbers.Int32Ptr(0), kubejob.Spec.BackoffLimit)
@@ -330,7 +404,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Equal(securitycontext.Container(securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault)), kubejob.Spec.Template.Spec.Containers[0].SecurityContext)
 		s.Len(kubejob.Spec.Template.Spec.Containers[0].Resources.Limits, 0)
 		s.Len(kubejob.Spec.Template.Spec.Containers[0].Resources.Requests, 0)
-		s.Len(kubejob.Spec.Template.Spec.Containers[0].Env, 5)
+		s.Len(kubejob.Spec.Template.Spec.Containers[0].Env, 12)
 		s.True(slice.Any(kubejob.Spec.Template.Spec.Containers[0].Env, func(env corev1.EnvVar) bool {
 			return env.Name == "VAR1" && env.ValueFrom.ConfigMapKeyRef.Key == "VAR1" && env.ValueFrom.ConfigMapKeyRef.LocalObjectReference.Name == kube.GetEnvVarsConfigMapName(componentName)
 		}))
@@ -599,7 +673,7 @@ func (s *syncerTestSuite) Test_Batch_ImagePullSecrets() {
 			_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
-			cfg := &config.Config{ContainerRegistryConfig: containerregistry.Config{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
+			cfg := &config.Config{ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
 			sut := s.createSyncer(batch, cfg)
 			s.Require().NoError(sut.OnSync(context.Background()))
 			allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
@@ -1177,7 +1251,7 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	s.Require().NoError(err)
 	rd, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, s.certClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, nil, &config.Config{})
+	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, &config.Config{})
 	s.Require().NoError(deploySyncer.OnSync(context.Background()))
 
 	sut := s.createSyncer(batch, nil)
@@ -1340,6 +1414,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenJobMissingInRadixDeployment() {
 	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
 	s.Equal(invalidDeploymentReferenceReason, batch.Status.Condition.Reason)
 	s.Equal(err.Error(), batch.Status.Condition.Message)
+	s.Equal(radixv1.RadixBatchReconcileFailed, batch.Status.ReconcileStatus)
 }
 
 func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
@@ -1365,6 +1440,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
 	batch, _ = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batch.GetName(), metav1.GetOptions{})
 	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
 	s.Equal(invalidDeploymentReferenceReason, batch.Status.Condition.Reason)
+	s.Equal(radixv1.RadixBatchReconcileFailed, batch.Status.ReconcileStatus)
 }
 
 func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
@@ -2512,7 +2588,7 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 			s.SetupTest()
 
 			job1Builder := utils.AnApplicationJobComponent().WithName(jobComponentName).
-				WithImage("radixdev.azurecr.io/job:imagetag").WithSchedulerPort(numbers.Int32Ptr(8080)).
+				WithImage("radixdev.azurecr.io/job:imagetag").WithSchedulerPort(8080).
 				WithCommand(ts.command).WithArgs(ts.args)
 			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
 				WithEnvironment(env1, "master").WithJobComponents(job1Builder)
@@ -2525,7 +2601,7 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 				WithJobComponent(utils.NewDeployJobComponentBuilder().
 					WithName(jobComponentName).
 					WithImage("radixdev.azurecr.io/job:imagetag").
-					WithSchedulerPort(numbers.Int32Ptr(8080)).
+					WithSchedulerPort(8080).
 					WithCommand(ts.command).WithArgs(ts.args)).
 				BuildRD()
 
@@ -2567,6 +2643,157 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 			kubeJobContainer := kubeJobList.Items[0].Spec.Template.Spec.Containers[0]
 			assert.Equal(t, ts.command, kubeJobContainer.Command, "command in job should match in RadixDeployment")
 			assert.Equal(t, ts.args, kubeJobContainer.Args, "args in job should match in RadixDeployment")
+		})
+	}
+}
+
+func (s *syncerTestSuite) Test_SafeToRestartAnnotation() {
+	const safeToEvictAnnotation = "cluster-autoscaler.kubernetes.io/safe-to-evict"
+
+	tests := map[string]struct {
+		componentSafeToRestart    *bool
+		componentTimeLimitSeconds *int64
+		batchJobSafeToRestart     *bool
+		batchJobTimeLimitSeconds  *int64
+		threshold                 int64
+		expectedAnnotationValue   string
+	}{
+		"no safeToRestart, no timeLimitSeconds defaults to true": {
+			threshold:               600,
+			expectedAnnotationValue: "true",
+		},
+		"component safeToRestart true": {
+			componentSafeToRestart:  pointers.Ptr(true),
+			threshold:               600,
+			expectedAnnotationValue: "true",
+		},
+		"component safeToRestart false": {
+			componentSafeToRestart:  pointers.Ptr(false),
+			threshold:               600,
+			expectedAnnotationValue: "false",
+		},
+		"batchJob safeToRestart true overrides component false": {
+			componentSafeToRestart:  pointers.Ptr(false),
+			batchJobSafeToRestart:   pointers.Ptr(true),
+			threshold:               600,
+			expectedAnnotationValue: "true",
+		},
+		"batchJob safeToRestart false overrides component true": {
+			componentSafeToRestart:  pointers.Ptr(true),
+			batchJobSafeToRestart:   pointers.Ptr(false),
+			threshold:               600,
+			expectedAnnotationValue: "false",
+		},
+		"batchJob safeToRestart true, no component safeToRestart": {
+			batchJobSafeToRestart:   pointers.Ptr(true),
+			threshold:               600,
+			expectedAnnotationValue: "true",
+		},
+		"batchJob safeToRestart false, no component safeToRestart": {
+			batchJobSafeToRestart:   pointers.Ptr(false),
+			threshold:               600,
+			expectedAnnotationValue: "false",
+		},
+		"component timeLimitSeconds below threshold": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
+			threshold:                 600,
+			expectedAnnotationValue:   "false",
+		},
+		"component timeLimitSeconds above threshold": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(1000)),
+			threshold:                 600,
+			expectedAnnotationValue:   "true",
+		},
+		"component timeLimitSeconds equal to threshold": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(600)),
+			threshold:                 600,
+			expectedAnnotationValue:   "true",
+		},
+		"batchJob timeLimitSeconds overrides component timeLimitSeconds, below threshold": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(1000)),
+			batchJobTimeLimitSeconds:  pointers.Ptr(int64(100)),
+			threshold:                 600,
+			expectedAnnotationValue:   "false",
+		},
+		"batchJob timeLimitSeconds overrides component timeLimitSeconds, above threshold": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
+			batchJobTimeLimitSeconds:  pointers.Ptr(int64(1000)),
+			threshold:                 600,
+			expectedAnnotationValue:   "true",
+		},
+		"safeToRestart takes precedence over timeLimitSeconds, component safeToRestart true with low time limit": {
+			componentSafeToRestart:    pointers.Ptr(true),
+			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
+			threshold:                 600,
+			expectedAnnotationValue:   "true",
+		},
+		"safeToRestart takes precedence over timeLimitSeconds, component safeToRestart false with high time limit": {
+			componentSafeToRestart:    pointers.Ptr(false),
+			componentTimeLimitSeconds: pointers.Ptr(int64(1000)),
+			threshold:                 600,
+			expectedAnnotationValue:   "false",
+		},
+		"batchJob safeToRestart takes precedence over both timeLimitSeconds": {
+			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
+			batchJobTimeLimitSeconds:  pointers.Ptr(int64(1000)),
+			batchJobSafeToRestart:     pointers.Ptr(false),
+			threshold:                 600,
+			expectedAnnotationValue:   "false",
+		},
+	}
+
+	for testName, tt := range tests {
+		s.Run(testName, func() {
+			appName, envName, batchName, componentName, rdName, jobName := "any-app", "any-env", "any-batch", "compute", "any-rd", "any-job"
+			namespace := utils.GetEnvironmentNamespace(appName, envName)
+
+			batch := &radixv1.RadixBatch{
+				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Spec: radixv1.RadixBatchSpec{
+					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+						Job:                  componentName,
+					},
+					Jobs: []radixv1.RadixBatchJob{
+						{
+							Name:             jobName,
+							SafeToRestart:    tt.batchJobSafeToRestart,
+							TimeLimitSeconds: tt.batchJobTimeLimitSeconds,
+						},
+					},
+				},
+			}
+
+			rd := &radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: rdName},
+				Spec: radixv1.RadixDeploymentSpec{
+					AppName: appName,
+					Jobs: []radixv1.RadixDeployJobComponent{
+						{
+							Name:             componentName,
+							Image:            "any-image",
+							SafeToRestart:    tt.componentSafeToRestart,
+							TimeLimitSeconds: tt.componentTimeLimitSeconds,
+						},
+					},
+				},
+			}
+
+			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			s.applyRadixDeploymentEnvVarsConfigMaps(s.kubeUtil, rd)
+
+			cfg := &config.Config{SafeToRestartBatchJobThreshold: tt.threshold}
+			sut := s.createSyncer(batch, cfg)
+			s.Require().NoError(sut.OnSync(context.Background()))
+
+			allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+			s.Require().NoError(err)
+			s.Require().Len(allJobs.Items, 1)
+			kubejob := allJobs.Items[0]
+			s.Equal(tt.expectedAnnotationValue, kubejob.Spec.Template.Annotations[safeToEvictAnnotation])
 		})
 	}
 }

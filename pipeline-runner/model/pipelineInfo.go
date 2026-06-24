@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	dnsaliasconfig "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -40,8 +39,14 @@ type PipelineInfo struct {
 	BuildContext *BuildContext
 	// EnvironmentSubPipelinesToRun Sub-pipeline pipeline file named, if they are configured to be run
 	EnvironmentSubPipelinesToRun []EnvironmentSubPipelineToRun
-	StopPipeline                 bool
-	StopPipelineMessage          string
+
+	EnvironmentSubPipelineParams map[string]SubPipelineParams
+
+	// EnvironmentSubPipelineComponentNames maps environment name to component image paths
+	EnvironmentSubPipelineComponentNames EnvironmentComponentNames
+
+	StopPipeline        bool
+	StopPipelineMessage string
 }
 
 type TargetEnvironment struct {
@@ -147,7 +152,6 @@ type PipelineArguments struct {
 	LogLevel      string
 	AppName       string
 	Builder       Builder
-	DNSConfig     *dnsaliasconfig.DNSConfig
 
 	// Name of secret with .dockerconfigjson key containing docker auths. Optional.
 	// Used to authenticate external container registries when using buildkit to build dockerfiles.
@@ -210,10 +214,18 @@ func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bo
 	return p.GetRadixPipelineType() == pipelineType
 }
 
-// IsUsingBuildKit Check if buildkit should be used
+// IsUsingBuildKit Check if buildkit should be used. Defaults to true if no build secrets is set.
 func (p *PipelineInfo) IsUsingBuildKit() bool {
-	return p.RadixApplication != nil && p.RadixApplication.Spec.Build != nil &&
-		p.RadixApplication.Spec.Build.UseBuildKit != nil && *p.RadixApplication.Spec.Build.UseBuildKit
+	if p.RadixApplication == nil || p.RadixApplication.Spec.Build == nil {
+		return true
+	}
+
+	if p.RadixApplication.Spec.Build.UseBuildKit != nil {
+		return *p.RadixApplication.Spec.Build.UseBuildKit
+	}
+
+	// If build secrets are empty, BuildKit is used; otherwise, use ACR Run Tasks for backwards compatibility.
+	return len(p.RadixApplication.Spec.Build.Secrets) == 0
 }
 
 // IsUsingBuildCache Check if build cache should be used
@@ -224,7 +236,16 @@ func (p *PipelineInfo) IsUsingBuildCache() bool {
 	if p.PipelineArguments.OverrideUseBuildCache != nil {
 		return *p.PipelineArguments.OverrideUseBuildCache
 	}
-	return p.RadixApplication.Spec.Build != nil && (p.RadixApplication.Spec.Build.UseBuildCache == nil || *p.RadixApplication.Spec.Build.UseBuildCache)
+
+	if p.RadixApplication == nil || p.RadixApplication.Spec.Build == nil {
+		return true
+	}
+
+	if p.RadixApplication.Spec.Build.UseBuildCache != nil {
+		return *p.RadixApplication.Spec.Build.UseBuildCache
+	}
+
+	return true
 }
 
 // IsRefreshingBuildCache Check if build cache should be refreshed
@@ -278,11 +299,6 @@ func (p *PipelineInfo) GetRadixImageTag() string {
 // GetRadixPipelineJobName Get radix pipeline job name
 func (p *PipelineInfo) GetRadixPipelineJobName() string {
 	return p.PipelineArguments.JobName
-}
-
-// GetDNSConfig Get DNS config
-func (p *PipelineInfo) GetDNSConfig() *dnsaliasconfig.DNSConfig {
-	return p.PipelineArguments.DNSConfig
 }
 
 // GetRadixDeployToEnvironment Get radix deploy to environment

@@ -18,7 +18,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithEnvironmentConfigs(...RadixJobComponentEnvironmentConfigBuilder) RadixApplicationJobComponentBuilder
 	WithCommonEnvironmentVariable(string, string) RadixApplicationJobComponentBuilder
 	WithCommonResource(map[string]string, map[string]string) RadixApplicationJobComponentBuilder
-	WithSchedulerPort(*int32) RadixApplicationJobComponentBuilder
+	WithSchedulerPort(int32) RadixApplicationJobComponentBuilder
 	WithPayloadPath(*string) RadixApplicationJobComponentBuilder
 	WithNode(node v1.RadixNode) RadixApplicationJobComponentBuilder
 	WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationJobComponentBuilder
@@ -33,6 +33,8 @@ type RadixApplicationJobComponentBuilder interface {
 	WithArgs(args []string) RadixApplicationJobComponentBuilder
 	WithRunAsUser(runAsUser *int64) RadixApplicationJobComponentBuilder
 	WithFailurePolicy(*v1.RadixJobComponentFailurePolicy) RadixApplicationJobComponentBuilder
+	WithSafeToRestart(*bool) RadixApplicationJobComponentBuilder
+	WithCron(*v1.CronSchedule) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -48,7 +50,7 @@ type radixApplicationJobComponentBuilder struct {
 	environmentConfig  []RadixJobComponentEnvironmentConfigBuilder
 	variables          v1.EnvVarsMap
 	resources          v1.ResourceRequirements
-	schedulerPort      *int32
+	schedulerPort      int32
 	payloadPath        *string
 	node               v1.RadixNode
 	volumes            []v1.RadixVolumeMount
@@ -65,6 +67,8 @@ type radixApplicationJobComponentBuilder struct {
 	command            []string
 	args               []string
 	runAsUser          *int64
+	safeToRestart      *bool
+	cron               *v1.CronSchedule
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -165,7 +169,7 @@ func (rcb *radixApplicationJobComponentBuilder) WithCommonResource(request map[s
 	return rcb
 }
 
-func (rcb *radixApplicationJobComponentBuilder) WithSchedulerPort(port *int32) RadixApplicationJobComponentBuilder {
+func (rcb *radixApplicationJobComponentBuilder) WithSchedulerPort(port int32) RadixApplicationJobComponentBuilder {
 	rcb.schedulerPort = port
 	return rcb
 }
@@ -230,6 +234,16 @@ func (rcb *radixApplicationJobComponentBuilder) WithFailurePolicy(failurePolicy 
 	return rcb
 }
 
+func (rcb *radixApplicationJobComponentBuilder) WithSafeToRestart(safeToRestart *bool) RadixApplicationJobComponentBuilder {
+	rcb.safeToRestart = safeToRestart
+	return rcb
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithCron(cron *v1.CronSchedule) RadixApplicationJobComponentBuilder {
+	rcb.cron = cron
+	return rcb
+}
+
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
 	var environmentConfig = make([]v1.RadixJobComponentEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -270,6 +284,8 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Command:            rcb.command,
 		Args:               rcb.args,
 		RunAsUser:          rcb.runAsUser,
+		SafeToRestart:      rcb.safeToRestart,
+		Cron:               rcb.cron,
 	}
 }
 

@@ -24,11 +24,11 @@ func (kubeutil *Kube) ApplyTriggerAuthentication(ctx context.Context, namespace 
 	if err != nil && errors.IsNotFound(err) {
 		_, err := kubeutil.kedaClient.KedaV1alpha1().TriggerAuthentications(namespace).Create(ctx, &auth, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create TriggerAuthentication object: %v", err)
+			return fmt.Errorf("failed to create TriggerAuthentication object: %w", err)
 		}
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get TriggerAuthentication object: %v", err)
+		return fmt.Errorf("failed to get TriggerAuthentication object: %w", err)
 	}
 
 	log.Ctx(ctx).Debug().Msgf("TriggerAuthentication object %s already exists in namespace %s, updating the object now", name, namespace)
@@ -48,17 +48,17 @@ func (kubeutil *Kube) PatchTriggerAuthentication(ctx context.Context, namespace 
 	log.Ctx(ctx).Debug().Msgf("patch an TriggerAuthentication %s in the namespace %s", authName, namespace)
 	oldAuthJSON, err := json.Marshal(oldAuth)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal old TriggerAuthentication object: %v", err)
+		return nil, fmt.Errorf("failed to marshal old TriggerAuthentication object: %w", err)
 	}
 
 	newAuthJSON, err := json.Marshal(newAuthAuth)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal new TriggerAuthentication object: %v", err)
+		return nil, fmt.Errorf("failed to marshal new TriggerAuthentication object: %w", err)
 	}
 
 	mergepatch, err := jsonmergepatch.CreateThreeWayJSONMergePatch(oldAuthJSON, newAuthJSON, oldAuthJSON)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create json merge patch TriggerAuthentication objects: %v: %v", err, mergepatch)
+		return nil, fmt.Errorf("failed to create json merge patch TriggerAuthentication objects: %w", err)
 	}
 
 	if IsEmptyPatch(mergepatch) {
@@ -68,7 +68,7 @@ func (kubeutil *Kube) PatchTriggerAuthentication(ctx context.Context, namespace 
 
 	patchedAuth, err := kubeutil.kedaClient.KedaV1alpha1().TriggerAuthentications(namespace).Patch(ctx, authName, types.MergePatchType, mergepatch, metav1.PatchOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to patch TriggerAuthentication object: %v", err)
+		return nil, fmt.Errorf("failed to patch TriggerAuthentication object: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msgf("Patched TriggerAuthentication: %s in namespace %s", patchedAuth.Name, namespace)
 

@@ -405,6 +405,10 @@ func Test_ResolveTagsForCommit(t *testing.T) {
 			commitHash:   "24baed7787ea319a10e387da1290242b91e34744",
 			expectedTags: []string{"v3", "v4"},
 		},
+		"get commit for annotated nested tag annotated2": {
+			expectedTags: []string{"annotated2", "annotated1", "light-tag"},
+			commitHash:   "2c58bb0effa3670785d9eb68e2b365d37e7bd263",
+		},
 	}
 
 	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")

@@ -114,7 +114,7 @@ func (controller *jobController) CreateJob(c *gin.Context) {
 		}
 	}
 
-	jobState, err := controller.handler.CreateJob(c.Request.Context(), &jobScheduleDescription)
+	jobState, err := controller.handler.CreateJob(c.Request.Context(), &jobScheduleDescription, false)
 	if err != nil {
 		controller.HandleError(c, err)
 		return

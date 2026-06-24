@@ -62,7 +62,7 @@ Utility function to take list to comma separated dictionary
 */}}
 {{- define "helm-toolkit.utils.joinMapWithComma" -}}
 {{- $local := dict "first" true -}}
-{{- range $k, $v := . -}}{{- if not $local.first -}},{{- end -}}{{ $k }}={{ $v }}{{- $_ := set $local "first" false -}}{{- end -}}
+{{- range $k, $v := . -}}{{- if not $local.first -}},{{- end -}}{{ $k }}:{{ $v }}{{- $_ := set $local "first" false -}}{{- end -}}
 {{- end -}}
 
 {{/*
@@ -90,5 +90,25 @@ Webhook Selector labels
 */}}
 {{- define "radix-webhook.selectorLabels" -}}
 app.kubernetes.io/name: "radix-webhook"
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+API Server Common labels
+*/}}
+{{- define "radix-api-server.labels" -}}
+helm.sh/chart: {{ include "radix-operator.chart" . }}
+{{ include "radix-api-server.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+API Server Selector labels
+*/}}
+{{- define "radix-api-server.selectorLabels" -}}
+app.kubernetes.io/name: "radix-api-server"
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

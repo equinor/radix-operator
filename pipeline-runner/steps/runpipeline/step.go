@@ -21,7 +21,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
@@ -29,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // RunPipelinesStepImplementation Step to run Tekton pipelines
@@ -52,8 +52,8 @@ func NewRunPipelinesStep(options ...RunPipelinesStepImplementationOption) model.
 	return step
 }
 
-func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
+func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, dynamicClient client.Client, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, dynamicClient, tektonClient, rr)
 	if step.waiter == nil {
 		step.waiter = wait.NewPipelineRunsCompletionWaiter(tektonClient)
 	}
@@ -153,14 +153,21 @@ func (step *RunPipelinesStepImplementation) createPipelineRun(namespace string, 
 	}
 
 	log.Debug().Msgf("run pipelinerun for the target environment %s", targetEnv)
-	pipelineRun := step.buildPipelineRun(pipeline, targetEnv, timestamp, pipelineInfo)
+	pipelineRun, err := step.buildPipelineRun(pipeline, targetEnv, timestamp, pipelineInfo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build pipelinerun for environment %s: %w", targetEnv, err)
+	}
 	return step.GetTektonClient().TektonV1().PipelineRuns(namespace).Create(context.Background(), &pipelineRun, v1.CreateOptions{})
 }
 
-func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev1.Pipeline, targetEnv, timestamp string, pipelineInfo *model.PipelineInfo) pipelinev1.PipelineRun {
+func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev1.Pipeline, targetEnv, timestamp string, pipelineInfo *model.PipelineInfo) (pipelinev1.PipelineRun, error) {
 	originalPipelineName := pipeline.ObjectMeta.Annotations[operatorDefaults.PipelineNameAnnotation]
 	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", internal.GetShortName(targetEnv), timestamp, internal.GetJobNameHash(pipelineInfo))
-	pipelineParams := step.getPipelineParams(pipeline, targetEnv, pipelineInfo)
+	pipelineParams, err := step.getPipelineParams(pipeline, targetEnv, pipelineInfo)
+	if err != nil {
+		return pipelinev1.PipelineRun{}, fmt.Errorf("failed to build params for pipeline: %w", err)
+	}
+
 	pipelineRun := pipelinev1.PipelineRun{
 		ObjectMeta: v1.ObjectMeta{
 			Name:   pipelineRunName,
@@ -190,7 +197,8 @@ func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev
 		taskRunSpecs = append(taskRunSpecs, pipelineRun.GetTaskRunSpec(task.Name))
 	}
 	pipelineRun.Spec.TaskRunSpecs = taskRunSpecs
-	return pipelineRun
+
+	return pipelineRun, nil
 }
 
 func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipelineInfo *model.PipelineInfo) *pod.Template {
@@ -214,18 +222,21 @@ func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipeline
 			corev1.LabelArchStable: "amd64",
 			corev1.LabelOSStable:   "linux",
 		},
+		AutomountServiceAccountToken: new(false),
 	}
 }
 
-func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipelinev1.Pipeline, targetEnv string, pipelineInfo *model.PipelineInfo) []pipelinev1.Param {
+func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipelinev1.Pipeline, targetEnv string, pipelineInfo *model.PipelineInfo) ([]pipelinev1.Param, error) {
 	envVars := internalsubpipeline.GetEnvVars(pipelineInfo.GetRadixApplication(), targetEnv)
 	pipelineParamsMap := getPipelineParamSpecsMap(pipeline)
 	var pipelineParams []pipelinev1.Param
+
 	for envVarName, envVarValue := range envVars {
 		paramSpec, envVarExistInParamSpecs := getPipelineParamSpec(pipelineParamsMap, envVarName)
 		if !envVarExistInParamSpecs {
 			continue // Add to pipelineRun params only env-vars, existing in the pipeline paramSpecs or Azure identity clientId
 		}
+
 		param := pipelinev1.Param{Name: envVarName, Value: pipelinev1.ParamValue{Type: paramSpec.Type}}
 		if param.Value.Type == pipelinev1.ParamTypeArray { // Param can contain a string value or a comma-separated values array
 			param.Value.ArrayVal = strings.Split(envVarValue, ",")
@@ -233,21 +244,15 @@ func (step *RunPipelinesStepImplementation) getPipelineParams(pipeline *pipeline
 			param.Value.StringVal = envVarValue
 		}
 		pipelineParams = append(pipelineParams, param)
-		delete(pipelineParamsMap, envVarName)
 	}
-	for paramName, paramSpec := range pipelineParamsMap {
-		if paramName == defaults.AzureClientIdEnvironmentVariable && len(envVars[defaults.AzureClientIdEnvironmentVariable]) > 0 {
-			continue // Azure identity clientId was set by radixconfig build env-var or identity
-		}
-		param := pipelinev1.Param{Name: paramName, Value: pipelinev1.ParamValue{Type: paramSpec.Type}}
-		if paramSpec.Default != nil {
-			param.Value.StringVal = paramSpec.Default.StringVal
-			param.Value.ArrayVal = paramSpec.Default.ArrayVal
-			param.Value.ObjectVal = paramSpec.Default.ObjectVal
-		}
-		pipelineParams = append(pipelineParams, param)
+
+	paramValues, err := pipelineInfo.GetSubPipelineParamValuesForEnvironment(targetEnv)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sub-pipeline param values for environment %s: %w", targetEnv, err)
 	}
-	return pipelineParams
+	pipelineParams = append(pipelineParams, paramValues...)
+
+	return pipelineParams, nil
 }
 
 func getPipelineParamSpec(pipelineParamsMap map[string]pipelinev1.ParamSpec, envVarName string) (pipelinev1.ParamSpec, bool) {

@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
@@ -114,7 +113,7 @@ func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace st
 }
 
 func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
-	log.Ctx(ctx).Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
+	log.Ctx(ctx).Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName) //nolint:staticcheck
 
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -154,7 +153,7 @@ func (deploy *Deployment) createJobAuxDeployment(jobName, jobAuxDeploymentName s
 			},
 		},
 	}
-	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
+	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = new(false)
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()
 
@@ -170,7 +169,7 @@ func (deploy *Deployment) createJobAuxDeployment(jobName, jobAuxDeploymentName s
 }
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
-	log.Ctx(ctx).Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
+	log.Ctx(ctx).Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName) //nolint:staticcheck
 
 	desiredDeployment := currentDeployment.DeepCopy()
 	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
@@ -193,7 +192,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context,
 func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	commitID := getDeployComponentCommitId(deployComponent)
 	lbs := radixlabels.Merge(
-		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName), //nolint:staticcheck
 		radixlabels.ForApplicationID(deploy.registration.Spec.AppID),
 		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForCommitId(commitID),
@@ -209,7 +208,7 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 
 func (deploy *Deployment) getJobAuxDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
-		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName), //nolint:staticcheck
 		radixlabels.ForApplicationID(deploy.registration.Spec.AppID),
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
 		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
@@ -238,7 +237,7 @@ func (deploy *Deployment) getDeploymentPodImagePullSecrets() []corev1.LocalObjec
 func (deploy *Deployment) getDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	commitID := getDeployComponentCommitId(deployComponent)
 	return radixlabels.Merge(
-		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName), //nolint:staticcheck
 		radixlabels.ForComponentName(deployComponent.GetName()),
 		radixlabels.ForComponentType(deployComponent.GetType()),
 		radixlabels.ForCommitId(commitID),
@@ -251,7 +250,7 @@ func getDeployComponentCommitId(deployComponent v1.RadixCommonDeployComponent) s
 
 func (deploy *Deployment) getJobAuxDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	return radixlabels.Merge(
-		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName), //nolint:staticcheck
 		radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
 	)
 }
@@ -265,7 +264,7 @@ func (deploy *Deployment) getDeploymentAnnotations() map[string]string {
 }
 
 func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
-	appName, componentName := deploy.radixDeployment.Spec.AppName, deployComponent.GetName()
+	appName, componentName := deploy.radixDeployment.Spec.AppName, deployComponent.GetName() //nolint:staticcheck
 
 	desiredDeployment.ObjectMeta.Name = deployComponent.GetName()
 	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
@@ -285,11 +284,10 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.ObjectMeta.Labels = deploy.getDeploymentPodLabels(deployComponent)
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations = deploy.getDeploymentPodAnnotations(deployComponent)
 
-	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.getDeploymentPodImagePullSecrets()
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 
-	spec := NewServiceAccountSpec(deploy.radixDeployment, deployComponent)
+	spec := NewServiceAccountSpec(deployComponent)
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = spec.AutomountServiceAccountToken()
 	desiredDeployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
@@ -299,7 +297,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	if err != nil {
 		return err
 	}
-	volumes, err := volumemount.GetVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent, deploy.radixDeployment.GetName(), existingVolumes)
+	volumes, err := volumemount.GetVolumes(ctx, deploy.kubeutil, deploy.radixDeployment.Namespace, deployComponent, deploy.radixDeployment.GetName(), existingVolumes)
 	if err != nil {
 		return err
 	}
@@ -346,7 +344,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = nil
 	}
 
-	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, appName, deploy.radixDeployment, deployComponent)
+	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, deploy.config, appName, deploy.radixDeployment, deployComponent)
 	if err != nil {
 		return err
 	}
@@ -357,7 +355,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 
 func (deploy *Deployment) getDeployComponentExistingVolumes(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, deployment *appsv1.Deployment) ([]corev1.Volume, error) {
 	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
-		volumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, deploy.kubeutil, deploy.getNamespace(), deployComponent.GetName())
+		volumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, deploy.kubeutil, deploy.radixDeployment.Namespace, deployComponent.GetName())
 		if err != nil {
 			return nil, err
 		}

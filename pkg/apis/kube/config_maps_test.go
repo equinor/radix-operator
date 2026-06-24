@@ -44,7 +44,7 @@ type ConfigMapTestEnv struct {
 func getConfigMapTestEnv() ConfigMapTestEnv {
 	testEnv := ConfigMapTestEnv{
 		kubeclient:           kubefake.NewSimpleClientset(),
-		radixclient:          radix.NewSimpleClientset(),
+		radixclient:          radix.NewSimpleClientset(), // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 		kedaClient:           kedafake.NewSimpleClientset(),
 		secretproviderclient: secretproviderfake.NewSimpleClientset(),
 		prometheusclient:     prometheusfake.NewSimpleClientset(),

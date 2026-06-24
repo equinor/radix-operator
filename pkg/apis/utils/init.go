@@ -1,16 +1,13 @@
 package utils
 
 import (
-	"context"
 	"net/http"
 	"os"
-	"time"
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	httputils "github.com/equinor/radix-operator/pkg/apis/utils/http"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -52,76 +49,55 @@ func (zl ZerologWarningHandlerAdapter) HandleWarningHeader(_ int, _ string, text
 }
 
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient(ctx context.Context, configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, monitoring.Interface, secretProviderClient.Interface, certclient.Interface, tektonclient.Interface) {
-	logger := log.Ctx(ctx)
-	pollTimeout, pollInterval := time.Minute, 15*time.Second
+func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, secretProviderClient.Interface, certclient.Interface, tektonclient.Interface) {
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			logger.Fatal().Err(err).Msg("Failed to read InClusterConfig")
+			log.Fatal().Err(err).Msg("Failed to read InClusterConfig")
 		}
 	}
 	config.WarningHandler = rest.NoWarnings{}
-	config.Wrap(prometheusMetrics)
+	config.Wrap(PrometheusMetrics)
 	config.Wrap(httputils.LogRequests)
 
 	for _, o := range configOptions {
 		o(config)
 	}
 
-	client, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*kubernetes.Clientset, error) {
-		return kubernetes.NewForConfig(config)
-	})
+	k8sclient, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize Kubernetes client")
+		log.Fatal().Err(err).Msg("Failed to initialize Kubernetes client")
 	}
 
-	radixClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*radixclient.Clientset, error) {
-		return radixclient.NewForConfig(config)
-	})
+	radixClient, err := radixclient.NewForConfig(config)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize Radix client")
+		log.Fatal().Err(err).Msg("Failed to initialize Radix client")
 	}
 
-	kedaClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*kedav2.Clientset, error) {
-		return kedav2.NewForConfig(config)
-	})
+	kedaClient, err := kedav2.NewForConfig(config)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize KEDA client")
+		log.Fatal().Err(err).Msg("Failed to initialize KEDA client")
 	}
 
-	prometheusOperatorClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*monitoring.Clientset, error) {
-		return monitoring.NewForConfig(config)
-	})
+	secretProviderClient, err := secretProviderClient.NewForConfig(config)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize Prometheus client")
+		log.Fatal().Err(err).Msg("Failed to initialize SecretProvider client")
+	}
+	certClient, err := certclient.NewForConfig(config)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize CertManager client")
 	}
 
-	secretProviderClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*secretProviderClient.Clientset, error) {
-		return secretProviderClient.NewForConfig(config)
-	})
+	tektonClient, err := tektonclient.NewForConfig(config)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize SecretProvider client")
+		log.Fatal().Err(err).Msg("Failed to initialize Tekton client")
 	}
-	certClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*certclient.Clientset, error) {
-		return certclient.NewForConfig(config)
-	})
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize CertManager client")
-	}
-
-	tektonClient, err := PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*tektonclient.Clientset, error) {
-		return tektonclient.NewForConfig(config)
-	})
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize Tekton client")
-	}
-	logger.Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient, kedaClient, prometheusOperatorClient, secretProviderClient, certClient, tektonClient
+	log.Info().Msgf("Successfully constructed k8s client to API server %v", config.Host)
+	return k8sclient, radixClient, kedaClient, secretProviderClient, certClient, tektonClient
 }
 
-func prometheusMetrics(rt http.RoundTripper) http.RoundTripper {
+func PrometheusMetrics(rt http.RoundTripper) http.RoundTripper {
 	return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
 }

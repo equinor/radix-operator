@@ -3,23 +3,23 @@ package radixregistration_test
 import (
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/webhook/validation/radixregistration"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // Test unique appId validation
 
 func Test_valid_rr_returns_true(t *testing.T) {
-	client := createClient()
-	validRR := createValidRR()
+	client := test.CreateClient()
+	validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 
 	validator := radixregistration.CreateOnlineValidator(client, true, true)
 	warnings, err := validator.Validate(t.Context(), validRR)
@@ -74,7 +74,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
 			validator := radixregistration.CreateOfflineValidator(testcase.requireAdGroups, testcase.requireConfigurationItem)
-			validRR := createValidRR()
+			validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 			testcase.updateRR(validRR)
 			warnings, err := validator.Validate(t.Context(), validRR)
 
@@ -89,9 +89,8 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 }
 
 func TestDuplicateAppIDMustFail(t *testing.T) {
-	validRR := createValidRR()
-	validRR2 := createValidRR()
-	client := createClient(validRR)
+	validRR2 := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
+	client := test.CreateClient("testdata/radixregistration.yaml")
 	validRR2.Name = "duplicate-app-id"
 	validator := radixregistration.CreateOnlineValidator(client, false, false)
 
@@ -100,15 +99,83 @@ func TestDuplicateAppIDMustFail(t *testing.T) {
 	assert.ErrorIs(t, err, radixregistration.ErrAppIdMustBeUnique)
 }
 
-func createValidRR() *radixv1.RadixRegistration {
-	validRR, _ := utils.GetRadixRegistrationFromFile("testdata/radixregistration.yaml")
-	return validRR
-}
+func TestNamespaceUsableValidator(t *testing.T) {
+	var testScenarios = []struct {
+		name          string
+		namespaces    []client.Object
+		expectedError error
+	}{
+		{
+			name:          "no conflicting namespace returns no error",
+			namespaces:    nil,
+			expectedError: nil,
+		},
+		{
+			name: "namespace with same name owned by same app returns no error",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "testapp-app",
+						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
+					},
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "namespace with same name owned by different app returns error",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "testapp-app",
+						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
+					},
+				},
+			},
+			expectedError: radixregistration.ErrEnvironmentNameIsNotAvailable,
+		},
+		{
+			name: "namespace with same name without radix-app label returns error",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "testapp-app",
+					},
+				},
+			},
+			expectedError: radixregistration.ErrEnvironmentNameIsNotAvailable,
+		},
+		{
+			name: "namespace with different name returns no error",
+			namespaces: []client.Object{
+				&corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "otherapp-app",
+						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
+					},
+				},
+			},
+			expectedError: nil,
+		},
+	}
 
-func createClient(initObjs ...client.Object) client.Client {
-	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(radixv1.AddToScheme(scheme))
+	for _, ts := range testScenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			client := test.CreateClient()
+			for _, ns := range ts.namespaces {
+				require.NoError(t, client.Create(t.Context(), ns))
+			}
+			validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
+			validator := radixregistration.CreateOnlineValidator(client, false, false)
 
-	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			warnings, err := validator.Validate(t.Context(), validRR)
+
+			if ts.expectedError == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorIs(t, err, ts.expectedError)
+			}
+			assert.Empty(t, warnings)
+		})
+	}
 }

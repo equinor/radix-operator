@@ -22,12 +22,12 @@ func (kubeutil *Kube) ApplyService(ctx context.Context, namespace string, servic
 		_, err := kubeutil.kubeClient.CoreV1().Services(namespace).Create(ctx, service, metav1.CreateOptions{})
 
 		if err != nil {
-			return fmt.Errorf("failed to create service object: %v", err)
+			return fmt.Errorf("failed to create service object: %w", err)
 		}
 
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get service object: %v", err)
+		return fmt.Errorf("failed to get service object: %w", err)
 	}
 
 	log.Ctx(ctx).Debug().Msgf("Service object %s already exists in namespace %s, updating the object now", service.GetName(), namespace)
@@ -39,23 +39,23 @@ func (kubeutil *Kube) ApplyService(ctx context.Context, namespace string, servic
 
 	oldServiceJSON, err := json.Marshal(oldService)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old Service object: %v", err)
+		return fmt.Errorf("failed to marshal old Service object: %w", err)
 	}
 
 	newServiceJSON, err := json.Marshal(newService)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new Service object: %v", err)
+		return fmt.Errorf("failed to marshal new Service object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldServiceJSON, newServiceJSON, corev1.Service{})
 	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch Service objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch Service objects: %w", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		patchedService, err := kubeutil.kubeClient.CoreV1().Services(namespace).Patch(ctx, service.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to patch Service object: %v", err)
+			return fmt.Errorf("failed to patch Service object: %w", err)
 		}
 		log.Ctx(ctx).Debug().Msgf("Patched Service: %s in namespace %s", patchedService.Name, namespace)
 	} else {

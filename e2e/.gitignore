@@ -1,0 +1,16 @@
+# Test binaries
+*.test
+*.out
+e2e.test
+
+# Temporary kubeconfig files
+kubeconfig*
+.kubeconfig*
+
+# Test coverage
+coverage.txt
+coverage.out
+
+# IDE files
+.vscode/
+.idea/

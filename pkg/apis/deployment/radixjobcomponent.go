@@ -131,6 +131,8 @@ func (c *jobComponentsBuilder) buildJobComponent(ctx context.Context, radixJobCo
 		RunAsUser:            getRadixCommonComponentRunAsUser(&radixJobComponent, environmentSpecificConfig),
 		BatchStatusRules:     getRadixJobComponentBatchStatusRules(&radixJobComponent, environmentSpecificConfig),
 		FailurePolicy:        failurePolicy,
+		SafeToRestart:        getRadixJobComponentSafeToRestart(radixJobComponent, environmentSpecificConfig),
+		Cron:                 getRadixJobComponentCron(radixJobComponent, environmentSpecificConfig),
 	}
 	return &deployJob, nil
 }
@@ -171,4 +173,18 @@ func getRadixJobComponentBackoffLimit(radixJobComponent v1.RadixJobComponent, en
 		return environmentSpecificConfig.BackoffLimit
 	}
 	return radixJobComponent.BackoffLimit
+}
+
+func getRadixJobComponentSafeToRestart(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) *bool {
+	if environmentSpecificConfig != nil && environmentSpecificConfig.SafeToRestart != nil {
+		return environmentSpecificConfig.SafeToRestart
+	}
+	return radixJobComponent.SafeToRestart
+}
+
+func getRadixJobComponentCron(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) *v1.CronSchedule {
+	if environmentSpecificConfig != nil && environmentSpecificConfig.Cron != nil {
+		return environmentSpecificConfig.Cron
+	}
+	return radixJobComponent.Cron
 }

@@ -1,0 +1,8 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixDNSAlias
+metadata:
+  name: alias1
+spec:
+  appName: testapp
+  environment: test
+  component: app

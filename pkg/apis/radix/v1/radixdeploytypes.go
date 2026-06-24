@@ -17,6 +17,7 @@ import (
 // +kubebuilder:printcolumn:name="Reconciled",type="date",JSONPath=".status.reconciled",priority=1
 // +kubebuilder:printcolumn:name="Branch",type="string",JSONPath=".metadata.annotations.radix-branch",priority=1
 // +kubebuilder:resource:path=radixdeployments,shortName=rd
+// +kubebuilder:metadata:annotations="helm.sh/resource-policy=keep"
 // +kubebuilder:subresource:status
 
 // RadixDeployment describe a deployment
@@ -24,7 +25,10 @@ type RadixDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              RadixDeploymentSpec `json:"spec"`
-	Status            RadixDeployStatus   `json:"status,omitempty"`
+
+	// Status is the observed state of the RadixDeployment
+	// +kubebuilder:validation:Optional
+	Status RadixDeployStatus `json:"status,omitzero"`
 }
 
 // GetComponentByName returns the component matching the name parameter, or nil if not found
@@ -56,14 +60,36 @@ func (rd *RadixDeployment) GetCommonComponentByName(name string) RadixCommonDepl
 	return rd.GetJobComponentByName(name)
 }
 
-// RadixDeployStatus is the status for a rd
+type RadixDeploymentReconcileStatus string
+
+const (
+	RadixDeploymentReconcileSucceeded RadixDeploymentReconcileStatus = "Succeeded"
+	RadixDeploymentReconcileFailed    RadixDeploymentReconcileStatus = "Failed"
+)
+
+// RadixDeployStatus represents the current state of a RadixDeployment
 type RadixDeployStatus struct {
 	ActiveFrom metav1.Time `json:"activeFrom"`
-	// +optional
-	ActiveTo  metav1.Time          `json:"activeTo,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	ActiveTo  metav1.Time          `json:"activeTo,omitzero"`
 	Condition RadixDeployCondition `json:"condition"`
-	// +optional
-	Reconciled metav1.Time `json:"reconciled"`
+
+	// Reconciled is the timestamp of the last successful reconciliation
+	// +kubebuilder:validation:Optional
+	Reconciled metav1.Time `json:"reconciled,omitzero"`
+
+	// ObservedGeneration is the generation observed by the controller
+	// +kubebuilder:validation:Optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ReconcileStatus indicates whether the last reconciliation succeeded or failed
+	// +kubebuilder:validation:Optional
+	ReconcileStatus RadixDeploymentReconcileStatus `json:"reconcileStatus,omitempty"`
+
+	// Message provides additional information about the reconciliation state, typically error details when reconciliation fails
+	// +kubebuilder:validation:Optional
+	Message string `json:"message,omitempty"`
 }
 
 // RadixDeployCondition Holds the condition of a component
@@ -79,10 +105,26 @@ const (
 
 // RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
-	AppName          string                        `json:"appname"`
-	Components       []RadixDeployComponent        `json:"components,omitempty"`
-	Jobs             []RadixDeployJobComponent     `json:"jobs,omitempty"`
-	Environment      string                        `json:"environment"`
+	// Deprecated: Use app-name from deployment namespace label instead.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	AppName string `json:"appname"`
+
+	// +optional
+	Components []RadixDeployComponent `json:"components,omitempty"`
+
+	// +optional
+	Jobs []RadixDeployJobComponent `json:"jobs,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	Environment string `json:"environment"`
+
+	// +optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
@@ -98,6 +140,7 @@ type RadixDeploymentList struct {
 // RadixDeployExternalDNS is the spec for an external DNS alias
 type RadixDeployExternalDNS struct {
 	// Fully qualified domain name (FQDN), e.g. myapp.example.com.
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=4
 	// +kubebuilder:validation:MaxLength=255
 	// +kubebuilder:validation:Pattern=`^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$`
@@ -109,43 +152,104 @@ type RadixDeployExternalDNS struct {
 	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
 }
 
-// RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
+// RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service etc
 type RadixDeployComponent struct {
-	Name             string          `json:"name"`
-	Image            string          `json:"image"`
-	Ports            []ComponentPort `json:"ports,omitempty"`
-	Replicas         *int            `json:"replicas,omitempty"`
-	ReplicasOverride *int            `json:"replicasOverride,omitempty"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=50
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	Name string `json:"name"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Image string `json:"image"`
+
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	Ports []ComponentPort `json:"ports,omitempty"`
+
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=64
+	// +optional
+	Replicas *int `json:"replicas,omitempty"`
+
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=64
+	// +optional
+	ReplicasOverride *int `json:"replicasOverride,omitempty"`
+
 	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
-	Public               bool                     `json:"public"`
-	PublicPort           string                   `json:"publicPort,omitempty"`
-	EnvironmentVariables EnvVarsMap               `json:"environmentVariables,omitempty"`
-	Secrets              []string                 `json:"secrets,omitempty"`
-	SecretRefs           RadixSecretRefs          `json:"secretRefs,omitempty"`
-	IngressConfiguration []string                 `json:"ingressConfiguration,omitempty"`
-	DNSAppAlias          bool                     `json:"dnsAppAlias,omitempty"`
-	ExternalDNS          []RadixDeployExternalDNS `json:"externalDNS,omitempty"`
+	// +optional
+	Public bool `json:"public"`
+
+	// +optional
+	PublicPort string `json:"publicPort,omitempty"`
+
+	// +optional
+	EnvironmentVariables EnvVarsMap `json:"environmentVariables,omitempty"`
+
+	// +optional
+	Secrets []string `json:"secrets,omitempty"`
+
+	// +optional
+	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
+
+	// +optional
+	DNSAppAlias bool `json:"dnsAppAlias,omitempty"`
+
+	// +optional
+	ExternalDNS []RadixDeployExternalDNS `json:"externalDNS,omitempty"`
+
 	// Deprecated: For backward compatibility we must still support this field. New code should use ExternalDNS instead.
-	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty"`
-	HealthChecks            *RadixHealthChecks      `json:"healthChecks,omitempty"`
-	Monitoring              bool                    `json:"monitoring"`
-	MonitoringConfig        MonitoringConfig        `json:"monitoringConfig,omitempty"`
-	Resources               ResourceRequirements    `json:"resources,omitempty"`
-	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
-	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy"`
-	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty"`
+	// +optional
+	DNSExternalAlias []string `json:"dnsExternalAlias,omitempty"`
+
+	// +optional
+	HealthChecks *RadixHealthChecks `json:"healthChecks,omitempty"`
+
+	// +optional
+	Monitoring bool `json:"monitoring"`
+
+	// +optional
+	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
+
+	// +optional
+	Resources ResourceRequirements `json:"resources,omitempty"`
+
+	// +optional
+	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
+
+	// +optional
+	AlwaysPullImageOnDeploy bool `json:"alwaysPullImageOnDeploy"`
+
+	// +optional
+	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
+
 	// Deprecated: use Runtime.NodeType instead.
 	// Defines GPU requirements for the component.
 	// More info: https://www.radix.equinor.com/radix-config#node
-	Node               RadixNode       `json:"node,omitempty"`
-	Authentication     *Authentication `json:"authentication,omitempty"`
-	Identity           *Identity       `json:"identity,omitempty"`
-	ReadOnlyFileSystem *bool           `json:"readOnlyFileSystem,omitempty"`
-	Runtime            *Runtime        `json:"runtime,omitempty"`
-	Network            *Network        `json:"network,omitempty"`
+	// +optional
+	Node RadixNode `json:"node,omitempty"`
+
+	// +optional
+	Authentication *Authentication `json:"authentication,omitempty"`
+
+	// +optional
+	Identity *Identity `json:"identity,omitempty"`
+
+	// +optional
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
+
+	// +optional
+	Runtime *Runtime `json:"runtime,omitempty"`
+
 	// GetCommand Entrypoint array. Not executed within a shell.
+	// +optional
 	Command []string `json:"command,omitempty"`
+
 	// GetArgs Arguments to the entrypoint.
+	// +optional
 	Args []string `json:"args,omitempty"`
 	// User ID to run the container as
 	// More info: https://www.radix.equinor.com/radix-config#runasuser
@@ -230,6 +334,32 @@ func (deployComponent *RadixDeployComponent) GetPublicPort() string {
 	return deployComponent.PublicPort
 }
 
+func (deployComponent *RadixDeployComponent) GetPublicPortNumber() (int32, bool) {
+	if deployComponent == nil {
+		return 0, false
+	}
+
+	if len(deployComponent.Ports) == 0 {
+		return 0, false
+	}
+
+	if deployComponent.PublicPort != "" {
+		for _, port := range deployComponent.Ports {
+			if port.Name == deployComponent.PublicPort {
+				return port.Port, true
+			}
+		}
+
+		return 0, false
+	}
+
+	if deployComponent.Public {
+		return deployComponent.Ports[0].Port, true
+	}
+
+	return 0, false
+}
+
 func (deployComponent *RadixDeployComponent) IsPublic() bool {
 	return len(deployComponent.PublicPort) > 0
 }
@@ -246,10 +376,6 @@ func (deployComponent *RadixDeployComponent) GetExternalDNS() []RadixDeployExter
 
 func (deployComponent *RadixDeployComponent) IsDNSAppAlias() bool {
 	return deployComponent.DNSAppAlias
-}
-
-func (deployComponent *RadixDeployComponent) GetIngressConfiguration() []string {
-	return deployComponent.IngressConfiguration
 }
 
 func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
@@ -270,10 +396,6 @@ func (deployComponent *RadixDeployComponent) GetReadOnlyFileSystem() *bool {
 
 func (deployComponent *RadixDeployComponent) GetRuntime() *Runtime {
 	return deployComponent.Runtime
-}
-
-func (deployComponent *RadixDeployComponent) GetNetwork() *Network {
-	return deployComponent.Network
 }
 
 func (deployComponent *RadixDeployComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
@@ -340,10 +462,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetVolumeMounts() []RadixVolu
 	return deployJobComponent.VolumeMounts
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetEnvironment() string {
-	return deployJobComponent.Environment
-}
-
 func (deployJobComponent *RadixDeployJobComponent) IsAlwaysPullImageOnDeploy() bool {
 	return deployJobComponent.AlwaysPullImageOnDeploy
 }
@@ -364,6 +482,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetPublicPort() string {
 	return ""
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetPublicPortNumber() (int32, bool) {
+	return 0, false
+}
+
 func (deployJobComponent *RadixDeployJobComponent) IsPublic() bool {
 	return false
 }
@@ -373,10 +495,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetExternalDNS() []RadixDeplo
 }
 func (deployJobComponent *RadixDeployJobComponent) IsDNSAppAlias() bool {
 	return false
-}
-
-func (deployJobComponent *RadixDeployJobComponent) GetIngressConfiguration() []string {
-	return nil
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
@@ -401,10 +519,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetReadOnlyFileSystem() *bool
 
 func (deployJobComponent *RadixDeployJobComponent) GetRuntime() *Runtime {
 	return deployJobComponent.Runtime
-}
-
-func (deployJobComponent *RadixDeployJobComponent) GetNetwork() *Network {
-	return nil
 }
 
 func (deployJobComponent *RadixDeployJobComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
@@ -441,28 +555,83 @@ func (deployComponent *RadixDeployComponent) GetNrOfReplicas() int32 {
 // RadixDeployJobComponent defines a single job component within a RadixDeployment
 // The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
-	Name                    string                    `json:"name"`
-	Environment             string                    `json:"environment,omitempty"`
-	Image                   string                    `json:"image"`
-	Ports                   []ComponentPort           `json:"ports,omitempty"`
-	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty"`
-	Secrets                 []string                  `json:"secrets,omitempty"`
-	SecretRefs              RadixSecretRefs           `json:"secretRefs,omitempty"`
-	Monitoring              bool                      `json:"monitoring"`
-	MonitoringConfig        MonitoringConfig          `json:"monitoringConfig,omitempty"`
-	Resources               ResourceRequirements      `json:"resources,omitempty"`
-	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty"`
-	SchedulerPort           *int32                    `json:"schedulerPort,omitempty"`
-	Payload                 *RadixJobComponentPayload `json:"payload,omitempty"`
-	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
+	Name string `json:"name"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Image string `json:"image"`
+
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	Ports []ComponentPort `json:"ports,omitempty"`
+
+	// +optional
+	EnvironmentVariables EnvVarsMap `json:"environmentVariables,omitempty"`
+
+	// +optional
+	Secrets []string `json:"secrets,omitempty"`
+
+	// +optional
+	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
+
+	// +optional
+	Monitoring bool `json:"monitoring"`
+
+	// +optional
+	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
+
+	// +optional
+	Resources ResourceRequirements `json:"resources,omitempty"`
+
+	// +optional
+	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Minimum=1024
+	// +kubebuilder:validation:Maximum=65535
+	SchedulerPort int32 `json:"schedulerPort"`
+
+	// +optional
+	Payload *RadixJobComponentPayload `json:"payload,omitempty"`
+
+	// +optional
+	AlwaysPullImageOnDeploy bool `json:"alwaysPullImageOnDeploy"`
+
 	// Deprecated: use Runtime.NodeType instead.
-	Node               RadixNode      `json:"node,omitempty"`
-	TimeLimitSeconds   *int64         `json:"timeLimitSeconds,omitempty"`
-	BackoffLimit       *int32         `json:"backoffLimit,omitempty"`
-	Identity           *Identity      `json:"identity,omitempty"`
-	Notifications      *Notifications `json:"notifications,omitempty"`
-	ReadOnlyFileSystem *bool          `json:"readOnlyFileSystem,omitempty"`
-	Runtime            *Runtime       `json:"runtime,omitempty"`
+	// +optional
+	Node RadixNode `json:"node,omitempty"`
+
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
+
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
+
+	// Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.
+	// If not set, the value is determined by TimeLimitSeconds, check radix documentation for details.
+	// +optional
+	SafeToRestart *bool `json:"safeToRestart,omitempty"`
+
+	// +optional
+	Identity *Identity `json:"identity,omitempty"`
+
+	// +optional
+	Notifications *Notifications `json:"notifications,omitempty"`
+
+	// +optional
+	ReadOnlyFileSystem *bool `json:"readOnlyFileSystem,omitempty"`
+
+	// +optional
+	Runtime *Runtime `json:"runtime,omitempty"`
+
 	// BatchStatusRules Rules define how a batch status is set corresponding to batch job statuses
 	// +optional
 	BatchStatusRules []BatchStatusRule `json:"batchStatusRules,omitempty"`
@@ -470,15 +639,23 @@ type RadixDeployJobComponent struct {
 	// FailurePolicy specifies the policy of handling failed job replicas
 	// +optional
 	FailurePolicy *RadixJobComponentFailurePolicy `json:"failurePolicy,omitempty"`
+
 	// GetCommand Entrypoint array. Not executed within a shell.
+	// +optional
 	Command []string `json:"command,omitempty"`
+
 	// GetArgs Arguments to the entrypoint.
+	// +optional
 	Args []string `json:"args,omitempty"`
 	// User ID to run the container as
 	// More info: https://www.radix.equinor.com/radix-config#runasuser
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
+
+	// Set a cron schedule for when to run the job and how concurrency between multiple schedules should behave
+	// +optional
+	Cron *CronSchedule `json:"cron,omitempty"`
 }
 
 func (r *RadixDeployJobComponent) GetHealthChecks() *RadixHealthChecks {
@@ -511,16 +688,15 @@ type RadixCommonDeployComponent interface {
 	GetReplicasOverride() *int
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetPublicPort() string
+	GetPublicPortNumber() (int32, bool)
 	IsPublic() bool
 	GetExternalDNS() []RadixDeployExternalDNS
 	IsDNSAppAlias() bool
-	GetIngressConfiguration() []string
 	GetNode() *RadixNode
 	GetAuthentication() *Authentication
 	GetIdentity() *Identity
 	GetReadOnlyFileSystem() *bool
 	GetRuntime() *Runtime
-	GetNetwork() *Network
 	GetHealthChecks() *RadixHealthChecks
 	// GetCommand Entrypoint array. Not executed within a shell.
 	GetCommand() []string

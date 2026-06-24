@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -49,7 +49,7 @@ func (kubeutil *Kube) CreateConfigMap(ctx context.Context, namespace string, con
 // UpdateConfigMap updates the `modified` configmap.
 // If `original` is set, the two configmaps are compared, and the secret is only updated if they are not equal.
 func (kubeutil *Kube) UpdateConfigMap(ctx context.Context, original, modified *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	if original != nil && reflect.DeepEqual(original, modified) {
+	if original != nil && equality.Semantic.DeepEqual(original, modified) {
 		log.Ctx(ctx).Debug().Msgf("No need to update configmap %s/%s", modified.Namespace, modified.Name)
 		return modified, nil
 	}
@@ -73,17 +73,17 @@ func (kubeutil *Kube) DeleteConfigMap(ctx context.Context, namespace string, nam
 func (kubeutil *Kube) ApplyConfigMap(ctx context.Context, namespace string, currentConfigMap, desiredConfigMap *corev1.ConfigMap) error {
 	currentConfigMapJSON, err := json.Marshal(currentConfigMap)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old config-map object: %v", err)
+		return fmt.Errorf("failed to marshal old config-map object: %w", err)
 	}
 
 	desiredConfigMapJSON, err := json.Marshal(desiredConfigMap)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new config-map object: %v", err)
+		return fmt.Errorf("failed to marshal new config-map object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(currentConfigMapJSON, desiredConfigMapJSON, corev1.ConfigMap{})
 	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch config-map objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch config-map objects: %w", err)
 	}
 
 	if IsEmptyPatch(patchBytes) {
@@ -94,7 +94,7 @@ func (kubeutil *Kube) ApplyConfigMap(ctx context.Context, namespace string, curr
 	log.Ctx(ctx).Debug().Msgf("Patch: %s", string(patchBytes))
 	patchedConfigMap, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Patch(ctx, currentConfigMap.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to patch config-map object: %v", err)
+		return fmt.Errorf("failed to patch config-map object: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msgf("Patched config-map: %s in namespace %s", patchedConfigMap.Name, namespace)
 	return err

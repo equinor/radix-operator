@@ -39,7 +39,7 @@ func WithClock(clock commonutils.Clock) SyncerOption {
 }
 
 // NewSyncer Constructor os RadixBatches Syncer
-func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *radixv1.RadixRegistration, radixBatch *radixv1.RadixBatch, config *config.Config, options ...SyncerOption) Syncer {
+func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *radixv1.RadixRegistration, radixBatch *radixv1.RadixBatch, config config.Config, options ...SyncerOption) Syncer {
 	syncer := &syncer{
 		kubeClient:    kubeclient,
 		kubeUtil:      kubeUtil,
@@ -64,7 +64,7 @@ type syncer struct {
 	radixClient   radixclient.Interface
 	radixBatch    *radixv1.RadixBatch
 	registration  *radixv1.RadixRegistration
-	config        *config.Config
+	config        config.Config
 	restartedJobs map[string]radixv1.RadixBatchJob
 	clock         commonutils.Clock
 }

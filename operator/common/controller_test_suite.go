@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	"github.com/golang/mock/gomock"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -23,10 +24,10 @@ type ControllerTestSuite struct {
 	suite.Suite
 	KubeClient                *fake.Clientset
 	RadixClient               *fakeradix.Clientset
+	DynamicClient             client.Client
 	SecretProviderClient      *secretproviderfake.Clientset
 	kedaClient                *kedafake.Clientset
 	PromClient                *prometheusfake.Clientset
-	KubeUtil                  *kube.Kube
 	EventRecorder             *record.FakeRecorder
 	RadixInformerFactory      informers.SharedInformerFactory
 	KubeInformerFactory       kubeinformers.SharedInformerFactory
@@ -41,10 +42,10 @@ type ControllerTestSuite struct {
 // SetupTest Set up the test suite
 func (s *ControllerTestSuite) SetupTest() {
 	s.KubeClient = fake.NewSimpleClientset()
-	s.RadixClient = fakeradix.NewSimpleClientset()
+	s.RadixClient = fakeradix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
+	s.DynamicClient = test.CreateClient()
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.SecretProviderClient = secretproviderfake.NewSimpleClientset()
-	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient, s.kedaClient, s.SecretProviderClient)
 	s.PromClient = prometheusfake.NewSimpleClientset()
 	s.EventRecorder = &record.FakeRecorder{}
 	s.RadixInformerFactory = informers.NewSharedInformerFactory(s.RadixClient, 0)
@@ -84,8 +85,8 @@ func (s *ControllerTestSuite) WaitForNotSynced(failMessage string) {
 }
 
 // SyncedChannelCallback Callback to send a signal to the Synced
-func (s *ControllerTestSuite) SyncedChannelCallback() func(ctx context.Context, namespace string, name string, eventRecorder record.EventRecorder) error {
-	return func(ctx context.Context, namespace, name string, eventRecorder record.EventRecorder) error {
+func (s *ControllerTestSuite) SyncedChannelCallback() func(ctx context.Context, namespace string, name string) error {
+	return func(ctx context.Context, namespace, name string) error {
 		s.Synced <- true
 		return nil
 	}

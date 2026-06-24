@@ -11,7 +11,6 @@ import (
 	appsv1Listers "k8s.io/client-go/listers/apps/v1"
 	batchListers "k8s.io/client-go/listers/batch/v1"
 	coreListers "k8s.io/client-go/listers/core/v1"
-	networkingListers "k8s.io/client-go/listers/networking/v1"
 	rbacListers "k8s.io/client-go/listers/rbac/v1"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
@@ -35,12 +34,6 @@ const (
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
 	// RadixDeploymentObservedGeneration Used to verify kubernetes deployments are synced with active radix deployment, must contain the active RadixDeployments synced Generation
 	RadixDeploymentObservedGeneration = "radix.equinor.com/radix-deployment-observed-generation"
-)
-
-// Radix Finalizers
-const (
-	RadixEnvironmentFinalizer = "radix.equinor.com/environment-finalizer"
-	RadixDNSAliasFinalizer    = "radix.equinor.com/dnsalias-finalizer"
 )
 
 // Radix Labels
@@ -88,6 +81,7 @@ const (
 	RadixBatchNameLabel                 = "radix-batch-name"
 	RadixBatchJobNameLabel              = "radix-batch-job-name"
 	RadixBatchTypeLabel                 = "radix-batch-type"
+	RadixBatchCronLabel                 = "radix-batch-cron"
 	RadixAccessValidationLabel          = "radix-access-validation"
 	RadixPipelineTypeLabels             = "radix-pipeline"
 	RadixTriggerLabel                   = "radix-keda-trigger"
@@ -141,7 +135,6 @@ type Kube struct {
 	NamespaceLister          coreListers.NamespaceLister
 	SecretLister             coreListers.SecretLister
 	DeploymentLister         appsv1Listers.DeploymentLister
-	IngressLister            networkingListers.IngressLister
 	ServiceLister            coreListers.ServiceLister
 	RoleBindingLister        rbacListers.RoleBindingLister
 	ClusterRoleBindingLister rbacListers.ClusterRoleBindingLister
@@ -188,7 +181,6 @@ func NewWithListers(client kubernetes.Interface,
 		SecretLister:             kubeInformerFactory.Core().V1().Secrets().Lister(),
 		DeploymentLister:         kubeInformerFactory.Apps().V1().Deployments().Lister(),
 		ServiceLister:            kubeInformerFactory.Core().V1().Services().Lister(),
-		IngressLister:            kubeInformerFactory.Networking().V1().Ingresses().Lister(),
 		RoleBindingLister:        kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
 		ClusterRoleBindingLister: kubeInformerFactory.Rbac().V1().ClusterRoleBindings().Lister(),
 		RoleLister:               kubeInformerFactory.Rbac().V1().Roles().Lister(),

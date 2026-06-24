@@ -14,10 +14,24 @@ The radix-operator is the central piece of the [Radix platform](https://github.c
 
 The `radix-operator` and `radix-pipeline` are built using Github actions, then the `radix-operator` is deployed to cluster through a Helm release using the [Flux Operator](https://github.com/weaveworks/flux) whenever a new image is pushed to the container registry for the corresponding branch. Build and push to container registry is done using Github actions.
 
+## Repository layout
+
+- `operator` - The Radix Operator watches changes of radix CRDs and reconciles related native kubernetes resources, like converting a `RadixDeployment` to a kubernetes `Deployment`
+- `pipeline-runner` - The Pipeline Runners responsibility is to run pipeline jobs, like build-deploys or promote. Usually produces a new `RadixDeployment`. Is created whenever the Operator and the `RadixJob` resource.
+- `api-server` - The Radix API Server is the main entrypoint for our users via either `radix-cli` or `radix-web-console`, usually changes Radix CRDs (like creating a `RadixJob` resource, or changing desired replicas on a `RadixDeployment` resource).
+- `job-scheduler` - A Job Scheduler component that is run in user namespaces whenever  a user wants to run Job Components. It creates a new API in their namespace they can query to read status, or create the actuall jobs.
+- `webhook` - The Webhook configures kubernetes to validate Radix CRDs whenever they are created or updated, before they are persistent and allowed to trigger changes.
+
+- `e2e` - Itnegration tests that starts a real kubernets cluster with Kind, installs Radix, and runs a few smoketests that are not covered by Unit tests.
+- `hack` - misc. build scripts
+- `json-schema` - Allows end users to validate their `radixconfig.yaml` schema.
+- `pkg` - Shared libraries that other components in this repo depend on. Includes generated static Client APIs.
 
 ## Development Process
 
 The `radix-operator` project follows a **trunk-based development** approach.
+
+- Run `make test` and `make test-e2e` to test the operator
 
 ### 🔁 Workflow
 
@@ -55,9 +69,11 @@ The CRD schema generates use comment markers. Read more about supported markers 
 Generate CRD yaml files whenever you make changes to any of the types in `pkg/apis/radix/v1/`.
 
 Currently, only the CRD for RadixBatch and RadixApplication is generated.
+
 ```shell
 make crds
 ```
+
 This will also regenerate a json schema for RadixApplication into ./json-schema/radixapplication.json.
 This schema can be used in code editors like VS Code to get auto complete and validation when editing a radixconfig.yaml file.
 

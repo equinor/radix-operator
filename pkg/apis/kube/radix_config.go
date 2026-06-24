@@ -26,7 +26,7 @@ func (kubeutil *Kube) GetSubscriptionId(ctx context.Context) (string, error) {
 func (kubeutil *Kube) getRadixConfigFromMap(ctx context.Context, config string) (string, error) {
 	radixconfigmap, err := kubeutil.GetConfigMap(ctx, corev1.NamespaceDefault, configMapName)
 	if err != nil {
-		return "", fmt.Errorf("failed to get radix config map: %v", err)
+		return "", fmt.Errorf("failed to get radix config map: %w", err)
 	}
 	configValue := radixconfigmap.Data[config]
 	return configValue, nil

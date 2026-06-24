@@ -35,6 +35,8 @@ spec:
               value: {{ .Values.dnsZone }}
             - name: RADIX_ZONE
               value: {{ .Values.radixZone }}
+            - name: RADIX_CLUSTERNAME
+              value: {{ .Values.clusterName }}
             - name: APP_ALIAS_BASE_URL
               value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
@@ -151,12 +153,8 @@ spec:
               value: {{ .Values.radixBuildKitImageBuilder.image.repository }}:{{ .Values.radixBuildKitImageBuilder.image.tag | default "main-latest" }}
             - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE
               value: {{ .Values.gitClone.image.repository }}:{{ .Values.gitClone.image.tag | default "latest" }}
-            - name: RADIX_RESERVED_APP_DNS_ALIASES
-              value: {{ include "helm-toolkit.utils.joinMapWithComma" .Values.reservedAppDNSAlias | quote }}
-            - name: RADIX_RESERVED_DNS_ALIASES
-              value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.reservedDNSAlias | quote }}
-            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER
-              value: {{ .Values.ingress.certificate.automation.clusterIssuer }}
+            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER
+              value: {{ .Values.ingress.certificate.automation.gatewayClusterIssuer }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION
               value: {{ .Values.ingress.certificate.automation.duration }}
             - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE
@@ -169,6 +167,16 @@ spec:
               value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
             - name: RADIXOPERATOR_PIPELINE_IMAGE
               value: {{ .Values.radixPipelineRunner.image.repository }}:{{ .Values.radixPipelineRunner.image.tag | default .Chart.AppVersion }}
+
+            - name: RADIXOPERATOR_INGRESS_GATEWAY_NAME
+              value: {{ required "gateway name is required to operate" .Values.ingress.gateway.name }}
+            - name: RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE
+              value: {{ required "gateway namespace is required to operate" .Values.ingress.gateway.namespace }}
+            - name: RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME
+              value: {{ .Values.ingress.gateway.sectionName }}
+            - name: RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD
+              value: {{ .Values.safeToRestartBatchJobThreshold | quote }}
+
           livenessProbe:
             httpGet:
               path: /healthz

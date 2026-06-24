@@ -58,7 +58,7 @@ func (kubeutil *Kube) UpdateRadixEnvironment(ctx context.Context, radixEnvironme
 	log.Ctx(ctx).Debug().Msgf("Update RadixEnvironment %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
 	updated, err := kubeutil.RadixClient().RadixV1().RadixEnvironments().Update(ctx, radixEnvironment, metav1.UpdateOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to update RadixEnvironment object: %v", err)
+		return nil, fmt.Errorf("failed to update RadixEnvironment object: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msgf("Updated RadixEnvironment: %s in the application %s", radixEnvironment.Name, radixEnvironment.Spec.AppName)
 	return updated, nil
@@ -68,7 +68,7 @@ func (kubeutil *Kube) UpdateRadixEnvironment(ctx context.Context, radixEnvironme
 func (kubeutil *Kube) DeleteEnvironment(ctx context.Context, name string) error {
 	log.Ctx(ctx).Debug().Msgf("Delete RadixEnvironment %s", name)
 	if err := kubeutil.RadixClient().RadixV1().RadixEnvironments().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
-		return fmt.Errorf("failed to delete RadixEnvironment object: %v", err)
+		return fmt.Errorf("failed to delete RadixEnvironment object: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msgf("Deleted RadixEnvironment %s", name)
 	return nil

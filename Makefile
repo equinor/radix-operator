@@ -2,7 +2,7 @@ ENVIRONMENT ?= dev
 VERSION 	?= latest
 
 DNS_ZONE = dev.radix.equinor.com
-BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD | sed 's|/|-|g')
 
 CRD_TEMP_DIR := ./.temp-resources/
 CRD_CHART_DIR := ./charts/radix-operator/templates/
@@ -48,8 +48,6 @@ APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
 
 HASH := $(shell git rev-parse HEAD)
 
-CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
-
 TAG := $(BRANCH)-$(HASH)
 
 echo:
@@ -58,7 +56,6 @@ echo:
 	@echo "CONTAINER_REPO : " $(CONTAINER_REPO)
 	@echo "DOCKER_REGISTRY : " $(DOCKER_REGISTRY)
 	@echo "BRANCH : " $(BRANCH)
-	@echo "CLUSTER_NAME : " $(CLUSTER_NAME)
 	@echo "APP_ALIAS_BASE_URL : " $(APP_ALIAS_BASE_URL)
 	@echo "IS_PROD : " $(IS_PROD)
 	@echo "IS_DEV : " $(IS_DEV)
@@ -70,7 +67,12 @@ echo:
 
 .PHONY: test
 test:
-	LOG_LEVEL=warn go test -cover `go list ./... | grep -v 'pkg/client'`
+	LOG_LEVEL=warn go test -cover `go list ./... | grep -v 'github.com/equinor/radix-operator/pkg/client' | grep -v 'github.com/equinor/radix-operator/e2e'`
+
+.PHONY: test-e2e
+test-e2e: generate
+	cd e2e && go test -v -p 1 -timeout 30m ./...
+	# Note: -p 1 is used to run tests sequentially to allow printing logs sequentially
 
 .PHONY: mocks
 mocks: bootstrap
@@ -78,7 +80,6 @@ mocks: bootstrap
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/deployment_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/auxiliaryresourcemanager.go -destination ./pkg/apis/deployment/auxiliaryresourcemanager_mock.go -package deployment
-	mockgen -source ./pkg/apis/ingress/ingressannotationprovider.go -destination ./pkg/apis/ingress/ingressannotationprovider_mock.go -package ingress
 	mockgen -source ./pkg/apis/alert/alert.go -destination ./pkg/apis/alert/alert_mock.go -package alert
 	mockgen -source ./pkg/apis/alert/alertfactory.go -destination ./pkg/apis/alert/alertfactory_mock.go -package alert
 	mockgen -source ./pkg/apis/batch/syncer.go -destination ./pkg/apis/batch/syncer_mock.go -package batch
@@ -86,7 +87,8 @@ mocks: bootstrap
 	mockgen -source ./pkg/apis/dnsalias/syncer.go -destination ./pkg/apis/dnsalias/syncer_mock.go -package dnsalias
 	mockgen -source ./operator/dnsalias/internal/syncerfactory.go -destination ./operator/dnsalias/internal/syncerfactory_mock.go -package internal
 	mockgen -source ./operator/common/handler.go -destination ./operator/common/handler_mock.go -package common
-	mockgen -source ./pkg/apis/job/job_history.go -destination ./operator/job/job_history_mock.go -package job
+	mockgen -source ./operator/job/handler.go -destination ./operator/job/handler_mock.go -package job
+	mockgen -source ./pipeline-runner/model/step.go -destination ./pipeline-runner/model/mock/step.go -package mock
 	mockgen -source ./pipeline-runner/internal/wait/job.go -destination ./pipeline-runner/internal/wait/job_mock.go -package wait
 	mockgen -source ./pipeline-runner/internal/watcher/radix_deployment_watcher.go -destination ./pipeline-runner/internal/watcher/radix_deployment_watcher_mock.go -package watcher
 	mockgen -source ./pipeline-runner/internal/watcher/namespace.go -destination ./pipeline-runner/internal/watcher/namespace_mock.go -package watcher
@@ -101,6 +103,17 @@ mocks: bootstrap
 	mockgen -source ./job-scheduler/api/v1/handlers/batches/batch_handler.go -destination ./job-scheduler/api/v1/handlers/batches/mock/batch_mock.go -package mock
 	mockgen -source ./job-scheduler/pkg/notifications/notifier.go -destination ./job-scheduler/pkg/notifications/notifier_mock.go -package notifications
 	mockgen -source ./job-scheduler/pkg/batch/history.go -destination ./job-scheduler/pkg/batch/history_mock.go -package batch
+	mockgen -source ./api-server/api/buildstatus/models/buildstatus.go -destination ./api-server/api/test/mock/buildstatus_mock.go -package mock
+	mockgen -source ./api-server/api/deployments/deployment_handler.go -destination ./api-server/api/deployments/mock/deployment_handler_mock.go -package mock
+	mockgen -source ./api-server/api/metrics/prometheus/prometheus_client.go -destination ./api-server/api/metrics/prometheus/mock/prometheus_client_mock.go -package mock
+	mockgen -source ./api-server/api/metrics/metrics_handler.go -destination ./api-server/api/metrics/mock/metrics_handler_mock.go -package mock
+	mockgen -source ./api-server/api/environments/job_handler.go -destination ./api-server/api/environments/mock/job_handler_mock.go -package mock
+	mockgen -source ./api-server/api/environments/environment_handler.go -destination ./api-server/api/environments/mock/environment_handler_mock.go -package mock
+	mockgen -source ./api-server/api/utils/tlsvalidation/interface.go -destination ./api-server/api/utils/tlsvalidation/mock/tls_secret_validator_mock.go -package mock
+	mockgen -source ./api-server/api/events/event_handler.go -destination ./api-server/api/events/mock/event_handler_mock.go -package mock
+	mockgen -source ./api-server/api/environmentvariables/env_vars_handler.go -destination ./api-server/api/environmentvariables/env_vars_handler_mock.go -package environmentvariables
+	mockgen -source ./api-server/api/environmentvariables/env_vars_handler_factory.go -destination ./api-server/api/environmentvariables/env_vars_handler_factory_mock.go -package environmentvariables
+	mockgen -source ./api-server/api/utils/token/validator.go -destination ./api-server/api/utils/token/mock/validator_mock.go -package mock
 
 
 .PHONY: tidy
@@ -113,12 +126,12 @@ build-pipeline:
 
 .PHONY: deploy-pipeline
 deploy-pipeline:
-	az acr login --name $(CONTAINER_REPO)
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) --platform linux/arm64,linux/amd64 -f pipeline.Dockerfile --push .
 
 .PHONY: deploy-pipeline-arm64
 deploy-pipeline-arm64:
-	az acr login --name $(CONTAINER_REPO)
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) --platform linux/arm64 -f pipeline.Dockerfile --push .
 
 .PHONY: build-operator
@@ -127,34 +140,56 @@ build-operator:
 
 .PHONY: deploy-operator
 deploy-operator: build-operator
-	az acr login --name $(CONTAINER_REPO)
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(TAG)
+
+.PHONY: build-webhook
+build-webhook:
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-webhook:$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(TAG) --platform linux/arm64,linux/amd64 -f webhook.Dockerfile . --no-cache
+
+.PHONY: deploy-webhook
+deploy-webhook:
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-webhook:$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(TAG) --platform linux/arm64,linux/amd64 -f webhook.Dockerfile --push .
+
+.PHONY: build-api-server
+build-api-server:
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-api-server:$(VERSION) -t $(DOCKER_REGISTRY)/radix-api-server:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-api-server:$(TAG) --platform linux/arm64,linux/amd64 -f api-server.Dockerfile . --no-cache
+
+.PHONY: deploy-api-server
+deploy-api-server: 
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-api-server:$(VERSION) -t $(DOCKER_REGISTRY)/radix-api-server:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-api-server:$(TAG) --platform linux/arm64,linux/amd64 -f api-server.Dockerfile --push .
 
 ROOT_PACKAGE=github.com/equinor/radix-operator
 CUSTOM_RESOURCE_NAME=radix
 CUSTOM_RESOURCE_VERSION=v1
 
-.PHONY: vendor
-vendor:
-	go mod vendor
-
 .PHONY: swagger
-swagger: swagger-job-scheduler
+swagger: swagger-job-scheduler swagger-api-server
 
 .PHONY: swagger-job-scheduler
 swagger-job-scheduler: SHELL:=/bin/bash
 swagger-job-scheduler: bootstrap
-	swagger generate spec -w ./job-scheduler/ -o ./job-scheduler/swaggerui/html/swagger.json --scan-models --exclude-deps
-	swagger validate ./job-scheduler/swaggerui/html/swagger.json
+	cd job-scheduler && swagger generate spec -o ./swaggerui/html/swagger.json --scan-models --exclude-deps
+	cd job-scheduler && swagger validate ./swaggerui/html/swagger.json
+
+# This make command is only needed for local testing now
+# we also do make swagger inside Dockerfile
+.PHONY: swagger-api-server
+swagger-api-server: SHELL:=/bin/bash
+swagger-api-server: bootstrap
+	cd api-server && swagger generate spec -o ./swaggerui/html/swagger.json --scan-models --exclude-deps
+	cd api-server && swagger validate ./swaggerui/html/swagger.json
 
 .PHONY: code-gen
 code-gen: bootstrap
 	./hack/update-codegen.sh
 
 .PHONY: helmresources
-helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixwebhook delete-temp-resources
+helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixalert-crd radixenvironment-crd radixjob-crd radixwebhook delete-temp-resources
 
 .PHONY: radixregistration-crd
 radixregistration-crd: temp-resources
@@ -163,7 +198,7 @@ radixregistration-crd: temp-resources
 .PHONY: radixapplication-crd
 radixapplication-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixapplications.yaml $(CRD_CHART_DIR)radixapplication.yaml
-	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml > $(JSON_SCHEMA_DIR)radixapplication.json
+	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml | jq 'del(.properties.status)' > $(JSON_SCHEMA_DIR)radixapplication.json
 
 .PHONY: radixbatch-crd
 radixbatch-crd: temp-resources
@@ -176,6 +211,18 @@ radixdeployment-crd: temp-resources
 .PHONY: radixdnsalias-crd
 radixdnsalias-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdnsaliases.yaml $(CRD_CHART_DIR)radixdnsalias.yaml
+
+.PHONY: radixalert-crd
+radixalert-crd: temp-resources
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixalerts.yaml $(CRD_CHART_DIR)radixalert.yaml
+
+.PHONY: radixenvironment-crd
+radixenvironment-crd: temp-resources
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixenvironments.yaml $(CRD_CHART_DIR)radixenvironment.yaml
+
+.PHONY: radixjob-crd
+radixjob-crd: temp-resources
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixjobs.yaml $(CRD_CHART_DIR)radixjob.yaml
 
 .PHONY: radixwebhook
 radixwebhook: temp-resources
@@ -193,6 +240,7 @@ delete-temp-resources:
 
 .PHONY: lint
 lint: bootstrap
+	go fmt ./...
 	golangci-lint run
 
 .PHONY: generate
@@ -202,42 +250,26 @@ generate: bootstrap code-gen helmresources mocks swagger
 verify-generate: bootstrap tidy generate
 	git diff --exit-code
 
-.PHONY: apply-ra
-apply-ra: bootstrap
-	kubectl apply -f ./charts/radix-operator/templates/radixapplication.yaml
-
-.PHONY: apply-rb
-apply-rb: bootstrap
-	kubectl apply -f ./charts/radix-operator/templates/radixbatch.yaml
-
-.PHONY: apply-rd
-apply-rd: bootstrap
-	kubectl apply -f ./charts/radix-operator/templates/radixdeployment.yaml
-
 HAS_GOLANGCI_LINT  := $(shell command -v golangci-lint;)
 HAS_MOCKGEN        := $(shell command -v mockgen;)
 HAS_CONTROLLER_GEN := $(shell command -v controller-gen;)
 HAS_YQ             := $(shell command -v yq;)
-HAS_KUBECTL        := $(shell command -v kubectl;)
 HAS_SWAGGER        := $(shell command -v swagger;)
 
 .PHONY: bootstrap
-bootstrap: vendor
+bootstrap: 
 ifndef HAS_GOLANGCI_LINT
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.64.3
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
 endif
 ifndef HAS_MOCKGEN
-	go install github.com/golang/mock/mockgen@v1.6.0
+	go install go.uber.org/mock/mockgen@v0.6.0
 endif
 ifndef HAS_CONTROLLER_GEN
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.2
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.0
 endif
 ifndef HAS_YQ
 	go install github.com/mikefarah/yq/v4@latest
 endif
-ifndef HAS_KUBECTL
-	go install k8s.io/kubernetes/cmd/kubectl@latest
-endif
 ifndef HAS_SWAGGER
-	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.33.1
 endif

@@ -12,20 +12,6 @@ alertControllerThreads: 1
 kubeClientRateLimitBurst: 5
 kubeClientRateLimitQPS: 5
 
-reservedAppDNSAlias:
-  api: radix-api
-  canary: radix-canary-golang
-  console: radix-web-console
-  cost-api: radix-cost-allocation-api
-  webhook: radix-github-webhook
-reservedDNSAlias:
-  - grafana
-  - prometheus
-  - www
-  - app
-  - playground
-  - dev
-
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
@@ -95,24 +81,16 @@ resources:
     memory: 1Gi
 
 ingress:
+  gateway:
+    name: ""
+    namespace: ""
+    sectionName: "https"
+
   certificate:
     automation:
-      clusterIssuer: ""
       duration: "2160h"
       renewBefore: "720h"
-  configuration:
-    - name: websocketfriendly
-      annotations:
-        nginx.ingress.kubernetes.io/proxy-read-timeout: 3600
-        nginx.ingress.kubernetes.io/proxy-send-timeout: 3600
-    - name: stickysessions
-      annotations:
-        nginx.ingress.kubernetes.io/affinity: cookie
-        nginx.ingress.kubernetes.io/session-cookie-hash: sha1
-        nginx.ingress.kubernetes.io/session-cookie-name: INGRESSCOOKIE
-    - name: leastconnectedlb
-      annotations:
-        nginx.org/lb-method: random
+      gatewayClusterIssuer: ""
 
 task:
   orphanedEnvironmentsRetentionPeriod: 720h
@@ -153,6 +131,7 @@ pipelineJobsHistoryLimit: 5
 pipelineJobsHistoryPeriodLimit: "720h"
 logLevel: "INFO"
 logPretty: false
+safeToRestartBatchJobThreshold: 259200 # 3 days in seconds
 oauthProxyDefaultIssuerUrl: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
 externalRegistryDefaultAuthSecret: "" # Name of the secret containing default container registry credentials for pulling images when building with buildah and pulling external images for components and jobs
 
@@ -212,7 +191,7 @@ radixPipelineRunner:
     tag: ""
 
 radixImageBuilder:
-  image: 
+  image:
     repository: ghcr.io/equinor/radix/image-builder
     tag: latest
 
@@ -227,15 +206,142 @@ radixJobScheduler:
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
 
-radixWebhook:
-  enabled: false
+radixApiServer:
+  useProfiler: false
+  logLevel: info
+  logPretty: false
+  prometheusUrl: ""
+  oidcAzureAudience: ""
+  oidcAzureIssuer: ""
+  oidcKubernetesIssuer: ""
+  oidcKubernetesAudience: ""
+  clusterOidcIssuers: ""
+  clusterEgressIps: ""
 
+  image:
+    repository: ghcr.io/equinor/radix/api-server
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+    pullSecrets: [] # List of image pull secret names to use for the radix-api-server image
+
+  resources:
+    limits:
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  securityContext:
+    privileged: false
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+
+  serviceMonitor:
+    enabled: true
+    interval: 5s
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+    # maxUnavailable: 1
+
+  networkPolicy:
+    enabled: true
+    ingress:
+      from: []
+        # - namespaceSelector:
+        #     matchLabels:
+        #       purpose: ingress
+        #   podSelector:
+        #     matchLabels:
+        #       gateway.networking.k8s.io/gateway-name: gateway
+
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+    # behavior:
+    #   scaleDown:
+    #     stabilizationWindowSeconds: 300
+    #     policies:
+    #       - type: Percent
+    #         value: 10
+    #         periodSeconds: 60
+    #   scaleUp:
+    #     stabilizationWindowSeconds: 0
+    #     policies:
+    #       - type: Percent
+    #         value: 100
+    #         periodSeconds: 15
+
+  routes:
+    main:
+      enabled: true
+      annotations: {}
+      labels: {}
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: gateway
+          namespace: istio-system
+          sectionName: https
+      hostnames:
+        - api.radix.equinor.com
+        #  - "api.{{ .Values.dnsZone }}"
+        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.dnsZone }}"
+        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.clusterName }}.{{ .Values.dnsZone }}"
+      backendPort: 3002
+      filters:
+        - responseHeaderModifier:
+            add:
+              - name: Strict-Transport-Security
+                value: max-age=31536000; includeSubDomains
+          type: ResponseHeaderModifier
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+radixWebhook:
   logLevel: info
   logPretty: false
   requireAdGroups: true
   requireConfigurationItem: true
 
-  image: 
+  reservedAppDNSAliases:
+    api: radix-api
+    canary: radix-canary-golang
+    console: radix-web-console
+    cost-api: radix-cost-allocation-api
+
+  reservedDNSAliases:
+    - grafana
+    - prometheus
+    - www
+    - app
+    - playground
+    - dev
+
+  image:
     repository: ghcr.io/equinor/radix/webhook
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""

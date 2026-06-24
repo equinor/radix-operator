@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config/containerregistry"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -177,7 +176,7 @@ func Test_DoNot_SyncAppID_WhenAddedLater(t *testing.T) {
 	rd, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, rdBuilder)
 	require.NoError(t, err, "failed to apply deployment1")
 
-	rr, err := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{})
+	rr, err := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), rd.Spec.AppName, metav1.GetOptions{}) //nolint:staticcheck
 	require.NoError(t, err)
 
 	rr.Spec.AppID = v1.ULID{ULID: ulid.Make()} // Set a new app ID
@@ -399,7 +398,7 @@ func Test_CommandAndArgs(t *testing.T) {
 			assert.Empty(t, job2.GetCommand(), "command in job 2 should be empty")
 			assert.Empty(t, job2.GetArgs(), "args in job 2 should be empty")
 
-			deploymentList, err := kubeClient.AppsV1().Deployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).List(context.Background(), metav1.ListOptions{})
+			deploymentList, err := kubeClient.AppsV1().Deployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).List(context.Background(), metav1.ListOptions{}) //nolint:staticcheck
 			require.NoError(t, err, "failed to list deployments")
 			deployments := slice.Reduce(deploymentList.Items, make(map[string]*appsv1.Deployment, len(deploymentList.Items)), func(acc map[string]*appsv1.Deployment, depl appsv1.Deployment) map[string]*appsv1.Deployment {
 				acc[depl.Name] = &depl
@@ -446,11 +445,11 @@ func applyDeploymentWithSyncWithComponentResources(t *testing.T, origRequests, o
 				WithResource(origRequests, origLimits)).
 			WithAppName("any-app").
 			WithEnvironment("test"))
-	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR()}
+	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR(), config: &testConfig}
 }
 
 func TestDeployment_createJobAuxDeployment(t *testing.T) {
-	deploy := &Deployment{radixDeployment: &v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "deployment1", UID: "uid1"}}, config: &config.Config{ContainerRegistryConfig: containerregistry.Config{ExternalRegistryAuthSecret: "an-external-registry-secret"}}}
+	deploy := &Deployment{radixDeployment: &v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "deployment1", UID: "uid1"}}, config: &config.Config{ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: "an-external-registry-secret"}}}
 	jobAuxDeployment := deploy.createJobAuxDeployment("job1", "job1-aux")
 	assert.Equal(t, "job1-aux", jobAuxDeployment.GetName())
 	resources := jobAuxDeployment.Spec.Template.Spec.Containers[0].Resources

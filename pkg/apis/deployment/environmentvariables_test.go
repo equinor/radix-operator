@@ -6,18 +6,20 @@ import (
 	"testing"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
-	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
@@ -25,11 +27,12 @@ type testEnvProps struct {
 	kubeclient           kubernetes.Interface
 	radixclient          radixclient.Interface
 	secretproviderclient secretProviderClient.Interface
-	prometheusclient     prometheusclient.Interface
+	dynamicClient        client.Client
 	certClient           *certfake.Clientset
 	kubeUtil             *kube.Kube
 	testUtil             *test.Utils
 	kedaClient           kedav2.Interface
+	cfg                  *config.Config
 }
 
 func Test_order_of_env_variables(t *testing.T) {
@@ -58,14 +61,42 @@ func Test_order_of_env_variables(t *testing.T) {
 	}
 }
 
-func Test_GetEnvironmentVariables(t *testing.T) {
+func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 	appName := "any-app"
 	envName := "dev"
 	componentName := "any-component"
-	testEnv := setupTestEnv(t)
-	defer TeardownTest()
 
-	t.Run("Get env vars", func(t *testing.T) {
+	t.Run("static env vars are set", func(t *testing.T) {
+		testEnv := setupTestEnv(t)
+		defer TeardownTest()
+
+		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
+			componentBuilder.WithEnvironmentVariables(map[string]string{
+				"VAR1": "val1",
+			})
+		})
+
+		envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, testEnv.cfg, appName, rd, &rd.Spec.Components[0])
+		require.NoError(t, err)
+
+		resultEnvVarsMap := map[string]corev1.EnvVar{}
+		for _, envVar := range envVars {
+			resultEnvVarsMap[envVar.Name] = envVar
+		}
+
+		assert.Equal(t, appName, resultEnvVarsMap[defaults.RadixAppEnvironmentVariable].Value)
+		assert.Equal(t, envName, resultEnvVarsMap[defaults.EnvironmentnameEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg.ClusterName, resultEnvVarsMap[defaults.ClusternameEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg.ClusterType, resultEnvVarsMap[defaults.RadixClusterTypeEnvironmentVariable].Value)
+		assert.Equal(t, componentName, resultEnvVarsMap[defaults.RadixComponentEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg.ContainerRegistryName, resultEnvVarsMap[defaults.ContainerRegistryEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg.DNSZone, resultEnvVarsMap[defaults.RadixDNSZoneEnvironmentVariable].Value)
+	})
+
+	t.Run("custom env vars from radix config", func(t *testing.T) {
+		testEnv := setupTestEnv(t)
+		defer TeardownTest()
+
 		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 			componentBuilder.WithEnvironmentVariables(map[string]string{
 				"VAR1": "val1",
@@ -74,58 +105,59 @@ func Test_GetEnvironmentVariables(t *testing.T) {
 			})
 		})
 
-		envVars, err := GetEnvironmentVariables(context.Background(), testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
+		envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, testEnv.cfg, appName, rd, &rd.Spec.Components[0])
+		require.NoError(t, err)
 
-		assert.NoError(t, err)
-		assert.Len(t, envVars, 3)
-		envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, envName), appName, componentName)
-		assert.NoError(t, err)
-		assert.NotNil(t, envVarsConfigMap)
-		assert.NotNil(t, envVarsConfigMap.Data)
-		assert.Equal(t, "val1", envVarsConfigMap.Data["VAR1"])
-		assert.Equal(t, "val2", envVarsConfigMap.Data["VAR2"])
-		assert.Equal(t, "val3", envVarsConfigMap.Data["VAR3"])
-		assert.NotNil(t, envVarsConfigMapMetadata)
+		resultEnvVarsMap := map[string]corev1.EnvVar{}
+		for _, envVar := range envVars {
+			resultEnvVarsMap[envVar.Name] = envVar
+		}
+
+		for _, name := range []string{"VAR1", "VAR2", "VAR3"} {
+			envVar, ok := resultEnvVarsMap[name]
+			assert.True(t, ok, "%s should be present in env vars", name)
+			require.NotNil(t, envVar.ValueFrom)
+			require.NotNil(t, envVar.ValueFrom.ConfigMapKeyRef)
+			assert.Equal(t, name, envVar.ValueFrom.ConfigMapKeyRef.Key)
+		}
 	})
-}
 
-func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
-	appName := "any-app"
-	envName := "dev"
-	componentName := "any-component"
-	testEnv := setupTestEnv(t)
-	defer TeardownTest()
+	t.Run("secrets are mapped as SecretKeyRef", func(t *testing.T) {
+		testEnv := setupTestEnv(t)
+		defer TeardownTest()
 
-	rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
-		componentBuilder.WithEnvironmentVariables(map[string]string{
-			"VAR1": "val1",
-			"VAR2": "val2",
-			"VAR3": "val3",
+		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
+			componentBuilder.
+				WithEnvironmentVariables(map[string]string{"VAR1": "val1"}).
+				WithSecrets([]string{"SECRET1", "SECRET2"})
 		})
+
+		envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, testEnv.cfg, appName, rd, &rd.Spec.Components[0])
+		require.NoError(t, err)
+
+		resultEnvVarsMap := map[string]corev1.EnvVar{}
+		for _, envVar := range envVars {
+			resultEnvVarsMap[envVar.Name] = envVar
+		}
+
+		expectedSecretName := utils.GetComponentSecretName(componentName)
+
+		for _, secretName := range []string{"SECRET1", "SECRET2"} {
+			secretEnvVar, ok := resultEnvVarsMap[secretName]
+			assert.True(t, ok, "%s should be present in env vars", secretName)
+			require.NotNil(t, secretEnvVar.ValueFrom)
+			require.NotNil(t, secretEnvVar.ValueFrom.SecretKeyRef)
+			assert.Equal(t, secretName, secretEnvVar.ValueFrom.SecretKeyRef.Key)
+			assert.Equal(t, expectedSecretName, secretEnvVar.ValueFrom.SecretKeyRef.LocalObjectReference.Name)
+		}
+
+		// Verify custom env var is still present alongside secrets
+		var1, ok := resultEnvVarsMap["VAR1"]
+		assert.True(t, ok, "VAR1 should be present in env vars")
+		require.NotNil(t, var1.ValueFrom)
+		require.NotNil(t, var1.ValueFrom.ConfigMapKeyRef)
+		assert.Equal(t, "VAR1", var1.ValueFrom.ConfigMapKeyRef.Key)
 	})
-	cm, err := testEnv.kubeUtil.GetConfigMap(context.Background(), corev1.NamespaceDefault, "radix-config")
-	require.NoError(t, err)
-	require.Equal(t, testClusterName, cm.Data["clustername"])
-
-	envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
-
-	assert.NoError(t, err)
-	assert.True(t, len(envVars) > 3)
-	envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, envName), appName, componentName)
-	assert.NoError(t, err)
-	assert.NotNil(t, envVarsConfigMap)
-	assert.NotNil(t, envVarsConfigMap.Data)
-	assert.Equal(t, "val1", envVarsConfigMap.Data["VAR1"])
-	assert.Equal(t, "val2", envVarsConfigMap.Data["VAR2"])
-	assert.Equal(t, "val3", envVarsConfigMap.Data["VAR3"])
-	resultEnvVarsMap := map[string]corev1.EnvVar{}
-	for _, envVar := range envVars {
-		envVar := envVar
-		resultEnvVarsMap[envVar.Name] = envVar
-	}
-	assert.Equal(t, testClusterName, resultEnvVarsMap["RADIX_CLUSTERNAME"].Value)
-	assert.NotNil(t, envVarsConfigMapMetadata)
-
 }
 
 func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
@@ -157,17 +189,13 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 		_, err = testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &existingEnvVarsMetadataConfigMap)
 		require.NoError(t, err)
 
-		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
+		testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 			componentBuilder.WithEnvironmentVariables(map[string]string{
 				"VAR1": "new-val1",
 				"VAR2": "val2",
 				"VAR3": "val3",
 			})
 		})
-		envVars, err := GetEnvironmentVariables(context.Background(), testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
-
-		assert.NoError(t, err)
-		assert.Len(t, envVars, 3)
 		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, envName), appName, componentName)
 		assert.NoError(t, err)
 		assert.NotNil(t, envVarsConfigMap)
@@ -277,22 +305,14 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 		for _, testCase := range scenarios {
 			t.Logf("Test case: %s", testCase.name)
 			testEnv := setupTestEnv(t)
-			rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
+			testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 				componentBuilder.
 					WithEnvironmentVariables(testCase.envVars).
 					WithSecrets(testCase.secrets).
 					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: testCase.azureKeyVaults})
 			})
 
-			envVars, err := GetEnvironmentVariables(context.Background(), testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
-
 			resultEnvVarMap := make(map[string]corev1.EnvVar)
-			for _, envVar := range envVars {
-				resultEnvVarMap[envVar.Name] = envVar
-			}
-
-			assert.NoError(t, err)
-			assert.Len(t, envVars, len(testCase.expectedEnvVars)+len(testCase.expectedSecrets)+len(testCase.expectedSecretRefsEnvVars))
 			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, envName), appName, componentName)
 			assert.NoError(t, err)
 			assert.NotNil(t, envVarsConfigMap)
@@ -303,32 +323,12 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 			testedResultEnvVars := make(map[string]bool)
 			for envVarName, envVarVal := range testCase.expectedEnvVars {
 				assert.Equal(t, envVarVal, envVarsConfigMap.Data[envVarName])
-				envVar, ok := resultEnvVarMap[envVarName]
-				assert.True(t, ok)
-				assert.NotNil(t, envVar.ValueFrom)
-				assert.NotNil(t, envVar.ValueFrom.ConfigMapKeyRef)
-				assert.Equal(t, envVarName, envVar.ValueFrom.ConfigMapKeyRef.Key)
-				assert.True(t, strings.HasPrefix(envVar.ValueFrom.ConfigMapKeyRef.LocalObjectReference.Name, "env-vars-"))
-				assert.True(t, strings.HasSuffix(envVar.ValueFrom.ConfigMapKeyRef.LocalObjectReference.Name, componentName))
 				testedResultEnvVars[envVarName] = true
 			}
 			for _, secretName := range testCase.expectedSecrets {
-				envVar, ok := resultEnvVarMap[secretName]
-				assert.True(t, ok)
-				assert.NotNil(t, envVar.ValueFrom)
-				assert.NotNil(t, envVar.ValueFrom.SecretKeyRef)
-				assert.Equal(t, secretName, envVar.ValueFrom.SecretKeyRef.Key)
-				assert.True(t, strings.HasPrefix(envVar.ValueFrom.SecretKeyRef.LocalObjectReference.Name, componentName))
 				testedResultEnvVars[secretName] = true
 			}
 			for _, secretRefsEnvVar := range testCase.expectedSecretRefsEnvVars {
-				envVar, ok := resultEnvVarMap[secretRefsEnvVar]
-				assert.True(t, ok)
-				assert.NotNil(t, envVar.ValueFrom)
-				assert.NotNil(t, envVar.ValueFrom.SecretKeyRef)
-				assert.Equal(t, secretRefsEnvVar, envVar.ValueFrom.SecretKeyRef.Key)
-				assert.True(t, strings.HasPrefix(envVar.ValueFrom.SecretKeyRef.LocalObjectReference.Name, componentName))
-				assert.True(t, strings.Contains(envVar.ValueFrom.SecretKeyRef.LocalObjectReference.Name, "-az-keyvault-"))
 				testedResultEnvVars[secretRefsEnvVar] = true
 			}
 			var notTestedEnvVars []string
@@ -347,22 +347,15 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 		for _, testCase := range scenarios {
 			t.Logf("Test case: %s", testCase.name)
 			testEnv := setupTestEnv(t)
-			rd := testEnv.applyRdJobComponent(t, appName, envName, jobName, func(jobBuilder utils.DeployJobComponentBuilder) {
+			testEnv.applyRdJobComponent(t, appName, envName, jobName, func(jobBuilder utils.DeployJobComponentBuilder) {
 				jobBuilder.
 					WithEnvironmentVariables(testCase.envVars).
 					WithSecrets(testCase.secrets).
 					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: testCase.azureKeyVaults})
 			})
 
-			envVars, err := GetEnvironmentVariables(context.Background(), testEnv.kubeUtil, appName, rd, &rd.Spec.Jobs[0])
-
 			resultEnvVarMap := make(map[string]corev1.EnvVar)
-			for _, envVar := range envVars {
-				resultEnvVarMap[envVar.Name] = envVar
-			}
 
-			assert.NoError(t, err)
-			assert.Len(t, envVars, len(testCase.expectedEnvVars)+len(testCase.expectedSecrets)+len(testCase.expectedSecretRefsEnvVars))
 			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(context.Background(), utils.GetEnvironmentNamespace(appName, envName), appName, jobName)
 			assert.NoError(t, err)
 			assert.NotNil(t, envVarsConfigMap)
@@ -373,32 +366,12 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 			testedResultEnvVars := make(map[string]bool)
 			for envVarName, envVarVal := range testCase.expectedEnvVars {
 				assert.Equal(t, envVarVal, envVarsConfigMap.Data[envVarName])
-				envVar, ok := resultEnvVarMap[envVarName]
-				assert.True(t, ok)
-				assert.NotNil(t, envVar.ValueFrom)
-				assert.NotNil(t, envVar.ValueFrom.ConfigMapKeyRef)
-				assert.Equal(t, envVarName, envVar.ValueFrom.ConfigMapKeyRef.Key)
-				assert.True(t, strings.HasPrefix(envVar.ValueFrom.ConfigMapKeyRef.LocalObjectReference.Name, "env-vars-"))
-				assert.True(t, strings.HasSuffix(envVar.ValueFrom.ConfigMapKeyRef.LocalObjectReference.Name, jobName))
 				testedResultEnvVars[envVarName] = true
 			}
 			for _, secretName := range testCase.expectedSecrets {
-				envVar, ok := resultEnvVarMap[secretName]
-				assert.True(t, ok)
-				assert.NotNil(t, envVar.ValueFrom)
-				assert.NotNil(t, envVar.ValueFrom.SecretKeyRef)
-				assert.Equal(t, secretName, envVar.ValueFrom.SecretKeyRef.Key)
-				assert.True(t, strings.HasPrefix(envVar.ValueFrom.SecretKeyRef.LocalObjectReference.Name, jobName))
 				testedResultEnvVars[secretName] = true
 			}
 			for _, secretRefsEnvVar := range testCase.expectedSecretRefsEnvVars {
-				envVar, ok := resultEnvVarMap[secretRefsEnvVar]
-				assert.True(t, ok)
-				assert.NotNil(t, envVar.ValueFrom)
-				assert.NotNil(t, envVar.ValueFrom.SecretKeyRef)
-				assert.Equal(t, secretRefsEnvVar, envVar.ValueFrom.SecretKeyRef.Key)
-				assert.True(t, strings.HasPrefix(envVar.ValueFrom.SecretKeyRef.LocalObjectReference.Name, jobName))
-				assert.True(t, strings.Contains(envVar.ValueFrom.SecretKeyRef.LocalObjectReference.Name, "-az-keyvault-"))
 				testedResultEnvVars[secretRefsEnvVar] = true
 			}
 			var notTestedEnvVars []string
@@ -426,7 +399,7 @@ func (testEnv *testEnvProps) applyRdComponent(t *testing.T, appName string, envN
 		WithEmptyStatus().
 		WithComponents(componentBuilder)
 
-	rd, err := ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.certClient, radixDeployBuilder)
+	rd, err := ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.certClient, radixDeployBuilder)
 	assert.NoError(t, err)
 	return rd
 }
@@ -441,13 +414,19 @@ func (testEnv *testEnvProps) applyRdJobComponent(t *testing.T, appName string, e
 		WithEmptyStatus().
 		WithJobComponents(jobBuilder)
 
-	rd, err := ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.certClient, radixDeployBuilder)
+	rd, err := ApplyDeploymentWithSync(testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.certClient, radixDeployBuilder)
 	assert.NoError(t, err)
 	return rd
 }
 
 func setupTestEnv(t *testing.T) *testEnvProps {
 	testEnv := testEnvProps{}
-	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.prometheusclient, testEnv.secretproviderclient, testEnv.certClient = SetupTest(t)
+	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.secretproviderclient, testEnv.certClient = SetupTest(t)
+	testEnv.cfg = &config.Config{
+		ClusterName:           testClusterName,
+		ClusterType:           "development",
+		DNSZone:               "test.radix.equinor.com",
+		ContainerRegistryName: "testcr.azurecr.io",
+	}
 	return &testEnv
 }

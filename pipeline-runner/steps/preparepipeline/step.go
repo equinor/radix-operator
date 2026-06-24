@@ -26,16 +26,15 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // PreparePipelinesStepImplementation Step to prepare radixconfig and Tekton pipelines
@@ -92,8 +91,8 @@ func NewPreparePipelinesStep(opt ...Option) model.Step {
 	return &implementation
 }
 
-func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
+func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, dynamicClient client.Client, tektonClient tektonclient.Interface, rr *radixv1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, dynamicClient, tektonClient, rr)
 	if step.contextBuilder == nil {
 		step.contextBuilder = prepareInternal.NewContextBuilder()
 	}
@@ -183,8 +182,7 @@ func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo 
 		return "", "", err
 	}
 	tagsConcat := strings.Join(tags, " ")
-
-	if err = radixvalidators.GitTagsContainIllegalChars(tagsConcat); err != nil {
+	if err = prepareInternal.GitTagsContainIllegalChars(tagsConcat); err != nil {
 		return "", "", err
 	}
 
@@ -243,6 +241,21 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 		return fmt.Errorf("failed to checkout commit %s: %w", gitCommit, err)
 	}
 
+	pipelineInfo.EnvironmentSubPipelineParams = map[string]model.SubPipelineParams{}
+	for _, targetEnv := range pipelineInfo.TargetEnvironments {
+		pipelineInfo.EnvironmentSubPipelineParams[targetEnv.Environment] = model.SubPipelineParams{
+			PipelineType: pipelineInfo.PipelineArguments.PipelineType,
+			Environment:  targetEnv.Environment,
+			GitSSHUrl:    step.GetRegistration().Spec.CloneURL,
+			GitRef:       pipelineInfo.GetGitRef(),
+			GitRefType:   pipelineInfo.GetGitRefTypeOrDefault(),
+			GitCommit:    pipelineInfo.GitCommitHash,
+			GitTags:      pipelineInfo.GitTags,
+		}
+	}
+
+	pipelineInfo.EnvironmentSubPipelineComponentNames = getComponentNames(pipelineInfo.RadixApplication)
+
 	var errs []error
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
 	timestamp := time.Now().Format("20060102150405")
@@ -259,6 +272,7 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 				Environment:  targetEnv.Environment,
 				PipelineFile: pipelineFilePath,
 			})
+
 		}
 	}
 
@@ -324,7 +338,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipeline
 
 func (step *PreparePipelinesStepImplementation) getPromoteSourceDeploymentGitInfo(ctx context.Context, sourceEnvName, sourceDeploymentName string) (string, string, error) {
 	ns := utils.GetEnvironmentNamespace(step.GetAppName(), sourceEnvName)
-	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(ns).Get(ctx, sourceDeploymentName, metav1.GetOptions{}) //step.GetKubeUtil().GetRadixDeployment(ctx, ns, sourceDeploymentName)
+	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(ns).Get(ctx, sourceDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return "", "", err
 	}
@@ -371,12 +385,12 @@ func getBuildDeployPipelineShouldBeStopped(pipelineInfo *model.PipelineInfo) (bo
 
 func (step *PreparePipelinesStepImplementation) logPipelineInfo(ctx context.Context, pipelineInfo *model.PipelineInfo) {
 	stringBuilder := strings.Builder{}
-	stringBuilder.WriteString(fmt.Sprintf("Prepare pipeline %s for the app %s", pipelineInfo.Definition.Type, step.GetAppName()))
+	fmt.Fprintf(&stringBuilder, "Prepare pipeline %s for the app %s", pipelineInfo.Definition.Type, step.GetAppName())
 	if len(pipelineInfo.GetGitRefOrDefault()) > 0 {
-		stringBuilder.WriteString(fmt.Sprintf(", the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault()))
+		fmt.Fprintf(&stringBuilder, ", the %s %s", pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault())
 	}
 	if len(pipelineInfo.PipelineArguments.CommitID) > 0 {
-		stringBuilder.WriteString(fmt.Sprintf(", the commit %s", pipelineInfo.PipelineArguments.CommitID))
+		fmt.Fprintf(&stringBuilder, ", the commit %s", pipelineInfo.PipelineArguments.CommitID)
 	}
 	log.Ctx(ctx).Info().Msg(stringBuilder.String())
 }
@@ -389,6 +403,7 @@ func (step *PreparePipelinesStepImplementation) prepareSubPipelineForEnvironment
 	if !subPipelineExists {
 		return false, "", nil
 	}
+
 	if err = step.createSubPipelineAndTasks(envName, pl, tasks, timestamp, pipelineInfo); err != nil {
 		return false, "", err
 	}
@@ -399,6 +414,11 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 	var errs []error
 	taskMap := make(map[string]v1.Task)
 	hash := internal.GetJobNameHash(pipelineInfo)
+
+	paramSpecs, err := pipelineInfo.GetSubPipelineParamSpecsForEnvironment(envName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sub-pipeline params for environment %s: %w", envName, err)
+	}
 
 	for _, task := range tasks {
 		originalTaskName := task.Name
@@ -430,6 +450,13 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 		if ownerReference := step.ownerReferenceFactory.Create(); ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
 		}
+
+		for _, paramSpec := range paramSpecs {
+			if slice.Any(task.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == paramSpec.Name }) {
+				return nil, fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
+			}
+		}
+		task.Spec.Params = append(task.Spec.Params, paramSpecs...)
 
 		ensureCorrectSecureContext(&task)
 		taskMap[originalTaskName] = task
@@ -507,16 +534,34 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 }
 
 func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envName string, pipeline *v1.Pipeline, tasks []v1.Task, timestamp string, pipelineInfo *model.PipelineInfo) error {
-	originalPipelineName := pipeline.Name
 	var errs []error
+	originalPipelineName := pipeline.Name
+
 	taskMap, err := step.buildSubPipelineTasks(envName, tasks, timestamp, pipelineInfo)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %w", originalPipelineName, err))
+		errs = append(errs, fmt.Errorf("failed to build tasks for pipeline: %w", err))
 	}
 
 	_, azureClientIdPipelineParamExist := internalsubpipeline.GetEnvVars(pipelineInfo.GetRadixApplication(), envName)[pipelineDefaults.AzureClientIdEnvironmentVariable]
 	if azureClientIdPipelineParamExist {
 		ensureAzureClientIdParamExistInPipelineParams(pipeline)
+	}
+
+	paramSpecs, err := pipelineInfo.GetSubPipelineParamSpecsForEnvironment(envName)
+	if err != nil {
+		return fmt.Errorf("failed to get sub-pipeline params for environment %s: %w", envName, err)
+	}
+
+	for _, paramSpec := range paramSpecs {
+		if slice.Any(pipeline.Spec.Params, func(p v1.ParamSpec) bool { return p.Name == paramSpec.Name }) {
+			return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline", paramSpec.Name)
+		}
+	}
+	pipeline.Spec.Params = append(pipeline.Spec.Params, paramSpecs...)
+
+	paramRefs, err := pipelineInfo.GetSubPipelineParamReferencesForEnvironment(envName)
+	if err != nil {
+		return fmt.Errorf("failed to get sub-pipeline param references for environment %s: %w", envName, err)
 	}
 
 	for taskIndex, pipelineSpecTask := range pipeline.Spec.Tasks {
@@ -525,14 +570,23 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 			errs = append(errs, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
 			continue
 		}
+
 		pipeline.Spec.Tasks[taskIndex].TaskRef = &v1.TaskRef{Name: task.Name}
 		if azureClientIdPipelineParamExist {
 			ensureAzureClientIdParamExistInTaskParams(pipeline, taskIndex, task)
 		}
+		for _, paramRef := range paramRefs {
+			if slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(p v1.Param) bool { return p.Name == paramRef.Name }) {
+				return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", paramRef.Name, pipelineSpecTask.Name)
+			}
+		}
+		pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, paramRefs...)
 	}
+
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
+
 	hash := internal.GetJobNameHash(pipelineInfo)
 	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", internal.GetShortName(envName), internal.GetShortName(originalPipelineName), timestamp, hash)
 	pipeline.ObjectMeta.Name = pipelineName
@@ -548,13 +602,13 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 	}
 	err = step.createSubPipelineTasks(taskMap)
 	if err != nil {
-		return fmt.Errorf("tasks have not been created. Error: %w", err)
+		return fmt.Errorf("tasks have not been created: %w", err)
 	}
 	log.Info().Msgf("Created %d task(s) for environment %s", len(taskMap), envName)
 
 	_, err = step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(pipelineInfo.GetAppName())).Create(context.Background(), pipeline, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("pipeline %s has not been created. Error: %w", pipeline.Name, err)
+		return fmt.Errorf("pipeline %s has not been created: %w", pipeline.Name, err)
 	}
 	log.Info().Msgf("Created pipeline %s for environment %s", pipeline.Name, envName)
 	return nil
@@ -567,7 +621,7 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineTasks(taskMap m
 		_, err := step.GetTektonClient().TektonV1().Tasks(namespace).Create(context.Background(), &task,
 			metav1.CreateOptions{})
 		if err != nil {
-			errs = append(errs, fmt.Errorf("task %s has not been created. Error: %w", task.Name, err))
+			errs = append(errs, fmt.Errorf("task %s has not been created: %w", task.Name, err))
 		}
 	}
 	return errors.Join(errs...)
@@ -624,7 +678,7 @@ func (step *PreparePipelinesStepImplementation) setTargetEnvironments(ctx contex
 
 	targetEnvironments := make([]model.TargetEnvironment, 0, len(targetEnvironmentNames))
 	for _, targetEnvName := range targetEnvironmentNames {
-		activeRD, err := internal.GetActiveRadixDeployment(ctx, step.GetKubeUtil(), utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), targetEnvName))
+		activeRD, err := internal.GetActiveRadixDeployment(ctx, step.GetRadixClient(), step.GetKubeClient(), utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), targetEnvName))
 		if err != nil {
 			return fmt.Errorf("failed to get active depoyment for environment %s: %w", targetEnvName, err)
 		}
@@ -691,4 +745,27 @@ func getTargetEnvironmentsForDeploy(ctx context.Context, pipelineInfo *model.Pip
 	}
 	log.Ctx(ctx).Info().Msgf("Target environment: %v", targetEnvironment)
 	return []string{targetEnvironment}, nil
+}
+
+// getComponentNames returns a map of environment names to component name maps (with empty values)
+// used as the property keys for the radix-image param
+func getComponentNames(ra *radixv1.RadixApplication) model.EnvironmentComponentNames {
+	if ra == nil {
+		return nil
+	}
+	var componentNames []string
+	for _, component := range ra.Spec.Components {
+		componentNames = append(componentNames, component.Name)
+	}
+	for _, jobComponent := range ra.Spec.Jobs {
+		componentNames = append(componentNames, jobComponent.Name)
+	}
+	if len(componentNames) == 0 {
+		return nil
+	}
+	result := make(model.EnvironmentComponentNames)
+	for _, env := range ra.Spec.Environments {
+		result[env.Name] = componentNames
+	}
+	return result
 }

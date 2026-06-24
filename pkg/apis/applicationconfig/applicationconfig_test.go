@@ -2,6 +2,7 @@ package applicationconfig_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"testing"
@@ -24,8 +25,10 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -35,9 +38,9 @@ const (
 	clusterName        = "AnyClusterName"
 )
 
-func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
+func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *radixfake.Clientset) {
 	kubeClient := kubefake.NewSimpleClientset()
-	radixClient := radixfake.NewSimpleClientset()
+	radixClient := radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
@@ -47,13 +50,65 @@ func setupTest(t *testing.T) (*test.Utils, kubernetes.Interface, *kube.Kube, rad
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient
 }
 
+func Test_ReconcileStatus(t *testing.T) {
+	_, client, kubeUtil, radixClient := setupTest(t)
+
+	rr := &radixv1.RadixRegistration{}
+	ra := &radixv1.RadixApplication{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
+	ra, err := radixClient.RadixV1().RadixApplications("any-ns").Create(context.Background(), ra, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// First sync sets status
+	expectedGen := ra.Generation
+	sut := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	err = sut.OnSync(context.Background())
+	require.NoError(t, err)
+	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, radixv1.RadixApplicationReconcileSucceeded, ra.Status.ReconcileStatus)
+	assert.Empty(t, ra.Status.Message)
+	assert.Equal(t, expectedGen, ra.Status.ObservedGeneration)
+	assert.False(t, ra.Status.Reconciled.IsZero())
+
+	// Second sync with updated generation
+	ra.Generation++
+	expectedGen = ra.Generation
+	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	err = sut.OnSync(context.Background())
+	require.NoError(t, err)
+	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, radixv1.RadixApplicationReconcileSucceeded, ra.Status.ReconcileStatus)
+	assert.Empty(t, ra.Status.Message)
+	assert.Equal(t, expectedGen, ra.Status.ObservedGeneration)
+	assert.False(t, ra.Status.Reconciled.IsZero())
+
+	// Sync with error
+	errorMsg := "any sync error"
+	client.PrependReactor("*", "*", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New(errorMsg)
+	})
+	ra.Generation++
+	expectedGen = ra.Generation
+	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	err = sut.OnSync(context.Background())
+	require.ErrorContains(t, err, errorMsg)
+	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, radixv1.RadixApplicationReconcileFailed, ra.Status.ReconcileStatus)
+	assert.Contains(t, ra.Status.Message, errorMsg)
+	assert.Equal(t, expectedGen, ra.Status.ObservedGeneration)
+	assert.False(t, ra.Status.Reconciled.IsZero())
+}
+
 func Test_Create_Radix_Environments(t *testing.T) {
 	_, client, kubeUtil, radixClient := setupTest(t)
 
-	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
-	radixApp, _ := utils.GetRadixApplicationFromFile(sampleApp)
-	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp, nil)
-
+	radixRegistration := test.Load[*radixv1.RadixRegistration](sampleRegistration)
+	radixApp := test.Load[*radixv1.RadixApplication](sampleApp)
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp)
+	_, err := radixClient.RadixV1().RadixApplications(radixApp.Namespace).Create(context.Background(), radixApp, metav1.CreateOptions{})
+	require.NoError(t, err)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
 		err := app.OnSync(context.Background())
@@ -116,8 +171,10 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		WithEnvironment("qa", "development").
 		WithEnvironment("prod", "master").
 		BuildRA()
+	_, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Create(context.Background(), ra, metav1.CreateOptions{})
+	require.NoError(t, err)
 
-	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, nil)
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
@@ -130,6 +187,50 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(environments.Items))
+}
+
+func Test_Reconcile_Environment_With_Different_AppLabel_Fails(t *testing.T) {
+	_, client, kubeUtil, radixClient := setupTest(t)
+
+	// Create a RadixEnvironment with name "foo-bar-test" but labeled with "foo-bar"
+	// This simulates a conflict where an environment exists with the expected name
+	// but belongs to a different application (e.g., app "foo-bar" with env "test")
+	_, err := radixClient.RadixV1().RadixEnvironments().Create(
+		context.Background(),
+		&radixv1.RadixEnvironment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "foo-bar-test",
+				Labels: labels.Set{kube.RadixAppLabel: "foo-bar"},
+			},
+			Spec: radixv1.RadixEnvironmentSpec{
+				AppName: "foo-bar",
+				EnvName: "test",
+			},
+		},
+		metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// Create RadixRegistration and RadixApplication for "foo" with environment "bar-test"
+	// This would also create a RadixEnvironment named "foo-bar-test"
+	rr := utils.NewRegistrationBuilder().
+		WithName("foo").
+		BuildRR()
+
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName("foo").
+		WithEnvironment("bar-test", "master").
+		BuildRA()
+	_, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Create(context.Background(), ra, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// Try to sync - should fail because the RadixEnvironment "foo-bar-test" has a different app label
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	err = app.OnSync(context.Background())
+
+	// Verify error
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "labeled with a different app name")
+	assert.Contains(t, err.Error(), "foo-bar")
 }
 
 func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
@@ -942,7 +1043,16 @@ func Test_RadixEnvironment(t *testing.T) {
 	})
 
 	t.Run("Environment has a correct owner", func(t *testing.T) {
-		assert.Equal(t, rrAsOwnerReference(rr), environments.Items[0].GetOwnerReferences())
+		require.Len(t, environments.Items[0].GetOwnerReferences(), 1)
+		ownerReference := environments.Items[0].GetOwnerReferences()[0]
+		assert.Equal(t, rr.Name, ownerReference.Name)
+		assert.Equal(t, "radix.equinor.com/v1", ownerReference.APIVersion)
+		assert.Equal(t, "RadixRegistration", ownerReference.Kind)
+		assert.Equal(t, rr.UID, ownerReference.UID)
+		require.NotNil(t, ownerReference.Controller)
+		assert.True(t, *ownerReference.Controller)
+		require.NotNil(t, ownerReference.BlockOwnerDeletion)
+		assert.True(t, *ownerReference.BlockOwnerDeletion)
 	})
 
 	t.Run("Environment is not orphaned", func(t *testing.T) {
@@ -1027,19 +1137,6 @@ func Test_IsConfigBranch(t *testing.T) {
 	})
 }
 
-func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
-	trueVar := true
-	return []metav1.OwnerReference{
-		{
-			APIVersion: radixv1.SchemeGroupVersion.Identifier(),
-			Kind:       radixv1.KindRadixRegistration,
-			Name:       rr.Name,
-			UID:        rr.UID,
-			Controller: &trueVar,
-		},
-	}
-}
-
 func applyRadixAppWithPrivateImageHub(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, privateImageHubs radixv1.PrivateImageHubEntries) error {
 	appBuilder := utils.ARadixApplication().
 		WithAppName("any-app").
@@ -1063,7 +1160,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, nil)
+	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
 
 	err = applicationConfig.OnSync(context.Background())
 	if err != nil {

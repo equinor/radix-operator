@@ -34,14 +34,14 @@ func (js *JobSchedulerComponent) GetImage() string {
 }
 
 func (js *JobSchedulerComponent) GetPorts() []radixv1.ComponentPort {
-	if js.radixJob.SchedulerPort == nil {
+	if js.radixJob.SchedulerPort == 0 {
 		return nil
 	}
 
 	return []radixv1.ComponentPort{
 		{
 			Name: defaults.RadixJobSchedulerPortName,
-			Port: *js.radixJob.SchedulerPort,
+			Port: js.radixJob.SchedulerPort,
 		},
 	}
 }
@@ -112,6 +112,10 @@ func (js *JobSchedulerComponent) GetPublicPort() string {
 	return js.radixJob.GetPublicPort()
 }
 
+func (js *JobSchedulerComponent) GetPublicPortNumber() (int32, bool) {
+	return js.radixJob.GetPublicPortNumber()
+}
+
 func (js *JobSchedulerComponent) IsPublic() bool {
 	return js.radixJob.IsPublic()
 }
@@ -122,10 +126,6 @@ func (js *JobSchedulerComponent) GetExternalDNS() []radixv1.RadixDeployExternalD
 
 func (js *JobSchedulerComponent) IsDNSAppAlias() bool {
 	return js.radixJob.IsDNSAppAlias()
-}
-
-func (js *JobSchedulerComponent) GetIngressConfiguration() []string {
-	return js.radixJob.GetIngressConfiguration()
 }
 
 func (js *JobSchedulerComponent) GetNode() *radixv1.RadixNode {
@@ -148,10 +148,6 @@ func (js *JobSchedulerComponent) GetReadOnlyFileSystem() *bool {
 
 func (js *JobSchedulerComponent) GetRuntime() *radixv1.Runtime {
 	return &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}
-}
-
-func (js *JobSchedulerComponent) GetNetwork() *radixv1.Network {
-	return js.radixJob.GetNetwork()
 }
 
 func (js *JobSchedulerComponent) GetHealthChecks() *radixv1.RadixHealthChecks {

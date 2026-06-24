@@ -28,6 +28,7 @@ type JobBuilder interface {
 	WithCreated(time.Time) JobBuilder
 	WithOverrideUseBuildCache(value *bool) JobBuilder
 	WithRefreshBuildCache(value *bool) JobBuilder
+	WithGeneration(generation int64) JobBuilder
 	GetApplicationBuilder() ApplicationBuilder
 	BuildRJ() *v1.RadixJob
 }
@@ -52,6 +53,7 @@ type JobBuilderStruct struct {
 	fromEnvironment       string
 	overrideUseBuildCache *bool
 	refreshBuildCache     *bool
+	generation            int64
 }
 
 // WithRadixApplication Links to RA builder
@@ -167,6 +169,12 @@ func (jb *JobBuilderStruct) WithRefreshBuildCache(value *bool) JobBuilder {
 	return jb
 }
 
+// WithRefreshBuildCache Sets an optional WithRefreshBuildCache
+func (jb *JobBuilderStruct) WithGeneration(generation int64) JobBuilder {
+	jb.generation = generation
+	return jb
+}
+
 // GetApplicationBuilder Obtains the builder for the corresponding RA, if exists (used for testing)
 func (jb *JobBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 	if jb.applicationBuilder != nil {
@@ -194,6 +202,7 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 				kube.RadixGitRefAnnotation:     jb.gitRef,
 				kube.RadixGitRefTypeAnnotation: jb.gitRefType,
 			},
+			Generation:        jb.generation,
 			CreationTimestamp: metav1.Time{Time: jb.created},
 		},
 		Spec: v1.RadixJobSpec{

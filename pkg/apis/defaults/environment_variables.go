@@ -196,14 +196,7 @@ const (
 	// RadixBuildKitImageBuilderEnvironmentVariable Repository and tag for the buildkit image builder
 	RadixBuildKitImageBuilderEnvironmentVariable = "RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE"
 
-	// RadixReservedAppDNSAliasesEnvironmentVariable The list of DNS aliases, reserved for Radix platform Radix application
-	RadixReservedAppDNSAliasesEnvironmentVariable = "RADIX_RESERVED_APP_DNS_ALIASES"
-
-	// RadixReservedDNSAliasesEnvironmentVariable The list of DNS aliases, reserved for Radix platform services
-	RadixReservedDNSAliasesEnvironmentVariable = "RADIX_RESERVED_DNS_ALIASES"
-
-	// RadixCertificateAutomationClusterIssuerVariable Name of cluster isser to use for certificate automation
-	RadixCertificateAutomationClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_CLUSTER_ISSUER"
+	RadixCertificateAutomationGatewayClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER"
 
 	// RadixCertificateAutomationDurationVariable Defines duration for certificates issued by cluster issuer
 	RadixCertificateAutomationDurationVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION"
@@ -229,4 +222,15 @@ const (
 
 	// RadixGithubWorkspaceEnvironmentVariable Path to a cloned GitHub repository
 	RadixGithubWorkspaceEnvironmentVariable = "RADIX_GITHUB_WORKSPACE"
+
+	// RadixIngressGatewayNameVariable The name of the gateway to use for ingress
+	RadixIngressGatewayNameVariable = "RADIXOPERATOR_INGRESS_GATEWAY_NAME"
+
+	// RadixIngressGatewayNamespaceVariable The namespace of the gateway to use for ingress
+	RadixIngressGatewayNamespaceVariable = "RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE"
+
+	RadixIngressGatewaySectionNameVariable = "RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME"
+
+	// RadixSafeToRestartBatchJobThresholdVariable Threshold in seconds for determining cluster-autoscaler safe-to-evict annotation on batch jobs
+	RadixSafeToRestartBatchJobThresholdVariable = "RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD"
 )

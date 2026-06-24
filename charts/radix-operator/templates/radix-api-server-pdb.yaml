@@ -1,0 +1,19 @@
+{{- if .Values.radixApiServer.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: radix-api-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-api-server.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.radixApiServer.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ . }}
+  {{- end }}
+  {{- with .Values.radixApiServer.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ . }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "radix-api-server.selectorLabels" . | nindent 6 }}
+{{- end }}

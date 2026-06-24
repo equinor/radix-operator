@@ -2,11 +2,12 @@ name: radix-operator-pr
 on:
   pull_request:
     branches:
-    - master
+      - master
+permissions: {}
 jobs:
   build:
     name: Build container images
-    runs-on: ubuntu-latest
+    runs-on: radix-runner
     permissions:
       contents: read
     strategy:
@@ -17,18 +18,18 @@ jobs:
           - webhook.Dockerfile
           - job-scheduler.Dockerfile
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Build container
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ${{ matrix.file }}
-        push: false
-        platforms: |
-          linux/amd64
-          linux/arm64
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+      - name: Build container
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          push: false
+          platforms: |
+            linux/amd64
+            linux/arm64
 
   unit-test:
     name: Unit tests
@@ -36,16 +37,38 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version-file: 'go.mod'
-    - name: Install dependencies
-      run: |
-        go mod download
-    - name: Run Tests
-      run: |
-        go test -cover `go list ./...`
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: "go.mod"
+      - name: Install dependencies
+        run: |
+          go mod download
+      - name: Run Tests
+        run: |
+          make test
+
+  integration-test:
+    name: Integration tests
+    runs-on: radix-runner
+    # This conditional ensures the job only runs if the PR is NOT a draft
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: "go.mod"
+      - name: Install dependencies
+        run: |
+          go mod download
+
+      - name: Run e2e tests
+        env:
+          E2E_SETUP_PARALLELISM: 0
+        run: make test-e2e
+        timeout-minutes: 35
 
   go-lint:
     name: Lint
@@ -53,16 +76,16 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 2
-    - uses: actions/setup-go@v5
-      with:
-        go-version-file: 'go.mod'
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v8
-      with:
-        version: v2.5.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: "go.mod"
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        with:
+          version: v2.10.1
 
   verify-code-generation:
     name: Verify Code Generation
@@ -70,13 +93,13 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version-file: 'go.mod'
-    - name: Verify Code Generation
-      run: |
-        make verify-generate
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: "go.mod"
+      - name: Verify Code Generation
+        run: |
+          make verify-generate
 
   helm-lint:
     name: Helm Lint
@@ -84,8 +107,8 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v4
-    - uses: azure/setup-helm@v4
-    - name: Helm Lint
-      run: |
-        helm lint charts/radix-operator --set radixWebhook.enabled=true --set rbac.createApp.groups[0]="group1"
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
+      - name: Helm Lint
+        run: |
+          helm lint charts/radix-operator --set rbac.createApp.groups[0]="group1"

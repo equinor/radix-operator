@@ -13,7 +13,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -84,7 +83,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	radixDeployment = rd.DeepCopy()
 	radixDeployment.Name = utils.GetDeploymentName(pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
 
-	activeRadixDeployment, err := cli.GetKubeUtil().GetActiveDeployment(ctx, toNs)
+	activeRadixDeployment, err := kube.GetActiveDeployment(ctx, cli.GetRadixClient(), toNs)
 	if err != nil {
 		return err
 	}
@@ -95,6 +94,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 
 	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromDeploymentAnnotation] = rd.GetName()
 	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromEnvironmentAnnotation] = pipelineInfo.PipelineArguments.FromEnvironment
+
 	radixDeployment.ResourceVersion = ""
 	radixDeployment.Namespace = toNs
 	radixDeployment.Labels[kube.RadixEnvLabel] = pipelineInfo.PipelineArguments.ToEnvironment
@@ -102,11 +102,6 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
 	err = mergeWithRadixApplication(ctx, radixApplication, activeRadixDeployment, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment])
-	if err != nil {
-		return err
-	}
-
-	err = radixvalidators.CanRadixDeploymentBeInserted(radixDeployment)
 	if err != nil {
 		return err
 	}

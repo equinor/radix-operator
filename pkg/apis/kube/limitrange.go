@@ -23,13 +23,13 @@ func (kubeutil *Kube) ApplyLimitRange(ctx context.Context, namespace string, lim
 	if err != nil && errors.IsNotFound(err) {
 		createdLimitRange, err := kubeutil.kubeClient.CoreV1().LimitRanges(namespace).Create(ctx, limitRange, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create LimitRange object: %v", err)
+			return fmt.Errorf("failed to create LimitRange object: %w", err)
 		}
 
 		logger.Debug().Msgf("Created LimitRange: %s in namespace %s", createdLimitRange.Name, namespace)
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("failed to get limit range object: %v", err)
+		return fmt.Errorf("failed to get limit range object: %w", err)
 	}
 
 	logger.Debug().Msgf("LimitRange object %s already exists in namespace %s, updating the object now", limitRange.GetName(), namespace)
@@ -40,23 +40,23 @@ func (kubeutil *Kube) ApplyLimitRange(ctx context.Context, namespace string, lim
 
 	oldLimitRangeJSON, err := json.Marshal(oldLimitRange)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old limitRange object: %v", err)
+		return fmt.Errorf("failed to marshal old limitRange object: %w", err)
 	}
 
 	newLimitRangeJSON, err := json.Marshal(newLimitRange)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new limitRange object: %v", err)
+		return fmt.Errorf("failed to marshal new limitRange object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldLimitRangeJSON, newLimitRangeJSON, corev1.LimitRange{})
 	if err != nil {
-		return fmt.Errorf("failed to create two way merge patch limitRange objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch limitRange objects: %w", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		patchedLimitRange, err := kubeutil.kubeClient.CoreV1().LimitRanges(namespace).Patch(ctx, limitRange.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to patch limitRange object: %v", err)
+			return fmt.Errorf("failed to patch limitRange object: %w", err)
 		}
 		logger.Debug().Msgf("Patched limitRange: %s in namespace %s", patchedLimitRange.Name, namespace)
 	} else {

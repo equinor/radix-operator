@@ -23,7 +23,7 @@ func SetupTest(t *testing.T, appName, appEnvironment, appComponent, appDeploymen
 	t.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 	t.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "500M")
 	kubeClient := kubeclientfake.NewSimpleClientset()
-	radixClient := radixclientfake.NewSimpleClientset()
+	radixClient := radixclientfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	kubeUtil, _ := kube.New(kubeClient, radixClient, nil, nil)
 	return radixClient, kubeClient, kubeUtil
 }

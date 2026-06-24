@@ -1,7 +1,5 @@
 package common
 
-// +kubebuilder:object:generate=true
-
 // RadixJobComponentConfig holds description of RadixJobComponent
 type RadixJobComponentConfig struct {
 	// Resource describes the compute resource requirements.
@@ -24,6 +22,12 @@ type RadixJobComponentConfig struct {
 	//
 	// required: false
 	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
+
+	// SafeToRestart defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.
+	// If not set, the value is determined by timeLimitSeconds. Read documentation for details.
+	//
+	// required: false
+	SafeToRestart *bool `json:"safeToRestart,omitempty"`
 
 	// FailurePolicy defines how failed job replicas influence the backoffLimit.
 	//

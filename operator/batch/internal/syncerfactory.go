@@ -17,7 +17,7 @@ type SyncerFactory interface {
 		radixclient radixclient.Interface,
 		registration *radixv1.RadixRegistration,
 		radixBatch *radixv1.RadixBatch,
-		config *config.Config,
+		config config.Config,
 		options ...batch.SyncerOption,
 	) batch.Syncer
 }
@@ -30,7 +30,7 @@ type SyncerFactoryFunc func(
 	radixclient radixclient.Interface,
 	registration *radixv1.RadixRegistration,
 	radixBatch *radixv1.RadixBatch,
-	config *config.Config,
+	config config.Config,
 	options ...batch.SyncerOption,
 ) batch.Syncer
 
@@ -40,7 +40,7 @@ func (f SyncerFactoryFunc) CreateSyncer(
 	radixclient radixclient.Interface,
 	registration *radixv1.RadixRegistration,
 	radixBatch *radixv1.RadixBatch,
-	config *config.Config,
+	config config.Config,
 	options ...batch.SyncerOption,
 ) batch.Syncer {
 	return f(kubeclient, kubeutil, radixclient, registration, radixBatch, config, options...)

@@ -51,7 +51,7 @@ func (deploy *Deployment) garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec
 	}
 	var errs []error
 	for _, deployment := range jobAuxDeployments {
-		componentName, ok := RadixComponentNameFromComponentLabel(deployment)
+		componentName, ok := RadixComponentNameFromAuxComponentLabel(deployment)
 		if !ok {
 			continue
 		}

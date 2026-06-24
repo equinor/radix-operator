@@ -19,6 +19,7 @@ import (
 	jobControllers "github.com/equinor/radix-operator/job-scheduler/api/v1/controllers/jobs"
 	batchApi "github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/batches"
 	jobApi "github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/jobs"
+	"github.com/equinor/radix-operator/job-scheduler/internal/cronserver"
 	"github.com/equinor/radix-operator/job-scheduler/models"
 	"github.com/equinor/radix-operator/job-scheduler/pkg/batch"
 	"github.com/equinor/radix-operator/job-scheduler/pkg/notifications"
@@ -31,6 +32,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/pflag"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -38,11 +40,13 @@ const (
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	env := models.NewEnv()
 	initLogger(env)
 
-	kubeUtil := getKubeUtil(ctx)
+	kubeUtil := getKubeUtil()
 
 	radixDeployJobComponent, err := getRadixDeployJobComponentByName(ctx, kubeUtil, env)
 	if err != nil {
@@ -57,7 +61,24 @@ func main() {
 	}
 	defer radixBatchWatcher.Stop()
 
-	runApiServer(ctx, kubeUtil, env, radixDeployJobComponent)
+	jobHandler := jobApi.New(kubeUtil, env, radixDeployJobComponent)
+
+	cs := cronserver.New(kubeUtil, env, radixDeployJobComponent, jobHandler)
+
+	g, gctx := errgroup.WithContext(ctx)
+	if radixDeployJobComponent.Cron != nil && len(radixDeployJobComponent.Cron.Schedules) > 0 {
+		g.Go(func() error {
+			return cs.Start(gctx)
+		})
+	}
+	g.Go(func() error {
+		runApiServer(gctx, jobHandler, kubeUtil, env, radixDeployJobComponent)
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		log.Fatal().Err(err).Msg("server group exited with error")
+	}
 }
 
 func initLogger(env *models.Env) {
@@ -76,10 +97,7 @@ func initLogger(env *models.Env) {
 	zerolog.DefaultContextLogger = &log.Logger
 }
 
-func runApiServer(ctx context.Context, kubeUtil *kube.Kube, env *models.Env, radixDeployJobComponent *radixv1.RadixDeployJobComponent) {
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
+func runApiServer(ctx context.Context, jobHandler jobApi.JobHandler, kubeUtil *kube.Kube, env *models.Env, radixDeployJobComponent *radixv1.RadixDeployJobComponent) {
 	fs := initializeFlagSet()
 	port := fs.StringP("port", "p", env.RadixPort, "Port where API will be served")
 	parseFlagsFromArgs(fs)
@@ -91,7 +109,7 @@ func runApiServer(ctx context.Context, kubeUtil *kube.Kube, env *models.Env, rad
 	}
 	apiServer := &http.Server{
 		Addr:        fmt.Sprintf(":%s", *port),
-		Handler:     router.NewServer(env, getControllers(kubeUtil, env, radixDeployJobComponent)...),
+		Handler:     router.NewServer(env, getControllers(jobHandler, kubeUtil, env, radixDeployJobComponent)...),
 		BaseContext: func(_ net.Listener) context.Context { return ctx },
 	}
 	servers = append(servers, apiServer)
@@ -115,15 +133,15 @@ func startServers(servers ...*http.Server) {
 	}
 }
 
-func getKubeUtil(ctx context.Context) *kube.Kube {
-	kubeClient, radixClient, kedaClient, _, secretProviderClient, _, _ := utils.GetKubernetesClient(ctx)
+func getKubeUtil() *kube.Kube {
+	kubeClient, radixClient, kedaClient, secretProviderClient, _, _ := utils.GetKubernetesClient()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretProviderClient)
 	return kubeUtil
 }
 
-func getControllers(kubeUtil *kube.Kube, env *models.Env, radixDeployJobComponent *radixv1.RadixDeployJobComponent) []controllers.Controller {
+func getControllers(jobHandler jobApi.JobHandler, kubeUtil *kube.Kube, env *models.Env, radixDeployJobComponent *radixv1.RadixDeployJobComponent) []controllers.Controller {
 	return []controllers.Controller{
-		jobControllers.New(jobApi.New(kubeUtil, env, radixDeployJobComponent)),
+		jobControllers.New(jobHandler),
 		batchControllers.New(batchApi.New(kubeUtil, env, radixDeployJobComponent)),
 	}
 }

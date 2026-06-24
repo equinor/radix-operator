@@ -4,9 +4,14 @@ import (
 	"context"
 	"errors"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -26,6 +31,7 @@ func CreateOnlineValidator(client client.Client, requireAdGroups, requireConfigu
 			createRequireUniqueAppIdValidator(client),
 			createRequireAdGroupsValidator(requireAdGroups),
 			CreateRequireConfigurationItemValidator(requireConfigurationItem),
+			createNamespaceUsableValidator(client),
 		},
 	}
 }
@@ -90,7 +96,7 @@ func createRequireUniqueAppIdValidator(client client.Client) validatorFunc {
 		err := client.List(ctx, &existingRRs)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to list existing RadixRegistrations")
-			return "", ErrUnknownServerError // Something went wrong while listing existing RadixRegistrations, let the user try again
+			return "", ErrInternalError // Something went wrong while listing existing RadixRegistrations, let the user try again
 		}
 
 		for _, existingRR := range existingRRs.Items {
@@ -99,6 +105,28 @@ func createRequireUniqueAppIdValidator(client client.Client) validatorFunc {
 			}
 		}
 
+		return "", nil
+	}
+}
+
+func createNamespaceUsableValidator(kubeClient client.Client) validatorFunc {
+	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
+		envNs := utils.GetEnvironmentNamespace(rr.Name, "app")
+
+		existingNamespace := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: envNs}}
+		if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(existingNamespace), existingNamespace); err != nil {
+			if k8sErrors.IsNotFound(err) {
+				return "", nil // Namespace does not exist, so it is usable
+			}
+
+			log.Ctx(ctx).Error().Err(err).Msg("failed to list existing namespaces")
+			return "", ErrInternalError
+		}
+
+		// Namespace with the same name exists, check if it has the correct ownership label
+		if val, exist := existingNamespace.Labels[kube.RadixAppLabel]; !exist || val != rr.Name {
+			return "", ErrEnvironmentNameIsNotAvailable
+		}
 		return "", nil
 	}
 }

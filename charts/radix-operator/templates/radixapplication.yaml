@@ -3,7 +3,8 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.2
+    controller-gen.kubebuilder.io/version: v0.20.0
+    helm.sh/resource-policy: keep
   name: radixapplications.radix.equinor.com
 spec:
   group: radix.equinor.com
@@ -53,8 +54,11 @@ spec:
                       Defines a list of secrets that will be passed as ARGs when building Dockerfile.
                       The secrets can also be accessed in sub-pipelines.
                     items:
+                      maxLength: 253
+                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                       type: string
                     type: array
+                    x-kubernetes-list-type: set
                   subPipeline:
                     description: SubPipeline common configuration for all environments.
                     properties:
@@ -70,6 +74,7 @@ spec:
                                 description: Defines the Client ID for a user defined
                                   managed identity or application ID for an application
                                   registration.
+                                format: uuid
                                 type: string
                             required:
                             - clientId
@@ -129,26 +134,6 @@ spec:
                         Configuration for TLS client certificate or OAuth2 authentication.
                         More info: https://www.radix.equinor.com/radix-config#authentication
                       properties:
-                        clientCertificate:
-                          description: |-
-                            Configuration for TLS client certificate authentication.
-                            More info: https://www.radix.equinor.com/radix-config#clientcertificate
-                          properties:
-                            passCertificateToUpstream:
-                              description: |-
-                                Pass client certificate to backend in header ssl-client-cert.
-                                This setting has no effect if verification is set to off.
-                              type: boolean
-                            verification:
-                              description: Defines how the client certificate shall
-                                be verified.
-                              enum:
-                              - "on"
-                              - "off"
-                              - optional
-                              - optional_no_ca
-                              type: string
-                          type: object
                         oauth2:
                           description: |-
                             Configuration for OAuth2 authentication.
@@ -332,26 +317,6 @@ spec:
                               Environment specific configuration for TLS client certificate or OAuth2 authentication.
                               More info: https://www.radix.equinor.com/radix-config#authentication
                             properties:
-                              clientCertificate:
-                                description: |-
-                                  Configuration for TLS client certificate authentication.
-                                  More info: https://www.radix.equinor.com/radix-config#clientcertificate
-                                properties:
-                                  passCertificateToUpstream:
-                                    description: |-
-                                      Pass client certificate to backend in header ssl-client-cert.
-                                      This setting has no effect if verification is set to off.
-                                    type: boolean
-                                  verification:
-                                    description: Defines how the client certificate
-                                      shall be verified.
-                                    enum:
-                                    - "on"
-                                    - "off"
-                                    - optional
-                                    - optional_no_ca
-                                    type: string
-                                type: object
                               oauth2:
                                 description: |-
                                   Configuration for OAuth2 authentication.
@@ -986,6 +951,7 @@ spec:
                               maxReplicas:
                                 description: Defines the maximum number of replicas.
                                 format: int32
+                                maximum: 64
                                 minimum: 1
                                 type: integer
                               minReplicas:
@@ -1078,6 +1044,7 @@ spec:
                                                         ID for a user defined managed
                                                         identity or application ID
                                                         for an application registration.
+                                                      format: uuid
                                                       type: string
                                                   required:
                                                   - clientId
@@ -1191,6 +1158,7 @@ spec:
                                                         ID for a user defined managed
                                                         identity or application ID
                                                         for an application registration.
+                                                      format: uuid
                                                       type: string
                                                   required:
                                                   - clientId
@@ -1329,6 +1297,12 @@ spec:
                             required:
                             - maxReplicas
                             type: object
+                            x-kubernetes-validations:
+                            - message: maxReplicas must be greater than 0
+                              rule: self.maxReplicas > 0
+                            - message: minReplicas must be less than or equal to maxReplicas
+                              rule: '!has(self.minReplicas) || self.minReplicas <=
+                                self.maxReplicas'
                           identity:
                             description: |-
                               Environment specific configuration for workload identity (federated credentials).
@@ -1341,6 +1315,7 @@ spec:
                                     description: Defines the Client ID for a user
                                       defined managed identity or application ID for
                                       an application registration.
+                                    format: uuid
                                     type: string
                                 required:
                                 - clientId
@@ -1362,65 +1337,6 @@ spec:
                               Enabled or disables collection of custom Prometheus metrics.
                               More info: https://www.radix.equinor.com/radix-config#monitoring
                             type: boolean
-                          network:
-                            description: Environment specific network settings.
-                            properties:
-                              ingress:
-                                description: Ingress defines settings for ingress
-                                  traffic.
-                                properties:
-                                  public:
-                                    description: Public defines settings for public
-                                      traffic.
-                                    properties:
-                                      allow:
-                                        description: |-
-                                          Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.
-                                          All IP addresses are allowed if this field is empty or not set.
-                                        items:
-                                          description: IP address or CIDR.
-                                          pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$
-                                          type: string
-                                        type: array
-                                      proxyBodySize:
-                                        description: |-
-                                          Sets the maximum allowed size of the client request body.
-                                          Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
-                                          If the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.
-                                          Setting size to 0 disables checking of client request body size.
-                                        pattern: ^(?:0|[1-9][0-9]*[kKmMgG]?)$
-                                        type: string
-                                      proxyBufferSize:
-                                        description: |-
-                                          Sets the size of the buffer used for reading the first part of the response received from the proxied server.
-                                          The size must be large enough to hold the response headers.
-                                          Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
-                                          If the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.
-                                        pattern: ^(?:0|[1-9][0-9]*[kKmMgG]?)$
-                                        type: string
-                                      proxyReadTimeout:
-                                        description: |-
-                                          Defines a timeout, in seconds, for reading a response from the proxied server.
-                                          The timeout is set only between two successive read operations, not for the transmission of the whole response.
-                                          If the proxied server does not transmit anything within this time, the connection is closed.
-                                        minimum: 0
-                                        type: integer
-                                      proxyRequestBuffering:
-                                        description: |-
-                                          Defines if request buffering is enabled. Default is true.
-                                          If set to false, the request body will be sent to the proxied server immediately, without buffering.
-                                          This can be useful for large file uploads or streaming data.
-                                        type: boolean
-                                      proxySendTimeout:
-                                        description: |-
-                                          Defines a timeout, in seconds, for transmitting a request to the proxied server.
-                                          The timeout is set only between two successive write operations, not for the transmission of the whole request.
-                                          If the proxied server does not receive anything within this time, the connection is closed.
-                                        minimum: 0
-                                        type: integer
-                                    type: object
-                                type: object
-                            type: object
                           node:
                             description: |-
                               Deprecated: use Runtime.NodeType instead.
@@ -1518,6 +1434,7 @@ spec:
                                               file name used when mounting the secret,
                                               key or certificate.
                                             minLength: 1
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           encoding:
                                             description: |-
@@ -1530,6 +1447,7 @@ spec:
                                             description: Defines the name of the environment
                                               variable that will contain the value
                                               of the secret, key or certificate.
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           format:
                                             description: |-
@@ -1553,6 +1471,7 @@ spec:
                                               certificate in the keyvault.
                                             maxLength: 127
                                             minLength: 1
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           type:
                                             description: Type of item in the keyvault
@@ -1593,6 +1512,9 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
                             type: object
                           src:
                             description: |-
@@ -2329,6 +2251,7 @@ spec:
                         maxReplicas:
                           description: Defines the maximum number of replicas.
                           format: int32
+                          maximum: 64
                           minimum: 1
                           type: integer
                         minReplicas:
@@ -2419,6 +2342,7 @@ spec:
                                                   for a user defined managed identity
                                                   or application ID for an application
                                                   registration.
+                                                format: uuid
                                                 type: string
                                             required:
                                             - clientId
@@ -2528,6 +2452,7 @@ spec:
                                                   for a user defined managed identity
                                                   or application ID for an application
                                                   registration.
+                                                format: uuid
                                                 type: string
                                             required:
                                             - clientId
@@ -2658,6 +2583,11 @@ spec:
                       required:
                       - maxReplicas
                       type: object
+                      x-kubernetes-validations:
+                      - message: maxReplicas must be greater than 0
+                        rule: self.maxReplicas > 0
+                      - message: minReplicas must be less than or equal to maxReplicas
+                        rule: '!has(self.minReplicas) || self.minReplicas <= self.maxReplicas'
                     identity:
                       description: |-
                         Configuration for workload identity (federated credentials).
@@ -2670,6 +2600,7 @@ spec:
                               description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
                                 registration.
+                              format: uuid
                               type: string
                           required:
                           - clientId
@@ -2686,13 +2617,6 @@ spec:
                         built outside of Radix, it can be also configured with separate tag for each environment.
                         More info: https://www.radix.equinor.com/radix-config#imagetagname
                       type: string
-                    ingressConfiguration:
-                      description: |-
-                        Additional configuration settings for ingress traffic.
-                        More info: https://www.radix.equinor.com/radix-config#ingressconfiguration
-                      items:
-                        type: string
-                      type: array
                     monitoring:
                       description: |-
                         Enabled or disables collection of custom Prometheus metrics.
@@ -2710,7 +2634,8 @@ spec:
                           type: string
                         portName:
                           description: Defines which port in the ports list where
-                            metrics is served.
+                            metrics is served. If not specified, the first port is
+                            used.
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
@@ -2721,63 +2646,6 @@ spec:
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
-                    network:
-                      description: Network settings.
-                      properties:
-                        ingress:
-                          description: Ingress defines settings for ingress traffic.
-                          properties:
-                            public:
-                              description: Public defines settings for public traffic.
-                              properties:
-                                allow:
-                                  description: |-
-                                    Allow defines a list of public IP addresses or CIDRs which are allowed to access the component.
-                                    All IP addresses are allowed if this field is empty or not set.
-                                  items:
-                                    description: IP address or CIDR.
-                                    pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$
-                                    type: string
-                                  type: array
-                                proxyBodySize:
-                                  description: |-
-                                    Sets the maximum allowed size of the client request body.
-                                    Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
-                                    If the size in a request exceeds the configured value, the 413 (Request Entity Too Large) error is returned to the client.
-                                    Setting size to 0 disables checking of client request body size.
-                                  pattern: ^(?:0|[1-9][0-9]*[kKmMgG]?)$
-                                  type: string
-                                proxyBufferSize:
-                                  description: |-
-                                    Sets the size of the buffer used for reading the first part of the response received from the proxied server.
-                                    The size must be large enough to hold the response headers.
-                                    Sizes can be specified in bytes, kilobytes (suffixes k and K), megabytes (suffixes m and M), or gigabytes (suffixes g and G) for example, "1024", "64k", "32m", "2g"
-                                    If the response headers exceed the buffer size, the 502 (Bad Gateway) error is returned to the client.
-                                  pattern: ^(?:0|[1-9][0-9]*[kKmMgG]?)$
-                                  type: string
-                                proxyReadTimeout:
-                                  description: |-
-                                    Defines a timeout, in seconds, for reading a response from the proxied server.
-                                    The timeout is set only between two successive read operations, not for the transmission of the whole response.
-                                    If the proxied server does not transmit anything within this time, the connection is closed.
-                                  minimum: 0
-                                  type: integer
-                                proxyRequestBuffering:
-                                  description: |-
-                                    Defines if request buffering is enabled. Default is true.
-                                    If set to false, the request body will be sent to the proxied server immediately, without buffering.
-                                    This can be useful for large file uploads or streaming data.
-                                  type: boolean
-                                proxySendTimeout:
-                                  description: |-
-                                    Defines a timeout, in seconds, for transmitting a request to the proxied server.
-                                    The timeout is set only between two successive write operations, not for the transmission of the whole request.
-                                    If the proxied server does not receive anything within this time, the connection is closed.
-                                  minimum: 0
-                                  type: integer
-                              type: object
-                          type: object
-                      type: object
                     node:
                       description: |-
                         Deprecated: use Runtime.NodeType instead.
@@ -2908,6 +2776,7 @@ spec:
                                         name used when mounting the secret, key or
                                         certificate.
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     encoding:
                                       description: |-
@@ -2920,6 +2789,7 @@ spec:
                                       description: Defines the name of the environment
                                         variable that will contain the value of the
                                         secret, key or certificate.
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     format:
                                       description: |-
@@ -2943,6 +2813,7 @@ spec:
                                         in the keyvault.
                                       maxLength: 127
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     type:
                                       description: Type of item in the keyvault referenced
@@ -2983,14 +2854,19 @@ spec:
                             - name
                             type: object
                           type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                       type: object
                     secrets:
                       description: |-
                         List of secret environment variable names.
                         More info: https://www.radix.equinor.com/radix-config#secrets
                       items:
+                        pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                     src:
                       description: |-
                         Path to the Dockerfile that builds the component.
@@ -3462,6 +3338,9 @@ spec:
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                       type: string
+                      x-kubernetes-validations:
+                      - message: environment name 'app' is reserved
+                        rule: self != 'app'
                     subPipeline:
                       description: SubPipeline configuration.
                       properties:
@@ -3477,6 +3356,7 @@ spec:
                                   description: Defines the Client ID for a user defined
                                     managed identity or application ID for an application
                                     registration.
+                                  format: uuid
                                   type: string
                               required:
                               - clientId
@@ -3595,6 +3475,36 @@ spec:
                         type: string
                       type: array
                       x-kubernetes-list-type: atomic
+                    cron:
+                      description: Set a cron schedule for when to run the job and
+                        how concurrency between multiple schedules should behave
+                      properties:
+                        concurrency:
+                          description: Specify how to handle concurrency when multiple
+                            instances of the job are started
+                          enum:
+                          - Allow
+                          - Forbid
+                          - Replace
+                          type: string
+                        schedules:
+                          description: The cron schedules for the job
+                          items:
+                            minLength: 1
+                            type: string
+                          maxItems: 20
+                          minItems: 1
+                          type: array
+                          x-kubernetes-list-type: set
+                        timeZone:
+                          description: The time zone for all schedules, will default
+                            to UTC if omitted. If specified, it must not be empty.
+                          minLength: 1
+                          type: string
+                      required:
+                      - concurrency
+                      - schedules
+                      type: object
                     dockerfileName:
                       description: |-
                         Name of the Dockerfile that builds the job.
@@ -3702,6 +3612,38 @@ spec:
                               type: string
                             type: array
                             x-kubernetes-list-type: atomic
+                          cron:
+                            description: Set a cron schedule for when to run the job
+                              and how concurrency between multiple schedules should
+                              behave
+                            properties:
+                              concurrency:
+                                description: Specify how to handle concurrency when
+                                  multiple instances of the job are started
+                                enum:
+                                - Allow
+                                - Forbid
+                                - Replace
+                                type: string
+                              schedules:
+                                description: The cron schedules for the job
+                                items:
+                                  minLength: 1
+                                  type: string
+                                maxItems: 20
+                                minItems: 1
+                                type: array
+                                x-kubernetes-list-type: set
+                              timeZone:
+                                description: The time zone for all schedules, will
+                                  default to UTC if omitted. If specified, it must
+                                  not be empty.
+                                minLength: 1
+                                type: string
+                            required:
+                            - concurrency
+                            - schedules
+                            type: object
                           dockerfileName:
                             description: |-
                               Name of the Dockerfile that builds the component.
@@ -3799,6 +3741,7 @@ spec:
                                     description: Defines the Client ID for a user
                                       defined managed identity or application ID for
                                       an application registration.
+                                    format: uuid
                                     type: string
                                 required:
                                 - clientId
@@ -3898,6 +3841,11 @@ spec:
                                 pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                                 type: string
                             type: object
+                          safeToRestart:
+                            description: |-
+                              Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.
+                              If not set, the value is determined by timeLimitSeconds, check radix documentation for details.
+                            type: boolean
                           secretRefs:
                             description: |-
                               Environment specific configuration for external secret stores, like Azure KeyVault.
@@ -3923,6 +3871,7 @@ spec:
                                               file name used when mounting the secret,
                                               key or certificate.
                                             minLength: 1
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           encoding:
                                             description: |-
@@ -3935,6 +3884,7 @@ spec:
                                             description: Defines the name of the environment
                                               variable that will contain the value
                                               of the secret, key or certificate.
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           format:
                                             description: |-
@@ -3958,6 +3908,7 @@ spec:
                                               certificate in the keyvault.
                                             maxLength: 127
                                             minLength: 1
+                                            pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                             type: string
                                           type:
                                             description: Type of item in the keyvault
@@ -3998,6 +3949,9 @@ spec:
                                   - name
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
                             type: object
                           src:
                             description: |-
@@ -4362,6 +4316,7 @@ spec:
                               description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
                                 registration.
+                              format: uuid
                               type: string
                           required:
                           - clientId
@@ -4395,7 +4350,8 @@ spec:
                           type: string
                         portName:
                           description: Defines which port in the ports list where
-                            metrics is served.
+                            metrics is served. If not specified, the first port is
+                            used.
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
@@ -4521,6 +4477,11 @@ spec:
                           pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                           type: string
                       type: object
+                    safeToRestart:
+                      description: |-
+                        Defines whether the job can be safely restarted by the cluster autoscaler during node scale-down.
+                        If not set, the value is determined by timeLimitSeconds, check radix documentation for details.
+                      type: boolean
                     schedulerPort:
                       description: |-
                         Defines the port number that the job-scheduler API server will listen to.
@@ -4551,6 +4512,7 @@ spec:
                                         name used when mounting the secret, key or
                                         certificate.
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     encoding:
                                       description: |-
@@ -4563,6 +4525,7 @@ spec:
                                       description: Defines the name of the environment
                                         variable that will contain the value of the
                                         secret, key or certificate.
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     format:
                                       description: |-
@@ -4586,6 +4549,7 @@ spec:
                                         in the keyvault.
                                       maxLength: 127
                                       minLength: 1
+                                      pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                                       type: string
                                     type:
                                       description: Type of item in the keyvault referenced
@@ -4626,14 +4590,19 @@ spec:
                             - name
                             type: object
                           type: array
+                          x-kubernetes-list-map-keys:
+                          - name
+                          x-kubernetes-list-type: map
                       type: object
                     secrets:
                       description: |-
                         List of secret environment variable names.
                         More info: https://www.radix.equinor.com/radix-config#secrets-2
                       items:
+                        pattern: ^(([A-Za-z0-9][-._A-Za-z0-9]*)?[A-Za-z0-9])?$
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                     src:
                       description: |-
                         Path to the Dockerfile that builds the job.
@@ -4908,6 +4877,7 @@ spec:
                       type: array
                   required:
                   - name
+                  - schedulerPort
                   type: object
                 type: array
                 x-kubernetes-list-map-keys:
@@ -4938,9 +4908,32 @@ spec:
             required:
             - environments
             type: object
+          status:
+            description: Status is the observed state of the RadixApplication
+            properties:
+              message:
+                description: Message provides additional information about the reconciliation
+                  state, typically error details when reconciliation fails
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the generation observed by the
+                  controller
+                format: int64
+                type: integer
+              reconcileStatus:
+                description: ReconcileStatus indicates whether the last reconciliation
+                  succeeded or failed
+                type: string
+              reconciled:
+                description: Reconciled is the timestamp of the last successful reconciliation
+                format: date-time
+                type: string
+            type: object
         required:
         - metadata
         - spec
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}

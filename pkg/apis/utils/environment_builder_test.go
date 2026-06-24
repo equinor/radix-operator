@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -27,7 +27,6 @@ func Test_RadixEnvironment_Defaults(t *testing.T) {
 	assert.Equal(t, minTime, re.ObjectMeta.CreationTimestamp)
 	assert.Equal(t, (*int64)(nil), re.ObjectMeta.DeletionGracePeriodSeconds)
 	assert.Equal(t, nilTime, re.ObjectMeta.DeletionTimestamp)
-	assert.ElementsMatch(t, re.ObjectMeta.Finalizers, []string{kube.RadixEnvironmentFinalizer})
 	assert.Equal(t, "", re.ObjectMeta.GenerateName)
 	assert.Equal(t, int64(0), re.ObjectMeta.Generation)
 	assert.Len(t, re.ObjectMeta.Labels, 0)
@@ -56,7 +55,7 @@ func Test_WithAppLabel(t *testing.T) {
 		BuildRE()
 
 	assert.Len(t, re.ObjectMeta.Labels, 1)
-	assert.Equal(t, "myapp", re.ObjectMeta.Labels["radix-app"])
+	assert.Equal(t, "myapp", re.ObjectMeta.Labels[kube.RadixAppLabel])
 }
 
 func Test_WithLabel(t *testing.T) {

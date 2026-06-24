@@ -13,16 +13,17 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/deployconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/golang/mock/gomock"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func Test_RunDeployConfigTestSuite(t *testing.T) {
@@ -31,20 +32,18 @@ func Test_RunDeployConfigTestSuite(t *testing.T) {
 
 type deployConfigTestSuite struct {
 	suite.Suite
-	kubeClient  *kubefake.Clientset
-	radixClient *radixfake.Clientset
-	kedaClient  *kedafake.Clientset
-	promClient  *prometheusfake.Clientset
-	kubeUtil    *kube.Kube
-	ctrl        *gomock.Controller
+	kubeClient    *kubefake.Clientset
+	radixClient   *radixfake.Clientset
+	kedaClient    *kedafake.Clientset
+	dynamicClient client.Client
+	ctrl          *gomock.Controller
 }
 
 func (s *deployConfigTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
-	s.radixClient = radixfake.NewSimpleClientset()
+	s.radixClient = radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.kedaClient = kedafake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, nil)
+	s.dynamicClient = test.CreateClient()
 	s.ctrl = gomock.NewController(s.T())
 }
 
@@ -580,7 +579,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(len(affectedEnvs))
 
 			cli := deployconfig.NewDeployConfigStep(radixDeploymentWatcher)
-			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.kubeUtil, s.promClient, nil, rr)
+			cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 			if err := cli.Run(context.Background(), pipelineInfo); err != nil {
 				t.Logf("Error: %v", err)
 				s.Require().NoError(err)
@@ -673,7 +672,7 @@ func (s *deployConfigTestSuite) createRadixApplication(props raProps) *radixv1.R
 func (s *deployConfigTestSuite) createRadixDeployments(deploymentBuildersProps []radixDeploymentBuildersProps, ra *radixv1.RadixApplication) map[string]radixv1.RadixDeployment {
 	rdList := s.buildRadixDeployments(deploymentBuildersProps, ra, nil)
 	for _, rd := range rdList {
-		_, err := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).Create(context.Background(), &rd, metav1.CreateOptions{})
+		_, err := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)).Create(context.Background(), &rd, metav1.CreateOptions{}) //nolint:staticcheck
 		s.Require().NoError(err)
 	}
 	return slice.Reduce(rdList, make(map[string]radixv1.RadixDeployment), func(acc map[string]radixv1.RadixDeployment, rd radixv1.RadixDeployment) map[string]radixv1.RadixDeployment {
@@ -705,8 +704,8 @@ func (s *deployConfigTestSuite) buildRadixDeployments(deploymentBuildersProps []
 				kube.RadixGitRefTypeAnnotation: "",
 				kube.RadixBuildSecretHash:      buildSecretHash,
 				kube.RadixConfigHash:           radixConfigHash,
-				kube.RadixUseBuildKit:          "false",
-				kube.RadixUseBuildCache:        "false",
+				kube.RadixUseBuildKit:          "true",
+				kube.RadixUseBuildCache:        "true",
 				kube.RadixRefreshBuildCache:    "false",
 			})
 		for _, component := range ra.Spec.Components {

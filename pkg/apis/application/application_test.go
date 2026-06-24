@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -20,14 +21,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupTest(t *testing.T) (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, *kedafake.Clientset) {
+func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, radixclient.Interface, *kedafake.Clientset) {
 	client := fake.NewSimpleClientset()
-	radixClient := fakeradix.NewSimpleClientset()
+	radixClient := fakeradix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, kedaClient, secretproviderclient)
@@ -35,6 +38,57 @@ func setupTest(t *testing.T) (test.Utils, kubernetes.Interface, *kube.Kube, radi
 	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "anysubid")
 	require.NoError(t, err)
 	return handlerTestUtils, client, kubeUtil, radixClient, kedaClient
+}
+
+func Test_ReconcileStatus(t *testing.T) {
+	_, client, kubeUtil, radixClient, _ := setupTest(t)
+	defer os.Clearenv()
+
+	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
+	rr, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	// First sync sets status
+	expectedGen := rr.Generation
+	sut := NewApplication(client, kubeUtil, radixClient, rr)
+	err = sut.OnSync(context.Background())
+	require.NoError(t, err)
+	rr, err = radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rr.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, v1.RadixRegistrationReconcileSucceeded, rr.Status.ReconcileStatus)
+	assert.Empty(t, rr.Status.Message)
+	assert.Equal(t, expectedGen, rr.Status.ObservedGeneration)
+	assert.False(t, rr.Status.Reconciled.IsZero())
+
+	// Second sync with updated generation
+	rr.Generation++
+	expectedGen = rr.Generation
+	sut = NewApplication(client, kubeUtil, radixClient, rr)
+	err = sut.OnSync(context.Background())
+	require.NoError(t, err)
+	rr, err = radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rr.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, v1.RadixRegistrationReconcileSucceeded, rr.Status.ReconcileStatus)
+	assert.Empty(t, rr.Status.Message)
+	assert.Equal(t, expectedGen, rr.Status.ObservedGeneration)
+	assert.False(t, rr.Status.Reconciled.IsZero())
+
+	// Sync with error
+	errorMsg := "any sync error"
+	client.PrependReactor("*", "*", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New(errorMsg)
+	})
+	rr.Generation++
+	expectedGen = rr.Generation
+	sut = NewApplication(client, kubeUtil, radixClient, rr)
+	err = sut.OnSync(context.Background())
+	require.ErrorContains(t, err, errorMsg)
+	rr, err = radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rr.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, v1.RadixRegistrationReconcileFailed, rr.Status.ReconcileStatus)
+	assert.Contains(t, rr.Status.Message, errorMsg)
+	assert.Equal(t, expectedGen, rr.Status.ObservedGeneration)
+	assert.False(t, rr.Status.Reconciled.IsZero())
 }
 
 func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testing.T) {
@@ -49,11 +103,8 @@ func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testin
 	assert.NoError(t, err)
 
 	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
-	for _, clusterRoleBindingName := range []string{
-		"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-platform-user-rr-reader-any-app",
-	} {
-		assert.True(t, clusterRoleBindingByNameExists(clusterRoleBindingName, clusterRoleBindings), fmt.Sprintf("ClusterRoleBinding %s does not exist", clusterRoleBindingName))
-	}
+	actualClusterRoleBindingNames := slice.Map(clusterRoleBindings.Items, func(cr rbacv1.ClusterRoleBinding) string { return cr.Name })
+	assert.ElementsMatch(t, []string{"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-platform-user-rr-reader-any-app"}, actualClusterRoleBindingNames)
 
 	assert.Equal(t, getClusterRoleBindingByName("radix-pipeline-rr-any-app", clusterRoleBindings).Subjects[0].Name, defaults.PipelineServiceAccountName)
 	assert.Equal(t, getClusterRoleBindingByName("radix-platform-user-rr-any-app", clusterRoleBindings).Subjects[0].Name, rr.Spec.AdGroups[0])
@@ -61,11 +112,8 @@ func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testin
 	assert.Equal(t, getClusterRoleBindingByName("radix-platform-user-rr-reader-any-app", clusterRoleBindings).Subjects[0].Name, rr.Spec.ReaderAdGroups[0])
 
 	clusterRoles, _ := client.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
-	for _, clusterRoleName := range []string{
-		"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-platform-user-rr-reader-any-app",
-	} {
-		assert.True(t, clusterRoleByNameExists(clusterRoleName, clusterRoles), fmt.Sprintf("ClusterRole %s does not exist", clusterRoleName))
-	}
+	actualClusterRoleNames := slice.Map(clusterRoles.Items, func(cr rbacv1.ClusterRole) string { return cr.Name })
+	assert.ElementsMatch(t, []string{"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-platform-user-rr-reader-any-app"}, actualClusterRoleNames)
 }
 
 func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
@@ -107,9 +155,8 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.NoError(t, err)
 	assert.NotNil(t, ns)
 	expected := map[string]string{
-		kube.RadixAppLabel:          appName,
-		kube.RadixEnvLabel:          utils.AppNamespaceEnvName,
-		"snyk-service-account-sync": "radix-snyk-service-account",
+		kube.RadixAppLabel: appName,
+		kube.RadixEnvLabel: utils.AppNamespaceEnvName,
 	}
 	assert.Equal(t, expected, ns.GetLabels())
 
@@ -154,7 +201,6 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 	expected := map[string]string{
 		kube.RadixAppLabel:                           appName,
 		kube.RadixEnvLabel:                           utils.AppNamespaceEnvName,
-		"snyk-service-account-sync":                  "radix-snyk-service-account",
 		"pod-security.kubernetes.io/enforce":         "enforceAppNsLvl",
 		"pod-security.kubernetes.io/enforce-version": "enforceVer",
 		"pod-security.kubernetes.io/audit":           "auditLvl",
@@ -176,6 +222,9 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 		&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "any-app-app",
+				Labels: map[string]string{
+					kube.RadixAppLabel: "any-app",
+				},
 			},
 		},
 		metav1.CreateOptions{})
@@ -266,7 +315,7 @@ func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeU
 		return nil, err
 	}
 
-	application, _ := NewApplication(client, kubeUtil, radixclient, rr)
+	application := NewApplication(client, kubeUtil, radixclient, rr)
 	err = application.OnSync(context.Background())
 	if err != nil {
 		return nil, err
@@ -292,10 +341,6 @@ func getRoleBindingNames(roleBindings *rbacv1.RoleBindingList) []string {
 	return slice.Map(roleBindings.Items, func(r rbacv1.RoleBinding) string { return r.Name })
 }
 
-// func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
-// 	return getRoleBindingByName(name, roleBindings) != nil
-// }
-
 func getClusterRoleBindingByName(name string, clusterRoleBindings *rbacv1.ClusterRoleBindingList) *rbacv1.ClusterRoleBinding {
 	for _, clusterRoleBinding := range clusterRoleBindings.Items {
 		if clusterRoleBinding.Name == name {
@@ -304,24 +349,6 @@ func getClusterRoleBindingByName(name string, clusterRoleBindings *rbacv1.Cluste
 	}
 
 	return nil
-}
-
-func getClusterRoleByName(name string, clusterRoles *rbacv1.ClusterRoleList) *rbacv1.ClusterRole {
-	for _, clusterRole := range clusterRoles.Items {
-		if clusterRole.Name == name {
-			return &clusterRole
-		}
-	}
-
-	return nil
-}
-
-func clusterRoleBindingByNameExists(name string, clusterRoleBindings *rbacv1.ClusterRoleBindingList) bool {
-	return getClusterRoleBindingByName(name, clusterRoleBindings) != nil
-}
-
-func clusterRoleByNameExists(name string, clusterRoles *rbacv1.ClusterRoleList) bool {
-	return getClusterRoleByName(name, clusterRoles) != nil
 }
 
 func getServiceAccountByName(name string, serviceAccounts *corev1.ServiceAccountList) *corev1.ServiceAccount {

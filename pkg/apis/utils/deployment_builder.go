@@ -7,7 +7,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -88,7 +87,7 @@ func (db *DeploymentBuilderStruct) WithRadixDeployment(radixDeployment *v1.Radix
 	_, imageTag := GetAppAndTagPairFromName(radixDeployment.Name)
 
 	db.WithImageTag(imageTag)
-	db.WithAppName(radixDeployment.Spec.AppName)
+	db.WithAppName(radixDeployment.Spec.AppName) //nolint:staticcheck
 	db.WithEnvironment(radixDeployment.Spec.Environment)
 	db.WithJobName(radixDeployment.GetLabels()[kube.RadixJobNameLabel])
 	db.WithCreated(radixDeployment.CreationTimestamp.Time)
@@ -97,7 +96,7 @@ func (db *DeploymentBuilderStruct) WithRadixDeployment(radixDeployment *v1.Radix
 
 // WithAppName Sets app name
 func (db *DeploymentBuilderStruct) WithAppName(appName string) DeploymentBuilder {
-	db.Labels["radix-app"] = appName
+	db.Labels[kube.RadixAppLabel] = appName
 
 	if db.applicationBuilder != nil {
 		db.applicationBuilder = db.applicationBuilder.WithAppName(appName)
@@ -304,7 +303,7 @@ func ARadixDeploymentWithComponentModifier(m func(builder DeployComponentBuilder
 		WithJobComponent(NewDeployJobComponentBuilder().
 			WithName("job").
 			WithImage("radixdev.azurecr.io/job:imagetag").
-			WithSchedulerPort(numbers.Int32Ptr(8080)))
+			WithSchedulerPort(8080))
 	return builder
 }
 

@@ -17,7 +17,6 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/rs/zerolog/log"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"golang.org/x/exp/maps"
@@ -25,6 +24,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type BuildJobFactory func(useBuildKit bool) internalbuild.JobsBuilder
@@ -69,8 +69,8 @@ func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter, options ...Option)
 	return step
 }
 
-func (step *BuildStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, kubeUtil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface, rr *v1.RadixRegistration) {
-	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, kubeUtil, prometheusOperatorClient, tektonClient, rr)
+func (step *BuildStepImplementation) Init(ctx context.Context, kubeClient kubernetes.Interface, radixClient radixclient.Interface, dynamicClient client.Client, tektonClient tektonclient.Interface, rr *v1.RadixRegistration) {
+	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, dynamicClient, tektonClient, rr)
 	if step.jobWaiter == nil {
 		step.jobWaiter = internalwait.NewJobCompletionWaiter(ctx, kubeClient)
 	}
@@ -173,15 +173,15 @@ func (step *BuildStepImplementation) getJobOwnerReferences(ctx context.Context, 
 }
 
 func (step *BuildStepImplementation) getJobDescription(job *batchv1.Job) string {
-	builder := strings.Builder{}
-	builder.WriteString(fmt.Sprintf("job %s to build", job.Name))
+	builder := &strings.Builder{}
+	fmt.Fprintf(builder, "job %s to build", job.Name)
 	if componentName, ok := job.GetLabels()[kube.RadixComponentLabel]; ok {
-		builder.WriteString(fmt.Sprintf(" component %s", componentName))
+		fmt.Fprintf(builder, " component %s", componentName)
 	} else {
 		builder.WriteString(" components")
 	}
 	if envName, ok := job.GetLabels()[kube.RadixEnvLabel]; ok {
-		builder.WriteString(fmt.Sprintf(" in environment %s", envName))
+		fmt.Fprintf(builder, " in environment %s", envName)
 	}
 	return builder.String()
 }

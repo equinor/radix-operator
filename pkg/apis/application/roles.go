@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -18,14 +17,6 @@ func (app *Application) buildRRClusterRole(ctx context.Context, clusterRoleName 
 		Resources:     []string{v1.ResourceRadixRegistrations},
 		ResourceNames: []string{appName},
 		Verbs:         verbs,
-	})
-}
-
-func (app *Application) buildRadixDNSAliasClusterRole(ctx context.Context, roleNamePrefix string) *rbacv1.ClusterRole {
-	clusterRoleName := fmt.Sprintf("%s-%s", roleNamePrefix, app.registration.Name)
-	return app.buildClusterRole(ctx, clusterRoleName, rbacv1.PolicyRule{APIGroups: []string{v1.SchemeGroupVersion.Group},
-		Resources: []string{v1.ResourceRadixDNSAliases},
-		Verbs:     []string{"list"},
 	})
 }
 

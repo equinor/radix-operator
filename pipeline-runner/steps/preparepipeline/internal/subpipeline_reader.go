@@ -3,17 +3,18 @@ package internal
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	defaults2 "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/rs/zerolog/log"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
-	"k8s.io/api/core/v1"
-	"os"
-	"path/filepath"
+	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
-	"strings"
 )
 
 // SubPipelineReader Interface for reading sub-pipeline and tasks
@@ -72,10 +73,10 @@ func fileExists(filePath string) (bool, error) {
 func getPipelineTasks(pipelineFilePath string, pipeline *pipelinev1.Pipeline) ([]pipelinev1.Task, error) {
 	taskMap, err := getTasks(pipelineFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed get tasks: %v", err)
+		return nil, fmt.Errorf("failed get tasks: %w", err)
 	}
 	if len(taskMap) == 0 {
-		return nil, fmt.Errorf("no tasks found: %v", err)
+		return nil, fmt.Errorf("no tasks found: %w", err)
 	}
 	var tasks []pipelinev1.Task
 	var validateTaskErrors []error
@@ -108,12 +109,12 @@ func getPipeline(pipelineFileName string) (*pipelinev1.Pipeline, error) {
 	}
 	pipelineData, err := os.ReadFile(pipelineFileName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the pipeline file %s: %v", pipelineFileName, err)
+		return nil, fmt.Errorf("failed to read the pipeline file %s: %w", pipelineFileName, err)
 	}
 	var pipeline pipelinev1.Pipeline
 	err = yaml.Unmarshal(pipelineData, &pipeline)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load the pipeline from the file %s: %v", pipelineFileName, err)
+		return nil, fmt.Errorf("failed to load the pipeline from the file %s: %w", pipelineFileName, err)
 	}
 	hotfixForPipelineDefaultParamsWithBrokenValue(&pipeline)
 	hotfixForPipelineTasksParamsWithBrokenValue(&pipeline)
@@ -157,7 +158,7 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 
 	fileNameList, err := filepath.Glob(filepath.Join(pipelineFolder, "*.yaml"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to scan pipeline folder %s: %v", pipelineFolder, err)
+		return nil, fmt.Errorf("failed to scan pipeline folder %s: %w", pipelineFolder, err)
 	}
 	taskMap := make(map[string]pipelinev1.Task)
 	for _, fileName := range fileNameList {
@@ -166,7 +167,7 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 		}
 		fileData, err := os.ReadFile(fileName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read the file %s: %v", fileName, err)
+			return nil, fmt.Errorf("failed to read the file %s: %w", fileName, err)
 		}
 		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixBuildSecretsSource, defaults.SubstitutionRadixBuildSecretsTarget))
 		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixGitDeployKeySource, defaults.SubstitutionRadixGitDeployKeyTarget))
@@ -174,7 +175,7 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 		task := pipelinev1.Task{}
 		err = yaml.Unmarshal(fileData, &task)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read data from the file %s: %v", fileName, err)
+			return nil, fmt.Errorf("failed to read data from the file %s: %w", fileName, err)
 		}
 		if !taskIsValid(&task) {
 			log.Debug().Msgf("skip the file %s - not a Tekton task", fileName)

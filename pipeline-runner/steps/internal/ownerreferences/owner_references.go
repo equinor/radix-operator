@@ -51,7 +51,7 @@ func getOwnerReferencePropertiesFromDownwardsApiFile() (string, string, error) {
 		}
 	}()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read the labels file %s: %v", labelsFile, err)
+		return "", "", fmt.Errorf("failed to read the labels file %s: %w", labelsFile, err)
 	}
 
 	labelsMap := make(map[string]string)

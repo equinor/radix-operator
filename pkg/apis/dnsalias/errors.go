@@ -1,8 +1,10 @@
 package dnsalias
 
-import "fmt"
+import (
+	"errors"
+)
 
-// DeployComponentNotFoundByName Deploy component not found
-func DeployComponentNotFoundByName(appName, envName, componentName, deploymentName string) error {
-	return fmt.Errorf("component %s not found in environment %s in application %s for deployment %s", componentName, envName, appName, deploymentName)
-}
+var (
+	ErrComponentDoesNotExist = errors.New("component does not exist")
+	ErrComponentIsNotPublic  = errors.New("component is not public")
+)

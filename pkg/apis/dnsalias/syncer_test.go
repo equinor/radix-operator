@@ -2,47 +2,43 @@ package dnsalias_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
 	"testing"
 
-	dnsalias2 "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
+	commonutils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
-	"github.com/equinor/radix-operator/pkg/apis/dnsalias/internal"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/gateway"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
+	gomock "go.uber.org/mock/gomock"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubelabels "k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
+	k8stesting "k8s.io/client-go/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 type syncerTestSuite struct {
 	suite.Suite
 	kubeClient    *kubefake.Clientset
 	radixClient   *radixfake.Clientset
-	kedaClient    *kedafake.Clientset
-	kubeUtil      *kube.Kube
+	dynamicClient client.Client
+	testUtils     test.Utils
 	promClient    *prometheusfake.Clientset
-	dnsConfig     *dnsalias2.DNSConfig
-	oauthConfig   defaults.OAuth2Config
-	ingressConfig ingress.IngressConfiguration
+	ctrl          *gomock.Controller
+	oauthConfig   *defaults.MockOAuth2Config
+	config        config.Config
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -50,716 +46,598 @@ func TestSyncerTestSuite(t *testing.T) {
 }
 
 func (s *syncerTestSuite) SetupTest() {
-	s.kubeClient = kubefake.NewSimpleClientset()
-	s.radixClient = radixfake.NewSimpleClientset()
-	s.promClient = prometheusfake.NewSimpleClientset()
-	s.kedaClient = kedafake.NewSimpleClientset()
-	s.dnsConfig = &dnsalias2.DNSConfig{DNSZone: "dev.radix.equinor.com"}
-	s.oauthConfig = defaults.NewOAuth2Config()
-	s.ingressConfig = ingress.IngressConfiguration{AnnotationConfigurations: []ingress.AnnotationConfiguration{{Name: "test"}}}
+	s.setupTest()
+}
 
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, secretproviderfake.NewSimpleClientset())
+func (s *syncerTestSuite) SetupSubTest() {
+	s.setupTest()
+}
+
+func (s *syncerTestSuite) setupTest() {
+	s.kubeClient = kubefake.NewSimpleClientset()
+	s.radixClient = radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
+	s.dynamicClient = test.CreateClient()
+	s.promClient = prometheusfake.NewSimpleClientset()
+	s.testUtils = test.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)
+	s.config = config.Config{
+		DNSZone: "dev.radix.equinor.com",
+		Gateway: config.GatewayConfig{
+			Name:        "any-gateway",
+			Namespace:   "any-namespace",
+			SectionName: "any-section",
+		},
+	}
+	s.ctrl = gomock.NewController(s.T())
+	s.oauthConfig = defaults.NewMockOAuth2Config(s.ctrl)
 }
 
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
-	return dnsalias.NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dnsConfig, s.ingressConfig, s.oauthConfig, ingress.GetAuxOAuthProxyAnnotationProviders(), radixDNSAlias)
+	return dnsalias.NewSyncer(
+		radixDNSAlias,
+		s.radixClient,
+		s.dynamicClient,
+		s.config,
+		s.oauthConfig,
+	)
 }
 
-type testIngress struct {
-	appName     string
-	envName     string
-	alias       string
-	host        string
-	component   string
-	serviceName string
-	port        int32
-	labels      map[string]string
+func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
+	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: "app"}}
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	rda := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}, Spec: radixv1.RadixDNSAliasSpec{AppName: "app"}}
+	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), rda, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	// First sync sets status
+	expectedGen := rda.Generation
+	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixDNSAliasReconcileSucceeded, rda.Status.ReconcileStatus)
+	s.Empty(rda.Status.Message)
+	s.Equal(expectedGen, rda.Status.ObservedGeneration)
+	s.False(rda.Status.Reconciled.IsZero())
+
+	// Second sync with updated generation
+	rda.Generation++
+	expectedGen = rda.Generation
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	err = sut.OnSync(context.Background())
+	s.Require().NoError(err)
+	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixDNSAliasReconcileSucceeded, rda.Status.ReconcileStatus)
+	s.Empty(rda.Status.Message)
+	s.Equal(expectedGen, rda.Status.ObservedGeneration)
+	s.False(rda.Status.Reconciled.IsZero())
+
+	// Sync with error
+	errorMsg := "any sync error"
+	s.radixClient.PrependReactor("list", "radixdeployments", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors.New(errorMsg)
+	})
+	rda.Generation++
+	expectedGen = rda.Generation
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	err = sut.OnSync(context.Background())
+	s.Require().ErrorContains(err, errorMsg)
+	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.RadixDNSAliasReconcileFailed, rda.Status.ReconcileStatus)
+	s.Contains(rda.Status.Message, errorMsg)
+	s.Equal(expectedGen, rda.Status.ObservedGeneration)
+	s.False(rda.Status.Reconciled.IsZero())
 }
 
-func (s *syncerTestSuite) Test_OnSync_ingresses() {
-	type ingressScenario struct {
-		name            string
-		dnsAlias        commonTest.DNSAlias
-		existingIngress map[string]testIngress
-		expectedIngress map[string]testIngress
-	}
+func (s *syncerTestSuite) Test_OnSync_Errors() {
 	const (
-		appName1           = "app1"
-		appName2           = "app2"
-		envName1           = "env1"
-		envName2           = "env2"
-		component1         = "component1"
-		component2         = "component2"
-		alias1             = "alias1"
-		alias2             = "alias2"
-		component1Port8080 = 8080
-		component2Port9090 = 9090
-		dnsZone1           = "dev.radix.equinor.com"
+		appName  = "any-app"
+		envName  = "any-env"
+		compName = "any-comp"
 	)
 
-	testDefaultUserGroupID := string(uuid.NewUUID())
-
-	rd1 := buildRadixDeployment(appName1, component1, component2, envName1, component1Port8080, component2Port9090)
-	rd2 := buildRadixDeployment(appName1, component1, component2, envName2, component1Port8080, component2Port9090)
-	rd3 := buildRadixDeployment(appName1, component1, component2, envName1, component1Port8080, component2Port9090)
-	rd4 := buildRadixDeployment(appName2, component1, component2, envName2, component1Port8080, component2Port9090)
-	scenarios := []ingressScenario{
-		{
-			name:     "created an ingress",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-			},
-		},
-		{
-			name:     "created additional ingress for another component",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			existingIngress: map[string]testIngress{
-				"alias2.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component2, alias2),
-					alias:  alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, serviceName: component1, port: component1Port8080},
-			},
-			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-				"alias2.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component2, alias2),
-					alias:  alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component2, serviceName: component1, port: component1Port8080},
-			},
-		},
-		{
-			name:     "changed port changes port in existing ingress",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component2Port9090},
-			},
-			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-			},
-		},
-		{
-			name:     "created additional ingress on another alias for the same component",
-			dnsAlias: commonTest.DNSAlias{Alias: alias2, Environment: envName1, Component: component1},
-			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-			},
-			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-				"alias2.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias2),
-					alias:  alias2, host: dnsalias.GetDNSAliasHost(alias2, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-			},
-		},
-		{
-			name:     "manually changed port repaired",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component2Port9090},
-			},
-			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-			},
-		},
-		{
-			name:     "manually changed host repaired",
-			dnsAlias: commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: "/manually/edited/host", component: component1, serviceName: component1, port: component1Port8080},
-			},
-			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-			},
+	dnsAlias := &radixv1.RadixDNSAlias{
+		ObjectMeta: metav1.ObjectMeta{Name: "any-name"},
+		Spec: radixv1.RadixDNSAliasSpec{
+			AppName:     appName,
+			Environment: envName,
+			Component:   compName,
 		},
 	}
-	for _, ts := range scenarios {
-		s.Run(ts.name, func() {
-			s.SetupTest()
-			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
-				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component}}
-			err := commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias)
-			s.Require().NoError(err, "create existing alias")
-
-			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
-			s.registerRadixDeployments(rd1, rd2, rd3, rd4)
-			s.registerExistingIngresses(s.kubeClient, ts.existingIngress)
-
-			syncer := s.createSyncer(radixDNSAlias)
-			err = syncer.OnSync(context.Background())
-			s.Assert().NoError(err)
-
-			ingresses, err := s.getIngressesForAnyAliases(utils.GetEnvironmentNamespace(appName1, ts.dnsAlias.Environment))
-			s.Assert().NoError(err)
-
-			// assert ingresses
-			if ts.expectedIngress == nil {
-				s.Assert().Len(ingresses.Items, 0, "not expected ingresses")
-				return
-			}
-
-			s.Len(ingresses.Items, len(ts.expectedIngress), "not matching expected ingresses count")
-			if len(ingresses.Items) == len(ts.expectedIngress) {
-				for _, ing := range ingresses.Items {
-					appNameLabel := ing.GetLabels()[kube.RadixAppLabel]
-					componentNameLabel := ing.GetLabels()[kube.RadixComponentLabel]
-					aliasLabel := ing.GetLabels()[kube.RadixAliasLabel]
-					s.Assert().Len(ing.Spec.Rules, 1, "rules count")
-					rule := ing.Spec.Rules[0]
-					expectedIngress, ingressExists := ts.expectedIngress[ing.Name]
-					s.Assert().True(ingressExists, "found not expected ingress %s for: appName %s, host %s, service %s, port %d",
-						ing.GetName(), appNameLabel, rule.Host, rule.HTTP.Paths[0].Backend.Service.Name,
-						rule.HTTP.Paths[0].Backend.Service.Port.Number)
-					if ingressExists {
-						s.Assert().Equal(expectedIngress.appName, appNameLabel, "app name")
-						expectedNamespace := utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName)
-						s.Assert().Equal(expectedNamespace, ing.GetNamespace(), "namespace")
-						s.Assert().Equal(expectedIngress.component, componentNameLabel, "component name")
-						s.Assert().Equal(expectedIngress.alias, aliasLabel, "alias name in the label")
-						s.Assert().Equal(expectedIngress.host, rule.Host, "rule host")
-						s.Assert().Len(rule.IngressRuleValue.HTTP.Paths, 1, "http path count")
-						httpIngressPath := rule.IngressRuleValue.HTTP.Paths[0]
-						s.Assert().Equal("/", httpIngressPath.Path, "rule http path")
-						service := httpIngressPath.Backend.Service
-						s.Assert().Equal(expectedIngress.serviceName, service.Name, "rule backend service name")
-						s.Assert().Equal(expectedIngress.port, service.Port.Number, "rule backend service port")
-						if len(ing.ObjectMeta.OwnerReferences) > 0 {
-							ownerRef := ing.ObjectMeta.OwnerReferences[0]
-							s.Assert().Equal(radixv1.SchemeGroupVersion.Identifier(), ownerRef.APIVersion, "ownerRef.APIVersion")
-							s.Assert().Equal(radixv1.KindRadixDNSAlias, ownerRef.Kind, "ownerRef.Kind")
-							s.Assert().Equal(radixDNSAlias.GetName(), ownerRef.Name, "ownerRef.Name")
-							s.Assert().Equal(radixDNSAlias.GetUID(), ownerRef.UID, "ownerRef.UID")
-							s.Assert().True(ownerRef.Controller != nil && *ownerRef.Controller, "ownerRef.Controller")
-						}
-					}
-				}
-			}
-		})
-	}
-}
-
-func (s *syncerTestSuite) Test_OnSync_IngressesWithOAuth2() {
-	type ingressScenario struct {
-		name               string
-		dnsAlias           commonTest.DNSAlias
-		existingIngress    map[string]testIngress
-		expectedIngress    map[string]testIngress
-		componentHasOAuth2 bool
-	}
-	const (
-		appName1           = "app1"
-		envName1           = "env1"
-		component1         = "component1"
-		alias1             = "alias1"
-		component1Port8080 = 8080
-		dnsZone1           = "dev.radix.equinor.com"
-	)
-
-	testDefaultUserGroupID := string(uuid.NewUUID())
-
-	scenarios := []ingressScenario{
-		{
-			name:               "created an aux ingress",
-			componentHasOAuth2: true,
-			dnsAlias:           commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-				fmt.Sprintf("alias1.custom-alias-%s", radixv1.OAuthProxyAuxiliaryComponentSuffix): {appName: appName1, envName: envName1,
-					labels: getLabelsForAuxComponentDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: fmt.Sprintf("%s-%s", component1, radixv1.OAuthProxyAuxiliaryComponentSuffix), port: 4180},
-			},
-		},
-		{
-			name:               "deleted an aux ingress",
-			componentHasOAuth2: false,
-			dnsAlias:           commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			existingIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1,
-					labels: radixlabels.ForDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-				fmt.Sprintf("alias1.custom-alias-%s", radixv1.OAuthProxyAuxiliaryComponentSuffix): {appName: appName1, envName: envName1,
-					labels: getLabelsForAuxComponentDNSAliasIngress(appName1, component1, alias1),
-					alias:  alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: fmt.Sprintf("%s-%s", component1, radixv1.OAuthProxyAuxiliaryComponentSuffix), port: 4180},
-			},
-			expectedIngress: map[string]testIngress{
-				"alias1.custom-alias": {appName: appName1, envName: envName1, alias: alias1, host: dnsalias.GetDNSAliasHost(alias1, dnsZone1), component: component1, serviceName: component1, port: component1Port8080},
-			},
-		},
-	}
-	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
-
-			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable)
-			defer s.T().Cleanup(func() {
-				if len(defaultUserGroupID) > 0 {
-					err := os.Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, defaultUserGroupID)
-					s.Require().NoError(err)
-				}
-			})
-			s.T().Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, testDefaultUserGroupID)
-
-			s.SetupTest()
-			radixDNSAlias := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID()},
-				Spec: radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component}}
-			err := commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias)
-			s.Require().NoError(err, "create existing alias")
-
-			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
-			componentBuilder := utils.NewDeployComponentBuilder().
-				WithImage("radixdev.azurecr.io/some-image1:image.tag").
-				WithName(component1).
-				WithPort("http", component1Port8080).
-				WithPublicPort("http")
-			if ts.componentHasOAuth2 {
-				componentBuilder = componentBuilder.
-					WithAuthentication(&radixv1.Authentication{
-						OAuth2: &radixv1.OAuth2{
-							ClientID: string(uuid.NewUUID()),
-						},
-					})
-			}
-			rd := utils.NewDeploymentBuilder().
-				WithRadixApplication(utils.ARadixApplication()).
-				WithAppName(appName1).
-				WithEnvironment(envName1).
-				WithComponents(componentBuilder).BuildRD()
-			s.registerRadixDeployments(rd)
-			s.registerExistingIngresses(s.kubeClient, ts.existingIngress)
-
-			syncer := s.createSyncer(radixDNSAlias)
-			err = syncer.OnSync(context.Background())
-			s.Assert().NoError(err)
-
-			ingresses, err := s.getIngressesForAnyAliases(utils.GetEnvironmentNamespace(appName1, ts.dnsAlias.Environment))
-			s.Assert().NoError(err)
-
-			// assert ingresses
-			if ts.expectedIngress == nil {
-				s.Assert().Len(ingresses.Items, 0, "not expected ingresses")
-				return
-			}
-
-			s.Len(ingresses.Items, len(ts.expectedIngress), "not matching expected ingresses count")
-			if len(ingresses.Items) == len(ts.expectedIngress) {
-				for _, ing := range ingresses.Items {
-					appNameLabel := ing.GetLabels()[kube.RadixAppLabel]
-					aliasLabel := ing.GetLabels()[kube.RadixAliasLabel]
-					s.Assert().Len(ing.Spec.Rules, 1, "rules count")
-					rule := ing.Spec.Rules[0]
-					expectedIngress, ingressExists := ts.expectedIngress[ing.Name]
-					assert.True(t, ingressExists, "found not expected ingress %s for: appName %s, host %s, service %s, port %d",
-						ing.GetName(), appNameLabel, rule.Host, rule.HTTP.Paths[0].Backend.Service.Name,
-						rule.HTTP.Paths[0].Backend.Service.Port.Number)
-					if ingressExists {
-						s.Assert().Equal(expectedIngress.appName, appNameLabel, "app name")
-						expectedNamespace := utils.GetEnvironmentNamespace(expectedIngress.appName, expectedIngress.envName)
-						s.Assert().Equal(expectedNamespace, ing.GetNamespace(), "namespace")
-						if componentName, ok := ing.GetLabels()[kube.RadixAuxiliaryComponentLabel]; ok {
-							s.Assert().Equal(expectedIngress.component, componentName, "component name")
-						} else {
-							s.Assert().Equal(expectedIngress.component, ing.GetLabels()[kube.RadixComponentLabel], "component name")
-						}
-						s.Assert().Equal(expectedIngress.alias, aliasLabel, "alias name in the label")
-						s.Assert().Equal(expectedIngress.host, rule.Host, "rule host")
-						s.Assert().Len(rule.IngressRuleValue.HTTP.Paths, 1, "http path count")
-						httpIngressPath := rule.IngressRuleValue.HTTP.Paths[0]
-						s.Assert().Equal("/", httpIngressPath.Path, "rule http path")
-						service := httpIngressPath.Backend.Service
-						s.Assert().Equal(expectedIngress.serviceName, service.Name, "rule backend service name")
-						s.Assert().Equal(expectedIngress.port, service.Port.Number, "rule backend service port")
-						if len(ing.ObjectMeta.OwnerReferences) > 0 {
-							ownerRef := ing.ObjectMeta.OwnerReferences[0]
-							s.Assert().True(ownerRef.Controller != nil && *ownerRef.Controller, "ownerRef.Controller")
-							if _, ok := ing.GetLabels()[kube.RadixAuxiliaryComponentLabel]; ok {
-								s.Assert().Equal(networkingv1.SchemeGroupVersion.Identifier(), ownerRef.APIVersion, "ownerRef.APIVersion")
-								s.Assert().Equal(k8s.KindIngress, ownerRef.Kind, "ownerRef.Kind")
-							} else {
-								s.Assert().Equal(radixv1.SchemeGroupVersion.Identifier(), ownerRef.APIVersion, "ownerRef.APIVersion")
-								s.Assert().Equal(radixv1.KindRadixDNSAlias, ownerRef.Kind, "ownerRef.Kind")
-							}
-						}
-					}
-				}
-			}
-		})
-	}
-}
-
-func (s *syncerTestSuite) Test_OnSync_rbac() {
-	type testClusterRoleBinding struct {
-		adGroups []string
-	}
-	type rbacScenario struct {
-		name                               string
-		dnsAlias                           commonTest.DNSAlias
-		expectedClusterRoleNames           map[string]any
-		expectedClusterRoleBindingSubjects map[string]testClusterRoleBinding
-		adminADGroups                      []string
-		readerADGroups                     []string
-		existingClusterRoleBindings        []string
-	}
-	const (
-		appName1           = "app1"
-		appName2           = "app2"
-		envName1           = "env1"
-		envName2           = "env2"
-		component1         = "component1"
-		component2         = "component2"
-		alias1             = "alias1"
-		component1Port8080 = 8080
-		component2Port9090 = 9090
-	)
-
-	testDefaultUserGroupID := string(uuid.NewUUID())
-
-	rd1 := buildRadixDeployment(appName1, component1, component2, envName1, component1Port8080, component2Port9090)
-	rd2 := buildRadixDeployment(appName1, component1, component2, envName2, component1Port8080, component2Port9090)
-	rd3 := buildRadixDeployment(appName1, component1, component2, envName1, component1Port8080, component2Port9090)
-	rd4 := buildRadixDeployment(appName2, component1, component2, envName2, component1Port8080, component2Port9090)
-	scenarios := []rbacScenario{
-		{
-			name:           "create rbac for default admin AD group",
-			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			adminADGroups:  nil,
-			readerADGroups: nil,
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1": true,
-			},
-			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1": {adGroups: []string{testDefaultUserGroupID}},
-			},
-		},
-		{
-			name:           "create rbac for default admin AD group and reader",
-			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			adminADGroups:  nil,
-			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1":        true,
-				"radix-platform-user-rda-reader-app1": true,
-			},
-			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1":        {adGroups: []string{testDefaultUserGroupID}},
-				"radix-platform-user-rda-reader-app1": {adGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"}},
-			},
-		},
-		{
-			name:           "create rbac for specified admin AD group only",
-			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"},
-			readerADGroups: nil,
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1": true,
-			},
-			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1": {adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"}},
-			},
-		},
-		{
-			name:           "create rbac for specified admin AD group and reader group",
-			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"},
-			readerADGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"},
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1":        true,
-				"radix-platform-user-rda-reader-app1": true,
-			},
-			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1":        {adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be", "cca5270d-ffd5-442c-ae32-edb78eee80ce"}},
-				"radix-platform-user-rda-reader-app1": {adGroups: []string{"b8428b61-a0e6-4e81-af5d-0174e7297733", "cf8d720e-ac1d-42af-8c18-9de0811d81ee"}},
-			},
-		},
-		{
-			name:           "delete existing reader role binding",
-			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			adminADGroups:  []string{"bde12869-4a59-490c-bf4d-266ba5f783be"},
-			readerADGroups: nil,
-			existingClusterRoleBindings: []string{
-				"radix-platform-user-rda-app1",
-				"radix-platform-user-rda-reader-app1",
-			},
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1": true,
-			},
-			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1": {adGroups: []string{"bde12869-4a59-490c-bf4d-266ba5f783be"}},
-			},
-		},
-		{
-			name:           "not delete existing admin role binding",
-			dnsAlias:       commonTest.DNSAlias{Alias: alias1, Environment: envName1, Component: component1},
-			adminADGroups:  nil,
-			readerADGroups: nil,
-			existingClusterRoleBindings: []string{
-				"radix-platform-user-rda-app1",
-				"radix-platform-user-rda-reader-app1",
-			},
-			expectedClusterRoleNames: map[string]any{
-				"radix-platform-user-rda-app1": true,
-			},
-			expectedClusterRoleBindingSubjects: map[string]testClusterRoleBinding{
-				"radix-platform-user-rda-app1": {adGroups: []string{testDefaultUserGroupID}},
-			},
-		},
-	}
-	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
-			defaultUserGroupID := os.Getenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable)
-			defer s.T().Cleanup(func() {
-				if len(defaultUserGroupID) > 0 {
-					err := os.Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, defaultUserGroupID)
-					s.Require().NoError(err)
-				}
-			})
-			s.T().Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, testDefaultUserGroupID)
-
-			s.SetupTest()
-
-			ts.dnsAlias.AppName = appName1
-			radixDNSAlias := &radixv1.RadixDNSAlias{
-				TypeMeta:   metav1.TypeMeta{Kind: radixv1.KindRadixDNSAlias, APIVersion: radixv1.SchemeGroupVersion.Identifier()},
-				ObjectMeta: metav1.ObjectMeta{Name: ts.dnsAlias.Alias, UID: uuid.NewUUID(), Labels: radixlabels.ForDNSAliasRbac(appName1)},
-				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: ts.dnsAlias.Environment, Component: ts.dnsAlias.Component},
-			}
-			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, ts.dnsAlias.Alias, ts.dnsAlias), "create existing alias")
-
-			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, ts.adminADGroups, ts.readerADGroups)
-			s.registerRadixDeployments(rd1, rd2, rd3, rd4)
-			s.registerClusterRoleBindings(radixDNSAlias, ts.existingClusterRoleBindings)
-
-			syncer := s.createSyncer(radixDNSAlias)
-			err := syncer.OnSync(context.Background())
-			s.Assert().NoError(err)
-
-			clusterRoleList, err := s.getClusterRolesForAnyAliases()
-			s.Require().NoError(err)
-
-			s.Len(clusterRoleList.Items, len(ts.expectedClusterRoleNames), "not matching expected cluster role count")
-			if len(clusterRoleList.Items) == len(ts.expectedClusterRoleNames) {
-				for _, role := range clusterRoleList.Items {
-					roleName := role.GetName()
-					_, ok := ts.expectedClusterRoleNames[roleName]
-					s.True(ok, "not found expected role %s", roleName)
-					s.Equal(rbacv1.SchemeGroupVersion.Identifier(), role.APIVersion, "invalid api version")
-					s.Equal(k8s.KindClusterRole, role.Kind, "invalid kind")
-					s.Equal(roleName, role.Name, "invalid name")
-
-					s.Equal(radixDNSAlias.Spec.AppName, role.GetLabels()[kube.RadixAppLabel], "missing or invalid label %s", kube.RadixAppLabel)
-					s.Equal("true", role.GetLabels()[kube.RadixAliasLabel], "missing or invalid label %s", kube.RadixAliasLabel)
-
-					s.Len(role.GetOwnerReferences(), 1, "expected one object reference")
-					ownerReference := role.GetOwnerReferences()[0]
-					s.Equal(radixDNSAlias.GetName(), ownerReference.Name, "invalid owner reference name")
-					s.Equal(radixDNSAlias.ObjectMeta.UID, ownerReference.UID, "invalid owner reference uid")
-					s.Equal(radixDNSAlias.APIVersion, ownerReference.APIVersion, "invalid owner reference api version")
-					s.Equal(radixDNSAlias.Kind, ownerReference.Kind, "invalid owner reference kind")
-					s.False(*ownerReference.Controller)
-
-					s.Len(role.Rules, 1, "role should have 1 rule")
-					rule := role.Rules[0]
-					s.Contains(rule.Verbs, "get", "missing rule verb get")
-					s.Contains(rule.Verbs, "list", "missing rule verb list")
-					s.Len(rule.APIGroups, 1, "rule should have 1 api group")
-					s.Equal(radixv1.SchemeGroupVersion.Group, rule.APIGroups[0], "invalid api group")
-					s.Contains(rule.Resources, "radixdnsaliases", "missing rule resource radixdnsalias")
-					s.Contains(rule.Resources, "radixdnsaliases/status", "missing rule resource radixdnsalias/status")
-					s.Len(rule.ResourceNames, 1, "rule should have 1 resource name")
-					s.Contains(rule.ResourceNames, radixDNSAlias.GetName(), "missing resource name %s in the rule", radixDNSAlias.GetName())
-				}
-			}
-
-			clusterRoleBindingList, err := s.getClusterRolesBindingsForAnyAliases()
-			s.Require().NoError(err)
-			s.NotNil(clusterRoleBindingList.Items) // TODO
-
-			s.Len(clusterRoleBindingList.Items, len(ts.expectedClusterRoleBindingSubjects), "not matching expected cluster role binding count")
-			if len(clusterRoleBindingList.Items) == len(ts.expectedClusterRoleBindingSubjects) {
-				for _, roleBinding := range clusterRoleBindingList.Items {
-					bindingName := roleBinding.GetName()
-					_, ok := ts.expectedClusterRoleNames[bindingName]
-					s.True(ok, "not found expected role binding %s", bindingName)
-					expectedClusterRoleBinding, ok := ts.expectedClusterRoleBindingSubjects[bindingName]
-					s.True(ok, "not found expected role binding subjects")
-
-					s.Len(roleBinding.GetOwnerReferences(), 1, "expected one object reference")
-					ownerReference := roleBinding.GetOwnerReferences()[0]
-					s.Equal(radixDNSAlias.GetName(), ownerReference.Name, "invalid owner reference name")
-					s.Equal(radixDNSAlias.ObjectMeta.UID, ownerReference.UID, "invalid owner reference uid")
-					s.Equal(radixDNSAlias.APIVersion, ownerReference.APIVersion, "invalid owner reference api version")
-					s.Equal(radixDNSAlias.Kind, ownerReference.Kind, "invalid owner reference kind")
-					s.False(*ownerReference.Controller)
-
-					roleRef := roleBinding.RoleRef
-					s.Equal(rbacv1.GroupName, roleRef.APIGroup, "invalid api group in role binding role ref")
-					s.Equal(k8s.KindClusterRole, roleRef.Kind, "invalid kind in role binding role ref")
-					s.Equal(bindingName, roleRef.Name)
-					s.Len(roleBinding.Subjects, len(expectedClusterRoleBinding.adGroups), "not matching subjects")
-					for _, subject := range roleBinding.Subjects {
-						s.Equal(subject.APIGroup, rbacv1.GroupName, "invalid subject api group")
-						s.Equal(subject.Kind, rbacv1.GroupKind, "invalid subject kind")
-						s.Contains(expectedClusterRoleBinding.adGroups, subject.Name, "missing subject name in expected AD groups")
-					}
-				}
-			}
-
-		})
-	}
-}
-
-func (s *syncerTestSuite) Test_OnSync_error() {
-	const (
-		appName1   = "app1"
-		envName1   = "env1"
-		component1 = "component1"
-		alias1     = "alias1"
-	)
-
-	scenarios := []struct {
-		name          string
-		expectedError string
-		hasPublicPort bool
-	}{
-		{
-			name:          "error, because the component has no public port",
-			hasPublicPort: false,
-			expectedError: "component component1 referred to by dnsAlias is not marked as public",
-		},
-		{
-			name:          "no error",
-			hasPublicPort: true,
-			expectedError: "",
-		},
-	}
-	for _, ts := range scenarios {
-		s.T().Run(ts.name, func(t *testing.T) {
-			s.SetupTest()
-
-			radixDNSAlias := &radixv1.RadixDNSAlias{
-				TypeMeta:   metav1.TypeMeta{Kind: radixv1.KindRadixDNSAlias, APIVersion: radixv1.SchemeGroupVersion.Identifier()},
-				ObjectMeta: metav1.ObjectMeta{Name: alias1, UID: uuid.NewUUID(), Labels: radixlabels.ForDNSAliasRbac(appName1)},
-				Spec:       radixv1.RadixDNSAliasSpec{AppName: appName1, Environment: envName1, Component: component1},
-			}
-			s.Require().NoError(commonTest.RegisterRadixDNSAliasBySpec(context.Background(), s.radixClient, alias1, commonTest.DNSAlias{
-				Alias: alias1, AppName: appName1, Environment: envName1, Component: component1}), "create existing alias")
-			testDefaultUserGroupID := string(uuid.NewUUID())
-			s.registerRadixRegistration(radixDNSAlias.Spec.AppName, testDefaultUserGroupID, nil, nil)
-
-			componentBuilder := utils.NewDeployComponentBuilder().WithImage("radixdev.azurecr.io/some-image1:image.tag").WithName(component1).WithPort("http", 8080)
-			if ts.hasPublicPort {
-				componentBuilder = componentBuilder.WithPublicPort("http")
-			}
-			rd1 := utils.NewDeploymentBuilder().WithRadixApplication(utils.ARadixApplication()).WithAppName(appName1).
-				WithEnvironment(envName1).WithComponents(componentBuilder).BuildRD()
-			s.registerRadixDeployments(rd1)
-
-			syncer := s.createSyncer(radixDNSAlias)
-			err := syncer.OnSync(context.Background())
-
-			if len(ts.expectedError) > 0 {
-				require.Error(t, err)
-				require.EqualError(t, err, ts.expectedError)
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
-}
-
-func (s *syncerTestSuite) getIngressesForAnyAliases(namespace string) (*networkingv1.IngressList, error) {
-	return s.kubeClient.NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
-}
-
-func (s *syncerTestSuite) getClusterRolesForAnyAliases() (*rbacv1.ClusterRoleList, error) {
-	return s.kubeClient.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
-}
-
-func (s *syncerTestSuite) getClusterRolesBindingsForAnyAliases() (*rbacv1.ClusterRoleBindingList, error) {
-	return s.kubeClient.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{LabelSelector: kube.RadixAliasLabel})
-}
-
-func buildRadixDeployment(appName, component1, component2, envName string, port8080, port9090 int32) *radixv1.RadixDeployment {
-	return utils.NewDeploymentBuilder().
-		WithRadixApplication(utils.ARadixApplication()).
+	rr := utils.NewRegistrationBuilder().
+		WithName(appName).
+		BuildRR()
+	rd := utils.NewDeploymentBuilder().
+		WithDeploymentName("any-rd").
 		WithAppName(appName).
 		WithEnvironment(envName).
-		WithComponents(utils.NewDeployComponentBuilder().
-			WithImage("radixdev.azurecr.io/some-image1:image.tag").
-			WithName(component1).
-			WithPort("http", port8080).
-			WithPublicPort("http"),
+		WithComponent(utils.NewDeployComponentBuilder().
+			WithName(compName).
+			WithPort("http", 8000).
+			WithPublicPort("http")).
+		BuildRD()
+	rdWithOAuth := utils.NewDeploymentBuilder().
+		WithDeploymentName("any-rd").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponent(utils.NewDeployComponentBuilder().
+			WithName(compName).
+			WithPort("http", 8000).
+			WithPublicPort("http").
+			WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
+		BuildRD()
+
+	s.Run("oauth2Config.MergeWith returns error", func() {
+		_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+		s.Require().NoError(err)
+		_, err = s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rdWithOAuth, metav1.CreateOptions{})
+		s.Require().NoError(err)
+		_, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
+		s.Require().NoError(err)
+
+		sut := s.createSyncer(dnsAlias)
+		expectedError := errors.New("any error")
+		s.oauthConfig.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(nil, expectedError)
+		err = sut.OnSync(context.Background())
+		s.Require().ErrorIs(err, expectedError)
+	})
+}
+
+func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
+	const (
+		aliasName     = "any-alias"
+		appName       = "any-app"
+		envName       = "any-env"
+		componentName = "any-comp"
+	)
+	envNamespace := utils.GetEnvironmentNamespace(appName, envName)
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
+	_, err := s.testUtils.ApplyRegistration(rrBuilder)
+	s.Require().NoError(err)
+
+	rdBuilder := utils.NewDeploymentBuilder().
+		WithDeploymentName("any-rd").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(
 			utils.NewDeployComponentBuilder().
-				WithImage("radixdev.azurecr.io/some-image2:image.tag").
-				WithName(component2).
-				WithPort("http", port9090).
-				WithPublicPort("http")).BuildRD()
-}
+				WithName(componentName).
+				WithPort("http", 8000).
+				WithPublicPort("http"),
+		)
+	rd, err := s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
+	s.Require().NoError(err)
 
-func (s *syncerTestSuite) registerRadixRegistration(appName string, defaultAdminADGroup string, adminADGroups []string, readerADGroups []string) {
-	if len(adminADGroups) == 0 {
-		adminADGroups = []string{defaultAdminADGroup}
-	}
-	_, err := s.kubeUtil.RadixClient().RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{Name: appName},
-		Spec: radixv1.RadixRegistrationSpec{
-			AdGroups:       adminADGroups,
-			ReaderAdGroups: readerADGroups,
+	dnsAlias := &radixv1.RadixDNSAlias{
+		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Spec: radixv1.RadixDNSAliasSpec{
+			AppName:     appName,
+			Environment: envName,
+			Component:   componentName,
 		},
-	}, metav1.CreateOptions{})
-	s.Require().NoError(err, "create existing radix registration %s", appName)
-}
-
-func (s *syncerTestSuite) registerRadixDeployments(radixDeployments ...*radixv1.RadixDeployment) {
-	for _, rd := range radixDeployments {
-		namespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
-		_, err := s.radixClient.RadixV1().RadixDeployments(namespace).
-			Create(context.Background(), rd, metav1.CreateOptions{})
-		s.Require().NoError(err, "create existing radix deployment %s", rd.GetName())
 	}
-}
+	dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
+	s.Require().NoError(err)
 
-func (s *syncerTestSuite) registerClusterRoleBindings(radixDNSAlias *radixv1.RadixDNSAlias, roleBindings []string) {
-	for _, name := range roleBindings {
-		err := s.kubeUtil.ApplyClusterRoleBinding(context.Background(), internal.BuildClusterRoleBinding(name, nil, radixDNSAlias))
-		s.Require().NoError(err, "create existing cluster role binding %s", name)
+	sut := s.createSyncer(dnsAlias)
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	// Verify HTTPRoute was created
+	route := &gatewayapiv1.HTTPRoute{}
+	expectedRouteName := fmt.Sprintf("%s.custom-alias", aliasName)
+	err = s.dynamicClient.Get(context.Background(), types.NamespacedName{Name: expectedRouteName, Namespace: envNamespace}, route)
+	s.Require().NoError(err)
+
+	// Verify labels
+	expectedLabels := map[string]string(labels.ForDNSAliasComponentGatewayResource(dnsAlias))
+	for k, v := range expectedLabels {
+		s.Equal(v, route.Labels[k], "label %s mismatch", k)
 	}
+
+	// Verify owner references
+	s.Require().Len(route.OwnerReferences, 1)
+	s.Equal(radixv1.SchemeGroupVersion.String(), route.OwnerReferences[0].APIVersion)
+	s.Equal("RadixDNSAlias", route.OwnerReferences[0].Kind)
+	s.Equal(aliasName, route.OwnerReferences[0].Name)
+	s.True(*route.OwnerReferences[0].Controller)
+	s.True(*route.OwnerReferences[0].BlockOwnerDeletion)
+
+	// Verify hostname
+	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.DNSZone)
+	s.Require().Len(route.Spec.Hostnames, 1)
+	s.Equal(gatewayapiv1.Hostname(expectedHostName), route.Spec.Hostnames[0])
+
+	// Verify parent references
+	s.Require().Len(route.Spec.ParentRefs, 1)
+	parentRef := route.Spec.ParentRefs[0]
+	s.Equal(gatewayapiv1.Group(gatewayapiv1.GroupName), *parentRef.Group)
+	s.Equal(gatewayapiv1.Kind("Gateway"), *parentRef.Kind)
+	s.Equal(gatewayapiv1.ObjectName(s.config.Gateway.Name), parentRef.Name)
+	s.Equal(gatewayapiv1.Namespace(s.config.Gateway.Namespace), *parentRef.Namespace)
+	s.Equal(gatewayapiv1.SectionName(s.config.Gateway.SectionName), *parentRef.SectionName)
+
+	// Verify backend ref points to the component service
+	expectedBackendRef, err := gateway.BuildBackendRefForComponent(&rd.Spec.Components[0])
+	s.Require().NoError(err)
+	s.Require().Len(route.Spec.Rules, 1)
+	s.Require().Len(route.Spec.Rules[0].BackendRefs, 1)
+	s.Equal(expectedBackendRef, route.Spec.Rules[0].BackendRefs[0])
+
+	// Verify path match
+	s.Require().Len(route.Spec.Rules[0].Matches, 1)
+	s.Equal(gatewayapiv1.PathMatchPathPrefix, *route.Spec.Rules[0].Matches[0].Path.Type)
+	s.Equal("/", *route.Spec.Rules[0].Matches[0].Path.Value)
+
+	// Verify HSTS response filter
+	s.Require().Len(route.Spec.Rules[0].Filters, 1)
+	s.Equal(gatewayapiv1.HTTPRouteFilterResponseHeaderModifier, route.Spec.Rules[0].Filters[0].Type)
+	s.Require().NotNil(route.Spec.Rules[0].Filters[0].ResponseHeaderModifier)
+	s.Require().Len(route.Spec.Rules[0].Filters[0].ResponseHeaderModifier.Add, 1)
+	s.Equal(gatewayapiv1.HTTPHeaderName("Strict-Transport-Security"), route.Spec.Rules[0].Filters[0].ResponseHeaderModifier.Add[0].Name)
+	s.Equal("max-age=31536000; includeSubDomains", route.Spec.Rules[0].Filters[0].ResponseHeaderModifier.Add[0].Value)
 }
 
-func (s *syncerTestSuite) registerExistingIngresses(kubeClient kubernetes.Interface, testIngresses map[string]testIngress) {
-	for ingName, ingProps := range testIngresses {
-		ing := &networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   ingName,
-				Labels: ingProps.labels,
+func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_WithOAuth2() {
+	const (
+		aliasName     = "any-alias"
+		appName       = "any-app"
+		envName       = "any-env"
+		componentName = "any-comp"
+	)
+	envNamespace := utils.GetEnvironmentNamespace(appName, envName)
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
+	_, err := s.testUtils.ApplyRegistration(rrBuilder)
+	s.Require().NoError(err)
+
+	rdBuilder := utils.NewDeploymentBuilder().
+		WithDeploymentName("any-rd").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName).
+				WithPort("http", 8000).
+				WithPublicPort("http").
+				WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "any-client-id"}}),
+		)
+	rd, err := s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
+	s.Require().NoError(err)
+
+	dnsAlias := &radixv1.RadixDNSAlias{
+		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Spec: radixv1.RadixDNSAliasSpec{
+			AppName:     appName,
+			Environment: envName,
+			Component:   componentName,
+		},
+	}
+	dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	expectedOAuth := &radixv1.OAuth2{ProxyPrefix: "/any/oauth/path"}
+	s.oauthConfig.EXPECT().MergeWith(rd.Spec.Components[0].Authentication.OAuth2).AnyTimes().Return(expectedOAuth, nil)
+
+	sut := s.createSyncer(dnsAlias)
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	// Verify HTTPRoute was created and routes to oauth2 proxy service
+	route := &gatewayapiv1.HTTPRoute{}
+	expectedRouteName := fmt.Sprintf("%s.custom-alias", aliasName)
+	err = s.dynamicClient.Get(context.Background(), types.NamespacedName{Name: expectedRouteName, Namespace: envNamespace}, route)
+	s.Require().NoError(err)
+
+	expectedComponent := rd.Spec.Components[0].DeepCopy()
+	expectedComponent.Authentication.OAuth2 = expectedOAuth
+	expectedBackendRef := gateway.BuildBackendRefForComponentOauth2Service(expectedComponent)
+	s.Require().Len(route.Spec.Rules, 1)
+	s.Require().Len(route.Spec.Rules[0].BackendRefs, 1)
+	s.Equal(expectedBackendRef, route.Spec.Rules[0].BackendRefs[0])
+}
+
+func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Deleted_WhenComponentNotPublic() {
+	const (
+		aliasName     = "any-alias"
+		appName       = "any-app"
+		envName       = "any-env"
+		componentName = "any-comp"
+	)
+	envNamespace := utils.GetEnvironmentNamespace(appName, envName)
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
+	_, err := s.testUtils.ApplyRegistration(rrBuilder)
+	s.Require().NoError(err)
+
+	// First create with public component
+	rdBuilder := utils.NewDeploymentBuilder().
+		WithDeploymentName("any-rd").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName).
+				WithPort("http", 8000).
+				WithPublicPort("http"),
+		)
+	_, err = s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
+	s.Require().NoError(err)
+
+	dnsAlias := &radixv1.RadixDNSAlias{
+		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Spec: radixv1.RadixDNSAliasSpec{
+			AppName:     appName,
+			Environment: envName,
+			Component:   componentName,
+		},
+	}
+	dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	sut := s.createSyncer(dnsAlias)
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	// Verify HTTPRoute exists
+	route := &gatewayapiv1.HTTPRoute{}
+	expectedRouteName := fmt.Sprintf("%s.custom-alias", aliasName)
+	err = s.dynamicClient.Get(context.Background(), types.NamespacedName{Name: expectedRouteName, Namespace: envNamespace}, route)
+	s.Require().NoError(err)
+
+	// Update deployment - component no longer public
+	err = s.radixClient.RadixV1().RadixDeployments(envNamespace).Delete(context.Background(), "any-rd", metav1.DeleteOptions{})
+	s.Require().NoError(err)
+	rdBuilder = utils.NewDeploymentBuilder().
+		WithDeploymentName("any-rd-2").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName).
+				WithPort("http", 8000),
+		)
+	_, err = s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
+	s.Require().NoError(err)
+
+	sut = s.createSyncer(dnsAlias)
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	// Verify HTTPRoute was deleted
+	err = s.dynamicClient.Get(context.Background(), types.NamespacedName{Name: expectedRouteName, Namespace: envNamespace}, route)
+	s.True(k8sErrors.IsNotFound(err), "HTTPRoute should have been deleted")
+}
+
+func (s *syncerTestSuite) Test_OnSync_HTTPRoute_ChangeDNSAliasComponent() {
+	const (
+		aliasName      = "any-alias"
+		appName        = "any-app"
+		envName        = "any-env"
+		component1Name = "any-comp1"
+		component2Name = "any-comp2"
+	)
+	envNamespace := utils.GetEnvironmentNamespace(appName, envName)
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
+	_, err := s.testUtils.ApplyRegistration(rrBuilder)
+	s.Require().NoError(err)
+
+	rdBuilder := utils.NewDeploymentBuilder().
+		WithDeploymentName("any-rd").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName(component1Name).WithPort("http", 8000).WithPublicPort("http"),
+			utils.NewDeployComponentBuilder().WithName(component2Name).WithPort("http", 9000).WithPublicPort("http"),
+		)
+	rd, err := s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
+	s.Require().NoError(err)
+
+	dnsAlias := &radixv1.RadixDNSAlias{
+		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Spec: radixv1.RadixDNSAliasSpec{
+			AppName:     appName,
+			Environment: envName,
+			Component:   component1Name,
+		},
+	}
+	dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	sut := s.createSyncer(dnsAlias)
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	// Verify HTTPRoute points to component1
+	route := &gatewayapiv1.HTTPRoute{}
+	expectedRouteName := fmt.Sprintf("%s.custom-alias", aliasName)
+	err = s.dynamicClient.Get(context.Background(), types.NamespacedName{Name: expectedRouteName, Namespace: envNamespace}, route)
+	s.Require().NoError(err)
+
+	expectedBackendRef1, err := gateway.BuildBackendRefForComponent(&rd.Spec.Components[0])
+	s.Require().NoError(err)
+	s.Equal(expectedBackendRef1, route.Spec.Rules[0].BackendRefs[0])
+
+	// Change DNS alias to point to component2
+	dnsAlias.Spec.Component = component2Name
+	dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Update(context.Background(), dnsAlias, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+
+	sut = s.createSyncer(dnsAlias)
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	// Verify HTTPRoute points to component2
+	err = s.dynamicClient.Get(context.Background(), types.NamespacedName{Name: expectedRouteName, Namespace: envNamespace}, route)
+	s.Require().NoError(err)
+
+	expectedBackendRef2, err := gateway.BuildBackendRefForComponent(&rd.Spec.Components[1])
+	s.Require().NoError(err)
+	s.Equal(expectedBackendRef2, route.Spec.Rules[0].BackendRefs[0])
+}
+
+func (s *syncerTestSuite) Test_OnSync_GarbageCollect_HTTPRoutes() {
+	const (
+		aliasName     = "any-alias"
+		appName       = "any-app"
+		envName       = "any-env"
+		componentName = "any-comp"
+	)
+	envNamespace := utils.GetEnvironmentNamespace(appName, envName)
+
+	tests := map[string]struct {
+		expectHTTPRouteExists bool
+		rdBuilderFactory      func(rd utils.DeploymentBuilder) utils.DeploymentBuilder
+	}{
+		"no changes - HTTPRoute kept": {
+			expectHTTPRouteExists: true,
+		},
+		"component not public - HTTPRoute deleted": {
+			rdBuilderFactory: func(rd utils.DeploymentBuilder) utils.DeploymentBuilder {
+				return rd.WithComponents(utils.NewDeployComponentBuilder().WithName(componentName).WithPort("http", 8000))
 			},
-			Spec: ingress.GetIngressSpec(ingProps.host, ingProps.serviceName, defaults.TLSSecretName, ingProps.port),
-		}
-		_, err := dnsalias.CreateRadixDNSAliasIngress(context.Background(), kubeClient, ingProps.appName, ingProps.envName, ing)
-		s.Require().NoError(err, "create existing ingress %s", ing.GetName())
+			expectHTTPRouteExists: false,
+		},
+		"component does not exist - HTTPRoute deleted": {
+			rdBuilderFactory: func(rd utils.DeploymentBuilder) utils.DeploymentBuilder {
+				return rd.WithComponents()
+			},
+			expectHTTPRouteExists: false,
+		},
+		"rd status not active - HTTPRoute deleted": {
+			rdBuilderFactory: func(rd utils.DeploymentBuilder) utils.DeploymentBuilder {
+				return rd.WithCondition(radixv1.DeploymentInactive)
+			},
+			expectHTTPRouteExists: false,
+		},
+		"no rd exist - HTTPRoute deleted": {
+			rdBuilderFactory: func(rd utils.DeploymentBuilder) utils.DeploymentBuilder {
+				return nil
+			},
+			expectHTTPRouteExists: false,
+		},
+	}
+
+	for testName, test := range tests {
+		s.Run(testName, func() {
+			rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
+			_, err := s.testUtils.ApplyRegistration(rrBuilder)
+			s.Require().NoError(err)
+
+			rdBuilder := utils.NewDeploymentBuilder().
+				WithDeploymentName("any-rd").
+				WithAppName(appName).
+				WithEnvironment(envName).
+				WithComponents(
+					utils.NewDeployComponentBuilder().
+						WithName(componentName).
+						WithPort("http", 8000).
+						WithPublicPort("http"),
+				)
+			rd, err := s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
+			s.Require().NoError(err)
+
+			dnsAlias := &radixv1.RadixDNSAlias{
+				ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+				Spec: radixv1.RadixDNSAliasSpec{
+					AppName:     appName,
+					Environment: envName,
+					Component:   componentName,
+				},
+			}
+			dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
+			s.oauthConfig.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{ProxyPrefix: "/any"}, nil)
+
+			// Initial sync - creates HTTPRoute
+			sut := s.createSyncer(dnsAlias)
+			s.Require().NoError(sut.OnSync(context.Background()))
+
+			// Verify HTTPRoute exists after initial sync
+			route := &gatewayapiv1.HTTPRoute{}
+			expectedRouteName := fmt.Sprintf("%s.custom-alias", aliasName)
+			err = s.dynamicClient.Get(context.Background(), types.NamespacedName{Name: expectedRouteName, Namespace: envNamespace}, route)
+			s.Require().NoError(err, "HTTPRoute should exist after initial sync")
+
+			// Apply test changes
+			if test.rdBuilderFactory != nil {
+				err = s.radixClient.RadixV1().RadixDeployments(envNamespace).Delete(context.Background(), rd.Name, metav1.DeleteOptions{})
+				s.Require().NoError(err)
+				rdBuilder = test.rdBuilderFactory(rdBuilder)
+
+				if !commonutils.IsNil(rdBuilder) {
+					_, err = s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
+					s.Require().NoError(err)
+				}
+			}
+
+			// Re-sync
+			sut = s.createSyncer(dnsAlias)
+			s.Require().NoError(sut.OnSync(context.Background()))
+
+			// Verify HTTPRoute state
+			err = s.dynamicClient.Get(context.Background(), types.NamespacedName{Name: expectedRouteName, Namespace: envNamespace}, route)
+			if test.expectHTTPRouteExists {
+				s.Require().NoError(err, "HTTPRoute should still exist")
+			} else {
+				s.True(k8sErrors.IsNotFound(err), "HTTPRoute should have been deleted")
+			}
+		})
 	}
 }
 
-func getLabelsForAuxComponentDNSAliasIngress(appName, componentName, alias string) map[string]string {
-	return kubelabels.Set{
-		kube.RadixAppLabel:                    appName,
-		kube.RadixAuxiliaryComponentLabel:     componentName,
-		kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType,
-		kube.RadixAliasLabel:                  alias,
+func (s *syncerTestSuite) Test_OnSync_HTTPRoute_MultiplePortsUsesPublicPort() {
+	const (
+		aliasName     = "any-alias"
+		appName       = "any-app"
+		envName       = "any-env"
+		componentName = "any-comp"
+	)
+	envNamespace := utils.GetEnvironmentNamespace(appName, envName)
+
+	rrBuilder := utils.NewRegistrationBuilder().WithName(appName)
+	_, err := s.testUtils.ApplyRegistration(rrBuilder)
+	s.Require().NoError(err)
+
+	rdBuilder := utils.NewDeploymentBuilder().
+		WithDeploymentName("any-rd").
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName).
+				WithPort("metrics", 1000).
+				WithPort("http", 8000).
+				WithPublicPort("http"),
+		)
+	rd, err := s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
+	s.Require().NoError(err)
+
+	dnsAlias := &radixv1.RadixDNSAlias{
+		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Spec: radixv1.RadixDNSAliasSpec{
+			AppName:     appName,
+			Environment: envName,
+			Component:   componentName,
+		},
 	}
+	dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	sut := s.createSyncer(dnsAlias)
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	route := &gatewayapiv1.HTTPRoute{}
+	expectedRouteName := fmt.Sprintf("%s.custom-alias", aliasName)
+	err = s.dynamicClient.Get(context.Background(), types.NamespacedName{Name: expectedRouteName, Namespace: envNamespace}, route)
+	s.Require().NoError(err)
+
+	// Verify backend ref uses the public port (8000), not the metrics port (1000)
+	expectedBackendRef, err := gateway.BuildBackendRefForComponent(&rd.Spec.Components[0])
+	s.Require().NoError(err)
+	s.Require().Len(route.Spec.Rules[0].BackendRefs, 1)
+	s.Equal(expectedBackendRef, route.Spec.Rules[0].BackendRefs[0])
+
+	// Verify port number is 8000
+	s.Equal(int32(8000), *route.Spec.Rules[0].BackendRefs[0].Port)
 }

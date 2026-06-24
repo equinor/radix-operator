@@ -16,7 +16,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
@@ -71,6 +70,12 @@ func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 		}
 	}
 
+	if pipelineInfo.IsPipelineType(radixv1.Promote) {
+		if err := step.setPromoteDeployImages(ctx, pipelineInfo); err != nil {
+			return err
+		}
+	}
+
 	if err := step.validatePipelineInfo(pipelineInfo); err != nil {
 		return err
 	}
@@ -81,22 +86,17 @@ func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	ra := pipelineInfo.RadixApplication
 	namespace := operatorutils.GetAppNamespace(ra.GetName())
-	dnsAliasConfig := pipelineInfo.PipelineArguments.DNSConfig
-
-	if err := radixvalidators.CanRadixApplicationBeInserted(ctx, step.GetRadixClient(), ra, dnsAliasConfig); err != nil {
-		return err
-	}
 
 	existingRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Get(ctx, ra.Name, metav1.GetOptions{})
 	if err != nil {
 		if kubeerrors.IsNotFound(err) {
 			if _, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Create(ctx, ra, metav1.CreateOptions{}); err != nil {
-				return fmt.Errorf("failed to create radix application. %v", err)
+				return fmt.Errorf("failed to create radix application: %w", err)
 			}
 			log.Ctx(ctx).Info().Msgf("RadixApplication %s created", ra.Name)
 			return nil
 		}
-		return fmt.Errorf("failed to get radix application. %v", err)
+		return fmt.Errorf("failed to get radix application: %w", err)
 	}
 
 	log.Ctx(ctx).Debug().Msgf("RadixApplication %s exists in namespace %s", ra.Name, namespace)
@@ -147,6 +147,35 @@ func (step *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.C
 		printEnvironmentComponentImageSources(ctx, componentImageSourceMap)
 	}
 
+	return nil
+}
+
+func (step *ApplyConfigStepImplementation) setPromoteDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.PipelineArguments.FromEnvironment == "" || pipelineInfo.PipelineArguments.DeploymentName == "" {
+		return nil
+	}
+
+	fromNs := operatorutils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
+	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(fromNs).Get(ctx, pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
+	if err != nil {
+		if kubeerrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to get source deployment for promote: %w", err)
+	}
+
+	toEnv := pipelineInfo.PipelineArguments.ToEnvironment
+	deployImages := make(pipeline.DeployComponentImages)
+	for _, component := range rd.Spec.Components {
+		deployImages[component.Name] = pipeline.DeployComponentImage{ImagePath: component.Image}
+	}
+	for _, job := range rd.Spec.Jobs {
+		deployImages[job.Name] = pipeline.DeployComponentImage{ImagePath: job.Image}
+	}
+
+	pipelineInfo.DeployEnvironmentComponentImages = pipeline.DeployEnvironmentComponentImages{
+		toEnv: deployImages,
+	}
 	return nil
 }
 

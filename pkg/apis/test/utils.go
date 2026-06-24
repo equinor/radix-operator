@@ -186,7 +186,7 @@ func (tu *Utils) ApplyDeployment(ctx context.Context, deploymentBuilder utils.De
 	rd := deploymentBuilder.BuildRD()
 	envs[rd.Namespace] = struct{}{}
 	for env := range envs {
-		CreateEnvNamespace(tu.client, rd.Spec.AppName, env)
+		CreateEnvNamespace(tu.client, rd.Spec.AppName, env) //nolint:staticcheck
 	}
 
 	envNamespace := rd.Namespace
@@ -201,7 +201,7 @@ func (tu *Utils) ApplyDeployment(ctx context.Context, deploymentBuilder utils.De
 // ApplyDeploymentUpdate Will help update a deployment
 func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
 	rd := deploymentBuilder.BuildRD()
-	envNamespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
+	envNamespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment) //nolint:staticcheck
 
 	rdPrev, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Get(context.Background(), rd.GetName(), metav1.GetOptions{})
 	if err != nil {
@@ -464,9 +464,8 @@ func RegisterRadixDNSAliasBySpec(ctx context.Context, radixClient radixclient.In
 	_, err := radixClient.RadixV1().RadixDNSAliases().Create(ctx,
 		&radixv1.RadixDNSAlias{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:       alias,
-				Labels:     labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
-				Finalizers: []string{kube.RadixDNSAliasFinalizer},
+				Name:   alias,
+				Labels: labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
 			},
 			Spec: radixv1.RadixDNSAliasSpec{
 				AppName:     aliasesSpec.AppName,

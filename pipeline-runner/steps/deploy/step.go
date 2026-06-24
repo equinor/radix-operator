@@ -89,18 +89,18 @@ func (cli *DeployStepImplementation) deployToEnv(ctx context.Context, appName st
 	radixDeployment, err := internal.ConstructForTargetEnvironment(ctx, pipelineInfo, targetEnv, commitID, gitTags, radixApplicationHash, buildSecretHash)
 
 	if err != nil {
-		return fmt.Errorf("failed to create Radix deployment in environment %s. %w", targetEnv.Environment, err)
+		return fmt.Errorf("failed to create Radix deployment in environment %s: %w", targetEnv.Environment, err)
 	}
 
 	namespace := utils.GetEnvironmentNamespace(cli.GetAppName(), targetEnv.Environment)
 	if err = cli.namespaceWatcher.WaitFor(ctx, namespace); err != nil {
-		return fmt.Errorf("failed to get environment namespace %s, for app %s. %w", namespace, appName, err)
+		return fmt.Errorf("failed to get environment namespace %s, for app %s: %w", namespace, appName, err)
 	}
 
 	radixDeploymentName := radixDeployment.GetName()
 	log.Ctx(ctx).Info().Msgf("Apply Radix deployment %s to environment %s", radixDeploymentName, targetEnv.Environment)
 	if _, err = cli.GetRadixClient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.Background(), radixDeployment, metav1.CreateOptions{}); err != nil {
-		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s. %w", appName, targetEnv.Environment, err)
+		return fmt.Errorf("failed to apply Radix deployment for app %s to environment %s: %w", appName, targetEnv.Environment, err)
 	}
 
 	if err = cli.radixDeploymentWatcher.WaitForActive(ctx, namespace, radixDeploymentName); err != nil {

@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/job-scheduler/models/v1/events"
 	"github.com/equinor/radix-operator/job-scheduler/pkg/batch"
 	"github.com/equinor/radix-operator/job-scheduler/pkg/notifications"
@@ -13,8 +12,8 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -189,15 +188,14 @@ func Test_RadixBatchWatcher(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt // Must capture outer loop variable when t.Run func calls
 		t.Run(tt.name, func(t *testing.T) {
-			radixClient := radixclientfake.NewSimpleClientset()
+			radixClient := radixclientfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 			namespace := "app-qa"
 			var createdRadixBatch *radixv1.RadixBatch
 			var err error
 			if tt.fields.newRadixBatch != nil && (tt.fields.event == events.Update || tt.fields.event == events.Delete) {
 				// when radix batch exists and during test it will be updated
-				createdRadixBatch, err = radixClient.RadixV1().RadixBatches(namespace).Create(context.TODO(), tt.fields.newRadixBatch, metav1.CreateOptions{})
+				createdRadixBatch, err = radixClient.RadixV1().RadixBatches(namespace).Create(t.Context(), tt.fields.newRadixBatch, metav1.CreateOptions{})
 				if err != nil {
 					assert.Fail(t, err.Error())
 					return
@@ -212,26 +210,26 @@ func Test_RadixBatchWatcher(t *testing.T) {
 				assert.Fail(t, err.Error())
 				return
 			}
-			assert.False(t, commonUtils.IsNil(batchWatcher))
+			assert.NotNil(t, batchWatcher)
 
 			if tt.fields.newRadixBatch != nil && tt.fields.event == events.Create {
 				history.EXPECT().Cleanup(gomock.Any(), make(map[string]struct{})).Times(1)
 				// when radix batch exists and during test it will be updated
-				_, err := radixClient.RadixV1().RadixBatches(namespace).Create(context.TODO(), tt.fields.newRadixBatch, metav1.CreateOptions{})
+				_, err := radixClient.RadixV1().RadixBatches(namespace).Create(t.Context(), tt.fields.newRadixBatch, metav1.CreateOptions{})
 				if err != nil {
 					assert.Fail(t, err.Error())
 					return
 				}
 			} else if createdRadixBatch != nil {
 				if tt.fields.event == events.Update {
-					_, err := radixClient.RadixV1().RadixBatches(namespace).Update(context.TODO(), tt.fields.updateRadixBatch(createdRadixBatch), metav1.UpdateOptions{})
+					_, err := radixClient.RadixV1().RadixBatches(namespace).Update(t.Context(), tt.fields.updateRadixBatch(createdRadixBatch), metav1.UpdateOptions{})
 					if err != nil {
 						assert.Fail(t, err.Error())
 						return
 					}
 				}
 				if tt.fields.event == events.Delete {
-					err := radixClient.RadixV1().RadixBatches(namespace).Delete(context.TODO(), tt.fields.newRadixBatch.Name, metav1.DeleteOptions{})
+					err := radixClient.RadixV1().RadixBatches(namespace).Delete(t.Context(), tt.fields.newRadixBatch.Name, metav1.DeleteOptions{})
 					if err != nil {
 						assert.Fail(t, err.Error())
 						return

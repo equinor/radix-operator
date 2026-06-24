@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
@@ -18,7 +19,6 @@ import (
 	"github.com/equinor/radix-operator/operator/application"
 	"github.com/equinor/radix-operator/operator/batch"
 	"github.com/equinor/radix-operator/operator/common"
-	"github.com/equinor/radix-operator/operator/config"
 	"github.com/equinor/radix-operator/operator/deployment"
 	"github.com/equinor/radix-operator/operator/dnsalias"
 	"github.com/equinor/radix-operator/operator/environment"
@@ -29,31 +29,35 @@ import (
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/event"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	httputils "github.com/equinor/radix-operator/pkg/apis/utils/http"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
-	"github.com/pkg/errors"
-	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
-	"gopkg.in/yaml.v3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
+	siglog "sigs.k8s.io/controller-runtime/pkg/log"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 const (
-	resyncPeriod            = 0
-	ingressConfigurationMap = "radix-operator-ingress-configmap"
+	resyncPeriod = 0
 )
 
 type Options struct {
@@ -68,30 +72,38 @@ type Options struct {
 }
 
 type App struct {
-	opts                     Options
-	rateLimitConfig          utils.KubernetesClientConfigOption
-	warningHandler           utils.KubernetesClientConfigOption
-	eventRecorder            record.EventRecorder
-	kubeInformerFactory      kubeinformers.SharedInformerFactory
-	radixInformerFactory     radixinformers.SharedInformerFactory
-	client                   kubernetes.Interface
-	radixClient              radixclient.Interface
-	prometheusOperatorClient monitoring.Interface
-	secretProviderClient     secretProviderClient.Interface
-	certClient               certclient.Interface
-	oauthDefaultConfig       defaults.OAuth2Config
-	ingressConfiguration     ingress.IngressConfiguration
-	kubeUtil                 *kube.Kube
-	config                   *apiconfig.Config
-	kedaClient               kedav2.Interface
+	opts                 Options
+	eventRecorder        record.EventRecorder
+	kubeInformerFactory  kubeinformers.SharedInformerFactory
+	radixInformerFactory radixinformers.SharedInformerFactory
+	client               kubernetes.Interface
+	radixClient          radixclient.Interface
+	dynamicCache         cache.Cache
+	dynamicClient        client.Client
+	secretProviderClient secretProviderClient.Interface
+	certClient           certclient.Interface
+	oauthDefaultConfig   defaults.OAuth2Config
+	kubeUtil             *kube.Kube
+	config               *apiconfig.Config
+	kedaClient           kedav2.Interface
 }
 
 func main() {
-	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	backgroundCtx := context.Background()
+	ctx, _ := signal.NotifyContext(backgroundCtx, syscall.SIGTERM, syscall.SIGINT)
 
-	app, err := initializeApp(ctx)
+	app, err := initializeApp(backgroundCtx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize app")
+	}
+
+	if profiler := viper.GetBool("USE_PROFILER"); profiler {
+		go func() {
+			log.Ctx(ctx).Info().Msg("Starting pprof server on :7070")
+			if err := http.ListenAndServe(":7070", nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Ctx(ctx).Fatal().Err(err).Msg("Failed to start pprof server")
+			}
+		}()
 	}
 
 	err = app.Run(ctx)
@@ -106,16 +118,18 @@ func initializeApp(ctx context.Context) (*App, error) {
 	var app App
 	var err error
 
-	app.config = config.NewConfig()
+	app.config = apiconfig.MustParse()
 	initLogger(app.config)
 
 	app.opts, err = getInitParams()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get init parameters: %w", err)
 	}
-	app.rateLimitConfig = utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
-	app.warningHandler = utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
-	app.client, app.radixClient, app.kedaClient, app.prometheusOperatorClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(ctx, app.rateLimitConfig, app.warningHandler)
+	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
+	warningHandler := utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
+
+	app.dynamicCache, app.dynamicClient = app.initializeClient(ctx, rateLimitConfig, warningHandler)
+	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(rateLimitConfig, warningHandler)
 	app.eventRecorder, err = event.NewRecorder("Radix controller", app.client.CoreV1().Events(""))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event recorder: %w", err)
@@ -131,11 +145,48 @@ func initializeApp(ctx context.Context) (*App, error) {
 		app.radixInformerFactory,
 	)
 	app.oauthDefaultConfig = getOAuthDefaultConfig()
-	app.ingressConfiguration, err = loadIngressConfigFromMap(ctx, app.kubeUtil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load ingress configuration: %w", err)
-	}
 	return &app, nil
+}
+
+func (a *App) initializeClient(cacheCtx context.Context, configOptions ...utils.KubernetesClientConfigOption) (cache.Cache, client.Client) {
+	zerologr.NameFieldName = "logger"
+	zerologr.NameSeparator = "/"
+	zerologr.SetMaxV(2)
+	var zlog logr.Logger = zerologr.New(log.Ctx(cacheCtx))
+	siglog.SetLogger(zlog)
+	klog.SetLogger(zlog)
+
+	cfg := k8sconfig.GetConfigOrDie()
+	cfg.Wrap(utils.PrometheusMetrics)
+	cfg.Wrap(httputils.LogRequests)
+
+	for _, o := range configOptions {
+		o(cfg)
+	}
+
+	scheme := scheme.NewScheme()
+	cache, err := cache.New(cfg, cache.Options{Scheme: scheme})
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize cache")
+	}
+
+	go func() {
+		if err := cache.Start(cacheCtx); err != nil {
+			log.Fatal().Err(err).Msg("Failed to start cache")
+		}
+	}()
+
+	if synced := cache.WaitForCacheSync(cacheCtx); !synced {
+		log.Fatal().Msg("Failed to sync cache")
+	}
+
+	dynClient, err := client.New(cfg, client.Options{Scheme: scheme, Cache: &client.CacheOptions{Reader: cache}})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize dynamic client")
+	}
+
+	return cache, dynClient
 }
 
 func (a *App) createSchedulers(ctx context.Context) ([]scheduler.TaskScheduler, error) {
@@ -149,7 +200,7 @@ func (a *App) createSchedulers(ctx context.Context) ([]scheduler.TaskScheduler, 
 		taskSchedulers = append(taskSchedulers, envCleanupTask)
 		log.Ctx(ctx).Info().Msgf("Created schedule %s for the task RadixEnvironments cleanup task", a.config.TaskConfig.OrphanedEnvironmentsCleanupCron)
 	}
-	return taskSchedulers, stderrors.Join(errs...)
+	return taskSchedulers, errors.Join(errs...)
 }
 
 func (a *App) Run(ctx context.Context) error {
@@ -233,7 +284,7 @@ func getInitParams() (Options, error) {
 		alertControllerThreads:        alertControllerThreads,
 		kubeClientRateLimitBurst:      kubeClientRateLimitBurst,
 		kubeClientRateLimitQPS:        kubeClientRateLimitQPS,
-	}, stderrors.Join(regErr, appErr, envErr, depErr, jobErr, aleErr, burstErr, qpsErr)
+	}, errors.Join(regErr, appErr, envErr, depErr, jobErr, aleErr, burstErr, qpsErr)
 }
 
 func (a *App) createRegistrationController(ctx context.Context) *common.Controller {
@@ -241,16 +292,15 @@ func (a *App) createRegistrationController(ctx context.Context) *common.Controll
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced
+		a.eventRecorder,
 	)
 
 	return registration.NewController(ctx,
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil.RadixClient(),
-		&handler,
+		handler,
 		a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func (a *App) createApplicationController(ctx context.Context) *common.Controller {
@@ -258,17 +308,15 @@ func (a *App) createApplicationController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		a.config.DNSConfig,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced
+		a.eventRecorder,
 	)
 
 	return application.NewController(ctx,
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil.RadixClient(),
-		&handler,
+		handler,
 		a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func (a *App) createEnvironmentController(ctx context.Context) *common.Controller {
@@ -276,26 +324,25 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced
+		*a.config,
+		a.eventRecorder,
 	)
 
 	return environment.NewController(ctx,
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil.RadixClient(),
-		&handler,
+		handler,
 		a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller {
 	handler := dnsalias.NewHandler(
 		a.kubeUtil.KubeClient(),
-		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		a.config.DNSConfig,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced
-		dnsalias.WithIngressConfiguration(a.ingressConfiguration),
+		a.dynamicClient,
+		a.eventRecorder,
+		*a.config,
 		dnsalias.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 	)
 
@@ -305,8 +352,7 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.kubeUtil.RadixClient(),
 		handler,
 		a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func (a *App) createDeploymentController(ctx context.Context) *common.Controller {
@@ -323,11 +369,11 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.kedaClient,
-		a.prometheusOperatorClient,
+		a.dynamicClient,
 		a.certClient,
+		a.eventRecorder,
 		a.config,
 		deployment.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
-		deployment.WithIngressConfiguration(a.ingressConfiguration),
 		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),
 		deployment.WithOAuth2RedisDockerImage(oauth2RedisDockerImage),
 	)
@@ -337,8 +383,7 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.kubeUtil.RadixClient(),
 		handler,
 		a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
+		a.radixInformerFactory)
 }
 
 func (a *App) createJobController(ctx context.Context) *common.Controller {
@@ -346,21 +391,21 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		a.config,
-		func(syncedOk bool) {}) // Not interested in getting notifications of synced
+		a.eventRecorder,
+		a.config)
 
-	return job.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
+	return job.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory)
 }
 
 func (a *App) createAlertController(ctx context.Context) *common.Controller {
 	handler := alert.NewHandler(
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
-		a.kubeUtil.RadixClient(),
-		a.prometheusOperatorClient,
+		a.dynamicClient,
+		a.eventRecorder,
 	)
 
-	return alert.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory, a.eventRecorder)
+	return alert.NewController(ctx, a.kubeUtil.KubeClient(), a.radixClient, handler, a.kubeInformerFactory, a.radixInformerFactory)
 }
 
 func (a *App) createBatchController(ctx context.Context) *common.Controller {
@@ -368,28 +413,15 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		a.config,
+		a.eventRecorder,
+		*a.config,
 	)
 
 	return batch.NewController(ctx,
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil.RadixClient(),
 		handler, a.kubeInformerFactory,
-		a.radixInformerFactory,
-		a.eventRecorder)
-}
-
-func loadIngressConfigFromMap(ctx context.Context, kubeutil *kube.Kube) (ingress.IngressConfiguration, error) {
-	ingressConfig := ingress.IngressConfiguration{}
-	configMap, err := kubeutil.GetConfigMap(ctx, metav1.NamespaceDefault, ingressConfigurationMap)
-	if err != nil {
-		return ingressConfig, err
-	}
-
-	if err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &ingressConfig); err != nil {
-		return ingressConfig, err
-	}
-	return ingressConfig, nil
+		a.radixInformerFactory)
 }
 
 func startMetricsServer(ctx context.Context) error {

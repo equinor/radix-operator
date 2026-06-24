@@ -23,11 +23,6 @@ func GetExternalDnsTlsSecretName(externalDns radixv1.RadixDeployExternalDNS) str
 	return externalDns.FQDN
 }
 
-// GetComponentClientCertificateSecretName Gets name of the component secret that holds the ca.crt public key for client certificate authentication
-func GetComponentClientCertificateSecretName(componentame string) string {
-	return strings.ToLower(fmt.Sprintf("%s-clientcertca", componentame))
-}
-
 // GetAuxiliaryComponentSecretName Get secret name for AuxiliaryComponent
 func GetAuxiliaryComponentSecretName(componentName string, suffix string) string {
 	return GetComponentSecretName(GetAuxiliaryComponentDeploymentName(componentName, suffix))
@@ -39,7 +34,7 @@ func GetEnvVarsFromAzureKeyVaultSecretRefs(radixDeploymentName, componentName st
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
 		for _, keyVaultItem := range azureKeyVault.Items {
 			if len(keyVaultItem.EnvVar) == 0 {
-				continue // Do not add cert,secret or key as environment variable - it will exist only as s file
+				continue // Do not add cert,secret or key as environment variable - it will exist only as a file
 			}
 			kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
 			secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)

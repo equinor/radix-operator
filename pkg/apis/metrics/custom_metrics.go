@@ -103,13 +103,13 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) error 
 		}
 
 		radixRequestedCPU.
-			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).
+			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}). //nolint:staticcheck
 			Set(float64(cpu.MilliValue()))
 		radixRequestedMemory.
-			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).
+			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}). //nolint:staticcheck
 			Set(float64(memory.ScaledValue(resource.Mega)))
 		radixRequestedReplicas.
-			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).
+			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}). //nolint:staticcheck
 			Set(nrReplicas)
 	}
 
@@ -151,10 +151,10 @@ func RadixDeploymentActivated(ctx context.Context, rd *v1.RadixDeployment) {
 		return
 	}
 	labels := prometheus.Labels{
-		"label_radix_app":        rd.Spec.AppName,
+		"label_radix_app":        rd.Spec.AppName, //nolint:staticcheck
 		"label_radix_env":        rd.Spec.Environment,
 		"label_radix_deployment": rd.Name,
-		"namespace":              utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)}
+		"namespace":              utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)} //nolint:staticcheck
 	log.Ctx(ctx).Info().Msgf("Send RadixDeploymentActivated %s", labels)
 	radixDeploymentActivated.With(labels).Set(float64(time.Now().Unix()))
 }

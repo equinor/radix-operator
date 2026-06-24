@@ -1,6 +1,8 @@
 package labels
 
 import (
+	"strconv"
+
 	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -49,6 +51,14 @@ func ForComponentName(componentName string) kubelabels.Set {
 	}
 }
 
+// ForComponentGatewayResources returns labels for a component's Gateway API resources
+func ForComponentGatewayResources(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixAppLabel:       appName,
+		kube.RadixComponentLabel: component.GetName(),
+	}
+}
+
 // ForJobAuxObject returns labels describing the job aux object,
 func ForJobAuxObject(jobName, auxType string) kubelabels.Set {
 	return kubelabels.Set{
@@ -87,6 +97,14 @@ func IsComponentSelector() kubelabels.Selector {
 func ForBatchType(batchType kube.RadixBatchType) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixBatchTypeLabel: string(batchType),
+	}
+}
+
+// ForBatchCron returns labels describing if the job is a cron job or not,
+// e.g. "radix-batch-cron": "true"
+func ForBatchCron(batchCron bool) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixBatchCronLabel: strconv.FormatBool(batchCron),
 	}
 }
 
@@ -137,13 +155,12 @@ func ForServiceAccountIsForSubPipeline() kubelabels.Set {
 
 // ForOAuthProxyComponentServiceAccount returns labels for configuring a ServiceAccount for an aux OAuth2 proxy
 func ForOAuthProxyComponentServiceAccount(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return Merge(
-		kubelabels.Set{
-			kube.RadixAuxiliaryComponentLabel:       component.GetName(),
-			kube.RadixAuxiliaryComponentTypeLabel:   radixv1.OAuthProxyAuxiliaryComponentType,
-			kube.IsServiceAccountForOAuthProxyLabel: "true",
-		},
-	)
+	return kubelabels.Set{
+		kube.RadixAuxiliaryComponentLabel:       component.GetName(),
+		kube.RadixAuxiliaryComponentTypeLabel:   radixv1.OAuthProxyAuxiliaryComponentType,
+		kube.IsServiceAccountForOAuthProxyLabel: "true",
+	}
+
 }
 
 // ForPodWithRadixIdentity returns labels for configuring a Pod with external identities,
@@ -272,78 +289,12 @@ func ForAuxOAuthRedisComponent(appName string, component radixv1.RadixCommonDepl
 	}
 }
 
-// ForAuxComponentDefaultIngress returns labels for application component aux OAuth proxy default ingress
-func ForAuxComponentDefaultIngress(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return forAuxComponentIngress(appName, component, kube.RadixDefaultAliasLabel, "true")
-}
-
-// ForAuxComponentActiveClusterAliasIngress returns labels for application component active cluster alias ingress
-func ForAuxComponentActiveClusterAliasIngress(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return forAuxComponentIngress(appName, component, kube.RadixActiveClusterAliasLabel, "true")
-}
-
-// ForAuxComponentAppAliasIngress returns labels for application component app alias ingress
-func ForAuxComponentAppAliasIngress(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return forAuxComponentIngress(appName, component, kube.RadixAppAliasLabel, "true")
-}
-
-// ForAuxComponentExternalAliasIngress returns labels for application component aux OAuth proxy external alias ingress
-func ForAuxComponentExternalAliasIngress(appName string, component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return forAuxComponentIngress(appName, component, kube.RadixExternalAliasLabel, "true")
-}
-
-// ForAuxComponentDNSAliasIngress returns labels for application component aux DNS alias ingress OAuth proxy
-func ForAuxComponentDNSAliasIngress(appName string, component radixv1.RadixCommonDeployComponent, dnsAlias string) kubelabels.Set {
-	return forAuxComponentIngress(appName, component, kube.RadixAliasLabel, dnsAlias)
-}
-
-func forAuxComponentIngress(appName string, component radixv1.RadixCommonDeployComponent, aliasLabel, aliasLabelValue string) kubelabels.Set {
+// ForDNSAliasComponentGatewayResource returns labels for DNS alias Gateway API resources
+func ForDNSAliasComponentGatewayResource(dnsAlias *radixv1.RadixDNSAlias) kubelabels.Set {
 	return kubelabels.Set{
-		kube.RadixAppLabel:                    appName,
-		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
-		kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType,
-		aliasLabel:                            aliasLabelValue,
-	}
-}
-
-// ForComponentDefaultAliasIngress returns labels for application component default alias ingress
-func ForComponentDefaultAliasIngress(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixComponentLabel:    component.GetName(),
-		kube.RadixDefaultAliasLabel: "true",
-	}
-}
-
-// ForComponentActiveClusterAliasIngress returns labels for application component active cluster alias ingress
-func ForComponentActiveClusterAliasIngress(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixComponentLabel:          component.GetName(),
-		kube.RadixActiveClusterAliasLabel: "true",
-	}
-}
-
-// ForComponentAppAliasIngress returns labels for application component app alias ingress
-func ForComponentAppAliasIngress(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixComponentLabel: component.GetName(),
-		kube.RadixAppAliasLabel:  "true",
-	}
-}
-
-// ForComponentExternalAliasIngress returns labels for application component external alias ingress
-func ForComponentExternalAliasIngress(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixComponentLabel:     component.GetName(),
-		kube.RadixExternalAliasLabel: "true",
-	}
-}
-
-// ForDNSAliasIngress returns labels for DNS alias ingress
-func ForDNSAliasIngress(appName string, componentName, dnsAlias string) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixAppLabel:       appName,
-		kube.RadixComponentLabel: componentName,
-		kube.RadixAliasLabel:     dnsAlias,
+		kube.RadixAppLabel:       dnsAlias.Spec.AppName,
+		kube.RadixComponentLabel: dnsAlias.Spec.Component,
+		kube.RadixAliasLabel:     dnsAlias.Name,
 	}
 }
 
@@ -355,16 +306,8 @@ func ForDNSAliasRbac(appName string) kubelabels.Set {
 	}
 }
 
-// ForExternalDNSTLSSecret returns labels for External DNS TLS secret
-func ForExternalDNSTLSSecret(appName string, externalDns radixv1.RadixDeployExternalDNS) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixAppLabel:               appName,
-		kube.RadixExternalAliasFQDNLabel: externalDns.FQDN,
-	}
-}
-
-// ForExternalDNSCertificate returns labels for External DNS certificate
-func ForExternalDNSCertificate(appName string, externalDns radixv1.RadixDeployExternalDNS) kubelabels.Set {
+// ForExternalDNSResource returns labels for External DNS resource
+func ForExternalDNSResource(appName string, externalDns radixv1.RadixDeployExternalDNS) kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixAppLabel:               appName,
 		kube.RadixExternalAliasFQDNLabel: externalDns.FQDN,

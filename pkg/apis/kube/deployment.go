@@ -19,7 +19,7 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 	if currentDeployment == nil {
 		createdDeployment, err := kubeutil.CreateDeployment(ctx, namespace, desiredDeployment)
 		if err != nil {
-			return fmt.Errorf("failed to create Deployment object: %v", err)
+			return fmt.Errorf("failed to create Deployment object: %w", err)
 		}
 		log.Ctx(ctx).Debug().Msgf("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
 		return nil
@@ -37,7 +37,7 @@ func (kubeutil *Kube) ApplyDeployment(ctx context.Context, namespace string, cur
 	log.Ctx(ctx).Debug().Msgf("Patch: %s", string(patchBytes))
 	patchedDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Patch(ctx, currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to patch deployment object: %v", err)
+		return fmt.Errorf("failed to patch deployment object: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msgf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
 	return nil
@@ -54,7 +54,7 @@ func getDeploymentPatch(currentDeployment *appsv1.Deployment, desiredDeployment 
 	}
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(currentDeploymentJSON, desiredDeploymentJSON, appsv1.Deployment{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create two way merge patch deployment objects: %v", err)
+		return nil, fmt.Errorf("failed to create two way merge patch deployment objects: %w", err)
 	}
 	return patchBytes, nil
 }
@@ -65,7 +65,7 @@ func deserializeDeployment(deployment *appsv1.Deployment) ([]byte, error) {
 	delete(deployment.ObjectMeta.Annotations, "deployment.kubernetes.io/revision")
 	currentDeploymentJSON, err := json.Marshal(deployment)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal old deployment object: %v", err)
+		return nil, fmt.Errorf("failed to marshal old deployment object: %w", err)
 	}
 	return currentDeploymentJSON, nil
 }

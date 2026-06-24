@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/ingress"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -59,19 +58,6 @@ func (deploy *Deployment) syncComponentSecrets(ctx context.Context, component ra
 		return err
 	}
 
-	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
-	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && ingress.IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
-		if err := deploy.createOrUpdateClientCertificateSecret(ctx, component.GetName(), clientCertificateSecretName); err != nil {
-			return err
-		}
-		secretsToManage = append(secretsToManage, clientCertificateSecretName)
-	} else if deploy.kubeutil.SecretExists(ctx, namespace, clientCertificateSecretName) {
-		err := deploy.kubeutil.DeleteSecret(ctx, namespace, clientCertificateSecretName)
-		if err != nil {
-			return err
-		}
-	}
-
 	secretRefsSecretNames, err := deploy.createSecretRefs(ctx, namespace, component)
 	if err != nil {
 		return err
@@ -80,7 +66,7 @@ func (deploy *Deployment) syncComponentSecrets(ctx context.Context, component ra
 
 	err = deploy.grantAccessToComponentRuntimeSecrets(ctx, component, secretsToManage)
 	if err != nil {
-		return fmt.Errorf("failed to grant access to secrets. %v", err)
+		return fmt.Errorf("failed to grant access to secrets: %w", err)
 	}
 
 	if len(secretsToManage) == 0 {
@@ -233,46 +219,4 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 
 	secret.Data = data
 	return &secret
-}
-
-func (deploy *Deployment) createOrUpdateClientCertificateSecret(ctx context.Context, componentName, secretName string) error {
-	ns := deploy.radixDeployment.Namespace
-	var currentSecret, desiredSecret *corev1.Secret
-	currentSecret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
-	if err != nil {
-		if !kubeerrors.IsNotFound(err) {
-			return fmt.Errorf("failed to get current client certificate secret: %w", err)
-		}
-		desiredSecret = &corev1.Secret{
-			Type: corev1.SecretTypeOpaque,
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: ns,
-			},
-			Data: map[string][]byte{
-				"ca.crt": nil,
-			},
-		}
-		currentSecret = nil
-	} else {
-		desiredSecret = currentSecret.DeepCopy()
-	}
-
-	desiredSecret.Labels = map[string]string{
-		kube.RadixAppLabel:       deploy.registration.Name,
-		kube.RadixComponentLabel: componentName,
-	}
-
-	if currentSecret == nil {
-		if _, err := deploy.kubeutil.CreateSecret(ctx, ns, desiredSecret); err != nil {
-			return fmt.Errorf("failed to create volume mount secret: %w", err)
-		}
-		return nil
-	}
-
-	if _, err := deploy.kubeutil.UpdateSecret(ctx, currentSecret, desiredSecret); err != nil {
-		return fmt.Errorf("failed to update volume mount DNS secret: %w", err)
-	}
-
-	return nil
 }

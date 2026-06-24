@@ -128,9 +128,16 @@ func assertACRJobSpec(t *testing.T, pushImage bool) {
 	assert.ElementsMatch(t, []string{"clone"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 	cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
 	assert.Equal(t, args.GitCloneGitImage, cloneContainer.Image)
-	expectedCommand := fmt.Sprintf("umask 002 && git config --global --add safe.directory %[3]s && git clone %[2]s -b %[4]s --verbose --progress --filter=blob:none %[3]s && (git submodule update --init --recursive || echo \"Warning: Unable to clone submodules, proceeding without them\") && cd %[3]s && echo \"Checking out commit %[1]s\" && git merge-base --is-ancestor %[1]s HEAD && git checkout -q %[1]s && cd - && cd /some-workspace && if [ -n \"$(git lfs ls-files 2>/dev/null)\" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd - && chmod -R g+r /some-workspace/.git", gitCommitHash, cloneURL, gitWorkspace, gitRefName)
+	expectedCommand := `umask 002 && git config --global --add safe.directory "$RADIX_CLONE_DIR" && git clone -b "$RADIX_CLONE_BRANCH" --verbose --progress --filter=blob:none -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them") && cd "$RADIX_CLONE_DIR" && echo "Checking out commit $RADIX_CLONE_COMMIT" && git merge-base --is-ancestor "$RADIX_CLONE_COMMIT" HEAD && git checkout -q "$RADIX_CLONE_COMMIT" && cd - && cd "$RADIX_CLONE_DIR" && if [ -n "$(git lfs ls-files 2>/dev/null)" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd - && chmod -R g+r "$RADIX_CLONE_DIR/.git"`
 	assert.Equal(t, []string{"sh", "-c", expectedCommand}, cloneContainer.Command)
 	assert.Empty(t, cloneContainer.Args)
+	assert.ElementsMatch(t, []corev1.EnvVar{
+		{Name: "HOME", Value: git.CloneRepoHomeVolumePath},
+		{Name: "RADIX_CLONE_REPO", Value: cloneURL},
+		{Name: "RADIX_CLONE_BRANCH", Value: gitRefName},
+		{Name: "RADIX_CLONE_DIR", Value: gitWorkspace},
+		{Name: "RADIX_CLONE_COMMIT", Value: gitCommitHash},
+	}, cloneContainer.Env)
 	expectedCloneVolumeMounts := []corev1.VolumeMount{
 		{Name: git.BuildContextVolumeName, MountPath: "/some-workspace"},
 		{Name: git.GitSSHKeyVolumeName, MountPath: "/.ssh", ReadOnly: true},

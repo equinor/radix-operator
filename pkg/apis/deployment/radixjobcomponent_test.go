@@ -23,7 +23,7 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 		WithJobComponents(
 			utils.AnApplicationJobComponent().
 				WithName("job1").
-				WithSchedulerPort(pointers.Ptr[int32](8888)).
+				WithSchedulerPort(8888).
 				WithPayloadPath(utils.StringPtr("/path/to/payload")),
 			utils.AnApplicationJobComponent().
 				WithName("job2"),
@@ -38,10 +38,10 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 	assert.Equal(t, "job1", jobs[0].Name)
-	assert.Equal(t, pointers.Ptr[int32](8888), jobs[0].SchedulerPort)
+	assert.Equal(t, int32(8888), jobs[0].SchedulerPort)
 	assert.Equal(t, "/path/to/payload", jobs[0].Payload.Path)
 	assert.Equal(t, "job2", jobs[1].Name)
-	assert.Nil(t, jobs[1].SchedulerPort)
+	assert.Zero(t, jobs[1].SchedulerPort)
 	assert.Nil(t, jobs[1].Payload)
 }
 
@@ -52,7 +52,7 @@ func Test_GetRadixJobComponentsWithNode_BuildAllJobComponents(t *testing.T) {
 		WithJobComponents(
 			utils.AnApplicationJobComponent().
 				WithName("job1").
-				WithSchedulerPort(pointers.Ptr[int32](8888)).
+				WithSchedulerPort(8888).
 				WithPayloadPath(utils.StringPtr("/path/to/payload")).
 				WithNode(radixv1.RadixNode{Gpu: gpu, GpuCount: gpuCount}),
 			utils.AnApplicationJobComponent().
@@ -398,7 +398,7 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 		WithJobComponents(
 			utils.AnApplicationJobComponent().
 				WithName("this job name does get set").
-				WithSchedulerPort(numbers.Int32Ptr(8888)).
+				WithSchedulerPort(8888).
 				WithTimeLimitSeconds(numbers.Int64Ptr(200)).
 				WithEnvironmentConfigs(
 					utils.NewJobComponentEnvironmentBuilder().
@@ -418,6 +418,58 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, numbers.Int64Ptr(100), env1Job[0].TimeLimitSeconds)
 	assert.Equal(t, numbers.Int64Ptr(200), env2Job[0].TimeLimitSeconds)
+}
+
+func Test_GetRadixJobComponents_Cron(t *testing.T) {
+	commonCron := &radixv1.CronSchedule{
+		TimeZone:    "UTC",
+		Schedules:   []string{"0 * * * *"},
+		Concurrency: "Allow",
+	}
+	envCron := &radixv1.CronSchedule{
+		TimeZone:    "Europe/Oslo",
+		Schedules:   []string{"30 2 * * *"},
+		Concurrency: "Forbid",
+	}
+
+	scenarios := []struct {
+		name                 string
+		commonCron           *radixv1.CronSchedule
+		configureEnvironment bool
+		environmentCron      *radixv1.CronSchedule
+		expected             *radixv1.CronSchedule
+	}{
+		{name: "use common cron when no environment config", commonCron: commonCron, configureEnvironment: false, expected: commonCron},
+		{name: "override common cron with environment cron", commonCron: commonCron, configureEnvironment: true, environmentCron: envCron, expected: envCron},
+		{name: "environment config without cron falls back to common cron", commonCron: commonCron, configureEnvironment: true, environmentCron: nil, expected: commonCron},
+		{name: "use environment cron when common cron is unset", commonCron: nil, configureEnvironment: true, environmentCron: envCron, expected: envCron},
+	}
+
+	const envName = "dev"
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			t.Parallel()
+			jobBuilder := utils.NewApplicationJobComponentBuilder().
+				WithName("anyjob").
+				WithCron(scenario.commonCron)
+			if scenario.configureEnvironment {
+				jobBuilder = jobBuilder.WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment(envName).
+						WithCron(scenario.environmentCron),
+				)
+			}
+			ra := utils.NewRadixApplicationBuilder().
+				WithJobComponents(jobBuilder).
+				BuildRA()
+
+			builder := jobComponentsBuilder{ra: ra, env: envName, componentImages: pipeline.DeployComponentImages{}}
+			jobs, err := builder.JobComponents(context.Background())
+			require.NoError(t, err)
+			require.Len(t, jobs, 1)
+			assert.Equal(t, scenario.expected, jobs[0].Cron)
+		})
+	}
 }
 
 func Test_GetRadixJobComponents_BackoffLimit(t *testing.T) {

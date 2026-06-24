@@ -14,7 +14,7 @@ func NewRecorder(controllerAgentName string, events typedcorev1.EventInterface) 
 	if err := v1.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
-	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster := record.NewBroadcaster(record.WithCorrelatorOptions(record.CorrelatorOptions{}))
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: events})
 	return eventBroadcaster.NewRecorder(scheme, corev1.EventSource{Component: controllerAgentName}), nil
 }
