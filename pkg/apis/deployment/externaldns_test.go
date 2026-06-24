@@ -22,7 +22,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -116,14 +115,14 @@ func (s *ExternalDNSTestSuite) getHTTPRoute(ctx context.Context, name, namespace
 	return route, err
 }
 
-func (s *ExternalDNSTestSuite) getListenerSet(ctx context.Context, name, namespace string) (*gatewayapixv1alpha1.XListenerSet, error) {
-	ls := &gatewayapixv1alpha1.XListenerSet{}
+func (s *ExternalDNSTestSuite) getListenerSet(ctx context.Context, name, namespace string) (*gatewayapiv1.ListenerSet, error) {
+	ls := &gatewayapiv1.ListenerSet{}
 	err := s.dynamicClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ls)
 	return ls, err
 }
 
-func (s *ExternalDNSTestSuite) listListenerSets(ctx context.Context, namespace string) (*gatewayapixv1alpha1.XListenerSetList, error) {
-	lsList := &gatewayapixv1alpha1.XListenerSetList{}
+func (s *ExternalDNSTestSuite) listListenerSets(ctx context.Context, namespace string) (*gatewayapiv1.ListenerSetList, error) {
+	lsList := &gatewayapiv1.ListenerSetList{}
 	err := s.dynamicClient.List(ctx, lsList, client.InNamespace(namespace))
 	return lsList, err
 }
@@ -171,8 +170,8 @@ func (s *ExternalDNSTestSuite) TestHTTPRouteAndListenerSetCreated_ForExternalDNS
 	s.Require().NotNil(listenerSetParentRef.Group)
 	s.Require().NotNil(listenerSetParentRef.Kind)
 	s.Require().NotNil(listenerSetParentRef.Namespace)
-	s.Equal(gatewayapiv1.Group(gatewayapixv1alpha1.GroupName), *listenerSetParentRef.Group)
-	s.Equal(gatewayapiv1.Kind("XListenerSet"), *listenerSetParentRef.Kind)
+	s.Equal(gatewayapiv1.Group(gatewayapiv1.GroupName), *listenerSetParentRef.Group)
+	s.Equal(gatewayapiv1.Kind("ListenerSet"), *listenerSetParentRef.Kind)
 	s.Equal(gatewayapiv1.ObjectName(externalDNSFQDN), listenerSetParentRef.Name)
 	s.Equal(gatewayapiv1.Namespace(ns), *listenerSetParentRef.Namespace)
 
@@ -207,9 +206,9 @@ func (s *ExternalDNSTestSuite) TestHTTPRouteAndListenerSetCreated_ForExternalDNS
 
 	// Verify listener configuration
 	s.Require().Len(ls.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.SectionName("https"), ls.Spec.Listeners[0].Name)
+	s.Equal(gatewayapiv1.SectionName("https"), ls.Spec.Listeners[0].Name)
 	s.NotNil(ls.Spec.Listeners[0].Hostname)
-	s.Equal(gatewayapixv1alpha1.Hostname(externalDNSFQDN), *ls.Spec.Listeners[0].Hostname)
+	s.Equal(gatewayapiv1.Hostname(externalDNSFQDN), *ls.Spec.Listeners[0].Hostname)
 	s.Equal(gatewayapiv1.HTTPSProtocolType, ls.Spec.Listeners[0].Protocol)
 	s.Equal(gatewayapiv1.PortNumber(443), ls.Spec.Listeners[0].Port)
 
@@ -303,13 +302,13 @@ func (s *ExternalDNSTestSuite) TestMultipleExternalDNS_EachGetOwnResources() {
 	s.Require().NoError(err)
 	s.Equal(fqdn1, ls1.Name)
 	s.Require().Len(ls1.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.Hostname(fqdn1), *ls1.Spec.Listeners[0].Hostname)
+	s.Equal(gatewayapiv1.Hostname(fqdn1), *ls1.Spec.Listeners[0].Hostname)
 
 	ls2, err := s.getListenerSet(ctx, fqdn2, ns)
 	s.Require().NoError(err)
 	s.Equal(fqdn2, ls2.Name)
 	s.Require().Len(ls2.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.Hostname(fqdn2), *ls2.Spec.Listeners[0].Hostname)
+	s.Equal(gatewayapiv1.Hostname(fqdn2), *ls2.Spec.Listeners[0].Hostname)
 
 	// Each FQDN should have its own HTTPRoute
 	route1, err := s.getHTTPRoute(ctx, fqdn1, ns)
@@ -386,7 +385,7 @@ func (s *ExternalDNSTestSuite) TestResourcesUpdated_WhenExternalDNSChanged() {
 	ls, err := s.getListenerSet(ctx, updatedFQDN, ns)
 	s.Require().NoError(err, "ListenerSet for updated FQDN should exist")
 	s.Require().Len(ls.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.Hostname(updatedFQDN), *ls.Spec.Listeners[0].Hostname)
+	s.Equal(gatewayapiv1.Hostname(updatedFQDN), *ls.Spec.Listeners[0].Hostname)
 
 	route, err := s.getHTTPRoute(ctx, updatedFQDN, ns)
 	s.Require().NoError(err, "HTTPRoute for updated FQDN should exist")
@@ -708,7 +707,7 @@ func (s *ExternalDNSTestSuite) TestBackendRefUpdated_WhenExternalDNSMovedBetween
 	ls, err := s.getListenerSet(ctx, externalDNSFQDN, ns)
 	s.Require().NoError(err)
 	s.Require().Len(ls.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.Hostname(externalDNSFQDN), *ls.Spec.Listeners[0].Hostname)
+	s.Equal(gatewayapiv1.Hostname(externalDNSFQDN), *ls.Spec.Listeners[0].Hostname)
 }
 
 // Test that backend ref switches from OAuth2 proxy to direct component service when OAuth2 is removed
