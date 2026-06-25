@@ -736,6 +736,84 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 	s.Equal(radixv1.JobRunning, secondJob.Status.Condition)
 }
 
+func (s *RadixJobTestSuite) TestObjectSynced_OldestPendingJobRunsFirst() {
+	config := getConfigWithPipelineJobsHistoryLimit(3)
+	baseTime := time.Now().Add(-3 * time.Hour)
+
+	oldestJob, err := s.testUtils.ApplyJob(
+		utils.ARadixBuildDeployJob().
+			WithJobName("OldestJob").
+			WithCreated(baseTime).
+			WithEmptyStatus().
+			WithGitRef("master").
+			WithGitRefType(string(radixv1.GitRefBranch)),
+	)
+	s.Require().NoError(err)
+	middleJob, err := s.testUtils.ApplyJob(
+		utils.ARadixBuildDeployJob().
+			WithJobName("MiddleJob").
+			WithCreated(baseTime.Add(time.Hour)).
+			WithEmptyStatus().
+			WithGitRef("master").
+			WithGitRefType(string(radixv1.GitRefBranch)),
+	)
+	s.Require().NoError(err)
+	newestJob, err := s.testUtils.ApplyJob(
+		utils.ARadixBuildDeployJob().
+			WithJobName("NewestJob").
+			WithCreated(baseTime.Add(2 * time.Hour)).
+			WithEmptyStatus().
+			WithGitRef("master").
+			WithGitRefType(string(radixv1.GitRefBranch)),
+	)
+	s.Require().NoError(err)
+
+	rr, err := s.testUtils.ApplyRegistration(utils.ARadixRegistration())
+	s.Require().NoError(err)
+
+	err = s.runSync(rr, newestJob, config)
+	s.Require().NoError(err)
+
+	oldestJob, err = s.radixClient.RadixV1().RadixJobs(oldestJob.ObjectMeta.Namespace).Get(context.Background(), oldestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	middleJob, err = s.radixClient.RadixV1().RadixJobs(middleJob.ObjectMeta.Namespace).Get(context.Background(), middleJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	newestJob, err = s.radixClient.RadixV1().RadixJobs(newestJob.ObjectMeta.Namespace).Get(context.Background(), newestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+
+	s.Equal(radixv1.RadixJobCondition(""), oldestJob.Status.Condition)
+	s.Equal(radixv1.RadixJobCondition(""), middleJob.Status.Condition)
+	s.Require().Equal(radixv1.JobQueued, newestJob.Status.Condition)
+
+	err = s.runSync(rr, middleJob, config)
+	s.Require().NoError(err)
+
+	oldestJob, err = s.radixClient.RadixV1().RadixJobs(oldestJob.ObjectMeta.Namespace).Get(context.Background(), oldestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	middleJob, err = s.radixClient.RadixV1().RadixJobs(middleJob.ObjectMeta.Namespace).Get(context.Background(), middleJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	newestJob, err = s.radixClient.RadixV1().RadixJobs(newestJob.ObjectMeta.Namespace).Get(context.Background(), newestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+
+	s.Equal(radixv1.RadixJobCondition(""), oldestJob.Status.Condition)
+	s.Require().Equal(radixv1.JobQueued, middleJob.Status.Condition)
+	s.Equal(radixv1.JobQueued, newestJob.Status.Condition)
+
+	err = s.runSync(rr, oldestJob, config)
+	s.Require().NoError(err)
+
+	oldestJob, err = s.radixClient.RadixV1().RadixJobs(oldestJob.ObjectMeta.Namespace).Get(context.Background(), oldestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	middleJob, err = s.radixClient.RadixV1().RadixJobs(middleJob.ObjectMeta.Namespace).Get(context.Background(), middleJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	newestJob, err = s.radixClient.RadixV1().RadixJobs(newestJob.ObjectMeta.Namespace).Get(context.Background(), newestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+
+	s.Require().Equal(radixv1.JobWaiting, oldestJob.Status.Condition)
+	s.Equal(radixv1.JobQueued, middleJob.Status.Condition)
+	s.Equal(radixv1.JobQueued, newestJob.Status.Condition)
+}
+
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplication() {
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName("some-app").BuildRR(), metav1.CreateOptions{})
 	s.Require().NoError(err)

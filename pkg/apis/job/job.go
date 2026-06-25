@@ -152,7 +152,7 @@ func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) 
 		return false, fmt.Errorf("failed to list jobs: %w", err)
 	}
 
-	if isOtherJobRunningOnBranchOrEnvironment(ra, job.radixJob, existingRadixJobs) {
+	if isOlderJobsQueuedOrEmpty(job.radixJob, existingRadixJobs) || isOtherJobRunningOnBranchOrEnvironment(ra, job.radixJob, existingRadixJobs) {
 		if err := job.queueJob(ctx); err != nil {
 			return false, fmt.Errorf("failed to queue job: %w", err)
 		}
@@ -161,6 +161,18 @@ func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) 
 	}
 
 	return false, nil
+}
+
+func isOlderJobsQueuedOrEmpty(current *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
+	for _, existing := range existingRadixJobs {
+		if existing.GetName() == current.GetName() {
+			continue
+		}
+		if existing.CreationTimestamp.Before(&current.CreationTimestamp) && slices.Contains([]v1.RadixJobCondition{"", v1.JobQueued}, existing.Status.Condition) {
+			return true
+		}
+	}
+	return false
 }
 
 func isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, job *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
