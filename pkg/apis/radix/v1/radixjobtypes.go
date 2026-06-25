@@ -100,6 +100,12 @@ var doneConditions = []RadixJobCondition{JobSucceeded, JobFailed, JobStopped, Jo
 func (c RadixJobCondition) IsDoneCondition() bool {
 	return slices.Contains(doneConditions, c)
 }
+func (c RadixJobCondition) IsActiveCondition() bool {
+	return c == JobWaiting || c == JobRunning
+}
+func (c RadixJobCondition) IsQueuedOrEmptyCondition() bool {
+	return c == JobQueued || c == ""
+}
 
 // These are valid conditions of a deployment.
 const (

@@ -143,7 +143,7 @@ func (job *Job) reconcile(ctx context.Context) error {
 // handleJobQueueing checks if another job is running on the same branch or environment and queues this job if necessary.
 // Returns true if the job was queued, indicating that reconciliation should stop.
 func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) (bool, error) {
-	if !slices.Contains([]v1.RadixJobCondition{"", v1.JobQueued}, job.radixJob.Status.Condition) {
+	if !job.radixJob.Status.Condition.IsQueuedOrEmptyCondition() {
 		return false, nil
 	}
 
@@ -152,7 +152,7 @@ func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) 
 		return false, fmt.Errorf("failed to list jobs: %w", err)
 	}
 
-	if isOlderJobsQueuedOrEmpty(job.radixJob, existingRadixJobs) || isOtherJobRunningOnBranchOrEnvironment(ra, job.radixJob, existingRadixJobs) {
+	if isOlderConflictingJobQueuedOrEmpty(ra, job.radixJob, existingRadixJobs) || isOtherJobRunningOnBranchOrEnvironment(ra, job.radixJob, existingRadixJobs) {
 		if err := job.queueJob(ctx); err != nil {
 			return false, fmt.Errorf("failed to queue job: %w", err)
 		}
@@ -163,12 +163,31 @@ func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) 
 	return false, nil
 }
 
-func isOlderJobsQueuedOrEmpty(current *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
+// isOlderConflictingJobQueuedOrEmpty returns true if an older job, which is queued or not yet reconciled,
+// targets any of the same environments as the current job. Such a job must run first, so the current job is queued.
+func isOlderConflictingJobQueuedOrEmpty(ra *v1.RadixApplication, current *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
+	currentTargetEnvironments := getTargetEnvironments(current, ra)
 	for _, existing := range existingRadixJobs {
 		if existing.GetName() == current.GetName() {
 			continue
 		}
-		if existing.CreationTimestamp.Before(&current.CreationTimestamp) && slices.Contains([]v1.RadixJobCondition{"", v1.JobQueued}, existing.Status.Condition) {
+		if !existing.CreationTimestamp.Before(&current.CreationTimestamp) {
+			continue
+		}
+		if !existing.Status.Condition.IsQueuedOrEmptyCondition() {
+			continue
+		}
+		if hasConflictingTargetEnvironments(currentTargetEnvironments, getTargetEnvironments(&existing, ra)) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasConflictingTargetEnvironments returns true if the two jobs target at least one common environment.
+func hasConflictingTargetEnvironments(jobTargetEnvironments, otherJobTargetEnvironments map[string]any) bool {
+	for envName := range jobTargetEnvironments {
+		if _, ok := otherJobTargetEnvironments[envName]; ok {
 			return true
 		}
 	}
@@ -176,13 +195,9 @@ func isOlderJobsQueuedOrEmpty(current *v1.RadixJob, existingRadixJobs []v1.Radix
 }
 
 func isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, job *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
-	isJobActive := func(rj *v1.RadixJob) bool {
-		return rj.Status.Condition == v1.JobWaiting || rj.Status.Condition == v1.JobRunning
-	}
-
 	jobTargetEnvironments := getTargetEnvironments(job, ra)
 	for _, existingRadixJob := range existingRadixJobs {
-		if existingRadixJob.GetName() == job.GetName() || !isJobActive(&existingRadixJob) {
+		if existingRadixJob.GetName() == job.GetName() || !existingRadixJob.Status.Condition.IsActiveCondition() {
 			continue
 		}
 		switch existingRadixJob.Spec.PipeLineType {
@@ -218,6 +233,8 @@ func isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, job *v1.Rad
 	return false
 }
 
+// getTargetEnvironments resolves the set of environments a job targets. A job can target several environments,
+// for example a build-deploy job building a branch that is mapped to multiple environments.
 func getTargetEnvironments(rj *v1.RadixJob, ra *v1.RadixApplication) map[string]any {
 	switch rj.Spec.PipeLineType {
 	case v1.Build, v1.BuildDeploy:
