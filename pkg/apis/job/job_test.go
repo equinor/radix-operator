@@ -1827,6 +1827,7 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 			AppBuilderResourcesRequestsCPU:    createQuantity("100m"),
 			AppBuilderResourcesRequestsMemory: createQuantity("1000Mi"),
 			PipelineImage:                     "docker.io/anypipeline:tag",
+			PipelineImagePullPolicy:           corev1.PullAlways,
 			GitCloneImage:                     "docker.io/git:any",
 		},
 		ContainerRegistryConfig: config.ContainerRegistryConfig{

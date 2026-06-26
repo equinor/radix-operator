@@ -1,10 +1,12 @@
 package config
 
 import (
+	"slices"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/config/quantity"
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -24,6 +26,7 @@ type PipelineJobConfig struct {
 	AppBuilderResourcesRequestsMemory     *quantity.Quantity `envconfig:"RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY" required:"true"`
 	GitCloneImage                         string             `envconfig:"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE" required:"true"`
 	PipelineImage                         string             `envconfig:"RADIXOPERATOR_PIPELINE_IMAGE" required:"true"`
+	PipelineImagePullPolicy               corev1.PullPolicy  `envconfig:"RADIXOPERATOR_PIPELINE_IMAGE_PULL_POLICY" default:"Always"`
 }
 
 func (pjc *PipelineJobConfig) MustValidate() {
@@ -44,5 +47,9 @@ func (pjc *PipelineJobConfig) MustValidate() {
 	}
 	if pjc.AppBuilderResourcesRequestsMemory.Cmp(pjc.AppBuilderResourcesLimitsMemory.Quantity) > 0 {
 		log.Fatal().Msg("RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY must be greate than RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY")
+	}
+	if !slices.Contains([]corev1.PullPolicy{corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever}, pjc.PipelineImagePullPolicy) {
+		log.Warn().Msgf("RADIXOPERATOR_PIPELINE_IMAGE_PULL_POLICY has invalid value %q. Set to %s", pjc.PipelineImagePullPolicy, corev1.PullAlways)
+		pjc.PipelineImagePullPolicy = corev1.PullAlways
 	}
 }

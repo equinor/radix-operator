@@ -6,8 +6,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -16,6 +18,8 @@ import (
 type KindCluster struct {
 	Name           string
 	KubeConfigPath string
+	// Existed is true if the cluster already existed and was reused instead of created.
+	Existed bool
 }
 
 // NewKindCluster creates a new Kind cluster
@@ -44,13 +48,26 @@ func NewKindCluster(ctx context.Context) (*KindCluster, error) {
 	return cluster, nil
 }
 
-// create creates the Kind cluster
+// create creates the Kind cluster, or reuses it if a cluster with the same name already exists
 func (k *KindCluster) create(ctx context.Context) error {
-	// Delete existing cluster with same name if it exists
-	deleteCmd := exec.CommandContext(ctx, "kind", "delete", "cluster", "--name", k.Name)
-	deleteCmd.Stdout = os.Stdout
-	deleteCmd.Stderr = os.Stderr
-	_ = deleteCmd.Run() // Ignore error if cluster doesn't exist
+	exists, err := k.exists(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Reuse the existing cluster instead of recreating it
+	if exists {
+		fmt.Printf("Kind cluster %q already exists, reusing it\n", k.Name)
+		k.Existed = true
+
+		exportCmd := exec.CommandContext(ctx, "kind", "export", "kubeconfig", "--name", k.Name, "--kubeconfig", k.KubeConfigPath)
+		exportCmd.Stdout = os.Stdout
+		exportCmd.Stderr = os.Stderr
+		if err := exportCmd.Run(); err != nil {
+			return fmt.Errorf("failed to export kubeconfig for existing cluster: %w", err)
+		}
+		return nil
+	}
 
 	// Create new cluster
 	cmd := exec.CommandContext(ctx, "kind", "create", "cluster", "--name", k.Name, "--kubeconfig", k.KubeConfigPath, "--wait", "5m")
@@ -61,6 +78,22 @@ func (k *KindCluster) create(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// exists returns true if a Kind cluster with this name already exists
+func (k *KindCluster) exists(ctx context.Context) (bool, error) {
+	cmd := exec.CommandContext(ctx, "kind", "get", "clusters")
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("failed to list kind clusters: %w", err)
+	}
+
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if strings.TrimSpace(line) == k.Name {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // waitForReady waits for the cluster to be ready
@@ -116,7 +149,7 @@ func (k *KindCluster) GetKubeConfig() (*rest.Config, error) {
 // LoadImage loads a single Docker image into the Kind cluster
 func (k *KindCluster) LoadImage(ctx context.Context, image, tag string) error {
 	imageName := fmt.Sprintf("%s:%s", image, tag)
-	fmt.Printf("Loading image %s into Kind cluster...\n", imageName)
+	log.Info().Msgf("Loading image %s into Kind cluster...\n", imageName)
 
 	// Load the image into Kind
 	loadCmd := exec.CommandContext(ctx, "kind", "load", "docker-image", "--name", k.Name, imageName)
@@ -127,6 +160,6 @@ func (k *KindCluster) LoadImage(ctx context.Context, image, tag string) error {
 		return fmt.Errorf("failed to load %s into kind: %w", imageName, err)
 	}
 
-	fmt.Printf("Successfully loaded %s\n", imageName)
+	log.Info().Msgf("Successfully loaded %s\n", imageName)
 	return nil
 }
