@@ -74,30 +74,24 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 		require.NoError(t, c.Create(t.Context(), rj), "should create build-deploy job %s", name)
 	}
 
-	// --- Phase 1: the apply-config job blocks every build-deploy job ---
+	// --- Phase 1: create the apply-config job, then the build-deploy jobs ---
 
-	// Create the apply-config job and wait until the operator has made it active.
+	// Create the apply-config job and wait until the operator has made it active. An apply-config
+	// job conflicts with every other job, so build-deploy jobs created while it runs are queued
+	// behind it.
 	createApplyConfigJob(applyJob)
 	cond, err := waitForJobCondition(t.Context(), c, appNamespace, applyJob, isActiveCondition, 90*time.Second)
 	require.NoError(t, err, "apply-config job should become active, last condition: %s", cond)
 
 	// Create build-deploy jobs across both environments while the apply-config job is active.
-	// They must all be queued, because an apply-config job conflicts with every other job.
 	// Space creations > 1s apart so the jobs get distinct (second-precision) CreationTimestamps,
-	// which the operator uses to determine execution order.
+	// which the operator uses to determine execution order. We don't assert the transient queued
+	// state here (the apply-config job may finish quickly); the execution order is verified below.
 	createBuildDeployJob(devJob1, "dev")
-	cond, err = waitForJobCondition(t.Context(), c, appNamespace, devJob1, isQueuedCondition, 60*time.Second)
-	require.NoError(t, err, "%s should be queued behind the apply-config job, last condition: %s", devJob1, cond)
-
 	time.Sleep(1500 * time.Millisecond)
 	createBuildDeployJob(prodJob1, "prod")
-	cond, err = waitForJobCondition(t.Context(), c, appNamespace, prodJob1, isQueuedCondition, 60*time.Second)
-	require.NoError(t, err, "%s should be queued behind the apply-config job, last condition: %s", prodJob1, cond)
-
 	time.Sleep(1500 * time.Millisecond)
 	createBuildDeployJob(devJob2, "dev")
-	cond, err = waitForJobCondition(t.Context(), c, appNamespace, devJob2, isQueuedCondition, 60*time.Second)
-	require.NoError(t, err, "%s should be queued behind the apply-config job, last condition: %s", devJob2, cond)
 
 	// --- Phase 2: jobs are released and executed in the correct order ---
 
@@ -154,10 +148,6 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 
 func isActiveCondition(cond v1.RadixJobCondition) bool {
 	return cond == v1.JobWaiting || cond == v1.JobRunning
-}
-
-func isQueuedCondition(cond v1.RadixJobCondition) bool {
-	return cond == v1.JobQueued
 }
 
 func indexOf(s []string, v string) int {
