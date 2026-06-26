@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.120.1](https://github.com/equinor/radix-operator/compare/v1.120.0..v1.120.1) - 2026-06-26
+
+### 🐛 Bug Fixes
+
+- Overriding envvar from batch should reset any value from configmap/secret (#1804) - ([37756de](https://github.com/equinor/radix-operator/commit/37756dea03fce4c6e769dadd53ffaa6d58e7f721)) by @Richard87 in [#1804](https://github.com/equinor/radix-operator/pull/1804)
+
+
 ## [1.120.0](https://github.com/equinor/radix-operator/compare/v1.119.1..v1.120.0) - 2026-06-23
 
 ### 🚀 Features
