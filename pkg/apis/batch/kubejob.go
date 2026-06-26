@@ -321,6 +321,7 @@ func applyBatchJobEnvironmentVariables(batchJob *radixv1.RadixBatchJob, componen
 	for i, componentEnvVar := range componentEnvVars {
 		if jobEnvVarValue, ok := batchJob.Variables[componentEnvVar.Name]; ok {
 			componentEnvVars[i].Value = jobEnvVarValue
+			componentEnvVars[i].ValueFrom = nil
 			appliedJobEnvVarNames[componentEnvVar.Name] = struct{}{}
 		}
 	}

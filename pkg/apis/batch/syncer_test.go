@@ -439,6 +439,71 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Len(services.Items, 0)
 	}
 }
+
+func (s *syncerTestSuite) Test_BatchJobVariableOverridesComponentEnvVar() {
+	// Reproduces a reconcile failure where a batch job variable overrides a job
+	// component environment variable that is backed by the env-vars ConfigMap.
+	// The resulting container env var must not have both Value and ValueFrom set,
+	// otherwise Kubernetes rejects the Job with:
+	//   spec.template.spec.containers[0].env[N].valueFrom: Invalid value: "":
+	//   may not be specified when `value` is not empty
+	appName, batchName, componentName, namespace, rdName, imageName := "any-app", "any-batch", "update-database", "any-ns", "any-rd", "any-image"
+	jobName := "job1"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  componentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: jobName, Variables: radixv1.EnvVarsMap{"UPDATE_SCOPE": "computed"}},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name:                 componentName,
+					Image:                imageName,
+					EnvironmentVariables: radixv1.EnvVarsMap{"MODE": "DEV", "UPDATE_SCOPE": "full"},
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	rd, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	// Populate the env-vars ConfigMap so that UPDATE_SCOPE becomes a ConfigMapKeyRef env var
+	s.applyRadixDeploymentEnvVarsConfigMaps(s.kubeUtil, rd)
+
+	sut := s.createSyncer(batch, nil)
+	s.Require().NoError(sut.OnSync(context.Background()))
+
+	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 1)
+	kubejob := jobs.Items[0]
+
+	// No env var may have both Value and ValueFrom set
+	for i, env := range kubejob.Spec.Template.Spec.Containers[0].Env {
+		if env.Value != "" && env.ValueFrom != nil {
+			s.Failf("invalid env var", "env[%d] %q has both Value (%q) and ValueFrom set", i, env.Name, env.Value)
+		}
+	}
+
+	// The batch job variable must override the component env var value and clear ValueFrom
+	updateScope, ok := slice.FindFirst(kubejob.Spec.Template.Spec.Containers[0].Env, func(env corev1.EnvVar) bool {
+		return env.Name == "UPDATE_SCOPE"
+	})
+	s.Require().True(ok, "UPDATE_SCOPE env var should exist")
+	s.Equal("computed", updateScope.Value)
+	s.Nil(updateScope.ValueFrom)
+}
+
 func (s *syncerTestSuite) Test_BatchWithCustomImages() {
 	const appName, batchName, componentName, namespace, rdName = "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	const job1Name, job2Name, job3Name = "job1", "job2", "job3"
