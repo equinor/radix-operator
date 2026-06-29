@@ -204,12 +204,12 @@ func isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, job *v1.Rad
 		// build jobs, so they intentionally do not conflict here.
 		if len(currentJobTargetEnvironments) == 0 {
 			currentIsBuildJob := job.Spec.PipeLineType == v1.Build || job.Spec.PipeLineType == v1.BuildDeploy
-			isExistingBuildJob := existingRadixJob.Spec.PipeLineType == v1.Build || existingRadixJob.Spec.PipeLineType == v1.BuildDeploy
+			existingIsBuildJob := existingRadixJob.Spec.PipeLineType == v1.Build || existingRadixJob.Spec.PipeLineType == v1.BuildDeploy
 
 			gitRefsMatches := job.Spec.Build.GetGitRefOrDefault() == existingRadixJob.Spec.Build.GetGitRefOrDefault() &&
 				job.Spec.Build.GetGitRefTypeOrDefault() == existingRadixJob.Spec.Build.GetGitRefTypeOrDefault()
 
-			if currentIsBuildJob && isExistingBuildJob && gitRefsMatches {
+			if currentIsBuildJob && existingIsBuildJob && gitRefsMatches {
 				return true // It is a conflict, make sure the job is queued
 			}
 		} else {
