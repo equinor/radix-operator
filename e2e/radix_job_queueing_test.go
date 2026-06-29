@@ -76,12 +76,13 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 
 	// --- Phase 1: create the apply-config job, then the build-deploy jobs ---
 
-	// Create the apply-config job and wait until the operator has made it active. An apply-config
-	// job conflicts with every other job, so build-deploy jobs created while it runs are queued
-	// behind it.
+	// Create the apply-config job and wait until the operator has started processing it (it has
+	// left the empty/queued state). An apply-config job conflicts with every other job, so
+	// build-deploy jobs created afterwards run after it. We accept any started state (including an
+	// already-finished one) because the apply-config pipeline can complete very quickly.
 	createApplyConfigJob(applyJob)
-	cond, err := waitForJobCondition(t.Context(), c, appNamespace, applyJob, isActiveCondition, 90*time.Second)
-	require.NoError(t, err, "apply-config job should become active, last condition: %s", cond)
+	cond, err := waitForJobCondition(t.Context(), c, appNamespace, applyJob, hasStartedCondition, 90*time.Second)
+	require.NoError(t, err, "apply-config job should start, last condition: %s", cond)
 
 	// Create build-deploy jobs across both environments while the apply-config job is active.
 	// Space creations > 1s apart so the jobs get distinct (second-precision) CreationTimestamps,
@@ -148,6 +149,12 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 
 func isActiveCondition(cond v1.RadixJobCondition) bool {
 	return cond == v1.JobWaiting || cond == v1.JobRunning
+}
+
+// hasStartedCondition reports whether the operator has started processing a job, i.e. it has left
+// the initial empty or queued state (it is active or has already reached a terminal state).
+func hasStartedCondition(cond v1.RadixJobCondition) bool {
+	return cond != "" && cond != v1.JobQueued
 }
 
 func indexOf(s []string, v string) int {
