@@ -44,48 +44,16 @@ const (
 	gitServerServiceFQDN  = gitServerName + "." + gitServerNamespace + ".svc.cluster.local"
 	gitServerHostKeyField = "ssh_host_ed25519_key"
 
-	// gitServerRepoPath is the bare repository path served under the git user's home, matching the
-	// RadixRegistration CloneURL git@github.com:equinor/queue-order-test.git.
-	gitServerRepoPath = "equinor/queue-order-test.git"
+	// gitServerReposDir is the host directory holding the source repositories served by the git
+	// server. Each immediate subtree ending in ".git" becomes a bare repository served under that
+	// path, matching the RadixRegistration CloneURLs (e.g. git@github.com:equinor/queue-order-test.git).
+	gitServerReposDir = "testdata/gitserver/repos"
+
+	// archPlaceholder in any committed file is replaced with the host runtime architecture so the
+	// build and runtime pods schedule on the local kind node. runtime.GOARCH already uses the same
+	// values as Radix (amd64/arm64), and the kind node shares the host architecture.
+	archPlaceholder = "{{ARCH}}"
 )
-
-// radixConfigTemplate is the application config committed by the test harness into the served
-// repository on the main, dev and prod branches. It mirrors the environment/branch mapping the
-// queueing test relies on. The git server itself has no knowledge of this content - it only serves
-// the archive the harness packages (see buildRepoArchive). The %s placeholder is filled with the
-// host runtime architecture so the build and runtime pods schedule on the local kind node.
-const radixConfigTemplate = `apiVersion: radix.equinor.com/v1
-kind: RadixApplication
-metadata:
-  name: queue-order-test
-spec:
-  environments:
-    - name: dev
-      build:
-        from: dev
-    - name: prod
-      build:
-        from: prod
-  components:
-    - name: web
-      src: .
-      runtime:
-        architecture: %s
-      ports:
-        - name: http
-          port: 8080
-      publicPort: http
-      environmentConfig:
-        - environment: dev
-        - environment: prod
-`
-
-// radixConfigForHost returns the radixconfig.yaml content targeting the host's CPU architecture.
-// runtime.GOARCH already uses the same values as Radix (amd64/arm64), and the kind node shares the
-// host architecture.
-func radixConfigForHost() string {
-	return fmt.Sprintf(radixConfigTemplate, runtime.GOARCH)
-}
 
 // BuildGitServerImage builds the e2e git server image from e2e/testdata/gitserver/git-server.Dockerfile.
 func BuildGitServerImage(ctx context.Context, imageTag string) error {
@@ -196,22 +164,66 @@ func generateHostKey() (privatePEM []byte, knownHostsEntry string, err error) {
 	return pem.EncodeToMemory(block), knownHostsEntry, nil
 }
 
-// buildRepoArchive creates a bare git repository (with main, dev and prod branches, each containing
-// radixConfig) on the host and returns it as a gzipped tar archive. The archive contains the bare
-// repository at gitServerRepoPath so the server can serve it without knowing its contents.
+// buildRepoArchive creates one bare git repository (with main, dev and prod branches) for every
+// source repository under gitServerReposDir and returns them as a gzipped tar archive. Each
+// immediate subtree ending in ".git" is committed and served at the same relative path, so the
+// server can serve them without knowing their contents. Any archPlaceholder token in committed
+// files is replaced with the host architecture.
 func buildRepoArchive(ctx context.Context) ([]byte, error) {
+	repoPaths, err := discoverRepos(gitServerReposDir)
+	if err != nil {
+		return nil, err
+	}
+	if len(repoPaths) == 0 {
+		return nil, fmt.Errorf("no repositories found under %s", gitServerReposDir)
+	}
+
 	tmpDir, err := os.MkdirTemp("", "git-server-repo-*")
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	work := filepath.Join(tmpDir, "work")
-	if err := os.MkdirAll(work, 0o755); err != nil {
-		return nil, err
+	for _, relRepoPath := range repoPaths {
+		if err := buildBareRepo(ctx, tmpDir, relRepoPath, filepath.Join(gitServerReposDir, relRepoPath)); err != nil {
+			return nil, err
+		}
 	}
-	if err := os.WriteFile(filepath.Join(work, "radixconfig.yaml"), []byte(radixConfigForHost()), 0o644); err != nil {
-		return nil, err
+
+	return tarGz(filepath.Join(tmpDir, "srv"))
+}
+
+// discoverRepos returns the repository paths (ending in ".git", relative to reposDir) found under
+// reposDir.
+func discoverRepos(reposDir string) ([]string, error) {
+	var repos []string
+	walkErr := filepath.Walk(reposDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() && strings.HasSuffix(path, ".git") {
+			rel, relErr := filepath.Rel(reposDir, path)
+			if relErr != nil {
+				return relErr
+			}
+			repos = append(repos, filepath.ToSlash(rel))
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if walkErr != nil {
+		return nil, fmt.Errorf("failed to discover repositories under %s: %w", reposDir, walkErr)
+	}
+	return repos, nil
+}
+
+// buildBareRepo copies the source repository at srcDir into a working tree, commits it on the main,
+// dev and prod branches, and clones it as a bare repository at tmpDir/srv/<relRepoPath>. The
+// archPlaceholder token in any copied file is replaced with the host architecture.
+func buildBareRepo(ctx context.Context, tmpDir, relRepoPath, srcDir string) error {
+	work := filepath.Join(tmpDir, "work", relRepoPath)
+	if err := copyRepoFiles(srcDir, work); err != nil {
+		return err
 	}
 
 	gitEnv := append(os.Environ(),
@@ -229,30 +241,53 @@ func buildRepoArchive(ctx context.Context) ([]byte, error) {
 	}
 
 	if err := runGit(work, "init", "-q", "-b", "main"); err != nil {
-		return nil, err
+		return err
 	}
 	if err := runGit(work, "add", "-A"); err != nil {
-		return nil, err
+		return err
 	}
 	if err := runGit(work, "commit", "-q", "-m", "init"); err != nil {
-		return nil, err
+		return err
 	}
 	if err := runGit(work, "branch", "dev"); err != nil {
-		return nil, err
+		return err
 	}
 	if err := runGit(work, "branch", "prod"); err != nil {
-		return nil, err
+		return err
 	}
 
-	bare := filepath.Join(tmpDir, "srv", gitServerRepoPath)
+	bare := filepath.Join(tmpDir, "srv", relRepoPath)
 	if err := os.MkdirAll(filepath.Dir(bare), 0o755); err != nil {
-		return nil, err
+		return err
 	}
-	if err := runGit(tmpDir, "clone", "-q", "--bare", work, bare); err != nil {
-		return nil, err
-	}
+	return runGit(tmpDir, "clone", "-q", "--bare", work, bare)
+}
 
-	return tarGz(filepath.Join(tmpDir, "srv"))
+// copyRepoFiles copies all files from srcDir into dstDir, replacing archPlaceholder with the host
+// architecture in their contents.
+func copyRepoFiles(srcDir, dstDir string) error {
+	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		dst := filepath.Join(dstDir, rel)
+		if info.IsDir() {
+			return os.MkdirAll(dst, 0o755)
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		content = bytes.ReplaceAll(content, []byte(archPlaceholder), []byte(runtime.GOARCH))
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(dst, content, info.Mode().Perm())
+	})
 }
 
 // tarGz returns the contents of root packaged as a gzipped tar archive, with paths relative to root.

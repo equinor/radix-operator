@@ -1,0 +1,24 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: queue-order-test
+spec:
+  environments:
+    - name: dev
+      build:
+        from: dev
+    - name: prod
+      build:
+        from: prod
+  components:
+    - name: web
+      src: .
+      runtime:
+        architecture: {{ARCH}}
+      ports:
+        - name: http
+          port: 8080
+      publicPort: http
+      environmentConfig:
+        - environment: dev
+        - environment: prod
