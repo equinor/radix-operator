@@ -33,7 +33,7 @@ func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releas
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("helm install failed: %w", err)
+		return fmt.Errorf("helm upgrade/install failed: %w", err)
 	}
 
 	return nil
