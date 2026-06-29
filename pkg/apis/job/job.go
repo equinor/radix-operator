@@ -232,8 +232,9 @@ func hasConflictingTargetEnvironments(jobTargetEnvironments, otherJobTargetEnvir
 	return false
 }
 
-// getTargetEnvironments resolves the set of environments a job targets. A job can target several environments,
+// getTargetEnvironments (or getExclusiveEnvironments) resolves the set of environments a job targets. A job can target several environments,
 // for example a build-deploy job building a branch that is mapped to multiple environments.
+// or Apply-Config returns nil, since it targets all environments, and is not considered to conflict with other jobs.
 func getTargetEnvironments(rj *v1.RadixJob, ra *v1.RadixApplication) map[string]any {
 	switch rj.Spec.PipeLineType {
 	case v1.Build, v1.BuildDeploy:
