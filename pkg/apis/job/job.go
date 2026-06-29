@@ -237,7 +237,7 @@ func hasConflictingTargetEnvironments(jobTargetEnvironments, otherJobTargetEnvir
 func getTargetEnvironments(rj *v1.RadixJob, ra *v1.RadixApplication) map[string]any {
 	switch rj.Spec.PipeLineType {
 	case v1.Build, v1.BuildDeploy:
-		environments := applicationconfig.GetAllTargetEnvironments(rj.Spec.Build.GetGitRefOrDefault(), string(rj.Spec.Build.GitRefType), ra)
+		environments, _, _ := applicationconfig.GetTargetEnvironments(rj.Spec.Build.GetGitRefOrDefault(), string(rj.Spec.Build.GitRefType), ra, rj.Spec.TriggeredFromWebhook)
 		return commonslice.Reduce(environments,
 			make(map[string]any), func(acc map[string]any, envName string) map[string]any {
 				if len(rj.Spec.Build.ToEnvironment) == 0 || envName == rj.Spec.Build.ToEnvironment {
