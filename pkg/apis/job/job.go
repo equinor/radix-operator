@@ -100,7 +100,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 	}
 
 	if job.radixJob.Status.Condition.IsDoneCondition() {
-		if err = job.setNextJobToRunning(ctx, ra); err != nil {
+		if err = job.setNextJobToWaiting(ctx, ra); err != nil {
 			return err
 		}
 	}
@@ -119,7 +119,7 @@ func (job *Job) handleStop(ctx context.Context, ra *v1.RadixApplication) (bool, 
 		return false, fmt.Errorf("failed to stop job: %w", err)
 	}
 
-	if err := job.setNextJobToRunning(ctx, ra); err != nil {
+	if err := job.setNextJobToWaiting(ctx, ra); err != nil {
 		return false, fmt.Errorf("failed to set next job to running: %w", err)
 	}
 
@@ -399,7 +399,7 @@ func (job *Job) deleteStepJobs(ctx context.Context) error {
 	return nil
 }
 
-func (job *Job) setNextJobToRunning(ctx context.Context, ra *v1.RadixApplication) error {
+func (job *Job) setNextJobToWaiting(ctx context.Context, ra *v1.RadixApplication) error {
 	radixJobs, err := job.getAllRadixJobs(ctx)
 	if err != nil {
 		return err
