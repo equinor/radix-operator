@@ -864,7 +864,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 	s.Require().NoError(err)
 	s.Equal(radixv1.JobWaiting, thirdJob.Status.Condition)
 
-	// Stopping first job should set second job to waiting (it should only be set to running when the actuall pod has started running)
+	// Stopping first job should set second job to waiting (it should only be set to running when the actual pod has started running)
 	firstJob.Spec.Stop = true
 	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.Background(), firstJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
