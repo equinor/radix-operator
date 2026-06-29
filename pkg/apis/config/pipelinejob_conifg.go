@@ -43,10 +43,10 @@ func (pjc *PipelineJobConfig) MustValidate() {
 		pjc.DeploymentsHistoryLimitPerEnvironment = minDeploymentsHistoryLimit
 	}
 	if pjc.AppBuilderResourcesRequestsCPU.Cmp(pjc.AppBuilderResourcesLimitsCPU.Quantity) > 0 {
-		log.Fatal().Msg("RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU must be greater than RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU")
+		log.Fatal().Msg("RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU must be greater than RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU")
 	}
 	if pjc.AppBuilderResourcesRequestsMemory.Cmp(pjc.AppBuilderResourcesLimitsMemory.Quantity) > 0 {
-		log.Fatal().Msg("RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY must be greate than RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY")
+		log.Fatal().Msg("RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY must be greater than RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY")
 	}
 	if !slices.Contains([]corev1.PullPolicy{corev1.PullAlways, corev1.PullIfNotPresent, corev1.PullNever}, pjc.PipelineImagePullPolicy) {
 		log.Warn().Msgf("RADIXOPERATOR_PIPELINE_IMAGE_PULL_POLICY has invalid value %q. Set to %s", pjc.PipelineImagePullPolicy, corev1.PullAlways)
