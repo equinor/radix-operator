@@ -292,6 +292,7 @@ func initLogger() zerolog.Logger {
 	zerolog.TimeFieldFormat = time.RFC3339
 	logger := zerolog.New(os.Stderr).Level(zerolog.WarnLevel).With().Timestamp().Logger()
 	log.Logger = logger
+	zerolog.DefaultContextLogger = &logger
 	return logger
 }
 

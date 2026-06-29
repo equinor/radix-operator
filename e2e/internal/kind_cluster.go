@@ -57,7 +57,7 @@ func (k *KindCluster) create(ctx context.Context) error {
 
 	// Reuse the existing cluster instead of recreating it
 	if exists {
-		fmt.Printf("Kind cluster %q already exists, reusing it\n", k.Name)
+		log.Ctx(ctx).Info().Msgf("Kind cluster %q already exists, reusing it\n", k.Name)
 		k.Existed = true
 
 		exportCmd := exec.CommandContext(ctx, "kind", "export", "kubeconfig", "--name", k.Name, "--kubeconfig", k.KubeConfigPath)
