@@ -102,15 +102,8 @@ func createHttpRoute(t *testing.T, c client.Client, name string, namespace strin
 		},
 	}
 
-	var err error
 	if dryRunAll {
-		err = c.Create(t.Context(), hr, client.DryRunAll)
-	} else {
-		err = c.Create(t.Context(), hr)
+		return c.Create(t.Context(), hr, client.DryRunAll)
 	}
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return c.Create(t.Context(), hr)
 }
