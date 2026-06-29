@@ -190,11 +190,6 @@ radixPipelineRunner:
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
 
-radixImageBuilder:
-  image:
-    repository: ghcr.io/equinor/radix/image-builder
-    tag: latest
-
 radixBuildKitImageBuilder:
   image:
     repository: ghcr.io/equinor/radix/buildkit-builder

@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type BuildJobFactory func(useBuildKit bool) internalbuild.JobsBuilder
+type BuildJobFactory func() internalbuild.JobsBuilder
 
 // BuildStepImplementation Step to build docker image
 type BuildStepImplementation struct {
@@ -45,12 +45,8 @@ func WithBuildJobFactory(factory BuildJobFactory) Option {
 	}
 }
 
-func defaultBuildJobFactory(useBuildKit bool) internalbuild.JobsBuilder {
-	if useBuildKit {
-		return internalbuild.NewBuildKit()
-	}
-
-	return internalbuild.NewACR()
+func defaultBuildJobFactory() internalbuild.JobsBuilder {
+	return internalbuild.NewBuildKit()
 }
 
 // NewBuildStep Constructor.
@@ -121,7 +117,7 @@ func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineIn
 		secrets = pipelineInfo.RadixApplication.Spec.Build.Secrets
 	}
 	imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
-	return step.buildJobFactory(pipelineInfo.IsUsingBuildKit()).
+	return step.buildJobFactory().
 		BuildJobs(
 			pipelineInfo.IsUsingBuildCache(),
 			pipelineInfo.IsRefreshingBuildCache(),

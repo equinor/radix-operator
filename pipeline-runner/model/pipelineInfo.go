@@ -123,8 +123,6 @@ type PipelineArguments struct {
 	TriggeredFromWebhook bool
 	RadixConfigFile      string
 
-	// ImageBuilder Points to the image builder (repository and tag only)
-	ImageBuilder string
 	// BuildKitImageBuilder Points to the BuildKit compliant image builder (repository and tag only)
 	BuildKitImageBuilder string
 	// GitCloneGitImage defines image containing git cli.
@@ -214,25 +212,8 @@ func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bo
 	return p.GetRadixPipelineType() == pipelineType
 }
 
-// IsUsingBuildKit Check if buildkit should be used. Defaults to true if no build secrets is set.
-func (p *PipelineInfo) IsUsingBuildKit() bool {
-	if p.RadixApplication == nil || p.RadixApplication.Spec.Build == nil {
-		return true
-	}
-
-	if p.RadixApplication.Spec.Build.UseBuildKit != nil {
-		return *p.RadixApplication.Spec.Build.UseBuildKit
-	}
-
-	// If build secrets are empty, BuildKit is used; otherwise, use ACR Run Tasks for backwards compatibility.
-	return len(p.RadixApplication.Spec.Build.Secrets) == 0
-}
-
 // IsUsingBuildCache Check if build cache should be used
 func (p *PipelineInfo) IsUsingBuildCache() bool {
-	if !p.IsUsingBuildKit() {
-		return false
-	}
 	if p.PipelineArguments.OverrideUseBuildCache != nil {
 		return *p.PipelineArguments.OverrideUseBuildCache
 	}
@@ -250,7 +231,7 @@ func (p *PipelineInfo) IsUsingBuildCache() bool {
 
 // IsRefreshingBuildCache Check if build cache should be refreshed
 func (p *PipelineInfo) IsRefreshingBuildCache() bool {
-	if !p.IsUsingBuildKit() || p.PipelineArguments.RefreshBuildCache == nil {
+	if p.PipelineArguments.RefreshBuildCache == nil {
 		return false
 	}
 	return *p.PipelineArguments.RefreshBuildCache

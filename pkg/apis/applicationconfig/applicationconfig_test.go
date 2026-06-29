@@ -1060,50 +1060,6 @@ func Test_RadixEnvironment(t *testing.T) {
 	})
 }
 
-func Test_UseBuildKit(t *testing.T) {
-	var testScenarios = []struct {
-		appName             string
-		useBuildKit         *bool
-		expectedUseBuildKit *bool
-	}{
-		{
-			appName:             "any-app1",
-			useBuildKit:         nil,
-			expectedUseBuildKit: nil,
-		},
-		{
-			appName:             "any-app2",
-			useBuildKit:         pointers.Ptr(false),
-			expectedUseBuildKit: pointers.Ptr(false),
-		},
-		{
-			appName:             "any-app3",
-			useBuildKit:         pointers.Ptr(true),
-			expectedUseBuildKit: pointers.Ptr(true),
-		},
-	}
-	tu, client, kubeUtil, radixClient := setupTest(t)
-
-	for _, testScenario := range testScenarios {
-		ra := utils.ARadixApplication().WithAppName(testScenario.appName)
-		if testScenario.useBuildKit != nil {
-			ra = ra.WithBuildKit(testScenario.useBuildKit)
-		}
-		err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, ra)
-		require.NoError(t, err)
-
-		raAfterSync, _ := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.Background(), testScenario.appName, metav1.GetOptions{})
-
-		var useBuildKit *bool
-		if raAfterSync.Spec.Build == nil {
-			useBuildKit = nil
-		} else {
-			useBuildKit = raAfterSync.Spec.Build.UseBuildKit
-		}
-		assert.Equal(t, testScenario.expectedUseBuildKit, useBuildKit)
-	}
-}
-
 func Test_GetConfigBranch_notSet(t *testing.T) {
 	rr := utils.NewRegistrationBuilder().
 		BuildRR()

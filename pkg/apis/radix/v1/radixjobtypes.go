@@ -86,7 +86,6 @@ type RadixJobStatus struct {
 }
 
 type RadixJobPipelineRunStatus struct {
-	UsedBuildKit     bool              `json:"usedBuildKit"`
 	UsedBuildCache   bool              `json:"usedBuildCache"`
 	Status           RadixJobCondition `json:"status"`
 	ResolvedCommitID string            `json:"resolvedCommitID,omitempty"`

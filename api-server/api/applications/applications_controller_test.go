@@ -521,53 +521,21 @@ func TestGetApplication_WithJobs(t *testing.T) {
 	assert.Equal(t, 3, len(application.Jobs))
 }
 
-func TestGetApplication_BuildKitOptions(t *testing.T) {
+func TestGetApplication_BuildCacheOption(t *testing.T) {
 	scenarios := map[string]struct {
-		useBuildKit           *bool
 		useBuildCache         *bool
-		expectedUseBuildKit   bool
 		expectedUseBuildCache bool
 	}{
-		"no buildkit or buildcache": {
-			useBuildKit:           nil,
+		"buildCache not set defaults to true": {
 			useBuildCache:         nil,
-			expectedUseBuildKit:   false,
-			expectedUseBuildCache: false,
-		},
-		"buildkit and buildcache": {
-			useBuildKit:           pointers.Ptr(true),
-			useBuildCache:         pointers.Ptr(true),
-			expectedUseBuildKit:   true,
 			expectedUseBuildCache: true,
 		},
-		"buildkit only": {
-			useBuildKit:           pointers.Ptr(true),
-			useBuildCache:         nil,
-			expectedUseBuildKit:   true,
+		"buildCache true": {
+			useBuildCache:         pointers.Ptr(true),
 			expectedUseBuildCache: true,
 		},
-		"buildcache only": {
-			useBuildKit:           nil,
-			useBuildCache:         pointers.Ptr(true),
-			expectedUseBuildKit:   false,
-			expectedUseBuildCache: false,
-		},
-		"buildkit and buildcache false": {
-			useBuildKit:           pointers.Ptr(false),
+		"buildCache false": {
 			useBuildCache:         pointers.Ptr(false),
-			expectedUseBuildKit:   false,
-			expectedUseBuildCache: false,
-		},
-		"buildkit false and buildcache true": {
-			useBuildKit:           pointers.Ptr(false),
-			useBuildCache:         pointers.Ptr(true),
-			expectedUseBuildKit:   false,
-			expectedUseBuildCache: false,
-		},
-		"buildkit true and buildcache false": {
-			useBuildKit:           pointers.Ptr(true),
-			useBuildCache:         pointers.Ptr(false),
-			expectedUseBuildKit:   true,
 			expectedUseBuildCache: false,
 		},
 	}
@@ -579,7 +547,7 @@ func TestGetApplication_BuildKitOptions(t *testing.T) {
 				WithName("any-name"))
 			require.NoError(t, err)
 			_, err = commonTestUtils.ApplyApplication(builders.ARadixApplication().
-				WithAppName("any-name").WithBuildKit(ts.useBuildKit).WithBuildCache(ts.useBuildCache))
+				WithAppName("any-name").WithBuildCache(ts.useBuildCache))
 			require.NoError(t, err)
 
 			commontest.CreateAppNamespace(kubeclient, "any-name")
@@ -591,7 +559,6 @@ func TestGetApplication_BuildKitOptions(t *testing.T) {
 			application := applicationModels.Application{}
 			err = controllertest.GetResponseBody(response, &application)
 			require.NoError(t, err)
-			assert.Equal(t, ts.expectedUseBuildKit, application.UseBuildKit, "Invalid UseBuildKit")
 			assert.Equal(t, ts.expectedUseBuildCache, application.UseBuildCache, "Invalid UseBuildCache")
 		})
 	}

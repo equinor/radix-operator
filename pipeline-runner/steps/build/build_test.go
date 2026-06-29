@@ -35,8 +35,8 @@ const (
 )
 
 func createbuildJobFactoryMock(m *mock.Mock) build.BuildJobFactory {
-	return func(useBuildKit bool) internalbuild.JobsBuilder {
-		return m.MethodCalled(buildJobFactoryMockMethodName, useBuildKit).Get(0).(internalbuild.JobsBuilder)
+	return func() internalbuild.JobsBuilder {
+		return m.MethodCalled(buildJobFactoryMockMethodName).Get(0).(internalbuild.JobsBuilder)
 	}
 }
 

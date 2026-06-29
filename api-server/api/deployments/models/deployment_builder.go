@@ -40,7 +40,6 @@ type deploymentBuilder struct {
 	gitCommitHash      string
 	gitTags            string
 	repository         string
-	useBuildKit        *bool
 	useBuildCache      *bool
 	refreshBuildCache  *bool
 }
@@ -67,7 +66,6 @@ func (b *deploymentBuilder) WithRadixDeployment(rd *v1.RadixDeployment) Deployme
 		withActiveFrom(rd.Status.ActiveFrom.Time).
 		withJobName(jobName).
 		withActiveTo(activeTo).
-		withUseBuildKit(rd.Annotations[kube.RadixUseBuildKit]).
 		withUseBuildCache(rd.Annotations[kube.RadixUseBuildCache]).
 		withRefreshBuildCache(rd.Annotations[kube.RadixRefreshBuildCache]).
 		WithGitCommitHash(rd.Annotations[kube.RadixCommitAnnotation]).
@@ -133,13 +131,6 @@ func (b *deploymentBuilder) withStatusReason(statusReason string) *deploymentBui
 
 func (b *deploymentBuilder) withActiveTo(activeTo *time.Time) *deploymentBuilder {
 	b.activeTo = activeTo
-	return b
-}
-
-func (b *deploymentBuilder) withUseBuildKit(value string) *deploymentBuilder {
-	if len(value) > 0 {
-		b.useBuildKit = pointers.Ptr(value == "true")
-	}
 	return b
 }
 
@@ -210,7 +201,6 @@ func (b *deploymentBuilder) BuildDeploymentSummary() (*DeploymentSummary, error)
 		DeploymentSummaryPipelineJobInfo: b.buildDeploySummaryPipelineJobInfo(),
 		GitCommitHash:                    b.gitCommitHash,
 		GitTags:                          b.gitTags,
-		UseBuildKit:                      b.useBuildKit,
 		UseBuildCache:                    b.useBuildCache,
 		RefreshBuildCache:                b.refreshBuildCache,
 	}, b.buildError()
@@ -268,7 +258,6 @@ func (b *deploymentBuilder) BuildDeployment() (*Deployment, error) {
 		GitCommitHash:     b.gitCommitHash,
 		GitTags:           b.gitTags,
 		Repository:        b.repository,
-		UseBuildKit:       b.useBuildKit,
 		UseBuildCache:     b.useBuildCache,
 		RefreshBuildCache: b.refreshBuildCache,
 	}

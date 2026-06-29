@@ -64,69 +64,55 @@ func setupTest(t *testing.T) (*commontest.Utils, *controllertest.Utils, kubernet
 
 func TestGetApplicationJob(t *testing.T) {
 	scenarios := map[string]struct {
-		useBuildKit           *bool
 		useBuildCache         *bool
 		overrideBuildCache    *bool
 		refreshBuildCache     *bool
 		pipelineRunStatus     *v1.RadixJobPipelineRunStatus
-		expectedUseBuildKit   *bool
 		expectedUseBuildCache *bool
 		expectedCommitID      string
 	}{
 		"NoPipelineRunStatus": {
-			useBuildKit:           new(true),
 			useBuildCache:         new(true),
 			overrideBuildCache:    new(false),
 			refreshBuildCache:     new(false),
-			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
 			expectedCommitID:      anyPushCommitID,
 		},
 		"OverrideCacheEnabled": {
-			useBuildKit:           new(true),
 			useBuildCache:         new(true),
 			overrideBuildCache:    new(true),
 			refreshBuildCache:     new(false),
-			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
 			expectedCommitID:      anyPushCommitID,
 		},
 		"RefreshCacheEnabled": {
-			useBuildKit:           new(true),
 			useBuildCache:         new(true),
 			overrideBuildCache:    new(false),
 			refreshBuildCache:     new(true),
-			expectedUseBuildKit:   nil,
 			expectedUseBuildCache: nil,
 			expectedCommitID:      anyPushCommitID,
 		},
-		"PipelineRunUsedBuildKit": {
-			useBuildKit:           new(true),
+		"PipelineRunUsedBuildCache": {
 			useBuildCache:         new(true),
 			overrideBuildCache:    new(false),
 			refreshBuildCache:     new(false),
-			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: true, UsedBuildCache: true},
-			expectedUseBuildKit:   new(true),
+			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildCache: true},
 			expectedUseBuildCache: new(true),
 			expectedCommitID:      anyPushCommitID,
 		},
-		"PipelineRunNotUsedBuildKit": {
-			useBuildKit:           new(true),
+		"PipelineRunNotUsedBuildCache": {
 			useBuildCache:         new(true),
 			overrideBuildCache:    new(false),
 			refreshBuildCache:     new(false),
-			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: false, UsedBuildCache: false},
-			expectedUseBuildKit:   new(false),
+			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildCache: false},
 			expectedUseBuildCache: new(false),
 			expectedCommitID:      anyPushCommitID,
 		},
 		"PipelineRunWithResolvedCommitID": {
-			useBuildKit:           new(true),
 			useBuildCache:         new(true),
 			overrideBuildCache:    new(false),
 			refreshBuildCache:     new(false),
-			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildKit: true, UsedBuildCache: true, ResolvedCommitID: "abc123def456"},
-			expectedUseBuildKit:   new(true),
+			pipelineRunStatus:     &v1.RadixJobPipelineRunStatus{UsedBuildCache: true, ResolvedCommitID: "abc123def456"},
 			expectedUseBuildCache: new(true),
 			expectedCommitID:      "abc123def456",
 		},
@@ -146,7 +132,6 @@ func TestGetApplicationJob(t *testing.T) {
 				NewRadixApplicationBuilder().
 				WithAppName(anyAppName).
 				WithEnvironment("dev", "master").
-				WithBuildKit(ts.useBuildKit).
 				WithBuildCache(ts.useBuildCache))
 			require.NoError(t, err)
 
@@ -189,8 +174,7 @@ func TestGetApplicationJob(t *testing.T) {
 			assert.Equal(t, anyUser, job.TriggeredBy)
 			assert.Equal(t, string(anyPipeline.Type), job.Pipeline)
 
-			// UseBuildKit and UseBuildCache are derived from PipelineRunStatus, nil when pipeline has not reported status
-			assert.Equal(t, ts.expectedUseBuildKit, job.UseBuildKit, "Invalid UseBuildKit")
+			// UseBuildCache is derived from PipelineRunStatus, nil when pipeline has not reported status
 			assert.Equal(t, ts.expectedUseBuildCache, job.UseBuildCache, "Invalid UseBuildCache")
 			assert.Equal(t, ts.overrideBuildCache, job.OverrideUseBuildCache, "Invalid OverrideUseBuildCache")
 			assert.Equal(t, ts.refreshBuildCache, job.RefreshBuildCache, "Invalid RefreshBuildCache")

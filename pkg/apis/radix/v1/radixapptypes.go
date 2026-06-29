@@ -197,12 +197,7 @@ type BuildSpec struct {
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
-	// Enables BuildKit when building Dockerfile.
-	// More info about BuildKit: https://docs.docker.com/build/buildkit/
-	// +optional
-	UseBuildKit *bool `json:"useBuildKit,omitempty"`
-
-	// Defaults to true and requires useBuildKit to have an effect.
+	// Defaults to true.
 	// Note: All layers will be cached and can be available for other Radix Apps. Do not add secrets to a Dockerfile layer.
 	// +optional
 	UseBuildCache *bool `json:"useBuildCache,omitempty"`

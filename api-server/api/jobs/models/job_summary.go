@@ -101,14 +101,7 @@ type JobSummary struct {
 	// required: false
 	PromotedToEnvironment string `json:"promotedToEnvironment,omitempty"`
 
-	// Enables BuildKit when building Dockerfile.
-	//
-	// required: false
-	// Extensions:
-	// x-nullable: true
-	UseBuildKit *bool `json:"useBuildKit,omitempty"`
-
-	// Defaults to true and requires useBuildKit to have an effect.
+	// Defaults to true.
 	//
 	// required: false
 	// Extensions:
@@ -193,7 +186,6 @@ func GetSummaryFromRadixJob(job *radixv1.RadixJob) *JobSummary {
 		pipelineJob.GitRef = job.Spec.Build.GitRef
 		pipelineJob.GitRefType = string(job.Spec.Build.GitRefType)
 		pipelineJob.CommitID = cmp.Or(GetResolvedCommitID(job), job.Spec.Build.CommitID)
-		pipelineJob.UseBuildKit = IsUsingBuildKit(job)
 		pipelineJob.UseBuildCache = IsUsingBuildCache(job)
 		pipelineJob.OverrideUseBuildCache = job.Spec.Build.OverrideUseBuildCache
 		pipelineJob.RefreshBuildCache = job.Spec.Build.RefreshBuildCache
@@ -217,14 +209,6 @@ func GetResolvedCommitID(job *radixv1.RadixJob) string {
 		return job.Status.PipelineRunStatus.ResolvedCommitID
 	}
 	return ""
-}
-
-func IsUsingBuildKit(job *radixv1.RadixJob) *bool {
-	if job != nil && job.Status.PipelineRunStatus != nil {
-		return &job.Status.PipelineRunStatus.UsedBuildKit
-	}
-
-	return nil
 }
 
 func IsUsingBuildCache(job *radixv1.RadixJob) *bool {

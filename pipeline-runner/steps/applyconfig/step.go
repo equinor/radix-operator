@@ -196,20 +196,7 @@ func validateBuildComponents(pipelineInfo *model.PipelineInfo) error {
 		return ErrDeployOnlyPipelineDoesNotSupportBuild
 	}
 
-	if !pipelineInfo.IsUsingBuildKit() {
-		for _, buildComponents := range pipelineInfo.BuildComponentImages {
-			if slice.Any(buildComponents, hasNonDefaultRuntimeArchitecture) {
-				return ErrBuildNonDefaultRuntimeArchitectureWithoutBuildKitError
-			}
-		}
-	}
-
 	return nil
-}
-
-func hasNonDefaultRuntimeArchitecture(c pipeline.BuildComponentImage) bool {
-	arch := runtime.GetArchitectureFromRuntimeOrDefault(c.Runtime)
-	return arch != defaults.DefaultNodeSelectorArchitecture
 }
 
 func validateDeployComponents(pipelineInfo *model.PipelineInfo) error {
