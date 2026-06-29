@@ -74,7 +74,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 		log.Ctx(ctx).Debug().Msgf("for BuildDeploy failed to find RadixApplication by name %s", appName)
 	}
 
-	if job.radixJob.Status.Condition.IsDoneCondition() {
+	if job.radixJob.Status.Condition.IsDone() {
 		log.Ctx(ctx).Debug().Msgf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
@@ -99,7 +99,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 		return err
 	}
 
-	if job.radixJob.Status.Condition.IsDoneCondition() {
+	if job.radixJob.Status.Condition.IsDone() {
 		if err = job.setNextJobToWaiting(ctx, ra); err != nil {
 			return err
 		}
@@ -143,7 +143,7 @@ func (job *Job) reconcile(ctx context.Context) error {
 // handleJobQueueing checks if another job is running on the same branch or environment and queues this job if necessary.
 // Returns true if the job was queued, indicating that reconciliation should stop.
 func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) (bool, error) {
-	if !job.radixJob.Status.Condition.IsQueuedOrEmptyCondition() {
+	if !job.radixJob.Status.Condition.IsQueuedOrEmpty() {
 		return false, nil
 	}
 
@@ -174,7 +174,7 @@ func shouldBeQueuedBehindOlderJobs(ra *v1.RadixApplication, current *v1.RadixJob
 		if !existing.CreationTimestamp.Before(&current.CreationTimestamp) {
 			continue
 		}
-		if !existing.Status.Condition.IsQueuedOrEmptyCondition() {
+		if !existing.Status.Condition.IsQueuedOrEmpty() {
 			continue
 		}
 		if hasConflictingTargetEnvironments(currentTargetEnvironments, getTargetEnvironments(&existing, ra)) {
@@ -192,7 +192,7 @@ func isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, job *v1.Rad
 			continue
 		}
 
-		if !existingRadixJob.Status.Condition.IsActiveCondition() {
+		if !existingRadixJob.Status.Condition.IsWaitingOrRunning() {
 			continue
 		}
 

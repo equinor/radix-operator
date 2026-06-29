@@ -97,13 +97,13 @@ type RadixJobCondition string
 
 var doneConditions = []RadixJobCondition{JobSucceeded, JobFailed, JobStopped, JobStoppedNoChanges}
 
-func (c RadixJobCondition) IsDoneCondition() bool {
+func (c RadixJobCondition) IsDone() bool {
 	return slices.Contains(doneConditions, c)
 }
-func (c RadixJobCondition) IsActiveCondition() bool {
+func (c RadixJobCondition) IsWaitingOrRunning() bool {
 	return c == JobWaiting || c == JobRunning
 }
-func (c RadixJobCondition) IsQueuedOrEmptyCondition() bool {
+func (c RadixJobCondition) IsQueuedOrEmpty() bool {
 	return c == JobQueued || c == ""
 }
 
