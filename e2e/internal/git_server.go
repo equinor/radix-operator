@@ -87,7 +87,7 @@ func radixConfigForHost() string {
 	return fmt.Sprintf(radixConfigTemplate, runtime.GOARCH)
 }
 
-// BuildGitServerImage builds the e2e git server image from e2e/git-server.Dockerfile.
+// BuildGitServerImage builds the e2e git server image from e2e/testdata/gitserver/git-server.Dockerfile.
 func BuildGitServerImage(ctx context.Context, imageTag string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -97,7 +97,7 @@ func BuildGitServerImage(ctx context.Context, imageTag string) error {
 	fullImageName := fmt.Sprintf("%s:%s", GitServerImageName, imageTag)
 	log.Info().Msgf("Building git server image %s...", fullImageName)
 
-	cmd := exec.CommandContext(ctx, "docker", "build", "-t", fullImageName, "-f", "git-server.Dockerfile", ".")
+	cmd := exec.CommandContext(ctx, "docker", "build", "-t", fullImageName, "-f", "testdata/gitserver/git-server.Dockerfile", "testdata/gitserver")
 	cmd.Dir = cwd
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

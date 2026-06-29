@@ -26,8 +26,7 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 	c := getClient(t)
 	appName := "queue-order-test"
 
-	_, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	//defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	// RadixApplication mapping branch "dev" -> environment "dev" and branch "prod" -> environment "prod".
 	ra := &v1.RadixApplication{
