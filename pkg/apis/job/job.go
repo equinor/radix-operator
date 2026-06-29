@@ -249,6 +249,8 @@ func getTargetEnvironments(rj *v1.RadixJob, ra *v1.RadixApplication) map[string]
 		return map[string]any{rj.Spec.Deploy.ToEnvironment: nil}
 	case v1.Promote:
 		return map[string]any{rj.Spec.Promote.ToEnvironment: nil}
+	case v1.ApplyConfig:
+		return nil // ApplyConfig jobs do not target any specific environment and they are not considered to conflict with other jobs.
 	default:
 		return nil
 	}
