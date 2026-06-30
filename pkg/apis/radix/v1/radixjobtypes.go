@@ -96,8 +96,14 @@ type RadixJobCondition string
 
 var doneConditions = []RadixJobCondition{JobSucceeded, JobFailed, JobStopped, JobStoppedNoChanges}
 
-func (c RadixJobCondition) IsDoneCondition() bool {
+func (c RadixJobCondition) IsDone() bool {
 	return slices.Contains(doneConditions, c)
+}
+func (c RadixJobCondition) IsWaitingOrRunning() bool {
+	return c == JobWaiting || c == JobRunning
+}
+func (c RadixJobCondition) IsQueuedOrEmpty() bool {
+	return c == JobQueued || c == ""
 }
 
 // These are valid conditions of a deployment.

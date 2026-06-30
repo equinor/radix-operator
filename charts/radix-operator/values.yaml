@@ -189,6 +189,8 @@ radixPipelineRunner:
     repository: ghcr.io/equinor/radix/pipeline
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
+    # Pull policy for the pipeline job image. Defaults to Always.
+    pullPolicy: Always
 
 radixBuildKitImageBuilder:
   image:

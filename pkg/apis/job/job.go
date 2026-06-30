@@ -74,7 +74,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 		log.Ctx(ctx).Debug().Msgf("for BuildDeploy failed to find RadixApplication by name %s", appName)
 	}
 
-	if job.radixJob.Status.Condition.IsDoneCondition() {
+	if job.radixJob.Status.Condition.IsDone() {
 		log.Ctx(ctx).Debug().Msgf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
@@ -99,8 +99,8 @@ func (job *Job) OnSync(ctx context.Context) error {
 		return err
 	}
 
-	if job.radixJob.Status.Condition.IsDoneCondition() {
-		if err = job.setNextJobToRunning(ctx, ra); err != nil {
+	if job.radixJob.Status.Condition.IsDone() {
+		if err = job.setNextJobToWaiting(ctx, ra); err != nil {
 			return err
 		}
 	}
@@ -119,7 +119,7 @@ func (job *Job) handleStop(ctx context.Context, ra *v1.RadixApplication) (bool, 
 		return false, fmt.Errorf("failed to stop job: %w", err)
 	}
 
-	if err := job.setNextJobToRunning(ctx, ra); err != nil {
+	if err := job.setNextJobToWaiting(ctx, ra); err != nil {
 		return false, fmt.Errorf("failed to set next job to running: %w", err)
 	}
 
@@ -143,7 +143,7 @@ func (job *Job) reconcile(ctx context.Context) error {
 // handleJobQueueing checks if another job is running on the same branch or environment and queues this job if necessary.
 // Returns true if the job was queued, indicating that reconciliation should stop.
 func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) (bool, error) {
-	if !slices.Contains([]v1.RadixJobCondition{"", v1.JobQueued}, job.radixJob.Status.Condition) {
+	if !job.radixJob.Status.Condition.IsQueuedOrEmpty() {
 		return false, nil
 	}
 
@@ -152,7 +152,7 @@ func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) 
 		return false, fmt.Errorf("failed to list jobs: %w", err)
 	}
 
-	if isOtherJobRunningOnBranchOrEnvironment(ra, job.radixJob, existingRadixJobs) {
+	if shouldBeQueuedBehindOlderJobs(ra, job.radixJob, existingRadixJobs) || isOtherJobRunningOnBranchOrEnvironment(ra, job.radixJob, existingRadixJobs) {
 		if err := job.queueJob(ctx); err != nil {
 			return false, fmt.Errorf("failed to queue job: %w", err)
 		}
@@ -163,49 +163,78 @@ func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) 
 	return false, nil
 }
 
-func isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, job *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
-	isJobActive := func(rj *v1.RadixJob) bool {
-		return rj.Status.Condition == v1.JobWaiting || rj.Status.Condition == v1.JobRunning
-	}
-
-	jobTargetEnvironments := getTargetEnvironments(job, ra)
-	for _, existingRadixJob := range existingRadixJobs {
-		if existingRadixJob.GetName() == job.GetName() || !isJobActive(&existingRadixJob) {
+// shouldBeQueuedBehindOlderJobs returns true if an older job, which is queued or not yet reconciled,
+// targets any of the same environments as the current job. Such a job must run first, so the current job is queued.
+func shouldBeQueuedBehindOlderJobs(ra *v1.RadixApplication, current *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
+	currentTargetEnvironments := getTargetEnvironments(current, ra)
+	for _, existing := range existingRadixJobs {
+		if existing.GetName() == current.GetName() {
 			continue
 		}
-		switch existingRadixJob.Spec.PipeLineType {
-		case v1.BuildDeploy, v1.Build:
-			if len(jobTargetEnvironments) > 0 {
-				existingJobTargetEnvironments := applicationconfig.GetAllTargetEnvironments(existingRadixJob.Spec.Build.GetGitRefOrDefault(), string(existingRadixJob.Spec.Build.GitRefType), ra)
-				for _, existingJobTargetEnvironment := range existingJobTargetEnvironments {
-					if _, ok := jobTargetEnvironments[existingJobTargetEnvironment]; ok {
-						return true
-					}
-				}
-				continue
+		if !existing.CreationTimestamp.Before(&current.CreationTimestamp) {
+			continue
+		}
+		if !existing.Status.Condition.IsQueuedOrEmpty() {
+			continue
+		}
+		if hasConflictingTargetEnvironments(currentTargetEnvironments, getTargetEnvironments(&existing, ra)) {
+			return true
+		}
+	}
+	return false
+}
+
+// isOtherJobRunningOnBranchOrEnvironment returns true if another job is running on the same branch or environment as the current job.
+func isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, job *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
+	currentJobTargetEnvironments := getTargetEnvironments(job, ra)
+	for _, existingRadixJob := range existingRadixJobs {
+		if existingRadixJob.GetName() == job.GetName() {
+			continue
+		}
+
+		if !existingRadixJob.Status.Condition.IsWaitingOrRunning() {
+			continue
+		}
+
+		// A build or build-deploy job can resolve to no target environments when its git ref is not (yet)
+		// mapped to any environment in the RadixApplication (e.g. the RA is missing, or the branch mapping
+		// is absent). In that case we fall back to matching on git ref against other running build jobs, so
+		// two builds of the same git ref are not run concurrently.
+		// Note: ApplyConfig jobs also have no target environments, but they carry no git ref and are not
+		// build jobs, so they intentionally do not conflict here.
+		if len(currentJobTargetEnvironments) == 0 {
+			currentIsBuildJob := job.Spec.PipeLineType == v1.Build || job.Spec.PipeLineType == v1.BuildDeploy
+			existingIsBuildJob := existingRadixJob.Spec.PipeLineType == v1.Build || existingRadixJob.Spec.PipeLineType == v1.BuildDeploy
+
+			gitRefsMatches := job.Spec.Build.GetGitRefOrDefault() == existingRadixJob.Spec.Build.GetGitRefOrDefault() &&
+				job.Spec.Build.GetGitRefTypeOrDefault() == existingRadixJob.Spec.Build.GetGitRefTypeOrDefault()
+
+			if currentIsBuildJob && existingIsBuildJob && gitRefsMatches {
+				return true // It is a conflict, make sure the job is queued
 			}
-			if job.Spec.Build.GetGitRefOrDefault() == existingRadixJob.Spec.Build.GetGitRefOrDefault() &&
-				job.Spec.Build.GetGitRefTypeOrDefault() == existingRadixJob.Spec.Build.GetGitRefTypeOrDefault() {
-				if len(job.Spec.Build.ToEnvironment) == 0 {
-					return true
-				}
-				if _, ok := jobTargetEnvironments[existingRadixJob.Spec.Build.ToEnvironment]; ok {
-					return true
-				}
-			}
-		case v1.Deploy:
-			if _, ok := jobTargetEnvironments[existingRadixJob.Spec.Deploy.ToEnvironment]; ok {
-				return true
-			}
-		case v1.Promote:
-			if _, ok := jobTargetEnvironments[existingRadixJob.Spec.Promote.ToEnvironment]; ok {
-				return true
+		} else {
+			existingTargetEnvironments := getTargetEnvironments(&existingRadixJob, ra)
+			if hasConflictingTargetEnvironments(currentJobTargetEnvironments, existingTargetEnvironments) {
+				return true // It is a conflict, make sure the job is queued
 			}
 		}
 	}
 	return false
 }
 
+// hasConflictingTargetEnvironments returns true if the two jobs target at least one common environment.
+func hasConflictingTargetEnvironments(jobTargetEnvironments, otherJobTargetEnvironments map[string]any) bool {
+	for envName := range jobTargetEnvironments {
+		if _, ok := otherJobTargetEnvironments[envName]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// getTargetEnvironments (or getExclusiveEnvironments) resolves the set of environments a job targets. A job can target several environments,
+// for example a build-deploy job building a branch that is mapped to multiple environments.
+// or Apply-Config returns nil, since it targets all environments, and is not considered to conflict with other jobs.
 func getTargetEnvironments(rj *v1.RadixJob, ra *v1.RadixApplication) map[string]any {
 	switch rj.Spec.PipeLineType {
 	case v1.Build, v1.BuildDeploy:
@@ -221,6 +250,8 @@ func getTargetEnvironments(rj *v1.RadixJob, ra *v1.RadixApplication) map[string]
 		return map[string]any{rj.Spec.Deploy.ToEnvironment: nil}
 	case v1.Promote:
 		return map[string]any{rj.Spec.Promote.ToEnvironment: nil}
+	case v1.ApplyConfig:
+		return nil // ApplyConfig jobs do not target any specific environment and they are not considered to conflict with other jobs.
 	default:
 		return nil
 	}
@@ -371,7 +402,7 @@ func (job *Job) deleteStepJobs(ctx context.Context) error {
 	return nil
 }
 
-func (job *Job) setNextJobToRunning(ctx context.Context, ra *v1.RadixApplication) error {
+func (job *Job) setNextJobToWaiting(ctx context.Context, ra *v1.RadixApplication) error {
 	radixJobs, err := job.getAllRadixJobs(ctx)
 	if err != nil {
 		return err
@@ -383,9 +414,9 @@ func (job *Job) setNextJobToRunning(ctx context.Context, ra *v1.RadixApplication
 			continue
 		}
 		if !isOtherJobRunningOnBranchOrEnvironment(ra, &thisJob, rjs) {
-			log.Ctx(ctx).Info().Msgf("Change condition for next job %s from %s to %s", thisJob.Name, thisJob.Status.Condition, v1.JobRunning)
+			log.Ctx(ctx).Info().Msgf("Change condition for next job %s from %s to %s", thisJob.Name, thisJob.Status.Condition, v1.JobWaiting)
 			_, err := updateRadixJobStatus(ctx, job.radixclient, &thisJob, func(currStatus *v1.RadixJobStatus) {
-				currStatus.Condition = v1.JobRunning
+				currStatus.Condition = v1.JobWaiting
 			})
 			return err
 		}

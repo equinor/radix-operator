@@ -53,7 +53,7 @@ func NewController(ctx context.Context,
 	if _, err := radixJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixJob, _ := cur.(*v1.RadixJob)
-			if radixJob.Status.Condition.IsDoneCondition() {
+			if radixJob.Status.Condition.IsDone() {
 				logger.Debug().Msgf("Skip job object %s as it is complete", radixJob.GetName())
 				metrics.CustomResourceAddedButSkipped(crType)
 				metrics.InitiateRadixJobStatusChanged(radixJob)
@@ -72,7 +72,7 @@ func NewController(ctx context.Context,
 			newRJ := cur.(*v1.RadixJob)
 			oldRJ := old.(*v1.RadixJob)
 
-			if newRJ.Status.Condition.IsDoneCondition() {
+			if newRJ.Status.Condition.IsDone() {
 				logger.Debug().Msgf("Skip job object %s as it is complete", newRJ.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				metrics.InitiateRadixJobStatusChanged(newRJ)

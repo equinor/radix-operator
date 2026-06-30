@@ -165,6 +165,8 @@ spec:
               value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
             - name: RADIXOPERATOR_PIPELINE_IMAGE
               value: {{ .Values.radixPipelineRunner.image.repository }}:{{ .Values.radixPipelineRunner.image.tag | default .Chart.AppVersion }}
+            - name: RADIXOPERATOR_PIPELINE_IMAGE_PULL_POLICY
+              value: {{ .Values.radixPipelineRunner.image.pullPolicy | default "Always" }}
 
             - name: RADIXOPERATOR_INGRESS_GATEWAY_NAME
               value: {{ required "gateway name is required to operate" .Values.ingress.gateway.name }}

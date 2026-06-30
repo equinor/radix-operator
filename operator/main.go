@@ -120,6 +120,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 
 	app.config = apiconfig.MustParse()
 	initLogger(app.config)
+	log.Ctx(ctx).Info().Interface("config", app.config).Msg("config parsed")
 
 	app.opts, err = getInitParams()
 	if err != nil {

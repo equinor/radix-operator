@@ -586,7 +586,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 	s.Require().NoError(err)
 	s.Equal(radixv1.JobQueued, secondJob.Status.Condition)
 
-	// Stopping first job should set second job to running
+	// Stopping first job should set second job to waiting, as its Kubernetes job has not been created/started yet
 	firstJob.Spec.Stop = true
 	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.Background(), firstJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
@@ -595,7 +595,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 	s.Require().NoError(err)
 
 	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.Background(), secondJob.Name, metav1.GetOptions{})
-	s.Equal(radixv1.JobRunning, secondJob.Status.Condition)
+	s.Equal(radixv1.JobWaiting, secondJob.Status.Condition)
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
@@ -609,7 +609,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 	s.Require().NoError(err)
 	s.Equal(radixv1.JobQueued, secondJob.Status.Condition)
 
-	// Stopping first job should set second job to running
+	// Stopping first job should set second job to waiting, as its Kubernetes job has not been created/started yet
 	firstJob.Spec.Stop = true
 	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.Background(), firstJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
@@ -618,7 +618,117 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 	s.Require().NoError(err)
 
 	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.Background(), secondJob.Name, metav1.GetOptions{})
-	s.Equal(radixv1.JobRunning, secondJob.Status.Condition)
+	s.Equal(radixv1.JobWaiting, secondJob.Status.Condition)
+}
+
+func (s *RadixJobTestSuite) TestObjectSynced_OldestPendingJobRunsFirst() {
+	config := getConfigWithPipelineJobsHistoryLimit(3)
+	baseTime := time.Now().Add(-3 * time.Hour)
+
+	oldestJob, err := s.testUtils.ApplyJob(
+		utils.ARadixBuildDeployJob().
+			WithJobName("OldestJob").
+			WithCreated(baseTime).
+			WithEmptyStatus().
+			WithGitRef("master").
+			WithGitRefType(string(radixv1.GitRefBranch)),
+	)
+	s.Require().NoError(err)
+	middleJob, err := s.testUtils.ApplyJob(
+		utils.ARadixBuildDeployJob().
+			WithJobName("MiddleJob").
+			WithCreated(baseTime.Add(time.Hour)).
+			WithEmptyStatus().
+			WithGitRef("master").
+			WithGitRefType(string(radixv1.GitRefBranch)),
+	)
+	s.Require().NoError(err)
+	newestJob, err := s.testUtils.ApplyJob(
+		utils.ARadixBuildDeployJob().
+			WithJobName("NewestJob").
+			WithCreated(baseTime.Add(2 * time.Hour)).
+			WithEmptyStatus().
+			WithGitRef("master").
+			WithGitRefType(string(radixv1.GitRefBranch)),
+	)
+	s.Require().NoError(err)
+	// OtherEnvJob targets a different environment (prod, built from the release branch) than the
+	// master jobs above (test environment), so it must not be queued behind them.
+	otherEnvJob, err := s.testUtils.ApplyJob(
+		utils.ARadixBuildDeployJobWithAppBuilder(func(appBuilder utils.ApplicationBuilder) {
+			appBuilder.WithEnvironment("prod", "release")
+		}).
+			WithJobName("OtherEnvJob").
+			WithCreated(baseTime.Add(3 * time.Hour)).
+			WithEmptyStatus().
+			WithGitRef("release").
+			WithGitRefType(string(radixv1.GitRefBranch)),
+	)
+	s.Require().NoError(err)
+
+	rr, err := s.testUtils.ApplyRegistration(utils.ARadixRegistration())
+	s.Require().NoError(err)
+
+	err = s.runSync(rr, newestJob, config)
+	s.Require().NoError(err)
+
+	oldestJob, err = s.radixClient.RadixV1().RadixJobs(oldestJob.ObjectMeta.Namespace).Get(context.Background(), oldestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	middleJob, err = s.radixClient.RadixV1().RadixJobs(middleJob.ObjectMeta.Namespace).Get(context.Background(), middleJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	newestJob, err = s.radixClient.RadixV1().RadixJobs(newestJob.ObjectMeta.Namespace).Get(context.Background(), newestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+
+	s.Equal(radixv1.RadixJobCondition(""), oldestJob.Status.Condition)
+	s.Equal(radixv1.RadixJobCondition(""), middleJob.Status.Condition)
+	s.Require().Equal(radixv1.JobQueued, newestJob.Status.Condition)
+
+	err = s.runSync(rr, middleJob, config)
+	s.Require().NoError(err)
+
+	oldestJob, err = s.radixClient.RadixV1().RadixJobs(oldestJob.ObjectMeta.Namespace).Get(context.Background(), oldestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	middleJob, err = s.radixClient.RadixV1().RadixJobs(middleJob.ObjectMeta.Namespace).Get(context.Background(), middleJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	newestJob, err = s.radixClient.RadixV1().RadixJobs(newestJob.ObjectMeta.Namespace).Get(context.Background(), newestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+
+	s.Equal(radixv1.RadixJobCondition(""), oldestJob.Status.Condition)
+	s.Require().Equal(radixv1.JobQueued, middleJob.Status.Condition)
+	s.Equal(radixv1.JobQueued, newestJob.Status.Condition)
+
+	err = s.runSync(rr, oldestJob, config)
+	s.Require().NoError(err)
+
+	oldestJob, err = s.radixClient.RadixV1().RadixJobs(oldestJob.ObjectMeta.Namespace).Get(context.Background(), oldestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	middleJob, err = s.radixClient.RadixV1().RadixJobs(middleJob.ObjectMeta.Namespace).Get(context.Background(), middleJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	newestJob, err = s.radixClient.RadixV1().RadixJobs(newestJob.ObjectMeta.Namespace).Get(context.Background(), newestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+
+	s.Require().Equal(radixv1.JobWaiting, oldestJob.Status.Condition)
+	s.Equal(radixv1.JobQueued, middleJob.Status.Condition)
+	s.Equal(radixv1.JobQueued, newestJob.Status.Condition)
+
+	// A job targeting another environment must run even though older jobs targeting a different
+	// environment are still pending or queued.
+	err = s.runSync(rr, otherEnvJob, config)
+	s.Require().NoError(err)
+
+	otherEnvJob, err = s.radixClient.RadixV1().RadixJobs(otherEnvJob.ObjectMeta.Namespace).Get(context.Background(), otherEnvJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	oldestJob, err = s.radixClient.RadixV1().RadixJobs(oldestJob.ObjectMeta.Namespace).Get(context.Background(), oldestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	middleJob, err = s.radixClient.RadixV1().RadixJobs(middleJob.ObjectMeta.Namespace).Get(context.Background(), middleJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	newestJob, err = s.radixClient.RadixV1().RadixJobs(newestJob.ObjectMeta.Namespace).Get(context.Background(), newestJob.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+
+	s.Require().Equal(radixv1.JobWaiting, otherEnvJob.Status.Condition)
+	s.Equal(radixv1.JobWaiting, oldestJob.Status.Condition)
+	s.Equal(radixv1.JobQueued, middleJob.Status.Condition)
+	s.Equal(radixv1.JobQueued, newestJob.Status.Condition)
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplication() {
@@ -639,7 +749,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 	s.Require().NoError(err)
 	s.Equal(radixv1.JobWaiting, thirdJob.Status.Condition)
 
-	// Stopping first job should set second job to running
+	// Stopping first job should set second job to waiting (it should only be set to running when the actual pod has started running)
 	firstJob.Spec.Stop = true
 	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.Background(), firstJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
@@ -648,7 +758,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 	s.Require().NoError(err)
 
 	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.Background(), secondJob.Name, metav1.GetOptions{})
-	s.Equal(radixv1.JobRunning, secondJob.Status.Condition)
+	s.Equal(radixv1.JobWaiting, secondJob.Status.Condition)
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning() {
@@ -662,6 +772,31 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJ
 	s.Require().NoError(err)
 
 	s.Equal(radixv1.JobWaiting, secondJob.Status.Condition)
+}
+
+func (s *RadixJobTestSuite) TestObjectSynced_KubernetesJobStarted_RadixJobRunning() {
+	config := getConfigWithPipelineJobsHistoryLimit(3)
+
+	// First sync creates the underlying Kubernetes pipeline job. With no active pods yet the
+	// RadixJob is Waiting.
+	rj, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("FirstJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	s.Require().NoError(err)
+	s.Require().Equal(radixv1.JobWaiting, rj.Status.Condition)
+
+	pipelineJob, err := s.kubeClient.BatchV1().Jobs(rj.GetNamespace()).Get(context.Background(), rj.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+
+	// Simulate the Kubernetes job having started a pod (active), then sync again.
+	pipelineJob.Status.Active = 1
+	_, err = s.kubeClient.BatchV1().Jobs(rj.GetNamespace()).UpdateStatus(context.Background(), pipelineJob, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+
+	err = s.runSync(rr, rj, config)
+	s.Require().NoError(err)
+
+	rj, err = s.radixClient.RadixV1().RadixJobs(rj.GetNamespace()).Get(context.Background(), rj.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.JobRunning, rj.Status.Condition)
 }
 
 type radixDeploymentJob struct {
@@ -1579,6 +1714,7 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 			AppBuilderResourcesRequestsCPU:    createQuantity("100m"),
 			AppBuilderResourcesRequestsMemory: createQuantity("1000Mi"),
 			PipelineImage:                     "docker.io/anypipeline:tag",
+			PipelineImagePullPolicy:           corev1.PullAlways,
 			GitCloneImage:                     "docker.io/git:any",
 		},
 		ContainerRegistryConfig: config.ContainerRegistryConfig{
