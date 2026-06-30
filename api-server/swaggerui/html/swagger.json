@@ -5906,7 +5906,7 @@
           "$ref": "#/definitions/ApplicationRegistration"
         },
         "useBuildCache": {
-          "description": "UseBuildCache if build cache is used for building the application. Applicable when UseBuildKit is true. Default is true.",
+          "description": "UseBuildCache if build cache is used for building the application. Defaults to true.",
           "type": "boolean",
           "x-go-name": "UseBuildCache"
         },
@@ -6846,7 +6846,7 @@
           "x-go-name": "StatusReason"
         },
         "useBuildCache": {
-          "description": "Defaults to true and requires useBuildKit to have an effect.",
+          "description": "Defaults to true.",
           "type": "boolean",
           "x-go-name": "UseBuildCache",
           "x-nullable": true
@@ -7020,7 +7020,7 @@
           "x-go-name": "StatusReason"
         },
         "useBuildCache": {
-          "description": "Defaults to true and requires useBuildKit to have an effect.",
+          "description": "Defaults to true.",
           "type": "boolean",
           "x-go-name": "UseBuildCache",
           "x-nullable": true
@@ -7597,7 +7597,7 @@
           "x-go-name": "TriggeredFromWebhook"
         },
         "useBuildCache": {
-          "description": "Defaults to true and requires useBuildKit to have an effect.",
+          "description": "Defaults to true.",
           "type": "boolean",
           "x-go-name": "UseBuildCache",
           "x-nullable": true
@@ -7771,7 +7771,7 @@
           "x-go-name": "TriggeredFromWebhook"
         },
         "useBuildCache": {
-          "description": "Defaults to true and requires useBuildKit to have an effect.",
+          "description": "Defaults to true.",
           "type": "boolean",
           "x-go-name": "UseBuildCache",
           "x-nullable": true

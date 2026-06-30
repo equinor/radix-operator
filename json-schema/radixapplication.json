@@ -62,7 +62,7 @@
               "type": "object"
             },
             "useBuildCache": {
-              "description": "Defaults to true and requires useBuildKit to have an effect.\nNote: All layers will be cached and can be available for other Radix Apps. Do not add secrets to a Dockerfile layer.",
+              "description": "Defaults to true.\nNote: All layers will be cached and can be available for other Radix Apps. Do not add secrets to a Dockerfile layer.",
               "type": "boolean"
             },
             "variables": {
