@@ -49,7 +49,7 @@ type Application struct {
 	// required: true
 	UserIsAdmin bool `json:"userIsAdmin"`
 
-	// UseBuildCache if build cache is used for building the application. Applicable when UseBuildKit is true. Default is true.
+	// UseBuildCache if build cache is used for building the application. Defaults to true.
 	//
 	// required: true
 	UseBuildCache bool `json:"useBuildCache"`
