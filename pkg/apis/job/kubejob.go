@@ -92,7 +92,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 						{
 							Name:            defaults.RadixPipelineJobPipelineContainerName,
 							Image:           job.config.PipelineJobConfig.PipelineImage,
-							ImagePullPolicy: corev1.PullAlways,
+							ImagePullPolicy: job.config.PipelineJobConfig.PipelineImagePullPolicy,
 							VolumeMounts:    git.GetJobContainerVolumeMounts(workspace),
 							Args:            containerArguments,
 							SecurityContext: securitycontext.Container(

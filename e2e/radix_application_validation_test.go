@@ -34,9 +34,9 @@ func createNamespaceForTest(t *testing.T, c client.Client, appName string) func(
 // createRadixRegistrationAndNamespaceForTest creates a RadixRegistration and its namespace for testing
 // appName: the name of the application (used for RadixRegistration name and as base for namespace)
 // Returns cleanup function and the app namespace name
-func createRadixRegistrationAndNamespaceForTest(t *testing.T, c client.Client, appName string) (cleanup func(), appNamespace string) {
+func createRadixRegistrationAndNamespaceForTest(t *testing.T, c client.Client, appName string) (appNamespace string) {
 	appNamespace = appName + "-app"
-	nsCleanup := createNamespaceForTest(t, c, appName) // Reuse the cleanup function for namespace
+	createNamespaceForTest(t, c, appName) // Reuse the cleanup function for namespace
 
 	// Create RadixRegistration
 	rr := &v1.RadixRegistration{
@@ -53,10 +53,7 @@ func createRadixRegistrationAndNamespaceForTest(t *testing.T, c client.Client, a
 	err := c.Create(t.Context(), rr)
 	require.NoError(t, err)
 
-	return func() {
-		_ = c.Delete(t.Context(), rr)
-		nsCleanup()
-	}, appNamespace
+	return appNamespace
 }
 
 // TestRadixApplicationWebhookSmokeTest tests that the webhook is working by verifying createRRExistValidator
@@ -138,8 +135,7 @@ func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
 func TestRadixApplicationEnvironmentsValidation(t *testing.T) {
 	c := getClient(t)
 	appName := "test-env-validation"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name         string
@@ -195,8 +191,7 @@ func TestRadixApplicationEnvironmentsValidation(t *testing.T) {
 func TestRadixApplicationEnvironmentNameValidation(t *testing.T) {
 	c := getClient(t)
 	appName := "test-env-name"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -274,8 +269,7 @@ func TestRadixApplicationEnvironmentNameValidation(t *testing.T) {
 func TestRadixApplicationEnvBuildFromValidation(t *testing.T) {
 	c := getClient(t)
 	appName := "test-envbuild-from"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -338,8 +332,7 @@ func TestRadixApplicationEnvBuildFromValidation(t *testing.T) {
 func TestRadixApplicationEnvBuildFromTypeValidation(t *testing.T) {
 	c := getClient(t)
 	appName := "test-envbuild-fromtype"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -402,8 +395,7 @@ func TestRadixApplicationEnvBuildFromTypeValidation(t *testing.T) {
 func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 	c := getClient(t)
 	appName := "test-name-uniqueness"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	t.Run("valid - unique component and job names", func(t *testing.T) {
 		ra := &v1.RadixApplication{
@@ -455,8 +447,7 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 func TestRadixApplicationComponentNameValidation(t *testing.T) {
 	c := getClient(t)
 	appName := "test-component-name"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name          string
@@ -520,8 +511,7 @@ func TestRadixApplicationComponentNameValidation(t *testing.T) {
 func TestRadixApplicationComponentPortValidation(t *testing.T) {
 	c := getClient(t)
 	appName := "test-port-validation"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -603,8 +593,7 @@ func TestRadixApplicationComponentPortValidation(t *testing.T) {
 func TestRadixApplicationEgressRuleValidation(t *testing.T) {
 	c := getClient(t)
 	appName := "test-egress-validation"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -725,8 +714,7 @@ func TestRadixApplicationEgressRuleValidation(t *testing.T) {
 func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
 	c := getClient(t)
 	appName := "test-replicas"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string

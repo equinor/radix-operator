@@ -129,7 +129,7 @@
 				"USE_PROFILER": "true",
 				"APP_ALIAS_BASE_URL": "app.dev.radix.equinor.com",
 				"DNS_ZONE": "dev.radix.equinor.com",
-				"RADIX_CLUSTERNAME": "weekly-24",
+				"RADIX_CLUSTERNAME": "weekly-26",
 				"RADIXOPERATOR_CLUSTER_TYPE": "development",
 				"RADIXOPERATOR_DEFAULT_APP_ADMIN_GROUPS": "64b28659-4fe4-4222-8497-85dd7e43e25b",
 				"RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU": "2000m",
@@ -250,10 +250,10 @@
 				"LOG_PRETTY": "true",
 				"OIDC_AZURE_ISSUER": "https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/",
 				"OIDC_AZURE_AUDIENCE": "6dae42f8-4368-4678-94ff-3960e28e3630",
-				"OIDC_KUBERNETES_ISSUER": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/79c72762-ce8d-4874-90cd-a119a5050503/",
-				"OIDC_KUBERNETES_AUDIENCE": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/79c72762-ce8d-4874-90cd-a119a5050503/",
-				"RADIX_CLUSTERNAME": "weekly-24",
-				"CLUSTER_OIDC_ISSUERS": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/79c72762-ce8d-4874-90cd-a119a5050503/,https://test-issuer.internal.radix.equinor.com",
+				"OIDC_KUBERNETES_ISSUER": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d759e0b0-6919-470c-82d9-848a3c0cacfd/",
+				"OIDC_KUBERNETES_AUDIENCE": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d759e0b0-6919-470c-82d9-848a3c0cacfd/",
+				"RADIX_CLUSTERNAME": "weekly-26",
+				"CLUSTER_OIDC_ISSUERS": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d759e0b0-6919-470c-82d9-848a3c0cacfd/,https://test-issuer.internal.radix.equinor.com",
 				"CLUSTER_EGRESS_IPS": "0.0.0.0"
 			}
 		}

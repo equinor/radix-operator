@@ -7,11 +7,12 @@ import (
 	"os/exec"
 )
 
-// InstallRadixOperator installs the radix-operator Helm chart
+// InstallRadixOperator installs or upgrades the radix-operator Helm chart so it runs
+// with the expected image tags and configuration, whether or not it is already installed.
 func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releaseName, chartPath string, values map[string]string) error {
 	// Build helm upgrade --install command
 	args := []string{
-		"install",
+		"upgrade", "--install",
 		releaseName,
 		chartPath,
 		"--namespace", namespace,
@@ -32,7 +33,32 @@ func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releas
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("helm install failed: %w", err)
+		return fmt.Errorf("helm upgrade/install failed: %w", err)
+	}
+
+	return nil
+}
+
+// UninstallRadixOperator uninstalls the radix-operator Helm release if it is installed. This is
+// used to stop the running operator before the Radix CRDs are removed, so the operator does not
+// fail when its CRDs disappear. It is a no-op if the release is not installed.
+func UninstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releaseName string) error {
+	env := append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", KubeConfigPath))
+
+	// Check whether the release is installed; if not, there is nothing to uninstall
+	statusCmd := exec.CommandContext(ctx, "helm", "status", releaseName, "--namespace", namespace)
+	statusCmd.Env = env
+	if err := statusCmd.Run(); err != nil {
+		return nil
+	}
+
+	cmd := exec.CommandContext(ctx, "helm", "uninstall", releaseName, "--namespace", namespace, "--wait")
+	cmd.Env = env
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("helm uninstall failed: %w", err)
 	}
 
 	return nil
