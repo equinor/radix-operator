@@ -250,13 +250,14 @@ func NewJobBuilder() JobBuilder {
 
 // ARadixBuildDeployJob Constructor for radix job builder containing test data
 func ARadixBuildDeployJob() JobBuilder {
-	return ARadixBuildDeployJobWithAppBuilder()
+	return ARadixBuildDeployJobWithAppBuilder(func(builder ApplicationBuilder) {})
 }
 
-// ARadixBuildDeployJobWithAppBuilder Constructor for radix job builder containing test data
-func ARadixBuildDeployJobWithAppBuilder() JobBuilder {
+// ARadixBuildDeployJobWithAppBuilder Constructor for radix job builder with ApplicationBuilder modifier, containing test data
+func ARadixBuildDeployJobWithAppBuilder(builderModifier func(builder ApplicationBuilder)) JobBuilder {
 	appBuilder := ARadixApplication().
 		WithAppName("some-app")
+	builderModifier(appBuilder)
 	builder := NewJobBuilder().
 		WithRadixApplication(
 			appBuilder).

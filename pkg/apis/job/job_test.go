@@ -1662,7 +1662,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		s.Run(name, func() {
 			_, _, err := s.applyJobWithSync(
 				utils.ARadixRegistration(),
-				utils.ARadixBuildDeployJobWithAppBuilder().
+				utils.ARadixBuildDeployJobWithAppBuilder(func(builder utils.ApplicationBuilder) {}).
 					WithJobName("job1").
 					WithGitRef("master").
 					WithGitRefType(string(radixv1.GitRefBranch)),
