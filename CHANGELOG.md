@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.120.1](https://github.com/equinor/radix-operator/compare/v1.120.0..v1.120.1) - 2026-07-01
+
+### 🐛 Bug Fixes
+
+- Overriding envvar from batch should reset any value from configmap/secret (#1804) - ([37756de](https://github.com/equinor/radix-operator/commit/37756dea03fce4c6e769dadd53ffaa6d58e7f721)) by @Richard87 in [#1804](https://github.com/equinor/radix-operator/pull/1804)
+
+- Bugfix queuing jobs (#1800) - ([da2e4e0](https://github.com/equinor/radix-operator/commit/da2e4e09c256dc80a7593c25887cc64f143aefbb)) by @Richard87 in [#1800](https://github.com/equinor/radix-operator/pull/1800)
+
+- Remove ACR tasks (#1810) - ([39467e5](https://github.com/equinor/radix-operator/commit/39467e5cf8735f7cae4f2732a25f247fe6ef3110)) by @Richard87 in [#1810](https://github.com/equinor/radix-operator/pull/1810)
+
+
 ## [1.120.0](https://github.com/equinor/radix-operator/compare/v1.119.1..v1.120.0) - 2026-06-23
 
 ### 🚀 Features
