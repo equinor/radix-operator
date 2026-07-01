@@ -49,7 +49,6 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 		gitCommitHash            string
 		expectRunError           bool
 		expectedStatus           v1.RadixJobCondition
-		expectedBuildKit         bool
 		expectedBuildCache       bool
 		expectedResolvedCommitID string
 	}{
@@ -57,7 +56,6 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 			name:               "step succeeds",
 			stepRunFunc:        func(_ context.Context, _ *model.PipelineInfo) error { return nil },
 			expectedStatus:     v1.JobSucceeded,
-			expectedBuildKit:   true,
 			expectedBuildCache: true,
 		},
 		{
@@ -65,7 +63,6 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 			stepRunFunc:        func(_ context.Context, _ *model.PipelineInfo) error { return fmt.Errorf("build error") },
 			expectRunError:     true,
 			expectedStatus:     v1.JobFailed,
-			expectedBuildKit:   true,
 			expectedBuildCache: true,
 		},
 		{
@@ -76,15 +73,13 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 				return nil
 			},
 			expectedStatus:     v1.JobStoppedNoChanges,
-			expectedBuildKit:   true,
 			expectedBuildCache: true,
 		},
 		{
-			name:               "buildkit and cache info",
+			name:               "cache info",
 			stepRunFunc:        func(_ context.Context, _ *model.PipelineInfo) error { return nil },
 			pipelineArgs:       model.PipelineArguments{OverrideUseBuildCache: &useBuildCache},
 			expectedStatus:     v1.JobSucceeded,
-			expectedBuildKit:   true,
 			expectedBuildCache: true,
 		},
 		{
@@ -92,7 +87,6 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 			stepRunFunc:              func(_ context.Context, _ *model.PipelineInfo) error { return nil },
 			gitCommitHash:            "abc123def456",
 			expectedStatus:           v1.JobSucceeded,
-			expectedBuildKit:         true,
 			expectedBuildCache:       true,
 			expectedResolvedCommitID: "abc123def456",
 		},
@@ -133,7 +127,6 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 			status := getPipelineRunStatus(t, fakeClient, appName, jobName)
 			require.NotNil(t, status)
 			assert.Equal(t, tt.expectedStatus, status.Status)
-			assert.Equal(t, tt.expectedBuildKit, status.UsedBuildKit)
 			assert.Equal(t, tt.expectedBuildCache, status.UsedBuildCache)
 			assert.Equal(t, tt.expectedResolvedCommitID, status.ResolvedCommitID)
 		})

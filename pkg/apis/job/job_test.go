@@ -39,7 +39,6 @@ type RadixJobTestSuiteBase struct {
 	radixClient *radix.Clientset
 	config      struct {
 		clusterName    string
-		builderImage   string
 		buildkitImage  string
 		buildahSecComp string
 		gitImage       string
@@ -54,7 +53,6 @@ type RadixJobTestSuiteBase struct {
 func (s *RadixJobTestSuiteBase) SetupSuite() {
 	s.config = struct {
 		clusterName    string
-		builderImage   string
 		buildkitImage  string
 		buildahSecComp string
 		gitImage       string
@@ -65,7 +63,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		subscriptionID string
 	}{
 		clusterName:    "AnyClusterName",
-		builderImage:   "docker.io/builder:any",
 		buildkitImage:  "docker.io/buildkit:any",
 		buildahSecComp: "anyseccomp",
 		gitImage:       "docker.io/git:any",
@@ -97,7 +94,6 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	s.T().Setenv(defaults.RadixZoneEnvironmentVariable, s.config.radixZone)
 	s.T().Setenv(defaults.ContainerRegistryEnvironmentVariable, s.config.registry)
 	s.T().Setenv(defaults.AppContainerRegistryEnvironmentVariable, s.config.appRegistry)
-	s.T().Setenv(defaults.RadixImageBuilderEnvironmentVariable, s.config.builderImage)
 	s.T().Setenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable, s.config.buildkitImage)
 	s.T().Setenv(defaults.SeccompProfileFileNameEnvironmentVariable, s.config.buildahSecComp)
 	s.T().Setenv(defaults.RadixGitCloneGitImageEnvironmentVariable, s.config.gitImage)
@@ -298,7 +294,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY=2000Mi",
 				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU=200m",
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-				fmt.Sprintf("--RADIX_IMAGE_BUILDER_IMAGE=%s", s.config.builderImage),
 				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
 				fmt.Sprintf("--RADIX_CLUSTER_TYPE=%s", s.config.clusterType),
@@ -449,152 +444,45 @@ func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
 	argRefreshBuildCacheFalse := fmt.Sprintf("--%s=false", defaults.RadixRefreshBuildCacheEnvironmentVariable)
 
 	scenarios := map[string]struct {
-		build                            *radixv1.BuildSpec
 		overrideUseBuildCache            *bool
 		refreshBuildCache                *bool
 		expectedArgOverrideUseBuildCache string
 		expectedArgRefreshBuildCache     string
 	}{
-		"Build empty": {
+		"No override, no refresh": {
 			expectedArgOverrideUseBuildCache: "",
 			expectedArgRefreshBuildCache:     "",
 		},
-		"Build empty, overrideUseBuildCache true": {
-			overrideUseBuildCache:            pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build empty, overrideUseBuildCache false": {
-			overrideUseBuildCache:            pointers.Ptr(false),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build empty, overrideUseBuildCache true, refreshBuildCache false": {
-			overrideUseBuildCache:            pointers.Ptr(true),
-			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build empty, overrideUseBuildCache false, refreshBuildCache true": {
-			overrideUseBuildCache:            pointers.Ptr(false),
-			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build empty, refreshBuildCache false": {
-			overrideUseBuildCache:            pointers.Ptr(true),
-			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build empty, refreshBuildCache true": {
-			overrideUseBuildCache:            pointers.Ptr(false),
-			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build not empty": {
-			build:                            &radixv1.BuildSpec{},
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build not empty, overrideUseBuildCache true": {
-			build:                            &radixv1.BuildSpec{},
-			overrideUseBuildCache:            pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build not empty, overrideUseBuildCache false": {
-			build:                            &radixv1.BuildSpec{},
-			overrideUseBuildCache:            pointers.Ptr(false),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build not empty, overrideUseBuildCache true, refreshBuildCache false": {
-			build:                            &radixv1.BuildSpec{},
-			overrideUseBuildCache:            pointers.Ptr(true),
-			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build not empty, overrideUseBuildCache false, refreshBuildCache true": {
-			build:                            &radixv1.BuildSpec{},
-			overrideUseBuildCache:            pointers.Ptr(false),
-			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build not empty, refreshBuildCache false": {
-			build:                            &radixv1.BuildSpec{},
-			overrideUseBuildCache:            pointers.Ptr(true),
-			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"Build not empty, refreshBuildCache true": {
-			build:                            &radixv1.BuildSpec{},
-			overrideUseBuildCache:            pointers.Ptr(false),
-			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"UseBuildKit": {
-			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"UseBuildKit, overrideUseBuildCache true": {
-			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
+		"overrideUseBuildCache true": {
 			overrideUseBuildCache:            pointers.Ptr(true),
 			expectedArgOverrideUseBuildCache: argUseBuildCacheTrue,
 			expectedArgRefreshBuildCache:     "",
 		},
-		"UseBuildKit, overrideUseBuildCache false": {
-			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
+		"overrideUseBuildCache false": {
 			overrideUseBuildCache:            pointers.Ptr(false),
 			expectedArgOverrideUseBuildCache: argUseBuildCacheFalse,
 			expectedArgRefreshBuildCache:     "",
 		},
-		"UseBuildKit, overrideUseBuildCache true, refreshBuildCache true": {
-			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
-			overrideUseBuildCache:            pointers.Ptr(true),
+		"refreshBuildCache true": {
 			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: argUseBuildCacheTrue,
+			expectedArgOverrideUseBuildCache: "",
 			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
 		},
-		"UseBuildKit, overrideUseBuildCache false, refreshBuildCache true": {
-			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
-			overrideUseBuildCache:            pointers.Ptr(false),
-			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: argUseBuildCacheFalse,
-			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
-		},
-		"UseBuildKit, implicit UseBuildCache": {
-			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true)},
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"UseBuildKit, explicite UseBuildCache, explicite refreshBuildCache": {
-			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(true)},
-			expectedArgOverrideUseBuildCache: "",
-			expectedArgRefreshBuildCache:     "",
-		},
-		"UseBuildKit, implicit UseBuildCache, explicite no refreshBuildCache": {
-			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(false)},
+		"refreshBuildCache false": {
 			refreshBuildCache:                pointers.Ptr(false),
 			expectedArgOverrideUseBuildCache: "",
 			expectedArgRefreshBuildCache:     argRefreshBuildCacheFalse,
 		},
-		"UseBuildKit, explicite UseBuildCache, explicite refreshBuildCache, refreshBuildCache": {
-			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(true)},
+		"overrideUseBuildCache true, refreshBuildCache true": {
+			overrideUseBuildCache:            pointers.Ptr(true),
 			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
+			expectedArgOverrideUseBuildCache: argUseBuildCacheTrue,
 			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
 		},
-		"UseBuildKit, explicite no UseBuildCache, explicite refreshBuildCache": {
-			build:                            &radixv1.BuildSpec{UseBuildKit: pointers.Ptr(true), UseBuildCache: pointers.Ptr(false)},
+		"overrideUseBuildCache false, refreshBuildCache true": {
+			overrideUseBuildCache:            pointers.Ptr(false),
 			refreshBuildCache:                pointers.Ptr(true),
-			expectedArgOverrideUseBuildCache: "",
+			expectedArgOverrideUseBuildCache: argUseBuildCacheFalse,
 			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
 		},
 	}
@@ -606,9 +494,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
 			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName(appName).WithRadixConfigFullName("some-radixconfig.yaml").BuildRR(), metav1.CreateOptions{})
 			s.Require().NoError(err)
 			applicationBuilder := utils.ARadixApplication()
-			if scenario.build != nil {
-				applicationBuilder = applicationBuilder.WithBuildKit(scenario.build.UseBuildKit).WithBuildCache(scenario.build.UseBuildCache)
-			}
 			_, _, err = s.applyJobWithSync(
 				utils.ARadixRegistration().WithName(appName),
 				utils.NewJobBuilder().
@@ -1777,9 +1662,11 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 		s.Run(name, func() {
 			_, _, err := s.applyJobWithSync(
 				utils.ARadixRegistration(),
-				utils.ARadixBuildDeployJobWithAppBuilder(func(m utils.ApplicationBuilder) {
-					m.WithBuildKit(pointers.Ptr(true))
-				}).WithJobName("job1").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), scenario.config)
+				utils.ARadixBuildDeployJobWithAppBuilder(func(builder utils.ApplicationBuilder) {}).
+					WithJobName("job1").
+					WithGitRef("master").
+					WithGitRefType(string(radixv1.GitRefBranch)),
+				scenario.config)
 			switch {
 			case len(scenario.expectedError) > 0 && err == nil:
 				s.Fail(fmt.Sprintf("Missing expected error '%s'", scenario.expectedError))

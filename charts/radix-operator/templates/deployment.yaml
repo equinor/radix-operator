@@ -83,8 +83,6 @@ spec:
               value: {{ .Values.pipelineJobsHistoryLimit | quote }}
             - name: RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT
               value: {{ .Values.pipelineJobsHistoryPeriodLimit | quote }}
-            - name: RADIX_IMAGE_BUILDER_IMAGE
-              value: {{ .Values.radixImageBuilder.image.repository }}:{{ .Values.radixImageBuilder.image.tag | default "master-latest" }}
             - name: RADIXOPERATOR_JOB_SCHEDULER_IMAGE
               value: {{ .Values.radixJobScheduler.image.repository }}:{{ .Values.radixJobScheduler.image.tag | default .Chart.AppVersion }}
             - name: LOG_LEVEL

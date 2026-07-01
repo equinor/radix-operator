@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
@@ -386,7 +385,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().
 		WithAppName(appName).
-		WithBuildKit(pointers.Ptr(true)).
 		WithEnvironment(envName, buildBranch).
 		WithEnvironmentNoBranch("otherenv").
 		WithComponents(
@@ -1802,96 +1800,4 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImages_SourceDeploymentNotFoun
 	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
 	s.Empty(pipelineInfo.DeployEnvironmentComponentImages)
-}
-
-func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
-	appName, branchName := "anyapp", "anybranch"
-
-	tests := map[string]struct {
-		useBuildKit bool
-		components  []utils.RadixApplicationComponentBuilder
-		jobs        []utils.RadixApplicationJobComponentBuilder
-		expectError bool
-	}{
-		"buildkit: support non-amd64 build architectures": {
-			components: []utils.RadixApplicationComponentBuilder{
-				utils.NewApplicationComponentBuilder().WithName("comp1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
-				utils.NewApplicationComponentBuilder().WithName("comp2").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
-			},
-			jobs: []utils.RadixApplicationJobComponentBuilder{
-				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSchedulerPort(9999).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
-				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSchedulerPort(9999).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
-			},
-			useBuildKit: true,
-			expectError: false,
-		},
-		"non-buildkit: succeed if all components are amd64": {
-			components: []utils.RadixApplicationComponentBuilder{
-				utils.NewApplicationComponentBuilder().WithName("comp1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
-				utils.NewApplicationComponentBuilder().WithName("comp2").WithRuntime(&radixv1.Runtime{Architecture: ""}),
-				utils.NewApplicationComponentBuilder().WithName("comp3"),
-			},
-			useBuildKit: false,
-			expectError: false,
-		},
-		"non-buildkit: fail if any component is non-amd64": {
-			components: []utils.RadixApplicationComponentBuilder{
-				utils.NewApplicationComponentBuilder().WithName("comp1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
-				utils.NewApplicationComponentBuilder().WithName("comp2").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
-			},
-			useBuildKit: false,
-			expectError: true,
-		},
-		"non-buildkit: succeed if all jobs are amd64": {
-			jobs: []utils.RadixApplicationJobComponentBuilder{
-				utils.NewApplicationJobComponentBuilder().WithName("job1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(9999),
-				utils.NewApplicationJobComponentBuilder().WithName("job2").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(9999),
-				utils.NewApplicationJobComponentBuilder().WithName("job3").WithSchedulerPort(9999),
-			},
-			useBuildKit: false,
-			expectError: false,
-		},
-		"non-buildkit: fail if any job is non-amd64": {
-			jobs: []utils.RadixApplicationJobComponentBuilder{
-				utils.NewApplicationJobComponentBuilder().WithName("job1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(9999),
-				utils.NewApplicationJobComponentBuilder().WithName("job2").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(9999),
-			},
-			useBuildKit: false,
-			expectError: true,
-		},
-	}
-
-	for name, test := range tests {
-		s.Run(name, func() {
-			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
-			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-			ra := utils.NewRadixApplicationBuilder().
-				WithAppName(appName).
-				WithBuildKit(&test.useBuildKit).
-				WithEnvironment("dev", branchName).
-				WithComponents(test.components...).
-				WithJobComponents(test.jobs...).
-				BuildRA()
-			//TODO ? s.Require().NoError(test.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
-
-			pipeline := model.PipelineInfo{
-				PipelineArguments: model.PipelineArguments{
-					PipelineType: string(radixv1.BuildDeploy),
-					Branch:       branchName,
-					GitWorkspace: "/some-workspace",
-				},
-				RadixApplication:   ra,
-				TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
-			}
-
-			applyStep := applyconfig.NewApplyConfigStep()
-			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
-			err := applyStep.Run(context.Background(), &pipeline)
-			if test.expectError {
-				s.ErrorIs(err, applyconfig.ErrBuildNonDefaultRuntimeArchitectureWithoutBuildKitError)
-			} else {
-				s.NoError(err)
-			}
-		})
-	}
 }

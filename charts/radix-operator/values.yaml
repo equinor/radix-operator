@@ -192,11 +192,6 @@ radixPipelineRunner:
     # Pull policy for the pipeline job image. Defaults to Always.
     pullPolicy: Always
 
-radixImageBuilder:
-  image:
-    repository: ghcr.io/equinor/radix/image-builder
-    tag: latest
-
 radixBuildKitImageBuilder:
   image:
     repository: ghcr.io/equinor/radix/buildkit-builder

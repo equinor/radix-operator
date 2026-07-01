@@ -5858,7 +5858,6 @@
         "name",
         "registration",
         "userIsAdmin",
-        "useBuildKit",
         "useBuildCache"
       ],
       "properties": {
@@ -5907,14 +5906,9 @@
           "$ref": "#/definitions/ApplicationRegistration"
         },
         "useBuildCache": {
-          "description": "UseBuildCache if build cache is used for building the application. Applicable when UseBuildKit is true. Default is true.",
+          "description": "UseBuildCache if build cache is used for building the application. Defaults to true.",
           "type": "boolean",
           "x-go-name": "UseBuildCache"
-        },
-        "useBuildKit": {
-          "description": "UseBuildKit if buildkit is used for building the application",
-          "type": "boolean",
-          "x-go-name": "UseBuildKit"
         },
         "userIsAdmin": {
           "description": "UserIsAdmin if user is member of application's admin groups",
@@ -6852,15 +6846,9 @@
           "x-go-name": "StatusReason"
         },
         "useBuildCache": {
-          "description": "Defaults to true and requires useBuildKit to have an effect.",
+          "description": "Defaults to true.",
           "type": "boolean",
           "x-go-name": "UseBuildCache",
-          "x-nullable": true
-        },
-        "useBuildKit": {
-          "description": "Enables BuildKit when building Dockerfile.",
-          "type": "boolean",
-          "x-go-name": "UseBuildKit",
           "x-nullable": true
         }
       },
@@ -7032,15 +7020,9 @@
           "x-go-name": "StatusReason"
         },
         "useBuildCache": {
-          "description": "Defaults to true and requires useBuildKit to have an effect.",
+          "description": "Defaults to true.",
           "type": "boolean",
           "x-go-name": "UseBuildCache",
-          "x-nullable": true
-        },
-        "useBuildKit": {
-          "description": "Enables BuildKit when building Dockerfile.",
-          "type": "boolean",
-          "x-go-name": "UseBuildKit",
           "x-nullable": true
         }
       },
@@ -7615,15 +7597,9 @@
           "x-go-name": "TriggeredFromWebhook"
         },
         "useBuildCache": {
-          "description": "Defaults to true and requires useBuildKit to have an effect.",
+          "description": "Defaults to true.",
           "type": "boolean",
           "x-go-name": "UseBuildCache",
-          "x-nullable": true
-        },
-        "useBuildKit": {
-          "description": "Enables BuildKit when building Dockerfile.",
-          "type": "boolean",
-          "x-go-name": "UseBuildKit",
           "x-nullable": true
         }
       },
@@ -7795,15 +7771,9 @@
           "x-go-name": "TriggeredFromWebhook"
         },
         "useBuildCache": {
-          "description": "Defaults to true and requires useBuildKit to have an effect.",
+          "description": "Defaults to true.",
           "type": "boolean",
           "x-go-name": "UseBuildCache",
-          "x-nullable": true
-        },
-        "useBuildKit": {
-          "description": "Enables BuildKit when building Dockerfile.",
-          "type": "boolean",
-          "x-go-name": "UseBuildKit",
           "x-nullable": true
         }
       },

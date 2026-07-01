@@ -240,12 +240,9 @@ spec:
                     type: string
                   usedBuildCache:
                     type: boolean
-                  usedBuildKit:
-                    type: boolean
                 required:
                 - status
                 - usedBuildCache
-                - usedBuildKit
                 type: object
               reconcileStatus:
                 description: ReconcileStatus indicates whether the last reconciliation

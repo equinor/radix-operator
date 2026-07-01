@@ -252,11 +252,6 @@ func (in *BuildSpec) DeepCopyInto(out *BuildSpec) {
 			(*out)[key] = val
 		}
 	}
-	if in.UseBuildKit != nil {
-		in, out := &in.UseBuildKit, &out.UseBuildKit
-		*out = new(bool)
-		**out = **in
-	}
 	if in.UseBuildCache != nil {
 		in, out := &in.UseBuildCache, &out.UseBuildCache
 		*out = new(bool)

@@ -12,7 +12,6 @@ type ApplicationBuilder interface {
 	WithAppName(appName string) ApplicationBuilder
 	WithBuildSecrets(buildSecrets ...string) ApplicationBuilder
 	WithBuildVariables(buildVariables radixv1.EnvVarsMap) ApplicationBuilder
-	WithBuildKit(useBuildKit *bool) ApplicationBuilder
 	WithBuildCache(*bool) ApplicationBuilder
 	WithEnvironment(environment, buildFrom string) ApplicationBuilder
 	WithEnvironmentByBuild(environment string, build radixv1.EnvBuild) ApplicationBuilder
@@ -36,7 +35,6 @@ type ApplicationBuilderStruct struct {
 	registrationBuilder            RegistrationBuilder
 	appName                        string
 	buildSecrets                   []string
-	useBuildKit                    *bool
 	useBuildCache                  *bool
 	environments                   []radixv1.Environment
 	components                     []RadixApplicationComponentBuilder
@@ -50,10 +48,6 @@ type ApplicationBuilderStruct struct {
 	buildVariables                 radixv1.EnvVarsMap
 }
 
-func (ap *ApplicationBuilderStruct) WithBuildKit(useBuildKit *bool) ApplicationBuilder {
-	ap.useBuildKit = useBuildKit
-	return ap
-}
 func (ap *ApplicationBuilderStruct) WithBuildCache(useBuildCache *bool) ApplicationBuilder {
 	ap.useBuildCache = useBuildCache
 	return ap
@@ -234,11 +228,10 @@ func (ap *ApplicationBuilderStruct) BuildRA() *radixv1.RadixApplication {
 			PrivateImageHubs: ap.privateImageHubs,
 		},
 	}
-	if ap.useBuildKit != nil || ap.buildSecrets != nil || len(ap.buildSecrets) > 0 || len(ap.buildVariables) > 0 || ap.subPipelineBuilder != nil {
+	if ap.useBuildCache != nil || ap.buildSecrets != nil || len(ap.buildSecrets) > 0 || len(ap.buildVariables) > 0 || ap.subPipelineBuilder != nil {
 		radixApplication.Spec.Build = &radixv1.BuildSpec{
 			Secrets:       ap.buildSecrets,
 			Variables:     ap.buildVariables,
-			UseBuildKit:   ap.useBuildKit,
 			UseBuildCache: ap.useBuildCache,
 		}
 		if ap.subPipelineBuilder != nil {

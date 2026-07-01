@@ -96,7 +96,6 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 		kube.RadixCommitAnnotation:     commitID,
 		kube.RadixBuildSecretHash:      buildSecretHash,
 		kube.RadixConfigHash:           radixConfigHash,
-		kube.RadixUseBuildKit:          strconv.FormatBool(pipelineInfo.IsUsingBuildKit()),
 		kube.RadixUseBuildCache:        strconv.FormatBool(pipelineInfo.IsUsingBuildCache()),
 		kube.RadixRefreshBuildCache:    strconv.FormatBool(pipelineInfo.IsRefreshingBuildCache()),
 	}
