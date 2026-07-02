@@ -129,7 +129,7 @@ func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
 
 	roleBindings, _ := client.RbacV1().RoleBindings(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
-		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, defaults.AppReaderRoleName, "git-ssh-keys", defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretName + "-reader"},
+		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, defaults.AppReaderRoleName, "git-ssh-keys", defaults.WebhookSharedSecretName},
 		getRoleBindingNames(roleBindings),
 	)
 
@@ -162,7 +162,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 	roleBindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
-		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName, defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretName + "-reader"},
+		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName, defaults.WebhookSharedSecretName},
 		getRoleBindingNames(roleBindings))
 	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, roleBindings)
 	assert.Equal(t, 1, len(appAdminRoleBinding.Subjects))
@@ -256,7 +256,7 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
-		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName, defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretName + "-reader"},
+		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName, defaults.WebhookSharedSecretName},
 		getRoleBindingNames(rolebindings))
 
 	expectedSubjects := []rbacv1.Subject{

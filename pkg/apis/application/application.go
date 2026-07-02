@@ -73,10 +73,6 @@ func (app *Application) reconcile(ctx context.Context) error {
 	if err := utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretName); err != nil {
 		return fmt.Errorf("failed to grant admin access to webhook shared secret: %w", err)
 	}
-
-	if err := utils.GrantAppReaderAccessToSecret(ctx, app.kubeutil, app.registration, fmt.Sprintf("%s-reader", defaults.WebhookSharedSecretName), defaults.WebhookSharedSecretName); err != nil {
-		return fmt.Errorf("failed to grant reader access to webhook shared secret: %w", err)
-	}
 	log.Ctx(ctx).Debug().Msg("Applied webhook shared secret")
 
 	if err := app.applyRbacOnPipelineRunner(ctx); err != nil {
