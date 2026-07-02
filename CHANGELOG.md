@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.120.1](https://github.com/equinor/radix-operator/compare/v1.120.0..v1.120.1) - 2026-07-01
+## [1.120.2](https://github.com/equinor/radix-operator/compare/v1.120.1..v1.120.2) - 2026-07-02
+
+### 🐛 Bug Fixes
+
+- Remove ACR secrets (#1815) - ([be67e44](https://github.com/equinor/radix-operator/commit/be67e44c4448654b1f59096573b1ddb69d89597a)) by @Richard87 in [#1815](https://github.com/equinor/radix-operator/pull/1815)
+
+
+## [1.120.1](https://github.com/equinor/radix-operator/compare/v1.120.0..v1.120.1) - 2026-07-02
 
 ### 🐛 Bug Fixes
 
