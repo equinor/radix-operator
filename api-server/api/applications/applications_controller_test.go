@@ -2,6 +2,7 @@ package applications
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1277,9 +1278,11 @@ func TestRegenerateDeployKey_UpdatesSharedSecret(t *testing.T) {
 	response := <-responseChannel
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
-	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
+	sharedSecret, err := kubeUtil.CoreV1().Secrets(builders.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, radixRegistration.Spec.SharedSecret)
+	decodedSharedSecret, err := base64.StdEncoding.DecodeString(string(sharedSecret.Data[defaults.WebhookSharedSecretKey]))
+	require.NoError(t, err)
+	assert.Equal(t, newSharedSecret, string(decodedSharedSecret))
 
 	deployKeyAndSecret := &applicationModels.DeployKeyAndSecret{}
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), regenerateParameters)
@@ -1317,9 +1320,11 @@ func TestRegenerateDeployKey_CreateSharedSecret(t *testing.T) {
 	response := <-responseChannel
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
-	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
+	sharedSecret, err := kubeUtil.CoreV1().Secrets(builders.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
-	newSharedSecret := radixRegistration.Spec.SharedSecret
+	decodedSharedSecret, err := base64.StdEncoding.DecodeString(string(sharedSecret.Data[defaults.WebhookSharedSecretKey]))
+	require.NoError(t, err)
+	newSharedSecret := string(decodedSharedSecret)
 	assert.NotEmpty(t, newSharedSecret)
 
 	deployKeyAndSecret := &applicationModels.DeployKeyAndSecret{}

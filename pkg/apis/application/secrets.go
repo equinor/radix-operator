@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -149,6 +150,75 @@ func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx cont
 	}
 
 	return current, desired, nil
+}
+
+// applyWebhookSharedSecret ensures a Kubernetes secret holding the GitHub webhook shared secret exists in the app namespace.
+// The secret is the source of truth for the shared secret. It is only seeded once (migrating the value from the deprecated
+// RadixRegistrationSpec.SharedSecret field, or generating a new random value) and is not overwritten by the operator afterwards
+// as long as it holds valid data, so that regenerations performed through the api-server are preserved. If the secret is missing
+// or does not contain valid data, it is (re)seeded.
+func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
+	namespace := utils.GetAppNamespace(app.registration.Name)
+
+	// Cannot assign `current` directly from GetSecret since kube client returns a non-nil value even when an error is returned
+	current, err := app.kubeutil.GetSecret(ctx, namespace, defaults.WebhookSharedSecretName)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return err
+		}
+		current = nil
+	}
+
+	if current != nil && webhookSharedSecretHasValidData(current) {
+		// Secret already exists with valid data and is the source of truth - do not overwrite it.
+		return nil
+	}
+
+	// TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
+	sharedSecret := strings.TrimSpace(app.registration.Spec.SharedSecret)
+	if sharedSecret == "" {
+		sharedSecret = utils.RandString(20)
+	}
+	encodedSharedSecret := base64.StdEncoding.EncodeToString([]byte(sharedSecret))
+
+	if current != nil {
+		desired := current.DeepCopy()
+		desired.ObjectMeta.Labels = labels.ForApplicationName(app.registration.Name)
+		if desired.Data == nil {
+			desired.Data = map[string][]byte{}
+		}
+		desired.Data[defaults.WebhookSharedSecretKey] = []byte(encodedSharedSecret)
+		_, err := app.kubeutil.UpdateSecret(ctx, current, desired)
+		return err
+	}
+
+	desired := &corev1.Secret{
+		Type: corev1.SecretTypeOpaque,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      defaults.WebhookSharedSecretName,
+			Namespace: namespace,
+			Labels:    labels.ForApplicationName(app.registration.Name),
+		},
+		Data: map[string][]byte{
+			defaults.WebhookSharedSecretKey: []byte(encodedSharedSecret),
+		},
+	}
+
+	_, err = app.kubeutil.CreateSecret(ctx, namespace, desired)
+	return err
+}
+
+// webhookSharedSecretHasValidData returns true if the secret contains a non-empty, base64-encoded shared secret value.
+func webhookSharedSecretHasValidData(secret *corev1.Secret) bool {
+	encodedSharedSecret, ok := secret.Data[defaults.WebhookSharedSecretKey]
+	if !ok || len(encodedSharedSecret) == 0 {
+		return false
+	}
+	decodedSharedSecret, err := base64.StdEncoding.DecodeString(string(encodedSharedSecret))
+	if err != nil {
+		return false
+	}
+	return len(strings.TrimSpace(string(decodedSharedSecret))) > 0
 }
 
 func (app *Application) applyContainerRegistryCredentialSecretsToAppNamespace(ctx context.Context) error {

@@ -2,11 +2,11 @@ package applications
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -445,29 +445,25 @@ func (ah *ApplicationHandler) RegenerateDeployKey(ctx context.Context, appName s
 func (ah *ApplicationHandler) RegenerateSharedSecret(ctx context.Context, appName string, regenerateWebhookSecretData applicationModels.RegenerateSharedSecretData) error {
 	sharedKey := strings.TrimSpace(regenerateWebhookSecretData.SharedSecret)
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		// Make check that this is an existing application and that the user has access to it
-		currentRegistration, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
+		// Make check that this is an existing application and that the user has access to the secret
+		currentSecret, err := ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
-		updatedRegistration := currentRegistration.DeepCopy()
-		if len(sharedKey) != 0 {
-			updatedRegistration.Spec.SharedSecret = sharedKey
-		} else {
+		if len(sharedKey) == 0 {
 			newShareKey, err := uuid.NewUUID()
 			if err != nil {
 				return fmt.Errorf("failed to generate new shared secret: %v", err)
 			}
-			updatedRegistration.Spec.SharedSecret = newShareKey.String()
+			sharedKey = newShareKey.String()
 		}
 
-		if reflect.DeepEqual(updatedRegistration, currentRegistration) {
-			return nil
+		newSecret := currentSecret.DeepCopy()
+		if newSecret.Data == nil {
+			newSecret.Data = map[string][]byte{}
 		}
-		if _, err := ah.ValidateRadixRegistration(ctx, updatedRegistration, true); err != nil {
-			return err
-		}
-		_, err = ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Update(ctx, updatedRegistration, metav1.UpdateOptions{})
+		newSecret.Data[defaults.WebhookSharedSecretKey] = []byte(base64.StdEncoding.EncodeToString([]byte(sharedKey)))
+		_, err = ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Update(ctx, newSecret, metav1.UpdateOptions{})
 		return err
 	})
 }
@@ -481,11 +477,20 @@ func (ah *ApplicationHandler) GetDeployKeyAndSecret(ctx context.Context, appName
 	if cm != nil {
 		publicKey = cm.Data[defaults.GitPublicKeyConfigMapKey]
 	}
-	rr, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
-	if err != nil {
+	secret, err := ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
 		return nil, err
 	}
-	sharedSecret := rr.Spec.SharedSecret
+	sharedSecret := ""
+	if secret != nil {
+		if encodedSharedSecret := secret.Data[defaults.WebhookSharedSecretKey]; len(encodedSharedSecret) > 0 {
+			decodedSharedSecret, err := base64.StdEncoding.DecodeString(string(encodedSharedSecret))
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode shared secret: %w", err)
+			}
+			sharedSecret = string(decodedSharedSecret)
+		}
+	}
 	return &applicationModels.DeployKeyAndSecret{
 		PublicDeployKey: publicKey,
 		SharedSecret:    sharedSecret,
