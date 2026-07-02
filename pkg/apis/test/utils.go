@@ -345,20 +345,6 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, subscriptionId string) 
 		context.Background(),
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.AzureACRServicePrincipleSecretName,
-				Namespace: corev1.NamespaceDefault,
-			},
-			StringData: map[string]string{
-				"sp_credentials.json": "{}",
-			},
-		},
-		metav1.CreateOptions{})
-	errs = append(errs, err)
-
-	_, err = tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
-		context.Background(),
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
 				Name:      defaults.AzureACRServicePrincipleBuildahSecretName,
 				Namespace: corev1.NamespaceDefault,
 			},

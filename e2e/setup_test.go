@@ -419,7 +419,6 @@ func createClusterPrerequisites(ctx context.Context, c client.Client, gitKnownHo
 	// registration-controller copies these into each app namespace, so they must exist in the
 	// default namespace.
 	acrSecretNames := []string{
-		defaults.AzureACRServicePrincipleSecretName,
 		defaults.AzureACRServicePrincipleBuildahSecretName,
 		defaults.AzureACRTokenPasswordAppRegistrySecretName,
 	}

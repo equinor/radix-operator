@@ -154,7 +154,7 @@ func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx cont
 func (app *Application) applyContainerRegistryCredentialSecretsToAppNamespace(ctx context.Context) error {
 	appNamespace := utils.GetAppNamespace(app.registration.Name)
 
-	for _, secretName := range []string{defaults.AzureACRServicePrincipleSecretName, defaults.AzureACRServicePrincipleBuildahSecretName, defaults.AzureACRTokenPasswordAppRegistrySecretName} {
+	for _, secretName := range []string{defaults.AzureACRServicePrincipleBuildahSecretName, defaults.AzureACRTokenPasswordAppRegistrySecretName} {
 		err := app.copySecretData(ctx, corev1.NamespaceDefault, appNamespace, secretName)
 		if err != nil {
 			return fmt.Errorf("failed to sync secret %s: %w", secretName, err)

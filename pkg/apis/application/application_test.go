@@ -169,7 +169,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 	secrets, _ := client.CoreV1().Secrets("any-app-app").List(context.Background(), metav1.ListOptions{})
 	secretNames := slice.Map(secrets.Items, func(s corev1.Secret) string { return s.Name })
-	expectedSecrets := []string{defaults.GitPrivateKeySecretName, defaults.AzureACRServicePrincipleBuildahSecretName, defaults.AzureACRServicePrincipleSecretName, defaults.AzureACRTokenPasswordAppRegistrySecretName}
+	expectedSecrets := []string{defaults.GitPrivateKeySecretName, defaults.AzureACRServicePrincipleBuildahSecretName, defaults.AzureACRTokenPasswordAppRegistrySecretName}
 	assert.ElementsMatch(t, expectedSecrets, secretNames)
 
 	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(context.Background(), metav1.ListOptions{})
