@@ -179,7 +179,7 @@ func (ah *ApplicationHandler) ChangeRegistrationDetails(ctx context.Context, app
 
 	// Only these fields can change over time
 	updatedRegistration.Spec.CloneURL = radixRegistration.Spec.CloneURL
-	updatedRegistration.Spec.SharedSecret = radixRegistration.Spec.SharedSecret
+	updatedRegistration.Spec.SharedSecret = radixRegistration.Spec.SharedSecret //nolint:staticcheck
 	updatedRegistration.Spec.AdGroups = radixRegistration.Spec.AdGroups
 	updatedRegistration.Spec.ReaderAdGroups = radixRegistration.Spec.ReaderAdGroups
 	updatedRegistration.Spec.Owner = radixRegistration.Spec.Owner

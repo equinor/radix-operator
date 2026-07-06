@@ -184,7 +184,7 @@ func TestHandleGithubWebhook_UnhandledEventType(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Ping_MatchingRepo(t *testing.T) {
-	kubeClient := kubefake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 	registerApp(t, radixClient)
 	createWebhookSharedSecret(t, kubeClient, appName)
@@ -219,7 +219,7 @@ func TestHandleGithubWebhook_Ping_UnmatchedRepo(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Push_RefDeletion(t *testing.T) {
-	kubeClient := kubefake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 	registerApp(t, radixClient)
 	createWebhookSharedSecret(t, kubeClient, appName)
@@ -252,7 +252,7 @@ func TestHandleGithubWebhook_Push_UnmatchedRepo(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Push_InvalidSignature(t *testing.T) {
-	kubeClient := kubefake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 	registerApp(t, radixClient)
 	createWebhookSharedSecret(t, kubeClient, appName)
@@ -271,7 +271,7 @@ func TestHandleGithubWebhook_Push_InvalidSignature(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Push_TriggersPipeline(t *testing.T) {
-	kubeClient := kubefake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 	registerApp(t, radixClient)
 	createWebhookSharedSecret(t, kubeClient, appName)
@@ -299,7 +299,7 @@ func TestHandleGithubWebhook_Push_TriggersPipeline(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Ping_IncorrectSecret(t *testing.T) {
-	kubeClient := kubefake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 	registerApp(t, radixClient)
 	createWebhookSharedSecret(t, kubeClient, appName)
@@ -318,7 +318,7 @@ func TestHandleGithubWebhook_Ping_IncorrectSecret(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Ping_MultipleReposWithoutAppName(t *testing.T) {
-	kubeClient := kubefake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 	createRegistration(t, radixClient, "app1")
 	createRegistration(t, radixClient, "app2")
@@ -388,7 +388,7 @@ func TestHandleGithubWebhook_Push_RepoMatching(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			kubeClient := kubefake.NewSimpleClientset() //nolint:staticcheck
+			kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 			radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 			for _, name := range scenario.appNames {
 				createRegistration(t, radixClient, name)
@@ -420,7 +420,7 @@ func TestHandleGithubWebhook_Push_RepoMatching(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Push_TriggerPipelineError(t *testing.T) {
-	kubeClient := kubefake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 	registerApp(t, radixClient)
 	createWebhookSharedSecret(t, kubeClient, appName)

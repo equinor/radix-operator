@@ -174,7 +174,7 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 	}
 
 	// TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
-	sharedSecret := strings.TrimSpace(app.registration.Spec.SharedSecret)
+	sharedSecret := strings.TrimSpace(app.registration.Spec.SharedSecret) //nolint:staticcheck
 
 	if sharedSecret == "" {
 		sharedSecret = rand.Text()

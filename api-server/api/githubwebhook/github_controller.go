@@ -324,7 +324,8 @@ func getWebhookSharedSecret(ctx context.Context, rr *radixv1.RadixRegistration, 
 	secret, err := accounts.ServiceAccount.Client.CoreV1().Secrets(operatorutils.GetAppNamespace(rr.Name)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return []byte(rr.Spec.SharedSecret), nil // TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
+			// TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
+			return []byte(rr.Spec.SharedSecret), nil //nolint:staticcheck
 		}
 
 		return nil, fmt.Errorf("failed to get webhook secret %s: %w", defaults.WebhookSharedSecretName, err)
@@ -341,7 +342,8 @@ func getWebhookSharedSecret(ctx context.Context, rr *radixv1.RadixRegistration, 
 	}
 
 	if len(decodedSecret) == 0 {
-		decodedSecret = []byte(rr.Spec.SharedSecret) // TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
+		// TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
+		decodedSecret = []byte(rr.Spec.SharedSecret) //nolint:staticcheck
 	}
 
 	if len(strings.TrimSpace(string(decodedSecret))) == 0 {
