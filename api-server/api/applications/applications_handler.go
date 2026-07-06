@@ -2,6 +2,7 @@ package applications
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -29,7 +30,6 @@ import (
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/google/uuid"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 	authorizationapi "k8s.io/api/authorization/v1"
@@ -122,11 +122,6 @@ func (ah *ApplicationHandler) RegisterApplication(ctx context.Context, applicati
 
 	application := applicationRegistrationRequest.ApplicationRegistration
 	creator := auth.GetOriginator(ctx)
-
-	if len(application.SharedSecret) == 0 {
-		application.SharedSecret = radixutils.RandString(20)
-		log.Ctx(ctx).Debug().Msg("There is no Shared Secret specified for the registering application - a random Shared Secret has been generated")
-	}
 
 	radixRegistration, err := applicationModels.NewApplicationRegistrationBuilder().
 		WithAppRegistration(application).
@@ -451,11 +446,7 @@ func (ah *ApplicationHandler) RegenerateSharedSecret(ctx context.Context, appNam
 			return err
 		}
 		if len(sharedKey) == 0 {
-			newShareKey, err := uuid.NewUUID()
-			if err != nil {
-				return fmt.Errorf("failed to generate new shared secret: %v", err)
-			}
-			sharedKey = newShareKey.String()
+			sharedKey = rand.Text()
 		}
 
 		newSecret := currentSecret.DeepCopy()
