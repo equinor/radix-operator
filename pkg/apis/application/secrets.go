@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -177,11 +177,7 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 	sharedSecret := strings.TrimSpace(app.registration.Spec.SharedSecret)
 
 	if sharedSecret == "" {
-		uuidSecret, err := uuid.NewRandom()
-		if err != nil {
-			return fmt.Errorf("failed to generate random shared secret: %w", err)
-		}
-		sharedSecret = uuidSecret.String()
+		sharedSecret = rand.Text()
 	}
 	encodedSharedSecret := base64.StdEncoding.EncodeToString([]byte(sharedSecret))
 
