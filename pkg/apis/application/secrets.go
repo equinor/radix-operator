@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -94,7 +94,7 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 		return nil, nil, "", fmt.Errorf("failed to get known hosts secret: %w", err)
 	}
 
-	deployKey, err := getExistingOrGenerateNewDeployKey(current, app.registration)
+	deployKey, err := getExistingOrGenerateNewDeployKey(current)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to get deploy key: %w", err)
 	}
@@ -108,22 +108,21 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 	return current, desired, deployKey.PublicKey, nil
 }
 
-func getExistingOrGenerateNewDeployKey(fromSecret *corev1.Secret, fromRadixRegistration *v1.RadixRegistration) (*utils.DeployKey, error) {
-	switch {
-	case fromSecret != nil && secretHasGitPrivateDeployKey(fromSecret):
-		privateKey := fromSecret.Data[defaults.GitPrivateKeySecretKey]
+func getExistingOrGenerateNewDeployKey(secret *corev1.Secret) (*utils.DeployKey, error) {
+	if secretHasGitPrivateDeployKey(secret) {
+		privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
 		keypair, err := utils.DeriveDeployKeyFromPrivateKey(string(privateKey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse deploy key from existing secret: %w", err)
 		}
 		return keypair, nil
-	default:
-		keypair, err := utils.GenerateDeployKey()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate new git deploy key: %w", err)
-		}
-		return keypair, nil
 	}
+
+	keypair, err := utils.GenerateDeployKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate new git deploy key: %w", err)
+	}
+	return keypair, nil
 }
 
 func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx context.Context, publicKey string) (current, desired *corev1.ConfigMap, err error) {
@@ -176,8 +175,13 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 
 	// TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
 	sharedSecret := strings.TrimSpace(app.registration.Spec.SharedSecret)
+
 	if sharedSecret == "" {
-		sharedSecret = utils.RandString(20)
+		uuidSecret, err := uuid.NewRandom()
+		if err != nil {
+			return fmt.Errorf("failed to generate random shared secret: %w", err)
+		}
+		sharedSecret = uuidSecret.String()
 	}
 	encodedSharedSecret := base64.StdEncoding.EncodeToString([]byte(sharedSecret))
 
