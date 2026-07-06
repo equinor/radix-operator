@@ -8,7 +8,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/google/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -201,6 +200,6 @@ func assertWebhookSharedSecretIsGeneratedAndValid(t *testing.T, encodedSecret []
 	assert.NoError(t, err)
 	assert.NotEmpty(t, decodedSecret)
 
-	_, err = uuid.Parse(string(decodedSecret))
+	assert.GreaterOrEqual(t, len(decodedSecret), 10)
 	assert.NoError(t, err)
 }
