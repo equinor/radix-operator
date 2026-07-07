@@ -294,10 +294,10 @@ func TestConstructForTargetEnvironment_GetCommitsToDeploy(t *testing.T) {
 		WithComponent(utils.NewDeployComponentBuilder().WithName("comp2").WithImage("comp2-image:tag1").
 			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
 			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1)).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job1").WithImage("job1-image:tag1").WithSchedulerPort(8080).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job1").WithImage("job1-image:tag1").WithSchedulerPort(new(int32(8080))).
 			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
 			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1)).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job2").WithImage("job2-image:tag1").WithSchedulerPort(8080).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job2").WithImage("job2-image:tag1").WithSchedulerPort(new(int32(8080))).
 			WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, commit1).
 			WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, gitTag1))
 	ra := rdBuilder.GetApplicationBuilder().BuildRA()

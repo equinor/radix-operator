@@ -197,6 +197,10 @@ func jobValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string,
 			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
 		}
 
+		for _, err := range validateJobSchedulerConfig(app, job) {
+			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+		}
+
 		for _, environment := range job.EnvironmentConfig {
 			wrn, err := validateJobComponentEnvironment(app, job, environment)
 			if err != nil {
@@ -242,6 +246,32 @@ func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.
 	}
 
 	return wrns, errors.Join(errs...)
+}
+
+// validateJobSchedulerConfig ensures a job can be triggered in every environment it is
+// enabled for. A schedulerPort or a job-level cron schedule applies to all environments.
+// Otherwise, each enabled environment must define its own cron schedule.
+func validateJobSchedulerConfig(app *radixv1.RadixApplication, job radixv1.RadixJobComponent) []error {
+	if job.SchedulerPort != nil || job.Cron != nil {
+		return nil
+	}
+
+	// The job has neither Scheduler Port or Cron Job,
+	// we must ensure that every enabled environment has a cron schedule defined
+	var errs []error
+	for _, env := range app.Spec.Environments {
+		if !job.GetEnabledForEnvironment(env.Name) {
+			continue
+		}
+
+		hasCron := slice.Any(job.EnvironmentConfig, func(c radixv1.RadixJobComponentEnvironmentConfig) bool {
+			return c.Environment == env.Name && c.Cron != nil
+		})
+		if !hasCron {
+			errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, ErrSchedulerPortOrCronRequiredForJob))
+		}
+	}
+	return errs
 }
 
 func componentValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string, []error) {

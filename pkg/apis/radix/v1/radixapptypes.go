@@ -748,8 +748,8 @@ type RadixJobComponent struct {
 	// More info: https://www.radix.equinor.com/radix-config#schedulerport
 	// +kubebuilder:validation:Minimum=1024
 	// +kubebuilder:validation:Maximum=65535
-	// +required
-	SchedulerPort int32 `json:"schedulerPort"`
+	// +optional
+	SchedulerPort *int32 `json:"schedulerPort"`
 
 	// Defines the path where the job payload is mounted.
 	// More info: https://www.radix.equinor.com/radix-config#payload

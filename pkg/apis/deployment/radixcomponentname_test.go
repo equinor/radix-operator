@@ -68,11 +68,11 @@ func Test_CommonDeployComponentHasPorts(t *testing.T) {
 		WithJobComponents(
 			utils.NewDeployJobComponentBuilder().WithName("job1").
 				WithPorts([]v1.ComponentPort{{Name: "http", Port: 8080}}).
-				WithSchedulerPort(8081),
+				WithSchedulerPort(new(int32(9090))),
 			utils.NewDeployJobComponentBuilder().WithName("job2").
 				WithPorts([]v1.ComponentPort{{Name: "http", Port: 8080}}),
 			utils.NewDeployJobComponentBuilder().WithName("job3").
-				WithSchedulerPort(8081),
+				WithSchedulerPort(new(int32(8081))),
 			utils.NewDeployJobComponentBuilder().WithName("job4"),
 		).
 		BuildRD()

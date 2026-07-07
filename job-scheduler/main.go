@@ -62,7 +62,6 @@ func main() {
 	defer radixBatchWatcher.Stop()
 
 	jobHandler := jobApi.New(kubeUtil, env, radixDeployJobComponent)
-
 	cs := cronserver.New(kubeUtil, env, radixDeployJobComponent, jobHandler)
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -71,10 +70,12 @@ func main() {
 			return cs.Start(gctx)
 		})
 	}
-	g.Go(func() error {
-		runApiServer(gctx, jobHandler, kubeUtil, env, radixDeployJobComponent)
-		return nil
-	})
+	if radixDeployJobComponent.SchedulerPort != nil && *radixDeployJobComponent.SchedulerPort > 0 {
+		g.Go(func() error {
+			runApiServer(gctx, jobHandler, kubeUtil, env, radixDeployJobComponent)
+			return nil
+		})
+	}
 
 	if err := g.Wait(); err != nil {
 		log.Fatal().Err(err).Msg("server group exited with error")
@@ -99,7 +100,6 @@ func initLogger(env *models.Env) {
 
 func runApiServer(ctx context.Context, jobHandler jobApi.JobHandler, kubeUtil *kube.Kube, env *models.Env, radixDeployJobComponent *radixv1.RadixDeployJobComponent) {
 	fs := initializeFlagSet()
-	port := fs.StringP("port", "p", env.RadixPort, "Port where API will be served")
 	parseFlagsFromArgs(fs)
 
 	var servers []*http.Server
@@ -108,7 +108,7 @@ func runApiServer(ctx context.Context, jobHandler jobApi.JobHandler, kubeUtil *k
 		servers = append(servers, &http.Server{Addr: fmt.Sprintf(":%s", defaultProfilePort)})
 	}
 	apiServer := &http.Server{
-		Addr:        fmt.Sprintf(":%s", *port),
+		Addr:        fmt.Sprintf(":%d", *radixDeployJobComponent.SchedulerPort),
 		Handler:     router.NewServer(env, getControllers(jobHandler, kubeUtil, env, radixDeployJobComponent)...),
 		BaseContext: func(_ net.Listener) context.Context { return ctx },
 	}

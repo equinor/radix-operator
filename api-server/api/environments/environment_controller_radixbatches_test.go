@@ -1836,8 +1836,8 @@ func Test_StopAllJobComponentBatchesAndJobs(t *testing.T) {
 	require.NoError(t, err)
 	_, err = commonTestUtils.ApplyDeployment(context.Background(), utils.NewDeploymentBuilder().
 		WithAppName(anyAppName).WithEnvironment(envName1).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent1).WithSchedulerPort(8001)).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent2).WithSchedulerPort(8002)))
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent1).WithSchedulerPort(new(int32(8001)))).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent2).WithSchedulerPort(new(int32(8002)))))
 	require.NoError(t, err)
 
 	envNamespace1 := utils.GetEnvironmentNamespace(anyAppName, envName1)
@@ -1952,8 +1952,8 @@ func Test_StopAllEnvironmentBatchesAndJobs(t *testing.T) {
 	require.NoError(t, err)
 	_, err = commonTestUtils.ApplyDeployment(context.Background(), utils.NewDeploymentBuilder().
 		WithAppName(anyAppName).WithEnvironment(envName1).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent1).WithSchedulerPort(8001)).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent2).WithSchedulerPort(8002)))
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent1).WithSchedulerPort(new(int32(8001)))).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent2).WithSchedulerPort(new(int32(8002)))))
 	require.NoError(t, err)
 
 	envNamespace1 := utils.GetEnvironmentNamespace(anyAppName, envName1)

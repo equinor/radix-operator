@@ -62,6 +62,7 @@ var (
 	WarnPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage = "job or component cannot have 'src' or 'Dockerfile' set when image is defined"
 	WarnDeprecatedFieldPublicUsed                                    = "deprecated: instead of using spec.components.public: true, set publicPort to name of port"
 	ErrSchedulerPortCannotBeEmptyForJob                              = errors.New("scheduler port cannot be empty for job")
+	ErrSchedulerPortOrCronRequiredForJob                             = errors.New("job must specify either a schedulerPort or a cron schedule")
 	ErrPayloadPathCannotBeEmptyForJob                                = errors.New("payload path cannot be empty for job")
 	ErrSecretNameConflictsWithVariable                               = errors.New("secret name conflicts with variable")
 	ErrMissingAzureIdentityForAzureKeyVault                          = errors.New("missing Azure identity for Azure Key vault with useAzureIdentity enabled")
