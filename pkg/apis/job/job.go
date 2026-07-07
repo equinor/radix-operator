@@ -325,15 +325,23 @@ func (job *Job) syncStatus(ctx context.Context, reconcileErr error) error {
 }
 
 func (job *Job) stopJob(ctx context.Context) error {
-	log.Ctx(ctx).Info().Msgf("Stop job")
+	log.Ctx(ctx).Info().Msg("Stop job")
 	isRunning := job.radixJob.Status.Condition == v1.JobRunning
-	stoppedSteps, err := job.getStoppedSteps(ctx, isRunning)
-	if err != nil {
-		return err
+	isWaiting := job.radixJob.Status.Condition == v1.JobWaiting
+
+	// The pipeline Kubernetes job is created once the RadixJob leaves the queued/empty state, i.e.
+	// while it is waiting or running. Delete it when stopping either state; otherwise stopping a
+	// waiting job would orphan its pipeline job, letting it run to completion in the background.
+	if isRunning || isWaiting {
+		if err := job.deletePipelineJobs(ctx); err != nil {
+			return err
+		}
 	}
 
+	stoppedSteps := job.getStoppedSteps(isRunning)
+
 	return job.updateStatus(ctx, func(currStatus *v1.RadixJobStatus) {
-		if isRunning && stoppedSteps != nil {
+		if stoppedSteps != nil {
 			currStatus.Steps = *stoppedSteps
 		}
 		currStatus.Created = &job.radixJob.CreationTimestamp
@@ -347,34 +355,35 @@ func (job *Job) stopJob(ctx context.Context) error {
 
 }
 
-func (job *Job) getStoppedSteps(ctx context.Context, isRunning bool) (*[]v1.RadixJobStep, error) {
+// deletePipelineJobs deletes the pipeline Kubernetes job, its pod and any step jobs of the RadixJob.
+// Deletions are idempotent: missing resources are ignored.
+func (job *Job) deletePipelineJobs(ctx context.Context) error {
+	if err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(ctx, job.radixJob.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	if err := job.deleteJobPodIfExistsAndNotCompleted(ctx, job.radixJob.Name); err != nil {
+		return err
+	}
+
+	return job.deleteStepJobs(ctx)
+}
+
+// getStoppedSteps returns the RadixJob steps with their non-terminal conditions set to stopped. It
+// returns nil when the job was not running, so the existing steps are left unchanged.
+func (job *Job) getStoppedSteps(isRunning bool) *[]v1.RadixJobStep {
 	if !isRunning {
-		return nil, nil
-	}
-	// Delete pipeline job
-	err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(ctx, job.radixJob.Name, metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, err
+		return nil
 	}
 
-	err = job.deleteJobPodIfExistsAndNotCompleted(ctx, job.radixJob.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	err = job.deleteStepJobs(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	stoppedSteps := make([]v1.RadixJobStep, 0)
+	stoppedSteps := make([]v1.RadixJobStep, 0, len(job.radixJob.Status.Steps))
 	for _, step := range job.radixJob.Status.Steps {
 		if step.Condition != v1.JobSucceeded && step.Condition != v1.JobFailed {
 			step.Condition = v1.JobStopped
 		}
 		stoppedSteps = append(stoppedSteps, step)
 	}
-	return &stoppedSteps, nil
+	return &stoppedSteps
 }
 
 func (job *Job) deleteStepJobs(ctx context.Context) error {
