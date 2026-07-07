@@ -325,7 +325,7 @@ func (job *Job) syncStatus(ctx context.Context, reconcileErr error) error {
 }
 
 func (job *Job) stopJob(ctx context.Context) error {
-	log.Ctx(ctx).Info().Msgf("Stop job")
+	log.Ctx(ctx).Info().Msg("Stop job")
 	isRunning := job.radixJob.Status.Condition == v1.JobRunning
 	isWaiting := job.radixJob.Status.Condition == v1.JobWaiting
 
