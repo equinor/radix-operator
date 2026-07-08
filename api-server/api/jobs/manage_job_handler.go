@@ -16,6 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 var (
@@ -26,24 +27,28 @@ var (
 // StopJob Stops an application job
 func (jh JobHandler) StopJob(ctx context.Context, appName, jobName string) error {
 	log.Ctx(ctx).Info().Msgf("Stopping the job: %s, %s", jobName, appName)
-	radixJob, err := jh.getPipelineJobByName(ctx, appName, jobName)
-	if err != nil {
-		return err
-	}
-	if radixJob.Spec.Stop {
-		return jobModels.JobAlreadyRequestedToStopError(appName, jobName)
-	}
-	if slice.Any(jobConditionsNotValidForJobStop, func(condition radixv1.RadixJobCondition) bool { return condition == radixJob.Status.Condition }) {
-		return jobModels.JobHasInvalidConditionToStopError(appName, jobName, radixJob.Status.Condition)
-	}
 
-	radixJob.Spec.Stop = true
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		radixJob, err := jh.getPipelineJobByName(ctx, appName, jobName)
+		if err != nil {
+			return err
+		}
+		if radixJob.Spec.Stop {
+			return jobModels.JobAlreadyRequestedToStopError(appName, jobName)
+		}
+		if slice.Any(jobConditionsNotValidForJobStop, func(condition radixv1.RadixJobCondition) bool { return condition == radixJob.Status.Condition }) {
+			return jobModels.JobHasInvalidConditionToStopError(appName, jobName, radixJob.Status.Condition)
+		}
 
-	_, err = jh.userAccount.RadixClient.RadixV1().RadixJobs(radixJob.GetNamespace()).Update(ctx, radixJob, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to patch job object: %v", err)
-	}
-	return nil
+		radixJob.Spec.Stop = true
+
+		_, err = jh.userAccount.RadixClient.RadixV1().RadixJobs(radixJob.GetNamespace()).Update(ctx, radixJob, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to patch job object: %w", err)
+		}
+		return nil
+
+	})
 }
 
 // RerunJob Reruns the pipeline job as a copy
