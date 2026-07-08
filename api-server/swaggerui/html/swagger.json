@@ -5955,7 +5955,6 @@
         "name",
         "appId",
         "repository",
-        "sharedSecret",
         "adGroups",
         "adUsers",
         "readerAdGroups",
@@ -6039,11 +6038,6 @@
           "type": "string",
           "x-go-name": "Repository",
           "example": "https://github.com/equinor/radix-canary-golang"
-        },
-        "sharedSecret": {
-          "description": "SharedSecret the shared secret of the webhook",
-          "type": "string",
-          "x-go-name": "SharedSecret"
         }
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/applications/models"

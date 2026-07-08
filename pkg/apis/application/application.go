@@ -66,6 +66,15 @@ func (app *Application) reconcile(ctx context.Context) error {
 	}
 	log.Ctx(ctx).Debug().Msg("Applied secrets needed by pipelines")
 
+	if err := app.applyWebhookSharedSecret(ctx); err != nil {
+		return fmt.Errorf("failed to apply webhook shared secret: %w", err)
+	}
+
+	if err := utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretName); err != nil {
+		return fmt.Errorf("failed to grant admin access to webhook shared secret: %w", err)
+	}
+	log.Ctx(ctx).Debug().Msg("Applied webhook shared secret")
+
 	if err := app.applyRbacOnPipelineRunner(ctx); err != nil {
 		return fmt.Errorf("failed to apply pipeline permissions: %w", err)
 	}
