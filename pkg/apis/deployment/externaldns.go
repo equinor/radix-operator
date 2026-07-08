@@ -26,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 )
 
 const (
@@ -55,7 +54,7 @@ func (deploy *Deployment) reconcileGatewayResourcesExternalDns(ctx context.Conte
 	}
 
 	// Garbage collect any ListenerSets and HTTPRoutes for external DNS that are no longer in the spec
-	listenersSets := &gatewayapixv1alpha1.XListenerSetList{}
+	listenersSets := &gatewayapiv1.ListenerSetList{}
 	if err := deploy.dynamicClient.List(ctx, listenersSets, client.InNamespace(deploy.radixDeployment.Namespace)); err != nil {
 		return fmt.Errorf("failed to list ListenerSets: %w", err)
 	}
@@ -94,7 +93,7 @@ func (deploy *Deployment) reconcileGatewayResourcesExternalDns(ctx context.Conte
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Context, component radixv1.RadixCommonDeployComponent, ed radixv1.RadixDeployExternalDNS, parentListenerSet gatewayapixv1alpha1.XListenerSet) error {
+func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Context, component radixv1.RadixCommonDeployComponent, ed radixv1.RadixDeployExternalDNS, parentListenerSet gatewayapiv1.ListenerSet) error {
 	logger := log.Ctx(ctx)
 
 	oauth2enabled := component.GetAuthentication().GetOAuth2() != nil
@@ -170,24 +169,24 @@ func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Cont
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Context, ed radixv1.RadixDeployExternalDNS) (gatewayapixv1alpha1.XListenerSet, error) {
+func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Context, ed radixv1.RadixDeployExternalDNS) (gatewayapiv1.ListenerSet, error) {
 	logger := log.Ctx(ctx)
 	logger.Debug().Msgf("Reconciling ListenerSet for %s", ed.FQDN)
 
-	ls := gatewayapixv1alpha1.XListenerSet{ObjectMeta: metav1.ObjectMeta{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}}
+	ls := gatewayapiv1.ListenerSet{ObjectMeta: metav1.ObjectMeta{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, &ls, func() error {
 		ls.Labels = kubelabels.Merge(ls.Labels, labels.ForExternalDNSResource(deploy.registration.Name, ed))
-		ls.Spec = gatewayapixv1alpha1.ListenerSetSpec{
-			ParentRef: gatewayapixv1alpha1.ParentGatewayReference{
+		ls.Spec = gatewayapiv1.ListenerSetSpec{
+			ParentRef: gatewayapiv1.ParentGatewayReference{
 				Group:     new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
 				Kind:      new(gatewayapiv1.Kind("Gateway")),
 				Name:      gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
 				Namespace: new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
 			},
-			Listeners: []gatewayapixv1alpha1.ListenerEntry{{
-				Name:     gatewayapixv1alpha1.SectionName("https"),
-				Hostname: new(gatewayapixv1alpha1.Hostname(ed.FQDN)),
+			Listeners: []gatewayapiv1.ListenerEntry{{
+				Name:     gatewayapiv1.SectionName("https"),
+				Hostname: new(gatewayapiv1.Hostname(ed.FQDN)),
 				Protocol: gatewayapiv1.HTTPSProtocolType,
 				Port:     443,
 				AllowedRoutes: &gatewayapiv1.AllowedRoutes{
@@ -212,11 +211,11 @@ func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Co
 	})
 
 	if err != nil {
-		return ls, fmt.Errorf("failed to create or update XListenerSet '%s': %w", ls.Name, err)
+		return ls, fmt.Errorf("failed to create or update ListenerSet '%s': %w", ls.Name, err)
 	}
 
 	if op != controllerutil.OperationResultNone {
-		logger.Info().Str("xlistenerset", ls.Name).Str("op", string(op)).Msg("reconcile XListenerSet")
+		logger.Info().Str("listenerset", ls.Name).Str("op", string(op)).Msg("reconcile ListenerSet")
 	}
 
 	return ls, nil
