@@ -4872,7 +4872,6 @@ spec:
                       type: array
                   required:
                   - name
-                  - schedulerPort
                   type: object
                 type: array
                 x-kubernetes-list-map-keys:
