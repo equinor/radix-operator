@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.120.1](https://github.com/equinor/radix-operator/compare/v1.120.0..v1.120.1) - 2026-07-01
+## [1.120.3](https://github.com/equinor/radix-operator/compare/v1.120.2..v1.120.3) - 2026-07-07
+
+### 🐛 Bug Fixes
+
+- Stopping of waiting jobs (#1823) - ([78d1670](https://github.com/equinor/radix-operator/commit/78d1670226dc303b5862944ebe1128218cc247a8)) by @Richard87 in [#1823](https://github.com/equinor/radix-operator/pull/1823)
+
+
+## [1.120.2](https://github.com/equinor/radix-operator/compare/v1.120.1..v1.120.2) - 2026-07-06
+
+### 🐛 Bug Fixes
+
+- Remove ACR secrets (#1815) - ([be67e44](https://github.com/equinor/radix-operator/commit/be67e44c4448654b1f59096573b1ddb69d89597a)) by @Richard87 in [#1815](https://github.com/equinor/radix-operator/pull/1815)
+
+
+## [1.120.1](https://github.com/equinor/radix-operator/compare/v1.120.0..v1.120.1) - 2026-07-02
 
 ### 🐛 Bug Fixes
 

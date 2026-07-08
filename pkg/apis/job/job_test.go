@@ -621,6 +621,37 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 	s.Equal(radixv1.JobWaiting, secondJob.Status.Condition)
 }
 
+func (s *RadixJobTestSuite) TestObjectSynced_StoppingWaitingJob_DeletesPipelineJob() {
+	config := getConfigWithPipelineJobsHistoryLimit(3)
+
+	// Sync a build-deploy job. As the only job, it is reconciled to Waiting and its pipeline
+	// Kubernetes job is created.
+	rj, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("WaitingJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	s.Require().NoError(err)
+	s.Require().Equal(radixv1.JobWaiting, rj.Status.Condition)
+
+	pipelineJobs, err := s.kubeClient.BatchV1().Jobs(rj.Namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(pipelineJobs.Items, 1, "pipeline job should be created for the waiting job")
+
+	// Stopping the waiting job must delete its pipeline job, otherwise it would run to completion in
+	// the background.
+	rj.Spec.Stop = true
+	_, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Update(context.Background(), rj, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+
+	err = s.runSync(rr, rj, config)
+	s.Require().NoError(err)
+
+	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.JobStopped, rj.Status.Condition)
+
+	pipelineJobs, err = s.kubeClient.BatchV1().Jobs(rj.Namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Empty(pipelineJobs.Items, "pipeline job should be deleted when the waiting job is stopped")
+}
+
 func (s *RadixJobTestSuite) TestObjectSynced_OldestPendingJobRunsFirst() {
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 	baseTime := time.Now().Add(-3 * time.Hour)
