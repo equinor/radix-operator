@@ -11,6 +11,7 @@ var (
 	ErrMultipleMatchingReposMessageWithoutAppName  = errors.New("unable to match repo with unique Radix application without appName request parameter")
 	ErrUnmatchedRepoMessageByAppName               = errors.New("unable to match repo with unique Radix application by appName request parameter")
 	ErrUnmatchedAppForMultipleMatchingReposMessage = errors.New("unable to match repo with multiple Radix applications by appName request parameter")
+	ErrUnmatchedAppByCloneUrlMessage               = errors.New("unable to match repo with clone URL and appName request parameter (SSH URL mismatch)")
 
 	unhandledEventTypeMessage = func(eventType string) error {
 		return fmt.Errorf("unhandled event type %s", eventType)

@@ -35,6 +35,7 @@ import (
 	_ "github.com/equinor/radix-operator/api-server/docs"
 	"github.com/equinor/radix-operator/api-server/internal/config"
 	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -61,12 +62,13 @@ func main() {
 
 func initializeServer(c config.Config) *http.Server {
 	jwtValidator := initializeTokenValidator(c)
-	controllers, err := getControllers(c)
+	kubeUtil := utils.NewKubeUtil()
+	controllers, err := getControllers(c, kubeUtil)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("failed to initialize controllers: %v", err)
 	}
 
-	handler := router.NewAPIHandler(jwtValidator, utils.NewKubeUtil(), controllers...)
+	handler := router.NewAPIHandler(jwtValidator, kubeUtil, controllers...)
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", c.Port),
 		Handler: handler,
@@ -157,7 +159,7 @@ func setupLogger(logLevelStr string, prettyPrint bool) {
 	zerolog.DefaultContextLogger = &logger
 }
 
-func getControllers(config config.Config) ([]models.Controller, error) {
+func getControllers(config config.Config, kubeUtil utils.KubeUtil) ([]models.Controller, error) {
 	buildStatus := buildModels.NewPipelineBadge()
 	applicationFactory := applications.NewApplicationHandlerFactory(config)
 	prometheusClient, err := prometheus.NewPrometheusClient(config.PrometheusUrl)
@@ -165,6 +167,13 @@ func getControllers(config config.Config) ([]models.Controller, error) {
 		return nil, err
 	}
 	metricsHandler := metrics.NewHandler(prometheusClient)
+
+	inClusterClient, _, _, _, _, _ := kubeUtil.GetServerKubernetesClient()
+	eventRecorder, err := event.NewRecorder("radix-api-server", inClusterClient.CoreV1().Events(""))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create event recorder: %w", err)
+	}
+
 	return []models.Controller{
 		applications.NewApplicationController(nil, applicationFactory, metricsHandler),
 		deployments.NewDeploymentController(),
@@ -177,6 +186,6 @@ func getControllers(config config.Config) ([]models.Controller, error) {
 		alerting.NewAlertingController(),
 		secrets.NewSecretController(tlsvalidation.DefaultValidator()),
 		configuration.NewConfigurationController(configuration.Init(config)),
-		githubwebhook.NewGithubWebhookController(),
+		githubwebhook.NewGithubWebhookController(eventRecorder),
 	}, nil
 }

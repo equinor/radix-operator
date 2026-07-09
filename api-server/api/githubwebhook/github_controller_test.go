@@ -25,6 +25,7 @@ import (
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/record"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -50,7 +51,7 @@ func executeWebhookRequest(t *testing.T, radixClient *radixfake.Clientset, url s
 	kubeUtil := controllertest.NewKubeUtilMock(kubeClient, radixClient, kedaClient, secretProviderClient, certClient, nil)
 
 	mockValidator := authnmock.NewMockValidatorInterface(gomock.NewController(t))
-	handler := router.NewAPIHandler(mockValidator, kubeUtil, NewGithubWebhookController())
+	handler := router.NewAPIHandler(mockValidator, kubeUtil, NewGithubWebhookController(record.NewFakeRecorder(10)))
 
 	req := httptest.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	for key, value := range headers {
@@ -127,7 +128,7 @@ func decodeWebhookResponse(t *testing.T, rr *httptest.ResponseRecorder) WebhookR
 }
 
 func TestNewGithubWebhookController_GetRoutes(t *testing.T) {
-	controller := NewGithubWebhookController()
+	controller := NewGithubWebhookController(record.NewFakeRecorder(10))
 	routes := controller.GetRoutes()
 
 	require.Len(t, routes, 1)

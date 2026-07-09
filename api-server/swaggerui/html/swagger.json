@@ -4250,6 +4250,53 @@
         }
       }
     },
+    "/applications/{appName}/events": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Lists events for the application namespace",
+        "operationId": "getApplicationEvents",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Name of the application",
+            "name": "appName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)",
+            "name": "Impersonate-User",
+            "in": "header"
+          },
+          {
+            "type": "string",
+            "description": "Works only with custom setup of cluster. Allow impersonation of a comma-separated list of test groups (Required if Impersonate-User is set)",
+            "name": "Impersonate-Group",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful get application events",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Event"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
     "/applications/{appName}/jobs": {
       "get": {
         "tags": [
