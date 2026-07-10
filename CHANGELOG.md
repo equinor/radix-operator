@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.121.1](https://github.com/equinor/radix-operator/compare/v1.121.0..v1.121.1) - 2026-07-10
+
+### 🐛 Bug Fixes
+
+- More logging for GitHub Push events (#1837) - ([56cee44](https://github.com/equinor/radix-operator/commit/56cee441f02ff7821be18dbd6f65c50c2a9c2118)) by @Richard87 in [#1837](https://github.com/equinor/radix-operator/pull/1837)
+
+- Allow api-server to create events (#1840) - ([121b8c3](https://github.com/equinor/radix-operator/commit/121b8c3516ace1498a95a39333476be074dbb171)) by @Richard87 in [#1840](https://github.com/equinor/radix-operator/pull/1840)
+
+
 ## [1.121.0](https://github.com/equinor/radix-operator/compare/v1.120.4..v1.121.0) - 2026-07-08
 
 ### 🚀 Features
