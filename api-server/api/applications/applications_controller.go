@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
+	"github.com/equinor/radix-operator/api-server/api/events"
 	"github.com/equinor/radix-operator/api-server/api/metrics"
 	"github.com/equinor/radix-operator/api-server/models"
 	"github.com/gorilla/mux"
@@ -141,6 +142,11 @@ func (ac *applicationController) GetRoutes() models.Routes {
 			Path:        appPath + "/environments/{envName}/utilization",
 			Method:      "GET",
 			HandlerFunc: ac.GetEnvironmentResourcesUtilization,
+		},
+		models.Route{
+			Path:        appPath + "/events",
+			Method:      "GET",
+			HandlerFunc: ac.GetApplicationEvents,
 		},
 	}
 
@@ -1099,4 +1105,47 @@ func (ac *applicationController) GetEnvironmentResourcesUtilization(accounts mod
 	}
 
 	ac.JSONResponse(w, r, &utilization)
+}
+
+// GetApplicationEvents Lists events in the application namespace (<appName>-app).
+func (ac *applicationController) GetApplicationEvents(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /applications/{appName}/events application getApplicationEvents
+	// ---
+	// summary: Lists events for the application namespace
+	// parameters:
+	// - name: appName
+	//   in: path
+	//   description: Name of the application
+	//   type: string
+	//   required: true
+	// - name: Impersonate-User
+	//   in: header
+	//   description: Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)
+	//   type: string
+	//   required: false
+	// - name: Impersonate-Group
+	//   in: header
+	//   description: Works only with custom setup of cluster. Allow impersonation of a comma-separated list of test groups (Required if Impersonate-User is set)
+	//   type: string
+	//   required: false
+	// responses:
+	//   "200":
+	//     description: "Successful get application events"
+	//     schema:
+	//        type: "array"
+	//        items:
+	//          "$ref": "#/definitions/Event"
+	//   "401":
+	//     description: "Unauthorized"
+	//   "404":
+	//     description: "Not found"
+	appName := mux.Vars(r)["appName"]
+
+	appEvents, err := events.Init(accounts).GetApplicationEvents(r.Context(), appName)
+	if err != nil {
+		ac.ErrorResponse(w, r, err)
+		return
+	}
+
+	ac.JSONResponse(w, r, appEvents)
 }
