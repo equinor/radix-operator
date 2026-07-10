@@ -99,7 +99,7 @@ rules:
   - get
   - update
 - apigroups:
-  - ''
+  - '*'
   resources:
   - events
   verbs:
