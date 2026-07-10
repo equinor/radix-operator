@@ -239,9 +239,19 @@ delete-temp-resources:
 	rm -rf $(CRD_TEMP_DIR)
 
 .PHONY: lint
-lint: bootstrap
+lint: lint-fmt lint-golangci lint-helm
+
+lint-fmt: bootstrap
 	go fmt ./...
+
+lint-golangci: bootstrap
 	golangci-lint run
+
+lint-helm: bootstrap
+	helm lint ./charts/radix-operator \
+		--set rbac.createApp.groups[0]=platform-users \
+		--set ingress.gateway.name=radix \
+		--set ingress.gateway.namespace=istio
 
 .PHONY: generate
 generate: bootstrap code-gen helmresources mocks swagger
