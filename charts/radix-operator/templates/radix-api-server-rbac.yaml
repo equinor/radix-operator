@@ -98,8 +98,8 @@ rules:
   verbs:
   - get
   - update
-- apigroups:
-  - '*'
+- apiGroups:
+  - ''
   resources:
   - events
   verbs:
