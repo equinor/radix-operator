@@ -57,7 +57,7 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 
 	componentBuilder := deploymentModels.NewComponentBuilder(rd)
 	if jobComponent, ok := component.(*v1.RadixDeployJobComponent); ok {
-		componentBuilder.WithSchedulerPort(&jobComponent.SchedulerPort)
+		componentBuilder.WithSchedulerPort(jobComponent.SchedulerPort)
 		if jobComponent.Payload != nil {
 			componentBuilder.WithScheduledJobPayloadPath(jobComponent.Payload.Path)
 		}

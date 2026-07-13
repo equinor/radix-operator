@@ -260,7 +260,7 @@ func ARadixApplication() ApplicationBuilder {
 		WithComponent(AnApplicationComponent().WithPort("http", 8080).WithPublicPort("http")).
 		WithJobComponent(
 			AnApplicationJobComponent().
-				WithSchedulerPort(8888),
+				WithSchedulerPort(new(int32(8888))),
 		)
 
 	return builder
