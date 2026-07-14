@@ -148,6 +148,11 @@ func (ac *applicationController) GetRoutes() models.Routes {
 			Method:      "GET",
 			HandlerFunc: ac.GetApplicationEvents,
 		},
+		models.Route{
+			Path:        appPath + "/federated-credentials-migrated",
+			Method:      "POST",
+			HandlerFunc: ac.SetFederatedCredentialsMigratedAnnotation,
+		},
 	}
 
 	return routes
