@@ -554,6 +554,11 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 	return nil
 }
 
+// SetFederatedCredentialsMigratedAnnotation sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
+func (ah *ApplicationHandler) SetFederatedCredentialsMigratedAnnotation(ctx context.Context, appName string, r *http.Request) error {
+	// TODO: Find RadixRegistration belonging to app and set annotation
+}
+
 func createRoleToGetConfigMap(ctx context.Context, kubeClient kubernetes.Interface, namespace, roleName string, labels map[string]string, configMapName string) (*rbacv1.Role, error) {
 	return kubeClient.RbacV1().Roles(namespace).Create(ctx, &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{GenerateName: roleName, Labels: labels},
