@@ -564,11 +564,18 @@ func (ah *ApplicationHandler) SetFederatedCredentialsMigratedAnnotation(ctx cont
 			return err
 		}
 
+		if _, exists := currentRegistration.Annotations[federatedCredentialsMigratedAnnotation]; exists {
+			return nil
+		}
+
 		updatedRegistration := currentRegistration.DeepCopy()
 		if updatedRegistration.Annotations == nil {
 			updatedRegistration.Annotations = map[string]string{}
 		}
-		updatedRegistration.Annotations[federatedCredentialsMigratedAnnotation] = "true"
+
+		now := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
+		user := auth.GetOriginator(ctx)
+		updatedRegistration.Annotations[federatedCredentialsMigratedAnnotation] = fmt.Sprintf("%s, %s", user, now)
 
 		_, err = ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Update(ctx, updatedRegistration, metav1.UpdateOptions{})
 		return err
