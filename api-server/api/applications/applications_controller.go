@@ -1187,7 +1187,7 @@ func (ac *applicationController) SetFederatedCredentialsMigratedAnnotation(accou
 	appName := mux.Vars(r)["appName"]
 	handler := ac.applicationHandlerFactory.Create(accounts)
 
-	if err := handler.SetFederatedCredentialsMigratedAnnotation(r.Context(), appName, r); err != nil {
+	if err := handler.SetFederatedCredentialsMigratedAnnotation(r.Context(), appName); err != nil {
 		ac.ErrorResponse(w, r, err)
 		return
 	}

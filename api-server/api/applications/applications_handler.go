@@ -555,7 +555,7 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 }
 
 // SetFederatedCredentialsMigratedAnnotation sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
-func (ah *ApplicationHandler) SetFederatedCredentialsMigratedAnnotation(ctx context.Context, appName string, _ *http.Request) error {
+func (ah *ApplicationHandler) SetFederatedCredentialsMigratedAnnotation(ctx context.Context, appName string) error {
 	const federatedCredentialsMigratedAnnotation = "radix.equinor.com/federated-credentials-migrated"
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
