@@ -5908,6 +5908,14 @@
         "useBuildCache"
       ],
       "properties": {
+        "annotations": {
+          "description": "Annotations of the application RadixRegistration resource",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Annotations"
+        },
         "appAlias": {
           "$ref": "#/definitions/ApplicationAlias"
         },
