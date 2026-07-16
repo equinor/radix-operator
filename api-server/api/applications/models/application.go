@@ -53,4 +53,9 @@ type Application struct {
 	//
 	// required: true
 	UseBuildCache bool `json:"useBuildCache"`
+
+	// Annotations of the application RadixRegistration resource
+	//
+	// required: false
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
