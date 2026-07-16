@@ -555,8 +555,24 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 }
 
 // SetFederatedCredentialsMigratedAnnotation sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
-func (ah *ApplicationHandler) SetFederatedCredentialsMigratedAnnotation(ctx context.Context, appName string, r *http.Request) error {
-	// TODO: Find RadixRegistration belonging to app and set annotation
+func (ah *ApplicationHandler) SetFederatedCredentialsMigratedAnnotation(ctx context.Context, appName string, _ *http.Request) error {
+	const federatedCredentialsMigratedAnnotation = "radix.equinor.com/federated-credentials-migrated"
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentRegistration, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		updatedRegistration := currentRegistration.DeepCopy()
+		if updatedRegistration.Annotations == nil {
+			updatedRegistration.Annotations = map[string]string{}
+		}
+		updatedRegistration.Annotations[federatedCredentialsMigratedAnnotation] = "true"
+
+		_, err = ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Update(ctx, updatedRegistration, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func createRoleToGetConfigMap(ctx context.Context, kubeClient kubernetes.Interface, namespace, roleName string, labels map[string]string, configMapName string) (*rbacv1.Role, error) {

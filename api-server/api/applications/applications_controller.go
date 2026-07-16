@@ -1157,7 +1157,7 @@ func (ac *applicationController) GetApplicationEvents(accounts models.Accounts, 
 
 // SetFederatedCredentialsMigratedAnnotation sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
 func (ac *applicationController) SetFederatedCredentialsMigratedAnnotation(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /applications/{appName}/federated-credentials-migration application federatedCredentialsMigratedAnnotation
+	// swagger:operation POST /applications/{appName}/federated-credentials-migrated application federatedCredentialsMigratedAnnotation
 	// ---
 	// summary: Sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
 	// parameters:

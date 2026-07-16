@@ -4297,6 +4297,47 @@
         }
       }
     },
+    "/applications/{appName}/federated-credentials-migrated": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR",
+        "operationId": "federatedCredentialsMigratedAnnotation",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "name of application",
+            "name": "appName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)",
+            "name": "Impersonate-User",
+            "in": "header"
+          },
+          {
+            "type": "string",
+            "description": "Works only with custom setup of cluster. Allow impersonation of a comma-separated list of test groups (Required if Impersonate-User is set)",
+            "name": "Impersonate-Group",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successfully set the annotation"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
     "/applications/{appName}/jobs": {
       "get": {
         "tags": [
