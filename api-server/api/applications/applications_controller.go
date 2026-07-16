@@ -150,7 +150,7 @@ func (ac *applicationController) GetRoutes() models.Routes {
 		},
 		models.Route{
 			Path:        appPath + "/federated-credentials-migrated",
-			Method:      "POST",
+			Method:      "PATCH",
 			HandlerFunc: ac.SetFederatedCredentialsMigratedAnnotation,
 		},
 	}
@@ -1157,7 +1157,7 @@ func (ac *applicationController) GetApplicationEvents(accounts models.Accounts, 
 
 // SetFederatedCredentialsMigratedAnnotation sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
 func (ac *applicationController) SetFederatedCredentialsMigratedAnnotation(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /applications/{appName}/federated-credentials-migrated application federatedCredentialsMigratedAnnotation
+	// swagger:operation PATCH /applications/{appName}/federated-credentials-migrated application federatedCredentialsMigratedAnnotation
 	// ---
 	// summary: Sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
 	// parameters:
@@ -1184,10 +1184,7 @@ func (ac *applicationController) SetFederatedCredentialsMigratedAnnotation(accou
 	//   "404":
 	//     description: "Not found"
 
-	// TODO: Update Swagger annotations to actually reflect what this endpoint returns
-
 	appName := mux.Vars(r)["appName"]
-
 	handler := ac.applicationHandlerFactory.Create(accounts)
 
 	if err := handler.SetFederatedCredentialsMigratedAnnotation(r.Context(), appName, r); err != nil {

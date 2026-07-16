@@ -4298,7 +4298,7 @@
       }
     },
     "/applications/{appName}/federated-credentials-migrated": {
-      "post": {
+      "patch": {
         "tags": [
           "application"
         ],
