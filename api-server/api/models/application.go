@@ -8,7 +8,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-var annotationsToExpose = []string{
+var annotationToExpose = []string{
 	"radix.equinor.com/federated-credentials-migrated",
 }
 
@@ -23,7 +23,7 @@ func BuildApplication(rr *radixv1.RadixRegistration, ra *radixv1.RadixApplicatio
 		DNSAliases:         buildDNSAlias(dnsAliasList, dnsZone),
 		DNSExternalAliases: BuildDNSExternalAliases(rdList),
 		UseBuildCache:      useBuildCache(ra),
-		Annotations:        filterAnnotations(rr.Annotations, annotationsToExpose),
+		Annotations:        filterAnnotation(rr.Annotations, annotationToExpose),
 	}
 	if ra != nil {
 		application.Environments = BuildEnvironmentSummaryList(rr, ra, reList, rdList, rjList)
@@ -65,7 +65,7 @@ func buildDNSAlias(dnsAliases []radixv1.RadixDNSAlias, dnsZone string) []applica
 	})
 }
 
-func filterAnnotations(annotations map[string]string, keys []string) map[string]string {
+func filterAnnotation(annotations map[string]string, keys []string) map[string]string {
 	result := make(map[string]string)
 	for _, key := range keys {
 		if val, ok := annotations[key]; ok {
