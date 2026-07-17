@@ -23,7 +23,6 @@ func BuildApplication(rr *radixv1.RadixRegistration, ra *radixv1.RadixApplicatio
 		DNSAliases:         buildDNSAlias(dnsAliasList, dnsZone),
 		DNSExternalAliases: BuildDNSExternalAliases(rdList),
 		UseBuildCache:      useBuildCache(ra),
-		Annotations:        filterAnnotation(rr.Annotations, annotationToExpose),
 	}
 	if ra != nil {
 		application.Environments = BuildEnvironmentSummaryList(rr, ra, reList, rdList, rjList)

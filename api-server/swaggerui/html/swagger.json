@@ -5908,14 +5908,6 @@
         "useBuildCache"
       ],
       "properties": {
-        "annotations": {
-          "description": "Annotations of the application RadixRegistration resource",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "x-go-name": "Annotations"
-        },
         "appAlias": {
           "$ref": "#/definitions/ApplicationAlias"
         },
@@ -6035,6 +6027,14 @@
             "type": "string"
           },
           "x-go-name": "AdUsers"
+        },
+        "annotations": {
+          "description": "Annotations of the RadixRegistration resource",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Annotations"
         },
         "appId": {
           "description": "AppID the unique application ID, which is a ULID",

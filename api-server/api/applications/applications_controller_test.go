@@ -509,7 +509,7 @@ func TestGetApplication_Annotations(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{
 		"radix.equinor.com/federated-credentials-migrated": "true",
-	}, application.Annotations)
+	}, application.Registration.Annotations)
 }
 
 func TestGetApplication_Annotations_NoneExposed_ReturnsNil(t *testing.T) {
@@ -527,7 +527,7 @@ func TestGetApplication_Annotations_NoneExposed_ReturnsNil(t *testing.T) {
 	application := applicationModels.Application{}
 	err = controllertest.GetResponseBody(response, &application)
 	require.NoError(t, err)
-	assert.Nil(t, application.Annotations)
+	assert.Nil(t, application.Registration.Annotations)
 }
 
 func TestGetApplication_WithJobs(t *testing.T) {
