@@ -247,10 +247,10 @@
 				"LOG_PRETTY": "true",
 				"OIDC_AZURE_ISSUER": "https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/",
 				"OIDC_AZURE_AUDIENCE": "6dae42f8-4368-4678-94ff-3960e28e3630",
-				"OIDC_KUBERNETES_ISSUER": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d759e0b0-6919-470c-82d9-848a3c0cacfd/",
-				"OIDC_KUBERNETES_AUDIENCE": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d759e0b0-6919-470c-82d9-848a3c0cacfd/",
-				"RADIX_CLUSTERNAME": "weekly-26",
-				"CLUSTER_OIDC_ISSUERS": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d759e0b0-6919-470c-82d9-848a3c0cacfd/,https://test-issuer.internal.radix.equinor.com",
+				"OIDC_KUBERNETES_ISSUER": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d9638477-2a54-40df-bb15-32f73505f631/",
+				"OIDC_KUBERNETES_AUDIENCE": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d9638477-2a54-40df-bb15-32f73505f631/",
+				"RADIX_CLUSTERNAME": "weekly-29",
+				"CLUSTER_OIDC_ISSUERS": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d9638477-2a54-40df-bb15-32f73505f631/,https://test-issuer.internal.radix.equinor.com",
 				"CLUSTER_EGRESS_IPS": "0.0.0.0"
 			}
 		}

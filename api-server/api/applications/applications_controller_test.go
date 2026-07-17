@@ -51,9 +51,10 @@ import (
 )
 
 const (
-	clusterName    = "AnyClusterName"
-	dnsZone        = "some-dns-zone.com"
-	subscriptionId = "12347718-c8f8-4995-bfbb-02655ff1f89c"
+	clusterName                            = "AnyClusterName"
+	dnsZone                                = "some-dns-zone.com"
+	subscriptionId                         = "12347718-c8f8-4995-bfbb-02655ff1f89c"
+	federatedCredentialsMigratedAnnotation = "radix.equinor.com/federated-credentials-migrated"
 )
 
 func setupTest(t *testing.T, options ...ApplicationHandlerOption) (*commontest.Utils, *controllertest.Utils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
@@ -1408,6 +1409,48 @@ func TestRegenerateDeployKey_InvalidKeyInParam_ErrorIsReturned(t *testing.T) {
 	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-deploy-key", appName), regenerateParameters)
 	response := <-responseChannel
 	assert.Equal(t, http.StatusBadRequest, response.Code)
+}
+
+func TestSetFederatedCredentialsMigratedAnnotation_RouteSetsAnnotation(t *testing.T) {
+	commonTestUtils, controllerTestUtils, _, radixClient, _, _, _, _, _ := setupTest(t)
+	appName := "any-name"
+
+	_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git"))
+	require.NoError(t, err)
+
+	responseChannel := controllerTestUtils.ExecuteRequest("PATCH", fmt.Sprintf("/api/v1/applications/%s/federated-credentials-migrated", appName))
+	response := <-responseChannel
+	assert.Equal(t, http.StatusNoContent, response.Code)
+
+	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
+	require.NoError(t, err)
+	annotationValue, exists := radixRegistration.Annotations[federatedCredentialsMigratedAnnotation]
+	require.True(t, exists)
+	assert.Regexp(t, `^test-principal, \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC$`, annotationValue)
+}
+
+func TestApplicationHandler_SetFederatedCredentialsMigratedAnnotation_IsIdempotent(t *testing.T) {
+	commonTestUtils, controllerTestUtils, _, radixClient, _, _, _, _, _ := setupTest(t)
+	appName := "any-name"
+
+	_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git"))
+	require.NoError(t, err)
+
+	responseChannel := controllerTestUtils.ExecuteRequest("PATCH", fmt.Sprintf("/api/v1/applications/%s/federated-credentials-migrated", appName))
+	response := <-responseChannel
+	assert.Equal(t, http.StatusNoContent, response.Code)
+
+	firstRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
+	require.NoError(t, err)
+	firstAnnotationValue := firstRegistration.Annotations[federatedCredentialsMigratedAnnotation]
+
+	responseChannel = controllerTestUtils.ExecuteRequest("PATCH", fmt.Sprintf("/api/v1/applications/%s/federated-credentials-migrated", appName))
+	response = <-responseChannel
+	assert.Equal(t, http.StatusNoContent, response.Code)
+
+	secondRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, firstAnnotationValue, secondRegistration.Annotations[federatedCredentialsMigratedAnnotation])
 }
 
 func Test_GetUsedResources(t *testing.T) {

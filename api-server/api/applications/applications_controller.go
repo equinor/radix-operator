@@ -148,6 +148,11 @@ func (ac *applicationController) GetRoutes() models.Routes {
 			Method:      "GET",
 			HandlerFunc: ac.GetApplicationEvents,
 		},
+		models.Route{
+			Path:        appPath + "/federated-credentials-migrated",
+			Method:      "PATCH",
+			HandlerFunc: ac.SetFederatedCredentialsMigratedAnnotation,
+		},
 	}
 
 	return routes
@@ -1148,4 +1153,44 @@ func (ac *applicationController) GetApplicationEvents(accounts models.Accounts, 
 	}
 
 	ac.JSONResponse(w, r, appEvents)
+}
+
+// SetFederatedCredentialsMigratedAnnotation sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
+func (ac *applicationController) SetFederatedCredentialsMigratedAnnotation(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+	// swagger:operation PATCH /applications/{appName}/federated-credentials-migrated application federatedCredentialsMigratedAnnotation
+	// ---
+	// summary: Sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
+	// parameters:
+	// - name: appName
+	//   in: path
+	//   description: name of application
+	//   type: string
+	//   required: true
+	// - name: Impersonate-User
+	//   in: header
+	//   description: Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)
+	//   type: string
+	//   required: false
+	// - name: Impersonate-Group
+	//   in: header
+	//   description: Works only with custom setup of cluster. Allow impersonation of a comma-separated list of test groups (Required if Impersonate-User is set)
+	//   type: string
+	//   required: false
+	// responses:
+	//   "204":
+	//     description: Successfully set the annotation
+	//   "401":
+	//     description: "Unauthorized"
+	//   "404":
+	//     description: "Not found"
+
+	appName := mux.Vars(r)["appName"]
+	handler := ac.applicationHandlerFactory.Create(accounts)
+
+	if err := handler.SetFederatedCredentialsMigratedAnnotation(r.Context(), appName); err != nil {
+		ac.ErrorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
