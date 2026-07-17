@@ -72,4 +72,9 @@ type ApplicationRegistration struct {
 	//
 	// required: false
 	ConfigurationItem string `json:"configurationItem"`
+
+	// Annotations of the RadixRegistration resource
+	//
+	// required: false
+	Annotations map[string]string `json:"annotations,omitempty"`
 }

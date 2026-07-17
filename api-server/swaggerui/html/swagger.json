@@ -6069,6 +6069,14 @@
           },
           "x-go-name": "AdUsers"
         },
+        "annotations": {
+          "description": "Annotations of the RadixRegistration resource",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Annotations"
+        },
         "appId": {
           "description": "AppID the unique application ID, which is a ULID",
           "type": "string",

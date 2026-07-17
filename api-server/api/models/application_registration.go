@@ -8,5 +8,6 @@ import (
 // BuildApplicationRegistration builds an ApplicationRegistration model.
 func BuildApplicationRegistration(rr *radixv1.RadixRegistration) *applicationModels.ApplicationRegistration {
 	appReg := applicationModels.NewApplicationRegistrationBuilder().WithRadixRegistration(rr).Build()
+	appReg.Annotations = filterAnnotation(rr.Annotations, annotationToExpose)
 	return &appReg
 }

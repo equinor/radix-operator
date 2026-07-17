@@ -493,6 +493,44 @@ func TestGetApplication_AllFieldsAreSet(t *testing.T) {
 	assert.Equal(t, "ci", application.Registration.ConfigurationItem)
 }
 
+func TestGetApplication_Annotations(t *testing.T) {
+	commonTestUtils, controllerTestUtils, _, _, _, _, _, _, _ := setupTest(t)
+	_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().
+		WithName("any-name").
+		WithAnnotations(map[string]string{
+			"radix.equinor.com/federated-credentials-migrated": "true",
+		}))
+	require.NoError(t, err)
+
+	responseChannel := controllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s", "any-name"))
+	response := <-responseChannel
+
+	application := applicationModels.Application{}
+	err = controllertest.GetResponseBody(response, &application)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{
+		"radix.equinor.com/federated-credentials-migrated": "true",
+	}, application.Registration.Annotations)
+}
+
+func TestGetApplication_Annotations_NoneExposed_ReturnsNil(t *testing.T) {
+	commonTestUtils, controllerTestUtils, _, _, _, _, _, _, _ := setupTest(t)
+	_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().
+		WithName("any-name").
+		WithAnnotations(map[string]string{
+			"some.other/annotation": "should-be-filtered",
+		}))
+	require.NoError(t, err)
+
+	responseChannel := controllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s", "any-name"))
+	response := <-responseChannel
+
+	application := applicationModels.Application{}
+	err = controllertest.GetResponseBody(response, &application)
+	require.NoError(t, err)
+	assert.Nil(t, application.Registration.Annotations)
+}
+
 func TestGetApplication_WithJobs(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, kubeclient, _, _, _, _, _, _ := setupTest(t)
