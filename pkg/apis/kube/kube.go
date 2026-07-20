@@ -33,7 +33,7 @@ const (
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
 	// RadixDeploymentObservedGeneration Used to verify kubernetes deployments are synced with active radix deployment, must contain the active RadixDeployments synced Generation
 	RadixDeploymentObservedGeneration = "radix.equinor.com/radix-deployment-observed-generation"
-	// RadixFederatedCredentialsMigratedAnnotation marks that an application's credentials have been migrated to federated credentials
+	// RadixFederatedCredentialsMigratedAnnotation marks that an user has confirmed that application's credentials have been checked and migrated to federated credentials if needed
 	RadixFederatedCredentialsMigratedAnnotation = "radix.equinor.com/federated-credentials-migrated"
 )
 

@@ -6051,7 +6051,7 @@
         "owner",
         "creator",
         "configBranch",
-        "hasFederatedCredentialAnnotation"
+        "hasMigratedFederatedCredential"
       ],
       "properties": {
         "adGroups": {
@@ -6091,10 +6091,10 @@
           "type": "string",
           "x-go-name": "Creator"
         },
-        "hasFederatedCredentialAnnotation": {
-          "description": "HasFederatedCredentialAnnotation indicates whether federated credential annotation exists",
+        "hasMigratedFederatedCredential": {
+          "description": "HasMigratedFederatedCredential indicates whether federated credential annotation exists",
           "type": "boolean",
-          "x-go-name": "HasFederatedCredentialAnnotation"
+          "x-go-name": "HasMigratedFederatedCredential"
         },
         "name": {
           "description": "Name the unique name of the Radix application",

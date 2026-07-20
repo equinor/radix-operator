@@ -9,7 +9,7 @@ import (
 // BuildApplicationRegistration builds an ApplicationRegistration model.
 func BuildApplicationRegistration(rr *radixv1.RadixRegistration) *applicationModels.ApplicationRegistration {
 	appReg := applicationModels.NewApplicationRegistrationBuilder().WithRadixRegistration(rr).Build()
-	appReg.HasFederatedCredentialAnnotation = hasFederatedCredentialAnnotation(rr.Annotations)
+	appReg.HasMigratedFederatedCredential = hasFederatedCredentialAnnotation(rr.Annotations)
 	return &appReg
 }
 

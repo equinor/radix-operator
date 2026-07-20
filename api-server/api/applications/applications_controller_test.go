@@ -508,7 +508,7 @@ func TestGetApplication_HasFederatedCredentialAnnotation_True(t *testing.T) {
 	application := applicationModels.Application{}
 	err = controllertest.GetResponseBody(response, &application)
 	require.NoError(t, err)
-	assert.True(t, application.Registration.HasFederatedCredentialAnnotation)
+	assert.True(t, application.Registration.HasMigratedFederatedCredential)
 }
 
 func TestGetApplication_HasFederatedCredentialAnnotation_FalseWhenNotPresent(t *testing.T) {
@@ -526,7 +526,7 @@ func TestGetApplication_HasFederatedCredentialAnnotation_FalseWhenNotPresent(t *
 	application := applicationModels.Application{}
 	err = controllertest.GetResponseBody(response, &application)
 	require.NoError(t, err)
-	assert.False(t, application.Registration.HasFederatedCredentialAnnotation)
+	assert.False(t, application.Registration.HasMigratedFederatedCredential)
 }
 
 func TestGetApplication_WithJobs(t *testing.T) {
