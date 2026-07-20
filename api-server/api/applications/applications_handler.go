@@ -26,6 +26,7 @@ import (
 	"github.com/equinor/radix-operator/api-server/models"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -556,7 +557,7 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 
 // SetFederatedCredentialsMigratedAnnotation sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
 func (ah *ApplicationHandler) SetFederatedCredentialsMigratedAnnotation(ctx context.Context, appName string) error {
-	const federatedCredentialsMigratedAnnotation = "radix.equinor.com/federated-credentials-migrated"
+	const federatedCredentialsMigratedAnnotation = kube.RadixFederatedCredentialsMigratedAnnotation
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currentRegistration, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
