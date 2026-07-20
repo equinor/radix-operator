@@ -8,10 +8,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-var annotationToExpose = []string{
-	"radix.equinor.com/federated-credentials-migrated",
-}
-
 // BuildApplication builds an Application model.
 func BuildApplication(rr *radixv1.RadixRegistration, ra *radixv1.RadixApplication, reList []radixv1.RadixEnvironment, rdList []radixv1.RadixDeployment, rjList []radixv1.RadixJob, userIsAdmin bool, dnsAliasList []radixv1.RadixDNSAlias, dnsZone string) *applicationModels.Application {
 	application := applicationModels.Application{
@@ -62,17 +58,4 @@ func buildDNSAlias(dnsAliases []radixv1.RadixDNSAlias, dnsZone string) []applica
 			},
 		})
 	})
-}
-
-func filterAnnotation(annotations map[string]string, keys []string) map[string]string {
-	result := make(map[string]string)
-	for _, key := range keys {
-		if val, ok := annotations[key]; ok {
-			result[key] = val
-		}
-	}
-	if len(result) == 0 {
-		return nil
-	}
-	return result
 }

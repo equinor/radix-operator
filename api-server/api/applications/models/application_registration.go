@@ -73,8 +73,8 @@ type ApplicationRegistration struct {
 	// required: false
 	ConfigurationItem string `json:"configurationItem"`
 
-	// Annotations of the RadixRegistration resource
+	// HasFederatedCredentialAnnotation indicates whether federated credential annotation exists
 	//
-	// required: false
-	Annotations map[string]string `json:"annotations,omitempty"`
+	// required: true
+	HasFederatedCredentialAnnotation bool `json:"hasFederatedCredentialAnnotation"`
 }

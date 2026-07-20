@@ -6050,7 +6050,8 @@
         "readerAdUsers",
         "owner",
         "creator",
-        "configBranch"
+        "configBranch",
+        "hasFederatedCredentialAnnotation"
       ],
       "properties": {
         "adGroups": {
@@ -6068,14 +6069,6 @@
             "type": "string"
           },
           "x-go-name": "AdUsers"
-        },
-        "annotations": {
-          "description": "Annotations of the RadixRegistration resource",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "x-go-name": "Annotations"
         },
         "appId": {
           "description": "AppID the unique application ID, which is a ULID",
@@ -6097,6 +6090,11 @@
           "description": "Owner of the application (email). Can be a single person or a shared group email",
           "type": "string",
           "x-go-name": "Creator"
+        },
+        "hasFederatedCredentialAnnotation": {
+          "description": "HasFederatedCredentialAnnotation indicates whether federated credential annotation exists",
+          "type": "boolean",
+          "x-go-name": "HasFederatedCredentialAnnotation"
         },
         "name": {
           "description": "Name the unique name of the Radix application",

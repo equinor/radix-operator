@@ -54,7 +54,7 @@ const (
 	clusterName                            = "AnyClusterName"
 	dnsZone                                = "some-dns-zone.com"
 	subscriptionId                         = "12347718-c8f8-4995-bfbb-02655ff1f89c"
-	federatedCredentialsMigratedAnnotation = "radix.equinor.com/federated-credentials-migrated"
+	federatedCredentialsMigratedAnnotation = kube.RadixFederatedCredentialsMigratedAnnotation
 )
 
 func setupTest(t *testing.T, options ...ApplicationHandlerOption) (*commontest.Utils, *controllertest.Utils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
@@ -493,12 +493,12 @@ func TestGetApplication_AllFieldsAreSet(t *testing.T) {
 	assert.Equal(t, "ci", application.Registration.ConfigurationItem)
 }
 
-func TestGetApplication_Annotations(t *testing.T) {
+func TestGetApplication_HasFederatedCredentialAnnotation_True(t *testing.T) {
 	commonTestUtils, controllerTestUtils, _, _, _, _, _, _, _ := setupTest(t)
 	_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().
 		WithName("any-name").
 		WithAnnotations(map[string]string{
-			"radix.equinor.com/federated-credentials-migrated": "true",
+			federatedCredentialsMigratedAnnotation: "true",
 		}))
 	require.NoError(t, err)
 
@@ -508,17 +508,15 @@ func TestGetApplication_Annotations(t *testing.T) {
 	application := applicationModels.Application{}
 	err = controllertest.GetResponseBody(response, &application)
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{
-		"radix.equinor.com/federated-credentials-migrated": "true",
-	}, application.Registration.Annotations)
+	assert.True(t, application.Registration.HasFederatedCredentialAnnotation)
 }
 
-func TestGetApplication_Annotations_NoneExposed_ReturnsNil(t *testing.T) {
+func TestGetApplication_HasFederatedCredentialAnnotation_FalseWhenNotPresent(t *testing.T) {
 	commonTestUtils, controllerTestUtils, _, _, _, _, _, _, _ := setupTest(t)
 	_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().
 		WithName("any-name").
 		WithAnnotations(map[string]string{
-			"some.other/annotation": "should-be-filtered",
+			"some.other/annotation": "should-be-ignored",
 		}))
 	require.NoError(t, err)
 
@@ -528,7 +526,7 @@ func TestGetApplication_Annotations_NoneExposed_ReturnsNil(t *testing.T) {
 	application := applicationModels.Application{}
 	err = controllertest.GetResponseBody(response, &application)
 	require.NoError(t, err)
-	assert.Nil(t, application.Registration.Annotations)
+	assert.False(t, application.Registration.HasFederatedCredentialAnnotation)
 }
 
 func TestGetApplication_WithJobs(t *testing.T) {
