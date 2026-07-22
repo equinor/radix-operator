@@ -369,10 +369,13 @@ func (step *PreparePipelinesStepImplementation) getPromoteSourceDeploymentGitInf
 
 	gitCommit = internal.GetGitCommitHashFromDeployment(rd)
 	gitTags = internal.GetGitTagsFromDeployment(rd)
+	if err := prepareInternal.GitTagsContainIllegalChars(gitTags); err != nil {
+		return "", "", "", "", err
+	}
 	gitRef = internal.GetGitRefNameFromDeployment(rd)
 	gitRefType = internal.GetGitRefTypeFromDeployment(rd)
 
-	return gitCommit, gitTags, gitRef, gitRefType, err
+	return gitCommit, gitTags, gitRef, gitRefType, nil
 }
 
 func containsRegex(value string) bool {
