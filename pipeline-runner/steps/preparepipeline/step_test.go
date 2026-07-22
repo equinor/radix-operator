@@ -260,6 +260,7 @@ func (s *stepTestSuite) Test_TargetEnvironments_Deploy() {
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
 			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("", nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return(nil, nil)
 			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
 			mockContextBuilder.EXPECT().GetBuildContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
@@ -1291,6 +1292,7 @@ func (s *stepTestSuite) Test_SubPipeline_ResolveAndCheckoutCommit_Deploy_Environ
 	mockGitRepo := git.NewMockRepository(s.ctrl)
 	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil) // Get radixconfig
 	mockGitRepo.EXPECT().ResolveCommitForReference(configBranch).Times(1).Return(configBranchCommit, nil)
+	mockGitRepo.EXPECT().ResolveTagsForCommit(configBranchCommit).Times(1).Return(nil, nil)
 	mockGitRepo.EXPECT().Checkout(configBranchCommit).Times(1).Return(nil)
 
 	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
@@ -1334,6 +1336,7 @@ func (s *stepTestSuite) Test_SubPipeline_ResolveAndCheckoutCommit_Deploy_Environ
 	mockGitRepo := git.NewMockRepository(s.ctrl)
 	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil) // Get radixconfig
 	mockGitRepo.EXPECT().ResolveCommitForReference(envBranch).Times(1).Return(envBranchCommit, nil)
+	mockGitRepo.EXPECT().ResolveTagsForCommit(envBranchCommit).Times(1).Return(nil, nil)
 	mockGitRepo.EXPECT().Checkout(envBranchCommit).Times(1).Return(nil)
 
 	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
@@ -1641,6 +1644,7 @@ func (s *stepTestSuite) Test_EnvironmentSubPipelineComponentNames() {
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
 			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("somecommit", nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return([]string{"v1", "v2"}, nil)
 			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
 			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
 			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(gomock.Any(), gomock.Any()).Return(false, "", nil, nil, nil).AnyTimes()

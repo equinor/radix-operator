@@ -181,8 +181,9 @@ func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo 
 	if err != nil {
 		return "", "", err
 	}
-	tagsConcat := strings.Join(tags, " ")
-	if err = prepareInternal.GitTagsContainIllegalChars(tagsConcat); err != nil {
+
+	tagsConcat, err := concatGitTags(tags)
+	if err != nil {
 		return "", "", err
 	}
 
@@ -227,7 +228,7 @@ func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *mod
 }
 
 func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) error {
-	gitCommit, err := step.getTargetGitCommitForSubPipelines(ctx, pipelineInfo, repo)
+	gitCommit, gitTags, gitRef, gitRefType, err := step.getTargetGitInfoForSubPipelines(ctx, pipelineInfo, repo)
 	if err != nil {
 		return err
 	}
@@ -247,10 +248,10 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 			PipelineType: pipelineInfo.PipelineArguments.PipelineType,
 			Environment:  targetEnv.Environment,
 			GitSSHUrl:    step.GetRegistration().Spec.CloneURL,
-			GitRef:       pipelineInfo.GetGitRef(),
-			GitRefType:   pipelineInfo.GetGitRefTypeOrDefault(),
-			GitCommit:    pipelineInfo.GitCommitHash,
-			GitTags:      pipelineInfo.GitTags,
+			GitRef:       gitRef,
+			GitRefType:   gitRefType,
+			GitCommit:    gitCommit,
+			GitTags:      gitTags,
 		}
 	}
 
@@ -280,71 +281,98 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 	return errors.Join(errs...)
 }
 
-func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipelines(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) (string, error) {
-	pipelineArgs := pipelineInfo.PipelineArguments
+func (step *PreparePipelinesStepImplementation) getTargetGitInfoForSubPipelines(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) (gitCommit, gitTags, gitRef, gitRefType string, err error) {
 	pipelineType := pipelineInfo.GetRadixPipelineType()
 
-	if pipelineType == radixv1.ApplyConfig {
-		return "", nil
-	}
-
-	if pipelineType == radixv1.Promote {
-		sourceRdHashFromAnnotation, sourceDeploymentGitBranch, err := step.getPromoteSourceDeploymentGitInfo(ctx, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
+	switch pipelineType {
+	case radixv1.ApplyConfig:
+		return "", "", "", "", nil
+	case radixv1.BuildDeploy, radixv1.Build:
+		return pipelineInfo.GitCommitHash, pipelineInfo.GitTags, pipelineInfo.GetGitRef(), pipelineInfo.GetGitRefTypeOrDefault(), nil
+	case radixv1.Promote:
+		gitCommit, gitTags, gitRef, gitRefType, err := step.getPromoteSourceDeploymentGitInfo(ctx, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
 		if err != nil {
-			return "", err
+			return "", "", "", "", err
 		}
 
-		if sourceRdHashFromAnnotation != "" {
-			return sourceRdHashFromAnnotation, nil
+		if gitCommit != "" {
+			return gitCommit, gitTags, gitRef, gitRefType, nil
 		}
 
-		// TODO: Should we fail if sourcecommithash is empty instead of trying to resolve commit from source RD branch?
-		if sourceDeploymentGitBranch == "" {
+		if gitRef == "" {
 			log.Ctx(ctx).Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
-			return "", nil
+			return "", "", "", "", nil
 		}
-		sourceRdHashFromBranchHead, err := repo.ResolveCommitForReference(sourceDeploymentGitBranch)
+
+		gitCommit, err = repo.ResolveCommitForReference(gitRef)
 		if err != nil {
-			return "", nil
-		}
-		return sourceRdHashFromBranchHead, nil
-	}
-
-	if pipelineType == radixv1.Deploy {
-		pipelineJobBranch := step.GetRegistration().Spec.ConfigBranch
-
-		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineArgs.ToEnvironment); ok && len(env.Build.From) > 0 {
-			pipelineJobBranch = env.Build.From
+			return "", "", "", "", nil
 		}
 
-		if containsRegex(pipelineJobBranch) {
+		tags, err := repo.ResolveTagsForCommit(gitCommit)
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		tagsConcat, err := concatGitTags(tags)
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		return gitCommit, tagsConcat, gitRef, gitRefType, nil
+	case radixv1.Deploy:
+		gitRef = step.GetRegistration().Spec.ConfigBranch
+		gitRefType = string(radixv1.GitRefBranch)
+
+		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineInfo.PipelineArguments.ToEnvironment); ok {
+			if len(env.Build.From) > 0 {
+				gitRef = env.Build.From
+			}
+
+			if len(env.Build.FromType) > 0 {
+				gitRefType = env.Build.FromType
+			}
+		}
+
+		if containsRegex(gitRef) {
 			log.Ctx(ctx).Info().Msg("Deploy job with build branch having regex pattern, skipping sub-pipelines.")
-			return "", nil
+			return "", "", "", "", nil
 		}
 
-		gitHash, err := repo.ResolveCommitForReference(pipelineJobBranch)
+		gitCommit, err := repo.ResolveCommitForReference(gitRef)
 		if err != nil {
-			return "", err
+			return "", "", "", "", err
 		}
-		return gitHash, nil
+
+		tags, err := repo.ResolveTagsForCommit(gitCommit)
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		tagsConcat, err := concatGitTags(tags)
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		return gitCommit, tagsConcat, gitRef, gitRefType, nil
 	}
 
-	if pipelineType == radixv1.BuildDeploy || pipelineType == radixv1.Build {
-		return pipelineInfo.GitCommitHash, nil
-	}
-
-	return "", fmt.Errorf("unknown pipeline type %s", pipelineType)
+	return "", "", "", "", fmt.Errorf("unknown pipeline type %s", pipelineType)
 }
 
-func (step *PreparePipelinesStepImplementation) getPromoteSourceDeploymentGitInfo(ctx context.Context, sourceEnvName, sourceDeploymentName string) (string, string, error) {
+func (step *PreparePipelinesStepImplementation) getPromoteSourceDeploymentGitInfo(ctx context.Context, sourceEnvName, sourceDeploymentName string) (gitCommit, gitTags, gitRef, gitRefType string, err error) {
 	ns := utils.GetEnvironmentNamespace(step.GetAppName(), sourceEnvName)
 	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(ns).Get(ctx, sourceDeploymentName, metav1.GetOptions{})
 	if err != nil {
-		return "", "", err
+		return "", "", "", "", err
 	}
-	gitHash := internal.GetGitCommitHashFromDeployment(rd)
-	gitBranch := internal.GetGitRefNameFromDeployment(rd)
-	return gitHash, gitBranch, err
+
+	gitCommit = internal.GetGitCommitHashFromDeployment(rd)
+	gitTags = internal.GetGitTagsFromDeployment(rd)
+	gitRef = internal.GetGitRefNameFromDeployment(rd)
+	gitRefType = internal.GetGitRefTypeFromDeployment(rd)
+
+	return gitCommit, gitTags, gitRef, gitRefType, err
 }
 
 func containsRegex(value string) bool {
@@ -768,4 +796,12 @@ func getComponentNames(ra *radixv1.RadixApplication) model.EnvironmentComponentN
 		result[env.Name] = componentNames
 	}
 	return result
+}
+
+func concatGitTags(tags []string) (string, error) {
+	tagsConcat := strings.Join(tags, " ")
+	if err := prepareInternal.GitTagsContainIllegalChars(tagsConcat); err != nil {
+		return "", err
+	}
+	return tagsConcat, nil
 }
