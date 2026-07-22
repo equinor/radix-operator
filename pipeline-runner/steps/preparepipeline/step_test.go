@@ -1440,6 +1440,15 @@ func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_De
 			expectedCommit:  "configbranchcommit",
 			expectedGitTags: "v1 v2",
 		},
+		"environment build from type is ignored when build from is empty": {
+			ra: utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentByBuild(toEnvironment, radixv1.EnvBuild{
+				FromType: string(radixv1.GitRefTag),
+			}).BuildRA(),
+			expectedGitRef:  configBranch,
+			expectedRefType: string(radixv1.GitRefBranch),
+			expectedCommit:  "configbranchcommit",
+			expectedGitTags: "v1 v2",
+		},
 		"environment build from tag uses environment git ref and type": {
 			ra: utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentByBuild(toEnvironment, radixv1.EnvBuild{
 				From:     "v3",
