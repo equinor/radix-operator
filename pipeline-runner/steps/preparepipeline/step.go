@@ -327,10 +327,9 @@ func (step *PreparePipelinesStepImplementation) getTargetGitInfoForSubPipelines(
 		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineInfo.PipelineArguments.ToEnvironment); ok {
 			if len(env.Build.From) > 0 {
 				gitRef = env.Build.From
-			}
-
-			if len(env.Build.FromType) > 0 {
-				gitRefType = env.Build.FromType
+				if len(env.Build.FromType) > 0 {
+					gitRefType = env.Build.FromType
+				}
 			}
 		}
 
