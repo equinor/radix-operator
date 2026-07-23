@@ -120,6 +120,14 @@ func createRegistration(t *testing.T, radixClient *radixfake.Clientset, name str
 	require.NoError(t, err)
 }
 
+func createRadixApplication(t *testing.T, radixClient *radixfake.Clientset, environments ...radixv1.Environment) {
+	t.Helper()
+	ra := operatorutils.NewRadixApplicationBuilder().WithAppName(appName).BuildRA()
+	ra.Spec.Environments = environments
+	_, err := radixClient.RadixV1().RadixApplications(operatorutils.GetAppNamespace(appName)).Create(t.Context(), ra, metav1.CreateOptions{})
+	require.NoError(t, err)
+}
+
 func decodeWebhookResponse(t *testing.T, rr *httptest.ResponseRecorder) WebhookResponse {
 	t.Helper()
 	var resp WebhookResponse
@@ -268,6 +276,233 @@ func TestHandleGithubWebhook_Push_TriggersPipeline(t *testing.T) {
 	assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
 	assert.Equal(t, commitID, job.Spec.Build.CommitID)
 	assert.Equal(t, configBranch, job.Spec.Build.GitRef)
+	assert.Equal(t, radixv1.GitRefBranch, job.Spec.Build.GitRefType)
+}
+
+func TestHandleGithubWebhook_Push_TriggersPipelineForStaticEnvironmentBranch(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	registerApp(t, radixClient)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "dev",
+		Build: radixv1.EnvBuild{From: "release-2026", FromType: string(radixv1.GitRefBranch)},
+	})
+
+	commitID := "0123456789abcdef0123456789abcdef01234567"
+	body := pushEventBody(t, "refs/heads/release-2026", commitID, false)
+	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.True(t, resp.Ok)
+	assert.Equal(t, pushEventType, resp.Event)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, jobs.Items, 1)
+	job := jobs.Items[0]
+	assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
+	assert.Equal(t, commitID, job.Spec.Build.CommitID)
+	assert.Equal(t, "release-2026", job.Spec.Build.GitRef)
+	assert.Equal(t, radixv1.GitRefBranch, job.Spec.Build.GitRefType)
+}
+
+func TestHandleGithubWebhook_Push_TriggersPipelineForRegexEnvironmentBranch(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	registerApp(t, radixClient)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "dev",
+		Build: radixv1.EnvBuild{From: "feature.*", FromType: string(radixv1.GitRefBranch)},
+	})
+
+	commitID := "0123456789abcdef0123456789abcdef01234567"
+	body := pushEventBody(t, "refs/heads/feature-branch", commitID, false)
+	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.True(t, resp.Ok)
+	assert.Equal(t, pushEventType, resp.Event)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, jobs.Items, 1)
+	job := jobs.Items[0]
+	assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
+	assert.Equal(t, commitID, job.Spec.Build.CommitID)
+	assert.Equal(t, "feature-branch", job.Spec.Build.GitRef)
+	assert.Equal(t, radixv1.GitRefBranch, job.Spec.Build.GitRefType)
+}
+
+func TestHandleGithubWebhook_Push_TriggersPipelineForStaticEnvironmentTag(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	registerApp(t, radixClient)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "prod",
+		Build: radixv1.EnvBuild{From: "v1.2.3", FromType: string(radixv1.GitRefTag)},
+	})
+
+	commitID := "0123456789abcdef0123456789abcdef01234567"
+	body := pushEventBody(t, "refs/tags/v1.2.3", commitID, false)
+	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.True(t, resp.Ok)
+	assert.Equal(t, pushEventType, resp.Event)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, jobs.Items, 1)
+	job := jobs.Items[0]
+	assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
+	assert.Equal(t, commitID, job.Spec.Build.CommitID)
+	assert.Equal(t, "v1.2.3", job.Spec.Build.GitRef)
+	assert.Equal(t, radixv1.GitRefTag, job.Spec.Build.GitRefType)
+}
+
+func TestHandleGithubWebhook_Push_TriggersPipelineForRegexEnvironmentTag(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	registerApp(t, radixClient)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "prod",
+		Build: radixv1.EnvBuild{From: "v1.*", FromType: string(radixv1.GitRefTag)},
+	})
+
+	commitID := "0123456789abcdef0123456789abcdef01234567"
+	body := pushEventBody(t, "refs/tags/v1.2.3", commitID, false)
+	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.True(t, resp.Ok)
+	assert.Equal(t, pushEventType, resp.Event)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, jobs.Items, 1)
+	job := jobs.Items[0]
+	assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
+	assert.Equal(t, commitID, job.Spec.Build.CommitID)
+	assert.Equal(t, "v1.2.3", job.Spec.Build.GitRef)
+	assert.Equal(t, radixv1.GitRefTag, job.Spec.Build.GitRefType)
+}
+
+func TestHandleGithubWebhook_Push_DoesNotTriggerPipelineForBranchPushMatchingTagEnvironment(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	registerApp(t, radixClient)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "prod",
+		Build: radixv1.EnvBuild{From: "v1.2.3", FromType: string(radixv1.GitRefTag)},
+	})
+
+	body := pushEventBody(t, "refs/heads/v1.2.3", "0123456789abcdef0123456789abcdef01234567", false)
+	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.False(t, resp.Ok)
+	assert.Contains(t, resp.Error, "failed to create pipeline job for Radix application "+appName)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, jobs.Items)
+}
+
+func TestHandleGithubWebhook_Push_DoesNotTriggerPipelineForTagPushMatchingBranchEnvironment(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	registerApp(t, radixClient)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "dev",
+		Build: radixv1.EnvBuild{From: "release-2026", FromType: string(radixv1.GitRefBranch)},
+	})
+
+	body := pushEventBody(t, "refs/tags/release-2026", "0123456789abcdef0123456789abcdef01234567", false)
+	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.False(t, resp.Ok)
+	assert.Contains(t, resp.Error, "failed to create pipeline job for Radix application "+appName)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, jobs.Items)
+}
+
+func TestHandleGithubWebhook_Push_TriggersPipelineForEnvironmentWithoutGitRefType(t *testing.T) {
+	commitID := "0123456789abcdef0123456789abcdef01234567"
+	testCases := []struct {
+		name               string
+		pushRef            string
+		expectedGitRefType radixv1.GitRefType
+	}{
+		{
+			name:               "branch push",
+			pushRef:            "refs/heads/release-2026",
+			expectedGitRefType: radixv1.GitRefBranch,
+		},
+		{
+			name:               "tag push",
+			pushRef:            "refs/tags/release-2026",
+			expectedGitRefType: radixv1.GitRefTag,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+			registerApp(t, radixClient)
+			createRadixApplication(t, radixClient, radixv1.Environment{
+				Name:  "prod",
+				Build: radixv1.EnvBuild{From: "release-2026"},
+			})
+
+			body := pushEventBody(t, testCase.pushRef, commitID, false)
+			rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+				"Content-Type":               "application/json",
+				"X-GitHub-Event":             pushEventType,
+				github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+			}, body)
+
+			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+			resp := decodeWebhookResponse(t, rr)
+			assert.True(t, resp.Ok)
+			assert.Equal(t, pushEventType, resp.Event)
+
+			jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, jobs.Items, 1)
+			job := jobs.Items[0]
+			assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
+			assert.Equal(t, commitID, job.Spec.Build.CommitID)
+			assert.Equal(t, "release-2026", job.Spec.Build.GitRef)
+			assert.Equal(t, testCase.expectedGitRefType, job.Spec.Build.GitRefType)
+		})
+	}
 }
 
 func TestHandleGithubWebhook_Ping_IncorrectSecret(t *testing.T) {
