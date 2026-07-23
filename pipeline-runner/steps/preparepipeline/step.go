@@ -290,7 +290,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitInfoForSubPipelines(
 	case radixv1.BuildDeploy, radixv1.Build:
 		return pipelineInfo.GitCommitHash, pipelineInfo.GitTags, pipelineInfo.GetGitRef(), pipelineInfo.GetGitRefTypeOrDefault(), nil
 	case radixv1.Promote:
-		gitCommit, gitTags, gitRef, gitRefType, err := step.getPromoteSourceDeploymentGitInfo(ctx, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
+		gitCommit, gitTags, gitRef, gitRefType, err = step.getPromoteSourceDeploymentGitInfo(ctx, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
 		if err != nil {
 			return "", "", "", "", err
 		}
