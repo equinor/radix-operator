@@ -574,3 +574,26 @@ func Test_GetGitRefNameFromDeployment(t *testing.T) {
 	rd = utils.NewDeploymentBuilder().BuildRD()
 	assert.Equal(t, "", GetGitRefNameFromDeployment(rd))
 }
+
+func Test_GetGitRefTypeFromDeployment(t *testing.T) {
+	assert.Equal(t, "", GetGitRefTypeFromDeployment(nil))
+
+	rd := utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixGitRefTypeAnnotation: string(radixv1.GitRefTag)}).BuildRD()
+	assert.Equal(t, string(radixv1.GitRefTag), GetGitRefTypeFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixGitRefTypeAnnotation: ""}).BuildRD()
+	assert.Equal(t, string(radixv1.GitRefBranch), GetGitRefTypeFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().BuildRD()
+	assert.Equal(t, string(radixv1.GitRefBranch), GetGitRefTypeFromDeployment(rd))
+}
+
+func Test_GetGitTagsFromDeployment(t *testing.T) {
+	assert.Equal(t, "", GetGitTagsFromDeployment(nil))
+
+	rd := utils.NewDeploymentBuilder().WithAnnotations(map[string]string{kube.RadixGitTagsAnnotation: "v1.0.0,v1.1.0"}).BuildRD()
+	assert.Equal(t, "v1.0.0,v1.1.0", GetGitTagsFromDeployment(rd))
+
+	rd = utils.NewDeploymentBuilder().BuildRD()
+	assert.Equal(t, "", GetGitTagsFromDeployment(rd))
+}

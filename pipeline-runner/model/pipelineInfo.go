@@ -201,12 +201,6 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 	return nil
 }
 
-// SetGitAttributes Set git attributes to be used later by other steps
-func (p *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
-	p.GitCommitHash = gitCommitHash
-	p.GitTags = gitTags
-}
-
 // IsPipelineType Check pipeline type
 func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bool {
 	return p.GetRadixPipelineType() == pipelineType
