@@ -334,7 +334,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitInfoForSubPipelines(
 		}
 
 		if containsRegex(gitRef) {
-			log.Ctx(ctx).Info().Msg("Deploy job with build branch having regex pattern, skipping sub-pipelines.")
+			log.Ctx(ctx).Info().Msgf("Git ref %q contains regex pattern, skipping sub-pipelines.", gitRef)
 			return "", "", "", "", nil
 		}
 
