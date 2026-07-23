@@ -306,7 +306,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitInfoForSubPipelines(
 
 		gitCommit, err = repo.ResolveCommitForReference(gitRef)
 		if err != nil {
-			return "", "", "", "", nil
+			return "", "", "", "", err
 		}
 
 		tags, err := repo.ResolveTagsForCommit(gitCommit)
@@ -338,7 +338,7 @@ func (step *PreparePipelinesStepImplementation) getTargetGitInfoForSubPipelines(
 			return "", "", "", "", nil
 		}
 
-		gitCommit, err := repo.ResolveCommitForReference(gitRef)
+		gitCommit, err = repo.ResolveCommitForReference(gitRef)
 		if err != nil {
 			return "", "", "", "", err
 		}
