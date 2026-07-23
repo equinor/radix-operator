@@ -175,8 +175,8 @@ func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseW
 		CommitID:    commitID,
 		PushImage:   "true",
 		TriggeredBy: triggeredBy,
-		//Branch:      gitRef, //nolint:staticcheck
-		GitRef: gitRef,
+		GitRef:      gitRef,
+		GitRefType:  gitRefType,
 	})
 	if err != nil {
 		metrics.IncreasePushGithubEventTypeFailedTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID)
