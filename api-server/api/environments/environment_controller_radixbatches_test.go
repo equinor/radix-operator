@@ -546,8 +546,9 @@ func Test_GetJob_AllProps(t *testing.T) {
 	testData := []v1.RadixBatch{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:   "job-batch1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
+				Name:        "job-batch1",
+				Labels:      labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
+				Annotations: map[string]string{kube.RadixBatchCronScheduleAnnotation: "0 1 * * *"},
 			},
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
@@ -660,6 +661,7 @@ func Test_GetJob_AllProps(t *testing.T) {
 		Message:          "anymessage",
 		BackoffLimit:     *defaultBackoffLimit,
 		TimeLimitSeconds: numbers.Int64Ptr(123),
+		CronSchedule:     "0 1 * * *",
 		Resources: models.ResourceRequirements{
 			Limits:   models.Resources{CPU: "100Mi", Memory: "500M"},
 			Requests: models.Resources{CPU: "50Mi", Memory: "250M"},
@@ -688,6 +690,7 @@ func Test_GetJob_AllProps(t *testing.T) {
 		Status:           models.ScheduledBatchJobStatusWaiting,
 		BackoffLimit:     5,
 		TimeLimitSeconds: numbers.Int64Ptr(999),
+		CronSchedule:     "0 1 * * *",
 		Resources: models.ResourceRequirements{
 			Limits:   models.Resources{CPU: "101Mi", Memory: "501M"},
 			Requests: models.Resources{CPU: "51Mi", Memory: "251M"},
