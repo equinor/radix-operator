@@ -8829,6 +8829,12 @@
           "format": "date-time",
           "x-go-name": "Created"
         },
+        "cronSchedule": {
+          "description": "CronSchedule is the cron schedule expression, if this job was created by a cron schedule.",
+          "type": "string",
+          "x-go-name": "CronSchedule",
+          "example": "\"0 1 * * *\""
+        },
         "deploymentName": {
           "description": "DeploymentName name of RadixDeployment for the job",
           "type": "string",

@@ -35,6 +35,8 @@ const (
 	RadixDeploymentObservedGeneration = "radix.equinor.com/radix-deployment-observed-generation"
 	// RadixFederatedCredentialsMigratedAnnotation marks that an user has confirmed that application's credentials have been checked and migrated to federated credentials if needed
 	RadixFederatedCredentialsMigratedAnnotation = "radix.equinor.com/federated-credentials-migrated"
+	// RadixBatchCronScheduleAnnotation holds the cron schedule expression a RadixBatch was created from, for presentation only
+	RadixBatchCronScheduleAnnotation = "radix.equinor.com/batch-cron-schedule"
 )
 
 // Radix Labels

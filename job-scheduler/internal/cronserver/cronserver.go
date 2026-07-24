@@ -83,7 +83,7 @@ func (s *Server) Start(ctx context.Context) error {
 				return
 			}
 
-			if _, err := s.jobHandler.CreateJob(runCtx, &common.JobScheduleDescription{}, true); err != nil {
+			if _, err := s.jobHandler.CreateJob(runCtx, &common.JobScheduleDescription{}, schedule); err != nil {
 				log.Error().Err(err).Msg("failed to create scheduled job")
 			}
 		}); err != nil {
