@@ -82,19 +82,14 @@ func (v *AdmissionValidator[TObj]) ValidateDelete(ctx context.Context, obj TObj)
 	return v.runValidation(opCtx, obj, v.DeleteValidation)
 }
 
-func (v *AdmissionValidator[TObj]) runValidation(ctx context.Context, obj runtime.Object, validator Validator[TObj]) (admission.Warnings, error) {
-	log.Ctx(ctx).Debug().Msg("starting validation")
-	tobj, ok := obj.(TObj)
-	if !ok {
-		log.Ctx(ctx).Error().Msg("unknown object type")
-		return nil, nil
-	}
-
+func (v *AdmissionValidator[TObj]) runValidation(ctx context.Context, obj TObj, validator Validator[TObj]) (admission.Warnings, error) {
 	if validator == nil {
 		return nil, nil
 	}
 
-	warnings, err := validator.Validate(ctx, tobj)
+	log.Ctx(ctx).Debug().Msg("starting validation")
+
+	warnings, err := validator.Validate(ctx, obj)
 	log.Ctx(ctx).Info().Strs("warnings", warnings).Err(err).Msg("admission controll completed")
 	return warnings, err
 }
