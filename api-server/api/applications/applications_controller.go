@@ -476,7 +476,7 @@ func (ac *applicationController) RegenerateSharedSecretHandler(accounts models.A
 	//     description: "Conflict"
 	appName := mux.Vars(r)["appName"]
 	handler := ac.applicationHandlerFactory.Create(accounts)
-	
+
 	err := handler.RegenerateSharedSecret(r.Context(), appName)
 
 	if err != nil {
