@@ -1226,9 +1226,8 @@ func TestRegenerateDeployKey_WhenApplicationNotExist_Fail(t *testing.T) {
 	appResponseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", parameters)
 	<-appResponseChannel
 
-	regenerateParameters := &applicationModels.RegenerateSharedSecretData{SharedSecret: "new shared secret"}
 	appName := "any-non-existing-name"
-	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), regenerateParameters)
+	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), nil)
 	response := <-responseChannel
 
 	assert.Equal(t, http.StatusNotFound, response.Code)
@@ -1257,8 +1256,7 @@ func TestRegenerateDeployKey_UpdatesSharedSecret(t *testing.T) {
 	<-appResponseChannel
 
 	const newSharedSecret = "new shared secret"
-	regenerateParameters := &applicationModels.RegenerateSharedSecretData{SharedSecret: newSharedSecret}
-	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), regenerateParameters)
+	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), nil)
 	response := <-responseChannel
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
@@ -1266,15 +1264,15 @@ func TestRegenerateDeployKey_UpdatesSharedSecret(t *testing.T) {
 	require.NoError(t, err)
 	decodedSharedSecret, err := base64.StdEncoding.DecodeString(string(sharedSecret.Data[defaults.WebhookSharedSecretKey]))
 	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, string(decodedSharedSecret))
+	assert.NotEqual(t, newSharedSecret, string(decodedSharedSecret))
 
 	deployKeyAndSecret := &applicationModels.DeployKeyAndSecret{}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), regenerateParameters)
+	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), nil)
 	response = <-responseChannel
 	assert.Equal(t, http.StatusOK, response.Code)
 	err = controllertest.GetResponseBody(response, &deployKeyAndSecret)
 	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, deployKeyAndSecret.SharedSecret)
+	assert.Equal(t, string(decodedSharedSecret), deployKeyAndSecret.SharedSecret)
 }
 
 func TestRegenerateDeployKey_CreateSharedSecret(t *testing.T) {
@@ -1299,8 +1297,7 @@ func TestRegenerateDeployKey_CreateSharedSecret(t *testing.T) {
 	appResponseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", parameters)
 	<-appResponseChannel
 
-	regenerateParameters := &applicationModels.RegenerateSharedSecretData{}
-	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), regenerateParameters)
+	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), nil)
 	response := <-responseChannel
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
@@ -1312,7 +1309,7 @@ func TestRegenerateDeployKey_CreateSharedSecret(t *testing.T) {
 	assert.NotEmpty(t, newSharedSecret)
 
 	deployKeyAndSecret := &applicationModels.DeployKeyAndSecret{}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), regenerateParameters)
+	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), nil)
 	response = <-responseChannel
 	assert.Equal(t, http.StatusOK, response.Code)
 	err = controllertest.GetResponseBody(response, &deployKeyAndSecret)

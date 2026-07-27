@@ -437,23 +437,22 @@ func (ah *ApplicationHandler) RegenerateDeployKey(ctx context.Context, appName s
 }
 
 // RegenerateSharedSecret Regenerates the GitHub webhook secret for an application.
-func (ah *ApplicationHandler) RegenerateSharedSecret(ctx context.Context, appName string, regenerateWebhookSecretData applicationModels.RegenerateSharedSecretData) error {
-	sharedKey := strings.TrimSpace(regenerateWebhookSecretData.SharedSecret)
+func (ah *ApplicationHandler) RegenerateSharedSecret(ctx context.Context, appName string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Make check that this is an existing application and that the user has access to the secret
 		currentSecret, err := ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
-		if len(sharedKey) == 0 {
-			sharedKey = rand.Text()
-		}
 
 		newSecret := currentSecret.DeepCopy()
 		if newSecret.Data == nil {
 			newSecret.Data = map[string][]byte{}
 		}
+
+		sharedKey := rand.Text()
 		newSecret.Data[defaults.WebhookSharedSecretKey] = []byte(base64.StdEncoding.EncodeToString([]byte(sharedKey)))
+
 		_, err = ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Update(ctx, newSecret, metav1.UpdateOptions{})
 		return err
 	})

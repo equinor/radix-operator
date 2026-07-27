@@ -455,12 +455,6 @@ func (ac *applicationController) RegenerateSharedSecretHandler(accounts models.A
 	//   description: name of application
 	//   type: string
 	//   required: true
-	// - name: regenerateRegenerateSharedSecretData
-	//   in: body
-	//   description: Regenerate shared secret and secret data
-	//   required: true
-	//   schema:
-	//       "$ref": "#/definitions/RegenerateSharedSecretData"
 	// - name: Impersonate-User
 	//   in: header
 	//   description: Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)
@@ -482,12 +476,8 @@ func (ac *applicationController) RegenerateSharedSecretHandler(accounts models.A
 	//     description: "Conflict"
 	appName := mux.Vars(r)["appName"]
 	handler := ac.applicationHandlerFactory.Create(accounts)
-	var sharedSecret applicationModels.RegenerateSharedSecretData
-	if err := json.NewDecoder(r.Body).Decode(&sharedSecret); err != nil {
-		ac.ErrorResponse(w, r, err)
-		return
-	}
-	err := handler.RegenerateSharedSecret(r.Context(), appName, sharedSecret)
+	
+	err := handler.RegenerateSharedSecret(r.Context(), appName)
 
 	if err != nil {
 		ac.ErrorResponse(w, r, err)
