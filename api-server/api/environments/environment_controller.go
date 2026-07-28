@@ -1487,6 +1487,12 @@ func (c *environmentController) GetScheduledJobLog(accounts models.Accounts, w h
 	//   type: string
 	//   format: boolean
 	//   required: false
+	// - name: previous
+	//   in: query
+	//   description: Get previous container log if true
+	//   type: string
+	//   format: boolean
+	//   required: false
 	// - name: Impersonate-User
 	//   in: header
 	//   description: Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)
@@ -2652,14 +2658,14 @@ func (c *environmentController) GetOAuthAuxiliaryResourcePodLog(accounts models.
 	componentName := mux.Vars(r)["componentName"]
 	podName := mux.Vars(r)["podName"]
 
-	since, asFile, asFollow, logLines, err, _ := logs.GetLogParams(r)
+	since, asFile, asFollow, logLines, err, previousLog := logs.GetLogParams(r)
 	if err != nil {
 		c.ErrorResponse(w, r, err)
 		return
 	}
 
 	eh := c.environmentHandlerFactory(accounts)
-	logs, err := eh.GetAuxiliaryResourcePodLog(r.Context(), appName, envName, componentName, auxType, podName, &since, logLines, asFollow)
+	logs, err := eh.GetAuxiliaryResourcePodLog(r.Context(), appName, envName, componentName, auxType, podName, &since, logLines, previousLog, asFollow)
 	if err != nil {
 		c.ErrorResponse(w, r, err)
 		return
