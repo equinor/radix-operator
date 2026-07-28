@@ -1487,12 +1487,6 @@ func (c *environmentController) GetScheduledJobLog(accounts models.Accounts, w h
 	//   type: string
 	//   format: boolean
 	//   required: false
-	// - name: previous
-	//   in: query
-	//   description: Get previous container log if true
-	//   type: string
-	//   format: boolean
-	//   required: false
 	// - name: Impersonate-User
 	//   in: header
 	//   description: Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)
