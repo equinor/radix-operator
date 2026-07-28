@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.123.0](https://github.com/equinor/radix-operator/compare/v1.122.2..v1.123.0) - 2026-07-28
+
+### 🚀 Features
+
+- Store cron schedule as annotation on RadixBatch, and return it through the API. (#1865) - ([bb9d134](https://github.com/equinor/radix-operator/commit/bb9d13497d33aef00abd186bc3c2f20f013088b7)) by @jacobsolbergholm in [#1865](https://github.com/equinor/radix-operator/pull/1865)
+
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump go version and dependencies (#1869) - ([f6475d9](https://github.com/equinor/radix-operator/commit/f6475d90894bc03cfb820daf23e8ee94a44c9559)) by @nilsgstrabo in [#1869](https://github.com/equinor/radix-operator/pull/1869)
+
+
 ## [1.122.2](https://github.com/equinor/radix-operator/compare/v1.122.1..v1.122.2) - 2026-07-24
 
 ### 🐛 Bug Fixes
