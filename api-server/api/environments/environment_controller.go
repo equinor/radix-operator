@@ -2611,6 +2611,12 @@ func (c *environmentController) GetOAuthAuxiliaryResourcePodLog(accounts models.
 	//   type: string
 	//   format: number
 	//   required: false
+	// - name: previous
+	//   in: query
+	//   description: Get previous container log if true
+	//   type: string
+	//   format: boolean
+	//   required: false
 	// - name: file
 	//   in: query
 	//   description: Get log as a file if true
