@@ -46,7 +46,7 @@ func (ph PodHandler) HandleGetEnvironmentScheduledJobLog(ctx context.Context, ap
 }
 
 // HandleGetEnvironmentAuxiliaryResourcePodLog Get logs from auxiliary resource pod in environment
-func (ph PodHandler) HandleGetEnvironmentAuxiliaryResourcePodLog(ctx context.Context, appName, envName, componentName, auxType, podName string, sinceTime *time.Time, logLines *int64, previousLog bool, follow bool) (io.ReadCloser, error) {
+func (ph PodHandler) HandleGetEnvironmentAuxiliaryResourcePodLog(ctx context.Context, appName, envName, componentName, auxType, podName string, sinceTime *time.Time, logLines *int64, previousLog, follow bool) (io.ReadCloser, error) {
 	envNs := crdUtils.GetEnvironmentNamespace(appName, envName)
 	pods, err := ph.client.CoreV1().Pods(envNs).List(ctx, metav1.ListOptions{
 		LabelSelector: labelselector.ForAuxiliaryResource(appName, componentName, auxType).String(),
