@@ -23,35 +23,6 @@ const (
 	anyAuxPod  = "oauth-pod-1"
 )
 
-// registerApp creates a minimal RadixRegistration so the authorization middleware
-// does not reject the request with 404.
-func registerApp(t *testing.T, commonTestUtils *commontest.Utils, appName string) {
-	t.Helper()
-	_, err := commonTestUtils.ApplyRegistration(operatorutils.NewRegistrationBuilder().WithName(appName))
-	require.NoError(t, err)
-}
-
-// createAuxResourcePod creates a pod in the fake Kubernetes client with labels matching
-// ForAuxiliaryResource(appName, componentName, auxType).
-func createAuxResourcePod(t *testing.T, kubeclient *kubefake.Clientset, appName, envName, componentName, auxType, podName string) {
-	t.Helper()
-	envNs := operatorutils.GetEnvironmentNamespace(appName, envName)
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      podName,
-			Namespace: envNs,
-			Labels: map[string]string{
-				kube.RadixAppLabel:                    appName,
-				kube.RadixAuxiliaryComponentLabel:     componentName,
-				kube.RadixAuxiliaryComponentTypeLabel: auxType,
-			},
-		},
-	}
-	_, err := kubeclient.CoreV1().Pods(envNs).Create(context.Background(), pod, metav1.CreateOptions{})
-	require.NoError(t, err)
-}
-
-// auxPodLogURL returns the URL for the GetOAuthAuxiliaryResourcePodLog route.
 func auxPodLogURL(appName, envName, componentName, auxType, podName, rawQuery string) string {
 	url := fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/aux/%s/replicas/%s/logs",
 		appName, envName, componentName, auxType, podName)
@@ -61,122 +32,106 @@ func auxPodLogURL(appName, envName, componentName, auxType, podName, rawQuery st
 	return url
 }
 
-// captureLogOptsReactor returns a PrependReactor function that captures the PodLogOptions
-// passed to the fake Kubernetes GetLogs call and injects a dummy log body so the stream
-// succeeds. The captured options are stored in the pointer returned.
-func captureLogOptsReactor(t *testing.T, captured **corev1.PodLogOptions) testing2.ReactionFunc {
+// setupAuxLogTest registers the app, creates a matching pod, installs a pods/log reactor
+// that captures PodLogOptions, and returns a pointer-to-pointer so the caller can read
+// the captured value after the request completes.
+func setupAuxLogTest(t *testing.T, commonTestUtils *commontest.Utils, kubeclient *kubefake.Clientset) **corev1.PodLogOptions {
 	t.Helper()
-	return func(action testing2.Action) (bool, runtime.Object, error) {
+	_, err := commonTestUtils.ApplyRegistration(operatorutils.NewRegistrationBuilder().WithName(anyAppName))
+	require.NoError(t, err)
+
+	envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+	_, err = kubeclient.CoreV1().Pods(envNs).Create(context.Background(), &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      anyAuxPod,
+			Namespace: envNs,
+			Labels: map[string]string{
+				kube.RadixAppLabel:                    anyAppName,
+				kube.RadixAuxiliaryComponentLabel:     anyComponentName,
+				kube.RadixAuxiliaryComponentTypeLabel: anyAuxType,
+			},
+		},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	var captured *corev1.PodLogOptions
+	kubeclient.PrependReactor("get", "pods/log", func(action testing2.Action) (bool, runtime.Object, error) {
 		genericAction, ok := action.(testing2.GenericAction)
-		require.True(t, ok, "expected testing2.GenericAction for pods/log get")
-		opts, ok := genericAction.GetValue().(*corev1.PodLogOptions)
-		require.True(t, ok, "expected *corev1.PodLogOptions as action value")
-		*captured = opts
+		require.True(t, ok)
+		captured, ok = genericAction.GetValue().(*corev1.PodLogOptions)
+		require.True(t, ok)
 		return true, &runtime.Unknown{Raw: []byte("fake log content")}, nil
+	})
+	return &captured
+}
+
+// TestGetOAuthAuxiliaryResourcePodLog_LogOptions verifies that query parameters are
+// correctly forwarded as PodLogOptions fields.
+func TestGetOAuthAuxiliaryResourcePodLog_LogOptions(t *testing.T) {
+	tests := []struct {
+		query        string
+		wantPrevious bool
+		wantFollow   bool
+	}{
+		{query: "previous=true", wantPrevious: true},
+		{query: "previous=false", wantPrevious: false},
+		{query: "", wantPrevious: false},
+		{query: "previous=true&follow=false", wantPrevious: true, wantFollow: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.query, func(t *testing.T) {
+			commonTestUtils, envUtils, _, kubeclient, _, _, _, _, _ := setupTest(t, nil)
+			capturedPtr := setupAuxLogTest(t, commonTestUtils, kubeclient)
+
+			response := <-envUtils.ExecuteRequest("GET",
+				auxPodLogURL(anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod, tt.query))
+
+			assert.Equal(t, http.StatusOK, response.Code)
+			require.NotNil(t, *capturedPtr, "expected GetLogs to have been called")
+			assert.Equal(t, tt.wantPrevious, (*capturedPtr).Previous)
+			assert.Equal(t, tt.wantFollow, (*capturedPtr).Follow)
+		})
 	}
 }
 
-// TestGetOAuthAuxiliaryResourcePodLog_PreviousTrue tests that ?previous=true is
-// propagated as PodLogOptions.Previous=true when streaming aux-resource pod logs.
-func TestGetOAuthAuxiliaryResourcePodLog_PreviousTrue_PassedToK8sLogOptions(t *testing.T) {
-	commonTestUtils, envControllerTestUtils, _, kubeclient, _, _, _, _, _ := setupTest(t, nil)
-	registerApp(t, commonTestUtils, anyAppName)
-	createAuxResourcePod(t, kubeclient, anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod)
+// TestGetOAuthAuxiliaryResourcePodLog_Errors verifies error responses for bad input.
+func TestGetOAuthAuxiliaryResourcePodLog_Errors(t *testing.T) {
+	tests := []struct {
+		name       string
+		podName    string
+		query      string
+		wantStatus int
+	}{
+		{name: "invalid previous param", podName: anyAuxPod, query: "previous=notabool", wantStatus: http.StatusBadRequest},
+		{name: "pod not found", podName: "nonexistent-pod", query: "", wantStatus: http.StatusNotFound},
+	}
 
-	var capturedOpts *corev1.PodLogOptions
-	kubeclient.PrependReactor("get", "pods/log", captureLogOptsReactor(t, &capturedOpts))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			commonTestUtils, envUtils, _, kubeclient, _, _, _, _, _ := setupTest(t, nil)
+			_, err := commonTestUtils.ApplyRegistration(operatorutils.NewRegistrationBuilder().WithName(anyAppName))
+			require.NoError(t, err)
+			if tt.podName == anyAuxPod {
+				envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+				_, err = kubeclient.CoreV1().Pods(envNs).Create(context.Background(), &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      anyAuxPod,
+						Namespace: envNs,
+						Labels: map[string]string{
+							kube.RadixAppLabel:                    anyAppName,
+							kube.RadixAuxiliaryComponentLabel:     anyComponentName,
+							kube.RadixAuxiliaryComponentTypeLabel: anyAuxType,
+						},
+					},
+				}, metav1.CreateOptions{})
+				require.NoError(t, err)
+			}
 
-	responseChannel := envControllerTestUtils.ExecuteRequest("GET",
-		auxPodLogURL(anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod, "previous=true"))
-	response := <-responseChannel
+			response := <-envUtils.ExecuteRequest("GET",
+				auxPodLogURL(anyAppName, anyEnvironment, anyComponentName, anyAuxType, tt.podName, tt.query))
 
-	assert.Equal(t, http.StatusOK, response.Code)
-	require.NotNil(t, capturedOpts, "expected GetLogs to have been called")
-	assert.True(t, capturedOpts.Previous, "expected PodLogOptions.Previous=true")
-}
-
-// TestGetOAuthAuxiliaryResourcePodLog_PreviousFalse tests that ?previous=false is
-// propagated as PodLogOptions.Previous=false.
-func TestGetOAuthAuxiliaryResourcePodLog_PreviousFalse_PassedToK8sLogOptions(t *testing.T) {
-	commonTestUtils, envControllerTestUtils, _, kubeclient, _, _, _, _, _ := setupTest(t, nil)
-	registerApp(t, commonTestUtils, anyAppName)
-	createAuxResourcePod(t, kubeclient, anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod)
-
-	var capturedOpts *corev1.PodLogOptions
-	kubeclient.PrependReactor("get", "pods/log", captureLogOptsReactor(t, &capturedOpts))
-
-	responseChannel := envControllerTestUtils.ExecuteRequest("GET",
-		auxPodLogURL(anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod, "previous=false"))
-	response := <-responseChannel
-
-	assert.Equal(t, http.StatusOK, response.Code)
-	require.NotNil(t, capturedOpts, "expected GetLogs to have been called")
-	assert.False(t, capturedOpts.Previous, "expected PodLogOptions.Previous=false")
-}
-
-// TestGetOAuthAuxiliaryResourcePodLog_NoPreviousParam tests that omitting the previous
-// query parameter results in PodLogOptions.Previous=false (default).
-func TestGetOAuthAuxiliaryResourcePodLog_NoPreviousParam_DefaultsFalse(t *testing.T) {
-	commonTestUtils, envControllerTestUtils, _, kubeclient, _, _, _, _, _ := setupTest(t, nil)
-	registerApp(t, commonTestUtils, anyAppName)
-	createAuxResourcePod(t, kubeclient, anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod)
-
-	var capturedOpts *corev1.PodLogOptions
-	kubeclient.PrependReactor("get", "pods/log", captureLogOptsReactor(t, &capturedOpts))
-
-	responseChannel := envControllerTestUtils.ExecuteRequest("GET",
-		auxPodLogURL(anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod, ""))
-	response := <-responseChannel
-
-	assert.Equal(t, http.StatusOK, response.Code)
-	require.NotNil(t, capturedOpts, "expected GetLogs to have been called")
-	assert.False(t, capturedOpts.Previous, "expected PodLogOptions.Previous=false when parameter is absent")
-}
-
-// TestGetOAuthAuxiliaryResourcePodLog_InvalidPreviousParam tests that an unparseable
-// value for the previous query parameter causes the handler to return an error response.
-func TestGetOAuthAuxiliaryResourcePodLog_InvalidPreviousParam_ReturnsError(t *testing.T) {
-	commonTestUtils, envControllerTestUtils, _, kubeclient, _, _, _, _, _ := setupTest(t, nil)
-	registerApp(t, commonTestUtils, anyAppName)
-	createAuxResourcePod(t, kubeclient, anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod)
-
-	responseChannel := envControllerTestUtils.ExecuteRequest("GET",
-		auxPodLogURL(anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod, "previous=notabool"))
-	response := <-responseChannel
-
-	assert.NotEqual(t, http.StatusOK, response.Code, "expected non-200 response for invalid previous param")
-}
-
-// TestGetOAuthAuxiliaryResourcePodLog_PodNotFound tests that requesting logs for a pod
-// that does not exist returns 404 Not Found.
-func TestGetOAuthAuxiliaryResourcePodLog_PodNotFound_Returns404(t *testing.T) {
-	commonTestUtils, envControllerTestUtils, _, _, _, _, _, _, _ := setupTest(t, nil)
-	registerApp(t, commonTestUtils, anyAppName)
-	// no pod is created – the List call will return an empty list
-
-	responseChannel := envControllerTestUtils.ExecuteRequest("GET",
-		auxPodLogURL(anyAppName, anyEnvironment, anyComponentName, anyAuxType, "nonexistent-pod", "previous=true"))
-	response := <-responseChannel
-
-	assert.Equal(t, http.StatusNotFound, response.Code)
-}
-
-// TestGetOAuthAuxiliaryResourcePodLog_FollowAndPrevious tests that both follow and
-// previous query parameters are forwarded independently.
-func TestGetOAuthAuxiliaryResourcePodLog_FollowAndPrevious_BothPropagated(t *testing.T) {
-	commonTestUtils, envControllerTestUtils, _, kubeclient, _, _, _, _, _ := setupTest(t, nil)
-	registerApp(t, commonTestUtils, anyAppName)
-	createAuxResourcePod(t, kubeclient, anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod)
-
-	var capturedOpts *corev1.PodLogOptions
-	kubeclient.PrependReactor("get", "pods/log", captureLogOptsReactor(t, &capturedOpts))
-
-	responseChannel := envControllerTestUtils.ExecuteRequest("GET",
-		auxPodLogURL(anyAppName, anyEnvironment, anyComponentName, anyAuxType, anyAuxPod, "previous=true&follow=false"))
-	response := <-responseChannel
-
-	assert.Equal(t, http.StatusOK, response.Code)
-	require.NotNil(t, capturedOpts)
-	assert.True(t, capturedOpts.Previous)
-	assert.False(t, capturedOpts.Follow)
+			assert.Equal(t, tt.wantStatus, response.Code)
+		})
+	}
 }
