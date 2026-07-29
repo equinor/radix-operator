@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.124.0](https://github.com/equinor/radix-operator/compare/v1.123.0..v1.124.0) - 2026-07-29
+
+### 🚀 Features
+
+- *(logs)* Add ´previous´ parameter in GetEnvironmentAuxiliaryResourcePodLog endpoint  (#1873) - ([1882051](https://github.com/equinor/radix-operator/commit/18820510cefce41069332c42755f57658b35af3f)) by @herda1 in [#1873](https://github.com/equinor/radix-operator/pull/1873)
+
+
 ## [1.123.0](https://github.com/equinor/radix-operator/compare/v1.122.2..v1.123.0) - 2026-07-28
 
 ### 🚀 Features
