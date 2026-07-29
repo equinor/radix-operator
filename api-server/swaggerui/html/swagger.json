@@ -1616,6 +1616,13 @@
           {
             "type": "string",
             "format": "boolean",
+            "description": "Get previous container log if true",
+            "name": "previous",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "boolean",
             "description": "Get log as a file if true",
             "name": "file",
             "in": "query"
