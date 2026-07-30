@@ -9,7 +9,7 @@ import (
 
 // InstallGatewayApiCRDs installs the Gateway API CRDs from GitHub
 func InstallGatewayApiCRDs(ctx context.Context, KubeConfigPath string) error {
-	crdURL := "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/experimental-install.yaml"
+	crdURL := "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml"
 
 	fmt.Print("Installing Gateway API CRDs...\n")
 

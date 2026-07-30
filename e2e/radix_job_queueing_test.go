@@ -9,11 +9,19 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	queueTestPrereqTimeout   = 15 * time.Second
+	queueTestProgressTimeout = 60 * time.Second
+	queueTestPollInterval    = 200 * time.Millisecond
+	queueTestCreationSpacing = 1100 * time.Millisecond
 )
 
 // TestRadixJobQueueingOrder verifies the operator's job queueing and execution order:
@@ -26,7 +34,13 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 	c := getClient(t)
 	appName := "queue-order-test"
 
+	readyCtx, cancelReady := context.WithTimeout(t.Context(), queueTestPrereqTimeout)
+	defer cancelReady()
+	require.NoError(t, WaitForDeploymentReady(readyCtx, c, "radix-system", "radix-operator"), "radix-operator deployment should be ready")
+
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
+	require.NoError(t, waitForSecret(t.Context(), c, appNamespace, defaults.GitPrivateKeySecretName, queueTestPrereqTimeout),
+		"registration secret %s should be created in %s", defaults.GitPrivateKeySecretName, appNamespace)
 
 	// RadixApplication mapping branch "dev" -> environment "dev" and branch "prod" -> environment "prod".
 	ra := &v1.RadixApplication{
@@ -40,12 +54,9 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 	}
 	require.NoError(t, c.Create(t.Context(), ra), "should create RadixApplication")
 
-	// Wait for the operator to provision the pipeline RBAC (radix-pipeline-app RoleBinding) in the
-	// app namespace before creating any jobs. The pipeline pod uses the radix-pipeline service
-	// account to read RadixApplication and RadixJob resources; if it starts before this RoleBinding
-	// exists it fails fast with a forbidden error. With locally-loaded images the pod starts almost
-	// instantly, so the RBAC must be in place first to avoid a flaky race.
-	require.NoError(t, waitForPipelineRBAC(t.Context(), c, appNamespace, 60*time.Second), "pipeline RBAC should be provisioned in %s", appNamespace)
+	// Wait for pipeline RBAC before creating jobs. Without this RoleBinding, the pipeline service
+	// account may fail fast with forbidden errors and the job might never leave the initial state.
+	require.NoError(t, waitForPipelineRBAC(t.Context(), c, appNamespace, queueTestPrereqTimeout), "pipeline RBAC should be provisioned in %s", appNamespace)
 
 	const (
 		applyJob = "j-apply-config"
@@ -80,18 +91,24 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 	// build-deploy jobs created afterwards run after it. We accept any started state (including an
 	// already-finished one) because the apply-config pipeline can complete very quickly.
 	createApplyConfigJob(applyJob)
-	cond, err := waitForJobCondition(t.Context(), c, appNamespace, applyJob, hasStartedCondition, 90*time.Second)
-	require.NoError(t, err, "apply-config job should start, last condition: %s", cond)
+	require.NoError(t, waitForJobCount(t.Context(), c, appNamespace, 1, queueTestPrereqTimeout),
+		"apply-config RadixJob object should be created in %s", appNamespace)
 
 	// Create build-deploy jobs across both environments while the apply-config job is active.
 	// Space creations > 1s apart so the jobs get distinct (second-precision) CreationTimestamps,
 	// which the operator uses to determine execution order. We don't assert the transient queued
 	// state here (the apply-config job may finish quickly); the execution order is verified below.
 	createBuildDeployJob(devJob1, "dev")
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(queueTestCreationSpacing)
 	createBuildDeployJob(prodJob1, "prod")
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(queueTestCreationSpacing)
 	createBuildDeployJob(devJob2, "dev")
+
+	require.NoError(t, waitForJobCount(t.Context(), c, appNamespace, 4, queueTestPrereqTimeout),
+		"all RadixJob objects should be created in %s", appNamespace)
+
+	cond, err := waitForJobCondition(t.Context(), c, appNamespace, applyJob, hasStartedCondition, queueTestProgressTimeout)
+	require.NoError(t, err, "apply-config job should start, last condition: %s", cond)
 
 	// --- Phase 2: jobs are released and executed in the correct order ---
 
@@ -102,7 +119,7 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 	activationOrder := []string{applyJob}
 	activated := map[string]bool{applyJob: true}
 
-	drainErr := wait.PollUntilContextTimeout(t.Context(), 500*time.Millisecond, 4*time.Minute, true, func(ctx context.Context) (bool, error) {
+	drainErr := wait.PollUntilContextTimeout(t.Context(), queueTestPollInterval, queueTestProgressTimeout, true, func(ctx context.Context) (bool, error) {
 		jobs := &v1.RadixJobList{}
 		if err := c.List(ctx, jobs, client.InNamespace(appNamespace)); err != nil {
 			return false, nil
@@ -169,7 +186,7 @@ func indexOf(s []string, v string) int {
 // the app namespace, which grants the radix-pipeline service account access to read
 // RadixApplication and RadixJob resources during the pipeline run.
 func waitForPipelineRBAC(ctx context.Context, c client.Client, namespace string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(ctx, 250*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(ctx, queueTestPollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 		rb := &rbacv1.RoleBinding{}
 		if err := c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: defaults.PipelineAppRoleName}, rb); err != nil {
 			return false, nil
@@ -181,7 +198,7 @@ func waitForPipelineRBAC(ctx context.Context, c client.Client, namespace string,
 // waitForJobCondition polls the RadixJob until its condition satisfies pred or the timeout elapses.
 func waitForJobCondition(ctx context.Context, c client.Client, namespace, name string, pred func(v1.RadixJobCondition) bool, timeout time.Duration) (v1.RadixJobCondition, error) {
 	var last v1.RadixJobCondition
-	err := wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(ctx, queueTestPollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 		rj := &v1.RadixJob{}
 		if err := c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, rj); err != nil {
 			return false, nil
@@ -190,6 +207,28 @@ func waitForJobCondition(ctx context.Context, c client.Client, namespace, name s
 		return pred(last), nil
 	})
 	return last, err
+}
+
+// waitForJobCount polls RadixJobs in a namespace until at least expected jobs exist.
+func waitForJobCount(ctx context.Context, c client.Client, namespace string, expected int, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(ctx, queueTestPollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		jobs := &v1.RadixJobList{}
+		if err := c.List(ctx, jobs, client.InNamespace(namespace)); err != nil {
+			return false, nil
+		}
+		return len(jobs.Items) >= expected, nil
+	})
+}
+
+// waitForSecret polls until a Secret exists in the namespace.
+func waitForSecret(ctx context.Context, c client.Client, namespace, name string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(ctx, queueTestPollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		secret := &corev1.Secret{}
+		if err := c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret); err == nil {
+			return true, nil
+		}
+		return false, nil
+	})
 }
 
 // setJobStop sets the Stop flag on a RadixJob, retrying on conflict.
