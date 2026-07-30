@@ -169,9 +169,9 @@ spec:
               value: {{ .Values.radixPipelineRunner.image.pullPolicy | default "Always" }}
 
             - name: RADIXOPERATOR_INGRESS_GATEWAY_NAME
-              value: {{ required "gateway name is required to operate" .Values.ingress.gateway.name }}
+              value: {{ required "ingress.gateway.name is required to operate" .Values.ingress.gateway.name }}
             - name: RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE
-              value: {{ required "gateway namespace is required to operate" .Values.ingress.gateway.namespace }}
+              value: {{ required "ingress.gateway.namespace is required to operate" .Values.ingress.gateway.namespace }}
             - name: RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME
               value: {{ .Values.ingress.gateway.sectionName }}
             - name: RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD

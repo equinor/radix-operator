@@ -67,4 +67,9 @@ type ApplicationRegistration struct {
 	//
 	// required: false
 	ConfigurationItem string `json:"configurationItem"`
+
+	// HasMigratedFederatedCredential indicates whether federated credential annotation exists
+	//
+	// required: true
+	HasMigratedFederatedCredential bool `json:"hasMigratedFederatedCredential"`
 }

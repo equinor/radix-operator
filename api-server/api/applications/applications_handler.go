@@ -27,6 +27,7 @@ import (
 	"github.com/equinor/radix-operator/api-server/models"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -547,6 +548,34 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 		return userShouldBeMemberOfAdminAdGroupError()
 	}
 	return nil
+}
+
+// SetFederatedCredentialsMigratedAnnotation sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
+func (ah *ApplicationHandler) SetFederatedCredentialsMigratedAnnotation(ctx context.Context, appName string) error {
+	const federatedCredentialsMigratedAnnotation = kube.RadixFederatedCredentialsMigratedAnnotation
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentRegistration, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		if _, exists := currentRegistration.Annotations[federatedCredentialsMigratedAnnotation]; exists {
+			return nil
+		}
+
+		updatedRegistration := currentRegistration.DeepCopy()
+		if updatedRegistration.Annotations == nil {
+			updatedRegistration.Annotations = map[string]string{}
+		}
+
+		now := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
+		user := auth.GetOriginator(ctx)
+		updatedRegistration.Annotations[federatedCredentialsMigratedAnnotation] = fmt.Sprintf("%s, %s", user, now)
+
+		_, err = ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Update(ctx, updatedRegistration, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func createRoleToGetConfigMap(ctx context.Context, kubeClient kubernetes.Interface, namespace, roleName string, labels map[string]string, configMapName string) (*rbacv1.Role, error) {

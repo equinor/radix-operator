@@ -2,7 +2,77 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.120.3](https://github.com/equinor/radix-operator/compare/v1.120.2..v1.120.3) - 2026-07-07
+## [1.124.0](https://github.com/equinor/radix-operator/compare/v1.123.0..v1.124.0) - 2026-07-29
+
+### 🚀 Features
+
+- *(logs)* Add ´previous´ parameter in GetEnvironmentAuxiliaryResourcePodLog endpoint  (#1873) - ([1882051](https://github.com/equinor/radix-operator/commit/18820510cefce41069332c42755f57658b35af3f)) by @herda1 in [#1873](https://github.com/equinor/radix-operator/pull/1873)
+
+
+## [1.123.0](https://github.com/equinor/radix-operator/compare/v1.122.2..v1.123.0) - 2026-07-28
+
+### 🚀 Features
+
+- Store cron schedule as annotation on RadixBatch, and return it through the API. (#1865) - ([bb9d134](https://github.com/equinor/radix-operator/commit/bb9d13497d33aef00abd186bc3c2f20f013088b7)) by @jacobsolbergholm in [#1865](https://github.com/equinor/radix-operator/pull/1865)
+
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump go version and dependencies (#1869) - ([f6475d9](https://github.com/equinor/radix-operator/commit/f6475d90894bc03cfb820daf23e8ee94a44c9559)) by @nilsgstrabo in [#1869](https://github.com/equinor/radix-operator/pull/1869)
+
+
+## [1.122.2](https://github.com/equinor/radix-operator/compare/v1.122.1..v1.122.2) - 2026-07-24
+
+### 🐛 Bug Fixes
+
+- Custom radix arguments to sub pipeline not populated for promote and deploy jobs (#1855) - ([a48af74](https://github.com/equinor/radix-operator/commit/a48af746453c884a15d0b975e6b258ce4aa95927)) by @nilsgstrabo in [#1855](https://github.com/equinor/radix-operator/pull/1855)
+
+
+## [1.122.1](https://github.com/equinor/radix-operator/compare/v1.122.0..v1.122.1) - 2026-07-23
+
+### 🐛 Bug Fixes
+
+- Resolve environments mapped to tags for github webhook push events (#1857) - ([611013a](https://github.com/equinor/radix-operator/commit/611013a4ca9d3f28f82f0786741da56a90eed0ed)) by @nilsgstrabo in [#1857](https://github.com/equinor/radix-operator/pull/1857)
+
+
+## [1.122.0](https://github.com/equinor/radix-operator/compare/v1.121.1..v1.122.0) - 2026-07-22
+
+### 🚀 Features
+
+- Support in API to set and fetch annotations regarding federated credential migraton (#1845) - ([9dc79e7](https://github.com/equinor/radix-operator/commit/9dc79e7fbc07a43be097f8883cebffea49acf8e0)) by @jacobsolbergholm in [#1845](https://github.com/equinor/radix-operator/pull/1845)
+
+- Get annotation in get application (#1846) - ([169e33e](https://github.com/equinor/radix-operator/commit/169e33eaf444c7980bae2610b21223e44696eb1e)) by @herda1 in [#1846](https://github.com/equinor/radix-operator/pull/1846)
+
+
+### 🐛 Bug Fixes
+
+- *(api)* Make HasFederatedCredentialAnnotation bool (#1849) - ([976bfe9](https://github.com/equinor/radix-operator/commit/976bfe98c6a0ef4472b14ab7a76249e91bf54092)) by @herda1 in [#1849](https://github.com/equinor/radix-operator/pull/1849)
+
+
+## [1.121.1](https://github.com/equinor/radix-operator/compare/v1.121.0..v1.121.1) - 2026-07-10
+
+### 🐛 Bug Fixes
+
+- More logging for GitHub Push events (#1837) - ([56cee44](https://github.com/equinor/radix-operator/commit/56cee441f02ff7821be18dbd6f65c50c2a9c2118)) by @Richard87 in [#1837](https://github.com/equinor/radix-operator/pull/1837)
+
+- Allow api-server to create events (#1840) - ([121b8c3](https://github.com/equinor/radix-operator/commit/121b8c3516ace1498a95a39333476be074dbb171)) by @Richard87 in [#1840](https://github.com/equinor/radix-operator/pull/1840)
+
+
+## [1.121.0](https://github.com/equinor/radix-operator/compare/v1.120.4..v1.121.0) - 2026-07-08
+
+### 🚀 Features
+
+- Replace gateway api XListenerSet with ListenerSet (#1799) - ([55b9f8c](https://github.com/equinor/radix-operator/commit/55b9f8c155e61b30f5a7b88d4eed4edd7ba8a799)) by @nilsgstrabo in [#1799](https://github.com/equinor/radix-operator/pull/1799)
+
+
+## [1.120.4](https://github.com/equinor/radix-operator/compare/v1.120.3..v1.120.4) - 2026-07-08
+
+### 🐛 Bug Fixes
+
+- Add Retry on conflict for patching job objects (#1829) - ([34b0dd9](https://github.com/equinor/radix-operator/commit/34b0dd9a497d1a8481ad9fadd67a9000d984969c)) by @Richard87 in [#1829](https://github.com/equinor/radix-operator/pull/1829)
+
+
+## [1.120.3](https://github.com/equinor/radix-operator/compare/v1.120.2..v1.120.3) - 2026-07-08
 
 ### 🐛 Bug Fixes
 

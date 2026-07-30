@@ -58,6 +58,12 @@ type ScheduledJobSummary struct {
 	// example: "batch-abc"
 	BatchName string `json:"batchName,omitempty"`
 
+	// CronSchedule is the cron schedule expression, if this job was created by a cron schedule.
+	//
+	// required: false
+	// example: "0 1 * * *"
+	CronSchedule string `json:"cronSchedule,omitempty"`
+
 	// TimeLimitSeconds How long the job supposed to run at maximum
 	//
 	// required: false

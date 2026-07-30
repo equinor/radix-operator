@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 )
 
 type dnsType string
@@ -221,9 +220,9 @@ func (deploy *Deployment) garbageCollectHTTPRoutesNoLongerInSpec(ctx context.Con
 }
 
 func (deploy *Deployment) garbageCollectListenerSetsNoLongerInSpec(ctx context.Context) error {
-	lsList := &gatewayapixv1alpha1.XListenerSetList{}
+	lsList := &gatewayapiv1.ListenerSetList{}
 	if err := deploy.dynamicClient.List(ctx, lsList, client.InNamespace(deploy.radixDeployment.Namespace), client.MatchingLabels(labels.ForApplicationName(deploy.registration.Name))); err != nil {
-		return fmt.Errorf("failed to list XListenerSets: %w", err)
+		return fmt.Errorf("failed to list ListenerSets: %w", err)
 	}
 
 	for _, ls := range lsList.Items {
@@ -236,10 +235,10 @@ func (deploy *Deployment) garbageCollectListenerSetsNoLongerInSpec(ctx context.C
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			err := deploy.dynamicClient.Delete(ctx, &ls)
 			if client.IgnoreNotFound(err) != nil {
-				return fmt.Errorf("failed to delete XListenerSet %s: %w", ls.Name, err)
+				return fmt.Errorf("failed to delete ListenerSet %s: %w", ls.Name, err)
 			}
 			if err == nil {
-				log.Ctx(ctx).Info().Str("xlistenerset", ls.Name).Str("op", "delete").Msg("garbage collect XListenerSet no longer in spec")
+				log.Ctx(ctx).Info().Str("listenerset", ls.Name).Str("op", "delete").Msg("garbage collect ListenerSet no longer in spec")
 			}
 		}
 	}

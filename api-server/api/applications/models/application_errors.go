@@ -20,13 +20,3 @@ func UnmatchedBranchToEnvironment(branch string) error {
 func EnvironmentNotMappedToBranch(envName, branch string) error {
 	return radixhttp.ValidationError("Radix Application Pipeline", fmt.Sprintf("Failed to match environment %s to branch: %s", envName, branch))
 }
-
-// UserNotAllowedToTriggerPipelineError Triggering a pipeline is not allowed for this user and app
-func UserNotAllowedToTriggerPipelineError(appName string) error {
-	return radixhttp.ValidationError("Radix Application Pipeline", fmt.Sprintf("user is not allowed to trigger pipeline for app %s", appName))
-}
-
-// OnePartOfDeployKeyIsNotAllowed Error message
-func OnePartOfDeployKeyIsNotAllowed() error {
-	return radixhttp.ValidationError("Radix Registration", "Setting public key, but no private key is not valid")
-}

@@ -106,6 +106,7 @@ func GetScheduledJobSummary(radixBatch *radixv1.RadixBatch, radixBatchJob *radix
 		Name:           fmt.Sprintf("%s-%s", radixBatch.GetName(), radixBatchJob.Name),
 		DeploymentName: radixBatch.Spec.RadixDeploymentJobRef.Name,
 		BatchName:      batchName,
+		CronSchedule:   radixBatch.GetAnnotations()[kube.RadixBatchCronScheduleAnnotation],
 		JobId:          radixBatchJob.JobId,
 		ReplicaList:    getReplicaSummaryListForJob(radixBatch, *radixBatchJob),
 		Status:         radixv1.RadixBatchJobApiStatusWaiting,
