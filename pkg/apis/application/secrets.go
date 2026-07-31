@@ -217,19 +217,6 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 	return err
 }
 
-// webhookSharedSecretHasValidData returns true if the secret contains a non-empty, base64-encoded shared secret value.
-func getEncodedWebhookSharedSecret(secret *corev1.Secret) ([]byte, bool) {
-	encodedSharedSecret, ok := secret.Data[defaults.WebhookSharedSecretKey]
-	if !ok || len(encodedSharedSecret) == 0 {
-		return nil, false
-	}
-	_, err := base64.StdEncoding.DecodeString(string(encodedSharedSecret))
-	if err != nil {
-		return nil, false
-	}
-	return encodedSharedSecret, true
-}
-
 func (app *Application) applyContainerRegistryCredentialSecretsToAppNamespace(ctx context.Context) error {
 	appNamespace := utils.GetAppNamespace(app.registration.Name)
 
