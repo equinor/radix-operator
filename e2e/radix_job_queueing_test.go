@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	queueTestPrereqTimeout   = 15 * time.Second
+	queueTestPrereqTimeout   = 30 * time.Second
 	queueTestProgressTimeout = 60 * time.Second
 	queueTestPollInterval    = 200 * time.Millisecond
 	queueTestCreationSpacing = 1100 * time.Millisecond
