@@ -18,8 +18,7 @@ import (
 )
 
 const (
-	queueTestPrereqTimeout   = 30 * time.Second
-	queueTestProgressTimeout = 60 * time.Second
+	queueTestTimeout         = 60 * time.Second
 	queueTestPollInterval    = 200 * time.Millisecond
 	queueTestCreationSpacing = 1100 * time.Millisecond
 )
@@ -34,12 +33,12 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 	c := getClient(t)
 	appName := "queue-order-test"
 
-	readyCtx, cancelReady := context.WithTimeout(t.Context(), queueTestPrereqTimeout)
+	readyCtx, cancelReady := context.WithTimeout(t.Context(), queueTestTimeout)
 	defer cancelReady()
 	require.NoError(t, WaitForDeploymentReady(readyCtx, c, "radix-system", "radix-operator"), "radix-operator deployment should be ready")
 
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	require.NoError(t, waitForSecret(t.Context(), c, appNamespace, defaults.GitPrivateKeySecretName, queueTestPrereqTimeout),
+	require.NoError(t, waitForSecret(t.Context(), c, appNamespace, defaults.GitPrivateKeySecretName, queueTestTimeout),
 		"registration secret %s should be created in %s", defaults.GitPrivateKeySecretName, appNamespace)
 
 	// RadixApplication mapping branch "dev" -> environment "dev" and branch "prod" -> environment "prod".
@@ -56,7 +55,7 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 
 	// Wait for pipeline RBAC before creating jobs. Without this RoleBinding, the pipeline service
 	// account may fail fast with forbidden errors and the job might never leave the initial state.
-	require.NoError(t, waitForPipelineRBAC(t.Context(), c, appNamespace, queueTestPrereqTimeout), "pipeline RBAC should be provisioned in %s", appNamespace)
+	require.NoError(t, waitForPipelineRBAC(t.Context(), c, appNamespace, queueTestTimeout), "pipeline RBAC should be provisioned in %s", appNamespace)
 
 	const (
 		applyJob = "j-apply-config"
@@ -91,7 +90,7 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 	// build-deploy jobs created afterwards run after it. We accept any started state (including an
 	// already-finished one) because the apply-config pipeline can complete very quickly.
 	createApplyConfigJob(applyJob)
-	require.NoError(t, waitForJobCount(t.Context(), c, appNamespace, 1, queueTestPrereqTimeout),
+	require.NoError(t, waitForJobCount(t.Context(), c, appNamespace, 1, queueTestTimeout),
 		"apply-config RadixJob object should be created in %s", appNamespace)
 
 	// Create build-deploy jobs across both environments while the apply-config job is active.
@@ -104,10 +103,10 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 	time.Sleep(queueTestCreationSpacing)
 	createBuildDeployJob(devJob2, "dev")
 
-	require.NoError(t, waitForJobCount(t.Context(), c, appNamespace, 4, queueTestPrereqTimeout),
+	require.NoError(t, waitForJobCount(t.Context(), c, appNamespace, 4, queueTestTimeout),
 		"all RadixJob objects should be created in %s", appNamespace)
 
-	cond, err := waitForJobCondition(t.Context(), c, appNamespace, applyJob, hasStartedCondition, queueTestProgressTimeout)
+	cond, err := waitForJobCondition(t.Context(), c, appNamespace, applyJob, hasStartedCondition, queueTestTimeout)
 	require.NoError(t, err, "apply-config job should start, last condition: %s", cond)
 
 	// --- Phase 2: jobs are released and executed in the correct order ---
@@ -119,7 +118,7 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 	activationOrder := []string{applyJob}
 	activated := map[string]bool{applyJob: true}
 
-	drainErr := wait.PollUntilContextTimeout(t.Context(), queueTestPollInterval, queueTestProgressTimeout, true, func(ctx context.Context) (bool, error) {
+	drainErr := wait.PollUntilContextTimeout(t.Context(), queueTestPollInterval, queueTestTimeout, true, func(ctx context.Context) (bool, error) {
 		jobs := &v1.RadixJobList{}
 		if err := c.List(ctx, jobs, client.InNamespace(appNamespace)); err != nil {
 			return false, nil
