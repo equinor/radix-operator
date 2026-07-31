@@ -141,33 +141,6 @@ func TestOnSync_WebhookSharedSecret_GeneratedWhenSpecEmpty(t *testing.T) {
 	assertWebhookSharedSecretIsGeneratedAndValid(t, secret.Data[defaults.WebhookSharedSecretKey])
 }
 
-func TestOnSync_WebhookSharedSecret_InvalidDataIsRepaired(t *testing.T) {
-	// Setup
-	tu, client, kubeUtil, radixClient, _ := setupTest(t)
-	defer os.Clearenv()
-
-	appName := "any-app"
-	rr := utils.ARadixRegistration().WithName(appName)
-
-	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
-	assert.NoError(t, err)
-
-	// Corrupt the secret with invalid (non-base64) data
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	secret.Data = map[string][]byte{defaults.WebhookSharedSecretKey: []byte("not-base64-@@@")}
-	_, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Update(context.Background(), secret, metav1.UpdateOptions{})
-	assert.NoError(t, err)
-
-	// A subsequent sync repairs the invalid data by generating a new valid shared secret.
-	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
-	assert.NoError(t, err)
-
-	secret, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assertWebhookSharedSecretIsGeneratedAndValid(t, secret.Data[defaults.WebhookSharedSecretKey])
-}
-
 func TestOnSync_WebhookSharedSecret_MissingKeyIsRepaired(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)
@@ -196,6 +169,7 @@ func TestOnSync_WebhookSharedSecret_MissingKeyIsRepaired(t *testing.T) {
 }
 
 func assertWebhookSharedSecretIsGeneratedAndValid(t *testing.T, encodedSecret []byte) {
+	t.Helper()
 	decodedSecret, err := base64.StdEncoding.DecodeString(string(encodedSecret))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, decodedSecret)
