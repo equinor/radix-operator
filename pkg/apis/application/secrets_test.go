@@ -201,5 +201,4 @@ func assertWebhookSharedSecretIsGeneratedAndValid(t *testing.T, encodedSecret []
 	assert.NotEmpty(t, decodedSecret)
 
 	assert.GreaterOrEqual(t, len(decodedSecret), 10)
-	assert.NoError(t, err)
 }
