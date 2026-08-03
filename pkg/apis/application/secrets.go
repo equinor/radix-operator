@@ -199,7 +199,6 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 	if sharedSecret == "" {
 		sharedSecret = rand.Text()
 	}
-	encodedSharedSecret := base64.StdEncoding.EncodeToString([]byte(sharedSecret))
 
 	desired := &corev1.Secret{
 		Type: corev1.SecretTypeOpaque,
@@ -209,7 +208,7 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 			Labels:    labels.ForApplicationName(app.registration.Name),
 		},
 		Data: map[string][]byte{
-			defaults.WebhookSharedSecretKey: []byte(encodedSharedSecret),
+			defaults.WebhookSharedSecretKey: []byte(sharedSecret),
 		},
 	}
 

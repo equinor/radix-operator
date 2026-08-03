@@ -3,7 +3,6 @@ package applications
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -451,8 +450,7 @@ func (ah *ApplicationHandler) RegenerateSharedSecret(ctx context.Context, appNam
 			newSecret.Data = map[string][]byte{}
 		}
 
-		sharedKey := rand.Text()
-		newSecret.Data[defaults.WebhookSharedSecretKey] = []byte(base64.StdEncoding.EncodeToString([]byte(sharedKey)))
+		newSecret.Data[defaults.WebhookSharedSecretKey] = []byte(rand.Text())
 
 		_, err = ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Update(ctx, newSecret, metav1.UpdateOptions{})
 		return err
@@ -460,28 +458,20 @@ func (ah *ApplicationHandler) RegenerateSharedSecret(ctx context.Context, appNam
 }
 
 func (ah *ApplicationHandler) GetDeployKeyAndSecret(ctx context.Context, appName string) (*applicationModels.DeployKeyAndSecret, error) {
-	cm, err := ah.getUserAccount().Client.CoreV1().ConfigMaps(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		return nil, err
-	}
 	publicKey := ""
-	if cm != nil {
+	if cm, err := ah.getUserAccount().Client.CoreV1().ConfigMaps(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.GitPublicKeyConfigMapName, metav1.GetOptions{}); err != nil && !k8serrors.IsNotFound(err) {
+		return nil, err
+	} else if cm != nil {
 		publicKey = cm.Data[defaults.GitPublicKeyConfigMapKey]
 	}
-	secret, err := ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		return nil, err
-	}
+
 	sharedSecret := ""
-	if secret != nil {
-		if encodedSharedSecret := secret.Data[defaults.WebhookSharedSecretKey]; len(encodedSharedSecret) > 0 {
-			decodedSharedSecret, err := base64.StdEncoding.DecodeString(string(encodedSharedSecret))
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode shared secret: %w", err)
-			}
-			sharedSecret = string(decodedSharedSecret)
-		}
+	if secret, err := ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{}); err != nil && !k8serrors.IsNotFound(err) && !k8serrors.IsForbidden(err) {
+		return nil, err
+	} else if secret != nil {
+		sharedSecret = string(secret.Data[defaults.WebhookSharedSecretKey])
 	}
+
 	return &applicationModels.DeployKeyAndSecret{
 		PublicDeployKey: publicKey,
 		SharedSecret:    sharedSecret,

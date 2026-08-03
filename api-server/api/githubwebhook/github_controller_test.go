@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -122,7 +121,7 @@ func createWebhookSharedSecret(t *testing.T, kubeClient *kubefake.Clientset, app
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
-			defaults.WebhookSharedSecretKey: []byte(base64.StdEncoding.EncodeToString([]byte(sharedSecret))),
+			defaults.WebhookSharedSecretKey: []byte(sharedSecret),
 		},
 	}, metav1.CreateOptions{})
 	require.NoError(t, err)

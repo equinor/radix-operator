@@ -3,7 +3,6 @@ package githubwebhook
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"mime"
@@ -375,24 +374,19 @@ func getWebhookSharedSecret(ctx context.Context, rr *radixv1.RadixRegistration, 
 		return nil, fmt.Errorf("failed to get webhook secret %s: %w", defaults.WebhookSharedSecretName, err)
 	}
 
-	encodedSecret, ok := secret.Data[defaults.WebhookSharedSecretKey]
-	if !ok || len(encodedSecret) == 0 {
+	secretData, ok := secret.Data[defaults.WebhookSharedSecretKey]
+	if !ok || len(secretData) == 0 {
 		return nil, fmt.Errorf("secret %s is missing key %s", defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretKey)
 	}
 
-	decodedSecret, err := base64.StdEncoding.DecodeString(string(encodedSecret))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode secret %s key %s: %w", defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretKey, err)
-	}
-
-	if len(decodedSecret) == 0 {
+	if len(secretData) == 0 {
 		// TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
-		decodedSecret = []byte(rr.Spec.SharedSecret) //nolint:staticcheck
+		secretData = []byte(rr.Spec.SharedSecret) //nolint:staticcheck
 	}
 
-	if len(strings.TrimSpace(string(decodedSecret))) == 0 {
+	if len(strings.TrimSpace(string(secretData))) == 0 {
 		return nil, fmt.Errorf("secret %s key %s contains empty value", defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretKey)
 	}
 
-	return decodedSecret, nil
+	return secretData, nil
 }

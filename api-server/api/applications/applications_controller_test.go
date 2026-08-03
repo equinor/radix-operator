@@ -2,7 +2,6 @@ package applications
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1270,7 +1269,7 @@ func TestRegenerateDeployKey_WhenApplicationNotExist_Fail(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, response.Code)
 }
 
-func TestRegenerateDeployKey_UpdatesSharedSecret(t *testing.T) {
+func TestRegenerateDeployKey_CreateUpdatesSharedSecret(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, kubeUtil, radixClient, kedaClient, _, _, _, _ := setupTest(t)
 	appName := "any-name"
@@ -1292,47 +1291,10 @@ func TestRegenerateDeployKey_UpdatesSharedSecret(t *testing.T) {
 	appResponseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", parameters)
 	<-appResponseChannel
 
-	const newSharedSecret = "new shared secret"
-	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), nil)
-	response := <-responseChannel
-	assert.Equal(t, http.StatusNoContent, response.Code)
-
-	sharedSecret, err := kubeUtil.CoreV1().Secrets(builders.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
+	// Get old secret
+	oldSharedSecret, err := kubeUtil.CoreV1().Secrets(builders.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
-	decodedSharedSecret, err := base64.StdEncoding.DecodeString(string(sharedSecret.Data[defaults.WebhookSharedSecretKey]))
-	require.NoError(t, err)
-	assert.NotEqual(t, newSharedSecret, string(decodedSharedSecret))
-
-	deployKeyAndSecret := &applicationModels.DeployKeyAndSecret{}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), nil)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	err = controllertest.GetResponseBody(response, &deployKeyAndSecret)
-	require.NoError(t, err)
-	assert.Equal(t, string(decodedSharedSecret), deployKeyAndSecret.SharedSecret)
-}
-
-func TestRegenerateDeployKey_CreateSharedSecret(t *testing.T) {
-	// Setup
-	commonTestUtils, controllerTestUtils, kubeUtil, radixClient, kedaClient, _, _, _, _ := setupTest(t)
-	appName := "any-name"
-	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
-
-	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
-	require.NoError(t, err)
-
-	// Test
-	parameters := buildApplicationRegistrationRequest(
-		anApplicationRegistration().
-			WithName("any-name").
-			WithRepository("https://github.com/Equinor/any-repo").
-			Build(),
-		false,
-	)
-
-	appResponseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", parameters)
-	<-appResponseChannel
+	oldSharedSecretData := oldSharedSecret.Data[defaults.WebhookSharedSecretKey]
 
 	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), nil)
 	response := <-responseChannel
@@ -1340,10 +1302,8 @@ func TestRegenerateDeployKey_CreateSharedSecret(t *testing.T) {
 
 	sharedSecret, err := kubeUtil.CoreV1().Secrets(builders.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
-	decodedSharedSecret, err := base64.StdEncoding.DecodeString(string(sharedSecret.Data[defaults.WebhookSharedSecretKey]))
-	require.NoError(t, err)
-	newSharedSecret := string(decodedSharedSecret)
-	assert.NotEmpty(t, newSharedSecret)
+	newSharedSecretData := sharedSecret.Data[defaults.WebhookSharedSecretKey]
+	assert.NotEqual(t, oldSharedSecretData, newSharedSecretData)
 
 	deployKeyAndSecret := &applicationModels.DeployKeyAndSecret{}
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), nil)
@@ -1351,7 +1311,7 @@ func TestRegenerateDeployKey_CreateSharedSecret(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.Code)
 	err = controllertest.GetResponseBody(response, &deployKeyAndSecret)
 	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, deployKeyAndSecret.SharedSecret)
+	assert.Equal(t, string(newSharedSecretData), deployKeyAndSecret.SharedSecret)
 }
 
 func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
