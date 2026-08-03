@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -187,7 +186,7 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 				secret = []byte(app.registration.Spec.SharedSecret) //nolint:staticcheck
 			}
 
-			sharedSecret = []byte(base64.StdEncoding.EncodeToString(secret))
+			sharedSecret = secret
 		}
 		desired.Data[defaults.WebhookSharedSecretKey] = sharedSecret
 		_, err := app.kubeutil.UpdateSecret(ctx, current, desired)
