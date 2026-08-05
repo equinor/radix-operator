@@ -2,11 +2,11 @@ package application
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
@@ -93,7 +93,7 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 		return nil, nil, "", fmt.Errorf("failed to get known hosts secret: %w", err)
 	}
 
-	deployKey, err := getExistingOrGenerateNewDeployKey(current, app.registration)
+	deployKey, err := getExistingOrGenerateNewDeployKey(current)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to get deploy key: %w", err)
 	}
@@ -107,22 +107,21 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 	return current, desired, deployKey.PublicKey, nil
 }
 
-func getExistingOrGenerateNewDeployKey(fromSecret *corev1.Secret, fromRadixRegistration *v1.RadixRegistration) (*utils.DeployKey, error) {
-	switch {
-	case fromSecret != nil && secretHasGitPrivateDeployKey(fromSecret):
-		privateKey := fromSecret.Data[defaults.GitPrivateKeySecretKey]
+func getExistingOrGenerateNewDeployKey(secret *corev1.Secret) (*utils.DeployKey, error) {
+	if secretHasGitPrivateDeployKey(secret) {
+		privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
 		keypair, err := utils.DeriveDeployKeyFromPrivateKey(string(privateKey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse deploy key from existing secret: %w", err)
 		}
 		return keypair, nil
-	default:
-		keypair, err := utils.GenerateDeployKey()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate new git deploy key: %w", err)
-		}
-		return keypair, nil
 	}
+
+	keypair, err := utils.GenerateDeployKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate new git deploy key: %w", err)
+	}
+	return keypair, nil
 }
 
 func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx context.Context, publicKey string) (current, desired *corev1.ConfigMap, err error) {
@@ -149,6 +148,71 @@ func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx cont
 	}
 
 	return current, desired, nil
+}
+
+// applyWebhookSharedSecret ensures a Kubernetes secret holding the GitHub webhook shared secret exists in the app namespace.
+// The secret is the source of truth for the shared secret. It is only seeded once (migrating the value from the deprecated
+// RadixRegistrationSpec.SharedSecret field, or generating a new random value) and is not overwritten by the operator afterwards
+// as long as it holds valid data, so that regenerations performed through the api-server are preserved. If the secret is missing
+// or does not contain valid data, it is (re)seeded.
+func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
+	namespace := utils.GetAppNamespace(app.registration.Name)
+
+	// Cannot assign `current` directly from GetSecret since kube client returns a non-nil value even when an error is returned
+	current, err := app.kubeutil.GetSecret(ctx, namespace, defaults.WebhookSharedSecretName)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return err
+		}
+		current = nil
+	}
+
+	if current != nil {
+		desired := current.DeepCopy()
+		desired.ObjectMeta.Labels = labels.Merge(
+			desired.ObjectMeta.Labels,
+			labels.ForApplicationName(app.registration.Name),
+		)
+
+		if desired.Data == nil {
+			desired.Data = map[string][]byte{}
+		}
+		sharedSecret, valid := desired.Data[defaults.WebhookSharedSecretKey]
+		if !valid {
+			secret := []byte(rand.Text())
+
+			// Legacy support, check if the secret exist on the deprecated field on RadixRegistration and seed from it if it does
+			if strings.TrimSpace(app.registration.Spec.SharedSecret) != "" { //nolint:staticcheck
+				secret = []byte(app.registration.Spec.SharedSecret) //nolint:staticcheck
+			}
+
+			sharedSecret = secret
+		}
+		desired.Data[defaults.WebhookSharedSecretKey] = sharedSecret
+		_, err := app.kubeutil.UpdateSecret(ctx, current, desired)
+		return err
+	}
+
+	// TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
+	sharedSecret := strings.TrimSpace(app.registration.Spec.SharedSecret) //nolint:staticcheck
+	if sharedSecret == "" {
+		sharedSecret = rand.Text()
+	}
+
+	desired := &corev1.Secret{
+		Type: corev1.SecretTypeOpaque,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      defaults.WebhookSharedSecretName,
+			Namespace: namespace,
+			Labels:    labels.ForApplicationName(app.registration.Name),
+		},
+		Data: map[string][]byte{
+			defaults.WebhookSharedSecretKey: []byte(sharedSecret),
+		},
+	}
+
+	_, err = app.kubeutil.CreateSecret(ctx, namespace, desired)
+	return err
 }
 
 func (app *Application) applyContainerRegistryCredentialSecretsToAppNamespace(ctx context.Context) error {

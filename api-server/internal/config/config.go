@@ -12,8 +12,8 @@ type Config struct {
 	MetricsPort    int    `envconfig:"METRICS_PORT" default:"9090"  desc:"Port where Metrics will be served"`
 	ProfilePort    int    `envconfig:"PROFILE_PORT" default:"7070"  desc:"Port where Profiler will be served"`
 	UseProfiler    bool   `envconfig:"USE_PROFILER" default:"false" desc:"Enable Profiler"`
-	LogLevel       string `envconfig:"LOG_LEVEL" default:"info"`
-	LogPrettyPrint bool   `envconfig:"LOG_PRETTY" default:"false"`
+	LogLevel       string `envconfig:"LOG_LEVEL" default:"info" required:"false" desc:"Log level, e.g. debug, info, warn, error"`
+	LogPrettyPrint bool   `envconfig:"LOG_PRETTY" default:"false" required:"false" desc:"Enable pretty print for logs"`
 
 	DNSZone            string   `envconfig:"RADIX_DNS_ZONE" required:"true" desc:"should be <env>.radix.equinor.com"`
 	ClusterName        string   `envconfig:"RADIX_CLUSTERNAME" required:"true" desc:"Name of the cluster, e.g. weekly-40"`
@@ -28,7 +28,7 @@ type Config struct {
 
 type Oidc struct {
 	Issuer   url.URL `envconfig:"ISSUER" required:"true"`
-	Audience string  `envconfig:"Audience" required:"true"`
+	Audience string  `envconfig:"AUDIENCE" required:"true"`
 }
 
 func MustParse() Config {

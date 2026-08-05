@@ -5576,15 +5576,6 @@
             "required": true
           },
           {
-            "description": "Regenerate shared secret and secret data",
-            "name": "regenerateRegenerateSharedSecretData",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/RegenerateSharedSecretData"
-            }
-          },
-          {
             "type": "string",
             "description": "Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)",
             "name": "Impersonate-User",
@@ -6050,7 +6041,6 @@
         "name",
         "appId",
         "repository",
-        "sharedSecret",
         "adGroups",
         "adUsers",
         "readerAdGroups",
@@ -6140,11 +6130,6 @@
           "type": "string",
           "x-go-name": "Repository",
           "example": "https://github.com/equinor/radix-canary-golang"
-        },
-        "sharedSecret": {
-          "description": "SharedSecret the shared secret of the webhook",
-          "type": "string",
-          "x-go-name": "SharedSecret"
         }
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/applications/models"
@@ -8447,18 +8432,6 @@
           "description": "PrivateKey of the deploy key",
           "type": "string",
           "x-go-name": "PrivateKey"
-        }
-      },
-      "x-go-package": "github.com/equinor/radix-operator/api-server/api/applications/models"
-    },
-    "RegenerateSharedSecretData": {
-      "description": "RegenerateSharedSecretData Holds regenerated shared secret",
-      "type": "object",
-      "properties": {
-        "sharedSecret": {
-          "description": "SharedSecret of the shared secret",
-          "type": "string",
-          "x-go-name": "SharedSecret"
         }
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/applications/models"

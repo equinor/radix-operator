@@ -1,69 +1,26 @@
 ENVIRONMENT ?= dev
-VERSION 	?= latest
-
-DNS_ZONE = dev.radix.equinor.com
-BRANCH := $(shell git rev-parse --abbrev-ref HEAD | sed 's|/|-|g')
-
+VERSION 	?= dev
 CRD_TEMP_DIR := ./.temp-resources/
 CRD_CHART_DIR := ./charts/radix-operator/templates/
 JSON_SCHEMA_DIR := ./json-schema/
-
-# If you want to escape branch-environment constraint, pass in OVERRIDE_BRANCH=true
-
-ifeq ($(ENVIRONMENT),prod)
-	IS_PROD = yes
-else
-	IS_DEV = yes
-endif
-
-ifeq ($(BRANCH),release)
-	IS_PROD_BRANCH = yes
-endif
-
-ifeq ($(BRANCH),master)
-	IS_DEV_BRANCH = yes
-endif
-
-ifdef IS_PROD
-ifdef IS_PROD_BRANCH
-	CAN_DEPLOY_OPERATOR = yes
-endif
-endif
-
-ifdef IS_DEV
-ifdef IS_DEV_BRANCH
-	CAN_DEPLOY_OPERATOR = yes
-else
-	VERSION = dev
-endif
-endif
-
-ifdef IS_PROD
-	DNS_ZONE = radix.equinor.com
-endif
-
 CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
-APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
-
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD | sed 's|/|-|g')
 HASH := $(shell git rev-parse HEAD)
-
 TAG := $(BRANCH)-$(HASH)
 
 echo:
 	@echo "ENVIRONMENT : " $(ENVIRONMENT)
-	@echo "DNS_ZONE : " $(DNS_ZONE)
 	@echo "CONTAINER_REPO : " $(CONTAINER_REPO)
 	@echo "DOCKER_REGISTRY : " $(DOCKER_REGISTRY)
 	@echo "BRANCH : " $(BRANCH)
-	@echo "APP_ALIAS_BASE_URL : " $(APP_ALIAS_BASE_URL)
-	@echo "IS_PROD : " $(IS_PROD)
-	@echo "IS_DEV : " $(IS_DEV)
-	@echo "IS_PROD_BRANCH : " $(IS_PROD_BRANCH)
-	@echo "IS_DEV_BRANCH : " $(IS_DEV_BRANCH)
-	@echo "CAN_DEPLOY_OPERATOR : " $(CAN_DEPLOY_OPERATOR)
 	@echo "VERSION : " $(VERSION)
 	@echo "TAG : " $(TAG)
+	@echo ""
+	@echo "pipeline-runner : " $(DOCKER_REGISTRY)/radix-pipeline:$(TAG)
+	@echo "radix-operator : " $(DOCKER_REGISTRY)/radix-operator:$(TAG)
+	@echo "radix-webhook : " $(DOCKER_REGISTRY)/radix-webhook:$(TAG)
+	@echo "radix-api-server : " $(DOCKER_REGISTRY)/radix-api-server:$(TAG)
 
 .PHONY: test
 test:

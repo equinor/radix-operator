@@ -121,7 +121,7 @@ spec:
                   type: string
                 type: array
               sharedSecret:
-                description: 'deprecated: SharedSecret is the shared secret for the
+                description: 'Deprecated: SharedSecret is the shared secret for the
                   git repository.'
                 type: string
             required:

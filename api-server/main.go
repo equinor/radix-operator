@@ -40,7 +40,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-//go:generate swagger generate spec
 func main() {
 	c := config.MustParse()
 	setupLogger(c.LogLevel, c.LogPrettyPrint)

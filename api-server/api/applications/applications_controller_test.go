@@ -458,7 +458,6 @@ func TestGetApplication_AllFieldsAreSet(t *testing.T) {
 		anApplicationRegistration().
 			WithName("any-name").
 			WithRepository("https://github.com/Equinor/any-repo").
-			WithSharedSecret("Any secret").
 			WithAdGroups(adGroups).
 			WithAdUsers(adUsers).
 			WithReaderAdGroups(readerAdGroups).
@@ -482,7 +481,6 @@ func TestGetApplication_AllFieldsAreSet(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "https://github.com/Equinor/any-repo", application.Registration.Repository)
-	assert.Equal(t, "Any secret", application.Registration.SharedSecret)
 	assert.Equal(t, adGroups, application.Registration.AdGroups)
 	assert.Equal(t, adUsers, application.Registration.AdUsers)
 	assert.Equal(t, readerAdGroups, application.Registration.ReaderAdGroups)
@@ -720,8 +718,7 @@ func TestUpdateApplication_AbleToSetAnySpecField(t *testing.T) {
 	builder :=
 		anApplicationRegistration().
 			WithName("any-name").
-			WithRepository("https://github.com/Equinor/a-repo").
-			WithSharedSecret("")
+			WithRepository("https://github.com/Equinor/a-repo")
 	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", buildApplicationRegistrationRequest(builder.Build(), false))
 	<-responseChannel
 
@@ -738,18 +735,6 @@ func TestUpdateApplication_AbleToSetAnySpecField(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, applicationRegistrationUpsertResponse.ApplicationRegistration)
 	assert.Equal(t, newRepository, applicationRegistrationUpsertResponse.ApplicationRegistration.Repository)
-
-	// Test SharedSecret
-	newSharedSecret := "Any shared secret"
-	builder = builder.
-		WithSharedSecret(newSharedSecret)
-
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("PUT", fmt.Sprintf("/api/v1/applications/%s", "any-name"), buildApplicationRegistrationRequest(builder.Build(), false))
-	response = <-responseChannel
-	applicationRegistrationUpsertResponse = applicationModels.ApplicationRegistrationUpsertResponse{}
-	err = controllertest.GetResponseBody(response, &applicationRegistrationUpsertResponse)
-	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, applicationRegistrationUpsertResponse.ApplicationRegistration.SharedSecret)
 
 	// Test ConfigBranch
 	newConfigBranch := "newcfgbranch"
@@ -785,7 +770,6 @@ func TestModifyApplication_AbleToSetField(t *testing.T) {
 		WithName("any-name").
 		WithAppID(appId).
 		WithRepository("https://github.com/Equinor/a-repo").
-		WithSharedSecret("").
 		WithAdGroups([]string{uuid.New().String()}).
 		WithAdUsers([]string{uuid.New().String()}).
 		WithReaderAdGroups([]string{uuid.New().String()}).
@@ -1278,15 +1262,14 @@ func TestRegenerateDeployKey_WhenApplicationNotExist_Fail(t *testing.T) {
 	appResponseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", parameters)
 	<-appResponseChannel
 
-	regenerateParameters := &applicationModels.RegenerateSharedSecretData{SharedSecret: "new shared secret"}
 	appName := "any-non-existing-name"
-	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), regenerateParameters)
+	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), nil)
 	response := <-responseChannel
 
 	assert.Equal(t, http.StatusNotFound, response.Code)
 }
 
-func TestRegenerateDeployKey_UpdatesSharedSecret(t *testing.T) {
+func TestRegenerateDeployKey_CreateUpdatesSharedSecret(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, kubeUtil, radixClient, kedaClient, _, _, _, _ := setupTest(t)
 	appName := "any-name"
@@ -1308,64 +1291,27 @@ func TestRegenerateDeployKey_UpdatesSharedSecret(t *testing.T) {
 	appResponseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", parameters)
 	<-appResponseChannel
 
-	const newSharedSecret = "new shared secret"
-	regenerateParameters := &applicationModels.RegenerateSharedSecretData{SharedSecret: newSharedSecret}
-	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), regenerateParameters)
+	// Get old secret
+	oldSharedSecret, err := kubeUtil.CoreV1().Secrets(builders.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	oldSharedSecretData := oldSharedSecret.Data[defaults.WebhookSharedSecretKey]
+
+	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), nil)
 	response := <-responseChannel
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
-	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
+	sharedSecret, err := kubeUtil.CoreV1().Secrets(builders.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, radixRegistration.Spec.SharedSecret)
+	newSharedSecretData := sharedSecret.Data[defaults.WebhookSharedSecretKey]
+	assert.NotEqual(t, oldSharedSecretData, newSharedSecretData)
 
 	deployKeyAndSecret := &applicationModels.DeployKeyAndSecret{}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), regenerateParameters)
+	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), nil)
 	response = <-responseChannel
 	assert.Equal(t, http.StatusOK, response.Code)
 	err = controllertest.GetResponseBody(response, &deployKeyAndSecret)
 	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, deployKeyAndSecret.SharedSecret)
-}
-
-func TestRegenerateDeployKey_CreateSharedSecret(t *testing.T) {
-	// Setup
-	commonTestUtils, controllerTestUtils, kubeUtil, radixClient, kedaClient, _, _, _, _ := setupTest(t)
-	appName := "any-name"
-	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
-
-	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
-	require.NoError(t, err)
-
-	// Test
-	parameters := buildApplicationRegistrationRequest(
-		anApplicationRegistration().
-			WithName("any-name").
-			WithRepository("https://github.com/Equinor/any-repo").
-			Build(),
-		false,
-	)
-
-	appResponseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", parameters)
-	<-appResponseChannel
-
-	regenerateParameters := &applicationModels.RegenerateSharedSecretData{}
-	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), regenerateParameters)
-	response := <-responseChannel
-	assert.Equal(t, http.StatusNoContent, response.Code)
-
-	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
-	require.NoError(t, err)
-	newSharedSecret := radixRegistration.Spec.SharedSecret
-	assert.NotEmpty(t, newSharedSecret)
-
-	deployKeyAndSecret := &applicationModels.DeployKeyAndSecret{}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), regenerateParameters)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	err = controllertest.GetResponseBody(response, &deployKeyAndSecret)
-	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, deployKeyAndSecret.SharedSecret)
+	assert.Equal(t, string(newSharedSecretData), deployKeyAndSecret.SharedSecret)
 }
 
 func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
@@ -1602,7 +1548,6 @@ func anApplicationRegistration() applicationModels.ApplicationRegistrationBuilde
 	return applicationModels.NewApplicationRegistrationBuilder().
 		WithName("my-app").
 		WithRepository("https://github.com/Equinor/my-app").
-		WithSharedSecret("AnySharedSecret").
 		WithAdGroups([]string{"a6a3b81b-34gd-sfsf-saf2-7986371ea35f"}).
 		WithReaderAdGroups([]string{"40e794dc-244c-4d0a-9f29-55fda1fe3972"}).
 		WithCreator("a_test_user@equinor.com").
