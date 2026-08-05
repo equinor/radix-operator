@@ -42,6 +42,7 @@ jobs:
     env:
       CONTAINER_REGISTRY: ghcr.io
     strategy:
+      fail-fast: false
       matrix:
         container:
           - file: operator.Dockerfile
