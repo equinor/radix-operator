@@ -75,13 +75,12 @@ func buildComponent(
 		builder.WithAuxiliaryResource(getAuxiliaryResources(rd, radixComponent, deploymentList, podList, lastEventWarnings))
 	}
 
-	//nolint:godox
-	// TODO: Use radixComponent.GetType() instead?
 	if jobComponent, ok := radixComponent.(*radixv1.RadixDeployJobComponent); ok {
 		builder.WithSchedulerPort(&jobComponent.SchedulerPort)
 		if jobComponent.Payload != nil {
 			builder.WithScheduledJobPayloadPath(jobComponent.Payload.Path)
 		}
+		builder.WithNextCronRun(jobComponent.Cron)
 		builder.WithNotifications(jobComponent.Notifications)
 	}
 
