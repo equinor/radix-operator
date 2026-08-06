@@ -151,10 +151,6 @@ func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx cont
 }
 
 // applyWebhookSharedSecret ensures a Kubernetes secret holding the GitHub webhook shared secret exists in the app namespace.
-// The secret is the source of truth for the shared secret. It is only seeded once (migrating the value from the deprecated
-// RadixRegistrationSpec.SharedSecret field, or generating a new random value) and is not overwritten by the operator afterwards
-// as long as it holds valid data, so that regenerations performed through the api-server are preserved. If the secret is missing
-// or does not contain valid data, it is (re)seeded.
 func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 	namespace := utils.GetAppNamespace(app.registration.Name)
 
@@ -178,25 +174,13 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 			desired.Data = map[string][]byte{}
 		}
 		sharedSecret, valid := desired.Data[defaults.WebhookSharedSecretKey]
-		if !valid {
-			secret := []byte(rand.Text())
-
-			// Legacy support, check if the secret exist on the deprecated field on RadixRegistration and seed from it if it does
-			if strings.TrimSpace(app.registration.Spec.SharedSecret) != "" { //nolint:staticcheck
-				secret = []byte(app.registration.Spec.SharedSecret) //nolint:staticcheck
-			}
-
-			sharedSecret = secret
+		if valid && len(sharedSecret) > 0 {
+			return nil
 		}
-		desired.Data[defaults.WebhookSharedSecretKey] = sharedSecret
+
+		desired.Data[defaults.WebhookSharedSecretKey] = []byte(rand.Text())
 		_, err := app.kubeutil.UpdateSecret(ctx, current, desired)
 		return err
-	}
-
-	// TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
-	sharedSecret := strings.TrimSpace(app.registration.Spec.SharedSecret) //nolint:staticcheck
-	if sharedSecret == "" {
-		sharedSecret = rand.Text()
 	}
 
 	desired := &corev1.Secret{
@@ -207,7 +191,7 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 			Labels:    labels.ForApplicationName(app.registration.Name),
 		},
 		Data: map[string][]byte{
-			defaults.WebhookSharedSecretKey: []byte(sharedSecret),
+			defaults.WebhookSharedSecretKey: []byte(rand.Text()),
 		},
 	}
 

@@ -120,10 +120,6 @@ spec:
                 items:
                   type: string
                 type: array
-              sharedSecret:
-                description: 'Deprecated: SharedSecret is the shared secret for the
-                  git repository.'
-                type: string
             required:
             - cloneURL
             - configBranch
