@@ -2,7 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.124.0](https://github.com/equinor/radix-operator/compare/v1.123.0..v1.124.0) - 2026-07-29
+## [1.124.1](https://github.com/equinor/radix-operator/compare/v1.124.0..v1.124.1) - 2026-08-06
+
+### 🐛 Bug Fixes
+
+- Move sharedSecret to Kubernetes secret and restrict access to admins (#1818) - ([db21aa4](https://github.com/equinor/radix-operator/commit/db21aa41f824c05491523e1a2a9a95846ab38fc5)) by @Richard87 in [#1818](https://github.com/equinor/radix-operator/pull/1818)
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Do not fail fast when creating images (#1881) - ([9955a1f](https://github.com/equinor/radix-operator/commit/9955a1f03cc6c472e646b351609a183c2d98090a)) by @Richard87 in [#1881](https://github.com/equinor/radix-operator/pull/1881)
+
+
+## [1.124.0](https://github.com/equinor/radix-operator/compare/v1.123.0..v1.124.0) - 2026-07-30
 
 ### 🚀 Features
 
