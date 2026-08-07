@@ -11,18 +11,13 @@ import (
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -462,37 +457,6 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, namespace, jobKubeDeploymentName string, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, namespace, jobKubeDeploymentName)
-	if err != nil {
-		return nil, nil, err
-	}
-	desiredJobAuxDeployment.ObjectMeta.Labels = deploy.getJobAuxDeploymentLabels(deployComponent)
-	desiredJobAuxDeployment.Spec.Selector.MatchLabels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
-	desiredJobAuxDeployment.Spec.Template.Labels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
-	desiredJobAuxDeployment.Spec.Template.Spec.ServiceAccountName = (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName()
-	desiredJobAuxDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForJobAPIAuxComponent()
-	// Move volumes and volume mounts from desired deployment to job aux deployment
-	desiredJobAuxDeployment.Spec.Template.Spec.Volumes = volumes
-	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
-
-	syncRadixRestartEnvironmentVariable(deployComponent, desiredJobAuxDeployment)
-	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
-}
-
-func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, namespace, jobKubeDeploymentName string) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(jobKubeDeploymentName)
-	desiredJobAuxDeployment := deploy.createJobAuxDeployment(jobKubeDeploymentName, jobAuxKubeDeploymentName)
-	currentJobAuxDeployment, err := deploy.kubeutil.KubeClient().AppsV1().Deployments(namespace).Get(ctx, jobAuxKubeDeploymentName, metav1.GetOptions{})
-	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			return nil, desiredJobAuxDeployment, nil
-		}
-		return nil, nil, err
-	}
-	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
-}
-
 func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) string {
 	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
 }
@@ -545,17 +509,4 @@ func getActiveFrom(rd *v1.RadixDeployment) metav1.Time {
 		return rd.CreationTimestamp
 	}
 	return rd.Status.ActiveFrom
-}
-
-func syncRadixRestartEnvironmentVariable(deployComponent v1.RadixCommonDeployComponent, desiredJobAuxDeployment *appsv1.Deployment) {
-	auxDeploymentEnvVars := desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env
-	if restartComponentValue, ok := deployComponent.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
-		if index := slice.FindIndex(auxDeploymentEnvVars, func(envVar corev1.EnvVar) bool {
-			return strings.EqualFold(envVar.Name, defaults.RadixRestartEnvironmentVariable)
-		}); index >= 0 {
-			desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env[index].Value = restartComponentValue
-			return
-		}
-		desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].Env = append(auxDeploymentEnvVars, corev1.EnvVar{Name: defaults.RadixRestartEnvironmentVariable, Value: restartComponentValue})
-	}
 }

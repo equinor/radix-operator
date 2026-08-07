@@ -184,6 +184,11 @@ oauth2redis:
     repository: docker.io/redis
     tag: "8.0"
 
+jobAux:
+  image:
+    repository: docker.io/bash
+    tag: "latest"
+
 radixPipelineRunner:
   image:
     repository: ghcr.io/equinor/radix/pipeline
