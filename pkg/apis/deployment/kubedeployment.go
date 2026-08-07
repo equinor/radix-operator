@@ -124,7 +124,7 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 					Containers: []corev1.Container{
 						{
 							Name:            jobAuxKubeDeploymentName,
-							Image:           "bash:alpine3.22",
+							Image:           deploy.config.DeploymentSyncer.JobAuxImage,
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
