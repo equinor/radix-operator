@@ -80,6 +80,7 @@ func buildComponent(
 		if jobComponent.Payload != nil {
 			builder.WithScheduledJobPayloadPath(jobComponent.Payload.Path)
 		}
+		builder.WithNextCronRun(jobComponent.Cron)
 		builder.WithNotifications(jobComponent.Notifications)
 		if jobComponent.Cron != nil {
 			builder.WithCronSchedules(jobComponent.Cron.Schedules)

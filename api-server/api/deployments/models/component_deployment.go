@@ -68,6 +68,12 @@ type Component struct {
 	// example: "/tmp/payload"
 	ScheduledJobPayloadPath string `json:"scheduledJobPayloadPath,omitempty"`
 
+	// NextRun is the next time the job component's cron schedule is due to run, if a cron schedule is configured.
+	// It is the earliest next run across all configured schedules, interpreted in the configured timezone and returned as a UTC timestamp.
+	// required: false
+	// swagger:strfmt date-time
+	NextRun time.Time `json:"nextRun,omitzero"`
+
 	// Component secret names. From radixconfig.yaml
 	//
 	// required: false
