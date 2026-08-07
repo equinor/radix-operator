@@ -49,7 +49,7 @@ type componentBuilder struct {
 	ports                     []Port
 	schedulerPort             *int32
 	scheduledJobPayloadPath   string
-	nextCronRun               *time.Time
+	nextCronRun               time.Time
 	auxResource               AuxiliaryResource
 	identity                  *Identity
 	notifications             *Notifications
@@ -101,16 +101,16 @@ func (b *componentBuilder) WithNextCronRun(cronSchedule *radixv1.CronSchedule) C
 	return b
 }
 
-func nextCronRun(cronSchedule *radixv1.CronSchedule) *time.Time {
+func nextCronRun(cronSchedule *radixv1.CronSchedule) time.Time {
 	if cronSchedule == nil || len(cronSchedule.Schedules) == 0 {
-		return nil
+		return time.Time{}
 	}
 	timeZone := strings.TrimSpace(cronSchedule.TimeZone)
 	if timeZone == "" {
 		timeZone = "UTC"
 	}
 	now := time.Now()
-	var earliest *time.Time
+	var earliest time.Time
 	for _, schedule := range cronSchedule.Schedules {
 		// The CRON_TZ= prefix makes the schedule always interpreted in the configured
 		// timezone, independent of the server's local time.
@@ -119,8 +119,8 @@ func nextCronRun(cronSchedule *radixv1.CronSchedule) *time.Time {
 			continue // invalid timezone or schedule expression - skip
 		}
 		next := parsed.Next(now).UTC()
-		if earliest == nil || next.Before(*earliest) {
-			earliest = &next
+		if earliest.IsZero() || next.Before(earliest) {
+			earliest = next
 		}
 	}
 	return earliest

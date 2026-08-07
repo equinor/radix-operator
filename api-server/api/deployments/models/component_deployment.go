@@ -72,7 +72,7 @@ type Component struct {
 	// It is the earliest next run across all configured schedules, interpreted in the configured timezone and returned as a UTC timestamp.
 	// required: false
 	// swagger:strfmt date-time
-	NextRun *time.Time `json:"nextRun,omitempty"`
+	NextRun time.Time `json:"nextRun,omitzero"`
 
 	// Component secret names. From radixconfig.yaml
 	//
