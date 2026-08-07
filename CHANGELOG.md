@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.125.0](https://github.com/equinor/radix-operator/compare/v1.124.1..v1.125.0) - 2026-08-07
+
+### 🚀 Features
+
+- Include nextCronRun in component builder and deployment models (#1883) - ([1c3e4e0](https://github.com/equinor/radix-operator/commit/1c3e4e0aba8ce3526ab73926d971b2d949c4d0bf)) by @jacobsolbergholm in [#1883](https://github.com/equinor/radix-operator/pull/1883)
+
+
 ## [1.124.1](https://github.com/equinor/radix-operator/compare/v1.124.0..v1.124.1) - 2026-08-06
 
 ### 🐛 Bug Fixes
