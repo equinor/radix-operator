@@ -778,6 +778,69 @@ func TestObjectSynced_Job_GarbageCollectDeployments(t *testing.T) {
 	assert.ElementsMatch(t, []string{"job1", "job1-aux"}, actualDeploymentNames)
 }
 
+func TestObjectSynced_JobAux_DeploymentSpecIsSet(t *testing.T) {
+	const (
+		appName = "any-app"
+		envName = "test"
+		jobName = "job1"
+	)
+
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	defer TeardownTest()
+
+	_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
+		utils.ARadixDeployment().
+			WithAppName(appName).
+			WithEnvironment(envName).
+			WithComponents().
+			WithJobComponents(utils.NewDeployJobComponentBuilder().WithName(jobName).WithRuntime(&radixv1.Runtime{Architecture: "customarch"})))
+	require.NoError(t, err)
+
+	namespace := utils.GetEnvironmentNamespace(appName, envName)
+	allDeployments, err := kubeclient.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+
+	jobAuxDeploymentName := defaults.GetJobAuxKubeDeployName(jobName)
+	jobAuxDeployment := getDeploymentByName(jobAuxDeploymentName, allDeployments.Items)
+	require.NotNil(t, jobAuxDeployment)
+
+	require.NotNil(t, jobAuxDeployment.Spec.Replicas)
+	assert.Equal(t, int32(1), *jobAuxDeployment.Spec.Replicas)
+
+	assert.Equal(t, appName, jobAuxDeployment.Spec.Template.Labels[kube.RadixAppLabel])
+	assert.Equal(t, jobName, jobAuxDeployment.Spec.Template.Labels[kube.RadixAuxiliaryComponentLabel])
+	assert.Equal(t, kube.RadixJobTypeManagerAux, jobAuxDeployment.Spec.Template.Labels[kube.RadixAuxiliaryComponentTypeLabel])
+	assert.Equal(t, "true", jobAuxDeployment.Spec.Template.Labels[kube.RadixPodIsJobAuxObjectLabel])
+	require.NotEmpty(t, jobAuxDeployment.Spec.Template.Labels[kube.RadixAppIDLabel])
+
+	expectedSelectorMatchLabels := radixlabels.Merge(
+		radixlabels.ForApplicationName(appName),
+		map[string]string{kube.RadixAppIDLabel: jobAuxDeployment.Spec.Template.Labels[kube.RadixAppIDLabel]},
+		radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeManagerAux),
+	)
+	assert.EqualValues(t, expectedSelectorMatchLabels, jobAuxDeployment.Spec.Selector.MatchLabels)
+
+	assert.Equal(t, pointers.Ptr(false), jobAuxDeployment.Spec.Template.Spec.AutomountServiceAccountToken)
+	assert.Equal(t, defaultServiceAccountName, jobAuxDeployment.Spec.Template.Spec.ServiceAccountName)
+	assert.Equal(t, utils.GetAffinityForJobAPIAuxComponent(), jobAuxDeployment.Spec.Template.Spec.Affinity)
+
+	require.Len(t, jobAuxDeployment.Spec.Template.Spec.Containers, 1)
+	container := jobAuxDeployment.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, jobAuxDeploymentName, container.Name)
+	assert.Equal(t, "bash:alpine3.22", container.Image)
+	assert.Equal(t, corev1.PullIfNotPresent, container.ImagePullPolicy)
+	assert.Equal(t, []string{"sh"}, container.Command)
+	assert.Equal(t, []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}, container.Args)
+	requestCPU := container.Resources.Requests[corev1.ResourceCPU]
+	requestMemory := container.Resources.Requests[corev1.ResourceMemory]
+	limitCPU := container.Resources.Limits[corev1.ResourceCPU]
+	limitMemory := container.Resources.Limits[corev1.ResourceMemory]
+	assert.True(t, requestCPU.Equal(parseQuantity("1m")))
+	assert.True(t, requestMemory.Equal(parseQuantity("20M")))
+	assert.True(t, limitCPU.Equal(parseQuantity("0")))
+	assert.True(t, limitMemory.Equal(parseQuantity("20M")))
+}
+
 func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service {
 	var result []corev1.Service
 	for _, svc := range *services {
@@ -1160,11 +1223,11 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		allDeployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(),
 			metav1.ListOptions{})
 		expectedJobDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
-		assert.Equal(t, 1, len(expectedJobDeployments))
+		require.Equal(t, 1, len(expectedJobDeployments))
 		assert.Equal(t, pointers.Ptr(true), expectedJobDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedJobDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		expectedJobAuxDeployments := getDeploymentsForRadixJobAux(allDeployments.Items)
-		assert.Equal(t, 1, len(expectedJobAuxDeployments))
+		require.Equal(t, 1, len(expectedJobAuxDeployments))
 		assert.Equal(t, pointers.Ptr(false), expectedJobAuxDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedJobAuxDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
@@ -3600,6 +3663,90 @@ func Test_RestartJobManager_RestartsAuxDeployment(t *testing.T) {
 	require.True(t, slice.Any(jobAuxDeployments[0].Spec.Template.Spec.Containers[0].Env, func(envVar corev1.EnvVar) bool {
 		return envVar.Name == defaults.RadixRestartEnvironmentVariable && envVar.Value == restartTimestamp
 	}), "Not found restart env var in the job aux deployment")
+}
+
+func Test_JobAuxDeployment_IsDeletedOnlyWhenSelectorMatchLabelsChange(t *testing.T) {
+	const (
+		appName        = "app"
+		environment    = "dev"
+		jobName        = "job"
+		deploymentName = "deployment1"
+	)
+
+	applicationBuilder := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName))
+	jobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(jobName)
+	newDeploymentBuilder := func() utils.DeploymentBuilder {
+		return utils.NewDeploymentBuilder().
+			WithDeploymentName(deploymentName).
+			WithRadixApplication(applicationBuilder).
+			WithAppName(appName).
+			WithEnvironment(environment).
+			WithJobComponent(jobComponentBuilder)
+	}
+	jobAuxDeploymentName := defaults.GetJobAuxKubeDeployName(jobName)
+
+	t.Run("kept when selector matchlabels are equal", func(t *testing.T) {
+		tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+		defer TeardownTest()
+
+		jobAuxDeleteCount := 0
+		kubeclient.PrependReactor("delete", "deployments", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			deleteAction, ok := action.(k8stesting.DeleteAction)
+			if ok && deleteAction.GetName() == jobAuxDeploymentName {
+				jobAuxDeleteCount++
+			}
+			return false, nil, nil
+		})
+
+		_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, newDeploymentBuilder())
+		require.NoError(t, err)
+
+		err = applyDeploymentUpdateWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, newDeploymentBuilder())
+		require.NoError(t, err)
+
+		assert.Equal(t, 0, jobAuxDeleteCount)
+	})
+
+	t.Run("deleted when selector matchlabels do not match", func(t *testing.T) {
+		tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+		defer TeardownTest()
+
+		jobAuxDeleteCount := 0
+		kubeclient.PrependReactor("delete", "deployments", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			deleteAction, ok := action.(k8stesting.DeleteAction)
+			if ok && deleteAction.GetName() == jobAuxDeploymentName {
+				jobAuxDeleteCount++
+			}
+			return false, nil, nil
+		})
+
+		_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, newDeploymentBuilder())
+		require.NoError(t, err)
+
+		envNamespace := utils.GetEnvironmentNamespace(appName, environment)
+		jobAuxDeployment, err := kubeclient.AppsV1().Deployments(envNamespace).Get(context.Background(), jobAuxDeploymentName, metav1.GetOptions{})
+		require.NoError(t, err)
+		jobAuxDeployment.Spec.Selector.MatchLabels[kube.RadixAuxiliaryComponentLabel] = "other-job"
+		_, err = kubeclient.AppsV1().Deployments(envNamespace).Update(context.Background(), jobAuxDeployment, metav1.UpdateOptions{})
+		require.NoError(t, err)
+
+		err = applyDeploymentUpdateWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, newDeploymentBuilder())
+		require.NoError(t, err)
+
+		assert.Equal(t, 1, jobAuxDeleteCount)
+
+		jobAuxDeployment, err = kubeclient.AppsV1().Deployments(envNamespace).Get(context.Background(), jobAuxDeploymentName, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotEmpty(t, jobAuxDeployment.Spec.Template.Labels[kube.RadixAppIDLabel])
+		expectedSelectorMatchLabels := radixlabels.Merge(
+			radixlabels.ForApplicationName(appName),
+			map[string]string{kube.RadixAppIDLabel: jobAuxDeployment.Spec.Template.Labels[kube.RadixAppIDLabel]},
+			radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeManagerAux),
+		)
+		assert.EqualValues(t, expectedSelectorMatchLabels, jobAuxDeployment.Spec.Selector.MatchLabels)
+	})
 }
 
 func TestRadixBatch_IsGarbageCollected(t *testing.T) {
