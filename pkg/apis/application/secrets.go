@@ -174,7 +174,8 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 			desired.Data = map[string][]byte{}
 		}
 		sharedSecret, valid := desired.Data[defaults.WebhookSharedSecretKey]
-		if valid && len(sharedSecret) > 0 {
+		// If the secret already exists and is valid, we do not overwrite it.
+		if valid && len(strings.TrimSpace(string(sharedSecret))) > 0 {
 			return nil
 		}
 
