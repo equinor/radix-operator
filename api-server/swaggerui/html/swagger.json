@@ -6529,6 +6529,12 @@
           "x-go-name": "Name",
           "example": "server"
         },
+        "nextRun": {
+          "description": "NextRun is the next time the job component's cron schedule is due to run, if a cron schedule is configured.\nIt is the earliest next run across all configured schedules, interpreted in the configured timezone and returned as a UTC timestamp.",
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "NextRun"
+        },
         "notifications": {
           "$ref": "#/definitions/Notifications"
         },
