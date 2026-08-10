@@ -179,6 +179,7 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 			return nil
 		}
 
+		log.Info().Msgf("Webhook shared secret for app %s is missing or invalid, generating a new one", app.registration.Name)
 		desired.Data[defaults.WebhookSharedSecretKey] = []byte(rand.Text())
 		_, err := app.kubeutil.UpdateSecret(ctx, current, desired)
 		return err
