@@ -105,7 +105,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 				kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
 			}
 			assert.Equal(t, expectedJobAnnotations, job.Annotations)
-			assert.Equal(t, pointers.Ptr[int32](0), job.Spec.BackoffLimit)
+			assert.Equal(t, new(int32(0)), job.Spec.BackoffLimit)
+			assert.Equal(t, new(int32(86400)), job.Spec.TTLSecondsAfterFinished)
 
 			// Check pod template
 			expectedPodLabels := map[string]string{
