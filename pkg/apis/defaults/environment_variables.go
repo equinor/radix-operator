@@ -112,6 +112,9 @@ const (
 	// RadixOAuthRedisImageEnvironmentVariable specifies the name and tag of the OAuth Redis image
 	RadixOAuthRedisImageEnvironmentVariable = "RADIX_OAUTH_REDIS_IMAGE"
 
+	// RadixJobAuxImageEnvironmentVariable specifies the name and tag of the job aux image
+	RadixJobAuxImageEnvironmentVariable = "RADIXOPERATOR_JOB_AUX_IMAGE"
+
 	// RadixConfigFileEnvironmentVariable Path to a radixconfig.yaml
 	// to be loaded from Radix application config branch
 	RadixConfigFileEnvironmentVariable = "RADIX_FILE_NAME"
