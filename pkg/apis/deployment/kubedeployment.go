@@ -66,11 +66,9 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 			return err
 		}
 
-		currentJobAuxDeployment, desiredJobAuxDeployment, err = deploy.getCurrentAndDesiredJobAuxDeployment(ctx, deployComponent, volumes, volumeMounts)
-		if err != nil {
-			return err
-		}
+		currentJobAuxDeployment = nil
 	}
+
 	// Remove volumes and volume mounts from job scheduler deployment, they are set to aux deployment
 	desiredDeployment.Spec.Template.Spec.Volumes = nil
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
