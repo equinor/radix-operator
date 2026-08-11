@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -154,7 +153,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 		backoffLimit = batchJob.BackoffLimit
 	}
 	if backoffLimit == nil {
-		backoffLimit = numbers.Int32Ptr(0)
+		backoffLimit = new(int32(0))
 	}
 
 	failurePolicy := operatorUtils.GetPodFailurePolicy(jobComponent.FailurePolicy)
@@ -173,8 +172,9 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 			Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(rd),
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit:     backoffLimit,
-			PodFailurePolicy: failurePolicy,
+			BackoffLimit:            backoffLimit,
+			TTLSecondsAfterFinished: new(int32(86400)),
+			PodFailurePolicy:        failurePolicy,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      podLabels,
@@ -193,7 +193,6 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 					AutomountServiceAccountToken: serviceAccountSpec.AutomountServiceAccountToken(),
 				},
 			},
-			TTLSecondsAfterFinished: pointers.Ptr(int32(86400)), // delete completed job after 24 hours
 		},
 	}
 	return job, nil

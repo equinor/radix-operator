@@ -45,7 +45,6 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 	radixConfigFullName := getRadixConfigFullName(job.registration)
 	log.Ctx(ctx).Info().Msgf("Using image: %s", job.config.PipelineJobConfig.PipelineImage)
 
-	backOffLimit := int32(0)
 	appName := job.radixJob.Spec.AppName
 	jobName := job.radixJob.Name
 
@@ -74,7 +73,8 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 			OwnerReferences: GetOwnerReference(job.radixJob),
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: &backOffLimit,
+			BackoffLimit:            new(int32(0)),
+			TTLSecondsAfterFinished: new(int32(86400)),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      getPipelineJobPodLabels(jobName, appName, job.registration.Spec.AppID),
