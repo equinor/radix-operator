@@ -28,6 +28,7 @@ var _ genericvalidator.Validator[*radixv1.RadixRegistration] = &Validator{}
 func CreateOnlineValidator(client client.Client, requireAdGroups, requireConfigurationItem bool) *Validator {
 	return &Validator{
 		validators: []validatorFunc{
+			createAppNameLengthValidator(),
 			createRequireUniqueAppIdValidator(client),
 			createRequireAdGroupsValidator(requireAdGroups),
 			CreateRequireConfigurationItemValidator(requireConfigurationItem),
@@ -39,6 +40,7 @@ func CreateOnlineValidator(client client.Client, requireAdGroups, requireConfigu
 func CreateOfflineValidator(requireAdGroups, requireConfigurationItem bool) Validator {
 	return Validator{
 		validators: []validatorFunc{
+			createAppNameLengthValidator(),
 			createRequireAdGroupsValidator(requireAdGroups),
 			CreateRequireConfigurationItemValidator(requireConfigurationItem),
 		},
@@ -59,6 +61,17 @@ func (validator *Validator) Validate(ctx context.Context, rr *radixv1.RadixRegis
 	}
 
 	return wrns, errors.Join(errs...)
+}
+
+func createAppNameLengthValidator() validatorFunc {
+	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
+		const maxApplicationNameLength = 40
+		if len(rr.Name) > maxApplicationNameLength {
+			return "", ErrAppNameTooLong
+		}
+
+		return "", nil
+	}
 }
 
 // RequireAdGroups validates that AdGroups contains minimum one item
@@ -112,7 +125,7 @@ func createRequireUniqueAppIdValidator(client client.Client) validatorFunc {
 func createNamespaceUsableValidator(kubeClient client.Client) validatorFunc {
 	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
 		envNs := utils.GetEnvironmentNamespace(rr.Name, "app")
-
+		//
 		existingNamespace := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: envNs}}
 		if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(existingNamespace), existingNamespace); err != nil {
 			if k8sErrors.IsNotFound(err) {

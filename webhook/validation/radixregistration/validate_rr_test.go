@@ -1,6 +1,7 @@
 package radixregistration_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -46,6 +47,16 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			expectedError:            nil,
 		},
 		{
+			name: "registration name longer than 40 chars fails",
+			updateRR: func(rr *radixv1.RadixRegistration) {
+				rr.Name = strings.Repeat("a", 41)
+			},
+			requireAdGroups:          false,
+			requireConfigurationItem: false,
+			expectedWarnings:         nil,
+			expectedError:            radixregistration.ErrAppNameTooLong,
+		},
+		{
 			name:                     "required ConfigurationItem is empty fails",
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.ConfigurationItem = "" },
 			requireAdGroups:          false,
@@ -86,6 +97,29 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_RegistrationNameLengthLimit(t *testing.T) {
+	t.Run("name length 40 is valid", func(t *testing.T) {
+		validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
+		validRR.Name = strings.Repeat("a", 40)
+
+		validator := radixregistration.CreateOfflineValidator(false, false)
+		warnings, err := validator.Validate(t.Context(), validRR)
+
+		assert.NoError(t, err)
+		assert.Empty(t, warnings)
+	})
+
+	t.Run("name length 41 is invalid", func(t *testing.T) {
+		validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
+		validRR.Name = strings.Repeat("a", 41)
+
+		validator := radixregistration.CreateOfflineValidator(false, false)
+		_, err := validator.Validate(t.Context(), validRR)
+
+		assert.ErrorIs(t, err, radixregistration.ErrAppNameTooLong)
+	})
 }
 
 func TestDuplicateAppIDMustFail(t *testing.T) {

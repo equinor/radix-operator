@@ -8,6 +8,7 @@ var (
 	ErrInternalError = errors.New("internal error. Please try again later or contact support if the issue persists")
 
 	ErrNoRadixApplication                                            = errors.New("no corresponding radix application found. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console")
+	ErrApplicationNameTooLong                                        = errors.New("application name cannot exceed 63 characters")
 	ErrDNSAliasComponentIsNotMarkedAsPublic                          = errors.New("component for dns alias is not marked as public")
 	ErrDNSAliasAlreadyUsedByAnotherApplication                       = errors.New("dns alias is already used by another application")
 	ErrDNSAliasReservedForRadixPlatformApplication                   = errors.New("dns alias is reserved for Radix platform application")

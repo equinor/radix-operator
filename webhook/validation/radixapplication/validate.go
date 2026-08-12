@@ -38,6 +38,7 @@ var (
 
 var (
 	offlineValidators = []validatorFunc{
+		applicationNameValidator,
 		deprecatedPublicUsageValidator,
 		componentJobNameValidator,
 		componentValidator,
@@ -158,6 +159,15 @@ func branchNameValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]s
 			return nil, []error{fmt.Errorf("environment %s branch from '%s': %w", env.Name, env.Build.From, ErrInvalidBranchName)}
 		}
 	}
+	return nil, nil
+}
+
+func applicationNameValidator(_ context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
+	const maxApplicationNameLength = 63
+	if len(ra.Name) > maxApplicationNameLength {
+		return nil, []error{ErrApplicationNameTooLong}
+	}
+
 	return nil, nil
 }
 
@@ -725,3 +735,5 @@ func validateResourceRequirements(resources radixv1.ResourceRequirements) ([]str
 
 	return wrns, errors.Join(errs...)
 }
+
+// validation for total lenth (when u apply config)
