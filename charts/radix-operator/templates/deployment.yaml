@@ -101,6 +101,8 @@ spec:
               value: {{ .Values.oauth2proxy.image.repository }}:{{ .Values.oauth2proxy.image.tag }}
             - name: RADIX_OAUTH_REDIS_IMAGE
               value: {{ .Values.oauth2redis.image.repository }}:{{ .Values.oauth2redis.image.tag }}
+            - name: RADIXOPERATOR_JOB_AUX_IMAGE
+              value: {{ .Values.jobAux.image.repository }}:{{ .Values.jobAux.image.tag }}
             - name: REGISTRATION_CONTROLLER_THREADS
               value: {{ .Values.registrationControllerThreads | quote }}
             - name: APPLICATION_CONTROLLER_THREADS
@@ -169,9 +171,9 @@ spec:
               value: {{ .Values.radixPipelineRunner.image.pullPolicy | default "Always" }}
 
             - name: RADIXOPERATOR_INGRESS_GATEWAY_NAME
-              value: {{ required "gateway name is required to operate" .Values.ingress.gateway.name }}
+              value: {{ required "ingress.gateway.name is required to operate" .Values.ingress.gateway.name }}
             - name: RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE
-              value: {{ required "gateway namespace is required to operate" .Values.ingress.gateway.namespace }}
+              value: {{ required "ingress.gateway.namespace is required to operate" .Values.ingress.gateway.namespace }}
             - name: RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME
               value: {{ .Values.ingress.gateway.sectionName }}
             - name: RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD

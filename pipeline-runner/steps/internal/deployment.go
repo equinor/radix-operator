@@ -78,6 +78,26 @@ func GetGitRefNameFromDeployment(rd *radixv1.RadixDeployment) string {
 	return rd.Annotations[kube.RadixBranchAnnotation]
 }
 
+func GetGitRefTypeFromDeployment(rd *radixv1.RadixDeployment) string {
+	if rd == nil {
+		return ""
+	}
+
+	if refType, ok := rd.Annotations[kube.RadixGitRefTypeAnnotation]; ok && len(refType) > 0 {
+		return refType
+	}
+
+	return string(radixv1.GitRefBranch)
+}
+
+func GetGitTagsFromDeployment(rd *radixv1.RadixDeployment) string {
+	if rd == nil {
+		return ""
+	}
+
+	return rd.Annotations[kube.RadixGitTagsAnnotation]
+}
+
 func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, gitTags string, components []radixv1.RadixDeployComponent, jobs []radixv1.RadixDeployJobComponent, radixConfigHash, buildSecretHash string) *radixv1.RadixDeployment {
 	radixApplication := pipelineInfo.RadixApplication
 	appName := radixApplication.GetName()

@@ -29,6 +29,7 @@ const (
 
 // EventHandler defines methods for interacting with Kubernetes events
 type EventHandler interface {
+	GetApplicationEvents(ctx context.Context, appName string) ([]*eventModels.Event, error)
 	GetEnvironmentEvents(ctx context.Context, appName, envName string) ([]*eventModels.Event, error)
 	GetComponentEvents(ctx context.Context, appName, envName, componentName string) ([]*eventModels.Event, error)
 	GetPodEvents(ctx context.Context, appName, envName, componentName, podName string) ([]*eventModels.Event, error)
@@ -45,6 +46,22 @@ type eventHandler struct {
 // Init creates a new EventHandler
 func Init(accounts models.Accounts) EventHandler {
 	return &eventHandler{accounts: accounts}
+}
+
+// GetApplicationEvents returns events for the application namespace (<appName>-app).
+// These are events emitted for the application as a whole, not tied to a specific environment
+// (e.g. events emitted by the api-server for incoming GitHub webhooks).
+func (eh *eventHandler) GetApplicationEvents(ctx context.Context, appName string) ([]*eventModels.Event, error) {
+	namespace := utils.GetAppNamespace(appName)
+	k8sEvents, err := eh.accounts.UserAccount.Client.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	events := make([]*eventModels.Event, 0, len(k8sEvents.Items))
+	for _, ev := range k8sEvents.Items {
+		events = append(events, eventModels.NewEventBuilder().WithKubernetesEvent(ev).Build())
+	}
+	return events, nil
 }
 
 // GetEnvironmentEvents return events for a namespace defined by a namespace

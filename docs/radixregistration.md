@@ -11,7 +11,6 @@ metadata:
   name: myapp
 spec:
   cloneURL: "git@github.com:equinor/myapp"
-  sharedSecret: "ThisIsASecret"
   deployKey: ""
   adGroups: 
   - 1asddf33-1asdfa32-2asdfa43-12asdf3

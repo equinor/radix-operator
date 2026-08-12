@@ -23,7 +23,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -127,14 +126,14 @@ func (s *GatewayTestSuite) listHTTPRoutes(ctx context.Context, namespace string)
 	return routes, err
 }
 
-func (s *GatewayTestSuite) getListenerSet(ctx context.Context, name, namespace string) (*gatewayapixv1alpha1.XListenerSet, error) {
-	ls := &gatewayapixv1alpha1.XListenerSet{}
+func (s *GatewayTestSuite) getListenerSet(ctx context.Context, name, namespace string) (*gatewayapiv1.ListenerSet, error) {
+	ls := &gatewayapiv1.ListenerSet{}
 	err := s.dynamicClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ls)
 	return ls, err
 }
 
-func (s *GatewayTestSuite) listListenerSets(ctx context.Context, namespace string) (*gatewayapixv1alpha1.XListenerSetList, error) {
-	lsList := &gatewayapixv1alpha1.XListenerSetList{}
+func (s *GatewayTestSuite) listListenerSets(ctx context.Context, namespace string) (*gatewayapiv1.ListenerSetList, error) {
+	lsList := &gatewayapiv1.ListenerSetList{}
 	err := s.dynamicClient.List(ctx, lsList, client.InNamespace(namespace))
 	return lsList, err
 }

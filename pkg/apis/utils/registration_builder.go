@@ -15,7 +15,6 @@ type RegistrationBuilder interface {
 	WithAppID(string) RegistrationBuilder
 	WithName(name string) RegistrationBuilder
 	WithRepository(string) RegistrationBuilder
-	WithSharedSecret(string) RegistrationBuilder
 	WithAdGroups([]string) RegistrationBuilder
 	WithAdUsers([]string) RegistrationBuilder
 	WithCloneURL(string) RegistrationBuilder
@@ -38,7 +37,6 @@ type RegistrationBuilderStruct struct {
 	appID               string
 	name                string
 	repository          string
-	sharedSecret        string
 	adGroups            []string
 	adUsers             []string
 	cloneURL            string
@@ -58,7 +56,6 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithAppID(radixRegistration.Spec.AppID.String())
 	rb.WithName(radixRegistration.Name)
 	rb.WithCloneURL(radixRegistration.Spec.CloneURL)
-	rb.WithSharedSecret(radixRegistration.Spec.SharedSecret)
 	rb.WithAdGroups(radixRegistration.Spec.AdGroups)
 	rb.WithAdUsers(radixRegistration.Spec.AdUsers)
 	rb.WithReaderAdGroups(radixRegistration.Spec.ReaderAdGroups)
@@ -109,12 +106,6 @@ func (rb *RegistrationBuilderStruct) WithRepository(repository string) Registrat
 // WithCloneURL Sets clone url
 func (rb *RegistrationBuilderStruct) WithCloneURL(cloneURL string) RegistrationBuilder {
 	rb.cloneURL = cloneURL
-	return rb
-}
-
-// WithSharedSecret Sets shared secret
-func (rb *RegistrationBuilderStruct) WithSharedSecret(sharedSecret string) RegistrationBuilder {
-	rb.sharedSecret = sharedSecret
 	return rb
 }
 
@@ -203,7 +194,6 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 		Spec: v1.RadixRegistrationSpec{
 			AppID:               v1.ULID{ULID: ulid.MustParse(appId)},
 			CloneURL:            cloneURL,
-			SharedSecret:        rb.sharedSecret,
 			AdGroups:            rb.adGroups,
 			AdUsers:             rb.adUsers,
 			ReaderAdGroups:      rb.readerAdGroups,
@@ -230,7 +220,6 @@ func ARadixRegistration() RegistrationBuilder {
 		WithAppID("00000000000000000000000001").
 		WithName("anyapp").
 		WithCloneURL("git@github.com:equinor/anyapp").
-		WithSharedSecret("NotSoSecret").
 		WithUID("1234-5678").
 		WithAdGroups([]string{"604bad73-c53b-4a95-ab17-d7953f75c8c3"}).
 		WithReaderAdGroups([]string{"40edc80d-0047-450d-b71a-970e6bb61d64"}).

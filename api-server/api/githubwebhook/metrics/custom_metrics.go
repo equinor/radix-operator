@@ -51,6 +51,13 @@ var (
 		},
 		[]string{sshURLLabel},
 	)
+	failedPayloadValidationCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "radix_webhook_request_failed_payload_validation_counter",
+			Help: "Counter for failed payload validation requests",
+		},
+		[]string{appNameLabel},
+	)
 	pushEventTypeCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "radix_webhook_request_push_github_event_type_counter",
@@ -114,6 +121,11 @@ func IncreasePingGithubEventTypeCounter(sshURL string) {
 // IncreaseFailedCloneURLValidationCounter increases unsupported GitHub event type request counter
 func IncreaseFailedCloneURLValidationCounter(sshURL string) {
 	failedCloneURLValidationCounter.With(prometheus.Labels{sshURLLabel: sshURL}).Inc()
+}
+
+// IncreaseFailedPayloadValidationCounter increases unsupported GitHub event type request counter
+func IncreaseFailedPayloadValidationCounter(appName string) {
+	failedPayloadValidationCounter.With(prometheus.Labels{appNameLabel: appName}).Inc()
 }
 
 // IncreasePushGithubEventTypeCounter increases all GitHub push event type request counter

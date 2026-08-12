@@ -29,6 +29,15 @@ func ForRadixDeploymentName(deploymentName string) map[string]string {
 	return map[string]string{kube.RadixDeploymentNameAnnotation: deploymentName}
 }
 
+// ForBatchCronSchedule returns an annotation holding the cron schedule expression a RadixBatch
+// was created from. Returns nil when the schedule is empty, so non-cron batches carry no annotation.
+func ForBatchCronSchedule(schedule string) map[string]string {
+	if len(schedule) == 0 {
+		return nil
+	}
+	return map[string]string{kube.RadixBatchCronScheduleAnnotation: schedule}
+}
+
 // ForKubernetesDeploymentObservedGeneration returns annotations describing which RadixDeployment version was used while syncing
 func ForKubernetesDeploymentObservedGeneration(rd *radixv1.RadixDeployment) map[string]string {
 	if rd == nil {

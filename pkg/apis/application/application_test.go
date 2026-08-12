@@ -129,7 +129,7 @@ func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
 
 	roleBindings, _ := client.RbacV1().RoleBindings(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
-		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, defaults.AppReaderRoleName, "git-ssh-keys"},
+		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, defaults.AppReaderRoleName, "git-ssh-keys", defaults.WebhookSharedSecretName},
 		getRoleBindingNames(roleBindings),
 	)
 
@@ -162,14 +162,14 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 	roleBindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
-		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName},
+		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName, defaults.WebhookSharedSecretName},
 		getRoleBindingNames(roleBindings))
 	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, roleBindings)
 	assert.Equal(t, 1, len(appAdminRoleBinding.Subjects))
 
 	secrets, _ := client.CoreV1().Secrets("any-app-app").List(context.Background(), metav1.ListOptions{})
 	secretNames := slice.Map(secrets.Items, func(s corev1.Secret) string { return s.Name })
-	expectedSecrets := []string{defaults.GitPrivateKeySecretName, defaults.AzureACRServicePrincipleBuildahSecretName, defaults.AzureACRTokenPasswordAppRegistrySecretName}
+	expectedSecrets := []string{defaults.GitPrivateKeySecretName, defaults.AzureACRServicePrincipleBuildahSecretName, defaults.AzureACRTokenPasswordAppRegistrySecretName, defaults.WebhookSharedSecretName}
 	assert.ElementsMatch(t, expectedSecrets, secretNames)
 
 	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(context.Background(), metav1.ListOptions{})
@@ -256,7 +256,7 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})
 	assert.ElementsMatch(t,
-		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName},
+		[]string{defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName, defaults.WebhookSharedSecretName},
 		getRoleBindingNames(rolebindings))
 
 	expectedSubjects := []rbacv1.Subject{

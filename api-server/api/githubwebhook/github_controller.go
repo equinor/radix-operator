@@ -14,21 +14,26 @@ import (
 	applicationmodels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	"github.com/equinor/radix-operator/api-server/api/githubwebhook/metrics"
 	"github.com/equinor/radix-operator/api-server/internal/pipelineservice"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/go-github/v72/github"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 
 	"github.com/equinor/radix-operator/api-server/models"
 )
 
 type githubController struct {
 	*models.DefaultController
+	eventRecorder record.EventRecorder
 }
 
 // NewGithubWebhookController Constructor
-func NewGithubWebhookController() models.Controller {
-	return &githubController{}
+func NewGithubWebhookController(eventRecorder record.EventRecorder) models.Controller {
+	return &githubController{eventRecorder: eventRecorder}
 }
 
 // GetRoutes List the supported routes of this handler
@@ -116,7 +121,13 @@ func (c *githubController) handlePingEvent(e *github.PingEvent, w http.ResponseW
 		c.writeErrorResponse(w, r, http.StatusBadRequest, err, event)
 		return
 	}
-	err = validatePayload(r.Header, body, []byte(rr.Spec.SharedSecret))
+	sharedSecret, err := getWebhookSharedSecret(r.Context(), rr, accounts)
+	if err != nil {
+		metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, webhookIncorrectConfiguration(rr.Name, err), event)
+		return
+	}
+	err = validatePayload(r.Header, body, sharedSecret)
 	if err != nil {
 		metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
 		c.writeErrorResponse(w, r, http.StatusBadRequest, webhookIncorrectConfiguration(rr.Name, err), event)
@@ -153,12 +164,20 @@ func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseW
 	rr, err := getRadixRegistration(r.Context(), appName, sshURL, accounts.ServiceAccount.RadixClient)
 	if err != nil {
 		metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
+		c.recordPushEventFailure(appName, err)
 		c.writeErrorResponse(w, r, http.StatusBadRequest, err, event)
 		return
 	}
-	err = validatePayload(r.Header, body, []byte(rr.Spec.SharedSecret))
+	sharedSecret, err := getWebhookSharedSecret(r.Context(), rr, accounts)
 	if err != nil {
 		metrics.IncreaseFailedCloneURLValidationCounter(sshURL)
+		c.writeErrorResponse(w, r, http.StatusBadRequest, webhookIncorrectConfiguration(rr.Name, err), event)
+		return
+	}
+	err = validatePayload(r.Header, body, sharedSecret)
+	if err != nil {
+		metrics.IncreaseFailedPayloadValidationCounter(rr.Name)
+		c.recordPushEventFailure(rr.Name, err)
 		c.writeErrorResponse(w, r, http.StatusBadRequest, webhookIncorrectConfiguration(rr.Name, err), event)
 		return
 	}
@@ -169,17 +188,56 @@ func (c *githubController) handlePushEvent(e *github.PushEvent, w http.ResponseW
 		CommitID:    commitID,
 		PushImage:   "true",
 		TriggeredBy: triggeredBy,
-		//Branch:      gitRef, //nolint:staticcheck
-		GitRef: gitRef,
+		GitRef:      gitRef,
+		GitRefType:  gitRefType,
 	})
 	if err != nil {
 		metrics.IncreasePushGithubEventTypeFailedTriggerPipelineCounter(sshURL, gitRef, gitRefType, commitID)
+		c.recordPushEventFailure(rr.Name, err)
 		c.writeErrorResponse(w, r, http.StatusBadRequest, createPipelineJobErrorMessage(rr.Name, err), event)
 		log.Ctx(r.Context()).Error().Err(err).Msgf("Failed to create pipeline job for Radix application %s on %s %s for commit %s", rr.Name, gitRefType, gitRef, commitID)
 		return
 	}
 
+	c.recordPushEventSuccess(rr, jobSummary.Name, gitRefType, gitRef, commitID)
 	c.writeSuccessResponse(w, r, http.StatusOK, fmt.Sprintf("Pipeline job %s created for Radix application %s on %s %s for commit %s", jobSummary.Name, jobSummary.AppName, jobSummary.GitRefType, jobSummary.GitRef, jobSummary.CommitID), event)
+}
+
+// recordPushEventSuccess emits a Kubernetes event in the application namespace when a push event
+// has successfully triggered a pipeline job.
+func (c *githubController) recordPushEventSuccess(rr *radixv1.RadixRegistration, jobName, gitRefType, gitRef, commitID string) {
+	if c.eventRecorder == nil {
+		return
+	}
+	c.eventRecorder.Eventf(radixApplicationEventTarget(rr.Name), corev1.EventTypeNormal, "GithubPushReceived",
+		"Pipeline job %s created for %s %s (commit %s)", jobName, gitRefType, gitRef, commitID)
+}
+
+// recordPushEventFailure emits a Warning Kubernetes event in the application namespace when a
+// push event could not be processed for a known Radix application.
+func (c *githubController) recordPushEventFailure(appName string, err error) {
+	if c.eventRecorder == nil {
+		return
+	}
+	if len(appName) == 0 {
+		log.Warn().Err(err).Msg("Failed to process GitHub push event for unknown Radix application")
+		return
+	}
+
+	c.eventRecorder.Eventf(radixApplicationEventTarget(appName), corev1.EventTypeWarning, "GithubPushFailed",
+		"Failed to process GitHub push event: %s", err.Error())
+}
+
+// radixApplicationEventTarget returns a RadixApplication object placed in the application
+// namespace (<appName>-app), used as the involved object for Kubernetes events emitted from the
+// GitHub webhook handler.
+func radixApplicationEventTarget(appName string) *radixv1.RadixApplication {
+	return &radixv1.RadixApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: operatorutils.GetAppNamespace(appName),
+		},
+	}
 }
 
 func getRadixRegistration(ctx context.Context, appName, sshURL string, radixClient radixclient.Interface) (*radixv1.RadixRegistration, error) {
@@ -189,7 +247,7 @@ func getRadixRegistration(ctx context.Context, appName, sshURL string, radixClie
 			return nil, fmt.Errorf("failed to get Radix registration for application %s: %w", appName, err)
 		}
 		if !strings.EqualFold(rr.Spec.CloneURL, sshURL) {
-			return nil, ErrUnmatchedRepoMessageByAppName
+			return nil, ErrUnmatchedAppByCloneUrlMessage
 		}
 		return rr, nil
 	}
@@ -302,4 +360,18 @@ func validatePayload(header http.Header, payload []byte, sharedSecret []byte) er
 	}
 
 	return nil
+}
+
+func getWebhookSharedSecret(ctx context.Context, rr *radixv1.RadixRegistration, accounts models.Accounts) ([]byte, error) {
+	secret, err := accounts.ServiceAccount.Client.CoreV1().Secrets(operatorutils.GetAppNamespace(rr.Name)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get webhook secret %s: %w", defaults.WebhookSharedSecretName, err)
+	}
+
+	secretData, ok := secret.Data[defaults.WebhookSharedSecretKey]
+	if !ok || len(secretData) == 0 || len(strings.TrimSpace(string(secretData))) == 0 {
+		return nil, fmt.Errorf("secret %s is missing key %s", defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretKey)
+	}
+
+	return secretData, nil
 }

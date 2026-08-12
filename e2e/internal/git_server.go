@@ -460,7 +460,7 @@ func ConfigureCoreDNSGithubRewrite(ctx context.Context, c client.Client) error {
 func restartDeployment(ctx context.Context, c client.Client, namespace, name string) error {
 	// Use a merge patch instead of get+update so we don't conflict with concurrent status updates
 	// from the deployment controller.
-	patch := []byte(fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"e2e/restartedAt":%q}}}}}`, time.Now().Format(time.RFC3339Nano)))
+	patch := fmt.Appendf(nil, `{"spec":{"template":{"metadata":{"annotations":{"e2e/restartedAt":%q}}}}}`, time.Now().Format(time.RFC3339Nano))
 	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 	if err := c.Patch(ctx, deployment, client.RawPatch(types.MergePatchType, patch)); err != nil {
 		return fmt.Errorf("failed to restart deployment %s/%s: %w", namespace, name, err)

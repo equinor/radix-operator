@@ -2,11 +2,11 @@ package applications
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -26,10 +26,10 @@ import (
 	"github.com/equinor/radix-operator/api-server/models"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/google/uuid"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 	authorizationapi "k8s.io/api/authorization/v1"
@@ -123,11 +123,6 @@ func (ah *ApplicationHandler) RegisterApplication(ctx context.Context, applicati
 	application := applicationRegistrationRequest.ApplicationRegistration
 	creator := auth.GetOriginator(ctx)
 
-	if len(application.SharedSecret) == 0 {
-		application.SharedSecret = radixutils.RandString(20)
-		log.Ctx(ctx).Debug().Msg("There is no Shared Secret specified for the registering application - a random Shared Secret has been generated")
-	}
-
 	radixRegistration, err := applicationModels.NewApplicationRegistrationBuilder().
 		WithAppRegistration(application).
 		WithAppID(ulid.Make().String()).
@@ -184,7 +179,6 @@ func (ah *ApplicationHandler) ChangeRegistrationDetails(ctx context.Context, app
 
 	// Only these fields can change over time
 	updatedRegistration.Spec.CloneURL = radixRegistration.Spec.CloneURL
-	updatedRegistration.Spec.SharedSecret = radixRegistration.Spec.SharedSecret
 	updatedRegistration.Spec.AdGroups = radixRegistration.Spec.AdGroups
 	updatedRegistration.Spec.ReaderAdGroups = radixRegistration.Spec.ReaderAdGroups
 	updatedRegistration.Spec.Owner = radixRegistration.Spec.Owner
@@ -442,50 +436,41 @@ func (ah *ApplicationHandler) RegenerateDeployKey(ctx context.Context, appName s
 }
 
 // RegenerateSharedSecret Regenerates the GitHub webhook secret for an application.
-func (ah *ApplicationHandler) RegenerateSharedSecret(ctx context.Context, appName string, regenerateWebhookSecretData applicationModels.RegenerateSharedSecretData) error {
-	sharedKey := strings.TrimSpace(regenerateWebhookSecretData.SharedSecret)
+func (ah *ApplicationHandler) RegenerateSharedSecret(ctx context.Context, appName string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		// Make check that this is an existing application and that the user has access to it
-		currentRegistration, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
+		// Make check that this is an existing application and that the user has access to the secret
+		currentSecret, err := ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
-		updatedRegistration := currentRegistration.DeepCopy()
-		if len(sharedKey) != 0 {
-			updatedRegistration.Spec.SharedSecret = sharedKey
-		} else {
-			newShareKey, err := uuid.NewUUID()
-			if err != nil {
-				return fmt.Errorf("failed to generate new shared secret: %v", err)
-			}
-			updatedRegistration.Spec.SharedSecret = newShareKey.String()
+
+		newSecret := currentSecret.DeepCopy()
+		if newSecret.Data == nil {
+			newSecret.Data = map[string][]byte{}
 		}
 
-		if reflect.DeepEqual(updatedRegistration, currentRegistration) {
-			return nil
-		}
-		if _, err := ah.ValidateRadixRegistration(ctx, updatedRegistration, true); err != nil {
-			return err
-		}
-		_, err = ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Update(ctx, updatedRegistration, metav1.UpdateOptions{})
+		newSecret.Data[defaults.WebhookSharedSecretKey] = []byte(rand.Text())
+
+		_, err = ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Update(ctx, newSecret, metav1.UpdateOptions{})
 		return err
 	})
 }
 
 func (ah *ApplicationHandler) GetDeployKeyAndSecret(ctx context.Context, appName string) (*applicationModels.DeployKeyAndSecret, error) {
-	cm, err := ah.getUserAccount().Client.CoreV1().ConfigMaps(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		return nil, err
-	}
 	publicKey := ""
-	if cm != nil {
+	if cm, err := ah.getUserAccount().Client.CoreV1().ConfigMaps(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.GitPublicKeyConfigMapName, metav1.GetOptions{}); err != nil && !k8serrors.IsNotFound(err) {
+		return nil, err
+	} else if cm != nil {
 		publicKey = cm.Data[defaults.GitPublicKeyConfigMapKey]
 	}
-	rr, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
-	if err != nil {
+
+	sharedSecret := ""
+	if secret, err := ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{}); err != nil && !k8serrors.IsNotFound(err) && !k8serrors.IsForbidden(err) {
 		return nil, err
+	} else if secret != nil {
+		sharedSecret = string(secret.Data[defaults.WebhookSharedSecretKey])
 	}
-	sharedSecret := rr.Spec.SharedSecret
+
 	return &applicationModels.DeployKeyAndSecret{
 		PublicDeployKey: publicKey,
 		SharedSecret:    sharedSecret,
@@ -552,6 +537,34 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 		return userShouldBeMemberOfAdminAdGroupError()
 	}
 	return nil
+}
+
+// SetFederatedCredentialsMigratedAnnotation sets the radix.equinor.com/federeated-credentials-migrated annotation on the applications RadixRegistration CR
+func (ah *ApplicationHandler) SetFederatedCredentialsMigratedAnnotation(ctx context.Context, appName string) error {
+	const federatedCredentialsMigratedAnnotation = kube.RadixFederatedCredentialsMigratedAnnotation
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentRegistration, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		if _, exists := currentRegistration.Annotations[federatedCredentialsMigratedAnnotation]; exists {
+			return nil
+		}
+
+		updatedRegistration := currentRegistration.DeepCopy()
+		if updatedRegistration.Annotations == nil {
+			updatedRegistration.Annotations = map[string]string{}
+		}
+
+		now := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
+		user := auth.GetOriginator(ctx)
+		updatedRegistration.Annotations[federatedCredentialsMigratedAnnotation] = fmt.Sprintf("%s, %s", user, now)
+
+		_, err = ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Update(ctx, updatedRegistration, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func createRoleToGetConfigMap(ctx context.Context, kubeClient kubernetes.Interface, namespace, roleName string, labels map[string]string, configMapName string) (*rbacv1.Role, error) {

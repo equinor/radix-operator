@@ -2611,6 +2611,12 @@ func (c *environmentController) GetOAuthAuxiliaryResourcePodLog(accounts models.
 	//   type: string
 	//   format: number
 	//   required: false
+	// - name: previous
+	//   in: query
+	//   description: Get previous container log if true
+	//   type: string
+	//   format: boolean
+	//   required: false
 	// - name: file
 	//   in: query
 	//   description: Get log as a file if true
@@ -2652,14 +2658,14 @@ func (c *environmentController) GetOAuthAuxiliaryResourcePodLog(accounts models.
 	componentName := mux.Vars(r)["componentName"]
 	podName := mux.Vars(r)["podName"]
 
-	since, asFile, asFollow, logLines, err, _ := logs.GetLogParams(r)
+	since, asFile, asFollow, logLines, err, previousLog := logs.GetLogParams(r)
 	if err != nil {
 		c.ErrorResponse(w, r, err)
 		return
 	}
 
 	eh := c.environmentHandlerFactory(accounts)
-	logs, err := eh.GetAuxiliaryResourcePodLog(r.Context(), appName, envName, componentName, auxType, podName, &since, logLines, asFollow)
+	logs, err := eh.GetAuxiliaryResourcePodLog(r.Context(), appName, envName, componentName, auxType, podName, &since, logLines, previousLog, asFollow)
 	if err != nil {
 		c.ErrorResponse(w, r, err)
 		return

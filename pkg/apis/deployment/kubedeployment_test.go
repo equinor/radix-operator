@@ -7,7 +7,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -446,20 +445,4 @@ func applyDeploymentWithSyncWithComponentResources(t *testing.T, origRequests, o
 			WithAppName("any-app").
 			WithEnvironment("test"))
 	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR(), config: &testConfig}
-}
-
-func TestDeployment_createJobAuxDeployment(t *testing.T) {
-	deploy := &Deployment{radixDeployment: &v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "deployment1", UID: "uid1"}}, config: &config.Config{ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: "an-external-registry-secret"}}}
-	jobAuxDeployment := deploy.createJobAuxDeployment("job1", "job1-aux")
-	assert.Equal(t, "job1-aux", jobAuxDeployment.GetName())
-	resources := jobAuxDeployment.Spec.Template.Spec.Containers[0].Resources
-	s := resources.Requests.Cpu().String()
-	assert.Equal(t, "1m", s)
-	assert.Equal(t, "20M", resources.Requests.Memory().String())
-	assert.Equal(t, "0", resources.Limits.Cpu().String())
-	assert.Equal(t, "20M", resources.Limits.Memory().String())
-	assert.Equal(t, "bash:alpine3.22", jobAuxDeployment.Spec.Template.Spec.Containers[0].Image)
-	assert.Equal(t, "an-external-registry-secret", jobAuxDeployment.Spec.Template.Spec.ImagePullSecrets[0].Name)
-	assert.Equal(t, `sh`, jobAuxDeployment.Spec.Template.Spec.Containers[0].Command[0])
-	assert.Equal(t, []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}, jobAuxDeployment.Spec.Template.Spec.Containers[0].Args)
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/router"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -23,8 +24,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/record"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -44,13 +47,19 @@ func executeWebhookRequest(t *testing.T, radixClient *radixfake.Clientset, url s
 	t.Helper()
 
 	kubeClient := kubefake.NewSimpleClientset() //nolint:staticcheck
+	return executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, url, headers, body)
+}
+
+func executeWebhookRequestWithKubeClient(t *testing.T, kubeClient *kubefake.Clientset, radixClient *radixfake.Clientset, url string, headers map[string]string, body []byte) *httptest.ResponseRecorder {
+	t.Helper()
+
 	kedaClient := kedafake.NewSimpleClientset()
 	secretProviderClient := secretproviderfake.NewSimpleClientset()
 	certClient := certclientfake.NewSimpleClientset()
 	kubeUtil := controllertest.NewKubeUtilMock(kubeClient, radixClient, kedaClient, secretProviderClient, certClient, nil)
 
 	mockValidator := authnmock.NewMockValidatorInterface(gomock.NewController(t))
-	handler := router.NewAPIHandler(mockValidator, kubeUtil, NewGithubWebhookController())
+	handler := router.NewAPIHandler(mockValidator, kubeUtil, NewGithubWebhookController(record.NewFakeRecorder(10)))
 
 	req := httptest.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	for key, value := range headers {
@@ -93,29 +102,36 @@ func pingEventBody(t *testing.T, repoSSHURL string) []byte {
 	return body
 }
 
-func registerApp(t *testing.T, radixClient *radixfake.Clientset) {
+func createRegistration(t *testing.T, radixClient *radixfake.Clientset, appName string) {
 	t.Helper()
 	rr := operatorutils.NewRegistrationBuilder().
 		WithName(appName).
 		WithCloneURL(sshURL).
-		WithSharedSecret(sharedSecret).
 		WithConfigBranch(configBranch).
 		BuildRR()
 	_, err := radixClient.RadixV1().RadixRegistrations().Create(t.Context(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
 }
 
-// createRegistration registers an application with the given name that shares the
-// package level sshURL clone URL, used to simulate multiple apps matching one repo.
-func createRegistration(t *testing.T, radixClient *radixfake.Clientset, name string) {
+func createWebhookSharedSecret(t *testing.T, kubeClient *kubefake.Clientset, appName string) {
 	t.Helper()
-	rr := operatorutils.NewRegistrationBuilder().
-		WithName(name).
-		WithCloneURL(sshURL).
-		WithSharedSecret(sharedSecret).
-		WithConfigBranch(configBranch).
-		BuildRR()
-	_, err := radixClient.RadixV1().RadixRegistrations().Create(t.Context(), rr, metav1.CreateOptions{})
+	_, err := kubeClient.CoreV1().Secrets(operatorutils.GetAppNamespace(appName)).Create(t.Context(), &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: defaults.WebhookSharedSecretName,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			defaults.WebhookSharedSecretKey: []byte(sharedSecret),
+		},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err)
+}
+
+func createRadixApplication(t *testing.T, radixClient *radixfake.Clientset, environments ...radixv1.Environment) {
+	t.Helper()
+	ra := operatorutils.NewRadixApplicationBuilder().WithAppName(appName).BuildRA()
+	ra.Spec.Environments = environments
+	_, err := radixClient.RadixV1().RadixApplications(operatorutils.GetAppNamespace(appName)).Create(t.Context(), ra, metav1.CreateOptions{})
 	require.NoError(t, err)
 }
 
@@ -127,7 +143,7 @@ func decodeWebhookResponse(t *testing.T, rr *httptest.ResponseRecorder) WebhookR
 }
 
 func TestNewGithubWebhookController_GetRoutes(t *testing.T) {
-	controller := NewGithubWebhookController()
+	controller := NewGithubWebhookController(record.NewFakeRecorder(10))
 	routes := controller.GetRoutes()
 
 	require.Len(t, routes, 1)
@@ -163,11 +179,13 @@ func TestHandleGithubWebhook_UnhandledEventType(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Ping_MatchingRepo(t *testing.T) {
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
-	registerApp(t, radixClient)
+	createRegistration(t, radixClient, appName)
+	createWebhookSharedSecret(t, kubeClient, appName)
 
 	body := pingEventBody(t, sshURL)
-	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
 		"Content-Type":               "application/json",
 		"X-GitHub-Event":             pingEventType,
 		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
@@ -196,11 +214,13 @@ func TestHandleGithubWebhook_Ping_UnmatchedRepo(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Push_RefDeletion(t *testing.T) {
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
-	registerApp(t, radixClient)
+	createRegistration(t, radixClient, appName)
+	createWebhookSharedSecret(t, kubeClient, appName)
 
 	body := pushEventBody(t, "refs/heads/main", "0000000000000000000000000000000000000000", true)
-	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
 		"Content-Type":   "application/json",
 		"X-GitHub-Event": pushEventType,
 	}, body)
@@ -227,11 +247,13 @@ func TestHandleGithubWebhook_Push_UnmatchedRepo(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Push_InvalidSignature(t *testing.T) {
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
-	registerApp(t, radixClient)
+	createRegistration(t, radixClient, appName)
+	createWebhookSharedSecret(t, kubeClient, appName)
 
 	body := pushEventBody(t, "refs/heads/main", "abc123", false)
-	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
 		"Content-Type":               "application/json",
 		"X-GitHub-Event":             pushEventType,
 		github.SHA256SignatureHeader: signPayload(body, "WrongSecret"),
@@ -244,12 +266,14 @@ func TestHandleGithubWebhook_Push_InvalidSignature(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Push_TriggersPipeline(t *testing.T) {
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
-	registerApp(t, radixClient)
+	createRegistration(t, radixClient, appName)
+	createWebhookSharedSecret(t, kubeClient, appName)
 
 	commitID := "0123456789abcdef0123456789abcdef01234567"
 	body := pushEventBody(t, "refs/heads/"+configBranch, commitID, false)
-	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
 		"Content-Type":               "application/json",
 		"X-GitHub-Event":             pushEventType,
 		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
@@ -267,14 +291,257 @@ func TestHandleGithubWebhook_Push_TriggersPipeline(t *testing.T) {
 	assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
 	assert.Equal(t, commitID, job.Spec.Build.CommitID)
 	assert.Equal(t, configBranch, job.Spec.Build.GitRef)
+	assert.Equal(t, radixv1.GitRefBranch, job.Spec.Build.GitRefType)
+}
+
+func TestHandleGithubWebhook_Push_TriggersPipelineForStaticEnvironmentBranch(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
+	createWebhookSharedSecret(t, kubeClient, appName)
+	createRegistration(t, radixClient, appName)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "dev",
+		Build: radixv1.EnvBuild{From: "release-2026", FromType: string(radixv1.GitRefBranch)},
+	})
+
+	commitID := "0123456789abcdef0123456789abcdef01234567"
+	body := pushEventBody(t, "refs/heads/release-2026", commitID, false)
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.True(t, resp.Ok)
+	assert.Equal(t, pushEventType, resp.Event)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, jobs.Items, 1)
+	job := jobs.Items[0]
+	assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
+	assert.Equal(t, commitID, job.Spec.Build.CommitID)
+	assert.Equal(t, "release-2026", job.Spec.Build.GitRef)
+	assert.Equal(t, radixv1.GitRefBranch, job.Spec.Build.GitRefType)
+}
+
+func TestHandleGithubWebhook_Push_TriggersPipelineForRegexEnvironmentBranch(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
+	createWebhookSharedSecret(t, kubeClient, appName)
+	createRegistration(t, radixClient, appName)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "dev",
+		Build: radixv1.EnvBuild{From: "feature.*", FromType: string(radixv1.GitRefBranch)},
+	})
+
+	commitID := "0123456789abcdef0123456789abcdef01234567"
+	body := pushEventBody(t, "refs/heads/feature-branch", commitID, false)
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.True(t, resp.Ok)
+	assert.Equal(t, pushEventType, resp.Event)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, jobs.Items, 1)
+	job := jobs.Items[0]
+	assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
+	assert.Equal(t, commitID, job.Spec.Build.CommitID)
+	assert.Equal(t, "feature-branch", job.Spec.Build.GitRef)
+	assert.Equal(t, radixv1.GitRefBranch, job.Spec.Build.GitRefType)
+}
+
+func TestHandleGithubWebhook_Push_TriggersPipelineForStaticEnvironmentTag(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
+	createWebhookSharedSecret(t, kubeClient, appName)
+	createRegistration(t, radixClient, appName)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "prod",
+		Build: radixv1.EnvBuild{From: "v1.2.3", FromType: string(radixv1.GitRefTag)},
+	})
+
+	commitID := "0123456789abcdef0123456789abcdef01234567"
+	body := pushEventBody(t, "refs/tags/v1.2.3", commitID, false)
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.True(t, resp.Ok)
+	assert.Equal(t, pushEventType, resp.Event)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, jobs.Items, 1)
+	job := jobs.Items[0]
+	assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
+	assert.Equal(t, commitID, job.Spec.Build.CommitID)
+	assert.Equal(t, "v1.2.3", job.Spec.Build.GitRef)
+	assert.Equal(t, radixv1.GitRefTag, job.Spec.Build.GitRefType)
+}
+
+func TestHandleGithubWebhook_Push_TriggersPipelineForRegexEnvironmentTag(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
+	createWebhookSharedSecret(t, kubeClient, appName)
+	createRegistration(t, radixClient, appName)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "prod",
+		Build: radixv1.EnvBuild{From: "v1.*", FromType: string(radixv1.GitRefTag)},
+	})
+
+	commitID := "0123456789abcdef0123456789abcdef01234567"
+	body := pushEventBody(t, "refs/tags/v1.2.3", commitID, false)
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.True(t, resp.Ok)
+	assert.Equal(t, pushEventType, resp.Event)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, jobs.Items, 1)
+	job := jobs.Items[0]
+	assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
+	assert.Equal(t, commitID, job.Spec.Build.CommitID)
+	assert.Equal(t, "v1.2.3", job.Spec.Build.GitRef)
+	assert.Equal(t, radixv1.GitRefTag, job.Spec.Build.GitRefType)
+}
+
+func TestHandleGithubWebhook_Push_DoesNotTriggerPipelineForBranchPushMatchingTagEnvironment(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
+	createWebhookSharedSecret(t, kubeClient, appName)
+	createRegistration(t, radixClient, appName)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "prod",
+		Build: radixv1.EnvBuild{From: "v1.2.3", FromType: string(radixv1.GitRefTag)},
+	})
+
+	body := pushEventBody(t, "refs/heads/v1.2.3", "0123456789abcdef0123456789abcdef01234567", false)
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.False(t, resp.Ok)
+	assert.Contains(t, resp.Error, "failed to create pipeline job for Radix application "+appName)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, jobs.Items)
+}
+
+func TestHandleGithubWebhook_Push_DoesNotTriggerPipelineForTagPushMatchingBranchEnvironment(t *testing.T) {
+	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
+	createWebhookSharedSecret(t, kubeClient, appName)
+	createRegistration(t, radixClient, appName)
+	createRadixApplication(t, radixClient, radixv1.Environment{
+		Name:  "dev",
+		Build: radixv1.EnvBuild{From: "release-2026", FromType: string(radixv1.GitRefBranch)},
+	})
+
+	body := pushEventBody(t, "refs/tags/release-2026", "0123456789abcdef0123456789abcdef01234567", false)
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
+		"Content-Type":               "application/json",
+		"X-GitHub-Event":             pushEventType,
+		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+	}, body)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
+	resp := decodeWebhookResponse(t, rr)
+	assert.False(t, resp.Ok)
+	assert.Contains(t, resp.Error, "failed to create pipeline job for Radix application "+appName)
+
+	jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, jobs.Items)
+}
+
+func TestHandleGithubWebhook_Push_TriggersPipelineForEnvironmentWithoutGitRefType(t *testing.T) {
+	commitID := "0123456789abcdef0123456789abcdef01234567"
+	testCases := []struct {
+		name               string
+		pushRef            string
+		expectedGitRefType radixv1.GitRefType
+	}{
+		{
+			name:               "branch push",
+			pushRef:            "refs/heads/release-2026",
+			expectedGitRefType: radixv1.GitRefBranch,
+		},
+		{
+			name:               "tag push",
+			pushRef:            "refs/tags/release-2026",
+			expectedGitRefType: radixv1.GitRefTag,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
+			kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
+			createWebhookSharedSecret(t, kubeClient, appName)
+			createRegistration(t, radixClient, appName)
+			createRadixApplication(t, radixClient, radixv1.Environment{
+				Name:  "prod",
+				Build: radixv1.EnvBuild{From: "release-2026"},
+			})
+
+			body := pushEventBody(t, testCase.pushRef, commitID, false)
+			rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
+				"Content-Type":               "application/json",
+				"X-GitHub-Event":             pushEventType,
+				github.SHA256SignatureHeader: signPayload(body, sharedSecret),
+			}, body)
+
+			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+			resp := decodeWebhookResponse(t, rr)
+			assert.True(t, resp.Ok)
+			assert.Equal(t, pushEventType, resp.Event)
+
+			jobs, err := radixClient.RadixV1().RadixJobs(operatorutils.GetAppNamespace(appName)).List(t.Context(), metav1.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, jobs.Items, 1)
+			job := jobs.Items[0]
+			assert.Equal(t, radixv1.BuildDeploy, job.Spec.PipeLineType)
+			assert.Equal(t, commitID, job.Spec.Build.CommitID)
+			assert.Equal(t, "release-2026", job.Spec.Build.GitRef)
+			assert.Equal(t, testCase.expectedGitRefType, job.Spec.Build.GitRefType)
+		})
+	}
 }
 
 func TestHandleGithubWebhook_Ping_IncorrectSecret(t *testing.T) {
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
-	registerApp(t, radixClient)
+	createRegistration(t, radixClient, appName)
+	createWebhookSharedSecret(t, kubeClient, appName)
 
 	body := pingEventBody(t, sshURL)
-	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
 		"Content-Type":               "application/json",
 		"X-GitHub-Event":             pingEventType,
 		github.SHA256SignatureHeader: signPayload(body, "IncorrectSecret"),
@@ -287,12 +554,15 @@ func TestHandleGithubWebhook_Ping_IncorrectSecret(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Ping_MultipleReposWithoutAppName(t *testing.T) {
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 	createRegistration(t, radixClient, "app1")
 	createRegistration(t, radixClient, "app2")
+	createWebhookSharedSecret(t, kubeClient, "app1")
+	createWebhookSharedSecret(t, kubeClient, "app2")
 
 	body := pingEventBody(t, sshURL)
-	rr := executeWebhookRequest(t, radixClient, webhookPath, map[string]string{
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath, map[string]string{
 		"Content-Type":               "application/json",
 		"X-GitHub-Event":             pingEventType,
 		github.SHA256SignatureHeader: signPayload(body, sharedSecret),
@@ -354,9 +624,11 @@ func TestHandleGithubWebhook_Push_RepoMatching(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
+			kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 			radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 			for _, name := range scenario.appNames {
 				createRegistration(t, radixClient, name)
+				createWebhookSharedSecret(t, kubeClient, name)
 			}
 
 			body := pushEventBody(t, "refs/heads/"+configBranch, commitID, false)
@@ -364,7 +636,7 @@ func TestHandleGithubWebhook_Push_RepoMatching(t *testing.T) {
 			if scenario.queryAppName != "" {
 				url += "?appName=" + scenario.queryAppName
 			}
-			rr := executeWebhookRequest(t, radixClient, url, map[string]string{
+			rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, url, map[string]string{
 				"Content-Type":               "application/json",
 				"X-GitHub-Event":             pushEventType,
 				github.SHA256SignatureHeader: signPayload(body, sharedSecret),
@@ -384,13 +656,15 @@ func TestHandleGithubWebhook_Push_RepoMatching(t *testing.T) {
 }
 
 func TestHandleGithubWebhook_Push_TriggerPipelineError(t *testing.T) {
+	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
-	registerApp(t, radixClient)
+	createRegistration(t, radixClient, appName)
+	createWebhookSharedSecret(t, kubeClient, appName)
 
 	// Push to a non-config branch with no RadixApplication, so the pipeline
 	// service fails to resolve target environments and returns an error.
 	body := pushEventBody(t, "refs/heads/feature-branch", "abc123def456", false)
-	rr := executeWebhookRequest(t, radixClient, webhookPath+"?appName="+appName, map[string]string{
+	rr := executeWebhookRequestWithKubeClient(t, kubeClient, radixClient, webhookPath+"?appName="+appName, map[string]string{
 		"Content-Type":               "application/json",
 		"X-GitHub-Event":             pushEventType,
 		github.SHA256SignatureHeader: signPayload(body, sharedSecret),

@@ -26,6 +26,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -260,6 +261,7 @@ func (s *stepTestSuite) Test_TargetEnvironments_Deploy() {
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
 			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("", nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return(nil, nil)
 			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
 			mockContextBuilder.EXPECT().GetBuildContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
@@ -1162,7 +1164,7 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 	}
 }
 
-func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams() {
+func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_BuildDeploy() {
 	const (
 		appName    = "anyapp"
 		envName1   = internalTest.Env1
@@ -1271,6 +1273,285 @@ func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams() 
 	}, pipelineInfo.EnvironmentSubPipelineParams[envName2])
 }
 
+func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_Promote() {
+	const (
+		appName         = "anyapp"
+		fromEnvironment = "dev"
+		toEnvironment   = "prod"
+		deploymentName  = "rd-dev"
+		gitRef          = "release-1"
+		gitRefType      = string(radixv1.GitRefTag)
+		gitCommit       = "sourcecommit"
+		gitTags         = "v1 v2"
+		cloneURL        = "git@github.com:equinor/radix-operator.git"
+		configBranch    = "configbranch"
+	)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithCloneURL(cloneURL).WithConfigBranch(configBranch).BuildRR()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	s.applyRadixDeployments([]radixv1.RadixDeployment{*utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(fromEnvironment).
+		WithDeploymentName(deploymentName).
+		WithAnnotations(map[string]string{
+			kube.RadixGitRefAnnotation:     gitRef,
+			kube.RadixGitRefTypeAnnotation: gitRefType,
+			kube.RadixCommitAnnotation:     gitCommit,
+			kube.RadixGitTagsAnnotation:    gitTags,
+		}).BuildRD()})
+
+	pipelineInfo := &model.PipelineInfo{
+		Definition: &pipeline.Definition{},
+		PipelineArguments: model.PipelineArguments{
+			AppName:         appName,
+			PipelineType:    string(radixv1.Promote),
+			FromEnvironment: fromEnvironment,
+			ToEnvironment:   toEnvironment,
+			DeploymentName:  deploymentName,
+		},
+	}
+
+	mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+	mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentNoBranch(toEnvironment).BuildRA(), nil).Times(1)
+	mockGitRepo := git.NewMockRepository(s.ctrl)
+	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil)
+	mockGitRepo.EXPECT().Checkout(gitCommit).Times(1).Return(nil)
+	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+	mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+	mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, toEnvironment).Return(false, "", nil, nil, nil).Times(1)
+	mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+	step := preparepipeline.NewPreparePipelinesStep(
+		preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+		preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+		preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+		preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+	)
+
+	ctx := context.Background()
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+
+	s.Equal(map[string]model.SubPipelineParams{
+		toEnvironment: {
+			PipelineType: string(radixv1.Promote),
+			Environment:  toEnvironment,
+			GitSSHUrl:    cloneURL,
+			GitRef:       gitRef,
+			GitRefType:   gitRefType,
+			GitCommit:    gitCommit,
+			GitTags:      gitTags,
+		},
+	}, pipelineInfo.EnvironmentSubPipelineParams)
+}
+
+func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_Promote_ResolveGitInfoFromGitRef() {
+	const (
+		appName         = "anyapp"
+		fromEnvironment = "dev"
+		toEnvironment   = "prod"
+		deploymentName  = "rd-dev"
+		gitRef          = "main"
+		gitCommit       = "resolvedcommit"
+		cloneURL        = "git@github.com:equinor/radix-operator.git"
+		configBranch    = "configbranch"
+	)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithCloneURL(cloneURL).WithConfigBranch(configBranch).BuildRR()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	s.applyRadixDeployments([]radixv1.RadixDeployment{*utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(fromEnvironment).
+		WithDeploymentName(deploymentName).
+		WithAnnotations(map[string]string{
+			kube.RadixGitRefAnnotation: gitRef,
+		}).BuildRD()})
+
+	pipelineInfo := &model.PipelineInfo{
+		Definition: &pipeline.Definition{},
+		PipelineArguments: model.PipelineArguments{
+			AppName:         appName,
+			PipelineType:    string(radixv1.Promote),
+			FromEnvironment: fromEnvironment,
+			ToEnvironment:   toEnvironment,
+			DeploymentName:  deploymentName,
+		},
+	}
+
+	mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+	mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentNoBranch(toEnvironment).BuildRA(), nil).Times(1)
+	mockGitRepo := git.NewMockRepository(s.ctrl)
+	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil)
+	mockGitRepo.EXPECT().ResolveCommitForReference(gitRef).Times(1).Return(gitCommit, nil)
+	mockGitRepo.EXPECT().ResolveTagsForCommit(gitCommit).Times(1).Return([]string{"v1", "v2"}, nil)
+	mockGitRepo.EXPECT().Checkout(gitCommit).Times(1).Return(nil)
+	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+	mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+	mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, toEnvironment).Return(false, "", nil, nil, nil).Times(1)
+	mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+	step := preparepipeline.NewPreparePipelinesStep(
+		preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+		preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+		preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+		preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+	)
+
+	ctx := context.Background()
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+
+	s.Equal(map[string]model.SubPipelineParams{
+		toEnvironment: {
+			PipelineType: string(radixv1.Promote),
+			Environment:  toEnvironment,
+			GitSSHUrl:    cloneURL,
+			GitRef:       gitRef,
+			GitRefType:   string(radixv1.GitRefBranch),
+			GitCommit:    gitCommit,
+			GitTags:      "v1 v2",
+		},
+	}, pipelineInfo.EnvironmentSubPipelineParams)
+}
+
+func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_Deploy() {
+	const (
+		appName       = "anyapp"
+		toEnvironment = "dev"
+		cloneURL      = "git@github.com:equinor/radix-operator.git"
+		configBranch  = "configbranch"
+	)
+
+	tests := map[string]struct {
+		ra              *radixv1.RadixApplication
+		expectedGitRef  string
+		expectedRefType string
+		expectedCommit  string
+		expectedGitTags string
+	}{
+		"environment without build from uses config branch": {
+			ra:              utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentNoBranch(toEnvironment).BuildRA(),
+			expectedGitRef:  configBranch,
+			expectedRefType: string(radixv1.GitRefBranch),
+			expectedCommit:  "configbranchcommit",
+			expectedGitTags: "v1 v2",
+		},
+		"environment build from type is ignored when build from is empty": {
+			ra: utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentByBuild(toEnvironment, radixv1.EnvBuild{
+				FromType: string(radixv1.GitRefTag),
+			}).BuildRA(),
+			expectedGitRef:  configBranch,
+			expectedRefType: string(radixv1.GitRefBranch),
+			expectedCommit:  "configbranchcommit",
+			expectedGitTags: "v1 v2",
+		},
+		"environment build from tag uses environment git ref and type": {
+			ra: utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentByBuild(toEnvironment, radixv1.EnvBuild{
+				From:     "v3",
+				FromType: string(radixv1.GitRefTag),
+			}).BuildRA(),
+			expectedGitRef:  "v3",
+			expectedRefType: string(radixv1.GitRefTag),
+			expectedCommit:  "tagcommit",
+			expectedGitTags: "v3",
+		},
+	}
+
+	for testName, testSpec := range tests {
+		s.Run(testName, func() {
+			rr := utils.NewRegistrationBuilder().WithName(appName).WithCloneURL(cloneURL).WithConfigBranch(configBranch).BuildRR()
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
+			pipelineInfo := &model.PipelineInfo{
+				Definition: &pipeline.Definition{},
+				PipelineArguments: model.PipelineArguments{
+					AppName:       appName,
+					PipelineType:  string(radixv1.Deploy),
+					ToEnvironment: toEnvironment,
+				},
+			}
+
+			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(testSpec.ra, nil).Times(1)
+			mockGitRepo := git.NewMockRepository(s.ctrl)
+			mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil)
+			mockGitRepo.EXPECT().ResolveCommitForReference(testSpec.expectedGitRef).Times(1).Return(testSpec.expectedCommit, nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(testSpec.expectedCommit).Times(1).Return(strings.Fields(testSpec.expectedGitTags), nil)
+			mockGitRepo.EXPECT().Checkout(testSpec.expectedCommit).Times(1).Return(nil)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, toEnvironment).Return(false, "", nil, nil, nil).Times(1)
+			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+			step := preparepipeline.NewPreparePipelinesStep(
+				preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+				preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+				preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+				preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+			)
+
+			ctx := context.Background()
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+			err = step.Run(ctx, pipelineInfo)
+			s.Require().NoError(err)
+
+			s.Equal(map[string]model.SubPipelineParams{
+				toEnvironment: {
+					PipelineType: string(radixv1.Deploy),
+					Environment:  toEnvironment,
+					GitSSHUrl:    cloneURL,
+					GitRef:       testSpec.expectedGitRef,
+					GitRefType:   testSpec.expectedRefType,
+					GitCommit:    testSpec.expectedCommit,
+					GitTags:      testSpec.expectedGitTags,
+				},
+			}, pipelineInfo.EnvironmentSubPipelineParams)
+		})
+	}
+}
+
+func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_ApplyConfig() {
+	const (
+		appName      = "anyapp"
+		configBranch = "configbranch"
+	)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithConfigBranch(configBranch).BuildRR()
+	pipelineInfo := &model.PipelineInfo{
+		Definition: &pipeline.Definition{},
+		PipelineArguments: model.PipelineArguments{
+			AppName:      appName,
+			PipelineType: string(radixv1.ApplyConfig),
+		},
+	}
+
+	mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+	mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(utils.NewRadixApplicationBuilder().WithAppName(appName).BuildRA(), nil).Times(1)
+	mockGitRepo := git.NewMockRepository(s.ctrl)
+	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil)
+	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+	mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+	mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+	step := preparepipeline.NewPreparePipelinesStep(
+		preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+		preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+		preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+		preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+	)
+
+	ctx := context.Background()
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+	err := step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+	s.Empty(pipelineInfo.EnvironmentSubPipelineParams)
+}
+
 func (s *stepTestSuite) Test_SubPipeline_ResolveAndCheckoutCommit_Deploy_EnvironmentMissingBuildFrom() {
 	const (
 		configBranch       = "cfgbranch"
@@ -1291,6 +1572,7 @@ func (s *stepTestSuite) Test_SubPipeline_ResolveAndCheckoutCommit_Deploy_Environ
 	mockGitRepo := git.NewMockRepository(s.ctrl)
 	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil) // Get radixconfig
 	mockGitRepo.EXPECT().ResolveCommitForReference(configBranch).Times(1).Return(configBranchCommit, nil)
+	mockGitRepo.EXPECT().ResolveTagsForCommit(configBranchCommit).Times(1).Return(nil, nil)
 	mockGitRepo.EXPECT().Checkout(configBranchCommit).Times(1).Return(nil)
 
 	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
@@ -1334,6 +1616,7 @@ func (s *stepTestSuite) Test_SubPipeline_ResolveAndCheckoutCommit_Deploy_Environ
 	mockGitRepo := git.NewMockRepository(s.ctrl)
 	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil) // Get radixconfig
 	mockGitRepo.EXPECT().ResolveCommitForReference(envBranch).Times(1).Return(envBranchCommit, nil)
+	mockGitRepo.EXPECT().ResolveTagsForCommit(envBranchCommit).Times(1).Return(nil, nil)
 	mockGitRepo.EXPECT().Checkout(envBranchCommit).Times(1).Return(nil)
 
 	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
@@ -1641,6 +1924,7 @@ func (s *stepTestSuite) Test_EnvironmentSubPipelineComponentNames() {
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
 			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("somecommit", nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return([]string{"v1", "v2"}, nil)
 			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
 			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
 			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(gomock.Any(), gomock.Any()).Return(false, "", nil, nil, nil).AnyTimes()
