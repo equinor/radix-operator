@@ -735,5 +735,3 @@ func validateResourceRequirements(resources radixv1.ResourceRequirements) ([]str
 
 	return wrns, errors.Join(errs...)
 }
-
-// validation for total lenth (when u apply config)
