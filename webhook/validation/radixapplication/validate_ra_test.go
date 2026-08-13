@@ -3226,6 +3226,15 @@ func Test_JobSchedulerConfigValidator(t *testing.T) {
 			expectError: true,
 		},
 		{
+			name: "job disabled everywhere without schedulerPort or cron is invalid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("disablednojob").
+					WithEnabled(false)
+			},
+			expectError: true,
+		},
+		{
 			name: "no schedulerPort and env config without cron is invalid",
 			buildJob: func() utils.RadixApplicationJobComponentBuilder {
 				return utils.AnApplicationJobComponent().

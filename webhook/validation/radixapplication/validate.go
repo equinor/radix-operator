@@ -259,10 +259,12 @@ func validateJobSchedulerConfig(app *radixv1.RadixApplication, job radixv1.Radix
 	// The job has neither Scheduler Port or Cron Job,
 	// we must ensure that every enabled environment has a cron schedule defined
 	var errs []error
+	enabledInAnyEnvironment := false
 	for _, env := range app.Spec.Environments {
 		if !job.GetEnabledForEnvironment(env.Name) {
 			continue
 		}
+		enabledInAnyEnvironment = true
 
 		hasCron := slice.Any(job.EnvironmentConfig, func(c radixv1.RadixJobComponentEnvironmentConfig) bool {
 			return c.Environment == env.Name && c.Cron != nil
@@ -270,6 +272,9 @@ func validateJobSchedulerConfig(app *radixv1.RadixApplication, job radixv1.Radix
 		if !hasCron {
 			errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, ErrSchedulerPortOrCronRequiredForJob))
 		}
+	}
+	if !enabledInAnyEnvironment {
+		errs = append(errs, ErrSchedulerPortOrCronRequiredForJob)
 	}
 	return errs
 }
