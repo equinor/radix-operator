@@ -5,7 +5,7 @@ import (
 
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +31,11 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec(ctx context.Conte
 		componentName, ok := RadixComponentNameFromComponentLabel(service)
 		if !ok {
 			continue
+		}
+		// TODO: Add labels for job-scheduler service that describe it, then check that labels exists,
+		// instead of checking it is a external service. Eg check it is a JobScheduler service, isntead of checking if its a bacthjob service
+		if _, isBatchService := service.Labels[kube.RadixBatchNameLabel]; isBatchService {
+			continue // Batch job services are owned and garbage-collected by their RadixBatch resource
 		}
 		if deploy.isEligibleForGarbageCollectServiceForComponent(service, componentName) {
 			if err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil {
