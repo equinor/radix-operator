@@ -63,6 +63,9 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		}
 		componentBuilder.WithNextCronRun(jobComponent.Cron)
 		componentBuilder.WithNotifications(jobComponent.Notifications)
+		if jobComponent.Cron != nil {
+			componentBuilder.WithCronSchedules(jobComponent.Cron.Schedules)
+		}
 	}
 
 	return componentBuilder.

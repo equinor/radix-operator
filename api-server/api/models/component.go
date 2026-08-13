@@ -82,6 +82,9 @@ func buildComponent(
 		}
 		builder.WithNextCronRun(jobComponent.Cron)
 		builder.WithNotifications(jobComponent.Notifications)
+		if jobComponent.Cron != nil {
+			builder.WithCronSchedules(jobComponent.Cron.Schedules)
+		}
 	}
 
 	// The only error that can be returned from DeploymentBuilder is related to errors from github.com/imdario/mergo
