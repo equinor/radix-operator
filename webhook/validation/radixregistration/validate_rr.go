@@ -125,6 +125,7 @@ func createRequireUniqueAppIdValidator(client client.Client) validatorFunc {
 func createNamespaceUsableValidator(kubeClient client.Client) validatorFunc {
 	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
 		envNs := utils.GetEnvironmentNamespace(rr.Name, "app")
+		
 		existingNamespace := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: envNs}}
 		if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(existingNamespace), existingNamespace); err != nil {
 			if k8sErrors.IsNotFound(err) {
