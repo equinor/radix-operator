@@ -398,6 +398,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		s.Equal(expectedPodAnnotations, kubejob.Spec.Template.Annotations)
 		s.Equal(ownerReference(batch), kubejob.OwnerReferences)
 		s.Equal(numbers.Int32Ptr(0), kubejob.Spec.BackoffLimit)
+		s.Equal(new(int32(86400)), kubejob.Spec.TTLSecondsAfterFinished)
 		s.Equal(corev1.RestartPolicyNever, kubejob.Spec.Template.Spec.RestartPolicy)
 		s.Equal(securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)), kubejob.Spec.Template.Spec.SecurityContext)
 		s.Equal(imageName, kubejob.Spec.Template.Spec.Containers[0].Image)

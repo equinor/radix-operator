@@ -20,7 +20,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/go-github/v72/github"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
@@ -366,26 +365,12 @@ func validatePayload(header http.Header, payload []byte, sharedSecret []byte) er
 func getWebhookSharedSecret(ctx context.Context, rr *radixv1.RadixRegistration, accounts models.Accounts) ([]byte, error) {
 	secret, err := accounts.ServiceAccount.Client.CoreV1().Secrets(operatorutils.GetAppNamespace(rr.Name)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{})
 	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			// TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
-			return []byte(rr.Spec.SharedSecret), nil //nolint:staticcheck
-		}
-
 		return nil, fmt.Errorf("failed to get webhook secret %s: %w", defaults.WebhookSharedSecretName, err)
 	}
 
 	secretData, ok := secret.Data[defaults.WebhookSharedSecretKey]
-	if !ok || len(secretData) == 0 {
+	if !ok || len(secretData) == 0 || len(strings.TrimSpace(string(secretData))) == 0 {
 		return nil, fmt.Errorf("secret %s is missing key %s", defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretKey)
-	}
-
-	if len(secretData) == 0 {
-		// TODO: When all Secrets have been created and seeded, remove the deprecated Spec.SharedSecret field from RadixRegistration and stop seeding from it.
-		secretData = []byte(rr.Spec.SharedSecret) //nolint:staticcheck
-	}
-
-	if len(strings.TrimSpace(string(secretData))) == 0 {
-		return nil, fmt.Errorf("secret %s key %s contains empty value", defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretKey)
 	}
 
 	return secretData, nil

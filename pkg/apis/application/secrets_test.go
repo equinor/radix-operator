@@ -139,36 +139,6 @@ func TestOnSync_WebhookSharedSecret_GeneratedWhenSpecEmpty(t *testing.T) {
 	assert.NotEmpty(t, secret.Data[defaults.WebhookSharedSecretKey])
 }
 
-func TestOnSync_WebhookSharedSecret_MissingSecretIsCreatedFromSpecSharedSecret(t *testing.T) {
-	// Setup
-	tu, client, kubeUtil, radixClient, _ := setupTest(t)
-	defer os.Clearenv()
-
-	appName := "any-app"
-	expectedSharedSecret := "shared-secret-from-spec"
-	rr := utils.ARadixRegistration().WithName(appName)
-
-	registration, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
-	assert.NoError(t, err)
-
-	// Remove existing secret to simulate missing secret in app namespace.
-	err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Delete(context.Background(), defaults.WebhookSharedSecretName, metav1.DeleteOptions{})
-	assert.NoError(t, err)
-
-	// Set deprecated field that should seed the recreated secret.
-	registration.Spec.SharedSecret = expectedSharedSecret //nolint:staticcheck
-	registration, err = radixClient.RadixV1().RadixRegistrations().Update(context.Background(), registration, metav1.UpdateOptions{})
-	assert.NoError(t, err)
-
-	application := NewApplication(client, kubeUtil, radixClient, registration)
-	err = application.OnSync(context.Background())
-	assert.NoError(t, err)
-
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, expectedSharedSecret, string(secret.Data[defaults.WebhookSharedSecretKey]))
-}
-
 func TestOnSync_WebhookSharedSecret_MissingKeyIsRepaired(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)

@@ -267,6 +267,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	s.Equal(expectedJobAnnotations, job.Annotations)
 	podTemplate := job.Spec.Template
 	s.Equal(annotations.ForClusterAutoscalerSafeToEvict(false), podTemplate.Annotations)
+	s.Equal(new(int32(0)), job.Spec.BackoffLimit)
+	s.Equal(new(int32(86400)), job.Spec.TTLSecondsAfterFinished)
 
 	s.Equal(corev1.RestartPolicyNever, podTemplate.Spec.RestartPolicy)
 	expectedTolerations := []corev1.Toleration{{Key: kube.NodeTaintJobsKey, Effect: corev1.TaintEffectNoSchedule, Operator: corev1.TolerationOpExists}}

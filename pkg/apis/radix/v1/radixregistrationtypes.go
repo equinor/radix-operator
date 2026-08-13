@@ -66,10 +66,6 @@ type RadixRegistrationSpec struct {
 	// +kubebuilder:validation:Pattern=`^git@github.com:[\w-]+/[\w-]+.git$`
 	CloneURL string `json:"cloneURL"`
 
-	// Deprecated: SharedSecret is the shared secret for the git repository.
-	// +optional
-	SharedSecret string `json:"sharedSecret,omitempty"`
-
 	// +optional
 	AdGroups []string `json:"adGroups,omitempty"`
 
