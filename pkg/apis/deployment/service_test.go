@@ -61,6 +61,51 @@ func Test_garbageCollectServicesNoLongerInSpec(t *testing.T) {
 			expectedServiceNames: []string{},
 		},
 		{
+			name: "keep non-batch job-scheduler service when schedulerPort is set",
+			rd: utils.ARadixDeployment().
+				WithAppName("app").
+				WithEnvironment("dev").
+				WithJobComponents(
+					utils.NewDeployJobComponentBuilder().
+						WithName("job").
+						WithSchedulerPort(new(int32(9090))),
+				).
+				WithComponents().
+				BuildRD(),
+			services: []*corev1.Service{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "job",
+					Labels: map[string]string{
+						kube.RadixComponentLabel: "job",
+						kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
+					},
+				},
+			}},
+			expectedServiceNames: []string{"job"},
+		},
+		{
+			name: "collect non-batch job-scheduler service when schedulerPort is not set",
+			rd: utils.ARadixDeployment().
+				WithAppName("app").
+				WithEnvironment("dev").
+				WithJobComponents(
+					utils.NewDeployJobComponentBuilder().
+						WithName("job"),
+				).
+				WithComponents().
+				BuildRD(),
+			services: []*corev1.Service{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "job",
+					Labels: map[string]string{
+						kube.RadixComponentLabel: "job",
+						kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
+					},
+				},
+			}},
+			expectedServiceNames: []string{},
+		},
+		{
 			name: "collect component service without ports",
 			rd: utils.ARadixDeployment().
 				WithAppName("app").
