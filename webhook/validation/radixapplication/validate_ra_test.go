@@ -165,9 +165,9 @@ func Test_missing_rr(t *testing.T) {
 }
 
 func Test_RadixApplicationNameValidation(t *testing.T) {
-	t.Run("name length 63 is valid", func(t *testing.T) {
+	t.Run("name length 40 is valid", func(t *testing.T) {
 		validRA := &radixv1.RadixApplication{}
-		validRA.Name = strings.Repeat("a", 63)
+		validRA.Name = strings.Repeat("a", 40)
 
 		validator := radixapplication.CreateOfflineValidator()
 		wnrs, err := validator.Validate(context.Background(), validRA)
@@ -176,9 +176,9 @@ func Test_RadixApplicationNameValidation(t *testing.T) {
 		assert.Empty(t, wnrs)
 	})
 
-	t.Run("name length 64 is invalid", func(t *testing.T) {
+	t.Run("name length 41 is invalid", func(t *testing.T) {
 		validRA := &radixv1.RadixApplication{}
-		validRA.Name = strings.Repeat("a", 64)
+		validRA.Name = strings.Repeat("a", 41)
 
 		validator := radixapplication.CreateOfflineValidator()
 		_, err := validator.Validate(context.Background(), validRA)

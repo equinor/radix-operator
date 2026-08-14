@@ -358,7 +358,8 @@ func envNameValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]stri
 			return nil, []error{fmt.Errorf("environment %s: %w", env.Name, ErrInvalidEnvironmentNameLength)}
 		}
 		for _, component := range ra.Spec.Components {
-			if len(component.PublicPort) == 0 && component.Public == false {
+			//nolint:staticcheck // Public is supported for backwards compatibility.
+			if len(component.PublicPort) == 0 && !component.Public {
 				continue
 			}
 			namespace := utils.GetEnvironmentNamespace(ra.Name, env.Name)

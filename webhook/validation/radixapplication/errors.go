@@ -71,7 +71,7 @@ var (
 	ErrSecretRefEnvVarNameConflictsWithEnvironmentVariable           = errors.New("secret reference environment variable name conflicts with environment variable")
 	ErrDuplicatePathForAzureKeyVault                                 = errors.New("duplicate path for Azure Key vault")
 	ErrInvalidEnvironmentNameLength                                  = errors.New("combined app-name and environment name length must be between 2 and 62 characters")
-	ErrInvalidHostnameLength										 = errors.New("hostname length must be between 2 and 63 characters")
+	ErrInvalidHostnameLength                                         = errors.New("hostname length must be between 2 and 63 characters")
 	ErrEnvironmentNameIsNotAvailable                                 = errors.New("environment name is not available. it is already in use or conflicts with reserved namespace")
 	ErrEgressRuleMustContainAtLeastOneDestination                    = errors.New("egress rule must contain at least one destination")
 	ErrEgressRulePortOutOfRange                                      = errors.New("egress rule port must be equal to or greater than 1 and lower than or equal to 65535")
