@@ -164,6 +164,60 @@ func Test_missing_rr(t *testing.T) {
 	assert.Empty(t, wnrs)
 }
 
+func Test_RadixApplicationNameValidation(t *testing.T) {
+	t.Run("name length 40 is valid", func(t *testing.T) {
+		validRA := &radixv1.RadixApplication{}
+		validRA.Name = strings.Repeat("a", 40)
+
+		validator := radixapplication.CreateOfflineValidator()
+		wnrs, err := validator.Validate(context.Background(), validRA)
+
+		assert.NoError(t, err)
+		assert.Empty(t, wnrs)
+	})
+
+	t.Run("name length 41 is invalid", func(t *testing.T) {
+		validRA := &radixv1.RadixApplication{}
+		validRA.Name = strings.Repeat("a", 41)
+
+		validator := radixapplication.CreateOfflineValidator()
+		_, err := validator.Validate(context.Background(), validRA)
+
+		assert.ErrorIs(t, err, radixapplication.ErrApplicationNameTooLong)
+	})
+}
+
+func Test_ComponentHostnameValidation(t *testing.T) {
+	newRadixApplication := func(componentName string) *radixv1.RadixApplication {
+		return &radixv1.RadixApplication{
+			ObjectMeta: metav1.ObjectMeta{Name: "app"},
+			Spec: radixv1.RadixApplicationSpec{
+				Environments: []radixv1.Environment{{Name: "dev"}},
+				Components:   []radixv1.RadixComponent{{Name: componentName, Public: true}},
+			},
+		}
+	}
+
+	t.Run("hostname length 63 is valid", func(t *testing.T) {
+		ra := newRadixApplication(strings.Repeat("c", 55))
+
+		validator := radixapplication.CreateOfflineValidator()
+		warnings, err := validator.Validate(context.Background(), ra)
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, warnings)
+	})
+
+	t.Run("hostname length 64 is invalid", func(t *testing.T) {
+		ra := newRadixApplication(strings.Repeat("c", 56))
+
+		validator := radixapplication.CreateOfflineValidator()
+		_, err := validator.Validate(context.Background(), ra)
+
+		assert.ErrorIs(t, err, radixapplication.ErrInvalidHostnameLength)
+	})
+}
+
 func Test_invalid_ra(t *testing.T) {
 	wayTooLongName := "waytoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooolongname"
 	invalidBranchName := "/master"
