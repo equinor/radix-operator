@@ -47,7 +47,6 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 	if component.IsPublic() {
 		// HTTPRoute for external dns is reconciled in externaldns.go, so filter out those
 		hosts = slice.FindAll(
-			//
 			getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil),
 			func(host dnsInfo) bool { return host.dnsType != dnsTypeExternal })
 	}
