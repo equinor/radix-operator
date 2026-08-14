@@ -1,9 +1,11 @@
 package domain
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestGetComponentHostname(t *testing.T) {
-	if actual, expected := GetComponentHostname("component", "namespace"), "component-namespace"; actual != expected {
-		t.Errorf("GetComponentHostname() = %q, want %q", actual, expected)
-	}
+	assert.Equal(t, "component-namespace", GetComponentHostname("component", "namespace"))
 }
