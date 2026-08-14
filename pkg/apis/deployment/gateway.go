@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/domain"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,6 +47,7 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 	if component.IsPublic() {
 		// HTTPRoute for external dns is reconciled in externaldns.go, so filter out those
 		hosts = slice.FindAll(
+			//
 			getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil),
 			func(host dnsInfo) bool { return host.dnsType != dnsTypeExternal })
 	}
@@ -251,7 +253,8 @@ func getActiveClusterHostName(componentName, namespace string) string {
 	if dnsZone == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s-%s.%s", componentName, namespace, dnsZone)
+
+	return fmt.Sprintf("%s.%s", domain.GetComponentHostname(componentName, namespace), dnsZone)
 }
 
 func getHostName(componentName, namespace, clustername string) string {
@@ -259,8 +262,8 @@ func getHostName(componentName, namespace, clustername string) string {
 	if dnsZone == "" {
 		return ""
 	}
-	hostnameTemplate := "%s-%s.%s.%s"
-	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
+	hostnameTemplate := "%s.%s.%s"
+	return fmt.Sprintf(hostnameTemplate, domain.GetComponentHostname(componentName, namespace), clustername, dnsZone)
 }
 func getAppAliasIngressName(appName string) string {
 	return fmt.Sprintf("%s-url-alias", appName)

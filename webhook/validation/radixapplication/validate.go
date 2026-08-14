@@ -15,6 +15,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
+	"github.com/equinor/radix-operator/pkg/apis/utils/domain"
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
@@ -163,7 +164,7 @@ func branchNameValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]s
 }
 
 func applicationNameValidator(_ context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
-	const maxApplicationNameLength = 63
+	const maxApplicationNameLength = 40
 	if len(ra.Name) > maxApplicationNameLength {
 		return nil, []error{ErrApplicationNameTooLong}
 	}
@@ -356,6 +357,16 @@ func envNameValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]stri
 		if len(ra.Name)+len(env.Name) > 62 {
 			return nil, []error{fmt.Errorf("environment %s: %w", env.Name, ErrInvalidEnvironmentNameLength)}
 		}
+		for _, component := range ra.Spec.Components {
+			if len(component.PublicPort) == 0 && component.Public == false {
+				continue
+			}
+			namespace := utils.GetEnvironmentNamespace(ra.Name, env.Name)
+			if len(domain.GetComponentHostname(component.Name, namespace)) > 63 {
+				return nil, []error{fmt.Errorf("component %s in environment %s: %w", component.Name, env.Name, ErrInvalidHostnameLength)}
+			}
+		}
+
 	}
 	return nil, nil
 }
