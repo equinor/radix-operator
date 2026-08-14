@@ -289,7 +289,7 @@ func (ac *applicationController) SearchApplications(accounts models.Accounts, w 
 
 	// No need to perform search if names in request is empty. Just return empty list
 	if len(appNamesRequest.Names) == 0 {
-		ac.JSONResponse(w, r, []interface{}{})
+		ac.JSONResponse(w, r, []any{})
 		return
 	}
 

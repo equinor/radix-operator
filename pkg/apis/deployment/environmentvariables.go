@@ -139,19 +139,20 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg *config.Config, currentEn
 }
 
 func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
-	portNumbers := "("
+	var portNumbers strings.Builder
+	portNumbers.WriteString("(")
 	portNames := "("
 	portsSize := len(ports)
 	for i, portObj := range ports {
 		if i < portsSize-1 {
-			portNumbers += fmt.Sprint(portObj.Port) + " "
+			portNumbers.WriteString(fmt.Sprint(portObj.Port) + " ")
 			portNames += fmt.Sprint(portObj.Name) + " "
 		} else {
-			portNumbers += fmt.Sprint(portObj.Port) + ")"
+			portNumbers.WriteString(fmt.Sprint(portObj.Port) + ")")
 			portNames += fmt.Sprint(portObj.Name) + ")"
 		}
 	}
-	return portNumbers, portNames
+	return portNumbers.String(), portNames
 }
 
 func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {

@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	api "github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/batches"
 	"github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/batches/mock"
 	"github.com/equinor/radix-operator/job-scheduler/internal/test"
@@ -35,8 +34,8 @@ func TestGetBatches(t *testing.T) {
 		batchState := modelsV1.BatchStatus{
 			JobStatus: modelsV1.JobStatus{
 				Name:    "batchname",
-				Started: pointers.Ptr(time.Now()),
-				Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+				Started: new(time.Now()),
+				Ended:   new(time.Now().Add(1 * time.Minute)),
 				Status:  "batchstatus",
 			},
 			BatchType: string(kube.RadixBatchTypeBatch),
@@ -103,8 +102,8 @@ func TestGetBatch(t *testing.T) {
 		batchState := modelsV1.BatchStatus{
 			JobStatus: modelsV1.JobStatus{
 				Name:    batchName,
-				Started: pointers.Ptr(time.Now()),
-				Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+				Started: new(time.Now()),
+				Ended:   new(time.Now().Add(1 * time.Minute)),
 				Status:  "batchstatus",
 			},
 			BatchType: string(kube.RadixBatchTypeBatch),
@@ -198,8 +197,8 @@ func TestCreateBatch(t *testing.T) {
 		createdBatch := modelsV1.BatchStatus{
 			JobStatus: modelsV1.JobStatus{
 				Name:    "newbatch",
-				Started: pointers.Ptr(time.Now()),
-				Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+				Started: new(time.Now()),
+				Ended:   new(time.Now().Add(1 * time.Minute)),
 				Status:  "batchstatus",
 			},
 			BatchType: string(kube.RadixBatchTypeBatch),
@@ -257,8 +256,8 @@ func TestCreateBatch(t *testing.T) {
 		createdBatch := modelsV1.BatchStatus{
 			JobStatus: modelsV1.JobStatus{
 				Name:    "newbatch",
-				Started: pointers.Ptr(time.Now()),
-				Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+				Started: new(time.Now()),
+				Ended:   new(time.Now().Add(1 * time.Minute)),
 				Status:  "batchstatus",
 			},
 			BatchType: string(kube.RadixBatchTypeBatch),
@@ -298,7 +297,7 @@ func TestCreateBatch(t *testing.T) {
 			CreateBatch(test.RequestContextMatcher{}, gomock.Any()).
 			Times(0)
 		controllerTestUtils := setupTest(batchHandler)
-		responseChannel := controllerTestUtils.ExecuteRequestWithBody(ctx, http.MethodPost, "/api/v1/batches", struct{ JobScheduleDescriptions interface{} }{JobScheduleDescriptions: struct{}{}})
+		responseChannel := controllerTestUtils.ExecuteRequestWithBody(ctx, http.MethodPost, "/api/v1/batches", struct{ JobScheduleDescriptions any }{JobScheduleDescriptions: struct{}{}})
 		response := <-responseChannel
 		assert.NotNil(t, response)
 
@@ -635,8 +634,8 @@ func TestGetBatchJob(t *testing.T) {
 		jobHandler := mock.NewMockBatchHandler(ctrl)
 		jobState := modelsV1.JobStatus{
 			Name:    jobName,
-			Started: pointers.Ptr(time.Now()),
-			Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+			Started: new(time.Now()),
+			Ended:   new(time.Now().Add(1 * time.Minute)),
 			Status:  "jobstatus",
 		}
 		ctx := context.Background()

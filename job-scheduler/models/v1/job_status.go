@@ -126,7 +126,7 @@ type PodStatus struct {
 	// Status describes the component container status
 	//
 	// required: false
-	Status ReplicaStatus `json:"replicaStatus,omitempty"`
+	Status ReplicaStatus `json:"replicaStatus"`
 
 	// StatusMessage provides message describing the status of a component container inside a pod
 	//

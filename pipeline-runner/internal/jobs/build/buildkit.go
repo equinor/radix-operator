@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -127,7 +126,7 @@ func (*buildKitKubeJobProps) PodSecurityContext() *corev1.PodSecurityContext {
 	return securitycontext.Pod(
 		securitycontext.WithPodFSGroup(1000),
 		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
-		securitycontext.WithPodRunAsNonRoot(pointers.Ptr(false)))
+		securitycontext.WithPodRunAsNonRoot(new(false)))
 }
 
 func (c *buildKitKubeJobProps) PodImagePullSecrets() []corev1.LocalObjectReference {
@@ -290,10 +289,10 @@ func (c *buildKitKubeJobProps) getPodContainerSecurityContext() *corev1.Security
 		securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
 		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: utils.StringPtr(c.pipelineArgs.SeccompProfileFileName),
+			LocalhostProfile: new(c.pipelineArgs.SeccompProfileFileName),
 		}),
-		securitycontext.WithContainerRunAsNonRoot(pointers.Ptr(false)),
-		securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+		securitycontext.WithContainerRunAsNonRoot(new(false)),
+		securitycontext.WithReadOnlyRootFileSystem(new(true)),
 	)
 }
 

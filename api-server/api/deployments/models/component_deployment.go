@@ -11,7 +11,6 @@ import (
 	runtimeUtils "github.com/equinor/radix-operator/pkg/apis/runtime"
 
 	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -227,7 +226,7 @@ type OAuth2AuxiliaryResource struct {
 	// Deployment describes the underlying Kubernetes deployment for the resource
 	//
 	// required: true
-	Deployment AuxiliaryResourceDeployment `json:"deployment,omitempty"`
+	Deployment AuxiliaryResourceDeployment `json:"deployment"`
 
 	// Deployments describes the underlying Kubernetes deployments for the resource
 	//
@@ -411,7 +410,7 @@ type ReplicaSummary struct {
 	// Status describes the component container status
 	//
 	// required: false
-	Status ReplicaStatus `json:"replicaStatus,omitempty"`
+	Status ReplicaStatus `json:"replicaStatus"`
 
 	// StatusMessage provides message describing the status of a component container inside a pod
 	//
@@ -545,8 +544,8 @@ type Resources struct {
 
 // ResourceRequirements Requirements of resources for pods
 type ResourceRequirements struct {
-	Limits   Resources `json:"limits,omitempty"`
-	Requests Resources `json:"requests,omitempty"`
+	Limits   Resources `json:"limits"`
+	Requests Resources `json:"requests"`
 }
 
 // Runtime requirements for the component or job
@@ -619,7 +618,7 @@ func GetReplicaSummary(pod corev1.Pod, lastEventWarning string) ReplicaSummary {
 	replicaSummary.Image = pod.Spec.Containers[0].Image
 	replicaSummary.ImageId = containerStatus.ImageID
 	if len(pod.Spec.Containers) > 0 {
-		replicaSummary.Resources = pointers.Ptr(ConvertResourceRequirements(pod.Spec.Containers[0].Resources))
+		replicaSummary.Resources = new(ConvertResourceRequirements(pod.Spec.Containers[0].Resources))
 	}
 	if len(replicaSummary.StatusMessage) == 0 && (replicaSummary.Status.Status == Failing || replicaSummary.Status.Status == Pending) {
 		replicaSummary.StatusMessage = lastEventWarning

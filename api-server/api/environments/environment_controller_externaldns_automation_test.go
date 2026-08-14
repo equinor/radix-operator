@@ -8,7 +8,6 @@ import (
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	v1 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-common/utils/pointers"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
@@ -231,7 +230,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertMissing() {
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReady_SameRevision() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -239,7 +238,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReady_SameRevi
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "5"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Message: expectedRequestMsg}}},
 	}
@@ -267,7 +266,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReadyNoRevision_RequestRead
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "1"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Message: expectedRequestMsg}}},
 	}
@@ -288,7 +287,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReadyNoRevision_RequestRead
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_MultipleRequests_SameOrHigherRevision() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -297,7 +296,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_MultipleRequests_Same
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "certreq1",
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "6"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Message: "other msg"}}},
 	}
@@ -307,7 +306,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_MultipleRequests_Same
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "certreq2",
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "7"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Message: expectedRequestMsg}}},
 	}
@@ -317,7 +316,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_MultipleRequests_Same
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "certreq3",
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "5"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Message: "other msg"}}},
 	}
@@ -338,14 +337,14 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_MultipleRequests_Same
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReady_LowerRevision() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "4"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Message: "any message"}}},
 	}
@@ -366,14 +365,14 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReady_LowerRev
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReady_InvalidRevision() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "non-numeric"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Message: "any message"}}},
 	}
@@ -394,14 +393,14 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReady_InvalidR
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReady_NotOwnedByCert() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "5"},
-			OwnerReferences: []metav1.OwnerReference{{UID: "otheruid", Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: "otheruid", Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Message: "any message"}}},
 	}
@@ -422,7 +421,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReady_NotOwned
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestDenied() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -430,7 +429,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestDenied() {
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "5"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionDenied, Message: expectedRequestMsg}}},
 	}
@@ -451,7 +450,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestDenied() {
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestInvalidTrue() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -459,7 +458,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestInvalidTrue() 
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "5"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionInvalidRequest, Status: v1.ConditionTrue, Message: expectedRequestMsg}}},
 	}
@@ -480,14 +479,14 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestInvalidTrue() 
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestInvalidFalse() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "5"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionInvalidRequest, Status: v1.ConditionFalse, Message: "any message"}}},
 	}
@@ -508,14 +507,14 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestInvalidFalse()
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestInvalidUnknown() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "5"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionInvalidRequest, Status: v1.ConditionUnknown, Message: "any message"}}},
 	}
@@ -536,7 +535,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestInvalidUnknown
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReadyFalse_ReasonFailed() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -544,7 +543,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReadyFalse_Rea
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "5"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Status: v1.ConditionFalse, Reason: "Failed", Message: expectedRequestMsg}}},
 	}
@@ -565,7 +564,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReadyFalse_Rea
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReadyUnknown_ReasonFailed() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -573,7 +572,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReadyUnknown_R
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "5"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Status: v1.ConditionUnknown, Reason: "Failed", Message: expectedRequestMsg}}},
 	}
@@ -594,7 +593,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReadyUnknown_R
 func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReadyTrue_ReasonFailed() {
 	cert := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{UID: "uid1", Labels: map[string]string{kube.RadixAppLabel: s.appName, kube.RadixExternalAliasFQDNLabel: s.fqdn}},
-		Status:     cmv1.CertificateStatus{Revision: pointers.Ptr(5)},
+		Status:     cmv1.CertificateStatus{Revision: new(5)},
 	}
 	_, err := s.certClient.CertmanagerV1().Certificates(s.environmentNamespace()).Create(context.Background(), cert, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -602,7 +601,7 @@ func (s *externalDnsAutomationTestSuite) Test_CertNotReady_RequestReadyTrue_Reas
 	certReq := &cmv1.CertificateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations:     map[string]string{"cert-manager.io/certificate-revision": "5"},
-			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: pointers.Ptr(true)}},
+			OwnerReferences: []metav1.OwnerReference{{UID: cert.UID, Controller: new(true)}},
 		},
 		Status: cmv1.CertificateRequestStatus{Conditions: []cmv1.CertificateRequestCondition{{Type: cmv1.CertificateRequestConditionReady, Status: v1.ConditionTrue, Reason: "Failed", Message: expectedRequestMsg}}},
 	}

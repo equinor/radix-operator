@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	radixUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/job-scheduler/api/v1/controllers"
 	"github.com/equinor/radix-operator/job-scheduler/internal"
 	"github.com/equinor/radix-operator/job-scheduler/models"
@@ -45,7 +43,7 @@ func (ctrl *ControllerTestUtils) ExecuteRequest(ctx context.Context, method, pat
 }
 
 // ExecuteRequestWithBody Helper method to issue a http request with body
-func (ctrl *ControllerTestUtils) ExecuteRequestWithBody(ctx context.Context, method, path string, body interface{}) <-chan *http.Response {
+func (ctrl *ControllerTestUtils) ExecuteRequestWithBody(ctx context.Context, method, path string, body any) <-chan *http.Response {
 	responseChan := make(chan *http.Response)
 
 	go func() {
@@ -76,7 +74,7 @@ func (ctrl *ControllerTestUtils) ExecuteRequestWithBody(ctx context.Context, met
 }
 
 // GetResponseBody Gets response payload as type
-func GetResponseBody(response *http.Response, target interface{}) error {
+func GetResponseBody(response *http.Response, target any) error {
 	body, _ := io.ReadAll(response.Body)
 
 	return json.Unmarshal(body, target)
@@ -217,8 +215,8 @@ func (params *TestParams) ApplyRd(kubeUtil *kube.Kube) *v1.RadixDeployment {
 		WithJobComponents(
 			utils.NewDeployJobComponentBuilder().
 				WithName(params.JobComponentName).
-				WithTimeLimitSeconds(numbers.Int64Ptr(10)).
-				WithPayloadPath(radixUtils.StringPtr("payload-path")).
+				WithTimeLimitSeconds(new(int64(10))).
+				WithPayloadPath(new("payload-path")).
 				WithEnvironmentVariables(params.RadixConfigEnvVarsMap),
 		).
 		BuildRD()
@@ -286,7 +284,7 @@ func ParseBatchAndJobNameFromScheduledJobName(scheduleJobName string) (batchName
 type RequestContextMatcher struct {
 }
 
-func (c RequestContextMatcher) Matches(x interface{}) bool {
+func (c RequestContextMatcher) Matches(x any) bool {
 	_, ok := x.(context.Context)
 	return ok
 }

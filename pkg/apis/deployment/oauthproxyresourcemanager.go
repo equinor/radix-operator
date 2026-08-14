@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	commonutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -582,7 +581,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointers.Ptr(replicas),
+			Replicas: new(replicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
 			},
@@ -611,7 +610,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 							ReadinessProbe: readinessProbe,
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+								securitycontext.WithReadOnlyRootFileSystem(new(true)),
 							),
 							Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),
 						},
@@ -632,7 +631,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDepl
 	var envVars []corev1.EnvVar
 	var err error
 
-	addEnvVarIfSet := func(envVar string, value interface{}) {
+	addEnvVarIfSet := func(envVar string, value any) {
 		rval := reflect.ValueOf(value)
 		if !rval.IsZero() {
 			switch rval.Kind() {

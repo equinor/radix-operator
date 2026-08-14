@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/deployments/models"                  //nolint:staticcheck
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models" //nolint:staticcheck
@@ -79,7 +78,7 @@ func GetScheduledBatchSummary(radixBatch *radixv1.RadixBatch, batchStatus *jobSc
 			ended = &radixBatch.Status.Condition.CompletionTime.Time
 		}
 		summary.Status = utils.GetBatchJobStatusByJobApiCondition(radixBatch.Status.Condition.Type)
-		summary.Created = pointers.Ptr(radixBatch.GetCreationTimestamp().Time)
+		summary.Created = new(radixBatch.GetCreationTimestamp().Time)
 		summary.Started = started
 		summary.Ended = ended
 	}
@@ -184,7 +183,7 @@ func GetReplicaSummaryByJobPodStatus(radixBatchJob radixv1.RadixBatchJob, jobPod
 		summary.EndTime = &jobPodStatus.EndTime.Time
 	}
 	if radixBatchJob.Resources != nil {
-		summary.Resources = pointers.Ptr(models.ConvertRadixResourceRequirements(*radixBatchJob.Resources))
+		summary.Resources = new(models.ConvertRadixResourceRequirements(*radixBatchJob.Resources))
 	}
 	return summary
 }

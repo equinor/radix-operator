@@ -86,34 +86,34 @@ func (eh *SecretHandler) ChangeComponentSecret(ctx context.Context, appName, env
 	}
 
 	var secretObjName, partName string
-	if strings.HasSuffix(secretName, defaults.BlobFuseCredsAccountKeyPartSuffix) {
+	if before, ok := strings.CutSuffix(secretName, defaults.BlobFuseCredsAccountKeyPartSuffix); ok {
 		// This is the account key part of the blobfuse cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.BlobFuseCredsAccountKeyPartSuffix)
+		secretObjName = before
 		partName = defaults.BlobFuseCredsAccountKeyPart
 
-	} else if strings.HasSuffix(secretName, defaults.BlobFuseCredsAccountNamePartSuffix) {
+	} else if before, ok := strings.CutSuffix(secretName, defaults.BlobFuseCredsAccountNamePartSuffix); ok {
 		// This is the account name part of the blobfuse cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.BlobFuseCredsAccountNamePartSuffix)
+		secretObjName = before
 		partName = defaults.BlobFuseCredsAccountNamePart
 
-	} else if strings.HasSuffix(secretName, defaults.CsiAzureCredsAccountKeyPartSuffix) {
+	} else if before, ok := strings.CutSuffix(secretName, defaults.CsiAzureCredsAccountKeyPartSuffix); ok {
 		// This is the account key part of the Csi Azure volume cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.CsiAzureCredsAccountKeyPartSuffix)
+		secretObjName = before
 		partName = defaults.CsiAzureCredsAccountKeyPart
 
-	} else if strings.HasSuffix(secretName, defaults.CsiAzureCredsAccountNamePartSuffix) {
+	} else if before, ok := strings.CutSuffix(secretName, defaults.CsiAzureCredsAccountNamePartSuffix); ok {
 		// This is the account name part of the Csi Azure volume cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.CsiAzureCredsAccountNamePartSuffix)
+		secretObjName = before
 		partName = defaults.CsiAzureCredsAccountNamePart
 
-	} else if strings.HasSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientIdSuffix) {
+	} else if before, ok := strings.CutSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientIdSuffix); ok {
 		// This is the client-id part of the Csi Azure KeyVault cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientIdSuffix)
+		secretObjName = before
 		partName = defaults.CsiAzureKeyVaultCredsClientIdPart
 
-	} else if strings.HasSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientSecretSuffix) {
+	} else if before, ok := strings.CutSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientSecretSuffix); ok {
 		// This is the client secret part of the Csi Azure KeyVault cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientSecretSuffix)
+		secretObjName = before
 		partName = defaults.CsiAzureKeyVaultCredsClientSecretPart
 
 	} else if strings.HasSuffix(secretName, suffix.OAuth2ClientSecret) {
@@ -289,7 +289,6 @@ func (eh *SecretHandler) getSecretProviderClassMapForLabelSelector(envNamespace,
 	}
 	secretProviderClassMap := make(map[string]secretsstorev1.SecretProviderClass)
 	for _, secretProviderClass := range secretProviderClassList.Items {
-		secretProviderClass := secretProviderClass
 		secretProviderClassMap[secretProviderClass.GetName()] = secretProviderClass
 	}
 	return secretProviderClassMap, nil
@@ -363,7 +362,6 @@ func (eh *SecretHandler) getJobMap(appName, namespace, componentName string) (ma
 		return nil, err
 	}
 	for _, job := range jobList.Items {
-		job := job
 		jobMap[job.GetName()] = job
 	}
 	return jobMap, nil

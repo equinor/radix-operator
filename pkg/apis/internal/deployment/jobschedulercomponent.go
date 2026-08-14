@@ -3,7 +3,6 @@ package deployment
 import (
 	"os"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -143,7 +142,7 @@ func (js *JobSchedulerComponent) GetIdentity() *radixv1.Identity {
 }
 
 func (js *JobSchedulerComponent) GetReadOnlyFileSystem() *bool {
-	return pointers.Ptr(true)
+	return new(true)
 }
 
 func (js *JobSchedulerComponent) GetRuntime() *radixv1.Runtime {
@@ -171,6 +170,6 @@ func (js *JobSchedulerComponent) GetRunAsUser() *int64 {
 
 // IsDeployComponentJobSchedulerDeployment Checks if deployComponent is a JobScheduler deployment
 func IsDeployComponentJobSchedulerDeployment(deployComponent radixv1.RadixCommonDeployComponent) bool {
-	_, isJobScheduler := interface{}(deployComponent).(*JobSchedulerComponent)
+	_, isJobScheduler := any(deployComponent).(*JobSchedulerComponent)
 	return isJobScheduler
 }

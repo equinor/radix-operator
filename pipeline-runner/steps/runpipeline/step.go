@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	internalsubpipeline "github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
@@ -216,7 +215,7 @@ func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipeline
 	return &pod.Template{
 		ImagePullSecrets: imagePullSecrets,
 		SecurityContext: &corev1.PodSecurityContext{
-			RunAsNonRoot: pointers.Ptr(true),
+			RunAsNonRoot: new(true),
 		},
 		NodeSelector: map[string]string{
 			corev1.LabelArchStable: "amd64",

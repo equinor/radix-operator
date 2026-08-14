@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/deployments"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
@@ -375,7 +374,7 @@ func (jh JobHandler) getJobFromRadixJob(ctx context.Context, job *v1.RadixJob, j
 		jobModel.PromotedToEnvironment = job.Spec.Promote.ToEnvironment
 		jobModel.CommitID = job.Spec.Promote.CommitID
 	case v1.ApplyConfig:
-		jobModel.DeployExternalDNS = pointers.Ptr(job.Spec.ApplyConfig.DeployExternalDNS)
+		jobModel.DeployExternalDNS = new(job.Spec.ApplyConfig.DeployExternalDNS)
 	}
 	return &jobModel, nil
 }

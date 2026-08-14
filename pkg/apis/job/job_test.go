@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config/quantity"
@@ -279,7 +278,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureArm64)}},
 	}}}}}}
 	s.Equal(expectedAffinity, podTemplate.Spec.Affinity)
-	expectedSecurityCtx := &corev1.PodSecurityContext{FSGroup: pointers.Ptr[int64](1000), RunAsNonRoot: pointers.Ptr(true), SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault}}
+	expectedSecurityCtx := &corev1.PodSecurityContext{FSGroup: new(int64(1000)), RunAsNonRoot: new(true), SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault}}
 	s.Equal(expectedSecurityCtx, podTemplate.Spec.SecurityContext)
 
 	expectedContainers := []corev1.Container{
@@ -339,12 +338,12 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				},
 			},
 			SecurityContext: &corev1.SecurityContext{
-				Privileged:               pointers.Ptr(false),
-				AllowPrivilegeEscalation: pointers.Ptr(false),
-				RunAsNonRoot:             pointers.Ptr(true),
-				ReadOnlyRootFilesystem:   pointers.Ptr(true),
-				RunAsUser:                pointers.Ptr[int64](1000),
-				RunAsGroup:               pointers.Ptr[int64](1000),
+				Privileged:               new(false),
+				AllowPrivilegeEscalation: new(false),
+				RunAsNonRoot:             new(true),
+				ReadOnlyRootFilesystem:   new(true),
+				RunAsUser:                new(int64(1000)),
+				RunAsGroup:               new(int64(1000)),
 				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
 				SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
 			},
@@ -393,13 +392,13 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 			},
 			SecurityContext: &corev1.SecurityContext{
 				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-				RunAsNonRoot:             pointers.Ptr(true),
-				RunAsUser:                pointers.Ptr[int64](65534),
-				RunAsGroup:               pointers.Ptr[int64](1000),
+				RunAsNonRoot:             new(true),
+				RunAsUser:                new(int64(65534)),
+				RunAsGroup:               new(int64(1000)),
 				SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
-				ReadOnlyRootFilesystem:   pointers.Ptr(true),
-				AllowPrivilegeEscalation: pointers.Ptr(false),
-				Privileged:               pointers.Ptr(false),
+				ReadOnlyRootFilesystem:   new(true),
+				AllowPrivilegeEscalation: new(false),
+				Privileged:               new(false),
 				ProcMount:                nil,
 			},
 		},
@@ -407,7 +406,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	expectedVolumes := []corev1.Volume{
 		{Name: "build-context"},
 		{Name: "builder-home"},
-		{Name: "git-ssh-keys", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "git-ssh-keys", DefaultMode: pointers.Ptr[int32](256)}}},
+		{Name: "git-ssh-keys", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "git-ssh-keys", DefaultMode: new(int32(256))}}},
 		{Name: "pod-labels", VolumeSource: corev1.VolumeSource{DownwardAPI: &corev1.DownwardAPIVolumeSource{Items: []corev1.DownwardAPIVolumeFile{{Path: "labels", FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.labels"}}}}}},
 	}
 
@@ -456,34 +455,34 @@ func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
 			expectedArgRefreshBuildCache:     "",
 		},
 		"overrideUseBuildCache true": {
-			overrideUseBuildCache:            pointers.Ptr(true),
+			overrideUseBuildCache:            new(true),
 			expectedArgOverrideUseBuildCache: argUseBuildCacheTrue,
 			expectedArgRefreshBuildCache:     "",
 		},
 		"overrideUseBuildCache false": {
-			overrideUseBuildCache:            pointers.Ptr(false),
+			overrideUseBuildCache:            new(false),
 			expectedArgOverrideUseBuildCache: argUseBuildCacheFalse,
 			expectedArgRefreshBuildCache:     "",
 		},
 		"refreshBuildCache true": {
-			refreshBuildCache:                pointers.Ptr(true),
+			refreshBuildCache:                new(true),
 			expectedArgOverrideUseBuildCache: "",
 			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
 		},
 		"refreshBuildCache false": {
-			refreshBuildCache:                pointers.Ptr(false),
+			refreshBuildCache:                new(false),
 			expectedArgOverrideUseBuildCache: "",
 			expectedArgRefreshBuildCache:     argRefreshBuildCacheFalse,
 		},
 		"overrideUseBuildCache true, refreshBuildCache true": {
-			overrideUseBuildCache:            pointers.Ptr(true),
-			refreshBuildCache:                pointers.Ptr(true),
+			overrideUseBuildCache:            new(true),
+			refreshBuildCache:                new(true),
 			expectedArgOverrideUseBuildCache: argUseBuildCacheTrue,
 			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
 		},
 		"overrideUseBuildCache false, refreshBuildCache true": {
-			overrideUseBuildCache:            pointers.Ptr(false),
-			refreshBuildCache:                pointers.Ptr(true),
+			overrideUseBuildCache:            new(false),
+			refreshBuildCache:                new(true),
 			expectedArgOverrideUseBuildCache: argUseBuildCacheFalse,
 			expectedArgRefreshBuildCache:     argRefreshBuildCacheTrue,
 		},
@@ -1567,7 +1566,6 @@ func getRadixApplicationBuilder(appName string) utils.ApplicationBuilder {
 func (s *RadixJobTestSuite) assertExistRadixJobsWithConditions(radixJobList *radixv1.RadixJobList, expectedJobConditions jobConditions) {
 	resultJobConditions := make(jobConditions)
 	for _, rj := range radixJobList.Items {
-		rj := rj
 		resultJobConditions[rj.GetName()] = rj.Status.Condition
 		if _, ok := expectedJobConditions[rj.GetName()]; !ok {
 			s.Fail(fmt.Sprintf("unexpected job exists %s", rj.GetName()))

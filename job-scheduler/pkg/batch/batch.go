@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/job-scheduler/internal"
 	modelsv1 "github.com/equinor/radix-operator/job-scheduler/models/v1"
@@ -47,7 +46,7 @@ func GetRadixBatchStatus(radixBatch *radixv1.RadixBatch, radixDeployJobComponent
 		JobStatus: modelsv1.JobStatus{
 			Name:           radixBatch.Name,
 			BatchId:        utils.TernaryString(batchType == string(kube.RadixBatchTypeJob), "", radixBatch.Spec.BatchId),
-			Created:        pointers.Ptr(radixBatch.GetCreationTimestamp().Time),
+			Created:        new(radixBatch.GetCreationTimestamp().Time),
 			Started:        started,
 			Ended:          ended,
 			Status:         pkgInternal.GetRadixBatchStatus(radixBatch, radixDeployJobComponent),
@@ -108,7 +107,6 @@ func getRadixBatchJobStatusesFromRadixBatch(radixBatch *radixv1.RadixBatch, radi
 func getRadixBatchJobsStatusesMap(radixBatchJobStatuses []radixv1.RadixBatchJobStatus) map[string]radixv1.RadixBatchJobStatus {
 	radixBatchJobsStatuses := make(map[string]radixv1.RadixBatchJobStatus)
 	for _, jobStatus := range radixBatchJobStatuses {
-		jobStatus := jobStatus
 		radixBatchJobsStatuses[jobStatus.Name] = jobStatus
 	}
 	return radixBatchJobsStatuses
@@ -257,7 +255,7 @@ func stopJobsInBatch(radixBatch *radixv1.RadixBatch, batchName string, jobName s
 			}
 			continue
 		}
-		radixBatch.Spec.Jobs[jobIndex].Stop = pointers.Ptr(true)
+		radixBatch.Spec.Jobs[jobIndex].Stop = new(true)
 		appliedChanges = true
 		if foundJob {
 			break
@@ -309,7 +307,7 @@ func RestartRadixBatchJob(ctx context.Context, radixClient versioned.Interface, 
 func DeleteRadixBatch(ctx context.Context, radixClient versioned.Interface, radixBatch *radixv1.RadixBatch) error {
 	logger := log.Ctx(ctx)
 	logger.Debug().Msgf("delete batch %s", radixBatch.GetName())
-	if err := radixClient.RadixV1().RadixBatches(radixBatch.GetNamespace()).Delete(ctx, radixBatch.GetName(), metav1.DeleteOptions{PropagationPolicy: pointers.Ptr(metav1.DeletePropagationBackground)}); err != nil && !k8sErrors.IsNotFound(err) {
+	if err := radixClient.RadixV1().RadixBatches(radixBatch.GetNamespace()).Delete(ctx, radixBatch.GetName(), metav1.DeleteOptions{PropagationPolicy: new(metav1.DeletePropagationBackground)}); err != nil && !k8sErrors.IsNotFound(err) {
 		return err
 	}
 	return nil

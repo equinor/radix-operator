@@ -585,7 +585,7 @@ func getContainerNames(buildComponentImagesMap pipeline.BuildComponentImages, bu
 		})...)
 }
 
-func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj interface{}) error {
+func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj any) error {
 	annotation := job.GetObjectMeta().GetAnnotations()[annotationName]
 	if !strings.EqualFold(annotation, "") {
 		err := json.Unmarshal([]byte(annotation), obj)

@@ -401,16 +401,6 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 	_, _ = kubeclient.CoreV1().Namespaces().Create(context.Background(), &namespace, metav1.CreateOptions{})
 }
 
-// IntPtr Helper function to get the pointer of an int
-func IntPtr(i int) *int {
-	return &i
-}
-
-// GetRadixAzureKeyVaultObjectTypePtr Gets pointer to RadixAzureKeyVaultObjectType
-func GetRadixAzureKeyVaultObjectTypePtr(objectType radixv1.RadixAzureKeyVaultObjectType) *radixv1.RadixAzureKeyVaultObjectType {
-	return &objectType
-}
-
 // GetAzureKeyVaultTypeSecrets Gets secrets with kube.RadixSecretRefTypeLabel and value v1.RadixSecretRefTypeAzureKeyVault
 func GetAzureKeyVaultTypeSecrets(secrets *corev1.SecretList) *corev1.SecretList {
 	var azureKeyVaultSecrets []corev1.Secret

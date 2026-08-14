@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/job-scheduler/internal"
 	"github.com/equinor/radix-operator/job-scheduler/internal/test"
@@ -558,7 +557,7 @@ func TestStopJob(t *testing.T) {
 		}
 		for _, job := range radixBatch1.Spec.Jobs {
 			assert.NotNil(t, job.Stop)
-			assert.Equal(t, pointers.Ptr(true), job.Stop)
+			assert.Equal(t, new(true), job.Stop)
 		}
 		secrets, _ := kubeClient.CoreV1().Secrets("").List(context.TODO(), metav1.ListOptions{})
 		assert.Len(t, secrets.Items, 5)
@@ -647,7 +646,7 @@ func TestStopJob(t *testing.T) {
 			return batch.GetName() == "test-batch2" && batch.GetNamespace() == envNamespace1
 		})
 		assert.True(t, ok, "test-batch2 should be found")
-		assert.Equal(t, pointers.Ptr(true), rb2.Spec.Jobs[0].Stop, "test-batch2 job should be stopped")
+		assert.Equal(t, new(true), rb2.Spec.Jobs[0].Stop, "test-batch2 job should be stopped")
 		rb3, ok := slice.FindFirst(batchList.Items, func(batch radixv1.RadixBatch) bool {
 			return batch.GetName() == "test-batch3" && batch.GetNamespace() == envNamespace1 && batch.GetLabels()[kube.RadixComponentLabel] == jobComponent2
 		})
@@ -662,7 +661,7 @@ func TestStopJob(t *testing.T) {
 			return batch.GetName() == "test-batch5" && batch.GetNamespace() == envNamespace1
 		})
 		assert.True(t, ok, "test-batch5 should be found")
-		assert.Equal(t, pointers.Ptr(true), rb5.Spec.Jobs[0].Stop, "test-batch5 job should be stopped")
+		assert.Equal(t, new(true), rb5.Spec.Jobs[0].Stop, "test-batch5 job should be stopped")
 		rb6, ok := slice.FindFirst(batchList.Items, func(batch radixv1.RadixBatch) bool {
 			return batch.GetName() == "test-batch1" && batch.GetNamespace() == envNamespace2
 		})

@@ -14,7 +14,6 @@ import (
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	radixhttp "github.com/equinor/radix-common/net/http"
 	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
@@ -566,11 +565,11 @@ func TestGetApplication_BuildCacheOption(t *testing.T) {
 			expectedUseBuildCache: true,
 		},
 		"buildCache true": {
-			useBuildCache:         pointers.Ptr(true),
+			useBuildCache:         new(true),
 			expectedUseBuildCache: true,
 		},
 		"buildCache false": {
-			useBuildCache:         pointers.Ptr(false),
+			useBuildCache:         new(false),
 			expectedUseBuildCache: false,
 		},
 	}
@@ -653,7 +652,7 @@ func TestGetApplication_WithEnvironments(t *testing.T) {
 		WithEnvironmentName(anyOrphanedEnvironment))
 	orphanedRe.Status.Reconciled = metav1.Now()
 	orphanedRe.Status.Orphaned = true
-	orphanedRe.Status.OrphanedTimestamp = pointers.Ptr(metav1.Now())
+	orphanedRe.Status.OrphanedTimestamp = new(metav1.Now())
 	_, err = radix.RadixV1().RadixEnvironments().Update(context.Background(), orphanedRe, metav1.UpdateOptions{})
 	require.NoError(t, err)
 
@@ -932,7 +931,7 @@ func TestModifyApplication_IgnoreRequireADGroupValidationWhenRequiredButCurrentI
 	// Test
 	patchRequest := applicationModels.ApplicationRegistrationPatchRequest{
 		ApplicationRegistrationPatch: &applicationModels.ApplicationRegistrationPatch{
-			ConfigBranch: radixutils.StringPtr("dummyupdate"),
+			ConfigBranch: new("dummyupdate"),
 		},
 	}
 

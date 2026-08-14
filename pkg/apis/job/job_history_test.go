@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -516,7 +515,7 @@ func createRadixJob(appName, jobName string, created time.Time, statusCondition 
 			PipeLineType: pipelineType,
 		},
 		Status: radixv1.RadixJobStatus{
-			Created:   pointers.Ptr(metav1.NewTime(created)),
+			Created:   new(metav1.NewTime(created)),
 			Condition: statusCondition,
 		},
 	}

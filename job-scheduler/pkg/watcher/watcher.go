@@ -59,7 +59,7 @@ func NewRadixBatchWatcher(ctx context.Context, radixClient radixclient.Interface
 	watcher.logger.Info().Msg("Setting up event handlers")
 
 	_, err = watcher.batchInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
+		AddFunc: func(cur any) {
 			radixBatch, converted := cur.(*radixv1.RadixBatch)
 			if !converted {
 				log.Error().Msg("Failed to cast RadixBatch object")
@@ -80,7 +80,7 @@ func NewRadixBatchWatcher(ctx context.Context, radixClient radixclient.Interface
 			notify(ctx, notifier, events.Create, radixBatch, jobStatuses)
 			watcher.cleanupJobHistory(ctx, existingRadixBatchNamesMap)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			oldRadixBatch := old.(*radixv1.RadixBatch)
 			newRadixBatch := cur.(*radixv1.RadixBatch)
 			updatedJobStatuses := getUpdatedJobStatuses(oldRadixBatch, newRadixBatch)
@@ -91,7 +91,7 @@ func NewRadixBatchWatcher(ctx context.Context, radixClient radixclient.Interface
 			watcher.logger.Debug().Msgf("RadixBatch object was changed %s", newRadixBatch.GetName())
 			notify(ctx, notifier, events.Update, newRadixBatch, updatedJobStatuses)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			radixBatch, _ := obj.(*radixv1.RadixBatch)
 			key, err := cache.MetaNamespaceKeyFunc(radixBatch)
 			if err != nil {

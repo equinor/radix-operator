@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -65,7 +64,7 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 			PeriodSeconds:       seconds + 2,
 			SuccessThreshold:    seconds + 3,
 			FailureThreshold:    seconds + 4,
-			// TerminationGracePeriodSeconds: pointers.Ptr(int64(seconds + 5)),
+			// TerminationGracePeriodSeconds: new(int64(seconds + 5)),
 		}
 	}
 
@@ -320,8 +319,8 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), &component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
-		assert.Equal(t, expectedRequests["cpu"], pointers.Ptr(desiredRes.Requests["cpu"]).String())
-		assert.Equal(t, expectedRequests["memory"], pointers.Ptr(desiredRes.Requests["memory"]).String())
+		assert.Equal(t, expectedRequests["cpu"], new(desiredRes.Requests["cpu"]).String())
+		assert.Equal(t, expectedRequests["memory"], new(desiredRes.Requests["memory"]).String())
 		assert.Equal(t, 0, len(desiredRes.Limits))
 	})
 	t.Run("remove requests and update limit", func(t *testing.T) {

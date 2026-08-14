@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -50,9 +51,7 @@ func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environme
 	}
 
 	// Append system default environment variables
-	for key, value := range defaultEnvVars {
-		variables[key] = value
-	}
+	maps.Copy(variables, defaultEnvVars)
 
 	return variables
 }

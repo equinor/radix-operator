@@ -7,7 +7,6 @@ import (
 
 	"github.com/equinor/radix-common/net/http"
 	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
@@ -85,7 +84,7 @@ func (eh EnvironmentHandler) StopComponent(ctx context.Context, appName, envName
 		}
 		return environmentModels.CannotStopComponent(appName, componentName, componentStatus)
 	}
-	return eh.patchRadixDeploymentWithReplicas(ctx, updater, pointers.Ptr(0))
+	return eh.patchRadixDeploymentWithReplicas(ctx, updater, new(0))
 }
 
 // RestartComponent Restarts a component

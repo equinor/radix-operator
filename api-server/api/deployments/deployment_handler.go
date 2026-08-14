@@ -264,7 +264,6 @@ func (deploy *deployHandler) getDeployments(ctx context.Context, appName string,
 			return nil, err
 		}
 		for _, rj := range radixJobList.Items {
-			rj := rj
 			radixJobMap[rj.Name] = &rj
 		}
 	}

@@ -2,6 +2,7 @@ package privateimagehubs
 
 import (
 	"context"
+	"slices"
 
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	"github.com/equinor/radix-operator/api-server/api/privateimagehubs/internal"
@@ -71,10 +72,8 @@ func (ph PrivateImageHubHandler) UpdatePrivateImageHubValue(ctx context.Context,
 }
 
 func getImageHubSecretStatus(pendingImageHubSecrets []string, server string) models.ImageHubSecretStatus {
-	for _, val := range pendingImageHubSecrets {
-		if val == server {
-			return models.Pending
-		}
+	if slices.Contains(pendingImageHubSecrets, server) {
+		return models.Pending
 	}
 	return models.Consistent
 }

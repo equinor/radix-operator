@@ -79,7 +79,7 @@ func (tu *Utils) ExecuteUnAuthorizedRequest(method, endpoint string) <-chan *htt
 }
 
 // ExecuteRequestWithParameters Helper method to issue a http request with payload
-func (tu *Utils) ExecuteRequestWithParameters(method, endpoint string, parameters interface{}) <-chan *httptest.ResponseRecorder {
+func (tu *Utils) ExecuteRequestWithParameters(method, endpoint string, parameters any) <-chan *httptest.ResponseRecorder {
 	var reader io.Reader
 
 	if parameters != nil {
@@ -121,7 +121,7 @@ func GetErrorResponse(response *httptest.ResponseRecorder) (*radixhttp.Error, er
 }
 
 // GetResponseBody Gets response payload as type
-func GetResponseBody(response *httptest.ResponseRecorder, target interface{}) error {
+func GetResponseBody(response *httptest.ResponseRecorder, target any) error {
 	reader := bytes.NewReader(response.Body.Bytes()) // To allow read from response body multiple times
 	body, _ := io.ReadAll(reader)
 	return json.Unmarshal(body, target)

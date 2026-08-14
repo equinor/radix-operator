@@ -52,7 +52,7 @@ func NewController(ctx context.Context,
 
 	logger.Info().Msg("Setting up event handlers")
 	if _, err := deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
+		AddFunc: func(cur any) {
 			radixDeployment, _ := cur.(*v1.RadixDeployment)
 			if radixDeployment.Status.Condition == v1.DeploymentInactive {
 				logger.Debug().Msgf("Skip deployment object %s as it is inactive", radixDeployment.GetName())
@@ -65,7 +65,7 @@ func NewController(ctx context.Context,
 			}
 			metrics.CustomResourceAdded(crType)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			newRD := cur.(*v1.RadixDeployment)
 			oldRD := old.(*v1.RadixDeployment)
 			if newRD.Status.Condition == v1.DeploymentInactive {
@@ -87,7 +87,7 @@ func NewController(ctx context.Context,
 			}
 			metrics.CustomResourceUpdated(crType)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			radixDeployment, converted := obj.(*v1.RadixDeployment)
 			if !converted {
 				logger.Error().Msg("RadixDeployment object cast failed during deleted event received.")
@@ -106,14 +106,14 @@ func NewController(ctx context.Context,
 	// Only the service informer works with this, because it makes use of patch
 	// if not it will end up in an endless loop (deployment, ingress etc.)
 	if _, err := serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			service := obj.(*corev1.Service)
 			logger.Debug().Msgf("Service object added event received for %s. Do nothing", service.Name)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			controller.HandleObject(ctx, cur, v1.KindRadixDeployment, getObject)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controller.HandleObject(ctx, obj, v1.KindRadixDeployment, getObject)
 		},
 	}); err != nil {
@@ -121,7 +121,7 @@ func NewController(ctx context.Context,
 	}
 
 	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
 
@@ -171,6 +171,6 @@ func deepEqual(old, new *v1.RadixDeployment) bool {
 	return true
 }
 
-func getObject(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+func getObject(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (any, error) {
 	return radixClient.RadixV1().RadixDeployments(namespace).Get(ctx, name, metav1.GetOptions{})
 }

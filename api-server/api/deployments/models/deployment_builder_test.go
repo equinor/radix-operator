@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -366,7 +365,7 @@ func Test_DeploymentBuilder_BuildDeployment(t *testing.T) {
 							Architecture: radixv1.RuntimeArchitectureArm64,
 						}},
 						{Name: "job3", Runtime: &radixv1.Runtime{
-							NodeType: pointers.Ptr("some-node-type1"),
+							NodeType: new("some-node-type1"),
 						}},
 					},
 				},

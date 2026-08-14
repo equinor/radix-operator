@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
@@ -162,9 +163,7 @@ func CreateAppRole(appName, roleName string, customLabels map[string]string, rul
 		role.Rules = append(role.Rules, rb())
 	}
 
-	for key, value := range customLabels {
-		role.ObjectMeta.Labels[key] = value
-	}
+	maps.Copy(role.ObjectMeta.Labels, customLabels)
 
 	return role
 }

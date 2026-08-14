@@ -4,8 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
-
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -136,14 +134,14 @@ func (b *deploymentBuilder) withActiveTo(activeTo *time.Time) *deploymentBuilder
 
 func (b *deploymentBuilder) withUseBuildCache(value string) *deploymentBuilder {
 	if len(value) > 0 {
-		b.useBuildCache = pointers.Ptr(value == "true")
+		b.useBuildCache = new(value == "true")
 	}
 	return b
 }
 
 func (b *deploymentBuilder) withRefreshBuildCache(value string) *deploymentBuilder {
 	if len(value) > 0 {
-		b.refreshBuildCache = pointers.Ptr(value == "true")
+		b.refreshBuildCache = new(value == "true")
 	}
 	return b
 }

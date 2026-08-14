@@ -52,13 +52,13 @@ func NewController(ctx context.Context,
 	logger.Info().Msg("Setting up event handlers")
 
 	if _, err := environmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
+		AddFunc: func(cur any) {
 			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixEnvironment informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			newRR := cur.(*v1.RadixEnvironment)
 			oldRR := old.(*v1.RadixEnvironment)
 
@@ -73,7 +73,7 @@ func NewController(ctx context.Context,
 			}
 			metrics.CustomResourceUpdated(crType)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			radixEnvironment, converted := obj.(*v1.RadixEnvironment)
 			if !converted {
 				logger.Error().Msg("RadixEnvironment object cast failed during deleted event received")
@@ -91,7 +91,7 @@ func NewController(ctx context.Context,
 
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
 	if _, err := namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			// attempt to sync environment if it is the owner of this namespace
 			controller.HandleObject(ctx, obj, v1.KindRadixEnvironment, getOwner)
 		},
@@ -101,7 +101,7 @@ func NewController(ctx context.Context,
 
 	rolebindingInformer := kubeInformerFactory.Rbac().V1().RoleBindings()
 	if _, err := rolebindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			// attempt to sync environment if it is the owner of this role-binding
 			controller.HandleObject(ctx, obj, v1.KindRadixEnvironment, getOwner)
 		},
@@ -111,7 +111,7 @@ func NewController(ctx context.Context,
 
 	limitrangeInformer := kubeInformerFactory.Core().V1().LimitRanges()
 	if _, err := limitrangeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			// attempt to sync environment if it is the owner of this limit-range
 			controller.HandleObject(ctx, obj, v1.KindRadixEnvironment, getOwner)
 		},
@@ -120,7 +120,7 @@ func NewController(ctx context.Context,
 	}
 
 	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
 
@@ -154,7 +154,7 @@ func NewController(ctx context.Context,
 	}
 
 	if _, err := applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			newRa := cur.(*v1.RadixApplication)
 			oldRa := old.(*v1.RadixApplication)
 
@@ -169,7 +169,7 @@ func NewController(ctx context.Context,
 				}
 			}
 		},
-		DeleteFunc: func(cur interface{}) {
+		DeleteFunc: func(cur any) {
 			radixApplication, converted := cur.(*v1.RadixApplication)
 			if !converted {
 				logger.Error().Msg("RadixApplication object cast failed during deleted event received.")
@@ -204,7 +204,7 @@ func deepEqual(old, new *v1.RadixEnvironment) bool {
 	return true
 }
 
-func getOwner(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+func getOwner(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (any, error) {
 	return radixClient.RadixV1().RadixEnvironments().Get(ctx, name, metav1.GetOptions{})
 }
 

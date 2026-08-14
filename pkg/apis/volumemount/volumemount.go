@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
@@ -296,7 +295,7 @@ func getComponentSecretRefsAzureKeyVaultVolumes(ctx context.Context, kubeutil *k
 			case "azure":
 				volume.VolumeSource.CSI = &corev1.CSIVolumeSource{
 					Driver:           CsiVolumeSourceDriverSecretStore,
-					ReadOnly:         pointers.Ptr(true),
+					ReadOnly:         new(true),
 					VolumeAttributes: map[string]string{CsiVolumeSourceVolumeAttributeSecretProviderClass: secretProviderClass.Name},
 				}
 

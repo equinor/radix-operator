@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -172,7 +171,6 @@ func (h *pvcVolumeResourceHandler) getComponentPvcByNameMap(ctx context.Context)
 	})
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
 	for _, pvc := range pvcs {
-		pvc := pvc
 		pvcMap[pvc.Name] = &pvc
 	}
 	return pvcMap, nil
@@ -219,8 +217,8 @@ func (h *pvcVolumeResourceHandler) buildPvc(pvName, pvcName string, radixVolumeM
 				Requests: corev1.ResourceList{corev1.ResourceStorage: h.getVolumeCapacityOrDefault(radixVolumeMount)},
 			},
 			VolumeName:       pvName,
-			StorageClassName: pointers.Ptr(""), // use "" to avoid to use the "default" storage class
-			VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+			StorageClassName: new(""), // use "" to avoid to use the "default" storage class
+			VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 		},
 	}
 }

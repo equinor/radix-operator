@@ -1,7 +1,6 @@
 package securitycontext
 
 import (
-	commonUtils "github.com/equinor/radix-common/utils"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -63,9 +62,9 @@ func WithReadOnlyRootFileSystem(readOnly *bool) ContainerOption {
 }
 func Container(options ...ContainerOption) *corev1.SecurityContext {
 	securityContext := &corev1.SecurityContext{
-		AllowPrivilegeEscalation: commonUtils.BoolPtr(false),
-		Privileged:               commonUtils.BoolPtr(false),
-		RunAsNonRoot:             commonUtils.BoolPtr(true),
+		AllowPrivilegeEscalation: new(false),
+		Privileged:               new(false),
+		RunAsNonRoot:             new(true),
 	}
 
 	for _, o := range options {

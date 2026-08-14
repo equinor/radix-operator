@@ -3,7 +3,6 @@ package batch
 import (
 	"fmt"
 
-	"github.com/equinor/radix-common/utils"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	batchv1 "k8s.io/api/batch/v1"
@@ -44,7 +43,7 @@ func ownerReference(job *radixv1.RadixBatch) []metav1.OwnerReference {
 			Kind:       radixv1.KindRadixBatch,
 			Name:       job.Name,
 			UID:        job.UID,
-			Controller: utils.BoolPtr(true),
+			Controller: new(true),
 		},
 	}
 }

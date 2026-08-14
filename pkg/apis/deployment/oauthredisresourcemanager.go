@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -262,7 +261,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointers.Ptr(replicas),
+			Replicas: new(replicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
 			},
@@ -297,7 +296,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 							ReadinessProbe: readinessProbe,
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+								securitycontext.WithReadOnlyRootFileSystem(new(true)),
 								securitycontext.WithContainerRunAsUser(1001),
 							),
 							Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),

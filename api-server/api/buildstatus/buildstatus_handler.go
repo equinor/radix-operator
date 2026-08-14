@@ -2,6 +2,7 @@ package buildstatus
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"strings"
 
@@ -64,10 +65,8 @@ func getLatestPipelineJobToEnvironment(jobs []v1.RadixJob, env, pipeline string)
 
 	// Get status of the last job to requested environment
 	for _, buildDeployJob := range allBuildDeployJobs {
-		for _, targetEnvironment := range buildDeployJob.Status.TargetEnvs {
-			if targetEnvironment == env {
-				return &buildDeployJob
-			}
+		if slices.Contains(buildDeployJob.Status.TargetEnvs, env) {
+			return &buildDeployJob
 		}
 	}
 

@@ -1122,8 +1122,8 @@ func createRadixDeploymentWithReplicas(tu *commontest.Utils, appName, envName st
 			operatorutils.
 				NewDeployComponentBuilder().
 				WithName(component.name).
-				WithReplicas(pointers.Ptr(component.number)).
-				WithReplicasOverride(pointers.Ptr(component.number)),
+				WithReplicas(new(component.number)).
+				WithReplicasOverride(new(component.number)),
 		)
 	}
 

@@ -49,10 +49,6 @@ func namespace() string {
 	return utils.GetEnvironmentNamespace(appName, envName)
 }
 
-func boolPtr(v bool) *bool {
-	return &v
-}
-
 func getNetworkPolicies(t *testing.T, kubeClient *fake.Clientset) []networkingv1.NetworkPolicy {
 	t.Helper()
 	policies, err := kubeClient.NetworkingV1().NetworkPolicies(namespace()).List(context.Background(), metav1.ListOptions{})
@@ -326,7 +322,7 @@ func TestUpdateEnvEgressRules_AllowRadixTrue_IncludesRadixEgressRule(t *testing.
 		},
 	}
 
-	err := nw.UpdateEnvEgressRules(context.Background(), rules, boolPtr(true), appName, envName)
+	err := nw.UpdateEnvEgressRules(context.Background(), rules, new(true), appName, envName)
 	require.NoError(t, err)
 
 	policies := getNetworkPolicies(t, kubeClient)
@@ -367,7 +363,7 @@ func TestUpdateEnvEgressRules_AllowRadixFalse_ExcludesRadixEgressRule(t *testing
 		},
 	}
 
-	err := nw.UpdateEnvEgressRules(context.Background(), rules, boolPtr(false), appName, envName)
+	err := nw.UpdateEnvEgressRules(context.Background(), rules, new(false), appName, envName)
 	require.NoError(t, err)
 
 	policies := getNetworkPolicies(t, kubeClient)
@@ -404,7 +400,7 @@ func TestUpdateEnvEgressRules_NoRulesButAllowRadixTrue_CreatesPolicyWithRadixRul
 	kubeClient, kubeUtil := setupTest(t)
 	nw := NewNetworkPolicy(kubeClient, kubeUtil, testConfig)
 
-	err := nw.UpdateEnvEgressRules(context.Background(), nil, boolPtr(true), appName, envName)
+	err := nw.UpdateEnvEgressRules(context.Background(), nil, new(true), appName, envName)
 	require.NoError(t, err)
 
 	policies := getNetworkPolicies(t, kubeClient)
@@ -424,7 +420,7 @@ func TestUpdateEnvEgressRules_NoRulesButAllowRadixFalse_CreatesPolicyWithoutRadi
 	kubeClient, kubeUtil := setupTest(t)
 	nw := NewNetworkPolicy(kubeClient, kubeUtil, testConfig)
 
-	err := nw.UpdateEnvEgressRules(context.Background(), nil, boolPtr(false), appName, envName)
+	err := nw.UpdateEnvEgressRules(context.Background(), nil, new(false), appName, envName)
 	require.NoError(t, err)
 
 	policies := getNetworkPolicies(t, kubeClient)
@@ -481,7 +477,7 @@ func TestUpdateEnvEgressRules_UpdateExistingPolicy(t *testing.T) {
 			Ports:        []rx.EgressPort{{Port: 443, Protocol: "TCP"}},
 		},
 	}
-	err = nw.UpdateEnvEgressRules(context.Background(), newRules, boolPtr(true), appName, envName)
+	err = nw.UpdateEnvEgressRules(context.Background(), newRules, new(true), appName, envName)
 	require.NoError(t, err)
 
 	policies := getNetworkPolicies(t, kubeClient)
@@ -617,7 +613,7 @@ func TestUpdateEnvEgressRules_GatewayNameFromConfig(t *testing.T) {
 		},
 	}
 
-	err := nw.UpdateEnvEgressRules(context.Background(), rules, boolPtr(true), appName, envName)
+	err := nw.UpdateEnvEgressRules(context.Background(), rules, new(true), appName, envName)
 	require.NoError(t, err)
 
 	policies := getNetworkPolicies(t, kubeClient)
@@ -660,7 +656,7 @@ func TestUpdateEnvEgressRules_EgressRuleOrdering(t *testing.T) {
 		},
 	}
 
-	err := nw.UpdateEnvEgressRules(context.Background(), rules, boolPtr(true), appName, envName)
+	err := nw.UpdateEnvEgressRules(context.Background(), rules, new(true), appName, envName)
 	require.NoError(t, err)
 
 	policies := getNetworkPolicies(t, kubeClient)

@@ -48,13 +48,13 @@ func NewController(ctx context.Context,
 	logger.Info().Msg("Setting up event handlers")
 
 	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
+		AddFunc: func(cur any) {
 			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			newRR := cur.(*v1.RadixRegistration)
 			oldRR := old.(*v1.RadixRegistration)
 
@@ -69,7 +69,7 @@ func NewController(ctx context.Context,
 			}
 			metrics.CustomResourceUpdated(crType)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			radixRegistration, converted := obj.(*v1.RadixRegistration)
 			if !converted || radixRegistration == nil {
 				logger.Error().Msg("v1.RadixRegistration object cast failed during deleted event received.")
@@ -87,7 +87,7 @@ func NewController(ctx context.Context,
 
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
 	if _, err := namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controller.HandleObject(ctx, obj, v1.KindRadixRegistration, getObject)
 		},
 	}); err != nil {
@@ -96,7 +96,7 @@ func NewController(ctx context.Context,
 
 	secretInformer := kubeInformerFactory.Core().V1().Secrets()
 	if _, err := secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			oldSecret := oldObj.(*corev1.Secret)
 			newSecret := newObj.(*corev1.Secret)
 
@@ -112,7 +112,7 @@ func NewController(ctx context.Context,
 				controller.HandleObject(ctx, namespace, v1.KindRadixRegistration, getObject)
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			secret, converted := obj.(*corev1.Secret)
 			if !converted {
 				logger.Error().Msg("corev1.Secret object cast failed during deleted event received.")
@@ -157,6 +157,6 @@ func deepEqual(old, new *v1.RadixRegistration) bool {
 	return true
 }
 
-func getObject(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+func getObject(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (any, error) {
 	return radixClient.RadixV1().RadixRegistrations().Get(ctx, name, metav1.GetOptions{})
 }

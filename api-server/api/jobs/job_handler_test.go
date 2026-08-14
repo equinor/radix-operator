@@ -7,7 +7,6 @@ import (
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	deployMock "github.com/equinor/radix-operator/api-server/api/deployments/mock"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	jobModels "github.com/equinor/radix-operator/api-server/api/jobs/models"
@@ -107,8 +106,8 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob() {
 				GitRef:                someTag,
 				GitRefType:            radixv1.GitRefTag,
 				CommitID:              commitId,
-				OverrideUseBuildCache: pointers.Ptr(true),
-				RefreshBuildCache:     pointers.Ptr(true),
+				OverrideUseBuildCache: new(true),
+				RefreshBuildCache:     new(true),
 			},
 			PipeLineType: pipeline,
 			TriggeredBy:  triggeredBy,

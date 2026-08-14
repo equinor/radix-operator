@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/operator/scheduler/tasks"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -47,8 +46,8 @@ func TestCleanupRadixEnvironments(t *testing.T) {
 		env2            = "env2"
 	)
 	now := time.Now()
-	expiredOrphanedTimestamp := pointers.Ptr(metav1.Time{Time: now.Add(time.Hour * -5)})
-	notExpiredOrphanedTimestamp := pointers.Ptr(metav1.Time{Time: now.Add(time.Hour * 5)})
+	expiredOrphanedTimestamp := new(metav1.Time{Time: now.Add(time.Hour * -5)})
+	notExpiredOrphanedTimestamp := new(metav1.Time{Time: now.Add(time.Hour * 5)})
 	scenarios := []scenario{
 		{
 			name:                 "No environments",

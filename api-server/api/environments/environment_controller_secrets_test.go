@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
@@ -263,7 +262,7 @@ func (s *secretHandlerTestSuite) TestSecretHandler_GetSecrets() {
 							Name: "volume1",
 							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
 								Container:        "container1",
-								UseAzureIdentity: pointers.Ptr(true),
+								UseAzureIdentity: new(true),
 								StorageAccount:   "storageaccount1",
 								ResourceGroup:    "resource-group1",
 								SubscriptionId:   "subscription-id1",
@@ -280,7 +279,7 @@ func (s *secretHandlerTestSuite) TestSecretHandler_GetSecrets() {
 							Name: "volume2",
 							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
 								Container:        "container2",
-								UseAzureIdentity: pointers.Ptr(true),
+								UseAzureIdentity: new(true),
 								StorageAccount:   "storageaccount1",
 								ResourceGroup:    "resource-group1",
 								SubscriptionId:   "subscription-id1",
@@ -801,7 +800,6 @@ func testGetRadixJobComponents(jobComponents []v1.RadixDeployJobComponent, envNa
 func testGetSecretMap(secrets []secretModels.Secret) map[string]secretModels.Secret {
 	secretMap := make(map[string]secretModels.Secret, len(secrets))
 	for _, secret := range secrets {
-		secret := secret
 		secretMap[secret.Name] = secret
 	}
 	return secretMap

@@ -381,7 +381,7 @@ func getAppEnvPodsMap(ts scenario) map[string]map[string]map[string]string {
 
 func assertEvents(t *testing.T, expectedEvents []eventModels.Event, actualEvents []*eventModels.Event) {
 	if assert.Len(t, actualEvents, len(expectedEvents)) {
-		for i := 0; i < len(expectedEvents); i++ {
+		for i := range expectedEvents {
 			assert.Equal(t, expectedEvents[i].InvolvedObjectName, actualEvents[i].InvolvedObjectName)
 			assert.Equal(t, expectedEvents[i].InvolvedObjectKind, actualEvents[i].InvolvedObjectKind)
 			assert.Equal(t, expectedEvents[i].InvolvedObjectNamespace, actualEvents[i].InvolvedObjectNamespace)

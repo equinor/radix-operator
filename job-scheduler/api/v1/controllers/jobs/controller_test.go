@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/jobs"
 	"github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/jobs/mock"
 	"github.com/equinor/radix-operator/job-scheduler/internal/test"
@@ -33,8 +32,8 @@ func TestGetJobs(t *testing.T) {
 		jobHandler := mock.NewMockJobHandler(ctrl)
 		jobState := modelsV1.JobStatus{
 			Name:    "jobname",
-			Started: pointers.Ptr(time.Now()),
-			Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+			Started: new(time.Now()),
+			Ended:   new(time.Now().Add(1 * time.Minute)),
 			Status:  "jobstatus",
 		}
 		ctx := context.Background()
@@ -99,8 +98,8 @@ func TestGetJob(t *testing.T) {
 		jobHandler := mock.NewMockJobHandler(ctrl)
 		jobState := modelsV1.JobStatus{
 			Name:    jobName,
-			Started: pointers.Ptr(time.Now()),
-			Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+			Started: new(time.Now()),
+			Ended:   new(time.Now().Add(1 * time.Minute)),
 			Status:  "jobstatus",
 		}
 		ctx := context.Background()
@@ -192,8 +191,8 @@ func TestCreateJob(t *testing.T) {
 		jobScheduleDescription := models.JobScheduleDescription{}
 		createdJob := modelsV1.JobStatus{
 			Name:    "newjob",
-			Started: pointers.Ptr(time.Now()),
-			Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+			Started: new(time.Now()),
+			Ended:   new(time.Now().Add(1 * time.Minute)),
 			Status:  "jobstatus",
 		}
 		jobHandler := mock.NewMockJobHandler(ctrl)
@@ -245,8 +244,8 @@ func TestCreateJob(t *testing.T) {
 		}
 		createdJob := modelsV1.JobStatus{
 			Name:    "newjob",
-			Started: pointers.Ptr(time.Now()),
-			Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+			Started: new(time.Now()),
+			Ended:   new(time.Now().Add(1 * time.Minute)),
 			Status:  "jobstatus",
 		}
 		jobHandler := mock.NewMockJobHandler(ctrl)
@@ -285,7 +284,7 @@ func TestCreateJob(t *testing.T) {
 			CreateJob(test.RequestContextMatcher{}, gomock.Any(), "").
 			Times(0)
 		controllerTestUtils := setupTest(jobHandler)
-		responseChannel := controllerTestUtils.ExecuteRequestWithBody(ctx, http.MethodPost, "/api/v1/jobs", struct{ Payload interface{} }{Payload: struct{}{}})
+		responseChannel := controllerTestUtils.ExecuteRequestWithBody(ctx, http.MethodPost, "/api/v1/jobs", struct{ Payload any }{Payload: struct{}{}})
 		response := <-responseChannel
 		assert.NotNil(t, response)
 

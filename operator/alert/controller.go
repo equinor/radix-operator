@@ -50,13 +50,13 @@ func NewController(ctx context.Context,
 
 	logger.Info().Msg("Setting up event handlers")
 	if _, err := alertInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
+		AddFunc: func(cur any) {
 			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixAlert informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			oldRadixAlert := old.(*radixv1.RadixAlert)
 			newRadixAlert := cur.(*radixv1.RadixAlert)
 			if deepEqual(oldRadixAlert, newRadixAlert) {
@@ -69,7 +69,7 @@ func NewController(ctx context.Context,
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixAlert informer UpdateFunc")
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			radixAlert, converted := obj.(*radixv1.RadixAlert)
 			if !converted {
 				logger.Error().Msg("RadixAlert object cast failed during deleted event received.")
@@ -86,7 +86,7 @@ func NewController(ctx context.Context,
 	}
 
 	if _, err := registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			newRr := newObj.(*radixv1.RadixRegistration)
 			oldRr := oldObj.(*radixv1.RadixRegistration)
 

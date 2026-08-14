@@ -28,7 +28,7 @@ type Validator struct {
 
 var _ ValidatorInterface = &Validator{}
 
-type KeyFunc func(context.Context) (interface{}, error)
+type KeyFunc func(context.Context) (any, error)
 
 func NewValidator(issuerUrl url.URL, audience string) (*Validator, error) {
 	provider := jwks.NewCachingProvider(&issuerUrl, 5*time.Hour)

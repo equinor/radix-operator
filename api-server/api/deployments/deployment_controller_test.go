@@ -398,11 +398,11 @@ func TestGetDeployment_TwoDeploymentsFirstDeployment_ReturnsDeploymentWithCompon
 					WithImage("radixdev.azurecr.io/some-image:imagetag").
 					WithName("frontend").
 					WithPort("http", 8080).
-					WithReplicas(commontest.IntPtr(1)),
+					WithReplicas(new(1)),
 				builders.NewDeployComponentBuilder().
 					WithImage("radixdev.azurecr.io/another-image:imagetag").
 					WithName("backend").
-					WithReplicas(commontest.IntPtr(1))))
+					WithReplicas(new(1))))
 	require.NoError(t, err)
 
 	_, err = commonTestUtils.ApplyDeployment(
@@ -427,7 +427,7 @@ func TestGetDeployment_TwoDeploymentsFirstDeployment_ReturnsDeploymentWithCompon
 				builders.NewDeployComponentBuilder().
 					WithImage("radixdev.azurecr.io/another-second-image:imagetag").
 					WithName("backend").
-					WithReplicas(commontest.IntPtr(1))))
+					WithReplicas(new(1))))
 	require.NoError(t, err)
 
 	// Test

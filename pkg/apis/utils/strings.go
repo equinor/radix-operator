@@ -39,6 +39,8 @@ func TernaryString(condition bool, trueValue, falseValue string) string {
 }
 
 // StringPtr returns a pointer to the passed string.
+//
+//go:fix inline
 func StringPtr(s string) *string {
-	return &s
+	return new(s)
 }

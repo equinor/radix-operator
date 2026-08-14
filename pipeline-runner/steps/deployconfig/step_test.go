@@ -599,7 +599,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 				if !s.Len(actualRdList, len(expectedRdList), "Invalid number of Radix Deployments for environment %s", envName) {
 					continue
 				}
-				for i := 0; i < len(expectedRdList); i++ {
+				for i := range expectedRdList {
 					expectedRd := expectedRdList[i]
 					actualRd := actualRdList[i]
 					if !s.Len(actualRd.Spec.Components, len(expectedRd.Spec.Components), "Invalid number of components") {

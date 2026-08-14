@@ -81,11 +81,11 @@ func signPayload(payload []byte, secret string) string {
 func pushEventBody(t *testing.T, ref, after string, deleted bool) []byte {
 	t.Helper()
 	event := github.PushEvent{
-		Ref:     github.Ptr(ref),
-		After:   github.Ptr(after),
-		Deleted: github.Ptr(deleted),
-		Repo:    &github.PushEventRepository{SSHURL: github.Ptr(sshURL)},
-		Sender:  &github.User{Login: github.Ptr("some-user")},
+		Ref:     new(ref),
+		After:   new(after),
+		Deleted: new(deleted),
+		Repo:    &github.PushEventRepository{SSHURL: new(sshURL)},
+		Sender:  &github.User{Login: new("some-user")},
 	}
 	body, err := json.Marshal(event)
 	require.NoError(t, err)
@@ -95,7 +95,7 @@ func pushEventBody(t *testing.T, ref, after string, deleted bool) []byte {
 func pingEventBody(t *testing.T, repoSSHURL string) []byte {
 	t.Helper()
 	event := github.PingEvent{
-		Repo: &github.Repository{SSHURL: github.Ptr(repoSSHURL)},
+		Repo: &github.Repository{SSHURL: new(repoSSHURL)},
 	}
 	body, err := json.Marshal(event)
 	require.NoError(t, err)
@@ -690,7 +690,7 @@ func TestGetGitRefWithType(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.ref, func(t *testing.T) {
-			gitRef, gitRefType, err := getGitRefWithType(&github.PushEvent{Ref: github.Ptr(scenario.ref)})
+			gitRef, gitRefType, err := getGitRefWithType(&github.PushEvent{Ref: new(scenario.ref)})
 			require.NoError(t, err)
 			assert.Equal(t, scenario.expectedGitRef, gitRef)
 			assert.Equal(t, scenario.expectedType, gitRefType)
@@ -707,8 +707,8 @@ func TestGetApiGitRefType(t *testing.T) {
 func TestGetCommitID(t *testing.T) {
 	t.Run("push event returns After", func(t *testing.T) {
 		commitID, err := getCommitID(&github.PushEvent{
-			Ref:   github.Ptr("refs/heads/master"),
-			After: github.Ptr("after-commit-id"),
+			Ref:   new("refs/heads/master"),
+			After: new("after-commit-id"),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "after-commit-id", commitID)
@@ -716,9 +716,9 @@ func TestGetCommitID(t *testing.T) {
 
 	t.Run("annotated tag returns head commit ID", func(t *testing.T) {
 		commitID, err := getCommitID(&github.PushEvent{
-			Ref:        github.Ptr("refs/tags/v1"),
-			After:      github.Ptr("annotated-tag-object-id"),
-			HeadCommit: &github.HeadCommit{ID: github.Ptr("head-commit-id")},
+			Ref:        new("refs/tags/v1"),
+			After:      new("annotated-tag-object-id"),
+			HeadCommit: &github.HeadCommit{ID: new("head-commit-id")},
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "head-commit-id", commitID)
@@ -726,9 +726,9 @@ func TestGetCommitID(t *testing.T) {
 
 	t.Run("lightweight tag with base ref returns After", func(t *testing.T) {
 		commitID, err := getCommitID(&github.PushEvent{
-			Ref:     github.Ptr("refs/tags/v1"),
-			After:   github.Ptr("after-commit-id"),
-			BaseRef: github.Ptr("refs/heads/master"),
+			Ref:     new("refs/tags/v1"),
+			After:   new("after-commit-id"),
+			BaseRef: new("refs/heads/master"),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "after-commit-id", commitID)
@@ -738,24 +738,24 @@ func TestGetCommitID(t *testing.T) {
 func TestGetPushTriggeredBy(t *testing.T) {
 	t.Run("uses sender login", func(t *testing.T) {
 		triggeredBy := getPushTriggeredBy(&github.PushEvent{
-			Sender:     &github.User{Login: github.Ptr("sender-user")},
-			HeadCommit: &github.HeadCommit{Author: &github.CommitAuthor{Login: github.Ptr("author-user")}},
-			Pusher:     &github.CommitAuthor{Login: github.Ptr("pusher-user")},
+			Sender:     &github.User{Login: new("sender-user")},
+			HeadCommit: &github.HeadCommit{Author: &github.CommitAuthor{Login: new("author-user")}},
+			Pusher:     &github.CommitAuthor{Login: new("pusher-user")},
 		})
 		assert.Equal(t, "sender-user", triggeredBy)
 	})
 
 	t.Run("falls back to head commit author", func(t *testing.T) {
 		triggeredBy := getPushTriggeredBy(&github.PushEvent{
-			HeadCommit: &github.HeadCommit{Author: &github.CommitAuthor{Login: github.Ptr("author-user")}},
-			Pusher:     &github.CommitAuthor{Login: github.Ptr("pusher-user")},
+			HeadCommit: &github.HeadCommit{Author: &github.CommitAuthor{Login: new("author-user")}},
+			Pusher:     &github.CommitAuthor{Login: new("pusher-user")},
 		})
 		assert.Equal(t, "author-user", triggeredBy)
 	})
 
 	t.Run("falls back to pusher", func(t *testing.T) {
 		triggeredBy := getPushTriggeredBy(&github.PushEvent{
-			Pusher: &github.CommitAuthor{Login: github.Ptr("pusher-user")},
+			Pusher: &github.CommitAuthor{Login: new("pusher-user")},
 		})
 		assert.Equal(t, "pusher-user", triggeredBy)
 	})

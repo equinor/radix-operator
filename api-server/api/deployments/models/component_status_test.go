@@ -5,7 +5,6 @@ import (
 	"time"
 
 	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/api-server/api/deployments/models"
 	operatordefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -67,7 +66,7 @@ func createKubeDeployment(replicas int32) *appsv1.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "helloworld",
 			Annotations:     map[string]string{kube.RadixDeploymentObservedGeneration: "1"},
-			OwnerReferences: []metav1.OwnerReference{{Controller: pointers.Ptr(true)}}},
-		Spec: appsv1.DeploymentSpec{Replicas: pointers.Ptr[int32](replicas)},
+			OwnerReferences: []metav1.OwnerReference{{Controller: new(true)}}},
+		Spec: appsv1.DeploymentSpec{Replicas: new(int32(replicas))},
 	}
 }

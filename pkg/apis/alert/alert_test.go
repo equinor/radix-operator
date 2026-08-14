@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -66,7 +65,7 @@ func (s *alertTestSuite) createAlertSyncer(alert *radixv1.RadixAlert, options ..
 }
 
 func (s *alertTestSuite) getRadixAlertAsOwnerReference(radixAlert *radixv1.RadixAlert) metav1.OwnerReference {
-	return metav1.OwnerReference{Kind: radixv1.KindRadixAlert, Name: radixAlert.Name, UID: radixAlert.UID, APIVersion: radixv1.SchemeGroupVersion.Identifier(), Controller: utils.BoolPtr(true), BlockOwnerDeletion: utils.BoolPtr(true)}
+	return metav1.OwnerReference{Kind: radixv1.KindRadixAlert, Name: radixAlert.Name, UID: radixAlert.UID, APIVersion: radixv1.SchemeGroupVersion.Identifier(), Controller: new(true), BlockOwnerDeletion: new(true)}
 }
 
 func (s *alertTestSuite) Test_New() {
@@ -561,7 +560,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	slackTemplate := slackMessageTemplate{title: "atitle", titleLink: "alink", text: "atext"}
 	expectedSlackConfigFactory := func(receiverName string, resolvable bool) v1alpha1.SlackConfig {
 		return v1alpha1.SlackConfig{
-			SendResolved: utils.BoolPtr(resolvable),
+			SendResolved: new(resolvable),
 			APIURL: &corev1.SecretKeySelector{
 				Key:                  GetSlackConfigSecretKeyName(receiverName),
 				LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(alertName)}},

@@ -18,7 +18,6 @@ import (
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	radixutils "github.com/equinor/radix-common/utils"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -157,14 +156,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 								"memory": "129Mi",
 								"cpu":    "501m",
 							}).
-							WithReplicas(test.IntPtr(2)),
+							WithReplicas(new(2)),
 						utils.NewDeployComponentBuilder().
 							WithImage("old_radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
 							WithName(componentNameRedis).
 							WithEnvironmentVariable("a_variable", "3002").
 							WithPort("http", 6378).
 							WithPublicPort("").
-							WithReplicas(test.IntPtr(1)),
+							WithReplicas(new(1)),
 						utils.NewDeployComponentBuilder().
 							WithImage("old_radixdev.azurecr.io/edcradix-radixquote:axmz8").
 							WithName(componentNameRadixQuote).
@@ -197,14 +196,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 								"memory": "128Mi",
 								"cpu":    "500m",
 							}).
-							WithReplicas(test.IntPtr(4)),
+							WithReplicas(new(4)),
 						utils.NewDeployComponentBuilder().
 							WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
 							WithName(componentNameRedis).
 							WithEnvironmentVariable("a_variable", "3001").
 							WithPort("http", 6379).
 							WithPublicPort("").
-							WithReplicas(test.IntPtr(0)),
+							WithReplicas(new(0)),
 						utils.NewDeployComponentBuilder().
 							WithImage("radixdev.azurecr.io/edcradix-radixquote:axmz8").
 							WithName(componentNameRadixQuote).
@@ -821,7 +820,7 @@ func TestObjectSynced_JobAux_DeploymentSpecIsSet(t *testing.T) {
 	)
 	assert.EqualValues(t, expectedSelectorMatchLabels, jobAuxDeployment.Spec.Selector.MatchLabels)
 
-	assert.Equal(t, pointers.Ptr(false), jobAuxDeployment.Spec.Template.Spec.AutomountServiceAccountToken)
+	assert.Equal(t, new(false), jobAuxDeployment.Spec.Template.Spec.AutomountServiceAccountToken)
 	assert.Equal(t, defaultServiceAccountName, jobAuxDeployment.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, utils.GetAffinityForJobAPIAuxComponent(), jobAuxDeployment.Spec.Template.Spec.Affinity)
 
@@ -925,8 +924,8 @@ func TestObjectSynced_ReadOnlyFileSystem(t *testing.T) {
 
 	tests := map[string]scenarioSpec{
 		"notSet": {readOnlyFileSystem: nil, expectedReadOnlyFileSystem: nil},
-		"false":  {readOnlyFileSystem: pointers.Ptr(false), expectedReadOnlyFileSystem: pointers.Ptr(false)},
-		"true":   {readOnlyFileSystem: pointers.Ptr(true), expectedReadOnlyFileSystem: pointers.Ptr(true)},
+		"false":  {readOnlyFileSystem: new(false), expectedReadOnlyFileSystem: new(false)},
+		"true":   {readOnlyFileSystem: new(true), expectedReadOnlyFileSystem: new(true)},
 	}
 
 	for name, test := range tests {
@@ -965,8 +964,8 @@ func TestObjectSynced_RunAsUser(t *testing.T) {
 
 	tests := map[string]scenarioSpec{
 		"notSet": {runAsUser: nil, expectedRunAsUser: nil},
-		"1000":   {runAsUser: pointers.Ptr(int64(1000)), expectedRunAsUser: pointers.Ptr(int64(1000))},
-		"1001":   {runAsUser: pointers.Ptr(int64(1001)), expectedRunAsUser: pointers.Ptr(int64(1001))},
+		"1000":   {runAsUser: new(int64(1000)), expectedRunAsUser: new(int64(1000))},
+		"1001":   {runAsUser: new(int64(1001)), expectedRunAsUser: new(int64(1001))},
 	}
 
 	for name, test := range tests {
@@ -1012,7 +1011,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
@@ -1040,7 +1039,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
 
@@ -1064,7 +1063,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
 
@@ -1080,7 +1079,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		_, hasLabel := expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"]
 		assert.False(t, hasLabel)
@@ -1187,7 +1186,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 	})
@@ -1208,7 +1207,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		allDeployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// Change app to be a job
@@ -1225,11 +1224,11 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			metav1.ListOptions{})
 		expectedJobDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
 		require.Equal(t, 1, len(expectedJobDeployments))
-		assert.Equal(t, pointers.Ptr(true), expectedJobDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(true), expectedJobDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedJobDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		expectedJobAuxDeployments := getDeploymentsForRadixJobAux(allDeployments.Items)
 		require.Equal(t, 1, len(expectedJobAuxDeployments))
-		assert.Equal(t, pointers.Ptr(false), expectedJobAuxDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedJobAuxDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedJobAuxDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// And change app back to a component
@@ -1245,7 +1244,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		allDeployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(allDeployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 }
@@ -1845,7 +1844,7 @@ func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultRepl
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("app").
-				WithReplicas(test.IntPtr(0))))
+				WithReplicas(new(0))))
 	require.NoError(t, err)
 
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
@@ -1875,11 +1874,11 @@ func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 		WithEnvironment("test").
 		WithComponents(
 			utils.NewDeployComponentBuilder().WithName("comp1"),
-			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(2)),
-			utils.NewDeployComponentBuilder().WithName("comp3").WithReplicas(pointers.Ptr(4)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
-			utils.NewDeployComponentBuilder().WithName("comp4").WithReplicas(pointers.Ptr(6)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
-			utils.NewDeployComponentBuilder().WithName("comp5").WithReplicas(pointers.Ptr(11)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
-			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(new(2)),
+			utils.NewDeployComponentBuilder().WithName("comp3").WithReplicas(new(4)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp4").WithReplicas(new(6)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp5").WithReplicas(new(11)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(new(1)).WithReplicasOverride(new(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 			utils.NewDeployComponentBuilder().WithName("comp7").WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 		))
 	require.NoError(t, err)
@@ -1910,7 +1909,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1918,7 +1917,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
 
 	// Simulate HPA scaling up comp1 to 3 replicas
-	comp1.Spec.Replicas = pointers.Ptr[int32](3)
+	comp1.Spec.Replicas = new(int32(3))
 	_, err = client.AppsV1().Deployments(envNamespace).Update(context.Background(), comp1, metav1.UpdateOptions{})
 	require.NoError(t, err)
 	// Resync existing RD should use replicas from current deployment for HPA enabled component
@@ -1927,7 +1926,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1940,7 +1939,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1953,7 +1952,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)),
 		))
 	require.NoError(t, err)
 
@@ -1972,7 +1971,7 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1987,8 +1986,8 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("comp1").
-				WithReplicas(pointers.Ptr(1)).
-				WithReplicasOverride(pointers.Ptr(0)).
+				WithReplicas(new(1)).
+				WithReplicasOverride(new(0)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
@@ -2002,7 +2001,7 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -2021,7 +2020,7 @@ func TestObjectSynced_ManuallyOverridingReplicasIsApplied(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)),
 		))
 	require.NoError(t, err)
 
@@ -2034,7 +2033,7 @@ func TestObjectSynced_ManuallyOverridingReplicasIsApplied(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(5)),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithReplicasOverride(new(5)),
 		))
 	require.NoError(t, err)
 
@@ -2047,7 +2046,7 @@ func TestObjectSynced_ManuallyOverridingReplicasIsApplied(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)),
 		))
 	require.NoError(t, err)
 
@@ -2071,9 +2070,9 @@ func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
 		))
 	require.NoError(t, err)
 	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
-	assert.Equal(t, pointers.Ptr(int32(10)), comp1.Spec.RevisionHistoryLimit, "Invalid default RevisionHistoryLimit")
+	assert.Equal(t, new(int32(10)), comp1.Spec.RevisionHistoryLimit, "Invalid default RevisionHistoryLimit")
 	comp2, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp2", metav1.GetOptions{})
-	assert.Equal(t, pointers.Ptr(int32(0)), comp2.Spec.RevisionHistoryLimit, "Invalid RevisionHistoryLimit")
+	assert.Equal(t, new(int32(0)), comp2.Spec.RevisionHistoryLimit, "Invalid RevisionHistoryLimit")
 }
 
 func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *testing.T) {
@@ -2176,7 +2175,7 @@ func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefault
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("app").
-				WithReplicas(test.IntPtr(3))))
+				WithReplicas(new(3))))
 	require.NoError(t, err)
 
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
@@ -2214,12 +2213,12 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(4)),
+				WithReplicas(new(4)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(new(0)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
@@ -2243,7 +2242,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(new(0)).
 				WithSecrets([]string{"a_secret"})))
 
 	require.NoError(t, err)
@@ -3547,8 +3546,8 @@ func Test_ComponentSynced_SecretRefs(t *testing.T) {
 					WithName(compName).
 					WithSecretRefs(
 						radixv1.RadixSecretRefs{AzureKeyVaults: []radixv1.RadixAzureKeyVault{
-							{Name: "kv1", Path: radixutils.StringPtr("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET1"}}},
-							{Name: "kv2", Path: radixutils.StringPtr("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET2"}}},
+							{Name: "kv1", Path: new("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET1"}}},
+							{Name: "kv2", Path: new("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET2"}}},
 						}},
 					),
 			),
@@ -3585,8 +3584,8 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 					WithName(jobName).
 					WithSecretRefs(
 						radixv1.RadixSecretRefs{AzureKeyVaults: []radixv1.RadixAzureKeyVault{
-							{Name: "kv1", Path: radixutils.StringPtr("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret"}}},
-							{Name: "kv2", Path: radixutils.StringPtr("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret"}}},
+							{Name: "kv1", Path: new("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret"}}},
+							{Name: "kv2", Path: new("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret"}}},
 						}},
 					),
 			),

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -105,7 +104,7 @@ func (s *syncer) validatePayloadSecretReference(ctx context.Context, batchJob *r
 
 func (s *syncer) deleteJobs(ctx context.Context, jobsToDelete []*batchv1.Job) error {
 	for _, jobToDelete := range jobsToDelete {
-		err := s.kubeClient.BatchV1().Jobs(jobToDelete.GetNamespace()).Delete(ctx, jobToDelete.GetName(), metav1.DeleteOptions{PropagationPolicy: pointers.Ptr(metav1.DeletePropagationBackground)})
+		err := s.kubeClient.BatchV1().Jobs(jobToDelete.GetNamespace()).Delete(ctx, jobToDelete.GetName(), metav1.DeleteOptions{PropagationPolicy: new(metav1.DeletePropagationBackground)})
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}

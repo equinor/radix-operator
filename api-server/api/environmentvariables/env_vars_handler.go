@@ -74,7 +74,7 @@ func (eh *envVarsHandler) GetComponentEnvVars(ctx context.Context, appName strin
 	if err != nil {
 		return nil, err
 	}
-	secretNamesMap := make(map[string]interface{})
+	secretNamesMap := make(map[string]any)
 	secretNamesMap = appendKeysToMap(secretNamesMap, radixDeployComponent.GetSecrets())
 	secretNamesMap = appendSecretRefsKeysToMap(secretNamesMap, radixDeployComponent.GetSecretRefs())
 	var apiEnvVars []envvarsmodels.EnvVar
@@ -105,14 +105,14 @@ func (eh *envVarsHandler) GetComponentEnvVars(ctx context.Context, appName strin
 	return apiEnvVars, nil
 }
 
-func appendKeysToMap(namesMap map[string]interface{}, values []string) map[string]interface{} {
+func appendKeysToMap(namesMap map[string]any, values []string) map[string]any {
 	for _, value := range values {
 		namesMap[value] = true
 	}
 	return namesMap
 }
 
-func appendSecretRefsKeysToMap(namesMap map[string]interface{}, secretRefs v1.RadixSecretRefs) map[string]interface{} {
+func appendSecretRefsKeysToMap(namesMap map[string]any, secretRefs v1.RadixSecretRefs) map[string]any {
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
 		for _, keyVaultItem := range azureKeyVault.Items {
 			namesMap[keyVaultItem.EnvVar] = true

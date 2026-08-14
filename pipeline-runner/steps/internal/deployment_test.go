@@ -4,14 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +36,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 							"memory": "128Mi",
 							"cpu":    "500m",
 						}).
-						WithReplicas(pointers.Ptr(4)),
+						WithReplicas(new(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
 						WithEnvironmentVariable("DB_HOST", "db-dev").
@@ -63,7 +61,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 								GID:     "1000",
 							},
 						}).
-						WithReplicas(test.IntPtr(3)))).
+						WithReplicas(new(3)))).
 		BuildRA()
 
 	var testScenarios = []struct {
@@ -134,9 +132,9 @@ func TestConstructForTargetEnvironments_PicksTheCorrectReplicas(t *testing.T) {
 	}
 	scenarios := []scenario{
 		{name: "No replicas defined", componentReplicas: nil, environment1Replicas: nil, environment2Replicas: nil, expectedEnvironment1Replicas: nil, expectedEnvironment2Replicas: nil},
-		{name: "Env1 replica set", componentReplicas: nil, environment1Replicas: pointers.Ptr(2), environment2Replicas: nil, expectedEnvironment1Replicas: pointers.Ptr(2), expectedEnvironment2Replicas: nil},
-		{name: "Two environments replicas set", componentReplicas: nil, environment1Replicas: pointers.Ptr(2), environment2Replicas: pointers.Ptr(3), expectedEnvironment1Replicas: pointers.Ptr(2), expectedEnvironment2Replicas: pointers.Ptr(3)},
-		{name: "One environment gets replicas from a component", componentReplicas: pointers.Ptr(4), environment1Replicas: nil, environment2Replicas: pointers.Ptr(3), expectedEnvironment1Replicas: pointers.Ptr(4), expectedEnvironment2Replicas: pointers.Ptr(3)},
+		{name: "Env1 replica set", componentReplicas: nil, environment1Replicas: new(2), environment2Replicas: nil, expectedEnvironment1Replicas: new(2), expectedEnvironment2Replicas: nil},
+		{name: "Two environments replicas set", componentReplicas: nil, environment1Replicas: new(2), environment2Replicas: new(3), expectedEnvironment1Replicas: new(2), expectedEnvironment2Replicas: new(3)},
+		{name: "One environment gets replicas from a component", componentReplicas: new(4), environment1Replicas: nil, environment2Replicas: new(3), expectedEnvironment1Replicas: new(4), expectedEnvironment2Replicas: new(3)},
 	}
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
@@ -188,11 +186,11 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
 						WithAlwaysPullImageOnDeploy(true).
-						WithReplicas(test.IntPtr(3)),
+						WithReplicas(new(3)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
 						WithAlwaysPullImageOnDeploy(false).
-						WithReplicas(test.IntPtr(3))),
+						WithReplicas(new(3))),
 			utils.AnApplicationComponent().
 				WithName("app1").
 				WithAlwaysPullImageOnDeploy(true).
@@ -200,17 +198,17 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
 						WithAlwaysPullImageOnDeploy(true).
-						WithReplicas(test.IntPtr(3)),
+						WithReplicas(new(3)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
 						WithAlwaysPullImageOnDeploy(false).
-						WithReplicas(test.IntPtr(3))),
+						WithReplicas(new(3))),
 			utils.AnApplicationComponent().
 				WithName("app2").
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
-						WithReplicas(test.IntPtr(3)))).
+						WithReplicas(new(3)))).
 		BuildRA()
 
 	componentImages := make(pipeline.DeployComponentImages)
@@ -483,18 +481,18 @@ func Test_ConstructForTargetEnvironment_BuildCacheAnnotations(t *testing.T) {
 			expectedAnnotationRefreshBuildCache: "false",
 		},
 		"overrideUseBuildCache true": {
-			overrideUseBuildCache:               pointers.Ptr(true),
+			overrideUseBuildCache:               new(true),
 			expectedAnnotationUseBuildCache:     "true",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
 		"overrideUseBuildCache false": {
-			overrideUseBuildCache:               pointers.Ptr(false),
+			overrideUseBuildCache:               new(false),
 			expectedAnnotationUseBuildCache:     "false",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
 		"overrideUseBuildCache false, refreshBuildCache true": {
-			overrideUseBuildCache:               pointers.Ptr(false),
-			refreshBuildCache:                   pointers.Ptr(true),
+			overrideUseBuildCache:               new(false),
+			refreshBuildCache:                   new(true),
 			expectedAnnotationUseBuildCache:     "false",
 			expectedAnnotationRefreshBuildCache: "true",
 		},
@@ -504,18 +502,18 @@ func Test_ConstructForTargetEnvironment_BuildCacheAnnotations(t *testing.T) {
 			expectedAnnotationRefreshBuildCache: "false",
 		},
 		"Explicit UseBuildCache true": {
-			build:                               &radixv1.BuildSpec{UseBuildCache: pointers.Ptr(true)},
+			build:                               &radixv1.BuildSpec{UseBuildCache: new(true)},
 			expectedAnnotationUseBuildCache:     "true",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
 		"Explicit UseBuildCache false": {
-			build:                               &radixv1.BuildSpec{UseBuildCache: pointers.Ptr(false)},
+			build:                               &radixv1.BuildSpec{UseBuildCache: new(false)},
 			expectedAnnotationUseBuildCache:     "false",
 			expectedAnnotationRefreshBuildCache: "false",
 		},
 		"UseBuildCache false, refreshBuildCache true": {
-			build:                               &radixv1.BuildSpec{UseBuildCache: pointers.Ptr(false)},
-			refreshBuildCache:                   pointers.Ptr(true),
+			build:                               &radixv1.BuildSpec{UseBuildCache: new(false)},
+			refreshBuildCache:                   new(true),
 			expectedAnnotationUseBuildCache:     "false",
 			expectedAnnotationRefreshBuildCache: "true",
 		},
