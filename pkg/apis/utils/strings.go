@@ -37,10 +37,3 @@ func GetGithubRepositoryURLFromCloneURL(cloneURL string) string {
 func TernaryString(condition bool, trueValue, falseValue string) string {
 	return map[bool]string{true: trueValue, false: falseValue}[condition]
 }
-
-// StringPtr returns a pointer to the passed string.
-//
-//go:fix inline
-func StringPtr(s string) *string {
-	return new(s)
-}

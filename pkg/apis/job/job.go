@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	commonmaps "github.com/equinor/radix-common/utils/maps"
 	commonslice "github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
@@ -579,7 +578,7 @@ func getJobStepsFromInitContainers(pod corev1.Pod, prepareStepsNames map[string]
 }
 
 func getContainerNames(buildComponentImagesMap pipeline.BuildComponentImages, buildComponentImagesList []pipeline.BuildComponentImage) []string {
-	return append(commonmaps.GetKeysFromMap(buildComponentImagesMap),
+	return append(slices.Collect(maps.Keys(buildComponentImagesMap)),
 		commonslice.Map(buildComponentImagesList, func(componentImage pipeline.BuildComponentImage) string {
 			return fmt.Sprintf("%s-%s", componentImage.ComponentName, componentImage.EnvName)
 		})...)
@@ -678,7 +677,7 @@ func (job *Job) getJobEnvironments(ctx context.Context) ([]string, error) {
 		return acc
 	})
 
-	return commonmaps.GetKeysFromMap(environmentsMap), nil
+	return slices.Collect(maps.Keys(environmentsMap)), nil
 }
 
 func (job *Job) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {

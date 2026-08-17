@@ -207,7 +207,7 @@ func (kubeutil *Kube) ListRolesWithSelector(ctx context.Context, namespace strin
 			return nil, err
 		}
 
-		roles = slice.PointersOf(list.Items).([]*rbacv1.Role)
+		roles = slice.PointersOf(list.Items)
 	}
 
 	return roles, nil
@@ -255,7 +255,7 @@ func (kubeutil *Kube) ListClusterRolesWithSelector(ctx context.Context, labelSel
 			return nil, err
 		}
 
-		clusterRoles = slice.PointersOf(list.Items).([]*rbacv1.ClusterRole)
+		clusterRoles = slice.PointersOf(list.Items)
 	}
 
 	return clusterRoles, nil

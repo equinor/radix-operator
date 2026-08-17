@@ -12,7 +12,6 @@ import (
 	"time"
 
 	radixhttp "github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	"github.com/equinor/radix-operator/api-server/api/environments"
@@ -217,7 +216,7 @@ func (ah *ApplicationHandler) ModifyRegistrationDetails(ctx context.Context, app
 
 	// Only these fields can change over time
 	patchRequest := applicationRegistrationPatchRequest.ApplicationRegistrationPatch
-	if patchRequest.AdGroups != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.AdGroups, *patchRequest.AdGroups) {
+	if patchRequest.AdGroups != nil && !slice.ElementsMatch(currentRegistration.Spec.AdGroups, *patchRequest.AdGroups) {
 		err := ah.validateUserIsMemberOfAdGroups(ctx, appName, *patchRequest.AdGroups)
 		if err != nil {
 			return nil, err
@@ -225,15 +224,15 @@ func (ah *ApplicationHandler) ModifyRegistrationDetails(ctx context.Context, app
 		updatedRegistration.Spec.AdGroups = *patchRequest.AdGroups
 		runUpdate = true
 	}
-	if patchRequest.AdUsers != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.AdUsers, *patchRequest.AdUsers) {
+	if patchRequest.AdUsers != nil && !slice.ElementsMatch(currentRegistration.Spec.AdUsers, *patchRequest.AdUsers) {
 		updatedRegistration.Spec.AdUsers = *patchRequest.AdUsers
 		runUpdate = true
 	}
-	if patchRequest.ReaderAdGroups != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.ReaderAdGroups, *patchRequest.ReaderAdGroups) {
+	if patchRequest.ReaderAdGroups != nil && !slice.ElementsMatch(currentRegistration.Spec.ReaderAdGroups, *patchRequest.ReaderAdGroups) {
 		updatedRegistration.Spec.ReaderAdGroups = *patchRequest.ReaderAdGroups
 		runUpdate = true
 	}
-	if patchRequest.ReaderAdUsers != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.ReaderAdUsers, *patchRequest.ReaderAdUsers) {
+	if patchRequest.ReaderAdUsers != nil && !slice.ElementsMatch(currentRegistration.Spec.ReaderAdUsers, *patchRequest.ReaderAdUsers) {
 		updatedRegistration.Spec.ReaderAdUsers = *patchRequest.ReaderAdUsers
 		runUpdate = true
 	}

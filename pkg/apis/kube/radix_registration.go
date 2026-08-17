@@ -3,8 +3,8 @@ package kube
 import (
 	"context"
 
+	"github.com/equinor/radix-common/utils/slice"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -45,7 +45,7 @@ func (kubeutil *Kube) ListRegistrations(ctx context.Context) ([]*v1.RadixRegistr
 			return nil, err
 		}
 
-		registrations = slice.PointersOf(list.Items).([]*v1.RadixRegistration)
+		registrations = slice.PointersOf(list.Items)
 	}
 
 	return registrations, nil

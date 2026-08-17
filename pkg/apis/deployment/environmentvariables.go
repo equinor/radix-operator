@@ -2,11 +2,12 @@ package deployment
 
 import (
 	"context"
-	"fmt"
+	"maps"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
-	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
@@ -52,12 +53,11 @@ func getEnvironmentVariables(appName string, cfg *config.Config, radixDeployment
 
 func getEnvVars(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
 	envVarConfigMapName := envVarConfigMap.GetName()
-	// map is not sorted, which lead to random order of env variable in deployment
-	// during stop/start/restart of a single component this lead to restart of other several components
-	envVarNames := getMapKeysSorted(envVarConfigMap.Data)
 	var resultEnvVars []corev1.EnvVar
 	usedConfigMapEnvVarNames := map[string]bool{}
-	for _, envVarName := range envVarNames {
+	// maps must be sorted to prevent random order of env variable in deployment
+	// during stop/start/restart of a single component to prevent restart of other components
+	for _, envVarName := range slices.Sorted(maps.Keys(envVarConfigMap.Data)) {
 		if utils.IsRadixEnvVar(envVarName) {
 			continue
 		}
@@ -79,8 +79,8 @@ func getEnvVars(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.Env
 }
 
 func removeFromConfigMapEnvVarsNotExistingInRadixconfig(envVarsMap v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap) {
-	envVarCmRefs := radixmaps.GetKeysFromStringMap(envVarConfigMap.Data)
-	for _, envVarName := range envVarCmRefs {
+	envVarCmRefs := maps.Keys(envVarConfigMap.Data)
+	for envVarName := range envVarCmRefs {
 		if _, ok := envVarsMap[envVarName]; !ok {
 			delete(envVarConfigMap.Data, envVarName)
 		}
@@ -140,19 +140,24 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg *config.Config, currentEn
 
 func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
 	var portNumbers strings.Builder
+	var portNames strings.Builder
 	portNumbers.WriteString("(")
-	portNames := "("
+	portNames.WriteString("(")
+
 	portsSize := len(ports)
 	for i, portObj := range ports {
+		portNumbers.WriteString(strconv.FormatInt(int64(portObj.Port), 10))
+		portNames.WriteString(portObj.Name)
+
 		if i < portsSize-1 {
-			portNumbers.WriteString(fmt.Sprint(portObj.Port) + " ")
-			portNames += fmt.Sprint(portObj.Name) + " "
-		} else {
-			portNumbers.WriteString(fmt.Sprint(portObj.Port) + ")")
-			portNames += fmt.Sprint(portObj.Name) + ")"
+			portNumbers.WriteString(" ")
+			portNames.WriteString(" ")
 		}
 	}
-	return portNumbers.String(), portNames
+
+	portNumbers.WriteString(")")
+	portNames.WriteString(")")
+	return portNumbers.String(), portNames.String()
 }
 
 func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
@@ -213,10 +218,4 @@ func buildEnvVarsFromRadixConfig(ctx context.Context, radixConfigEnvVars v1.EnvV
 	}
 	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
 	removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfigMap, envVarMetadataMap)
-}
-
-func getMapKeysSorted(stringMap map[string]string) []string {
-	keys := radixmaps.GetKeysFromStringMap(stringMap)
-	sort.Strings(keys)
-	return keys
 }

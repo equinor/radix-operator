@@ -8,7 +8,7 @@ require (
 	dario.cat/mergo v1.0.2
 	github.com/auth0/go-jwt-middleware/v2 v2.3.1
 	github.com/cert-manager/cert-manager v1.15.4
-	github.com/equinor/radix-common v1.12.3
+	github.com/equinor/radix-common v1.12.5-0.20260817115908-6589107d3e06
 	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/gin-gonic/gin v1.12.0
@@ -129,7 +129,7 @@ require (
 	github.com/prometheus/otlptranslator v1.0.0 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
-	github.com/quic-go/quic-go v0.59.1 // indirect
+	github.com/quic-go/quic-go v0.61.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
@@ -164,7 +164,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.25.0 // indirect
 	golang.org/x/mod v0.37.0 // indirect
-	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/term v0.45.0 // indirect

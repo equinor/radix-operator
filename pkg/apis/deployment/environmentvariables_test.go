@@ -48,7 +48,7 @@ func Test_order_of_env_variables(t *testing.T) {
 	envVarsConfigMap := &corev1.ConfigMap{Data: data}
 
 	envVars := getEnvVars(envVarsConfigMap, nil)
-	assert.Len(t, envVars, len(data))
+	require.Len(t, envVars, len(data))
 	assert.Equal(t, "a_key", envVars[0].Name)
 	assert.Equal(t, "b_key", envVars[1].Name)
 	assert.Equal(t, "c_key", envVars[2].Name)

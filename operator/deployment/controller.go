@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	radixutils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -127,10 +127,10 @@ func NewController(ctx context.Context,
 
 			// If neither admin or reader AD groups change, this
 			// does not affect the deployment
-			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
-				radixutils.ArrayEqualElements(newRr.Spec.AdUsers, oldRr.Spec.AdUsers) &&
-				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) &&
-				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdUsers, oldRr.Spec.ReaderAdUsers) {
+			if slice.ElementsMatch(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
+				slice.ElementsMatch(newRr.Spec.AdUsers, oldRr.Spec.AdUsers) &&
+				slice.ElementsMatch(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) &&
+				slice.ElementsMatch(newRr.Spec.ReaderAdUsers, oldRr.Spec.ReaderAdUsers) {
 				return
 			}
 

@@ -3,10 +3,10 @@ package alerting
 import (
 	"context"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils"
 	alertModels "github.com/equinor/radix-operator/api-server/api/alerting/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/labelselector"
 	"github.com/equinor/radix-operator/api-server/models"
@@ -196,7 +196,7 @@ func (h *handler) validateUpdateAlertingConfig(config *alertModels.UpdateAlertin
 			return InvalidAlertReceiverError(alert.Alert, alert.Receiver)
 		}
 		// Verify alert name is valid
-		if !utils.ContainsString(h.validAlertNames, alert.Alert) {
+		if !slices.Contains(h.validAlertNames, alert.Alert) {
 			return InvalidAlertError(alert.Alert)
 		}
 	}

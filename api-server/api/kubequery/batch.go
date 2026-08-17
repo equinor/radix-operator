@@ -44,7 +44,7 @@ func GetRadixBatches(ctx context.Context, radixClient radixclient.Interface, app
 	if err != nil {
 		return nil, err
 	}
-	return slice.PointersOf(radixBatchList.Items).([]*radixv1.RadixBatch), nil
+	return slice.PointersOf(radixBatchList.Items), nil
 }
 
 // GetRadixBatch Get Radix batch

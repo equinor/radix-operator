@@ -117,7 +117,7 @@ func (kubeutil *Kube) ListSecretsWithSelector(ctx context.Context, namespace str
 			return nil, err
 		}
 
-		secrets = slice.PointersOf(list.Items).([]*corev1.Secret)
+		secrets = slice.PointersOf(list.Items)
 	}
 
 	return secrets, nil

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/rs/zerolog/log"
@@ -97,10 +98,10 @@ func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.Ra
 	for _, item := range radixAzureKeyVault.Items {
 		obj := SecretProviderClassParameterObject{
 			Name:     item.Name,
-			Alias:    commonUtils.StringUnPtr(item.Alias),
-			Version:  commonUtils.StringUnPtr(item.Version),
-			Format:   commonUtils.StringUnPtr(item.Format),
-			Encoding: commonUtils.StringUnPtr(item.Encoding),
+			Alias:    pointers.Val(item.Alias),
+			Version:  pointers.Val(item.Version),
+			Format:   pointers.Val(item.Format),
+			Encoding: pointers.Val(item.Encoding),
 		}
 		obj.Type = getObjectType(&item)
 		parameterObject = append(parameterObject, obj)

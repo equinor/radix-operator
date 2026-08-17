@@ -34,7 +34,7 @@ func GetRadixBatches(ctx context.Context, radixClient radixclient.Interface, nam
 		return nil, err
 	}
 
-	return slice.PointersOf(radixBatchList.Items).([]*radixv1.RadixBatch), nil
+	return slice.PointersOf(radixBatchList.Items), nil
 }
 
 // GenerateBatchName Generate batch name

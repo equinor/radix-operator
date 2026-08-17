@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -17,7 +18,6 @@ import (
 	v1 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	radixutils "github.com/equinor/radix-common/utils"
-	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -2135,9 +2135,8 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 			rbList, err := radixclient.RadixV1().RadixBatches(envNamespace).List(context.Background(), metav1.ListOptions{})
 			assert.NoError(tt, err)
 			assert.NotNil(tt, rbList)
-
 			foundRdNames := slice.Map(rdList.Items, func(rd radixv1.RadixDeployment) string { return rd.GetName() })
-			assert.True(tt, radixutils.EqualStringLists(ts.expectedDeploymentNames, foundRdNames), fmt.Sprintf("expected %v, got %v", ts.expectedDeploymentNames, foundRdNames))
+			assert.ElementsMatch(tt, ts.expectedDeploymentNames, foundRdNames)
 		})
 	}
 }
@@ -2421,7 +2420,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	assert.NotNil(t, anyComponentSecret, "Component secret is not found")
 
 	// Secret is initially empty but get filled with data from the API
-	assert.Len(t, radixmaps.GetKeysFromByteMap(anyComponentSecret.Data), 0, "Component secret data is not as expected")
+	assert.Len(t, anyComponentSecret.Data, 0, "Component secret data is not as expected")
 
 	// Will emulate that data is set from the API
 	anySecretValue := "anySecretValue"
@@ -2448,7 +2447,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Len(t, secrets.Items, 1)
 	anyComponentSecret = getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
-	assert.True(t, radixutils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, radixmaps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
+	assert.ElementsMatch(t, []string{"a_secret", "a_third_secret"}, slices.Collect(maps.Keys(anyComponentSecret.Data)), "Component secret data is not as expected")
 }
 
 func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {

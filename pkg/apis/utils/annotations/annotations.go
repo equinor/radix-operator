@@ -2,9 +2,9 @@ package annotations
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 
-	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -16,7 +16,13 @@ const (
 
 // Merge multiple maps into one
 func Merge(annotations ...map[string]string) map[string]string {
-	return maputils.MergeMaps(annotations...)
+	merged := make(map[string]string)
+
+	for _, val := range annotations {
+		maps.Copy(merged, val)
+	}
+
+	return merged
 }
 
 // ForRadixBranch returns annotations describing a branch name
