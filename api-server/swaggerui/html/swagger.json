@@ -7914,13 +7914,7 @@
     },
     "OAuth2AuxiliaryResource": {
       "type": "object",
-      "required": [
-        "deployment"
-      ],
       "properties": {
-        "deployment": {
-          "$ref": "#/definitions/AuxiliaryResourceDeployment"
-        },
         "deployments": {
           "description": "Deployments describes the underlying Kubernetes deployments for the resource",
           "type": "array",
