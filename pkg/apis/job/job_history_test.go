@@ -11,6 +11,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -476,7 +477,7 @@ func (s *RadixJobHistoryTestSuite) createRadixJob(radixClient radixclient.Interf
 func createRadixDeployment(appName string, jobName string) *radixv1.RadixDeployment {
 	return &radixv1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: utils.RandString(10),
+			Name: random.RandString(10),
 			Labels: labels.Merge(
 				radixlabels.ForApplicationName(appName),
 				radixlabels.ForPipelineJobName(jobName)),

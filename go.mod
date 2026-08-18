@@ -190,6 +190,8 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.0 // indirect
 )
 
+replace github.com/equinor/radix-common => /Users/NST/src/github.com/equinor/radix-common
+
 retract (
 	v1.99.999 //dev version
 	v1.90.5 //dev version

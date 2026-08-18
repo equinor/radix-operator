@@ -7,10 +7,10 @@ import (
 
 	"dario.cat/mergo"
 	commonutils "github.com/equinor/radix-common/utils"
-	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	mergoutils "github.com/equinor/radix-operator/pkg/apis/utils/mergo"
 )
 
 var (

@@ -9,7 +9,7 @@ import (
 	"github.com/equinor/radix-operator/operator/scheduler/tasks"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -125,7 +125,7 @@ func convertToEnvMap(radixEnvironments []radixv1.RadixEnvironment) map[string]ra
 }
 
 func createRadixEnvironment(prop envProps) *radixv1.RadixEnvironment {
-	appName := utils.RandString(5)
+	appName := random.RandString(5)
 	return &radixv1.RadixEnvironment{
 		ObjectMeta: metav1.ObjectMeta{Name: appName},
 		Spec:       radixv1.RadixEnvironmentSpec{AppName: appName, EnvName: prop.name},

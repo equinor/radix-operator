@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	jobModels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	k8sObjectUtils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -116,7 +116,7 @@ func (jh JobHandler) getPipelineJobByName(ctx context.Context, appName string, j
 }
 
 func GetUniqueJobName() (string, string) {
-	randomStr := strings.ToLower(radixutils.RandString(5))
+	randomStr := strings.ToLower(random.RandString(5))
 	timestamp := time.Now().Format("20060102150405")
 
 	return fmt.Sprintf("radix-pipeline-%s-%s", timestamp, randomStr), randomStr

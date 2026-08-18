@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/job-scheduler/pkg/errors"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixLabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -40,7 +40,7 @@ func GetRadixBatches(ctx context.Context, radixClient radixclient.Interface, nam
 // GenerateBatchName Generate batch name
 func GenerateBatchName(jobComponentName string) string {
 	timestamp := time.Now().Format("20060102150405")
-	return fmt.Sprintf("batch-%s-%s-%s", getJobComponentNamePart(jobComponentName), timestamp, strings.ToLower(utils.RandString(8)))
+	return fmt.Sprintf("batch-%s-%s-%s", getJobComponentNamePart(jobComponentName), timestamp, strings.ToLower(random.RandString(8)))
 }
 
 func getJobComponentNamePart(jobComponentName string) string {
@@ -48,12 +48,12 @@ func getJobComponentNamePart(jobComponentName string) string {
 	if len(componentNamePart) > 12 {
 		componentNamePart = componentNamePart[:12]
 	}
-	return fmt.Sprintf("%s%s", componentNamePart, strings.ToLower(utils.RandString(16-len(componentNamePart))))
+	return fmt.Sprintf("%s%s", componentNamePart, strings.ToLower(random.RandString(16-len(componentNamePart))))
 }
 
 // CreateJobName create a job name
 func CreateJobName() string {
-	return strings.ToLower(utils.RandStringSeed(8, defaultSrc))
+	return strings.ToLower(random.RandStringSeed(8, defaultSrc))
 }
 
 // GetRadixBatch Get Radix batch

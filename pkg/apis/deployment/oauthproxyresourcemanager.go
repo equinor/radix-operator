@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 
-	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -17,6 +16,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -511,7 +511,7 @@ func (o *oauthProxyResourceManager) buildServiceSpec(component radixv1.RadixComm
 }
 
 func (o *oauthProxyResourceManager) generateRandomSecretValue() ([]byte, error) {
-	randomBytes := commonutils.GenerateRandomKey(32)
+	randomBytes := random.GenerateRandomKey(32)
 	// Extra check to make sure correct number of bytes are returned for the random key
 	if len(randomBytes) != 32 {
 		return nil, errors.New("failed to generate value with correct length")

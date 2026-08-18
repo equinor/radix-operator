@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils"
 	deployMock "github.com/equinor/radix-operator/api-server/api/deployments/mock"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
@@ -17,6 +16,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -964,7 +964,7 @@ func testCreateSecretProviderClassPodStatusesForAzureKeyVault(secretProviderClie
 	for replicaName, secretProviderClassObjects := range secretProviderClassObjectsMap {
 		_, err := secretProviderClient.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Create(context.Background(),
 			&secretsstorev1.SecretProviderClassPodStatus{
-				ObjectMeta: metav1.ObjectMeta{Name: utils.RandString(10)}, // Name is not important
+				ObjectMeta: metav1.ObjectMeta{Name: random.RandString(10)}, // Name is not important
 				Status: secretsstorev1.SecretProviderClassPodStatusStatus{
 					PodName:                 replicaName,
 					SecretProviderClassName: secretProviderClassName,

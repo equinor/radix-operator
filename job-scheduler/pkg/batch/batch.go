@@ -41,11 +41,13 @@ func GetRadixBatchStatus(radixBatch *radixv1.RadixBatch, radixDeployJobComponent
 	if radixBatch.Status.Condition.CompletionTime != nil {
 		ended = &radixBatch.Status.Condition.CompletionTime.Time
 	}
+
 	batchType := radixBatch.Labels[kube.RadixBatchTypeLabel]
+
 	return &modelsv1.BatchStatus{
 		JobStatus: modelsv1.JobStatus{
 			Name:           radixBatch.Name,
-			BatchId:        utils.TernaryString(batchType == string(kube.RadixBatchTypeJob), "", radixBatch.Spec.BatchId),
+			BatchId:        pkgInternal.GetBatchId(radixBatch),
 			Created:        new(radixBatch.GetCreationTimestamp().Time),
 			Started:        started,
 			Ended:          ended,

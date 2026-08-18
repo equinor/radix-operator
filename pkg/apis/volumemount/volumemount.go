@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	internalDeployment "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
@@ -436,7 +436,7 @@ func getCsiAzurePvcName(componentName string, radixVolumeMount *radixv1.RadixVol
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(nameRandPartLength))), nil
+	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(random.RandString(nameRandPartLength))), nil
 }
 
 func getCsiAzurePvName() string {
@@ -586,7 +586,7 @@ func trimVolumeNameToValidLength(volumeName string) string {
 		return volumeName
 	}
 
-	randString := strings.ToLower(commonUtils.RandStringStrSeed(nameRandPartLength, volumeName))
+	randString := strings.ToLower(random.RandStringStrSeed(nameRandPartLength, volumeName))
 	return fmt.Sprintf("%s-%s", volumeName[:63-nameRandPartLength-1], randString)
 }
 

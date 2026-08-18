@@ -17,7 +17,6 @@ import (
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	v1 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -26,6 +25,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -114,7 +114,10 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	adminUsers, readerUsers := []string{"admUsr1", "admUsr2"}, []string{"rdrUsr1", "rdrUsr2"}
 
 	for _, componentsExist := range []bool{true, false} {
-		testScenario := utils.TernaryString(componentsExist, "Updating deployment", "Creating deployment")
+		testScenario := "Creating deployment"
+		if componentsExist {
+			testScenario = "Updating deployment"
+		}
 
 		tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 		defer TeardownTest()
@@ -500,7 +503,10 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 	adminUsers, readerUsers := []string{"admUsr1", "admUsr2"}, []string{"rdrUsr1", "rdrUsr2"}
 
 	for _, jobsExist := range []bool{false, true} {
-		testScenario := utils.TernaryString(jobsExist, "Updating deployment", "Creating deployment")
+		testScenario := "Creating deployment"
+		if jobsExist {
+			testScenario = "Updating deployment"
+		}
 
 		tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 		os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, jobSchedulerImage)
@@ -2151,7 +2157,7 @@ func addRadixBatches(radixclient radixclient.Interface, envNamespace string, dep
 					LocalObjectReference: radixv1.LocalObjectReference{Name: deploymentName},
 					Job:                  jobName,
 				},
-				Jobs: []radixv1.RadixBatchJob{{Name: radixutils.RandString(5)}},
+				Jobs: []radixv1.RadixBatchJob{{Name: random.RandString(5)}},
 			},
 		}, metav1.CreateOptions{})
 		if err != nil {

@@ -15,7 +15,6 @@ import (
 // DeploymentBuilder Handles construction of RD
 type DeploymentBuilder interface {
 	WithRadixApplication(ApplicationBuilder) DeploymentBuilder
-	WithRadixDeployment(*v1.RadixDeployment) DeploymentBuilder
 	WithDeploymentName(string) DeploymentBuilder
 	WithImageTag(string) DeploymentBuilder
 	WithAppName(string) DeploymentBuilder
@@ -79,18 +78,6 @@ func (db *DeploymentBuilderStruct) WithRadixApplication(applicationBuilder Appli
 // WithEmptyStatus Indicates that the RD has no reconciled status
 func (db *DeploymentBuilderStruct) WithEmptyStatus() DeploymentBuilder {
 	db.emptyStatus = true
-	return db
-}
-
-// WithRadixDeployment Reverse engineers RD
-func (db *DeploymentBuilderStruct) WithRadixDeployment(radixDeployment *v1.RadixDeployment) DeploymentBuilder {
-	_, imageTag := GetAppAndTagPairFromName(radixDeployment.Name)
-
-	db.WithImageTag(imageTag)
-	db.WithAppName(radixDeployment.Spec.AppName) //nolint:staticcheck
-	db.WithEnvironment(radixDeployment.Spec.Environment)
-	db.WithJobName(radixDeployment.GetLabels()[kube.RadixJobNameLabel])
-	db.WithCreated(radixDeployment.CreationTimestamp.Time)
 	return db
 }
 

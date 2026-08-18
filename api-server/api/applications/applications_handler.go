@@ -29,6 +29,7 @@ import (
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 	authorizationapi "k8s.io/api/authorization/v1"
@@ -506,7 +507,7 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 	}
 	name := fmt.Sprintf("access-validation-%s", appName)
 	labels := map[string]string{"radix-access-validation": "true"}
-	configMapName := fmt.Sprintf("%s-%s", name, strings.ToLower(operatorUtils.RandString(6)))
+	configMapName := fmt.Sprintf("%s-%s", name, strings.ToLower(random.RandString(6)))
 	role, err := createRoleToGetConfigMap(ctx, ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, name, labels, configMapName)
 	if err != nil {
 		return err

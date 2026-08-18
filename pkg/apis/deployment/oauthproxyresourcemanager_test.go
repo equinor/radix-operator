@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -14,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -461,29 +461,29 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 	inputOAuth := &radixv1.OAuth2{ClientID: "1234"}
 	returnOAuth := &radixv1.OAuth2{
-		ClientID:               commonUtils.RandString(20),
-		Scope:                  commonUtils.RandString(20),
+		ClientID:               random.RandString(20),
+		Scope:                  random.RandString(20),
 		SetXAuthRequestHeaders: new(true),
 		SetAuthorizationHeader: new(false),
-		ProxyPrefix:            commonUtils.RandString(20),
-		LoginURL:               commonUtils.RandString(20),
-		RedeemURL:              commonUtils.RandString(20),
+		ProxyPrefix:            random.RandString(20),
+		LoginURL:               random.RandString(20),
+		RedeemURL:              random.RandString(20),
 		SessionStoreType:       "redis",
 		Cookie: &radixv1.OAuth2Cookie{
-			Name:     commonUtils.RandString(20),
-			Expire:   commonUtils.RandString(20),
-			Refresh:  commonUtils.RandString(20),
-			SameSite: radixv1.CookieSameSiteType(commonUtils.RandString(20)),
+			Name:     random.RandString(20),
+			Expire:   random.RandString(20),
+			Refresh:  random.RandString(20),
+			SameSite: radixv1.CookieSameSiteType(random.RandString(20)),
 		},
 		CookieStore: &radixv1.OAuth2CookieStore{
 			Minimal: new(true),
 		},
 		RedisStore: &radixv1.OAuth2RedisStore{
-			ConnectionURL: commonUtils.RandString(20),
+			ConnectionURL: random.RandString(20),
 		},
 		OIDC: &radixv1.OAuth2OIDC{
-			IssuerURL:               commonUtils.RandString(20),
-			JWKSURL:                 commonUtils.RandString(20),
+			IssuerURL:               random.RandString(20),
+			JWKSURL:                 random.RandString(20),
 			SkipDiscovery:           new(true),
 			InsecureSkipVerifyNonce: new(false),
 		},

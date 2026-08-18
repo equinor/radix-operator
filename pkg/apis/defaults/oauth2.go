@@ -2,8 +2,8 @@ package defaults
 
 import (
 	"dario.cat/mergo"
-	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	mergoutils "github.com/equinor/radix-operator/pkg/apis/utils/mergo"
 )
 
 const (
