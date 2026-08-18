@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-common/utils/slice"
 	buildSecretsModels "github.com/equinor/radix-operator/api-server/api/buildsecrets/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
-	sharedModels "github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	k8sObjectUtils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -19,12 +19,12 @@ import (
 
 // Handler Instance variables
 type Handler struct {
-	userAccount    sharedModels.Account
-	serviceAccount sharedModels.Account
+	userAccount    accounts.Account
+	serviceAccount accounts.Account
 }
 
 // Init Constructor
-func Init(accounts sharedModels.Accounts) Handler {
+func Init(accounts accounts.Accounts) Handler {
 	return Handler{
 		userAccount:    accounts.UserAccount,
 		serviceAccount: accounts.ServiceAccount,

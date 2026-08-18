@@ -9,13 +9,13 @@ import (
 	"time"
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	"github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation"
 	tlsvalidationmock "github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation/mock"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -47,7 +47,7 @@ const (
 	subscriptionId     = "12347718-c8f8-4995-bfbb-02655ff1f89c"
 )
 
-func setupTest(t *testing.T, tlsValidator tlsvalidation.Validator) (*commontest.Utils, *controllertest.Utils, kubernetes.Interface, radixclient.Interface, prometheusclient.Interface, secretsstorevclient.Interface) {
+func setupTest(t *testing.T, tlsValidator tlsvalidation.Validator) (*commontest.Utils, *controllertest.TestUtils, kubernetes.Interface, radixclient.Interface, prometheusclient.Interface, secretsstorevclient.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset() //nolint:staticcheck
 	radixclient := fake.NewSimpleClientset()    //nolint:staticcheck
@@ -259,7 +259,7 @@ func TestUpdateSecret_NonExistingEnvironment_Missing(t *testing.T) {
 
 type externalDNSSecretTestSuite struct {
 	suite.Suite
-	controllerTestUtils *controllertest.Utils
+	controllerTestUtils *controllertest.TestUtils
 	commonTestUtils     *commontest.Utils
 	tlsValidator        *tlsvalidationmock.MockValidator
 	kubeClient          kubernetes.Interface

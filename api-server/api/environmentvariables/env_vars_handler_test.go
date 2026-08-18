@@ -6,7 +6,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	envvarsmodels "github.com/equinor/radix-operator/api-server/api/environmentvariables/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -32,7 +32,7 @@ func Test_GetEnvVars(t *testing.T) {
 		handler := envVarsHandler{
 			kubeUtil:        commonTestUtils.GetKubeUtil(),
 			inClusterClient: nil,
-			accounts:        models.Accounts{UserAccount: models.Account{Client: kubeClient}},
+			accounts:        accounts.Accounts{UserAccount: accounts.Account{Client: kubeClient}},
 		}
 
 		_, err = kubeUtil.GetConfigMap(context.Background(), namespace, kube.GetEnvVarsConfigMapName(componentName))
@@ -74,7 +74,7 @@ func Test_ChangeGetEnvVars(t *testing.T) {
 		handler := envVarsHandler{
 			kubeUtil:        commonTestUtils.GetKubeUtil(),
 			inClusterClient: nil,
-			accounts:        models.Accounts{UserAccount: models.Account{Client: kubeClient}},
+			accounts:        accounts.Accounts{UserAccount: accounts.Account{Client: kubeClient}},
 		}
 
 		_, err = kubeUtil.GetConfigMap(context.Background(), namespace, kube.GetEnvVarsConfigMapName(componentName))
@@ -121,7 +121,7 @@ func Test_ChangeGetEnvVars(t *testing.T) {
 		handler := envVarsHandler{
 			kubeUtil:        commonTestUtils.GetKubeUtil(),
 			inClusterClient: nil,
-			accounts:        models.Accounts{UserAccount: models.Account{Client: kubeClient}},
+			accounts:        accounts.Accounts{UserAccount: accounts.Account{Client: kubeClient}},
 		}
 
 		_, err = kubeUtil.GetConfigMap(context.Background(), namespace, kube.GetEnvVarsConfigMapName(componentName))

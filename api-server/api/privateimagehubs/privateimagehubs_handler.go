@@ -7,7 +7,7 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	"github.com/equinor/radix-operator/api-server/api/privateimagehubs/internal"
 	"github.com/equinor/radix-operator/api-server/api/privateimagehubs/models"
-	sharedModels "github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -17,13 +17,13 @@ import (
 
 // PrivateImageHubHandler Instance variables
 type PrivateImageHubHandler struct {
-	userAccount    sharedModels.Account
-	serviceAccount sharedModels.Account
+	userAccount    accounts.Account
+	serviceAccount accounts.Account
 	kubeUtil       *kube.Kube
 }
 
 // Init Constructor
-func Init(accounts sharedModels.Accounts) PrivateImageHubHandler {
+func Init(accounts accounts.Accounts) PrivateImageHubHandler {
 	kubeUtil, _ := kube.New(accounts.UserAccount.Client, accounts.UserAccount.RadixClient, accounts.UserAccount.KedaClient, accounts.UserAccount.SecretProviderClient)
 	return PrivateImageHubHandler{
 		userAccount:    accounts.UserAccount,

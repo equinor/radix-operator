@@ -3,7 +3,7 @@ package models
 import (
 	"fmt"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 )
 
 // AppNameAndBranchAreRequiredForStartingPipeline Cannot start pipeline when appname and branch are missing

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/deployments"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
@@ -16,7 +15,8 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/utils/predicate"
 	sortUtils "github.com/equinor/radix-operator/api-server/api/utils/sort"
 	"github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation"
-	apiModels "github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -42,7 +42,7 @@ type secretIdToPodNameToSecretVersionMap map[string]podNameToSecretVersionMap
 type SecretHandlerOptions func(*SecretHandler)
 
 // WithAccounts configures all SecretHandler fields
-func WithAccounts(accounts apiModels.Accounts) SecretHandlerOptions {
+func WithAccounts(accounts accounts.Accounts) SecretHandlerOptions {
 	return func(eh *SecretHandler) {
 		eh.userAccount = accounts.UserAccount
 		eh.serviceAccount = accounts.ServiceAccount
@@ -59,8 +59,8 @@ func WithTLSValidator(tlsValidator tlsvalidation.Validator) SecretHandlerOptions
 
 // SecretHandler Instance variables
 type SecretHandler struct {
-	userAccount    apiModels.Account
-	serviceAccount apiModels.Account
+	userAccount    accounts.Account
+	serviceAccount accounts.Account
 	deployHandler  deployments.DeployHandler
 	tlsValidator   tlsvalidation.Validator
 }

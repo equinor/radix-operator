@@ -34,7 +34,7 @@ import (
 	token "github.com/equinor/radix-operator/api-server/api/utils/token"
 	_ "github.com/equinor/radix-operator/api-server/docs"
 	"github.com/equinor/radix-operator/api-server/internal/config"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -154,7 +154,7 @@ func setupLogger(logLevelStr string, prettyPrint bool) {
 	zerolog.DefaultContextLogger = &logger
 }
 
-func getControllers(config config.Config, kubeUtil utils.KubeUtil) ([]models.Controller, error) {
+func getControllers(config config.Config, kubeUtil utils.KubeUtil) ([]controller.Controller, error) {
 	buildStatus := buildModels.NewPipelineBadge()
 	applicationFactory := applications.NewApplicationHandlerFactory(config)
 	prometheusClient, err := prometheus.NewPrometheusClient(config.PrometheusUrl)
@@ -169,7 +169,7 @@ func getControllers(config config.Config, kubeUtil utils.KubeUtil) ([]models.Con
 		return nil, fmt.Errorf("failed to create event recorder: %w", err)
 	}
 
-	return []models.Controller{
+	return []controller.Controller{
 		applications.NewApplicationController(nil, applicationFactory, metricsHandler),
 		deployments.NewDeploymentController(),
 		jobs.NewJobController(),

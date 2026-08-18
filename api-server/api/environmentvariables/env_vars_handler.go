@@ -8,7 +8,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	envvarsmodels "github.com/equinor/radix-operator/api-server/api/environmentvariables/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	crdUtils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -27,7 +27,7 @@ type EnvVarsHandler interface {
 type EnvVarsHandlerOptions func(*envVarsHandler)
 
 // WithAccounts configures all EnvVarsHandler fields
-func WithAccounts(accounts models.Accounts) EnvVarsHandlerOptions {
+func WithAccounts(accounts accounts.Accounts) EnvVarsHandlerOptions {
 	return func(eh *envVarsHandler) {
 		kubeUtil, _ := kube.New(accounts.UserAccount.Client, accounts.UserAccount.RadixClient, accounts.UserAccount.KedaClient, accounts.UserAccount.SecretProviderClient)
 		eh.kubeUtil = kubeUtil
@@ -40,7 +40,7 @@ func WithAccounts(accounts models.Accounts) EnvVarsHandlerOptions {
 type envVarsHandler struct {
 	kubeUtil        *kube.Kube
 	inClusterClient kubernetes.Interface
-	accounts        models.Accounts
+	accounts        accounts.Accounts
 }
 
 // Init Constructor.

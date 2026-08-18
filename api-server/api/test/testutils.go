@@ -11,6 +11,8 @@ import (
 
 	token "github.com/equinor/radix-operator/api-server/api/utils/token"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/rs/zerolog/log"
@@ -20,32 +22,30 @@ import (
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixmodels "github.com/equinor/radix-common/models"
-	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-operator/api-server/api/router"
 	"github.com/equinor/radix-operator/api-server/api/utils"
-	"github.com/equinor/radix-operator/api-server/models"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kubernetes "k8s.io/client-go/kubernetes"
 	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 )
 
-// Utils Instance variables
-type Utils struct {
+// TestUtils Instance variables
+type TestUtils struct {
 	kubeClient           *kubernetesfake.Clientset
 	radixClient          *radixclientfake.Clientset
 	kedaClient           *kedafake.Clientset
 	secretProviderClient *secretsstorevclientfake.Clientset
 	certClient           *certclientfake.Clientset
 	tektonClient         *tektonclientfake.Clientset
-	controllers          []models.Controller
+	controllers          []controller.Controller
 	validator            token.ValidatorInterface
 }
 
 // NewTestUtils Constructor
-func NewTestUtils(kubeClient *kubernetesfake.Clientset, radixClient *radixclientfake.Clientset, kedaClient *kedafake.Clientset, secretProviderClient *secretsstorevclientfake.Clientset, certClient *certclientfake.Clientset, tektonClient *tektonclientfake.Clientset, validator *authnmock.MockValidatorInterface, controllers ...models.Controller) Utils {
-	return Utils{
+func NewTestUtils(kubeClient *kubernetesfake.Clientset, radixClient *radixclientfake.Clientset, kedaClient *kedafake.Clientset, secretProviderClient *secretsstorevclientfake.Clientset, certClient *certclientfake.Clientset, tektonClient *tektonclientfake.Clientset, validator *authnmock.MockValidatorInterface, controllers ...controller.Controller) TestUtils {
+	return TestUtils{
 		kubeClient:           kubeClient,
 		radixClient:          radixClient,
 		kedaClient:           kedaClient,
@@ -58,11 +58,11 @@ func NewTestUtils(kubeClient *kubernetesfake.Clientset, radixClient *radixclient
 }
 
 // ExecuteRequest Helper method to issue a http request
-func (tu *Utils) ExecuteRequest(method, endpoint string) <-chan *httptest.ResponseRecorder {
+func (tu *TestUtils) ExecuteRequest(method, endpoint string) <-chan *httptest.ResponseRecorder {
 	return tu.ExecuteRequestWithParameters(method, endpoint, nil)
 }
 
-func (tu *Utils) ExecuteUnAuthorizedRequest(method, endpoint string) <-chan *httptest.ResponseRecorder {
+func (tu *TestUtils) ExecuteUnAuthorizedRequest(method, endpoint string) <-chan *httptest.ResponseRecorder {
 	var reader io.Reader
 
 	req, _ := http.NewRequest(method, endpoint, reader)
@@ -79,7 +79,7 @@ func (tu *Utils) ExecuteUnAuthorizedRequest(method, endpoint string) <-chan *htt
 }
 
 // ExecuteRequestWithParameters Helper method to issue a http request with payload
-func (tu *Utils) ExecuteRequestWithParameters(method, endpoint string, parameters any) <-chan *httptest.ResponseRecorder {
+func (tu *TestUtils) ExecuteRequestWithParameters(method, endpoint string, parameters any) <-chan *httptest.ResponseRecorder {
 	var reader io.Reader
 
 	if parameters != nil {
@@ -149,7 +149,7 @@ func NewKubeUtilMock(kubeClient *kubernetesfake.Clientset, radixClient *radixcli
 }
 
 // GetUserKubernetesClient Gets a kubefake client
-func (ku *kubeUtilMock) GetUserKubernetesClient(_ string, impersonation radixmodels.Impersonation, _ ...utils.RestClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, secretsstorevclient.Interface, tektonclient.Interface, certclient.Interface) {
+func (ku *kubeUtilMock) GetUserKubernetesClient(_ string, impersonation accounts.Impersonation, _ ...utils.RestClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, secretsstorevclient.Interface, tektonclient.Interface, certclient.Interface) {
 	return ku.kubeClient, ku.radixClient, ku.kedaClient, ku.secretProviderClient, ku.tektonClient, ku.certClient
 }
 

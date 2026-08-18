@@ -9,14 +9,13 @@ import (
 	"sort"
 	"strings"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-common/utils/slice"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	"github.com/equinor/radix-operator/api-server/api/models"
-	"github.com/equinor/radix-operator/api-server/api/utils"
 	"github.com/equinor/radix-operator/api-server/api/utils/predicate"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	jobSchedulerBatch "github.com/equinor/radix-operator/job-scheduler/pkg/batch"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -38,7 +37,7 @@ func (eh EnvironmentHandler) GetBatches(ctx context.Context, appName, envName, j
 	radixBatchStatuses := jobSchedulerBatch.GetRadixBatchStatuses(radixBatches, activeRadixDeployJobComponent)
 	batchSummaryList := models.GetScheduledBatchSummaryList(radixBatches, radixBatchStatuses, radixDeploymentsMap, jobComponentName)
 	sort.SliceStable(batchSummaryList, func(i, j int) bool {
-		return utils.IsBefore(&batchSummaryList[j], &batchSummaryList[i])
+		return predicate.IsJobBefore(&batchSummaryList[j], &batchSummaryList[i])
 	})
 	return batchSummaryList, nil
 }
@@ -56,7 +55,7 @@ func (eh EnvironmentHandler) GetJobs(ctx context.Context, appName, envName, jobC
 	radixBatchStatuses := jobSchedulerBatch.GetRadixBatchStatuses(radixBatches, activeRadixDeployJobComponent)
 	jobSummaryList := models.GetScheduledSingleJobSummaryList(radixBatches, radixBatchStatuses, radixDeploymentsMap, jobComponentName)
 	sort.SliceStable(jobSummaryList, func(i, j int) bool {
-		return utils.IsBefore(&jobSummaryList[j], &jobSummaryList[i])
+		return predicate.IsJobBefore(&jobSummaryList[j], &jobSummaryList[i])
 	})
 	return jobSummaryList, nil
 }

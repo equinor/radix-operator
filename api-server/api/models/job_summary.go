@@ -5,7 +5,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	jobModels "github.com/equinor/radix-operator/api-server/api/jobs/models"
-	"github.com/equinor/radix-operator/api-server/api/utils"
+	"github.com/equinor/radix-operator/api-server/api/utils/predicate"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
@@ -13,7 +13,7 @@ import (
 func BuildJobSummaryList(rjList []radixv1.RadixJob) []*jobModels.JobSummary {
 	jobs := slice.Map(rjList, func(rj radixv1.RadixJob) *jobModels.JobSummary { return BuildJobSummary(rj) })
 	sort.Slice(jobs, func(i, j int) bool {
-		return utils.IsBefore(jobs[j], jobs[i])
+		return predicate.IsJobBefore(jobs[j], jobs[i])
 	})
 	return jobs
 }

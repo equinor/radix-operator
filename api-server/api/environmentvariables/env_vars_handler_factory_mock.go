@@ -12,7 +12,7 @@ package environmentvariables
 import (
 	reflect "reflect"
 
-	models "github.com/equinor/radix-operator/api-server/models"
+	accounts "github.com/equinor/radix-operator/api-server/internal/accounts"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,7 +41,7 @@ func (m *MockenvVarsHandlerFactory) EXPECT() *MockenvVarsHandlerFactoryMockRecor
 }
 
 // createHandler mocks base method.
-func (m *MockenvVarsHandlerFactory) createHandler(arg0 models.Accounts) EnvVarsHandler {
+func (m *MockenvVarsHandlerFactory) createHandler(arg0 accounts.Accounts) EnvVarsHandler {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "createHandler", arg0)
 	ret0, _ := ret[0].(EnvVarsHandler)

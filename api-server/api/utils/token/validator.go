@@ -7,7 +7,7 @@ import (
 
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
-	"github.com/equinor/radix-common/net/http"
+	"github.com/equinor/radix-operator/api-server/internal/http"
 )
 
 type TokenPrincipal interface {

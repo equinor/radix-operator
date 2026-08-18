@@ -11,7 +11,7 @@ import (
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	"github.com/equinor/radix-operator/api-server/api/pods"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -34,11 +34,11 @@ type DeployHandler interface {
 
 // DeployHandler Instance variables
 type deployHandler struct {
-	accounts models.Accounts
+	accounts accounts.Accounts
 }
 
 // Init Constructor
-func Init(accounts models.Accounts) DeployHandler {
+func Init(accounts accounts.Accounts) DeployHandler {
 	return &deployHandler{
 		accounts: accounts,
 	}

@@ -1,4 +1,4 @@
-package models
+package controller
 
 import (
 	"bufio"
@@ -11,12 +11,9 @@ import (
 	"sync"
 	"time"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/rs/zerolog/log"
 )
-
-// RadixHandlerFunc Pattern for handler functions
-type RadixHandlerFunc func(Accounts, http.ResponseWriter, *http.Request)
 
 // Controller Pattern of an rest/stream controller
 type Controller interface {

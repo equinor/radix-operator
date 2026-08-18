@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/net/http"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	"github.com/equinor/radix-operator/api-server/api/utils/labelselector"
+	"github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"

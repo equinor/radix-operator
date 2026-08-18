@@ -9,7 +9,7 @@ import (
 
 	alertModels "github.com/equinor/radix-operator/api-server/api/alerting/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/labelselector"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	operatoralert "github.com/equinor/radix-operator/pkg/apis/alert"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -37,7 +37,7 @@ type Handler interface {
 }
 
 type handler struct {
-	accounts              models.Accounts
+	accounts              accounts.Accounts
 	validAlertNames       []string
 	namespace             string
 	appName               string
@@ -45,7 +45,7 @@ type handler struct {
 	reconcilePollTimeout  time.Duration
 }
 
-func NewEnvironmentHandler(accounts models.Accounts, appName, envName string) Handler {
+func NewEnvironmentHandler(accounts accounts.Accounts, appName, envName string) Handler {
 	return &handler{
 		accounts:              accounts,
 		appName:               appName,
@@ -56,7 +56,7 @@ func NewEnvironmentHandler(accounts models.Accounts, appName, envName string) Ha
 	}
 }
 
-func NewApplicationHandler(accounts models.Accounts, appName string) Handler {
+func NewApplicationHandler(accounts accounts.Accounts, appName string) Handler {
 	return &handler{
 		accounts:              accounts,
 		appName:               appName,

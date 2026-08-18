@@ -10,7 +10,7 @@ import (
 	deployMock "github.com/equinor/radix-operator/api-server/api/deployments/mock"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	jobModels "github.com/equinor/radix-operator/api-server/api/jobs/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -27,7 +27,7 @@ import (
 
 type JobHandlerTestSuite struct {
 	suite.Suite
-	accounts             models.Accounts
+	accounts             accounts.Accounts
 	kubeClient           *kubefake.Clientset
 	radixClient          *radixfake.Clientset
 	secretProviderClient *secretproviderfake.Clientset
@@ -75,7 +75,7 @@ func (s *JobHandlerTestSuite) SetupTest() {
 
 func (s *JobHandlerTestSuite) setupTest() {
 	s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.certClient, s.tektonClient = s.getUtils()
-	accounts := models.NewAccounts(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.tektonClient, s.certClient, s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.tektonClient, s.certClient)
+	accounts := accounts.NewAccounts(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.tektonClient, s.certClient, s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.tektonClient, s.certClient)
 	s.accounts = accounts
 }
 

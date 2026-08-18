@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	"github.com/equinor/radix-operator/api-server/api/environments"
@@ -20,9 +19,10 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
 	apimodels "github.com/equinor/radix-operator/api-server/api/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/warningcollector"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/api-server/internal/config"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/api-server/internal/pipelineservice"
-	"github.com/equinor/radix-operator/api-server/models"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -49,7 +49,7 @@ type ApplicationHandlerOption func(ah *ApplicationHandler)
 // ApplicationHandler Instance variables
 type ApplicationHandler struct {
 	environmentHandler              environments.EnvironmentHandler
-	accounts                        models.Accounts
+	accounts                        accounts.Accounts
 	config                          config.Config
 	hasAccessToGetConfigMap         hasAccessToGetConfigMapFunc
 	getWarningCollectionFromContext CollectContextWarningsFunc
@@ -57,7 +57,7 @@ type ApplicationHandler struct {
 }
 
 // NewApplicationHandler Constructor
-func NewApplicationHandler(accounts models.Accounts, config config.Config, hasAccessToGetConfigMap hasAccessToGetConfigMapFunc, options ...ApplicationHandlerOption) ApplicationHandler {
+func NewApplicationHandler(accounts accounts.Accounts, config config.Config, hasAccessToGetConfigMap hasAccessToGetConfigMapFunc, options ...ApplicationHandlerOption) ApplicationHandler {
 	ah := ApplicationHandler{
 		environmentHandler:              environments.Init(environments.WithAccounts(accounts)),
 		accounts:                        accounts,
@@ -74,11 +74,11 @@ func NewApplicationHandler(accounts models.Accounts, config config.Config, hasAc
 	return ah
 }
 
-func (ah *ApplicationHandler) getUserAccount() models.Account {
+func (ah *ApplicationHandler) getUserAccount() accounts.Account {
 	return ah.accounts.UserAccount
 }
 
-func (ah *ApplicationHandler) getServiceAccount() models.Account {
+func (ah *ApplicationHandler) getServiceAccount() accounts.Account {
 	return ah.accounts.ServiceAccount
 }
 

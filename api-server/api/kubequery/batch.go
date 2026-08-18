@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"

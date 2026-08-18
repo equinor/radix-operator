@@ -9,7 +9,7 @@ import (
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	eventModels "github.com/equinor/radix-operator/api-server/api/events/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -40,11 +40,11 @@ type EventHandler interface {
 type NamespaceFunc func() string
 
 type eventHandler struct {
-	accounts models.Accounts
+	accounts accounts.Accounts
 }
 
 // Init creates a new EventHandler
-func Init(accounts models.Accounts) EventHandler {
+func Init(accounts accounts.Accounts) EventHandler {
 	return &eventHandler{accounts: accounts}
 }
 

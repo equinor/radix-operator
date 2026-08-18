@@ -49,7 +49,7 @@ func TestGetSettings_NotAuthenticated(t *testing.T) {
 	assert.Equal(t, 403, response.Code)
 }
 
-func setupTest(t *testing.T, cfg config.Config, authenticated bool) *controllertest.Utils {
+func setupTest(t *testing.T, cfg config.Config, authenticated bool) *controllertest.TestUtils {
 	mockValidator := authnmock.NewMockValidatorInterface(gomock.NewController(t))
 	mockValidator.EXPECT().ValidateToken(gomock.Any(), gomock.Any()).AnyTimes().Return(controllertest.NewTestPrincipal(authenticated), nil)
 

@@ -29,7 +29,7 @@ func Test_ExternalDnsAutomationTestSuite(t *testing.T) {
 type externalDnsAutomationTestSuite struct {
 	suite.Suite
 	commonTestUtils      *commontest.Utils
-	environmentTestUtils *controllertest.Utils
+	environmentTestUtils *controllertest.TestUtils
 	certClient           *certclientfake.Clientset
 	appName              string
 	environmentName      string

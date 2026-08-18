@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/deployments/models"                  //nolint:staticcheck
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models" //nolint:staticcheck
-	"github.com/equinor/radix-operator/api-server/api/utils"
 	jobSchedulerModels "github.com/equinor/radix-operator/job-scheduler/models/v1"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -77,7 +76,7 @@ func GetScheduledBatchSummary(radixBatch *radixv1.RadixBatch, batchStatus *jobSc
 		if radixBatch.Status.Condition.CompletionTime != nil {
 			ended = &radixBatch.Status.Condition.CompletionTime.Time
 		}
-		summary.Status = utils.GetBatchJobStatusByJobApiCondition(radixBatch.Status.Condition.Type)
+		summary.Status = getBatchJobStatusByJobApiCondition(radixBatch.Status.Condition.Type)
 		summary.Created = new(radixBatch.GetCreationTimestamp().Time)
 		summary.Started = started
 		summary.Ended = ended
@@ -212,6 +211,19 @@ func getReplicaStatusByPodStatus(podPhase radixv1.RadixBatchJobPodPhase) deploym
 		return deploymentModels.Stopped
 	case radixv1.PodSucceeded:
 		return deploymentModels.Succeeded
+	default:
+		return ""
+	}
+}
+
+func getBatchJobStatusByJobApiCondition(conditionType radixv1.RadixBatchConditionType) models.ScheduledBatchJobStatus {
+	switch conditionType {
+	case radixv1.BatchConditionTypeWaiting:
+		return models.ScheduledBatchJobStatusWaiting
+	case radixv1.BatchConditionTypeActive:
+		return models.ScheduledBatchJobStatusActive
+	case radixv1.BatchConditionTypeCompleted:
+		return models.ScheduledBatchJobStatusCompleted
 	default:
 		return ""
 	}

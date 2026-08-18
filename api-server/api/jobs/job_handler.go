@@ -15,8 +15,8 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/jobs/internal"
 	jobModels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
-	"github.com/equinor/radix-operator/api-server/api/utils"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/api/utils/predicate"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -31,14 +31,14 @@ import (
 
 // JobHandler Instance variables
 type JobHandler struct {
-	accounts       models.Accounts
-	userAccount    models.Account
-	serviceAccount models.Account
+	accounts       accounts.Accounts
+	userAccount    accounts.Account
+	serviceAccount accounts.Account
 	deploy         deployments.DeployHandler
 }
 
 // Init Constructor
-func Init(accounts models.Accounts, deployHandler deployments.DeployHandler) JobHandler {
+func Init(accounts accounts.Accounts, deployHandler deployments.DeployHandler) JobHandler {
 	return JobHandler{
 		accounts:       accounts,
 		userAccount:    accounts.UserAccount,
@@ -56,7 +56,7 @@ func (jh JobHandler) GetApplicationJobs(ctx context.Context, appName string) ([]
 
 	// Sort jobs descending
 	sort.Slice(jobs, func(i, j int) bool {
-		return utils.IsBefore(jobs[j], jobs[i])
+		return predicate.IsJobBefore(jobs[j], jobs[i])
 	})
 
 	return jobs, nil

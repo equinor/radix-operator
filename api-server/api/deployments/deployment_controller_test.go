@@ -15,9 +15,9 @@ import (
 	"go.uber.org/mock/gomock"
 	"k8s.io/client-go/kubernetes"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	builders "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -41,7 +41,7 @@ func createGetLogEndpoint(appName, podName string) string {
 	return fmt.Sprintf("/api/v1/applications/%s/deployments/any/components/any/replicas/%s/logs", appName, podName)
 }
 
-func setupTest(t *testing.T) (*commontest.Utils, *controllertest.Utils, kubernetes.Interface, radixclient.Interface, kedav2.Interface, client.Client, secretsstorevclient.Interface, *certfake.Clientset) {
+func setupTest(t *testing.T) (*commontest.Utils, *controllertest.TestUtils, kubernetes.Interface, radixclient.Interface, kedav2.Interface, client.Client, secretsstorevclient.Interface, *certfake.Clientset) {
 	const (
 		clusterName    = "AnyClusterName"
 		subscriptionId = "bd9f9eaa-2703-47c6-b5e0-faf4e058df73"

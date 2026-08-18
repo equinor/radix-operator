@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	"github.com/equinor/radix-operator/api-server/api/test"
-	apiUtils "github.com/equinor/radix-operator/api-server/api/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -289,13 +288,13 @@ func Test_GetBatch_JobsListStatus_StopIsTrue(t *testing.T) {
 		return assertMapped{Name: job.Name, Status: job.Status}
 	})
 	expected := []assertMapped{
-		{Name: anyBatchName + "-no1", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusStopping)},
-		{Name: anyBatchName + "-no2", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusStopping)},
-		{Name: anyBatchName + "-no3", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusStopping)},
-		{Name: anyBatchName + "-no4", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusStopping)},
-		{Name: anyBatchName + "-no5", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusSucceeded)},
-		{Name: anyBatchName + "-no6", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusFailed)},
-		{Name: anyBatchName + "-no7", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusStopped)},
+		{Name: anyBatchName + "-no1", Status: models.ScheduledBatchJobStatusStopping},
+		{Name: anyBatchName + "-no2", Status: models.ScheduledBatchJobStatusStopping},
+		{Name: anyBatchName + "-no3", Status: models.ScheduledBatchJobStatusStopping},
+		{Name: anyBatchName + "-no4", Status: models.ScheduledBatchJobStatusStopping},
+		{Name: anyBatchName + "-no5", Status: models.ScheduledBatchJobStatusSucceeded},
+		{Name: anyBatchName + "-no6", Status: models.ScheduledBatchJobStatusFailed},
+		{Name: anyBatchName + "-no7", Status: models.ScheduledBatchJobStatusStopped},
 	}
 	assert.ElementsMatch(t, expected, actualMapped)
 }

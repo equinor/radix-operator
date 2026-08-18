@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
+	"github.com/equinor/radix-operator/api-server/api/test"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
-	"github.com/equinor/radix-operator/api-server/api/utils"
 	"github.com/equinor/radix-operator/api-server/api/utils/labelselector"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -106,7 +106,7 @@ func TestGetComponents_active_deployment(t *testing.T) {
 func TestGetComponents_WithVolumeMount_ContainsVolumeMountSecrets(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+	err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 		WithAppName("any-app").
 		WithEnvironment("prod").
 		WithDeploymentName(anyDeployName).
@@ -167,7 +167,7 @@ func TestGetComponents_WithVolumeMount_ContainsVolumeMountSecrets(t *testing.T) 
 func TestGetComponents_WithTwoVolumeMounts_ContainsTwoVolumeMountSecrets(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+	err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 		WithAppName("any-app").
 		WithEnvironment("prod").
 		WithDeploymentName(anyDeployName).
@@ -616,7 +616,7 @@ func Test_GetComponents_HorizontalScaling_Utilization(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			horizontalScaling := createHorizontalScalingConfig()
 			commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
-			err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+			err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 				WithAppName(anyAppName).
 				WithEnvironment("prod").
 				WithDeploymentName("dep-hpa").
@@ -881,7 +881,7 @@ func TestGetComponents_WithIdentity(t *testing.T) {
 
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
 
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+	err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 		WithAppName(appName).
 		WithEnvironment(envName).
 		WithDeploymentName(anyDeployName).
@@ -1187,7 +1187,7 @@ func Test_HorizontalScalingSummary_Identity(t *testing.T) {
 				Triggers:    scenario.triggers,
 			}
 
-			err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+			err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 				WithAppName(anyAppName).
 				WithEnvironment("dev").
 				WithDeploymentName("dep-identity").
@@ -1343,7 +1343,7 @@ func Test_HorizontalScalingSummary_Properties(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
 
-			err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+			err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 				WithAppName(anyAppName).
 				WithEnvironment("dev").
 				WithDeploymentName("dep-props").

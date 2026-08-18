@@ -12,7 +12,6 @@ import (
 	"time"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
@@ -21,11 +20,12 @@ import (
 	mock2 "github.com/equinor/radix-operator/api-server/api/metrics/mock"
 	"github.com/equinor/radix-operator/api-server/api/metrics/prometheus"
 	"github.com/equinor/radix-operator/api-server/api/metrics/prometheus/mock"
+	"github.com/equinor/radix-operator/api-server/api/test"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
-	"github.com/equinor/radix-operator/api-server/api/utils"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/api-server/internal/config"
-	"github.com/equinor/radix-operator/api-server/models"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -55,7 +55,7 @@ const (
 	federatedCredentialsMigratedAnnotation = kube.RadixFederatedCredentialsMigratedAnnotation
 )
 
-func setupTest(t *testing.T, options ...ApplicationHandlerOption) (*commontest.Utils, *controllertest.Utils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
+func setupTest(t *testing.T, options ...ApplicationHandlerOption) (*commontest.Utils, *controllertest.TestUtils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
 	return setupTestWithFactory(t, newTestApplicationHandlerFactory(
 		config.Config{DNSZone: dnsZone},
 		func(ctx context.Context, kubeClient kubernetes.Interface, namespace string, configMapName string) (bool, error) {
@@ -71,7 +71,7 @@ func customWarningCollector(handler CollectContextWarningsFunc) ApplicationHandl
 	}
 }
 
-func setupTestWithFactory(t *testing.T, handlerFactory ApplicationHandlerFactory) (*commontest.Utils, *controllertest.Utils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
+func setupTestWithFactory(t *testing.T, handlerFactory ApplicationHandlerFactory) (*commontest.Utils, *controllertest.TestUtils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixclient := radixfake.NewSimpleClientset() //nolint:staticcheck
@@ -1196,7 +1196,7 @@ func TestDeleteApplication_ApplicationIsDeleted(t *testing.T) {
 func TestGetApplication_WithAppAlias_ContainsAppAlias(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretproviderclient, certClient, _ := setupTest(t)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretproviderclient, certClient, builders.ARadixDeployment().
+	err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretproviderclient, certClient, builders.ARadixDeployment().
 		WithRadixApplication(builders.ARadixApplication().
 			WithAppName("any-app").
 			WithDNSAppAlias("prod", "frontend")).
@@ -1274,7 +1274,7 @@ func TestRegenerateDeployKey_CreateUpdatesSharedSecret(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Test
@@ -1319,7 +1319,7 @@ func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been created
@@ -1334,7 +1334,7 @@ func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
 	// forcing resync of RR
-	err = utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err = test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been re-created and is different from first secret
@@ -1351,7 +1351,7 @@ func TestRegenerateDeployKey_PrivateKeyInParam_SavedPrivateKeyIsEqualToWebParam(
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// make some valid private key
@@ -1365,7 +1365,7 @@ func TestRegenerateDeployKey_PrivateKeyInParam_SavedPrivateKeyIsEqualToWebParam(
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
 	// forcing resync of RR
-	err = utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err = test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been re-created and is equal to the one in the web parameter
@@ -1381,7 +1381,7 @@ func TestRegenerateDeployKey_InvalidKeyInParam_ErrorIsReturned(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// calling regenerate-deploy-key with invalid private key, expecting error
@@ -1575,7 +1575,7 @@ func newTestApplicationHandlerFactory(config config.Config, hasAccessToGetConfig
 }
 
 // Create creates a new ApplicationHandler
-func (f *testApplicationHandlerFactory) Create(accounts models.Accounts) ApplicationHandler {
+func (f *testApplicationHandlerFactory) Create(accounts accounts.Accounts) ApplicationHandler {
 	return NewApplicationHandler(accounts, f.config, f.hasAccessToGetConfigMap, f.options...)
 }
 

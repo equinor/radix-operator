@@ -37,7 +37,7 @@ const (
 	subscriptionId  = "12347718-c8f8-4995-bfbb-02655ff1f89c"
 )
 
-func setupTestWithMockHandler(t *testing.T, mockCtrl *gomock.Controller) (*commontest.Utils, *controllertest.Utils, kubernetes.Interface, radixclient.Interface, dynamicclient.Client, certclient.Interface, *MockEnvVarsHandler) {
+func setupTestWithMockHandler(t *testing.T, mockCtrl *gomock.Controller) (*commontest.Utils, *controllertest.TestUtils, kubernetes.Interface, radixclient.Interface, dynamicclient.Client, certclient.Interface, *MockEnvVarsHandler) {
 	kubeclient, radixclient, kedaClient, dynamicClient, commonTestUtils, _, secretproviderclient, certClient := setupTest(t)
 
 	handler := NewMockEnvVarsHandler(mockCtrl)

@@ -37,7 +37,7 @@ type externalDnsTestSuite struct {
 	suite.Suite
 	tlsValidator         *tlsvalidationmock.MockValidator
 	commonTestUtils      *commontest.Utils
-	environmentTestUtils *controllertest.Utils
+	environmentTestUtils *controllertest.TestUtils
 	kubeClient           kubernetes.Interface
 	certClient           *certclientfake.Clientset
 	appName              string

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 )
 
 // NonExistingEnvironment No application found by name
