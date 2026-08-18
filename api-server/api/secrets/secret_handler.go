@@ -7,7 +7,6 @@ import (
 	"time"
 
 	radixhttp "github.com/equinor/radix-common/net/http"
-	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/deployments"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
@@ -22,6 +21,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -210,7 +210,7 @@ func (eh *SecretHandler) getActiveRadixDeploymentForEnvironment(ctx context.Cont
 }
 
 func (eh *SecretHandler) getTLSValidatorOrDefault() tlsvalidation.Validator {
-	if commonutils.IsNil(eh.tlsValidator) {
+	if pointers.IsNil(eh.tlsValidator) {
 		return tlsvalidation.DefaultValidator()
 	}
 	return eh.tlsValidator
@@ -323,7 +323,7 @@ func (eh *SecretHandler) getAzKeyVaultSecretVersions(appName string, envNamespac
 		podCreated := pod.GetCreationTimestamp()
 		azureKeyVaultSecretVersion := models.AzureKeyVaultSecretVersion{
 			ReplicaName:    pod.GetName(),
-			ReplicaCreated: commonutils.FormatTime(&podCreated),
+			ReplicaCreated: podCreated.Format(time.RFC3339),
 			Version:        secretVersion,
 		}
 		if _, ok := pod.Labels[kube.RadixPodIsJobAuxObjectLabel]; ok {
@@ -342,12 +342,12 @@ func (eh *SecretHandler) getAzKeyVaultSecretVersions(appName string, envNamespac
 		}
 		azureKeyVaultSecretVersion.JobName = jobName
 		jobCreated := job.GetCreationTimestamp()
-		azureKeyVaultSecretVersion.JobCreated = commonutils.FormatTime(&jobCreated)
+		azureKeyVaultSecretVersion.JobCreated = jobCreated.Format(time.RFC3339)
 		if batchName, ok := pod.Labels[kube.RadixBatchNameLabel]; ok {
 			if batch, ok := jobMap[batchName]; ok {
 				azureKeyVaultSecretVersion.BatchName = batchName
 				batchCreated := batch.GetCreationTimestamp()
-				azureKeyVaultSecretVersion.BatchCreated = commonutils.FormatTime(&batchCreated)
+				azureKeyVaultSecretVersion.BatchCreated = batchCreated.Format(time.RFC3339)
 			}
 		}
 		azKeyVaultSecretVersions = append(azKeyVaultSecretVersions, azureKeyVaultSecretVersion)

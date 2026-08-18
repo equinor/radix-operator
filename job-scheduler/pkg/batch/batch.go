@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/job-scheduler/internal"
 	modelsv1 "github.com/equinor/radix-operator/job-scheduler/models/v1"
@@ -280,13 +279,15 @@ func StopRadixBatchJob(ctx context.Context, radixClient versioned.Interface, app
 func RestartRadixBatch(ctx context.Context, radixClient versioned.Interface, radixBatch *radixv1.RadixBatch) error {
 	logger := log.Ctx(ctx)
 	logger.Info().Msgf("restart the batch %s", radixBatch.GetName())
-	restartTimestamp := utils.FormatTimestamp(time.Now())
+
 	for jobIdx := 0; jobIdx < len(radixBatch.Spec.Jobs); jobIdx++ {
-		setRestartJobTimeout(radixBatch, jobIdx, restartTimestamp)
+		setRestartJobTimeout(radixBatch, jobIdx)
 	}
+
 	if _, err := radixClient.RadixV1().RadixBatches(radixBatch.GetNamespace()).Update(ctx, radixBatch, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -294,14 +295,18 @@ func RestartRadixBatch(ctx context.Context, radixClient versioned.Interface, rad
 func RestartRadixBatchJob(ctx context.Context, radixClient versioned.Interface, radixBatch *radixv1.RadixBatch, jobName string) error {
 	logger := log.Ctx(ctx)
 	logger.Info().Msgf("restart a job %s in the batch %s", jobName, radixBatch.GetName())
+
 	jobIdx := slice.FindIndex(radixBatch.Spec.Jobs, func(job radixv1.RadixBatchJob) bool { return job.Name == jobName })
 	if jobIdx == -1 {
 		return fmt.Errorf("job %s not found", jobName)
 	}
-	setRestartJobTimeout(radixBatch, jobIdx, utils.FormatTimestamp(time.Now()))
+
+	setRestartJobTimeout(radixBatch, jobIdx)
+
 	if _, err := radixClient.RadixV1().RadixBatches(radixBatch.GetNamespace()).Update(ctx, radixBatch, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -337,9 +342,9 @@ func isBatchStoppable(condition radixv1.RadixBatchCondition) bool {
 		condition.Type == radixv1.BatchConditionTypeWaiting
 }
 
-func setRestartJobTimeout(batch *radixv1.RadixBatch, jobIdx int, restartTimestamp string) {
+func setRestartJobTimeout(batch *radixv1.RadixBatch, jobIdx int) {
 	batch.Spec.Jobs[jobIdx].Stop = nil
-	batch.Spec.Jobs[jobIdx].Restart = restartTimestamp
+	batch.Spec.Jobs[jobIdx].Restart = time.Now().Format(time.RFC3339)
 }
 
 func isRadixBatchJobFailed(jobStatus radixv1.RadixBatchJobStatus) bool {

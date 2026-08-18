@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
@@ -15,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
@@ -565,7 +565,7 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_HTTPRoutes() {
 				s.Require().NoError(err)
 				rdBuilder = test.rdBuilderFactory(rdBuilder)
 
-				if !commonutils.IsNil(rdBuilder) {
+				if !pointers.IsNil(rdBuilder) {
 					_, err = s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
 					s.Require().NoError(err)
 				}

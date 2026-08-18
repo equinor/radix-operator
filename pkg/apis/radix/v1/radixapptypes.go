@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -2078,7 +2078,7 @@ func (component *RadixJobComponent) GetEnabledForEnvironmentConfig(envConfig Rad
 }
 
 func getEnabled(component RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) bool {
-	if commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil {
+	if pointers.IsNil(envConfig) || envConfig.getEnabled() == nil {
 		return component.getEnabled()
 	}
 	return *envConfig.getEnabled()
@@ -2316,7 +2316,7 @@ func getImageForEnvironment(component RadixCommonComponent, environment string) 
 	if len(environmentConfigsMap) == 0 {
 		return component.GetImage()
 	}
-	if envConfig, ok := environmentConfigsMap[environment]; ok && !commonUtils.IsNil(envConfig) {
+	if envConfig, ok := environmentConfigsMap[environment]; ok && !pointers.IsNil(envConfig) {
 		envConfigEnabled := envConfig.getEnabled() == nil || *envConfig.getEnabled()
 		if envConfigEnabled {
 			if len(strings.TrimSpace(envConfig.GetImage())) > 0 {
@@ -2339,7 +2339,7 @@ func getSourceForEnvironment(component RadixCommonComponent, environment string)
 	if len(environmentConfigsMap) == 0 {
 		return source
 	}
-	if envConfig, ok := environmentConfigsMap[environment]; ok && !commonUtils.IsNil(envConfig) {
+	if envConfig, ok := environmentConfigsMap[environment]; ok && !pointers.IsNil(envConfig) {
 		envConfigEnabled := envConfig.getEnabled() == nil || *envConfig.getEnabled()
 		if envConfigEnabled {
 			if sourceFolder := strings.TrimSpace(envConfig.GetSourceFolder()); len(sourceFolder) > 0 {
@@ -2390,7 +2390,7 @@ func getCommandForEnvironment(commonComponent RadixCommonComponent, environment 
 		return commonComponent.GetCommand()
 	}
 	envConfig, ok := environmentConfigsMap[environment]
-	if !ok || commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+	if !ok || pointers.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
 		return commonComponent.GetCommand()
 	}
 	if command := envConfig.GetCommand(); command != nil {
@@ -2405,7 +2405,7 @@ func getArgsForEnvironment(commonComponent RadixCommonComponent, environment str
 		return commonComponent.GetArgs()
 	}
 	envConfig, ok := environmentConfigsMap[environment]
-	if !ok || commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+	if !ok || pointers.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
 		return commonComponent.GetArgs()
 	}
 	if args := envConfig.GetArgs(); args != nil {
@@ -2415,7 +2415,7 @@ func getArgsForEnvironment(commonComponent RadixCommonComponent, environment str
 }
 
 func getCommandForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
-	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+	if pointers.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
 		return commonComponent.GetCommand()
 	}
 	if command := envConfig.GetCommand(); command != nil {
@@ -2425,7 +2425,7 @@ func getCommandForEnvironmentConfig(commonComponent RadixCommonComponent, envCon
 }
 
 func getArgsForEnvironmentConfig(commonComponent RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) []string {
-	if commonUtils.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
+	if pointers.IsNil(envConfig) || (envConfig.getEnabled() != nil && !*envConfig.getEnabled()) {
 		return commonComponent.GetArgs()
 	}
 	if args := envConfig.GetArgs(); args != nil {

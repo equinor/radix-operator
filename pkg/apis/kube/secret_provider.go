@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"

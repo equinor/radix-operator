@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
@@ -178,7 +177,7 @@ func (eh EnvironmentHandler) patchDeploymentForRestart(ctx context.Context, depl
 			deployToPatch.Spec.Template.Annotations = make(map[string]string)
 		}
 
-		deployToPatch.Spec.Template.Annotations[restartedAtAnnotation] = radixutils.FormatTimestamp(time.Now())
+		deployToPatch.Spec.Template.Annotations[restartedAtAnnotation] = time.Now().Format(time.RFC3339)
 		_, err = deployClient.Update(ctx, deployToPatch, metav1.UpdateOptions{})
 		return err
 	})
@@ -203,7 +202,7 @@ func (eh EnvironmentHandler) patch(ctx context.Context, namespace, name string, 
 func (eh EnvironmentHandler) patchRadixDeploymentWithReplicas(ctx context.Context, updater radixDeployCommonComponentUpdater, replicas *int) error {
 	return eh.commit(ctx, updater, func(updater radixDeployCommonComponentUpdater) error {
 		updater.setReplicasOverrideToComponent(replicas)
-		updater.setUserMutationTimestampAnnotation(radixutils.FormatTimestamp(time.Now()))
+		updater.setUserMutationTimestampAnnotation(time.Now().Format(time.RFC3339))
 		return nil
 	})
 }
@@ -214,9 +213,9 @@ func (eh EnvironmentHandler) patchRadixDeploymentWithTimestampInEnvVar(ctx conte
 		if environmentVariables == nil {
 			environmentVariables = make(map[string]string)
 		}
-		environmentVariables[envVarName] = radixutils.FormatTimestamp(time.Now())
+		environmentVariables[envVarName] = time.Now().Format(time.RFC3339)
 		updater.setEnvironmentVariablesToComponent(environmentVariables)
-		updater.setUserMutationTimestampAnnotation(radixutils.FormatTimestamp(time.Now()))
+		updater.setUserMutationTimestampAnnotation(time.Now().Format(time.RFC3339))
 		return nil
 	})
 }

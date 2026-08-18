@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	radixhttp "github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	"github.com/equinor/radix-operator/api-server/api/utils"
@@ -219,8 +219,8 @@ func TestGetComponents_inactive_deployment(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, kubeclient, _, _, _, _, _ := setupTest(t)
 
-	initialDeploymentCreated, _ := radixutils.ParseTimestamp("2018-11-12T11:45:26Z")
-	activeDeploymentCreated, _ := radixutils.ParseTimestamp("2018-11-14T11:45:26Z")
+	initialDeploymentCreated, _ := time.Parse(time.RFC3339, "2018-11-12T11:45:26Z")
+	activeDeploymentCreated, _ := time.Parse(time.RFC3339, "2018-11-14T11:45:26Z")
 
 	_, err := commonTestUtils.ApplyDeployment(
 		context.Background(),

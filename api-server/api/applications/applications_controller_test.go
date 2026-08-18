@@ -13,7 +13,6 @@ import (
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	radixhttp "github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
@@ -243,7 +242,7 @@ func TestSearchApplicationsGet(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	app2Job1Started, _ := radixutils.ParseTimestamp("2018-11-12T12:30:14Z")
+	app2Job1Started, _ := time.Parse(time.RFC3339, "2018-11-12T12:30:14Z")
 	err := createRadixJob(commonTestUtils, appNames[1], "app-2-job-1", app2Job1Started)
 	require.NoError(t, err)
 	_, err = commonTestUtils.ApplyDeployment(
@@ -534,9 +533,9 @@ func TestGetApplication_WithJobs(t *testing.T) {
 	require.NoError(t, err)
 
 	commontest.CreateAppNamespace(kubeclient, "any-name")
-	app1Job1Started, _ := radixutils.ParseTimestamp("2018-11-12T11:45:26Z")
-	app1Job2Started, _ := radixutils.ParseTimestamp("2018-11-12T12:30:14Z")
-	app1Job3Started, _ := radixutils.ParseTimestamp("2018-11-20T09:00:00Z")
+	app1Job1Started, _ := time.Parse(time.RFC3339, "2018-11-12T11:45:26Z")
+	app1Job2Started, _ := time.Parse(time.RFC3339, "2018-11-12T12:30:14Z")
+	app1Job3Started, _ := time.Parse(time.RFC3339, "2018-11-20T09:00:00Z")
 
 	err = createRadixJob(commonTestUtils, "any-name", "any-name-job-1", app1Job1Started)
 	require.NoError(t, err)

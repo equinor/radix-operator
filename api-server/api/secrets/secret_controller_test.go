@@ -10,7 +10,6 @@ import (
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	radixhttp "github.com/equinor/radix-common/net/http"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
@@ -20,6 +19,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"

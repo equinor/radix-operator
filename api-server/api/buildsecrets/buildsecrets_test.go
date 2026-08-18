@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"

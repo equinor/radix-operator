@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/deployments"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
@@ -207,9 +207,10 @@ func getPipelineRunModel(pipelineRun *pipelinev1.PipelineRun) *jobModels.Pipelin
 		Name:     pipelineRun.Annotations[operatorDefaults.PipelineNameAnnotation],
 		Env:      pipelineRun.Labels[kube.RadixEnvLabel],
 		KubeName: pipelineRun.GetName(),
-		Started:  radixutils.FormatTime(pipelineRun.Status.StartTime),
-		Ended:    radixutils.FormatTime(pipelineRun.Status.CompletionTime),
+		Started:  formatMetaV1Time(pipelineRun.Status.StartTime),
+		Ended:    formatMetaV1Time(pipelineRun.Status.CompletionTime),
 	}
+
 	runCondition := getLastReadyCondition(pipelineRun.Status.Conditions)
 	if runCondition != nil {
 		pipelineRunModel.Status = jobModels.TaskRunReason(runCondition.Reason)
@@ -235,8 +236,8 @@ func getPipelineRunTaskModelByTaskSpec(pipelineRun *pipelinev1.PipelineRun, task
 		PipelineRunEnv: pipelineRun.Labels[kube.RadixEnvLabel],
 		PipelineName:   pipelineRun.Annotations[operatorDefaults.PipelineNameAnnotation],
 	}
-	pipelineTaskModel.Started = radixutils.FormatTime(taskRun.Status.StartTime)
-	pipelineTaskModel.Ended = radixutils.FormatTime(taskRun.Status.CompletionTime)
+	pipelineTaskModel.Started = formatMetaV1Time(taskRun.Status.StartTime)
+	pipelineTaskModel.Ended = formatMetaV1Time(taskRun.Status.CompletionTime)
 	taskCondition := getLastReadyCondition(taskRun.Status.Conditions)
 	if taskCondition != nil {
 		pipelineTaskModel.Status = jobModels.PipelineRunReason(taskCondition.Reason)
@@ -260,12 +261,12 @@ func buildPipelineRunTaskStepModels(taskRun *pipelinev1.TaskRun) []jobModels.Pip
 func buildPipelineRunTaskStepModel(step pipelinev1.StepState) jobModels.PipelineRunTaskStep {
 	stepModel := jobModels.PipelineRunTaskStep{Name: step.Name}
 	if step.Terminated != nil {
-		stepModel.Started = radixutils.FormatTime(&step.Terminated.StartedAt)
-		stepModel.Ended = radixutils.FormatTime(&step.Terminated.FinishedAt)
+		stepModel.Started = formatMetaV1Time(&step.Terminated.StartedAt)
+		stepModel.Ended = formatMetaV1Time(&step.Terminated.FinishedAt)
 		stepModel.Status = jobModels.TaskRunReason(step.Terminated.Reason)
 		stepModel.StatusMessage = step.Terminated.Message
 	} else if step.Running != nil {
-		stepModel.Started = radixutils.FormatTime(&step.Running.StartedAt)
+		stepModel.Started = formatMetaV1Time(&step.Running.StartedAt)
 		stepModel.Status = jobModels.TaskRunReasonRunning
 	} else if step.Waiting != nil {
 		stepModel.Status = jobModels.TaskRunReason(step.Waiting.Reason)
@@ -328,11 +329,11 @@ func (jh JobHandler) getJobFromRadixJob(ctx context.Context, job *v1.RadixJob, j
 		return nil, err
 	}
 
-	created := radixutils.FormatTime(&job.CreationTimestamp)
+	created := formatMetaV1Time(&job.CreationTimestamp)
 	if job.Status.Created != nil {
 		// Use this instead, because in a migration this may be more correct
 		// as migrated jobs will have the same creation timestamp in the new cluster
-		created = radixutils.FormatTime(job.Status.Created)
+		created = formatMetaV1Time(job.Status.Created)
 	}
 
 	var jobComponents []*deploymentModels.ComponentSummary
@@ -343,8 +344,8 @@ func (jh JobHandler) getJobFromRadixJob(ctx context.Context, job *v1.RadixJob, j
 	jobModel := jobModels.Job{
 		Name:                 job.GetName(),
 		Created:              created,
-		Started:              radixutils.FormatTime(job.Status.Started),
-		Ended:                radixutils.FormatTime(job.Status.Ended),
+		Started:              formatMetaV1Time(job.Status.Started),
+		Ended:                formatMetaV1Time(job.Status.Ended),
 		Status:               jobModels.GetStatusFromRadixJobStatus(job.Status, job.Spec.Stop),
 		Pipeline:             string(job.Spec.PipeLineType),
 		Steps:                steps,
@@ -479,4 +480,12 @@ func getStepStatusBySubPipelineTaskStepTerminationStatus(reason string) string {
 	default:
 		return reason
 	}
+}
+
+func formatMetaV1Time(t *metav1.Time) string {
+	if t == nil || t.IsZero() {
+		return ""
+	}
+
+	return t.Format(time.RFC3339)
 }

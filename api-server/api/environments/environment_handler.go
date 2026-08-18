@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/deployments"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
@@ -24,6 +23,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	k8sObjectUtils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -409,11 +409,11 @@ func (eh EnvironmentHandler) getRadixCommonComponentUpdater(ctx context.Context,
 	var updater radixDeployCommonComponentUpdater
 	var componentToPatch radixv1.RadixCommonDeployComponent
 	componentIndex, componentToPatch := deployUtils.GetDeploymentComponent(rd, componentName)
-	if !radixutils.IsNil(componentToPatch) {
+	if !pointers.IsNil(componentToPatch) {
 		updater = &radixDeployComponentUpdater{base: baseUpdater}
 	} else {
 		componentIndex, componentToPatch = deployUtils.GetDeploymentJobComponent(rd, componentName)
-		if radixutils.IsNil(componentToPatch) {
+		if pointers.IsNil(componentToPatch) {
 			return nil, environmentModels.NonExistingComponent(appName, componentName)
 		}
 		updater = &radixDeployJobComponentUpdater{base: baseUpdater}

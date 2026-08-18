@@ -9,7 +9,6 @@ import (
 	"time"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -19,6 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/clock"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -2054,7 +2054,7 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 			}
 
 			// Run test
-			sut := s.createSyncer(batch, nil, WithClock(commonutils.NewFakeClock(now)))
+			sut := s.createSyncer(batch, nil, WithClock(clock.NewFakeClock(now)))
 			s.Require().NoError(sut.OnSync(context.Background()))
 			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -2208,7 +2208,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 			s.Require().NoError(err)
 
 			// Run test
-			sut := s.createSyncer(batch, nil, WithClock(commonutils.NewFakeClock(now)))
+			sut := s.createSyncer(batch, nil, WithClock(clock.NewFakeClock(now)))
 			s.Require().NoError(sut.OnSync(context.Background()))
 			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
 			s.Require().NoError(err)

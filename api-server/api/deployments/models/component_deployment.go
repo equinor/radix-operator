@@ -10,7 +10,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	runtimeUtils "github.com/equinor/radix-operator/pkg/apis/runtime"
 
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -604,7 +603,7 @@ func GetReplicaSummary(pod corev1.Pod, lastEventWarning string) ReplicaSummary {
 	}
 	terminated := containerStatus.LastTerminationState.Terminated
 	if terminated != nil {
-		compositeMessage := []string{fmt.Sprintf("Last time container was terminated at: %s, with code: %d", radixutils.FormatTime(&terminated.FinishedAt), terminated.ExitCode)}
+		compositeMessage := []string{fmt.Sprintf("Last time container was terminated at: %s, with code: %d", terminated.FinishedAt.Format(time.RFC3339), terminated.ExitCode)}
 		if terminated.Reason != "" {
 			compositeMessage = append(compositeMessage, fmt.Sprintf("reason: '%s'", terminated.Reason))
 		}

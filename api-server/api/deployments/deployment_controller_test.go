@@ -16,7 +16,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	radixhttp "github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -366,8 +365,8 @@ func TestGetDeployment_TwoDeploymentsFirstDeployment_ReturnsDeploymentWithCompon
 	anyEnvironment := "dev"
 	anyDeployment1Name := "abcdef"
 	anyDeployment2Name := "ghijkl"
-	appDeployment1Created, _ := radixutils.ParseTimestamp("2018-11-12T12:00:00Z")
-	appDeployment2Created, _ := radixutils.ParseTimestamp("2018-11-14T12:00:00Z")
+	appDeployment1Created, _ := time.Parse(time.RFC3339, "2018-11-12T12:00:00Z")
+	appDeployment2Created, _ := time.Parse(time.RFC3339, "2018-11-14T12:00:00Z")
 	jobName1, jobName2 := "rj1", "rj2"
 	commitID1 := "commit1"
 
