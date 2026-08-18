@@ -69,8 +69,8 @@ func Test_ComponentJobNameValidator(t *testing.T) {
 			ra: &radixv1.RadixApplication{
 				Spec: radixv1.RadixApplicationSpec{
 					Jobs: []radixv1.RadixJobComponent{
-						{Name: "job1"},
-						{Name: "job2"},
+						{Name: "job1", SchedulerPort: new(int32(8080))},
+						{Name: "job2", SchedulerPort: new(int32(8080))},
 					},
 				},
 			},
@@ -85,8 +85,8 @@ func Test_ComponentJobNameValidator(t *testing.T) {
 						{Name: "component2"},
 					},
 					Jobs: []radixv1.RadixJobComponent{
-						{Name: "job1"},
-						{Name: "job2"},
+						{Name: "job1", SchedulerPort: new(int32(8080))},
+						{Name: "job2", SchedulerPort: new(int32(8080))},
 					},
 				},
 			},
