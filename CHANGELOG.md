@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.125.0](https://github.com/equinor/radix-operator/compare/v1.124.1..v1.125.0) - 2026-08-12
+
+### 🚀 Features
+
+- Include nextCronRun in component builder and deployment models (#1883) - ([1c3e4e0](https://github.com/equinor/radix-operator/commit/1c3e4e0aba8ce3526ab73926d971b2d949c4d0bf)) by @jacobsolbergholm in [#1883](https://github.com/equinor/radix-operator/pull/1883)
+
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump github.com/go-git/go-git/v5 (#1891) - ([568dd3f](https://github.com/equinor/radix-operator/commit/568dd3f79d48035fb891df1d63db5c39b62f99d7)) by @dependabot[bot] in [#1891](https://github.com/equinor/radix-operator/pull/1891)
+
+- Remove legacy sharedSecret from radixRegistration (#1886) - ([6dc3b7b](https://github.com/equinor/radix-operator/commit/6dc3b7b1d7277bcd5141859b85a65b3dca11fdb2)) by @Richard87 in [#1886](https://github.com/equinor/radix-operator/pull/1886)
+
+- Set TTLSecondsAfterFinished on pipeline and build jobs (#1895) - ([37a1374](https://github.com/equinor/radix-operator/commit/37a1374b1c9cd98d3cb47ffda8a5c7f3c8ad1d93)) by @nilsgstrabo in [#1895](https://github.com/equinor/radix-operator/pull/1895)
+
+- Ensure job aux deployment is recreated if selector labels are modified (#1887) - ([bf08b8b](https://github.com/equinor/radix-operator/commit/bf08b8ba4b94a070b2b1333261b0b8062c586912)) by @nilsgstrabo in [#1887](https://github.com/equinor/radix-operator/pull/1887)
+
+
 ## [1.124.1](https://github.com/equinor/radix-operator/compare/v1.124.0..v1.124.1) - 2026-08-06
 
 ### 🐛 Bug Fixes

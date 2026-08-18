@@ -6497,6 +6497,18 @@
           "x-go-name": "CommitID",
           "example": "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
         },
+        "cronSchedules": {
+          "description": "Cron schedules defined for a job component",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "CronSchedules",
+          "example": [
+            "0 0 * * *",
+            "*/5 * * * *"
+          ]
+        },
         "externalDNS": {
           "description": "Array of external DNS configurations",
           "type": "array",
@@ -7902,13 +7914,7 @@
     },
     "OAuth2AuxiliaryResource": {
       "type": "object",
-      "required": [
-        "deployment"
-      ],
       "properties": {
-        "deployment": {
-          "$ref": "#/definitions/AuxiliaryResourceDeployment"
-        },
         "deployments": {
           "description": "Deployments describes the underlying Kubernetes deployments for the resource",
           "type": "array",

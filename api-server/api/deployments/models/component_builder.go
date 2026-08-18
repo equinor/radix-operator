@@ -29,6 +29,7 @@ type ComponentBuilder interface {
 	WithAuxiliaryResource(AuxiliaryResource) ComponentBuilder
 	WithNotifications(*radixv1.Notifications) ComponentBuilder
 	WithHorizontalScalingSummary(*HorizontalScalingSummary) ComponentBuilder
+	WithCronSchedules(cronSchedules []string) ComponentBuilder
 	WithExternalDNS(externalDNS []ExternalDNS) ComponentBuilder
 	WithRuntime(*radixv1.Runtime) ComponentBuilder
 	BuildComponentSummary() (*ComponentSummary, error)
@@ -61,6 +62,7 @@ type componentBuilder struct {
 	resources                 *radixv1.ResourceRequirements
 	runtime                   *radixv1.Runtime
 	replicasOverride          *int
+	cronSchedules             []string
 }
 
 func (b *componentBuilder) WithStatus(status ComponentStatus) ComponentBuilder {
@@ -237,6 +239,11 @@ func (b *componentBuilder) WithHorizontalScalingSummary(hpa *HorizontalScalingSu
 	return b
 }
 
+func (b *componentBuilder) WithCronSchedules(cronSchedules []string) ComponentBuilder {
+	b.cronSchedules = cronSchedules
+	return b
+}
+
 func (b *componentBuilder) WithExternalDNS(externalDNS []ExternalDNS) ComponentBuilder {
 	b.externalDNS = externalDNS
 	return b
@@ -306,6 +313,7 @@ func (b *componentBuilder) BuildComponent() (*Component, error) {
 		CommitID:                 variables[defaults.RadixCommitHashEnvironmentVariable],
 		GitTags:                  variables[defaults.RadixGitTagsEnvironmentVariable],
 		Runtime:                  b.buildRuntimeModel(),
+		CronSchedules:            b.cronSchedules,
 	}
 	if b.resources != nil && (len(b.resources.Limits) > 0 || len(b.resources.Requests) > 0) {
 		component.Resources = pointers.Ptr(ConvertRadixResourceRequirements(*b.resources))

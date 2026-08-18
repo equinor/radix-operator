@@ -63,6 +63,9 @@ func (eh EnvironmentHandler) getComponentStateFromSpec(ctx context.Context, rd *
 		}
 		componentBuilder.WithNextCronRun(jobComponent.Cron)
 		componentBuilder.WithNotifications(jobComponent.Notifications)
+		if jobComponent.Cron != nil {
+			componentBuilder.WithCronSchedules(jobComponent.Cron.Schedules)
+		}
 	}
 
 	return componentBuilder.
@@ -151,7 +154,6 @@ func getOAuth2AuxiliaryResource(podList []corev1.Pod, deploymentList []appsv1.De
 	}
 	oauthProxyDeployment := getAuxiliaryResourceDeployment(podList, deploymentList, deployment, component, v1.OAuthProxyAuxiliaryComponentType)
 	auxiliaryResource := deploymentModels.OAuth2AuxiliaryResource{
-		Deployment:  oauthProxyDeployment, // for backward compatibility
 		Deployments: []deploymentModels.AuxiliaryResourceDeployment{oauthProxyDeployment},
 	}
 	if oauth2.IsSessionStoreTypeSystemManaged() {
