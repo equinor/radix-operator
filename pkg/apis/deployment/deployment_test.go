@@ -3355,7 +3355,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("dev").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
+			utils.NewDeployJobComponentBuilder().WithName("job").WithSchedulerPort(new(int32(8000))),
 		).
 		WithComponents()
 
@@ -3372,7 +3372,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("dev").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("compute").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
+			utils.NewDeployJobComponentBuilder().WithName("compute").WithSchedulerPort(new(int32(8000))),
 		).
 		WithComponents()
 
@@ -3389,8 +3389,8 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("prod").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
-			utils.NewDeployJobComponentBuilder().WithName("compute").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
+			utils.NewDeployJobComponentBuilder().WithName("job").WithSchedulerPort(new(int32(8000))),
+			utils.NewDeployJobComponentBuilder().WithName("compute").WithSchedulerPort(new(int32(8000))),
 		).
 		WithComponents()
 

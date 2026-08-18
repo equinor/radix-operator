@@ -106,6 +106,29 @@ func Test_garbageCollectServicesNoLongerInSpec(t *testing.T) {
 			expectedServiceNames: []string{},
 		},
 		{
+			name: "collect non-batch job-scheduler service with component ports but no schedulerPort",
+			rd: utils.ARadixDeployment().
+				WithAppName("app").
+				WithEnvironment("dev").
+				WithJobComponents(
+					utils.NewDeployJobComponentBuilder().
+						WithName("job").
+						WithPorts([]rv1.ComponentPort{{Name: "http", Port: 8080}}),
+				).
+				WithComponents().
+				BuildRD(),
+			services: []*corev1.Service{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "job",
+					Labels: map[string]string{
+						kube.RadixComponentLabel: "job",
+						kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
+					},
+				},
+			}},
+			expectedServiceNames: []string{},
+		},
+		{
 			name: "collect component service without ports",
 			rd: utils.ARadixDeployment().
 				WithAppName("app").
