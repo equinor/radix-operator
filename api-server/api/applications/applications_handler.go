@@ -534,7 +534,7 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 		return err
 	}
 	if !valid {
-		return userShouldBeMemberOfAdminAdGroupError()
+		return radixhttp.ValidationError("Radix Registration", "User should be a member of at least one admin AD group or their sub-members")
 	}
 	return nil
 }
