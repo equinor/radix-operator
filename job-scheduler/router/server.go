@@ -3,8 +3,8 @@ package router
 import (
 	"net/http"
 
-	commongin "github.com/equinor/radix-common/pkg/gin"
 	"github.com/equinor/radix-operator/job-scheduler/api/v1/controllers"
+	commongin "github.com/equinor/radix-operator/job-scheduler/internal/middleware"
 	"github.com/equinor/radix-operator/job-scheduler/models"
 	"github.com/equinor/radix-operator/job-scheduler/swaggerui"
 	"github.com/gin-gonic/gin"
