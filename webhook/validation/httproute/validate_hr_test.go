@@ -2,6 +2,7 @@ package httproute_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -222,6 +223,33 @@ func Test_Webhook_HttpRoute_ValidationSucceeds_WhenBothRoutes_HaveWildcards_AtDi
 	wrns, err := validator.Validate(context.Background(), validHttpRoute2)
 	assert.NoError(t, err)
 	assert.Empty(t, wrns)
+}
+
+func Test_Webhook_HttpRoute_ValidationSucceeds_WhenHostnameLabelLength_Is63(t *testing.T) {
+	validHttpRoute := test.Load[*gatewayapiv1.HTTPRoute]("./testdata/httproute.yaml")
+	validHttpRoute.Spec.Hostnames = []gatewayapiv1.Hostname{
+		gatewayapiv1.Hostname(strings.Repeat("a", 63) + ".hostname.com"),
+	}
+
+	client := test.CreateClient(radixNamespace(validHttpRoute.Namespace), validHttpRoute)
+
+	validator := httproute.CreateOnlineValidator(client)
+	wrns, err := validator.Validate(context.Background(), validHttpRoute)
+	assert.NoError(t, err)
+	assert.Empty(t, wrns)
+}
+
+func Test_Webhook_HttpRoute_ValidationFails_WhenHostnameLabelLength_Is64(t *testing.T) {
+	validHttpRoute := test.Load[*gatewayapiv1.HTTPRoute]("./testdata/httproute.yaml")
+	validHttpRoute.Spec.Hostnames = []gatewayapiv1.Hostname{
+		gatewayapiv1.Hostname(strings.Repeat("a", 64) + ".hostname.com"),
+	}
+
+	client := test.CreateClient(radixNamespace(validHttpRoute.Namespace), validHttpRoute)
+
+	validator := httproute.CreateOnlineValidator(client)
+	_, err := validator.Validate(context.Background(), validHttpRoute)
+	assert.ErrorIs(t, err, httproute.ErrHostnameLabelTooLong)
 }
 
 // radixNamespace creates a Namespace with the kube.RadixAppLabel set, which is

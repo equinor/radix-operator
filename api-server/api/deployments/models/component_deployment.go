@@ -221,12 +221,6 @@ type AuxiliaryResource struct {
 }
 
 type OAuth2AuxiliaryResource struct {
-	// Deprecated. Use Deployments instead
-	// Deployment describes the underlying Kubernetes deployment for the resource
-	//
-	// required: true
-	Deployment AuxiliaryResourceDeployment `json:"deployment"`
-
 	// Deployments describes the underlying Kubernetes deployments for the resource
 	//
 	// required: false
