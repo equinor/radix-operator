@@ -232,7 +232,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -244,7 +244,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "Compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "Compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -258,7 +258,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -270,7 +270,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -284,7 +284,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -296,7 +296,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 1023}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(1023))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -312,7 +312,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, TimeLimitSeconds: int64Ptr(3600)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), TimeLimitSeconds: int64Ptr(3600)}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -324,7 +324,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, TimeLimitSeconds: int64Ptr(0)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), TimeLimitSeconds: int64Ptr(0)}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -340,7 +340,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, BackoffLimit: int32Ptr(3)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), BackoffLimit: int32Ptr(3)}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -352,7 +352,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, BackoffLimit: int32Ptr(-1)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), BackoffLimit: new(int32(-1))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -360,15 +360,13 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job RunAsUser validation applied", func(t *testing.T) {
-		int64Ptr := func(i int64) *int64 { return &i }
-
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, RunAsUser: int64Ptr(1000)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), RunAsUser: new(int64(1000))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -380,7 +378,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, RunAsUser: int64Ptr(0)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), RunAsUser: new(int64(0))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -388,10 +386,6 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Complete valid RadixDeployment accepted", func(t *testing.T) {
-		int64Ptr := func(i int64) *int64 { return &i }
-		int32Ptr := func(i int32) *int32 { return &i }
-		intPtr := func(i int) *int { return &i }
-
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-complete", Namespace: "default"},
 			Spec: v1.RadixDeploymentSpec{
@@ -401,9 +395,9 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 					{
 						Name:             "frontend",
 						Image:            "myregistry/frontend:v1.2.3",
-						Replicas:         intPtr(3),
-						ReplicasOverride: intPtr(5),
-						RunAsUser:        int64Ptr(1000),
+						Replicas:         new(3),
+						ReplicasOverride: new(5),
+						RunAsUser:        new(int64(1000)),
 						PublicPort:       "8080",
 						ExternalDNS: []v1.RadixDeployExternalDNS{
 							{FQDN: "myapp.example.com", UseCertificateAutomation: true},
@@ -414,10 +408,10 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 					{
 						Name:             "processor",
 						Image:            "myregistry/processor:v1.0.0",
-						SchedulerPort:    8080,
-						TimeLimitSeconds: int64Ptr(3600),
-						BackoffLimit:     int32Ptr(3),
-						RunAsUser:        int64Ptr(1002),
+						SchedulerPort:    new(int32(8080)),
+						TimeLimitSeconds: new(int64(3600)),
+						BackoffLimit:     new(int32(3)),
+						RunAsUser:        new(int64(1002)),
 					},
 				},
 				ImagePullSecrets: []corev1.LocalObjectReference{{Name: "my-secret"}},

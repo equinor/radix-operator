@@ -303,7 +303,7 @@ func ARadixDeploymentWithComponentModifier(m func(builder DeployComponentBuilder
 		WithJobComponent(NewDeployJobComponentBuilder().
 			WithName("job").
 			WithImage("radixdev.azurecr.io/job:imagetag").
-			WithSchedulerPort(8080))
+			WithSchedulerPort(new(int32(8080))))
 	return builder
 }
 

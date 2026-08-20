@@ -542,7 +542,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 								"memory": "129Mi",
 								"cpu":    "501m",
 							}).
-							WithSchedulerPort(9000).
+							WithSchedulerPort(new(int32(9000))).
 							WithPayloadPath(&payloadPath).
 							WithSecrets([]string{remainingSecret, addingSecret}).
 							WithAlwaysPullImageOnDeploy(false).
@@ -581,13 +581,13 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 									Storage: "some-storage",
 									Path:    "some-path",
 								}).
-							WithSchedulerPort(8000).
+							WithSchedulerPort(new(int32(8000))).
 							WithPayloadPath(&payloadPath).
 							WithSecrets([]string{outdatedSecret, remainingSecret}).
 							WithAlwaysPullImageOnDeploy(false).
 							WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
 						utils.NewDeployJobComponentBuilder().
-							WithName(jobName2).WithSchedulerPort(8000).WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
+							WithName(jobName2).WithSchedulerPort(new(int32(8000))).WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
 					).
 					WithComponents()
 
@@ -2650,7 +2650,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 		WithJobComponents(
 			utils.NewDeployJobComponentBuilder().
 				WithName("job").
-				WithSchedulerPort(8080)))
+				WithSchedulerPort(new(int32(8080)))))
 	require.NoError(t, err)
 
 	deployments, _ := kubeclient.AppsV1().Deployments("app-env").List(context.Background(), metav1.ListOptions{})
@@ -2673,7 +2673,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 		WithJobComponents(
 			utils.NewDeployJobComponentBuilder().
 				WithName("job").
-				WithSchedulerPort(9090)))
+				WithSchedulerPort(new(int32(9090)))))
 	require.NoError(t, err)
 
 	deployments, _ = kubeclient.AppsV1().Deployments("app-env").List(context.Background(), metav1.ListOptions{})
@@ -3355,7 +3355,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("dev").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
+			utils.NewDeployJobComponentBuilder().WithName("job").WithSchedulerPort(new(int32(8000))),
 		).
 		WithComponents()
 
@@ -3372,7 +3372,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("dev").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("compute").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
+			utils.NewDeployJobComponentBuilder().WithName("compute").WithSchedulerPort(new(int32(8000))),
 		).
 		WithComponents()
 
@@ -3389,8 +3389,8 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("prod").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
-			utils.NewDeployJobComponentBuilder().WithName("compute").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
+			utils.NewDeployJobComponentBuilder().WithName("job").WithSchedulerPort(new(int32(8000))),
+			utils.NewDeployJobComponentBuilder().WithName("compute").WithSchedulerPort(new(int32(8000))),
 		).
 		WithComponents()
 

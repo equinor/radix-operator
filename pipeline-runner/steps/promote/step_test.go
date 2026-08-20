@@ -261,7 +261,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 					WithJobComponents(
 						utils.AnApplicationJobComponent().
 							WithName("job").
-							WithSchedulerPort(8888).
+							WithSchedulerPort(new(int32(8888))).
 							WithPayloadPath(utils.StringPtr("/path")).
 							WithSecrets("JOBSECRET1", "JOBSECRET2").
 							WithCommonEnvironmentVariable("COMMON1", "common1").
@@ -353,7 +353,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "prod1", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["COMMON1"])
 	assert.Equal(t, "common2", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["COMMON2"])
 	assert.Equal(t, "prod3", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["PROD3"])
-	assert.Equal(t, int32(8888), rds.Items[0].Spec.Jobs[0].SchedulerPort)
+	assert.Equal(t, new(int32(8888)), rds.Items[0].Spec.Jobs[0].SchedulerPort)
 	assert.Equal(t, "/path", rds.Items[0].Spec.Jobs[0].Payload.Path)
 	assert.Len(t, rds.Items[0].Spec.Jobs[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYJOBSECRET", rds.Items[0].Spec.Jobs[0].Secrets[0])
@@ -404,7 +404,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 					WithJobComponents(
 						utils.AnApplicationJobComponent().
 							WithName("job").
-							WithSchedulerPort(8888).
+							WithSchedulerPort(new(int32(8888))).
 							WithCommonResource(map[string]string{
 								"memory": "11Mi",
 								"cpu":    "22m",
@@ -595,7 +595,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 					WithJobComponents(
 						utils.AnApplicationJobComponent().
 							WithName("job").
-							WithSchedulerPort(8888).
+							WithSchedulerPort(new(int32(8888))).
 							WithCommonResource(
 								map[string]string{
 									"memory": "11Mi",
@@ -788,7 +788,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 								utils.AnApplicationJobComponent().
 									WithName("job1").
 									WithIdentity(scenario.commonConfig).
-									WithSchedulerPort(8888).
+									WithSchedulerPort(new(int32(8888))).
 									WithPayloadPath(utils.StringPtr("/path")).
 									WithEnvironmentConfigs(jobEnvironmentConfigs...),
 							)),
@@ -897,7 +897,7 @@ func TestPromote_Runtime_KeepFromSourceRD(t *testing.T) {
 		job1, job2      string = "job1", "job2"
 		envDev, envProd string = "dev", "prod"
 		rdSource        string = "rdsource"
-		schedulerPort   int32  = 9999
+		schedulerPort   *int32 = new(int32(9999))
 	)
 
 	// Setup

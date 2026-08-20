@@ -34,14 +34,14 @@ func (js *JobSchedulerComponent) GetImage() string {
 }
 
 func (js *JobSchedulerComponent) GetPorts() []radixv1.ComponentPort {
-	if js.radixJob.SchedulerPort == 0 {
+	if js.radixJob.SchedulerPort == nil || *js.radixJob.SchedulerPort == 0 {
 		return nil
 	}
 
 	return []radixv1.ComponentPort{
 		{
 			Name: defaults.RadixJobSchedulerPortName,
-			Port: js.radixJob.SchedulerPort,
+			Port: *js.radixJob.SchedulerPort,
 		},
 	}
 }
