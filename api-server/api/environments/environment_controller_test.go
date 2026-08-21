@@ -9,8 +9,6 @@ import (
 	"time"
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixhttp "github.com/equinor/radix-common/net/http"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
@@ -19,13 +17,14 @@ import (
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
-	"github.com/equinor/radix-operator/api-server/api/utils"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	operatordefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -59,7 +58,7 @@ const (
 	nodeType1        = "some-node-type1"
 )
 
-func setupTest(t *testing.T, envHandlerOpts []EnvironmentHandlerOptions) (*commontest.Utils, *controllertest.Utils, *controllertest.Utils, *kubefake.Clientset, radixclient.Interface, kedav2.Interface, client.Client, secretsstorevclient.Interface, *certclientfake.Clientset) {
+func setupTest(t *testing.T, envHandlerOpts []EnvironmentHandlerOptions) (*commontest.Utils, *controllertest.TestUtils, *controllertest.TestUtils, *kubefake.Clientset, radixclient.Interface, kedav2.Interface, client.Client, secretsstorevclient.Interface, *certclientfake.Clientset) {
 	// Setup
 	kubeclient := kubefake.NewClientset()
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
@@ -612,7 +611,7 @@ func Test_GetEnvironmentEvents_Controller(t *testing.T) {
 func TestUpdateSecret_AccountSecretForComponentVolumeMount_UpdatedOk(t *testing.T) {
 	// Setup
 	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithRadixApplication(operatorutils.ARadixApplication().
@@ -672,7 +671,7 @@ func TestUpdateSecret_AccountSecretForComponentVolumeMount_UpdatedOk(t *testing.
 func TestUpdateSecret_AccountSecretForJobVolumeMount_UpdatedOk(t *testing.T) {
 	// Setup
 	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithRadixApplication(operatorutils.ARadixApplication().
@@ -734,7 +733,7 @@ func TestUpdateSecret_OAuth2_UpdatedOk(t *testing.T) {
 	// Setup
 	envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.NewDeploymentBuilder().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.NewDeploymentBuilder().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithRadixApplication(operatorutils.ARadixApplication().
@@ -1122,8 +1121,8 @@ func createRadixDeploymentWithReplicas(tu *commontest.Utils, appName, envName st
 			operatorutils.
 				NewDeployComponentBuilder().
 				WithName(component.name).
-				WithReplicas(pointers.Ptr(component.number)).
-				WithReplicasOverride(pointers.Ptr(component.number)),
+				WithReplicas(new(component.number)).
+				WithReplicasOverride(new(component.number)),
 		)
 	}
 

@@ -4,15 +4,15 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/api-server/api/utils/access"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/api-server/internal/config"
-	"github.com/equinor/radix-operator/api-server/models"
 	authorizationapi "k8s.io/api/authorization/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // ApplicationHandlerFactory defines a factory function for creating an ApplicationHandler
 type ApplicationHandlerFactory interface {
-	Create(accounts models.Accounts) ApplicationHandler
+	Create(accounts accounts.Accounts) ApplicationHandler
 }
 
 type applicationHandlerFactory struct {
@@ -27,7 +27,7 @@ func NewApplicationHandlerFactory(config config.Config) ApplicationHandlerFactor
 }
 
 // Create creates a new ApplicationHandler
-func (f *applicationHandlerFactory) Create(accounts models.Accounts) ApplicationHandler {
+func (f *applicationHandlerFactory) Create(accounts accounts.Accounts) ApplicationHandler {
 	return NewApplicationHandler(accounts, f.config, hasAccessToGetConfigMap)
 }
 

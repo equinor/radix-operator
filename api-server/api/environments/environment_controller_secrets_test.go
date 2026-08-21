@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
@@ -263,7 +262,7 @@ func (s *secretHandlerTestSuite) TestSecretHandler_GetSecrets() {
 							Name: "volume1",
 							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
 								Container:        "container1",
-								UseAzureIdentity: pointers.Ptr(true),
+								UseAzureIdentity: new(true),
 								StorageAccount:   "storageaccount1",
 								ResourceGroup:    "resource-group1",
 								SubscriptionId:   "subscription-id1",
@@ -280,7 +279,7 @@ func (s *secretHandlerTestSuite) TestSecretHandler_GetSecrets() {
 							Name: "volume2",
 							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
 								Container:        "container2",
-								UseAzureIdentity: pointers.Ptr(true),
+								UseAzureIdentity: new(true),
 								StorageAccount:   "storageaccount1",
 								ResourceGroup:    "resource-group1",
 								SubscriptionId:   "subscription-id1",
@@ -650,7 +649,7 @@ func (s *secretHandlerTestSuite) assertSecrets(scenario *getSecretScenario, secr
 	}
 }
 
-func (s *secretHandlerTestSuite) prepareTestRun(scenario *getSecretScenario, appName, envName, deploymentName string) *controllertest.Utils {
+func (s *secretHandlerTestSuite) prepareTestRun(scenario *getSecretScenario, appName, envName, deploymentName string) *controllertest.TestUtils {
 	_, environmentControllerTestUtils, _, kubeClient, radixClient, _, _, secretClient, _ := setupTest(s.T(), nil)
 	_, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}, metav1.CreateOptions{})
 	require.NoError(s.T(), err)
@@ -801,7 +800,6 @@ func testGetRadixJobComponents(jobComponents []v1.RadixDeployJobComponent, envNa
 func testGetSecretMap(secrets []secretModels.Secret) map[string]secretModels.Secret {
 	secretMap := make(map[string]secretModels.Secret, len(secrets))
 	for _, secret := range secrets {
-		secret := secret
 		secretMap[secret.Name] = secret
 	}
 	return secretMap

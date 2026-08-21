@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,7 +60,7 @@ func (kubeutil *Kube) CreateSecretProviderClass(ctx context.Context, namespace s
 func GetComponentSecretProviderClassName(radixDeploymentName, radixDeployComponentName string, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) string {
 	// include a hash so that users cannot get access to a secret-ref they should not get
 	// by naming component the same as secret-ref object
-	hash := strings.ToLower(commonUtils.RandStringStrSeed(5, strings.ToLower(fmt.Sprintf("%s-%s-%s-%s",
+	hash := strings.ToLower(random.RandStringStrSeed(5, strings.ToLower(fmt.Sprintf("%s-%s-%s-%s",
 		radixDeployComponentName, radixDeploymentName, radixSecretRefType, secretRefName))))
 	return strings.ToLower(fmt.Sprintf("%s-%s-%s-%s", radixDeployComponentName, radixSecretRefType, secretRefName, hash))
 }
@@ -97,10 +98,10 @@ func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.Ra
 	for _, item := range radixAzureKeyVault.Items {
 		obj := SecretProviderClassParameterObject{
 			Name:     item.Name,
-			Alias:    commonUtils.StringUnPtr(item.Alias),
-			Version:  commonUtils.StringUnPtr(item.Version),
-			Format:   commonUtils.StringUnPtr(item.Format),
-			Encoding: commonUtils.StringUnPtr(item.Encoding),
+			Alias:    pointers.Val(item.Alias),
+			Version:  pointers.Val(item.Version),
+			Format:   pointers.Val(item.Format),
+			Encoding: pointers.Val(item.Encoding),
 		}
 		obj.Type = getObjectType(&item)
 		parameterObject = append(parameterObject, obj)

@@ -3,6 +3,7 @@ package radixapplication
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -126,9 +127,7 @@ func validateSecretRefsPath(radixComponent radixv1.RadixCommonComponent) error {
 	}
 	for _, environmentConfig := range radixComponent.GetEnvironmentConfig() {
 		envAzureKeyVaultPathMap := make(map[string]string)
-		for commonAzureKeyVaultName, path := range commonAzureKeyVaultPathMap {
-			envAzureKeyVaultPathMap[commonAzureKeyVaultName] = path
-		}
+		maps.Copy(envAzureKeyVaultPathMap, commonAzureKeyVaultPathMap)
 		for _, envAzureKeyVault := range environmentConfig.GetSecretRefs().AzureKeyVaults {
 			if envAzureKeyVault.Path != nil && len(*envAzureKeyVault.Path) > 0 { // override common path by non-empty env-path, or set non-empty env path
 				envAzureKeyVaultPathMap[envAzureKeyVault.Name] = *envAzureKeyVault.Path

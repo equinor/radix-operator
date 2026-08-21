@@ -51,7 +51,7 @@ func NewController(ctx context.Context,
 
 	logger.Info().Msg("Setting up event handlers")
 	if _, err := radixJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
+		AddFunc: func(cur any) {
 			radixJob, _ := cur.(*v1.RadixJob)
 			if radixJob.Status.Condition.IsDone() {
 				logger.Debug().Msgf("Skip job object %s as it is complete", radixJob.GetName())
@@ -68,7 +68,7 @@ func NewController(ctx context.Context,
 				handler.CleanupJobHistory(ctx, radixJob.Spec.AppName)
 			}
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			newRJ := cur.(*v1.RadixJob)
 			oldRJ := old.(*v1.RadixJob)
 
@@ -89,7 +89,7 @@ func NewController(ctx context.Context,
 			}
 			metrics.CustomResourceUpdated(crType)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			radixJob, converted := obj.(*v1.RadixJob)
 			if !converted {
 				logger.Error().Msg("RadixJob object cast failed during deleted event received.")
@@ -106,10 +106,10 @@ func NewController(ctx context.Context,
 	}
 
 	if _, err := kubernetesJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			controller.HandleObject(ctx, cur, v1.KindRadixJob, getRadixJob)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			radixJob, converted := obj.(*batchv1.Job)
 			if !converted {
 				logger.Error().Msg("RadixJob object cast failed during deleted event received.")
@@ -124,7 +124,7 @@ func NewController(ctx context.Context,
 	}
 
 	if _, err := podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			newPod := cur.(*corev1.Pod)
 			if ownerRef := metav1.GetControllerOf(newPod); ownerRef != nil {
 				if ownerRef.Kind != "Job" || newPod.Labels[kube.RadixJobNameLabel] == "" {
@@ -148,7 +148,7 @@ func NewController(ctx context.Context,
 	return controller
 }
 
-func getRadixJob(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+func getRadixJob(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (any, error) {
 	return radixClient.RadixV1().RadixJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 

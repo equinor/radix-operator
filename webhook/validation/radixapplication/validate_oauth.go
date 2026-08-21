@@ -3,10 +3,10 @@ package radixapplication
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
@@ -43,7 +43,7 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 	}
 
 	// Validate SessionStoreType
-	if !commonUtils.ContainsString(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
+	if !slices.Contains(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
 		errors = append(errors, fmt.Errorf("component %s in environment %s: sessionStoreType '%s': %w", componentName, environmentName, oauthWithDefaults.SessionStoreType, ErrOAuthSessionStoreTypeInvalid))
 	}
 
@@ -83,7 +83,7 @@ func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, env
 		if len(strings.TrimSpace(cookie.Name)) == 0 {
 			errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, ErrOAuthCookieNameEmpty))
 		}
-		if !commonUtils.ContainsString(validOAuthCookieSameSites, string(cookie.SameSite)) {
+		if !slices.Contains(validOAuthCookieSameSites, string(cookie.SameSite)) {
 			errors = append(errors, fmt.Errorf("component %s in environment %s: sameSite '%s': %w", componentName, environmentName, cookie.SameSite, ErrOAuthCookieSameSiteInvalid))
 		}
 

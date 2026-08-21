@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	commonslice "github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
@@ -248,12 +247,12 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 							WithEnvironmentConfigs(
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyDevEnvironment).
-									WithReplicas(commonTest.IntPtr(2)).
+									WithReplicas(new(2)).
 									WithEnvironmentVariable("DB_HOST", "db-dev").
 									WithEnvironmentVariable("DB_PORT", "1234"),
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyProdEnvironment).
-									WithReplicas(commonTest.IntPtr(4)).
+									WithReplicas(new(4)).
 									WithEnvironmentVariable("DB_HOST", "db-prod").
 									WithEnvironmentVariable("DB_PORT", "5678").
 									WithEnvironmentVariable("DB_NAME", "my-db-prod").
@@ -262,7 +261,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 						utils.AnApplicationJobComponent().
 							WithName("job").
 							WithSchedulerPort(new(int32(8888))).
-							WithPayloadPath(utils.StringPtr("/path")).
+							WithPayloadPath(new("/path")).
 							WithSecrets("JOBSECRET1", "JOBSECRET2").
 							WithCommonEnvironmentVariable("COMMON1", "common1").
 							WithCommonEnvironmentVariable("COMMON2", "common2").
@@ -501,7 +500,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 									&v1.Authentication{
 										OAuth2: &v1.OAuth2{
 											ClientID:               "client-id",
-											SetXAuthRequestHeaders: pointers.Ptr(true),
+											SetXAuthRequestHeaders: new(true),
 										},
 									},
 								),
@@ -540,7 +539,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	x0 := &v1.Authentication{
 		OAuth2: &v1.OAuth2{
 			ClientID:               "client-id",
-			SetXAuthRequestHeaders: pointers.Ptr(true),
+			SetXAuthRequestHeaders: new(true),
 		},
 	}
 	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication)
@@ -789,7 +788,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 									WithName("job1").
 									WithIdentity(scenario.commonConfig).
 									WithSchedulerPort(new(int32(8888))).
-									WithPayloadPath(utils.StringPtr("/path")).
+									WithPayloadPath(new("/path")).
 									WithEnvironmentConfigs(jobEnvironmentConfigs...),
 							)),
 			)

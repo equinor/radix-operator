@@ -27,7 +27,7 @@ func getAdAdminGroupsWithDefault(registration *radixv1.RadixRegistration) []stri
 	}
 
 	var groups []string
-	for _, group := range strings.Split(os.Getenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable), ",") {
+	for group := range strings.SplitSeq(os.Getenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable), ",") {
 		if group := strings.TrimSpace(group); len(group) > 0 {
 			groups = append(groups, group)
 		}

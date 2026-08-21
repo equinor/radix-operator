@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -80,7 +79,7 @@ func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  git.GitSSHKeyVolumeName,
-					DefaultMode: pointers.Ptr(volumeDefaultMode),
+					DefaultMode: new(volumeDefaultMode),
 				},
 			},
 		},

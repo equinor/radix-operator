@@ -6,7 +6,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/job-scheduler/internal"
 	"github.com/equinor/radix-operator/job-scheduler/models"
@@ -150,7 +149,7 @@ func (h *history) cleanupRadixBatchHistory(ctx context.Context, radixBatchNamesS
 	}
 	logger.Debug().Msgf("history batches to delete: %v", numToDelete)
 
-	for i := 0; i < numToDelete; i++ {
+	for i := range numToDelete {
 		if ctx.Err() != nil {
 			return nil
 		}
@@ -182,7 +181,7 @@ func isRJS1CompletedBeforeRJS2(batch1 *radixv1.RadixBatch, batch2 *radixv1.Radix
 
 func getCompletionTimeFrom(radixBatch *radixv1.RadixBatch) *metav1.Time {
 	if radixBatch.Status.Condition.CompletionTime.IsZero() {
-		return pointers.Ptr(radixBatch.GetCreationTimestamp())
+		return new(radixBatch.GetCreationTimestamp())
 	}
 	return radixBatch.Status.Condition.CompletionTime
 }

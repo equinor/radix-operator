@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/rs/zerolog"
@@ -104,7 +104,7 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (
 	var rr *radixv1.RadixRegistration
 	var err error
 
-	if !commonUtils.IsNil(regBuilder) {
+	if !pointers.IsNil(regBuilder) {
 		if rr, err = tu.ApplyRegistration(regBuilder); err != nil {
 			return nil, err
 		}
@@ -176,7 +176,7 @@ func (tu *Utils) ApplyDeployment(ctx context.Context, deploymentBuilder utils.De
 	envs := make(map[string]struct{})
 
 	applicationBuilder := deploymentBuilder.GetApplicationBuilder()
-	if !commonUtils.IsNil(applicationBuilder) {
+	if !pointers.IsNil(applicationBuilder) {
 		ra, _ := tu.ApplyApplication(applicationBuilder)
 		for _, env := range ra.Spec.Environments {
 			envs[env.Name] = struct{}{}
@@ -399,16 +399,6 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 
 	// TODO: should the error be returned to caller
 	_, _ = kubeclient.CoreV1().Namespaces().Create(context.Background(), &namespace, metav1.CreateOptions{})
-}
-
-// IntPtr Helper function to get the pointer of an int
-func IntPtr(i int) *int {
-	return &i
-}
-
-// GetRadixAzureKeyVaultObjectTypePtr Gets pointer to RadixAzureKeyVaultObjectType
-func GetRadixAzureKeyVaultObjectTypePtr(objectType radixv1.RadixAzureKeyVaultObjectType) *radixv1.RadixAzureKeyVaultObjectType {
-	return &objectType
 }
 
 // GetAzureKeyVaultTypeSecrets Gets secrets with kube.RadixSecretRefTypeLabel and value v1.RadixSecretRefTypeAzureKeyVault

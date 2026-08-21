@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils"
 	deployMock "github.com/equinor/radix-operator/api-server/api/deployments/mock"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
 	"github.com/equinor/radix-operator/api-server/api/utils/secret"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -749,7 +749,7 @@ func (s *secretHandlerTestSuite) prepareTestRun(ctrl *gomock.Controller, scenari
 	return secretHandler, deployHandler
 }
 
-func (s *secretHandlerTestSuite) createExpectedReplicas(scenario *testGetSecretScenario, component v1.RadixCommonDeployComponent, userAccount *models.Account, appName, envNamespace string, isJobComponent bool) {
+func (s *secretHandlerTestSuite) createExpectedReplicas(scenario *testGetSecretScenario, component v1.RadixCommonDeployComponent, userAccount *accounts.Account, appName, envNamespace string, isJobComponent bool) {
 	// map[componentName]map[azureKeyVaultName]map[secretId]map[version]map[replicaName]bool
 	if azureKeyVaultNameMap, ok := scenario.expectedSecretVersions[component.GetName()]; ok {
 		replicaNameMap := make(map[string]bool)
@@ -771,7 +771,7 @@ func (s *secretHandlerTestSuite) createExpectedReplicas(scenario *testGetSecretS
 	}
 }
 
-func (s *secretHandlerTestSuite) createPodForRadixComponent(userAccount *models.Account, appName, envNamespace, componentName, replicaName string, isJobComponent bool) {
+func (s *secretHandlerTestSuite) createPodForRadixComponent(userAccount *accounts.Account, appName, envNamespace, componentName, replicaName string, isJobComponent bool) {
 	labels := map[string]string{
 		kube.RadixAppLabel:       appName,
 		kube.RadixComponentLabel: componentName,
@@ -790,7 +790,7 @@ func (s *secretHandlerTestSuite) createPodForRadixComponent(userAccount *models.
 	}, metav1.CreateOptions{})
 }
 
-func (s *secretHandlerTestSuite) createJobForRadixJobComponent(userAccount *models.Account, appName, envNamespace, componentName string) {
+func (s *secretHandlerTestSuite) createJobForRadixJobComponent(userAccount *accounts.Account, appName, envNamespace, componentName string) {
 	labels := map[string]string{
 		kube.RadixAppLabel:       appName,
 		kube.RadixComponentLabel: componentName,
@@ -840,16 +840,16 @@ func testGetRadixJobComponents(jobComponents []v1.RadixDeployJobComponent, envNa
 	return radixComponents
 }
 
-func (s *secretHandlerTestSuite) getUtils() (*models.Account, *models.Account, *kubefake.Clientset, *radixfake.Clientset) {
+func (s *secretHandlerTestSuite) getUtils() (*accounts.Account, *accounts.Account, *kubefake.Clientset, *radixfake.Clientset) {
 	kubeClient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 	secretProviderClient := secretproviderfake.NewSimpleClientset()
-	userAccount := models.Account{
+	userAccount := accounts.Account{
 		Client:               kubeClient,
 		RadixClient:          radixClient,
 		SecretProviderClient: secretProviderClient,
 	}
-	serviceAccount := models.Account{
+	serviceAccount := accounts.Account{
 		Client:               kubeClient,
 		RadixClient:          radixClient,
 		SecretProviderClient: secretProviderClient,
@@ -964,7 +964,7 @@ func testCreateSecretProviderClassPodStatusesForAzureKeyVault(secretProviderClie
 	for replicaName, secretProviderClassObjects := range secretProviderClassObjectsMap {
 		_, err := secretProviderClient.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Create(context.Background(),
 			&secretsstorev1.SecretProviderClassPodStatus{
-				ObjectMeta: metav1.ObjectMeta{Name: utils.RandString(10)}, // Name is not important
+				ObjectMeta: metav1.ObjectMeta{Name: random.RandString(10)}, // Name is not important
 				Status: secretsstorev1.SecretProviderClassPodStatusStatus{
 					PodName:                 replicaName,
 					SecretProviderClassName: secretProviderClassName,

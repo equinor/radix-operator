@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/operator/common"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	_ "github.com/equinor/radix-operator/pkg/apis/test"
@@ -63,7 +62,7 @@ func (s *controllerTestSuite) Test_RadixBatchEvents() {
 		Namespace:       namespace,
 		ResourceVersion: "1",
 		OwnerReferences: []metav1.OwnerReference{
-			{APIVersion: v1.SchemeGroupVersion.Identifier(), Kind: v1.KindRadixBatch, Name: batchName, Controller: utils.BoolPtr(true)},
+			{APIVersion: v1.SchemeGroupVersion.Identifier(), Kind: v1.KindRadixBatch, Name: batchName, Controller: new(true)},
 		},
 	}}
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, batchName).DoAndReturn(s.SyncedChannelCallback()).Times(0)

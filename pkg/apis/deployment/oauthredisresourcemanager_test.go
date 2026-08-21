@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -112,7 +111,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 		{
 			name: "component replicas set to 1",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(1))).
+				WithComponent(baseComp().WithReplicas(new(1))).
 				BuildRD(),
 			expectRestartEnvVar: false,
 		},
@@ -175,28 +174,28 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 		{
 			name: "component replicas set to 1",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(1))).
+				WithComponent(baseComp().WithReplicas(new(1))).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
 		{
 			name: "component replicas set to 2",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(2))).
+				WithComponent(baseComp().WithReplicas(new(2))).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
 		{
 			name: "component replicas set to 0",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(0))).
+				WithComponent(baseComp().WithReplicas(new(0))).
 				BuildRD(),
 			expectedReplicas: 0,
 		},
 		{
 			name: "component replicas set override to 0",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(0))).
+				WithComponent(baseComp().WithReplicas(new(1)).WithReplicasOverride(new(0))).
 				BuildRD(),
 			expectedReplicas: 0,
 		},
@@ -210,14 +209,14 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 		{
 			name: "component with hpa and replicas set to 1",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
+				WithComponent(baseComp().WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
 		{
 			name: "component with hpa and replicas set to 2",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(2)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
+				WithComponent(baseComp().WithReplicas(new(2)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 1,
 		},
@@ -225,7 +224,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 
 			name: "component with hpa and replicas set to 0",
 			rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
-				WithComponent(baseComp().WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
+				WithComponent(baseComp().WithReplicas(new(1)).WithReplicasOverride(new(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(3).WithMaxReplicas(4).WithCPUTrigger(1).WithMemoryTrigger(1).Build())).
 				BuildRD(),
 			expectedReplicas: 0,
 		},
@@ -430,7 +429,7 @@ func (*OAuthRedisResourceManagerTestSuite) getEnvVarValueFromByName(name string,
 	return corev1.EnvVarSource{}
 }
 
-func (s *OAuthRedisResourceManagerTestSuite) getObjectNames(items interface{}) []string {
+func (s *OAuthRedisResourceManagerTestSuite) getObjectNames(items any) []string {
 	tItems := reflect.TypeOf(items)
 	if tItems.Kind() != reflect.Slice {
 		return nil

@@ -12,7 +12,7 @@ type namespaceFuncMatcher struct {
 	f event.NamespaceFunc
 }
 
-func (m namespaceFuncMatcher) Matches(arg interface{}) bool {
+func (m namespaceFuncMatcher) Matches(arg any) bool {
 	argv := reflect.ValueOf(arg)
 	fv := reflect.ValueOf(m.f)
 

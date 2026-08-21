@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -285,10 +283,10 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[1].EnvironmentConfig = nil
 		}},
 		{"invalid number of replicas in an environment", radixapplication.ErrInvalidNumberOfReplicas, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Replicas = pointers.Ptr(radixapplication.MaxReplica + 1)
+			ra.Spec.Components[0].EnvironmentConfig[0].Replicas = new(radixapplication.MaxReplica + 1)
 		}},
 		{"invalid number of replicas in a component", radixapplication.ErrInvalidNumberOfReplicas, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Replicas = pointers.Ptr(radixapplication.MaxReplica + 1)
+			ra.Spec.Components[0].Replicas = new(radixapplication.MaxReplica + 1)
 		}},
 		{"invalid branch name", radixapplication.ErrInvalidBranchName, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Environments[0].Build.From = invalidBranchName
@@ -519,7 +517,7 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"no error when skipDiscovery=true and login, redeem and jwks urls set", nil, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &radixv1.OAuth2OIDC{
-				SkipDiscovery: commonUtils.BoolPtr(true),
+				SkipDiscovery: new(true),
 				JWKSURL:       "jwksurl",
 			}
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
@@ -527,30 +525,30 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"error when skipDiscovery=true and missing loginUrl", radixapplication.ErrOAuthLoginUrlEmpty, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &radixv1.OAuth2OIDC{
-				SkipDiscovery: commonUtils.BoolPtr(true),
+				SkipDiscovery: new(true),
 				JWKSURL:       "jwksurl",
 			}
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedeemURL = "redeemurl"
 		}},
 		{"error when skipDiscovery=true and missing redeemUrl", radixapplication.ErrOAuthRedeemUrlEmpty, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &radixv1.OAuth2OIDC{
-				SkipDiscovery: commonUtils.BoolPtr(true),
+				SkipDiscovery: new(true),
 				JWKSURL:       "jwksurl",
 			}
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
 		}},
 		{"error when skipDiscovery=true and missing redeemUrl", radixapplication.ErrOAuthOidcJwksUrlEmpty, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &radixv1.OAuth2OIDC{
-				SkipDiscovery: commonUtils.BoolPtr(true),
+				SkipDiscovery: new(true),
 			}
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedeemURL = "redeemurl"
 		}},
 		{"valid OAuth configuration for session store cookie and cookieStore.minimal=true", nil, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = radixv1.SessionStoreCookie
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: new(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = new(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = new(false)
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &radixv1.OAuth2Cookie{
 				Expire:  "1h",
 				Refresh: "0s",
@@ -558,9 +556,9 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"error when cookieStore.minimal=true and SetAuthorizationHeader=true", radixapplication.ErrOAuthCookieStoreMinimalIncorrectSetAuthorizationHeader, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = radixv1.SessionStoreCookie
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(true)
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: new(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = new(true)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = new(false)
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &radixv1.OAuth2Cookie{
 				Expire:  "1h",
 				Refresh: "0s",
@@ -568,9 +566,9 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"error when cookieStore.minimal=true and SetXAuthRequestHeaders=true", radixapplication.ErrOAuthCookieStoreMinimalIncorrectSetXAuthRequestHeaders, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = radixv1.SessionStoreCookie
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(true)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: new(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = new(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = new(true)
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &radixv1.OAuth2Cookie{
 				Expire:  "1h",
 				Refresh: "0s",
@@ -578,9 +576,9 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"error when cookieStore.minimal=true and Cookie.Refresh>0", radixapplication.ErrOAuthCookieStoreMinimalIncorrectCookieRefreshInterval, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = radixv1.SessionStoreCookie
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: new(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = new(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = new(false)
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &radixv1.OAuth2Cookie{
 				Expire:  "1h",
 				Refresh: "1s",
@@ -1606,7 +1604,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
-							UseAzureIdentity: pointers.Ptr(true),
+							UseAzureIdentity: new(true),
 							StorageAccount:   storageAccountName1,
 							ResourceGroup:    resourceGroup1,
 							TenantId:         tenantId1,
@@ -1627,7 +1625,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
-							UseAzureIdentity: pointers.Ptr(true),
+							UseAzureIdentity: new(true),
 							SubscriptionId:   subscriptionId1,
 							ResourceGroup:    resourceGroup1,
 							TenantId:         tenantId1,
@@ -1648,7 +1646,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
-							UseAzureIdentity: pointers.Ptr(true),
+							UseAzureIdentity: new(true),
 							StorageAccount:   storageAccountName1,
 							SubscriptionId:   subscriptionId1,
 							TenantId:         tenantId1,
@@ -1669,7 +1667,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
-							UseAzureIdentity: pointers.Ptr(true),
+							UseAzureIdentity: new(true),
 							StorageAccount:   storageAccountName1,
 							SubscriptionId:   subscriptionId1,
 							ResourceGroup:    resourceGroup1,
@@ -1690,7 +1688,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
-							UseAzureIdentity: pointers.Ptr(true),
+							UseAzureIdentity: new(true),
 							StorageAccount:   storageAccountName1,
 							SubscriptionId:   subscriptionId1,
 							ResourceGroup:    resourceGroup1,
@@ -1722,7 +1720,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 						Container: "anycontainer",
 						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-							PrefetchCount: pointers.Ptr[uint32](0),
+							PrefetchCount: new(uint32(0)),
 						},
 					},
 				}}
@@ -1738,7 +1736,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 						Container: "anycontainer",
 						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-							PrefetchCount: pointers.Ptr[uint32](11),
+							PrefetchCount: new(uint32(11)),
 						},
 					},
 				}}
@@ -1754,7 +1752,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 						Container: "anycontainer",
 						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-							PrefetchCount: pointers.Ptr[uint32](1),
+							PrefetchCount: new(uint32(1)),
 						},
 					},
 				}}
@@ -1770,7 +1768,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 						Container: "anycontainer",
 						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-							PrefetchCount: pointers.Ptr[uint32](10),
+							PrefetchCount: new(uint32(10)),
 						},
 					},
 				}}
@@ -2254,11 +2252,11 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			"Component with Trigger config and Resource config should fail",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
-					MinReplicas: pointers.Ptr(int32(2)),
+					MinReplicas: new(int32(2)),
 					MaxReplicas: 4,
 					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
-						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: new(int32(80))},
+						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: new(int32(80))},
 					},
 					Triggers: []radixv1.RadixHorizontalScalingTrigger{
 						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}},
@@ -2544,27 +2542,27 @@ func Test_validateNotificationsRA(t *testing.T) {
 		},
 		{name: "valid webhook with http", expectedError: nil,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8090/abc")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://api:8090/abc")}
 			},
 		},
 		{name: "valid webhook with https", expectedError: nil,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("https://api:8090/abc")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("https://api:8090/abc")}
 			},
 		},
 		{name: "valid webhook in environment", expectedError: nil,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8090/abc")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://api:8090/abc")}
 			},
 		},
 		{name: "valid webhook to job component", expectedError: nil,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://job3:8099/abc")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://job3:8099/abc")}
 			},
 		},
 		{name: "valid webhook to job component in environment", expectedError: nil,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://job3:8099/abc")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://job3:8099/abc")}
 			},
 		},
 		{name: "Invalid webhook URL", expectedError: radixapplication.ErrInvalidWebhookUrl,
@@ -2579,62 +2577,62 @@ func Test_validateNotificationsRA(t *testing.T) {
 		},
 		{name: "Not allowed scheme ftp", expectedError: radixapplication.ErrNotAllowedSchemeInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("ftp://api:8090")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("ftp://api:8090")}
 			},
 		},
 		{name: "Not allowed scheme ftp in environment", expectedError: radixapplication.ErrNotAllowedSchemeInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("ftp://api:8090")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("ftp://api:8090")}
 			},
 		},
 		{name: "missing port in the webhook", expectedError: radixapplication.ErrMissingPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api/abc")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://api/abc")}
 			},
 		},
 		{name: "missing port in the webhook in environment", expectedError: radixapplication.ErrMissingPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api/abc")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://api/abc")}
 			},
 		},
 		{name: "webhook can only reference to an application component or job", expectedError: radixapplication.ErrOnlyAppComponentAllowedInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://notexistingcomponent:8090/abc")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://notexistingcomponent:8090/abc")}
 			},
 		},
 		{name: "webhook can only reference to an application component or job in environment", expectedError: radixapplication.ErrOnlyAppComponentAllowedInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://notexistingcomponent:8090/abc")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://notexistingcomponent:8090/abc")}
 			},
 		},
 		{name: "webhook port does not exist in an application component", expectedError: radixapplication.ErrInvalidPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8077")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://api:8077")}
 			},
 		},
 		{name: "webhook port does not exist in an application component in environment", expectedError: radixapplication.ErrInvalidPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8077")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://api:8077")}
 			},
 		},
 		{name: "webhook port does not exist in an application job component", expectedError: radixapplication.ErrInvalidPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://job3:8077")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://job3:8077")}
 			},
 		},
 		{name: "webhook port does not exist in an application job component in environment", expectedError: radixapplication.ErrInvalidPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://job3:8077")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://job3:8077")}
 			},
 		},
 		{name: "not allowed to use in the webhook a public port of an application component", expectedError: radixapplication.ErrInvalidUseOfPublicPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://app:8080")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://app:8080")}
 			},
 		},
 		{name: "not allowed to use in the webhook a public port of an application component in environment", expectedError: radixapplication.ErrInvalidUseOfPublicPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://app:8080")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://app:8080")}
 			},
 		},
 	}

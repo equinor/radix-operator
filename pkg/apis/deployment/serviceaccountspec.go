@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -24,7 +23,7 @@ func (spec *jobSchedulerServiceAccountSpec) ServiceAccountName() string {
 }
 
 func (spec *jobSchedulerServiceAccountSpec) AutomountServiceAccountToken() *bool {
-	return pointers.Ptr(true)
+	return new(true)
 }
 
 // Service account spec for Radix component deployments
@@ -40,7 +39,7 @@ func (spec *radixComponentServiceAccountSpec) ServiceAccountName() string {
 }
 
 func (spec *radixComponentServiceAccountSpec) AutomountServiceAccountToken() *bool {
-	return pointers.Ptr(false)
+	return new(false)
 }
 
 // NewServiceAccountSpec Create ServiceAccountSpec based on RadixDeployment and RadixCommonDeployComponent

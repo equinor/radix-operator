@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"dario.cat/mergo"
-	commonutils "github.com/equinor/radix-common/utils"
-	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	mergoutils "github.com/equinor/radix-operator/pkg/apis/utils/mergo"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 )
 
 var (
@@ -127,29 +127,29 @@ func getRadixCommonComponentHealthChecks(r *radixv1.RadixComponent, config *radi
 }
 
 func getRadixCommonComponentReadOnlyFileSystem(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *bool {
-	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetReadOnlyFileSystem() != nil {
+	if !pointers.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetReadOnlyFileSystem() != nil {
 		return environmentSpecificConfig.GetReadOnlyFileSystem()
 	}
 	return radixComponent.GetReadOnlyFileSystem()
 }
 
 func getRadixCommonComponentRunAsUser(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *int64 {
-	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetRunAsUser() != nil {
+	if !pointers.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetRunAsUser() != nil {
 		return environmentSpecificConfig.GetRunAsUser()
 	}
 	return radixComponent.GetRunAsUser()
 }
 
 func getRadixCommonComponentMonitoring(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) bool {
-	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetMonitoring() != nil {
+	if !pointers.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetMonitoring() != nil {
 		return *environmentSpecificConfig.GetMonitoring()
 	}
 	monitoring := radixComponent.GetMonitoring()
-	return !commonutils.IsNil(monitoring) && *monitoring
+	return !pointers.IsNil(monitoring) && *monitoring
 }
 
 func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *radixv1.RadixHorizontalScaling {
-	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetHorizontalScaling() == nil {
+	if pointers.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetHorizontalScaling() == nil {
 		return radixComponent.GetHorizontalScaling().NormalizeConfig()
 	}
 
@@ -184,7 +184,7 @@ func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommon
 
 func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) ([]radixv1.RadixVolumeMount, error) {
 	componentVolumeMounts := radixComponent.GetVolumeMounts()
-	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetVolumeMounts() == nil {
+	if pointers.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetVolumeMounts() == nil {
 		return componentVolumeMounts, nil
 	}
 	environmentVolumeMounts := environmentSpecificConfig.GetVolumeMounts()
@@ -221,7 +221,7 @@ func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonCompo
 
 func getRadixJobComponentBatchStatusRules(radixJobComponent *radixv1.RadixJobComponent, environmentSpecificConfig *radixv1.RadixJobComponentEnvironmentConfig) []radixv1.BatchStatusRule {
 	batchStatusRules := radixJobComponent.GetBatchStatusRules()
-	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.BatchStatusRules == nil {
+	if pointers.IsNil(environmentSpecificConfig) || environmentSpecificConfig.BatchStatusRules == nil {
 		return batchStatusRules
 	}
 	return environmentSpecificConfig.BatchStatusRules

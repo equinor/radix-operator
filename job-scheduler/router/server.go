@@ -3,8 +3,8 @@ package router
 import (
 	"net/http"
 
-	commongin "github.com/equinor/radix-common/pkg/gin"
 	"github.com/equinor/radix-operator/job-scheduler/api/v1/controllers"
+	"github.com/equinor/radix-operator/job-scheduler/internal/middleware"
 	"github.com/equinor/radix-operator/job-scheduler/models"
 	"github.com/equinor/radix-operator/job-scheduler/swaggerui"
 	"github.com/gin-gonic/gin"
@@ -20,8 +20,8 @@ func NewServer(env *models.Env, controllers ...controllers.Controller) http.Hand
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.RemoveExtraSlash = true
-	engine.Use(commongin.SetZerologLogger(commongin.ZerologLoggerWithRequestId))
-	engine.Use(commongin.ZerologRequestLogger(), gin.Recovery())
+	engine.Use(middleware.SetZerologLogger(middleware.ZerologLoggerWithRequestId))
+	engine.Use(middleware.ZerologRequestLogger(), gin.Recovery())
 
 	if env.UseSwagger {
 		initializeSwaggerUI(engine)

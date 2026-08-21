@@ -1,13 +1,15 @@
-package utils
+package radix
 
 import (
 	"net/http"
 	"time"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-operator/api-server/api/metrics"
 	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/api/utils"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,17 +17,17 @@ import (
 
 // RadixMiddleware The middleware between router and radix handler functions
 type RadixMiddleware struct {
-	kubeUtil     KubeUtil
+	kubeUtil     utils.KubeUtil
 	path         string
 	method       string
 	allowNoAuth  bool
 	kubeApiQPS   float32
 	kubeApiBurst int
-	next         models.RadixHandlerFunc
+	next         controller.RadixHandlerFunc
 }
 
 // NewRadixMiddleware Constructor for radix middleware
-func NewRadixMiddleware(kubeUtil KubeUtil, path, method string, allowUnauthenticatedUsers bool, kubeApiQPS float32, kubeApiBurst int, next models.RadixHandlerFunc) *RadixMiddleware {
+func NewRadixMiddleware(kubeUtil utils.KubeUtil, path, method string, allowUnauthenticatedUsers bool, kubeApiQPS float32, kubeApiBurst int, next controller.RadixHandlerFunc) *RadixMiddleware {
 	handler := &RadixMiddleware{
 		kubeUtil,
 		path,
@@ -65,7 +67,7 @@ func (handler *RadixMiddleware) handleAuthorization(w http.ResponseWriter, r *ht
 	inClusterClient, inClusterRadixClient, inClusterKedaClient, inClusterSecretProviderClient, inClusterTektonClient, inClusterCertManagerClient := handler.kubeUtil.GetServerKubernetesClient(restOptions...)
 	outClusterClient, outClusterRadixClient, outClusterKedaClient, outClusterSecretProviderClient, outClusterTektonClient, outClusterCertManagerClient := handler.kubeUtil.GetUserKubernetesClient(token, impersonation, restOptions...)
 
-	accounts := models.NewAccounts(inClusterClient, inClusterRadixClient, inClusterKedaClient, inClusterSecretProviderClient, inClusterTektonClient, inClusterCertManagerClient, outClusterClient, outClusterRadixClient, outClusterKedaClient, outClusterSecretProviderClient, outClusterTektonClient, outClusterCertManagerClient)
+	accounts := accounts.NewAccounts(inClusterClient, inClusterRadixClient, inClusterKedaClient, inClusterSecretProviderClient, inClusterTektonClient, inClusterCertManagerClient, outClusterClient, outClusterRadixClient, outClusterKedaClient, outClusterSecretProviderClient, outClusterTektonClient, outClusterCertManagerClient)
 
 	// Check if registration of application exists for application-specific requests
 	if appName, exists := mux.Vars(r)["appName"]; exists {
@@ -85,21 +87,21 @@ func (handler *RadixMiddleware) handleAnonymous(w http.ResponseWriter, r *http.R
 	restOptions := handler.getRestClientOptions()
 	inClusterClient, inClusterRadixClient, inClusterKedaClient, inClusterSecretProviderClient, inClusterTektonClient, inClusterCertManagerClient := handler.kubeUtil.GetServerKubernetesClient(restOptions...)
 
-	sa := models.NewServiceAccount(inClusterClient, inClusterRadixClient, inClusterKedaClient, inClusterSecretProviderClient, inClusterTektonClient, inClusterCertManagerClient)
-	accounts := models.Accounts{ServiceAccount: sa}
+	sa := accounts.NewServiceAccount(inClusterClient, inClusterRadixClient, inClusterKedaClient, inClusterSecretProviderClient, inClusterTektonClient, inClusterCertManagerClient)
+	accounts := accounts.Accounts{ServiceAccount: sa}
 
 	handler.next(accounts, w, r)
 }
 
-func (handler *RadixMiddleware) getRestClientOptions() []RestClientConfigOption {
-	var options []RestClientConfigOption
+func (handler *RadixMiddleware) getRestClientOptions() []utils.RestClientConfigOption {
+	var options []utils.RestClientConfigOption
 
 	if handler.kubeApiQPS > 0.0 {
-		options = append(options, WithQPS(handler.kubeApiQPS))
+		options = append(options, utils.WithQPS(handler.kubeApiQPS))
 	}
 
 	if handler.kubeApiBurst > 0 {
-		options = append(options, WithBurst(handler.kubeApiBurst))
+		options = append(options, utils.WithBurst(handler.kubeApiBurst))
 	}
 
 	return options

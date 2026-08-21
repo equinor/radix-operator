@@ -5,7 +5,6 @@ import (
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +24,7 @@ func Test_getAddedOrDroppedEnvironmentNames(t *testing.T) {
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
-						WithReplicas(numbers.IntPtr(2)).
+						WithReplicas(new(2)).
 						WithResource(
 							map[string]string{
 								"memory": "100Mi",

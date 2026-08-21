@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
@@ -37,13 +38,7 @@ const (
 type alertConfigList []AlertConfig
 
 func (list alertConfigList) Any(anyFunc func(c AlertConfig) bool) bool {
-	for _, alertConfig := range list {
-		if anyFunc(alertConfig) {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(list, anyFunc)
 }
 
 func (syncer *alertSyncer) reconcileAlertManagerConfig(ctx context.Context) error {

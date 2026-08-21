@@ -8,7 +8,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	eventModels "github.com/equinor/radix-operator/api-server/api/events/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -70,9 +70,9 @@ func setupTest() (*kubefake.Clientset, *radixfake.Clientset) {
 
 func Test_EventHandler_Init(t *testing.T) {
 	kubeClient, radixClient := setupTest()
-	accounts := models.Accounts{
-		UserAccount:    models.Account{Client: kubeClient, RadixClient: radixClient},
-		ServiceAccount: models.Account{Client: kubeClient, RadixClient: radixClient}}
+	accounts := accounts.Accounts{
+		UserAccount:    accounts.Account{Client: kubeClient, RadixClient: radixClient},
+		ServiceAccount: accounts.Account{Client: kubeClient, RadixClient: radixClient}}
 	eh := Init(accounts).(*eventHandler)
 	assert.NotNil(t, eh)
 	assert.Equal(t, kubeClient, eh.accounts.UserAccount.Client)
@@ -82,9 +82,9 @@ func Test_EventHandler_NoEventsWhenThereIsNoRadixApplication(t *testing.T) {
 	appName, envName := "app1", "env1"
 	envNamespace := operatorutils.GetEnvironmentNamespace(appName, envName)
 	kubeClient, radixClient := setupTest()
-	accounts := models.Accounts{
-		UserAccount:    models.Account{Client: kubeClient, RadixClient: radixClient},
-		ServiceAccount: models.Account{Client: kubeClient, RadixClient: radixClient}}
+	accounts := accounts.Accounts{
+		UserAccount:    accounts.Account{Client: kubeClient, RadixClient: radixClient},
+		ServiceAccount: accounts.Account{Client: kubeClient, RadixClient: radixClient}}
 
 	createKubernetesEvent(t, kubeClient, envNamespace, ev1, k8sEventTypeNormal, podServer1, k8sKindPod, uid1)
 
@@ -98,9 +98,9 @@ func Test_EventHandler_NoEventsWhenThereIsNoRadixEnvironment(t *testing.T) {
 	appName, envName := "app1", "env1"
 	envNamespace := operatorutils.GetEnvironmentNamespace(appName, envName)
 	kubeClient, radixClient := setupTest()
-	accounts := models.Accounts{
-		UserAccount:    models.Account{Client: kubeClient, RadixClient: radixClient},
-		ServiceAccount: models.Account{Client: kubeClient, RadixClient: radixClient}}
+	accounts := accounts.Accounts{
+		UserAccount:    accounts.Account{Client: kubeClient, RadixClient: radixClient},
+		ServiceAccount: accounts.Account{Client: kubeClient, RadixClient: radixClient}}
 
 	createRadixApp(t, kubeClient, radixClient, appName, envName)
 	err := radixClient.RadixV1().RadixEnvironments().Delete(context.Background(), fmt.Sprintf("%s-%s", appName, envName), metav1.DeleteOptions{})
@@ -119,9 +119,9 @@ func Test_EventHandler_GetEvents_PodState(t *testing.T) {
 
 	t.Run("ObjectState is nil for normal event type", func(t *testing.T) {
 		kubeClient, radixClient := setupTest()
-		accounts := models.Accounts{
-			UserAccount:    models.Account{Client: kubeClient, RadixClient: radixClient},
-			ServiceAccount: models.Account{Client: kubeClient, RadixClient: radixClient}}
+		accounts := accounts.Accounts{
+			UserAccount:    accounts.Account{Client: kubeClient, RadixClient: radixClient},
+			ServiceAccount: accounts.Account{Client: kubeClient, RadixClient: radixClient}}
 
 		createRadixApp(t, kubeClient, radixClient, appName, envName)
 		_, err := createKubernetesPod(kubeClient, podServer1, appName, envName, true, true, 0, uid1)
@@ -135,9 +135,9 @@ func Test_EventHandler_GetEvents_PodState(t *testing.T) {
 
 	t.Run("ObjectState has Pod state for warning event type", func(t *testing.T) {
 		kubeClient, radixClient := setupTest()
-		accounts := models.Accounts{
-			UserAccount:    models.Account{Client: kubeClient, RadixClient: radixClient},
-			ServiceAccount: models.Account{Client: kubeClient, RadixClient: radixClient}}
+		accounts := accounts.Accounts{
+			UserAccount:    accounts.Account{Client: kubeClient, RadixClient: radixClient},
+			ServiceAccount: accounts.Account{Client: kubeClient, RadixClient: radixClient}}
 
 		createRadixApp(t, kubeClient, radixClient, appName, envName)
 		_, err := createKubernetesPod(kubeClient, podServer1, appName, envName, true, false, 0, uid1)
@@ -152,9 +152,9 @@ func Test_EventHandler_GetEvents_PodState(t *testing.T) {
 
 	t.Run("ObjectState is nil for warning event type when pod not exist", func(t *testing.T) {
 		kubeClient, radixClient := setupTest()
-		accounts := models.Accounts{
-			UserAccount:    models.Account{Client: kubeClient, RadixClient: radixClient},
-			ServiceAccount: models.Account{Client: kubeClient, RadixClient: radixClient}}
+		accounts := accounts.Accounts{
+			UserAccount:    accounts.Account{Client: kubeClient, RadixClient: radixClient},
+			ServiceAccount: accounts.Account{Client: kubeClient, RadixClient: radixClient}}
 
 		createRadixApp(t, kubeClient, radixClient, appName, envName)
 		createKubernetesEvent(t, kubeClient, envNamespace, ev1, k8sEventTypeNormal, podServer1, k8sKindPod, uid1)
@@ -381,7 +381,7 @@ func getAppEnvPodsMap(ts scenario) map[string]map[string]map[string]string {
 
 func assertEvents(t *testing.T, expectedEvents []eventModels.Event, actualEvents []*eventModels.Event) {
 	if assert.Len(t, actualEvents, len(expectedEvents)) {
-		for i := 0; i < len(expectedEvents); i++ {
+		for i := range expectedEvents {
 			assert.Equal(t, expectedEvents[i].InvolvedObjectName, actualEvents[i].InvolvedObjectName)
 			assert.Equal(t, expectedEvents[i].InvolvedObjectKind, actualEvents[i].InvolvedObjectKind)
 			assert.Equal(t, expectedEvents[i].InvolvedObjectNamespace, actualEvents[i].InvolvedObjectNamespace)
@@ -391,9 +391,9 @@ func assertEvents(t *testing.T, expectedEvents []eventModels.Event, actualEvents
 
 func setupTestEnvForHandler(t *testing.T, ts scenario) (EventHandler, *radixfake.Clientset) {
 	kubeClient, radixClient := setupTest()
-	accounts := models.Accounts{
-		UserAccount:    models.Account{Client: kubeClient, RadixClient: radixClient},
-		ServiceAccount: models.Account{Client: kubeClient, RadixClient: radixClient}}
+	accounts := accounts.Accounts{
+		UserAccount:    accounts.Account{Client: kubeClient, RadixClient: radixClient},
+		ServiceAccount: accounts.Account{Client: kubeClient, RadixClient: radixClient}}
 
 	createRadixApplications(t, ts, kubeClient, radixClient)
 	for _, evProps := range ts.existingEventProps {

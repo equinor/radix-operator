@@ -7,8 +7,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/equinor/radix-common/pkg/docker"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -16,6 +14,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/docker"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -422,8 +421,8 @@ func Test_TargetEnvironmentsForGitRefs(t *testing.T) {
 			raBuilder: func() utils.ApplicationBuilder {
 				return utils.NewRadixApplicationBuilder().
 					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1}).
-					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, WebhookEnabled: pointers.Ptr(true)}).
-					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: branch1, WebhookEnabled: pointers.Ptr(false)})
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, WebhookEnabled: new(true)}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: branch1, WebhookEnabled: new(false)})
 			},
 			gitRef:                        branch1,
 			triggeredFromWebhook:          true,

@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	modelsv1 "github.com/equinor/radix-operator/job-scheduler/models/v1"
 	"github.com/equinor/radix-operator/job-scheduler/models/v1/events"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -39,13 +38,13 @@ func TestNewWebhookNotifier(t *testing.T) {
 		},
 		{
 			name:            "Empty webhook in the notification",
-			jobComponent:    &radixv1.RadixDeployJobComponent{Notifications: &radixv1.Notifications{Webhook: pointers.Ptr("")}},
+			jobComponent:    &radixv1.RadixDeployJobComponent{Notifications: &radixv1.Notifications{Webhook: new("")}},
 			expectedEnabled: false,
 			expectedWebhook: "",
 		},
 		{
 			name:            "Set webhook in the notification",
-			jobComponent:    &radixv1.RadixDeployJobComponent{Notifications: &radixv1.Notifications{Webhook: pointers.Ptr("http://job1:8080")}},
+			jobComponent:    &radixv1.RadixDeployJobComponent{Notifications: &radixv1.Notifications{Webhook: new("http://job1:8080")}},
 			expectedEnabled: true,
 			expectedWebhook: "http://job1:8080",
 		},
@@ -255,7 +254,7 @@ func Test_webhookNotifier_Notify(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			jobComponent := &radixv1.RadixDeployJobComponent{
 				Name:          tt.fields.jobComponentName,
-				Notifications: &radixv1.Notifications{Webhook: pointers.Ptr(tt.fields.webhookURL)},
+				Notifications: &radixv1.Notifications{Webhook: new(tt.fields.webhookURL)},
 			}
 			notifier := NewWebhookNotifier(jobComponent)
 			var receivedRequest *http.Request

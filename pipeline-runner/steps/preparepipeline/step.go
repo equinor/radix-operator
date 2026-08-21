@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	internalsubpipeline "github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -460,9 +460,7 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 			task.ObjectMeta.Annotations = map[string]string{}
 		}
 
-		for k, v := range labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName, step.GetAppID()) {
-			task.ObjectMeta.Labels[k] = v
-		}
+		maps.Copy(task.ObjectMeta.Labels, labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName, step.GetAppID()))
 
 		if val, ok := task.ObjectMeta.Labels[labels.AzureWorkloadIdentityUse]; ok {
 			if val != "true" {
@@ -546,7 +544,7 @@ func ensureCorrectSecureContext(task *v1.Task) {
 }
 
 func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
-	securityContext.RunAsNonRoot = commonUtils.BoolPtr(true)
+	securityContext.RunAsNonRoot = new(true)
 	if securityContext.RunAsUser != nil && *securityContext.RunAsUser == 0 {
 		securityContext.RunAsUser = nil
 	}
@@ -555,8 +553,8 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	}
 	securityContext.WindowsOptions = nil
 	securityContext.SELinuxOptions = nil
-	securityContext.Privileged = commonUtils.BoolPtr(false)
-	securityContext.AllowPrivilegeEscalation = commonUtils.BoolPtr(false)
+	securityContext.Privileged = new(false)
+	securityContext.AllowPrivilegeEscalation = new(false)
 	if securityContext.Capabilities == nil {
 		securityContext.Capabilities = &corev1.Capabilities{}
 	}

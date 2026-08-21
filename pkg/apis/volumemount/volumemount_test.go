@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/internal"
@@ -357,8 +356,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
 				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: pointers.Ptr(""),
-				VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				StorageClassName: new(""),
+				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 			},
 		},
 		"deprecated volume: AccessMode=ReadOnlyMany": {
@@ -372,8 +371,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
 				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: pointers.Ptr(""),
-				VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				StorageClassName: new(""),
+				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 			},
 		},
 		"deprecated volume: AccessMode=ReadWriteOnce": {
@@ -387,8 +386,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: pointers.Ptr(""),
-				VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				StorageClassName: new(""),
+				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 			},
 		},
 		"deprecated volume: AccessMode=ReadWriteMany": {
@@ -402,8 +401,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: pointers.Ptr(""),
-				VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				StorageClassName: new(""),
+				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 			},
 		},
 		"deprecated volume: RequestsStorage": {
@@ -417,8 +416,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
 				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("123G")}},
-				StorageClassName: pointers.Ptr(""),
-				VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				StorageClassName: new(""),
+				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 			},
 		},
 		"blofuse2: default settings": {
@@ -432,8 +431,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
 				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: pointers.Ptr(""),
-				VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				StorageClassName: new(""),
+				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 			},
 		},
 		"blofuse2: AccessMode ReadOnlyMany": {
@@ -448,8 +447,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
 				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: pointers.Ptr(""),
-				VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				StorageClassName: new(""),
+				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 			},
 		},
 		"blofuse2: AccessMode ReadWriteOnce": {
@@ -464,8 +463,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: pointers.Ptr(""),
-				VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				StorageClassName: new(""),
+				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 			},
 		},
 		"blofuse2: AccessMode ReadWriteMany": {
@@ -480,8 +479,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: pointers.Ptr(""),
-				VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				StorageClassName: new(""),
+				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 			},
 		},
 		"blofuse2: AccessMode RequestsStorage": {
@@ -496,8 +495,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
 				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("123G")}},
-				StorageClassName: pointers.Ptr(""),
-				VolumeMode:       pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				StorageClassName: new(""),
+				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
 			},
 		},
 	}
@@ -978,7 +977,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "container2",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 				},
 			},
 			expectedPVSpec: corev1.PersistentVolumeSpec{
@@ -1008,7 +1007,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "container2",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 					ResourceGroup:    "anyresourcegroup",
 					SubscriptionId:   "anysubscription",
 					TenantId:         "anytenant",
@@ -1043,7 +1042,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "container2",
-					UseAzureIdentity: pointers.Ptr(false),
+					UseAzureIdentity: new(false),
 					ResourceGroup:    "anyresourcegroup",
 					SubscriptionId:   "anysubscription",
 					TenantId:         "anytenant",
@@ -1117,7 +1116,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 
 			// Test that actual and expected PersistentVolumeSource fields are nil or not
 			expectedVal := reflect.ValueOf(test.expectedPVSpec.PersistentVolumeSource)
-			expectedType := reflect.TypeOf(test.expectedPVSpec.PersistentVolumeSource)
+			expectedType := reflect.TypeFor[corev1.PersistentVolumeSource]()
 			actualVal := reflect.ValueOf(actualPV.Spec.PersistentVolumeSource)
 			for i := range expectedVal.NumField() {
 				ef := expectedVal.Field(i)
@@ -1294,7 +1293,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
 					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -1323,7 +1322,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
 					StreamingOptions: &radixv1.BlobFuse2StreamingOptions{
-						Enabled: pointers.Ptr(false),
+						Enabled: new(false),
 					},
 				},
 			},
@@ -1346,7 +1345,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeDirectIO),
+					CacheMode: new(radixv1.BlobFuse2CacheModeDirectIO),
 				},
 			},
 			expectedMountOptions: []string{
@@ -1368,7 +1367,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 				},
 			},
 			expectedMountOptions: []string{
@@ -1390,9 +1389,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -1415,7 +1414,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			expectedMountOptions: []string{
@@ -1442,10 +1441,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](16),
-						PrefetchCount: pointers.Ptr[uint32](20),
+						BlockSize:     new(uint32(16)),
+						PrefetchCount: new(uint32(20)),
 					},
 				},
 			},
@@ -1473,11 +1472,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](16),
-						PoolSize:      pointers.Ptr[uint32](335),
-						PrefetchCount: pointers.Ptr[uint32](20),
+						BlockSize:     new(uint32(16)),
+						PoolSize:      new(uint32(335)),
+						PrefetchCount: new(uint32(20)),
 					},
 				},
 			},
@@ -1505,11 +1504,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](16),
-						PoolSize:      pointers.Ptr[uint32](337),
-						PrefetchCount: pointers.Ptr[uint32](20),
+						BlockSize:     new(uint32(16)),
+						PoolSize:      new(uint32(337)),
+						PrefetchCount: new(uint32(20)),
 					},
 				},
 			},
@@ -1537,10 +1536,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](16),
-						PrefetchCount: pointers.Ptr[uint32](0),
+						BlockSize:     new(uint32(16)),
+						PrefetchCount: new(uint32(0)),
 					},
 				},
 			},
@@ -1568,9 +1567,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchOnOpen: pointers.Ptr(true),
+						PrefetchOnOpen: new(true),
 					},
 				},
 			},
@@ -1598,9 +1597,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						Parallelism: pointers.Ptr[uint32](1337),
+						Parallelism: new(uint32(1337)),
 					},
 				},
 			},
@@ -1628,9 +1627,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						DiskSize: pointers.Ptr[uint32](1337),
+						DiskSize: new(uint32(1337)),
 					},
 				},
 			},
@@ -1663,10 +1662,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						DiskSize:    pointers.Ptr[uint32](1337),
-						DiskTimeout: pointers.Ptr[uint32](99),
+						DiskSize:    new(uint32(1337)),
+						DiskTimeout: new(uint32(99)),
 					},
 				},
 			},
@@ -1699,11 +1698,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Path: "anypath",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "anycontainer",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](16),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						DiskSize:      pointers.Ptr[uint32](319),
+						BlockSize:     new(uint32(16)),
+						PrefetchCount: new(uint32(20)),
+						DiskSize:      new(uint32(319)),
 					},
 				},
 			},
@@ -2319,7 +2318,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					UseAdls:   pointers.Ptr(false),
+					UseAdls:   new(false),
 				},
 			},
 			expectRecreate: false,
@@ -2329,14 +2328,14 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					UseAdls:   pointers.Ptr(false),
+					UseAdls:   new(false),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					UseAdls:   pointers.Ptr(true),
+					UseAdls:   new(true),
 				},
 			},
 			expectRecreate: true,
@@ -2385,7 +2384,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(false),
+					UseAzureIdentity: new(false),
 				},
 			},
 			expectRecreate: false,
@@ -2401,7 +2400,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 				},
 			},
 			expectRecreate: true,
@@ -2411,7 +2410,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(false),
+					UseAzureIdentity: new(false),
 					ResourceGroup:    "initial",
 				},
 			},
@@ -2419,7 +2418,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(false),
+					UseAzureIdentity: new(false),
 					ResourceGroup:    "change",
 				},
 			},
@@ -2430,7 +2429,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 					ResourceGroup:    "initial",
 				},
 			},
@@ -2438,7 +2437,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 					ResourceGroup:    "change",
 				},
 			},
@@ -2449,7 +2448,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(false),
+					UseAzureIdentity: new(false),
 					SubscriptionId:   "initial",
 				},
 			},
@@ -2457,7 +2456,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(false),
+					UseAzureIdentity: new(false),
 					SubscriptionId:   "change",
 				},
 			},
@@ -2468,7 +2467,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 					SubscriptionId:   "initial",
 				},
 			},
@@ -2476,7 +2475,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 					SubscriptionId:   "change",
 				},
 			},
@@ -2487,7 +2486,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(false),
+					UseAzureIdentity: new(false),
 					TenantId:         "initial",
 				},
 			},
@@ -2495,7 +2494,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(false),
+					UseAzureIdentity: new(false),
 					TenantId:         "change",
 				},
 			},
@@ -2506,7 +2505,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 					SubscriptionId:   "initial",
 				},
 			},
@@ -2514,7 +2513,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 					SubscriptionId:   "change",
 				},
 			},
@@ -2525,14 +2524,14 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(false),
+					UseAzureIdentity: new(false),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(false),
+					UseAzureIdentity: new(false),
 				},
 			},
 			initialIdentity: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "initial"}},
@@ -2544,14 +2543,14 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container:        "any",
-					UseAzureIdentity: pointers.Ptr(true),
+					UseAzureIdentity: new(true),
 				},
 			},
 			initialIdentity: &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "initial"}},
@@ -2570,7 +2569,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
 					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
-						Timeout: pointers.Ptr[uint32](0),
+						Timeout: new(uint32(0)),
 					},
 				},
 			},
@@ -2588,7 +2587,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
 					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -2600,7 +2599,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
 					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
-						Timeout: pointers.Ptr[uint32](1000),
+						Timeout: new(uint32(1000)),
 					},
 				},
 			},
@@ -2609,7 +2608,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
 					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -2621,7 +2620,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
 					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -2630,7 +2629,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
 					AttributeCacheOptions: &radixv1.BlobFuse2AttributeCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -2641,16 +2640,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](120),
+						Timeout: new(uint32(120)),
 					},
 				},
 			},
@@ -2661,16 +2660,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -2681,9 +2680,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](1000),
+						Timeout: new(uint32(1000)),
 					},
 				},
 			},
@@ -2691,9 +2690,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -2704,9 +2703,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -2714,9 +2713,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -2727,16 +2726,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize: pointers.Ptr[uint32](4),
+						BlockSize: new(uint32(4)),
 					},
 				},
 			},
@@ -2747,16 +2746,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize: pointers.Ptr[uint32](8),
+						BlockSize: new(uint32(8)),
 					},
 				},
 			},
@@ -2767,9 +2766,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize: pointers.Ptr[uint32](16),
+						BlockSize: new(uint32(16)),
 					},
 				},
 			},
@@ -2777,9 +2776,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize: pointers.Ptr[uint32](8),
+						BlockSize: new(uint32(8)),
 					},
 				},
 			},
@@ -2790,9 +2789,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize: pointers.Ptr[uint32](8),
+						BlockSize: new(uint32(8)),
 					},
 				},
 			},
@@ -2800,9 +2799,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize: pointers.Ptr[uint32](8),
+						BlockSize: new(uint32(8)),
 					},
 				},
 			},
@@ -2813,16 +2812,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchCount: pointers.Ptr[uint32](11),
+						PrefetchCount: new(uint32(11)),
 					},
 				},
 			},
@@ -2833,16 +2832,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchCount: pointers.Ptr[uint32](12),
+						PrefetchCount: new(uint32(12)),
 					},
 				},
 			},
@@ -2853,9 +2852,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchCount: pointers.Ptr[uint32](0),
+						PrefetchCount: new(uint32(0)),
 					},
 				},
 			},
@@ -2863,9 +2862,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchCount: pointers.Ptr[uint32](12),
+						PrefetchCount: new(uint32(12)),
 					},
 				},
 			},
@@ -2876,9 +2875,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchCount: pointers.Ptr[uint32](12),
+						PrefetchCount: new(uint32(12)),
 					},
 				},
 			},
@@ -2886,9 +2885,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchCount: pointers.Ptr[uint32](12),
+						PrefetchCount: new(uint32(12)),
 					},
 				},
 			},
@@ -2899,16 +2898,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						Parallelism: pointers.Ptr[uint32](8),
+						Parallelism: new(uint32(8)),
 					},
 				},
 			},
@@ -2919,16 +2918,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						Parallelism: pointers.Ptr[uint32](1337),
+						Parallelism: new(uint32(1337)),
 					},
 				},
 			},
@@ -2939,9 +2938,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						Parallelism: pointers.Ptr[uint32](1000),
+						Parallelism: new(uint32(1000)),
 					},
 				},
 			},
@@ -2949,9 +2948,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						Parallelism: pointers.Ptr[uint32](1337),
+						Parallelism: new(uint32(1337)),
 					},
 				},
 			},
@@ -2962,9 +2961,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						Parallelism: pointers.Ptr[uint32](12),
+						Parallelism: new(uint32(12)),
 					},
 				},
 			},
@@ -2972,9 +2971,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						Parallelism: pointers.Ptr[uint32](12),
+						Parallelism: new(uint32(12)),
 					},
 				},
 			},
@@ -2985,16 +2984,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchOnOpen: pointers.Ptr(false),
+						PrefetchOnOpen: new(false),
 					},
 				},
 			},
@@ -3005,16 +3004,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchOnOpen: pointers.Ptr(true),
+						PrefetchOnOpen: new(true),
 					},
 				},
 			},
@@ -3025,9 +3024,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchOnOpen: pointers.Ptr(true),
+						PrefetchOnOpen: new(true),
 					},
 				},
 			},
@@ -3035,9 +3034,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchOnOpen: pointers.Ptr(false),
+						PrefetchOnOpen: new(false),
 					},
 				},
 			},
@@ -3048,9 +3047,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchOnOpen: pointers.Ptr(true),
+						PrefetchOnOpen: new(true),
 					},
 				},
 			},
@@ -3058,9 +3057,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PrefetchOnOpen: pointers.Ptr(true),
+						PrefetchOnOpen: new(true),
 					},
 				},
 			},
@@ -3071,10 +3070,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
 					},
 				},
 			},
@@ -3082,11 +3081,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						PoolSize:      pointers.Ptr[uint32](168),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						PoolSize:      new(uint32(168)),
 					},
 				},
 			},
@@ -3097,10 +3096,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
 					},
 				},
 			},
@@ -3108,11 +3107,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						PoolSize:      pointers.Ptr[uint32](169),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						PoolSize:      new(uint32(169)),
 					},
 				},
 			},
@@ -3123,10 +3122,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
 					},
 				},
 			},
@@ -3134,11 +3133,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						PoolSize:      pointers.Ptr[uint32](167),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						PoolSize:      new(uint32(167)),
 					},
 				},
 			},
@@ -3149,11 +3148,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						PoolSize:      pointers.Ptr[uint32](1000),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						PoolSize:      new(uint32(1000)),
 					},
 				},
 			},
@@ -3161,11 +3160,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						PoolSize:      pointers.Ptr[uint32](1337),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						PoolSize:      new(uint32(1337)),
 					},
 				},
 			},
@@ -3176,11 +3175,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						PoolSize:      pointers.Ptr[uint32](1337),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						PoolSize:      new(uint32(1337)),
 					},
 				},
 			},
@@ -3188,11 +3187,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						PoolSize:      pointers.Ptr[uint32](1337),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						PoolSize:      new(uint32(1337)),
 					},
 				},
 			},
@@ -3204,16 +3203,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						DiskTimeout: pointers.Ptr[uint32](1000),
+						DiskTimeout: new(uint32(1000)),
 					},
 				},
 			},
@@ -3224,17 +3223,17 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 				},
 			},
 			changedVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						DiskSize:    pointers.Ptr[uint32](0),
-						DiskTimeout: pointers.Ptr[uint32](1000),
+						DiskSize:    new(uint32(0)),
+						DiskTimeout: new(uint32(1000)),
 					},
 				},
 			},
@@ -3245,9 +3244,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						DiskSize: pointers.Ptr[uint32](1),
+						DiskSize: new(uint32(1)),
 					},
 				},
 			},
@@ -3255,10 +3254,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						DiskSize:    pointers.Ptr[uint32](1),
-						DiskTimeout: pointers.Ptr[uint32](120),
+						DiskSize:    new(uint32(1)),
+						DiskTimeout: new(uint32(120)),
 					},
 				},
 			},
@@ -3269,9 +3268,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						DiskSize: pointers.Ptr[uint32](1),
+						DiskSize: new(uint32(1)),
 					},
 				},
 			},
@@ -3279,10 +3278,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						DiskSize:    pointers.Ptr[uint32](1),
-						DiskTimeout: pointers.Ptr[uint32](1337),
+						DiskSize:    new(uint32(1)),
+						DiskTimeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -3293,11 +3292,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						DiskSize:      pointers.Ptr[uint32](1),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						DiskSize:      new(uint32(1)),
 					},
 				},
 			},
@@ -3305,11 +3304,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						DiskSize:      pointers.Ptr[uint32](2),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						DiskSize:      new(uint32(2)),
 					},
 				},
 			},
@@ -3320,10 +3319,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
 					},
 				},
 			},
@@ -3331,11 +3330,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						DiskSize:      pointers.Ptr[uint32](169),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						DiskSize:      new(uint32(169)),
 					},
 				},
 			},
@@ -3346,11 +3345,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						DiskSize:      pointers.Ptr[uint32](1000),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						DiskSize:      new(uint32(1000)),
 					},
 				},
 			},
@@ -3358,11 +3357,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						DiskSize:      pointers.Ptr[uint32](1337),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						DiskSize:      new(uint32(1337)),
 					},
 				},
 			},
@@ -3373,11 +3372,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						DiskSize:      pointers.Ptr[uint32](1337),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						DiskSize:      new(uint32(1337)),
 					},
 				},
 			},
@@ -3385,11 +3384,11 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						BlockSize:     pointers.Ptr[uint32](8),
-						PrefetchCount: pointers.Ptr[uint32](20),
-						DiskSize:      pointers.Ptr[uint32](1337),
+						BlockSize:     new(uint32(8)),
+						PrefetchCount: new(uint32(20)),
+						DiskSize:      new(uint32(1337)),
 					},
 				},
 			},
@@ -3400,9 +3399,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](1000),
+						Timeout: new(uint32(1000)),
 					},
 				},
 			},
@@ -3410,9 +3409,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeBlock),
+					CacheMode: new(radixv1.BlobFuse2CacheModeBlock),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -3423,9 +3422,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PoolSize: pointers.Ptr[uint32](1000),
+						PoolSize: new(uint32(1000)),
 					},
 				},
 			},
@@ -3433,9 +3432,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeFile),
+					CacheMode: new(radixv1.BlobFuse2CacheModeFile),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PoolSize: pointers.Ptr[uint32](1337),
+						PoolSize: new(uint32(1337)),
 					},
 				},
 			},
@@ -3446,9 +3445,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeDirectIO),
+					CacheMode: new(radixv1.BlobFuse2CacheModeDirectIO),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](1000),
+						Timeout: new(uint32(1000)),
 					},
 				},
 			},
@@ -3456,9 +3455,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeDirectIO),
+					CacheMode: new(radixv1.BlobFuse2CacheModeDirectIO),
 					FileCacheOptions: &radixv1.BlobFuse2FileCacheOptions{
-						Timeout: pointers.Ptr[uint32](1337),
+						Timeout: new(uint32(1337)),
 					},
 				},
 			},
@@ -3469,9 +3468,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeDirectIO),
+					CacheMode: new(radixv1.BlobFuse2CacheModeDirectIO),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PoolSize: pointers.Ptr[uint32](1000),
+						PoolSize: new(uint32(1000)),
 					},
 				},
 			},
@@ -3479,9 +3478,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 				Name: "any",
 				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 					Container: "any",
-					CacheMode: pointers.Ptr(radixv1.BlobFuse2CacheModeDirectIO),
+					CacheMode: new(radixv1.BlobFuse2CacheModeDirectIO),
 					BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-						PoolSize: pointers.Ptr[uint32](1337),
+						PoolSize: new(uint32(1337)),
 					},
 				},
 			},

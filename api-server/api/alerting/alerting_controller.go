@@ -5,7 +5,8 @@ import (
 	"net/http"
 
 	alertingModels "github.com/equinor/radix-operator/api-server/api/alerting/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	crdutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/gorilla/mux"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,53 +16,53 @@ const appPath = "/applications/{appName}"
 const envPath = appPath + "/environments/{envName}"
 
 type alertingController struct {
-	*models.DefaultController
+	*controller.DefaultController
 }
 
 // NewAlertingController Constructor
-func NewAlertingController() models.Controller {
+func NewAlertingController() controller.Controller {
 	return &alertingController{}
 }
 
 // GetRoutes List the supported routes of this handler
-func (ec *alertingController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (ec *alertingController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:        envPath + "/alerting",
 			Method:      "PUT",
 			HandlerFunc: ec.EnvironmentRouteAccessCheck(ec.UpdateEnvironmentAlertingConfig),
 		},
-		models.Route{
+		controller.Route{
 			Path:        envPath + "/alerting",
 			Method:      http.MethodGet,
 			HandlerFunc: ec.EnvironmentRouteAccessCheck(ec.GetEnvironmentAlertingConfig),
 		},
-		models.Route{
+		controller.Route{
 			Path:        envPath + "/alerting/enable",
 			Method:      http.MethodPost,
 			HandlerFunc: ec.EnvironmentRouteAccessCheck(ec.EnableEnvironmentAlerting),
 		},
-		models.Route{
+		controller.Route{
 			Path:        envPath + "/alerting/disable",
 			Method:      http.MethodPost,
 			HandlerFunc: ec.EnvironmentRouteAccessCheck(ec.DisableEnvironmentAlerting),
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/alerting",
 			Method:      "PUT",
 			HandlerFunc: ec.UpdateApplicationAlertingConfig,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/alerting",
 			Method:      http.MethodGet,
 			HandlerFunc: ec.GetApplicationAlertingConfig,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/alerting/enable",
 			Method:      http.MethodPost,
 			HandlerFunc: ec.EnableApplicationAlerting,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/alerting/disable",
 			Method:      http.MethodPost,
 			HandlerFunc: ec.DisableApplicationAlerting,
@@ -73,8 +74,8 @@ func (ec *alertingController) GetRoutes() models.Routes {
 
 // EnvironmentRouteAccessCheck gets appName and envName from route and verifies that environment exists
 // Returns 404 NotFound if environment is not defined, otherwise calls handler
-func (ec *alertingController) EnvironmentRouteAccessCheck(handler models.RadixHandlerFunc) models.RadixHandlerFunc {
-	return func(a models.Accounts, rw http.ResponseWriter, r *http.Request) {
+func (ec *alertingController) EnvironmentRouteAccessCheck(handler controller.RadixHandlerFunc) controller.RadixHandlerFunc {
+	return func(a accounts.Accounts, rw http.ResponseWriter, r *http.Request) {
 		appName := mux.Vars(r)["appName"]
 		envName := mux.Vars(r)["envName"]
 		envNamespace := crdutils.GetEnvironmentNamespace(appName, envName)
@@ -89,7 +90,7 @@ func (ec *alertingController) EnvironmentRouteAccessCheck(handler models.RadixHa
 }
 
 // UpdateEnvironmentAlertingConfig Configures alert settings
-func (ec *alertingController) UpdateEnvironmentAlertingConfig(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ec *alertingController) UpdateEnvironmentAlertingConfig(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation PUT /applications/{appName}/environments/{envName}/alerting environment updateEnvironmentAlertingConfig
 	// ---
 	// summary: Update alerts configuration for an environment
@@ -157,7 +158,7 @@ func (ec *alertingController) UpdateEnvironmentAlertingConfig(accounts models.Ac
 }
 
 // GetEnvironmentAlertingConfig returns alerts configuration
-func (ec *alertingController) GetEnvironmentAlertingConfig(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ec *alertingController) GetEnvironmentAlertingConfig(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/alerting environment getEnvironmentAlertingConfig
 	// ---
 	// summary: Get alerts configuration for an environment
@@ -210,7 +211,7 @@ func (ec *alertingController) GetEnvironmentAlertingConfig(accounts models.Accou
 }
 
 // EnableEnvironmentAlerting enables alerting for application environment
-func (ec *alertingController) EnableEnvironmentAlerting(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ec *alertingController) EnableEnvironmentAlerting(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/alerting/enable environment enableEnvironmentAlerting
 	// ---
 	// summary: Enable alerting for an environment
@@ -265,7 +266,7 @@ func (ec *alertingController) EnableEnvironmentAlerting(accounts models.Accounts
 }
 
 // DisableEnvironmentAlerting disables alerting for application environment
-func (ec *alertingController) DisableEnvironmentAlerting(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ec *alertingController) DisableEnvironmentAlerting(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/alerting/disable environment disableEnvironmentAlerting
 	// ---
 	// summary: Disable alerting for an environment
@@ -319,7 +320,7 @@ func (ec *alertingController) DisableEnvironmentAlerting(accounts models.Account
 }
 
 // UpdateApplicationAlertingConfig Configures alert settings
-func (ec *alertingController) UpdateApplicationAlertingConfig(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ec *alertingController) UpdateApplicationAlertingConfig(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation PUT /applications/{appName}/alerting application updateApplicationAlertingConfig
 	// ---
 	// summary: Update alerts configuration for application namespace
@@ -381,7 +382,7 @@ func (ec *alertingController) UpdateApplicationAlertingConfig(accounts models.Ac
 }
 
 // GetApplicationAlertingConfig returns alerts configuration
-func (ec *alertingController) GetApplicationAlertingConfig(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ec *alertingController) GetApplicationAlertingConfig(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/alerting application getApplicationAlertingConfig
 	// ---
 	// summary: Get alerts configuration for application namespace
@@ -428,7 +429,7 @@ func (ec *alertingController) GetApplicationAlertingConfig(accounts models.Accou
 }
 
 // EnableApplicationAlerting enables alerting for application
-func (ec *alertingController) EnableApplicationAlerting(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ec *alertingController) EnableApplicationAlerting(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/alerting/enable application enableApplicationAlerting
 	// ---
 	// summary: Enable alerting for application namespace
@@ -477,7 +478,7 @@ func (ec *alertingController) EnableApplicationAlerting(accounts models.Accounts
 }
 
 // DisableApplicationAlerting disables alerting for application
-func (ec *alertingController) DisableApplicationAlerting(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ec *alertingController) DisableApplicationAlerting(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/alerting/disable application disableApplicationAlerting
 	// ---
 	// summary: Disable alerting for application namespace

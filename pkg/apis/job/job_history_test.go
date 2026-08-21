@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -477,7 +477,7 @@ func (s *RadixJobHistoryTestSuite) createRadixJob(radixClient radixclient.Interf
 func createRadixDeployment(appName string, jobName string) *radixv1.RadixDeployment {
 	return &radixv1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: utils.RandString(10),
+			Name: random.RandString(10),
 			Labels: labels.Merge(
 				radixlabels.ForApplicationName(appName),
 				radixlabels.ForPipelineJobName(jobName)),
@@ -516,7 +516,7 @@ func createRadixJob(appName, jobName string, created time.Time, statusCondition 
 			PipeLineType: pipelineType,
 		},
 		Status: radixv1.RadixJobStatus{
-			Created:   pointers.Ptr(metav1.NewTime(created)),
+			Created:   new(metav1.NewTime(created)),
 			Condition: statusCondition,
 		},
 	}

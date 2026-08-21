@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -107,7 +107,7 @@ func (kubeutil *Kube) ListConfigMapsWithSelector(ctx context.Context, namespace 
 	if err != nil {
 		return nil, err
 	}
-	return slice.PointersOf(list.Items).([]*corev1.ConfigMap), nil
+	return slice.PointersOf(list.Items), nil
 }
 
 func getEnvVarsConfigMapSelector() labels.Selector {

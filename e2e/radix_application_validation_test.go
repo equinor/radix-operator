@@ -728,17 +728,17 @@ func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
 		},
 		{
 			name:        "valid - zero replicas",
-			replicas:    intPtr(0),
+			replicas:    new(0),
 			shouldError: false,
 		},
 		{
 			name:        "valid - multiple replicas",
-			replicas:    intPtr(5),
+			replicas:    new(5),
 			shouldError: false,
 		},
 		{
 			name:        "invalid - negative replicas",
-			replicas:    intPtr(-1),
+			replicas:    new(-1),
 			shouldError: true,
 		},
 	}
@@ -770,9 +770,4 @@ func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper function to create int pointer
-func intPtr(i int) *int {
-	return &i
 }

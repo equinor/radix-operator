@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 
-	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
@@ -19,6 +18,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
@@ -316,7 +317,7 @@ func (step *ApplyConfigStepImplementation) getComponentSources(appComponents []r
 			imageSource.Image = image
 		} else {
 			currentlyDeployedComponent := getCurrentlyDeployedComponent(activeRadixDeployment, component.GetName())
-			if commonutils.IsNil(currentlyDeployedComponent) || mustBuildComponent(component) {
+			if pointers.IsNil(currentlyDeployedComponent) || mustBuildComponent(component) {
 				imageSource.ImageSource = fromBuild
 				imageSource.Source = component.GetSourceForEnvironment(envName)
 			} else {
@@ -380,7 +381,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 func getLengthLimitedName(name string) string {
 	validatedName := strings.ToLower(name)
 	if len(validatedName) > 10 {
-		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(commonutils.RandStringStrSeed(4, validatedName)))
+		return fmt.Sprintf("%s-%s", validatedName[:5], strings.ToLower(random.RandStringStrSeed(4, validatedName)))
 	}
 	return validatedName
 }
@@ -462,7 +463,7 @@ func mustBuildComponentForEnvironment(ctx context.Context, targetEnvironment mod
 
 	return func(comp radixv1.RadixCommonComponent) bool {
 		return slice.Any(envBuildContext.Components, func(s string) bool { return s == comp.GetName() }) ||
-			commonutils.IsNil(targetEnvironment.ActiveRadixDeployment.GetCommonComponentByName(comp.GetName()))
+			pointers.IsNil(targetEnvironment.ActiveRadixDeployment.GetCommonComponentByName(comp.GetName()))
 	}, nil
 }
 
@@ -535,7 +536,7 @@ func validateDeployComponentImages(pipelineInfo *model.PipelineInfo) error {
 
 				component := pipelineInfo.RadixApplication.GetCommonComponentByName(componentName)
 				env := component.GetEnvironmentConfigByName(envName)
-				if len(component.GetImageTagName()) > 0 || (!commonutils.IsNil(env) && len(env.GetImageTagName()) > 0) {
+				if len(component.GetImageTagName()) > 0 || (!pointers.IsNil(env) && len(env.GetImageTagName()) > 0) {
 					continue
 				}
 

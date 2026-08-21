@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	"github.com/equinor/radix-operator/api-server/api/environments"
@@ -21,15 +19,17 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
 	apimodels "github.com/equinor/radix-operator/api-server/api/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/warningcollector"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/api-server/internal/config"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/api-server/internal/pipelineservice"
-	"github.com/equinor/radix-operator/api-server/models"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 	authorizationapi "k8s.io/api/authorization/v1"
@@ -49,7 +49,7 @@ type ApplicationHandlerOption func(ah *ApplicationHandler)
 // ApplicationHandler Instance variables
 type ApplicationHandler struct {
 	environmentHandler              environments.EnvironmentHandler
-	accounts                        models.Accounts
+	accounts                        accounts.Accounts
 	config                          config.Config
 	hasAccessToGetConfigMap         hasAccessToGetConfigMapFunc
 	getWarningCollectionFromContext CollectContextWarningsFunc
@@ -57,7 +57,7 @@ type ApplicationHandler struct {
 }
 
 // NewApplicationHandler Constructor
-func NewApplicationHandler(accounts models.Accounts, config config.Config, hasAccessToGetConfigMap hasAccessToGetConfigMapFunc, options ...ApplicationHandlerOption) ApplicationHandler {
+func NewApplicationHandler(accounts accounts.Accounts, config config.Config, hasAccessToGetConfigMap hasAccessToGetConfigMapFunc, options ...ApplicationHandlerOption) ApplicationHandler {
 	ah := ApplicationHandler{
 		environmentHandler:              environments.Init(environments.WithAccounts(accounts)),
 		accounts:                        accounts,
@@ -74,11 +74,11 @@ func NewApplicationHandler(accounts models.Accounts, config config.Config, hasAc
 	return ah
 }
 
-func (ah *ApplicationHandler) getUserAccount() models.Account {
+func (ah *ApplicationHandler) getUserAccount() accounts.Account {
 	return ah.accounts.UserAccount
 }
 
-func (ah *ApplicationHandler) getServiceAccount() models.Account {
+func (ah *ApplicationHandler) getServiceAccount() accounts.Account {
 	return ah.accounts.ServiceAccount
 }
 
@@ -217,7 +217,7 @@ func (ah *ApplicationHandler) ModifyRegistrationDetails(ctx context.Context, app
 
 	// Only these fields can change over time
 	patchRequest := applicationRegistrationPatchRequest.ApplicationRegistrationPatch
-	if patchRequest.AdGroups != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.AdGroups, *patchRequest.AdGroups) {
+	if patchRequest.AdGroups != nil && !slice.ElementsMatch(currentRegistration.Spec.AdGroups, *patchRequest.AdGroups) {
 		err := ah.validateUserIsMemberOfAdGroups(ctx, appName, *patchRequest.AdGroups)
 		if err != nil {
 			return nil, err
@@ -225,15 +225,15 @@ func (ah *ApplicationHandler) ModifyRegistrationDetails(ctx context.Context, app
 		updatedRegistration.Spec.AdGroups = *patchRequest.AdGroups
 		runUpdate = true
 	}
-	if patchRequest.AdUsers != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.AdUsers, *patchRequest.AdUsers) {
+	if patchRequest.AdUsers != nil && !slice.ElementsMatch(currentRegistration.Spec.AdUsers, *patchRequest.AdUsers) {
 		updatedRegistration.Spec.AdUsers = *patchRequest.AdUsers
 		runUpdate = true
 	}
-	if patchRequest.ReaderAdGroups != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.ReaderAdGroups, *patchRequest.ReaderAdGroups) {
+	if patchRequest.ReaderAdGroups != nil && !slice.ElementsMatch(currentRegistration.Spec.ReaderAdGroups, *patchRequest.ReaderAdGroups) {
 		updatedRegistration.Spec.ReaderAdGroups = *patchRequest.ReaderAdGroups
 		runUpdate = true
 	}
-	if patchRequest.ReaderAdUsers != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.ReaderAdUsers, *patchRequest.ReaderAdUsers) {
+	if patchRequest.ReaderAdUsers != nil && !slice.ElementsMatch(currentRegistration.Spec.ReaderAdUsers, *patchRequest.ReaderAdUsers) {
 		updatedRegistration.Spec.ReaderAdUsers = *patchRequest.ReaderAdUsers
 		runUpdate = true
 	}
@@ -507,7 +507,7 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 	}
 	name := fmt.Sprintf("access-validation-%s", appName)
 	labels := map[string]string{"radix-access-validation": "true"}
-	configMapName := fmt.Sprintf("%s-%s", name, strings.ToLower(operatorUtils.RandString(6)))
+	configMapName := fmt.Sprintf("%s-%s", name, strings.ToLower(random.RandString(6)))
 	role, err := createRoleToGetConfigMap(ctx, ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, name, labels, configMapName)
 	if err != nil {
 		return err
@@ -534,7 +534,7 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 		return err
 	}
 	if !valid {
-		return userShouldBeMemberOfAdminAdGroupError()
+		return radixhttp.ValidationError("Radix Registration", "User should be a member of at least one admin AD group or their sub-members")
 	}
 	return nil
 }

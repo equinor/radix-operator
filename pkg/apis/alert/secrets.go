@@ -44,7 +44,7 @@ func (syncer *alertSyncer) reconcileSecret(ctx context.Context) error {
 }
 
 func (syncer *alertSyncer) removedOrphanedSecretKeys(secret *corev1.Secret) {
-	expectedKeys := map[string]interface{}{}
+	expectedKeys := map[string]any{}
 
 	// Secret keys related to receiver configuration
 	for receiverName := range syncer.radixAlert.Spec.Receivers {

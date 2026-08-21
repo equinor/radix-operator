@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"dario.cat/mergo"
-	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/job-scheduler/internal"
 	"github.com/equinor/radix-operator/job-scheduler/models"
@@ -21,6 +20,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixAnnotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixLabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	mergoutils "github.com/equinor/radix-operator/pkg/apis/utils/mergo"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"

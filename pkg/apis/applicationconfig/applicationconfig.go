@@ -7,7 +7,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog"
@@ -49,7 +48,11 @@ func (app *ApplicationConfig) GetRadixRegistration() *radixv1.RadixRegistration 
 
 // GetConfigBranch Returns config branch name from radix registration, or "master" if not set.
 func GetConfigBranch(rr *radixv1.RadixRegistration) string {
-	return utils.TernaryString(strings.TrimSpace(rr.Spec.ConfigBranch) == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
+	if strings.TrimSpace(rr.Spec.ConfigBranch) == "" {
+		return ConfigBranchFallback
+	}
+
+	return rr.Spec.ConfigBranch
 }
 
 // IsConfigBranch Checks if given branch is where radix config lives

@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
@@ -198,7 +197,7 @@ func GetSummaryFromRadixJob(job *radixv1.RadixJob) *JobSummary {
 		pipelineJob.PromotedToEnvironment = job.Spec.Promote.ToEnvironment
 		pipelineJob.CommitID = job.Spec.Promote.CommitID
 	case radixv1.ApplyConfig:
-		pipelineJob.DeployExternalDNS = pointers.Ptr(job.Spec.ApplyConfig.DeployExternalDNS)
+		pipelineJob.DeployExternalDNS = new(job.Spec.ApplyConfig.DeployExternalDNS)
 	}
 
 	return pipelineJob

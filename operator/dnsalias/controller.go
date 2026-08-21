@@ -53,11 +53,11 @@ func NewController(ctx context.Context, kubeClient kubernetes.Interface,
 func addEventHandlersForRadixDeployments(radixInformerFactory informers.SharedInformerFactory, controller *common.Controller, radixClient radixclient.Interface, logger *zerolog.Logger) {
 	radixDeploymentInformer := radixInformerFactory.Radix().V1().RadixDeployments()
 	if _, err := radixDeploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
+		AddFunc: func(cur any) {
 			rd := cur.(*radixv1.RadixDeployment)
 			enqueueRadixDNSAliasesForRadixDeployment(controller, radixClient, rd, logger)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			oldRD := oldObj.(metav1.Object)
 			newRD := newObj.(metav1.Object)
 			if oldRD.GetResourceVersion() == newRD.GetResourceVersion() {
@@ -73,7 +73,7 @@ func addEventHandlersForRadixDeployments(radixInformerFactory informers.SharedIn
 
 func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.RadixDNSAliasInformer, controller *common.Controller, logger *zerolog.Logger) {
 	if _, err := radixDNSAliasInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
+		AddFunc: func(cur any) {
 			alias := cur.(*radixv1.RadixDNSAlias)
 			logger.Debug().Msgf("added RadixDNSAlias %s", alias.GetName())
 			if err := controller.Enqueue(cur); err != nil {
@@ -81,7 +81,7 @@ func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.R
 			}
 			metrics.CustomResourceAdded(radixv1.KindRadixDNSAlias)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			oldAlias := old.(*radixv1.RadixDNSAlias)
 			newAlias := cur.(*radixv1.RadixDNSAlias)
 			if deepEqual(oldAlias, newAlias) {
@@ -95,7 +95,7 @@ func addEventHandlersForRadixDNSAliases(radixDNSAliasInformer radixinformersv1.R
 			}
 			metrics.CustomResourceUpdated(radixv1.KindRadixDNSAlias)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			alias, converted := obj.(*radixv1.RadixDNSAlias)
 			if !converted {
 				logger.Error().Msg("RadixDNSAlias object cast failed during deleted event received.")

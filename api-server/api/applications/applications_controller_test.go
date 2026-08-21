@@ -12,9 +12,6 @@ import (
 	"time"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixhttp "github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
@@ -24,10 +21,10 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/metrics/prometheus"
 	"github.com/equinor/radix-operator/api-server/api/metrics/prometheus/mock"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
-	"github.com/equinor/radix-operator/api-server/api/utils"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/api-server/internal/config"
-	"github.com/equinor/radix-operator/api-server/models"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -57,7 +54,7 @@ const (
 	federatedCredentialsMigratedAnnotation = kube.RadixFederatedCredentialsMigratedAnnotation
 )
 
-func setupTest(t *testing.T, options ...ApplicationHandlerOption) (*commontest.Utils, *controllertest.Utils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
+func setupTest(t *testing.T, options ...ApplicationHandlerOption) (*commontest.Utils, *controllertest.TestUtils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
 	return setupTestWithFactory(t, newTestApplicationHandlerFactory(
 		config.Config{DNSZone: dnsZone},
 		func(ctx context.Context, kubeClient kubernetes.Interface, namespace string, configMapName string) (bool, error) {
@@ -73,7 +70,7 @@ func customWarningCollector(handler CollectContextWarningsFunc) ApplicationHandl
 	}
 }
 
-func setupTestWithFactory(t *testing.T, handlerFactory ApplicationHandlerFactory) (*commontest.Utils, *controllertest.Utils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
+func setupTestWithFactory(t *testing.T, handlerFactory ApplicationHandlerFactory) (*commontest.Utils, *controllertest.TestUtils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixclient := radixfake.NewSimpleClientset() //nolint:staticcheck
@@ -244,7 +241,7 @@ func TestSearchApplicationsGet(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	app2Job1Started, _ := radixutils.ParseTimestamp("2018-11-12T12:30:14Z")
+	app2Job1Started, _ := time.Parse(time.RFC3339, "2018-11-12T12:30:14Z")
 	err := createRadixJob(commonTestUtils, appNames[1], "app-2-job-1", app2Job1Started)
 	require.NoError(t, err)
 	_, err = commonTestUtils.ApplyDeployment(
@@ -535,9 +532,9 @@ func TestGetApplication_WithJobs(t *testing.T) {
 	require.NoError(t, err)
 
 	commontest.CreateAppNamespace(kubeclient, "any-name")
-	app1Job1Started, _ := radixutils.ParseTimestamp("2018-11-12T11:45:26Z")
-	app1Job2Started, _ := radixutils.ParseTimestamp("2018-11-12T12:30:14Z")
-	app1Job3Started, _ := radixutils.ParseTimestamp("2018-11-20T09:00:00Z")
+	app1Job1Started, _ := time.Parse(time.RFC3339, "2018-11-12T11:45:26Z")
+	app1Job2Started, _ := time.Parse(time.RFC3339, "2018-11-12T12:30:14Z")
+	app1Job3Started, _ := time.Parse(time.RFC3339, "2018-11-20T09:00:00Z")
 
 	err = createRadixJob(commonTestUtils, "any-name", "any-name-job-1", app1Job1Started)
 	require.NoError(t, err)
@@ -566,11 +563,11 @@ func TestGetApplication_BuildCacheOption(t *testing.T) {
 			expectedUseBuildCache: true,
 		},
 		"buildCache true": {
-			useBuildCache:         pointers.Ptr(true),
+			useBuildCache:         new(true),
 			expectedUseBuildCache: true,
 		},
 		"buildCache false": {
-			useBuildCache:         pointers.Ptr(false),
+			useBuildCache:         new(false),
 			expectedUseBuildCache: false,
 		},
 	}
@@ -653,7 +650,7 @@ func TestGetApplication_WithEnvironments(t *testing.T) {
 		WithEnvironmentName(anyOrphanedEnvironment))
 	orphanedRe.Status.Reconciled = metav1.Now()
 	orphanedRe.Status.Orphaned = true
-	orphanedRe.Status.OrphanedTimestamp = pointers.Ptr(metav1.Now())
+	orphanedRe.Status.OrphanedTimestamp = new(metav1.Now())
 	_, err = radix.RadixV1().RadixEnvironments().Update(context.Background(), orphanedRe, metav1.UpdateOptions{})
 	require.NoError(t, err)
 
@@ -932,7 +929,7 @@ func TestModifyApplication_IgnoreRequireADGroupValidationWhenRequiredButCurrentI
 	// Test
 	patchRequest := applicationModels.ApplicationRegistrationPatchRequest{
 		ApplicationRegistrationPatch: &applicationModels.ApplicationRegistrationPatch{
-			ConfigBranch: radixutils.StringPtr("dummyupdate"),
+			ConfigBranch: new("dummyupdate"),
 		},
 	}
 
@@ -1198,7 +1195,7 @@ func TestDeleteApplication_ApplicationIsDeleted(t *testing.T) {
 func TestGetApplication_WithAppAlias_ContainsAppAlias(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretproviderclient, certClient, _ := setupTest(t)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretproviderclient, certClient, builders.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretproviderclient, certClient, builders.ARadixDeployment().
 		WithRadixApplication(builders.ARadixApplication().
 			WithAppName("any-app").
 			WithDNSAppAlias("prod", "frontend")).
@@ -1276,7 +1273,7 @@ func TestRegenerateDeployKey_CreateUpdatesSharedSecret(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Test
@@ -1321,7 +1318,7 @@ func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been created
@@ -1336,7 +1333,7 @@ func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
 	// forcing resync of RR
-	err = utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err = controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been re-created and is different from first secret
@@ -1353,7 +1350,7 @@ func TestRegenerateDeployKey_PrivateKeyInParam_SavedPrivateKeyIsEqualToWebParam(
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// make some valid private key
@@ -1367,7 +1364,7 @@ func TestRegenerateDeployKey_PrivateKeyInParam_SavedPrivateKeyIsEqualToWebParam(
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
 	// forcing resync of RR
-	err = utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err = controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been re-created and is equal to the one in the web parameter
@@ -1383,7 +1380,7 @@ func TestRegenerateDeployKey_InvalidKeyInParam_ErrorIsReturned(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// calling regenerate-deploy-key with invalid private key, expecting error
@@ -1577,7 +1574,7 @@ func newTestApplicationHandlerFactory(config config.Config, hasAccessToGetConfig
 }
 
 // Create creates a new ApplicationHandler
-func (f *testApplicationHandlerFactory) Create(accounts models.Accounts) ApplicationHandler {
+func (f *testApplicationHandlerFactory) Create(accounts accounts.Accounts) ApplicationHandler {
 	return NewApplicationHandler(accounts, f.config, f.hasAccessToGetConfigMap, f.options...)
 }
 

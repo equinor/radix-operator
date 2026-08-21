@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -117,7 +117,7 @@ func (kubeutil *Kube) ListSecretsWithSelector(ctx context.Context, namespace str
 			return nil, err
 		}
 
-		secrets = slice.PointersOf(list.Items).([]*corev1.Secret)
+		secrets = slice.PointersOf(list.Items)
 	}
 
 	return secrets, nil
@@ -149,7 +149,7 @@ func GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azK
 }
 
 func getSecretRefSecretName(componentName, radixDeploymentName, secretRefType, secretType, secretResourceName string) string {
-	hash := strings.ToLower(utils.RandStringStrSeed(5, strings.ToLower(fmt.Sprintf("%s-%s-%s-%s", componentName,
+	hash := strings.ToLower(random.RandStringStrSeed(5, strings.ToLower(fmt.Sprintf("%s-%s-%s-%s", componentName,
 		radixDeploymentName, secretRefType, secretResourceName))))
 	return strings.ToLower(fmt.Sprintf("%s-%s-%s-%s-%s", componentName, secretRefType, secretType,
 		secretResourceName, hash))

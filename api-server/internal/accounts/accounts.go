@@ -1,4 +1,4 @@
-package models
+package accounts
 
 import (
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -9,6 +9,16 @@ import (
 	"k8s.io/client-go/kubernetes"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
+
+// Account Holds kubernetes account sessions
+type Account struct {
+	Client               kubernetes.Interface
+	RadixClient          radixclient.Interface
+	SecretProviderClient secretProviderClient.Interface
+	TektonClient         tektonclient.Interface
+	CertManagerClient    certclient.Interface
+	KedaClient           kedav2.Interface
+}
 
 // NewAccounts creates a new Accounts struct
 func NewAccounts(inClusterClient kubernetes.Interface, inClusterRadixClient radixclient.Interface, inClusterKedaClient kedav2.Interface, inClusterSecretProviderClient secretProviderClient.Interface, inClusterTektonClient tektonclient.Interface, inClusterCertManagerClient certclient.Interface, outClusterClient kubernetes.Interface, outClusterRadixClient radixclient.Interface, outClusterKedaClient kedav2.Interface, outClusterSecretProviderClient secretProviderClient.Interface, outClusterTektonClient tektonclient.Interface, outClusterCertManagerClient certclient.Interface) Accounts {

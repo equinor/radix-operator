@@ -188,7 +188,6 @@ func TestValidateTask(t *testing.T) {
 	}
 
 	for _, spec := range specs {
-		spec := spec
 		t.Run(spec.name, func(t *testing.T) {
 			t.Parallel()
 

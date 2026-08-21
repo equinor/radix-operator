@@ -2,9 +2,8 @@ package defaults
 
 import (
 	"dario.cat/mergo"
-	commonUtils "github.com/equinor/radix-common/utils"
-	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	mergoutils "github.com/equinor/radix-operator/pkg/apis/utils/mergo"
 )
 
 const (
@@ -65,13 +64,13 @@ func (cfg *oauth2Config) MergeWith(source *v1.OAuth2) (*v1.OAuth2, error) {
 func oauth2Default() v1.OAuth2 {
 	return v1.OAuth2{
 		Scope:                  "openid profile email",
-		SetXAuthRequestHeaders: commonUtils.BoolPtr(false),
-		SetAuthorizationHeader: commonUtils.BoolPtr(false),
+		SetXAuthRequestHeaders: new(false),
+		SetAuthorizationHeader: new(false),
 		ProxyPrefix:            "/oauth2",
 		SessionStoreType:       v1.SessionStoreCookie,
 		OIDC: &v1.OAuth2OIDC{
-			InsecureSkipVerifyNonce: commonUtils.BoolPtr(false),
-			SkipDiscovery:           commonUtils.BoolPtr(false),
+			InsecureSkipVerifyNonce: new(false),
+			SkipDiscovery:           new(false),
 		},
 		Cookie: &v1.OAuth2Cookie{
 			Name:     "_oauth2_proxy",

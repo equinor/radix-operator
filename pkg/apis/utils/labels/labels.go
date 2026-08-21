@@ -1,9 +1,9 @@
 package labels
 
 import (
+	"maps"
 	"strconv"
 
-	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
@@ -14,7 +14,13 @@ const azureWorkloadIdentityUseLabel = "azure.workload.identity/use"
 
 // Merge multiple maps into one
 func Merge(labels ...map[string]string) kubelabels.Set {
-	return maputils.MergeMaps(labels...)
+	merged := make(map[string]string)
+
+	for _, val := range labels {
+		maps.Copy(merged, val)
+	}
+
+	return merged
 }
 
 // ForApplicationName returns labels describing the application name,

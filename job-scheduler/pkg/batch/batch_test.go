@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	testUtil "github.com/equinor/radix-operator/job-scheduler/internal/test"
 	v1 "github.com/equinor/radix-operator/job-scheduler/models/v1"
@@ -250,7 +249,7 @@ func TestGetRadixBatchStatus(t *testing.T) {
 					radixv1.BatchConditionTypeActive, jobStatusPhase{jobName1: radixv1.BatchJobPhaseRunning, jobName2: radixv1.BatchJobPhaseActive, jobName3: radixv1.BatchJobPhaseFailed, jobName4: radixv1.BatchJobPhaseSucceeded}),
 				batchRadixDeploy: createRadixDeployJobComponent(radixDeploymentName1, props,
 					createBatchStatusRule(radixv1.RadixBatchJobApiStatusFailed, radixv1.ConditionAny, radixv1.OperatorIn, radixv1.BatchJobPhaseFailed)),
-				activeRadixDeploy: pointers.Ptr(createRadixDeployJobComponent(radixDeploymentName2, props,
+				activeRadixDeploy: new(createRadixDeployJobComponent(radixDeploymentName2, props,
 					createBatchStatusRule(radixv1.RadixBatchJobApiStatusFailed, radixv1.ConditionAll, radixv1.OperatorIn, radixv1.BatchJobPhaseFailed),
 					createBatchStatusRule(radixv1.RadixBatchJobApiStatusRunning, radixv1.ConditionAny, radixv1.OperatorIn, radixv1.BatchJobPhaseRunning))),
 				expectedBatchStatus: "Running",

@@ -3,7 +3,6 @@ package runtime_test
 import (
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/runtime"
@@ -20,10 +19,10 @@ func Test_GetArchitectureFromRuntime(t *testing.T) {
 	nodeArch, ok = runtime.GetArchitectureFromRuntime(&v1.Runtime{Architecture: "customarch"})
 	assert.Equal(t, "customarch", nodeArch, "use when runtime.architecture set")
 	assert.Truef(t, ok, "use when runtime.architecture set")
-	nodeArch, ok = runtime.GetArchitectureFromRuntime(&v1.Runtime{NodeType: pointers.Ptr("memory-optimized-2-v1")})
+	nodeArch, ok = runtime.GetArchitectureFromRuntime(&v1.Runtime{NodeType: new("memory-optimized-2-v1")})
 	assert.Equal(t, string(v1.RuntimeArchitectureAmd64), nodeArch, "use when runtime.nodeType set")
 	assert.True(t, ok, "use when runtime.nodeType set")
-	nodeArch, ok = runtime.GetArchitectureFromRuntime(&v1.Runtime{NodeType: pointers.Ptr("gpu-nvidia-1-v1")})
+	nodeArch, ok = runtime.GetArchitectureFromRuntime(&v1.Runtime{NodeType: new("gpu-nvidia-1-v1")})
 	assert.Equal(t, string(v1.RuntimeArchitectureAmd64), nodeArch, "use when runtime.nodeType set")
 	assert.True(t, ok, "use when runtime.nodeType set")
 }

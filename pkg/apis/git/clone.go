@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -101,7 +100,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 				securitycontext.WithContainerRunAsGroup(1000),
 				securitycontext.WithContainerDropAllCapabilities(),
 				securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-				securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+				securitycontext.WithReadOnlyRootFileSystem(new(true)),
 			),
 		},
 	}

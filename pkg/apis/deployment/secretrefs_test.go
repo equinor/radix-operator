@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -51,17 +49,17 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 							{
 								Name:   "secret1",
 								EnvVar: "SECRET_REF1",
-								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Type:   new(v1.RadixAzureKeyVaultObjectTypeSecret),
 							},
 							{
 								Name:   "key1",
 								EnvVar: "KEY_REF1",
-								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey),
+								Type:   new(v1.RadixAzureKeyVaultObjectTypeKey),
 							},
 							{
 								Name:   "cert1",
 								EnvVar: "CERT_REF1",
-								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert),
+								Type:   new(v1.RadixAzureKeyVaultObjectTypeCert),
 							},
 						},
 					},
@@ -78,18 +76,18 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 							{
 								Name:   "secret1",
 								EnvVar: "SECRET_REF1",
-								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Type:   new(v1.RadixAzureKeyVaultObjectTypeSecret),
 							},
 						},
 					},
 					{
 						Name: "azureKeyVaultName3",
-						Path: commonUtils.StringPtr("/mnt/kv2"),
+						Path: new("/mnt/kv2"),
 						Items: []v1.RadixAzureKeyVaultItem{
 							{
 								Name:   "secret1",
 								EnvVar: "SECRET_REF11",
-								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Type:   new(v1.RadixAzureKeyVaultObjectTypeSecret),
 							},
 						},
 					},
@@ -110,7 +108,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 							{
 								Name:   "secret1",
 								EnvVar: "SECRET_REF1",
-								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Type:   new(v1.RadixAzureKeyVaultObjectTypeSecret),
 							},
 						},
 					},
@@ -126,19 +124,19 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 						Items: []v1.RadixAzureKeyVaultItem{
 							{
 								Name:  "secret1",
-								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
-								Alias: commonUtils.StringPtr("some-secret1-alias1"),
+								Type:  new(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Alias: new("some-secret1-alias1"),
 							},
 						},
 					},
 					{
 						Name: "azureKeyVaultName6",
-						Path: commonUtils.StringPtr("/mnt/kv2"),
+						Path: new("/mnt/kv2"),
 						Items: []v1.RadixAzureKeyVaultItem{
 							{
 								Name:  "secret1",
-								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
-								Alias: commonUtils.StringPtr("some-secret1-alias2"),
+								Type:  new(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Alias: new("some-secret1-alias2"),
 							},
 						},
 					},
@@ -162,23 +160,23 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 						Items: []v1.RadixAzureKeyVaultItem{
 							{
 								Name:  "secret1",
-								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
-								Alias: commonUtils.StringPtr("some-secret1-alias1"),
+								Type:  new(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Alias: new("some-secret1-alias1"),
 							},
 						},
-						UseAzureIdentity: commonUtils.BoolPtr(true),
+						UseAzureIdentity: new(true),
 					},
 					{
 						Name: "azureKeyVaultName6",
-						Path: commonUtils.StringPtr("/mnt/kv2"),
+						Path: new("/mnt/kv2"),
 						Items: []v1.RadixAzureKeyVaultItem{
 							{
 								Name:  "secret1",
-								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
-								Alias: commonUtils.StringPtr("some-secret1-alias2"),
+								Type:  new(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Alias: new("some-secret1-alias2"),
 							},
 						},
-						UseAzureIdentity: commonUtils.BoolPtr(true),
+						UseAzureIdentity: new(true),
 					},
 				},
 			},
@@ -258,7 +256,6 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 				assert.Equal(t, len(azureKeyVault.Items), len(secretObject.Data))
 				secretObjectItemMap := make(map[string]*secretsstorev1.SecretObjectData)
 				for _, item := range secretObject.Data {
-					item := item
 					secretObjectItemMap[item.Key] = item
 				}
 				for _, keyVaultItem := range azureKeyVault.Items {
@@ -345,18 +342,18 @@ func Test_GetRadixComponentsForEnv_AzureKeyVaultUseIAzureIdentity(t *testing.T) 
 	scenarios := []scenarioSpec{
 		{name: "empty when commonConfig is empty and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: nil, expected: nil},
 		{name: "empty when commonConfig is empty and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
-		{name: "use commonConfig when environmentConfig is empty", commonConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: pointers.Ptr(true), Items: createRadixAzureKeyVaultItem()}}, configureEnvironment: true, environmentConfig: nil, expected: pointers.Ptr(true)},
-		{name: "use commonConfig when environmentConfig.Credentials is empty", commonConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: pointers.Ptr(true), Items: createRadixAzureKeyVaultItem()}}, configureEnvironment: true, environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: nil, Items: []v1.RadixAzureKeyVaultItem{}}}, expected: pointers.Ptr(true)},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: new(true), Items: createRadixAzureKeyVaultItem()}}, configureEnvironment: true, environmentConfig: nil, expected: new(true)},
+		{name: "use commonConfig when environmentConfig.Credentials is empty", commonConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: new(true), Items: createRadixAzureKeyVaultItem()}}, configureEnvironment: true, environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: nil, Items: []v1.RadixAzureKeyVaultItem{}}}, expected: new(true)},
 		{name: "override non-empty commonConfig with environmentConfig.Credentials",
-			commonConfig:         []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: pointers.Ptr(false), Items: createRadixAzureKeyVaultItem()}},
-			configureEnvironment: true, environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: pointers.Ptr(true), Items: createRadixAzureKeyVaultItem()}},
-			expected: pointers.Ptr(true)},
+			commonConfig:         []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: new(false), Items: createRadixAzureKeyVaultItem()}},
+			configureEnvironment: true, environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: new(true), Items: createRadixAzureKeyVaultItem()}},
+			expected: new(true)},
 		{name: "override empty commonConfig with environmentConfig", commonConfig: nil, configureEnvironment: true,
-			environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: pointers.Ptr(true), Items: createRadixAzureKeyVaultItem()}},
-			expected:          pointers.Ptr(true)},
+			environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: new(true), Items: createRadixAzureKeyVaultItem()}},
+			expected:          new(true)},
 		{name: "override empty commonConfig.Credentials with environmentConfig", commonConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: nil, Items: []v1.RadixAzureKeyVaultItem{}}},
-			configureEnvironment: true, environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: pointers.Ptr(true), Items: createRadixAzureKeyVaultItem()}},
-			expected: pointers.Ptr(true)},
+			configureEnvironment: true, environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", UseAzureIdentity: new(true), Items: createRadixAzureKeyVaultItem()}},
+			expected: new(true)},
 	}
 
 	for _, scenario := range scenarios {

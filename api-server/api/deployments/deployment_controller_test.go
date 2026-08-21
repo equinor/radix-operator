@@ -15,10 +15,9 @@ import (
 	"go.uber.org/mock/gomock"
 	"k8s.io/client-go/kubernetes"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	builders "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -42,7 +41,7 @@ func createGetLogEndpoint(appName, podName string) string {
 	return fmt.Sprintf("/api/v1/applications/%s/deployments/any/components/any/replicas/%s/logs", appName, podName)
 }
 
-func setupTest(t *testing.T) (*commontest.Utils, *controllertest.Utils, kubernetes.Interface, radixclient.Interface, kedav2.Interface, client.Client, secretsstorevclient.Interface, *certfake.Clientset) {
+func setupTest(t *testing.T) (*commontest.Utils, *controllertest.TestUtils, kubernetes.Interface, radixclient.Interface, kedav2.Interface, client.Client, secretsstorevclient.Interface, *certfake.Clientset) {
 	const (
 		clusterName    = "AnyClusterName"
 		subscriptionId = "bd9f9eaa-2703-47c6-b5e0-faf4e058df73"
@@ -366,8 +365,8 @@ func TestGetDeployment_TwoDeploymentsFirstDeployment_ReturnsDeploymentWithCompon
 	anyEnvironment := "dev"
 	anyDeployment1Name := "abcdef"
 	anyDeployment2Name := "ghijkl"
-	appDeployment1Created, _ := radixutils.ParseTimestamp("2018-11-12T12:00:00Z")
-	appDeployment2Created, _ := radixutils.ParseTimestamp("2018-11-14T12:00:00Z")
+	appDeployment1Created, _ := time.Parse(time.RFC3339, "2018-11-12T12:00:00Z")
+	appDeployment2Created, _ := time.Parse(time.RFC3339, "2018-11-14T12:00:00Z")
 	jobName1, jobName2 := "rj1", "rj2"
 	commitID1 := "commit1"
 
@@ -398,11 +397,11 @@ func TestGetDeployment_TwoDeploymentsFirstDeployment_ReturnsDeploymentWithCompon
 					WithImage("radixdev.azurecr.io/some-image:imagetag").
 					WithName("frontend").
 					WithPort("http", 8080).
-					WithReplicas(commontest.IntPtr(1)),
+					WithReplicas(new(1)),
 				builders.NewDeployComponentBuilder().
 					WithImage("radixdev.azurecr.io/another-image:imagetag").
 					WithName("backend").
-					WithReplicas(commontest.IntPtr(1))))
+					WithReplicas(new(1))))
 	require.NoError(t, err)
 
 	_, err = commonTestUtils.ApplyDeployment(
@@ -427,7 +426,7 @@ func TestGetDeployment_TwoDeploymentsFirstDeployment_ReturnsDeploymentWithCompon
 				builders.NewDeployComponentBuilder().
 					WithImage("radixdev.azurecr.io/another-second-image:imagetag").
 					WithName("backend").
-					WithReplicas(commontest.IntPtr(1))))
+					WithReplicas(new(1))))
 	require.NoError(t, err)
 
 	// Test

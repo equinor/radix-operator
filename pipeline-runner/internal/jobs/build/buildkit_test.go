@@ -6,7 +6,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -133,11 +132,11 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			expectedPodSecurityContext := securitycontext.Pod(
 				securitycontext.WithPodFSGroup(1000),
 				securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
-				securitycontext.WithPodRunAsNonRoot(pointers.Ptr(false)))
+				securitycontext.WithPodRunAsNonRoot(new(false)))
 			assert.Equal(t, expectedPodSecurityContext, job.Spec.Template.Spec.SecurityContext)
 			expectedVolumes := []corev1.Volume{
 				{Name: git.BuildContextVolumeName},
-				{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: pointers.Ptr[int32](256)}}},
+				{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: new(int32(256))}}},
 				{Name: fmt.Sprintf("tmp-%s", ci.ContainerName), VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 				{Name: fmt.Sprintf("var-%s", ci.ContainerName), VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 				{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
@@ -201,10 +200,10 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 				securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
 				securitycontext.WithContainerSeccompProfile(corev1.SeccompProfile{
 					Type:             corev1.SeccompProfileTypeLocalhost,
-					LocalhostProfile: utils.StringPtr(args.SeccompProfileFileName),
+					LocalhostProfile: new(args.SeccompProfileFileName),
 				}),
-				securitycontext.WithContainerRunAsNonRoot(pointers.Ptr(false)),
-				securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+				securitycontext.WithContainerRunAsNonRoot(new(false)),
+				securitycontext.WithReadOnlyRootFileSystem(new(true)),
 			)
 			assert.Equal(t, expectedSecurityContext, c.SecurityContext)
 			expectedEnvVars := []corev1.EnvVar{
