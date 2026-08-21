@@ -1018,7 +1018,6 @@ func Test_GetRadixComponents_CustomHealthChecks(t *testing.T) {
 			PeriodSeconds:       seconds + 2,
 			SuccessThreshold:    seconds + 3,
 			FailureThreshold:    seconds + 4,
-			// TerminationGracePeriodSeconds: new(int64(seconds + 5)),
 		}
 	}
 
