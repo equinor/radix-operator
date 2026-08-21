@@ -20,7 +20,6 @@ import (
 	mock2 "github.com/equinor/radix-operator/api-server/api/metrics/mock"
 	"github.com/equinor/radix-operator/api-server/api/metrics/prometheus"
 	"github.com/equinor/radix-operator/api-server/api/metrics/prometheus/mock"
-	"github.com/equinor/radix-operator/api-server/api/test"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
 	"github.com/equinor/radix-operator/api-server/internal/accounts"
@@ -1196,7 +1195,7 @@ func TestDeleteApplication_ApplicationIsDeleted(t *testing.T) {
 func TestGetApplication_WithAppAlias_ContainsAppAlias(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretproviderclient, certClient, _ := setupTest(t)
-	err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretproviderclient, certClient, builders.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretproviderclient, certClient, builders.ARadixDeployment().
 		WithRadixApplication(builders.ARadixApplication().
 			WithAppName("any-app").
 			WithDNSAppAlias("prod", "frontend")).
@@ -1274,7 +1273,7 @@ func TestRegenerateDeployKey_CreateUpdatesSharedSecret(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Test
@@ -1319,7 +1318,7 @@ func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been created
@@ -1334,7 +1333,7 @@ func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
 	// forcing resync of RR
-	err = test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err = controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been re-created and is different from first secret
@@ -1351,7 +1350,7 @@ func TestRegenerateDeployKey_PrivateKeyInParam_SavedPrivateKeyIsEqualToWebParam(
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// make some valid private key
@@ -1365,7 +1364,7 @@ func TestRegenerateDeployKey_PrivateKeyInParam_SavedPrivateKeyIsEqualToWebParam(
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
 	// forcing resync of RR
-	err = test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err = controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been re-created and is equal to the one in the web parameter
@@ -1381,7 +1380,7 @@ func TestRegenerateDeployKey_InvalidKeyInParam_ErrorIsReturned(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := test.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// calling regenerate-deploy-key with invalid private key, expecting error

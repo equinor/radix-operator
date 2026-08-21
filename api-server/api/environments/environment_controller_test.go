@@ -16,7 +16,6 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/secrets"
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
-	"github.com/equinor/radix-operator/api-server/api/test"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
 	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
@@ -612,7 +611,7 @@ func Test_GetEnvironmentEvents_Controller(t *testing.T) {
 func TestUpdateSecret_AccountSecretForComponentVolumeMount_UpdatedOk(t *testing.T) {
 	// Setup
 	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithRadixApplication(operatorutils.ARadixApplication().
@@ -672,7 +671,7 @@ func TestUpdateSecret_AccountSecretForComponentVolumeMount_UpdatedOk(t *testing.
 func TestUpdateSecret_AccountSecretForJobVolumeMount_UpdatedOk(t *testing.T) {
 	// Setup
 	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithRadixApplication(operatorutils.ARadixApplication().
@@ -734,7 +733,7 @@ func TestUpdateSecret_OAuth2_UpdatedOk(t *testing.T) {
 	// Setup
 	envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := test.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.NewDeploymentBuilder().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.NewDeploymentBuilder().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithRadixApplication(operatorutils.ARadixApplication().

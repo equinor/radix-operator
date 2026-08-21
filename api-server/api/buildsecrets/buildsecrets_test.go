@@ -7,7 +7,6 @@ import (
 	"time"
 
 	environmentModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
-	"github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
 	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -59,7 +58,7 @@ func TestGetBuildSecrets_ListsAll(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient := setupTest(t)
 
-	err := test.ApplyApplicationWithSync(client, radixclient, kedaClient, commonTestUtils,
+	err := controllertest.ApplyApplicationWithSync(client, radixclient, kedaClient, commonTestUtils,
 		builders.ARadixApplication().
 			WithAppName(anyAppName).
 			WithBuildSecrets(anyBuildSecret1, anyBuildSecret2))
@@ -76,7 +75,7 @@ func TestGetBuildSecrets_ListsAll(t *testing.T) {
 	assert.Equal(t, anyBuildSecret1, buildSecrets[0].Name)
 	assert.Equal(t, anyBuildSecret2, buildSecrets[1].Name)
 
-	err = test.ApplyApplicationWithSync(client, radixclient, kedaClient, commonTestUtils,
+	err = controllertest.ApplyApplicationWithSync(client, radixclient, kedaClient, commonTestUtils,
 		builders.ARadixApplication().
 			WithAppName(anyAppName).
 			WithBuildSecrets(anyBuildSecret1, anyBuildSecret2, anyBuildSecret3))
@@ -93,7 +92,7 @@ func TestGetBuildSecrets_ListsAll(t *testing.T) {
 	assert.Equal(t, anyBuildSecret2, buildSecrets[1].Name)
 	assert.Equal(t, anyBuildSecret3, buildSecrets[2].Name)
 
-	err = test.ApplyApplicationWithSync(client, radixclient, kedaClient, commonTestUtils,
+	err = controllertest.ApplyApplicationWithSync(client, radixclient, kedaClient, commonTestUtils,
 		builders.ARadixApplication().
 			WithAppName(anyAppName).
 			WithBuildSecrets(anyBuildSecret1, anyBuildSecret3))
@@ -116,7 +115,7 @@ func TestUpdateBuildSecret_UpdatedOk(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient := setupTest(t)
 
-	err := test.ApplyApplicationWithSync(client, radixclient, kedaClient, commonTestUtils,
+	err := controllertest.ApplyApplicationWithSync(client, radixclient, kedaClient, commonTestUtils,
 		builders.ARadixApplication().
 			WithAppName(anyAppName).
 			WithBuildSecrets(anyBuildSecret1))
@@ -159,7 +158,7 @@ func TestUpdateBuildSecret_UpdateFailedForNotExistingSecrets(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient := setupTest(t)
 
-	err := test.ApplyApplicationWithSync(client, radixclient, kedaClient, commonTestUtils,
+	err := controllertest.ApplyApplicationWithSync(client, radixclient, kedaClient, commonTestUtils,
 		builders.ARadixApplication().
 			WithAppName(anyAppName).WithBuildSecrets("secret1"))
 	require.NoError(t, err)
