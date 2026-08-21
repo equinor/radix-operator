@@ -2,10 +2,11 @@ package deployment
 
 import (
 	"context"
+	"strings"
 
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,39 +20,6 @@ func (deploy *Deployment) createOrUpdateService(ctx context.Context, deployCompo
 	}
 	service := getServiceConfig(deployComponent, deploy.radixDeployment, ports)
 	return deploy.kubeutil.ApplyService(ctx, namespace, service)
-}
-
-func (deploy *Deployment) garbageCollectServicesNoLongerInSpec(ctx context.Context) error {
-	services, err := deploy.kubeutil.ListServices(ctx, deploy.radixDeployment.GetNamespace())
-	if err != nil {
-		return err
-	}
-
-	for _, service := range services {
-		componentName, ok := RadixComponentNameFromComponentLabel(service)
-		if !ok {
-			continue
-		}
-		if deploy.isEligibleForGarbageCollectServiceForComponent(service, componentName) {
-			if err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (deploy *Deployment) isEligibleForGarbageCollectServiceForComponent(service *corev1.Service, componentName RadixComponentName) bool {
-	if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
-		if !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
-			return true // Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
-		}
-	} else if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
-		return true // Garbage collect service if not defined in RD components or jobs
-	}
-
-	return !componentName.CommonDeployComponentHasPorts(deploy.radixDeployment)
 }
 
 func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
@@ -81,4 +49,55 @@ func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *
 	}
 
 	return service
+}
+
+func (deploy *Deployment) garbageCollectServicesNoLongerInSpec(ctx context.Context) error {
+	services, err := deploy.kubeutil.ListServices(ctx, deploy.radixDeployment.GetNamespace())
+	if err != nil {
+		return err
+	}
+
+	for _, service := range services {
+		componentName, ok := RadixComponentNameFromComponentLabel(service)
+		if !ok {
+			continue
+		}
+		// TODO: Add labels for job-scheduler service that describe it, then check that labels exists,
+		// instead of checking it is a external service. Eg check it is a JobScheduler service, isntead of checking if its a bacthjob service
+		if _, isBatchService := service.Labels[kube.RadixBatchNameLabel]; isBatchService {
+			continue // Batch job services are owned and garbage-collected by their RadixBatch resource
+		}
+		if deploy.isEligibleForGarbageCollectServiceForComponent(service, componentName) {
+			if err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) isEligibleForGarbageCollectServiceForComponent(service *corev1.Service, componentName RadixComponentName) bool {
+	if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
+		if !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
+			return true // Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
+		}
+	} else if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
+		return true // Garbage collect service if not defined in RD components or jobs
+	}
+
+	return !componentOrJobSchedulerHasPort(deploy.radixDeployment, componentName)
+}
+
+// componentOrJobSchedulerHasPort Checks id the deploy component has regular or schedule ports
+func componentOrJobSchedulerHasPort(rd *v1.RadixDeployment, t RadixComponentName) bool {
+	if comp := t.findInDeploymentSpecComponentList(rd); comp != nil {
+		return len(comp.GetPorts()) > 0
+	}
+	for _, job := range rd.Spec.Jobs {
+		if strings.EqualFold(job.Name, string(t)) {
+			return job.SchedulerPort != nil && *job.SchedulerPort != 0
+		}
+	}
+	return false
 }

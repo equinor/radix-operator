@@ -67,8 +67,8 @@ func Test_ComponentJobNameValidator(t *testing.T) {
 			ra: &radixv1.RadixApplication{
 				Spec: radixv1.RadixApplicationSpec{
 					Jobs: []radixv1.RadixJobComponent{
-						{Name: "job1"},
-						{Name: "job2"},
+						{Name: "job1", SchedulerPort: new(int32(8080))},
+						{Name: "job2", SchedulerPort: new(int32(8080))},
 					},
 				},
 			},
@@ -83,8 +83,8 @@ func Test_ComponentJobNameValidator(t *testing.T) {
 						{Name: "component2"},
 					},
 					Jobs: []radixv1.RadixJobComponent{
-						{Name: "job1"},
-						{Name: "job2"},
+						{Name: "job1", SchedulerPort: new(int32(8080))},
+						{Name: "job2", SchedulerPort: new(int32(8080))},
 					},
 				},
 			},
@@ -2988,7 +2988,7 @@ func Test_CronScheduleValidator(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithCron(&radixv1.CronSchedule{Schedules: testcase.schedule, Concurrency: "Allow"}).
 				BuildJobComponent())
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
@@ -3045,7 +3045,7 @@ func Test_CronScheduleValidator_EnvironmentConfig(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().
 					WithEnvironment("dev").
 					WithCron(&radixv1.CronSchedule{Schedules: testcase.schedule, TimeZone: testcase.timeZone, Concurrency: "Allow"})).
@@ -3107,7 +3107,7 @@ func Test_CronTimeZoneValidator(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithCron(&radixv1.CronSchedule{TimeZone: testcase.timeZone, Schedules: []string{"* * * * *"}, Concurrency: "Allow"}).
 				BuildJobComponent())
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
@@ -3167,7 +3167,7 @@ func Test_CronConcurrencyValidator(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithCron(&radixv1.CronSchedule{Schedules: []string{"* * * * *"}, Concurrency: testcase.concurrency}).
 				BuildJobComponent())
 			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
@@ -3176,6 +3176,139 @@ func Test_CronConcurrencyValidator(t *testing.T) {
 			if testcase.expectError {
 				assert.Error(t, err)
 				assert.ErrorIs(t, err, radixapplication.ErrCronConcurrencyInvalid)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func Test_JobSchedulerConfigValidator(t *testing.T) {
+	validCron := func() *radixv1.CronSchedule {
+		return &radixv1.CronSchedule{Schedules: []string{"* * * * *"}, Concurrency: "Allow"}
+	}
+
+	var testScenarios = []struct {
+		name        string
+		buildJob    func() utils.RadixApplicationJobComponentBuilder
+		expectError bool
+	}{
+		{
+			name: "schedulerPort only is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("schedjob").
+					WithSchedulerPort(new(int32(8888)))
+			},
+			expectError: false,
+		},
+		{
+			name: "job-level cron only is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("cronjob").
+					WithCron(validCron())
+			},
+			expectError: false,
+		},
+		{
+			name: "env-level cron for all environments is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("envcronjob").
+					WithEnvironmentConfigs(
+						utils.AJobComponentEnvironmentConfig().WithEnvironment("dev").WithCron(validCron()),
+						utils.AJobComponentEnvironmentConfig().WithEnvironment("prod").WithCron(validCron()),
+					)
+			},
+			expectError: false,
+		},
+		{
+			name: "env-level cron for only some environments is invalid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("partialcronjob").
+					WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("dev").
+						WithCron(validCron()))
+			},
+			expectError: true,
+		},
+		{
+			name: "env-level cron only, disabled in other environments is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("scopedcronjob").
+					WithEnvironmentConfigs(
+						utils.AJobComponentEnvironmentConfig().WithEnvironment("dev").WithCron(validCron()),
+						utils.AJobComponentEnvironmentConfig().WithEnvironment("prod").WithEnabled(false),
+					)
+			},
+			expectError: false,
+		},
+		{
+			name: "job disabled everywhere but one env with cron is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("disabledjob").
+					WithEnabled(false).
+					WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("dev").
+						WithEnabled(true).
+						WithCron(validCron()))
+			},
+			expectError: false,
+		},
+		{
+			name: "both schedulerPort and cron is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("bothjob").
+					WithSchedulerPort(new(int32(8888))).
+					WithCron(validCron())
+			},
+			expectError: false,
+		},
+		{
+			name: "neither schedulerPort nor cron is invalid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("nojob")
+			},
+			expectError: true,
+		},
+		{
+			name: "job disabled everywhere without schedulerPort or cron is invalid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("disablednojob").
+					WithEnabled(false)
+			},
+			expectError: true,
+		},
+		{
+			name: "no schedulerPort and env config without cron is invalid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("noconfigjob").
+					WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("dev"))
+			},
+			expectError: true,
+		},
+	}
+
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA.Spec.Jobs = append(validRA.Spec.Jobs, testcase.buildJob().BuildJobComponent())
+			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			_, err := validator.Validate(context.Background(), validRA)
+
+			if testcase.expectError {
+				assert.Error(t, err)
+				assert.ErrorIs(t, err, radixapplication.ErrSchedulerPortOrCronRequiredForJob)
 			} else {
 				assert.NoError(t, err)
 			}

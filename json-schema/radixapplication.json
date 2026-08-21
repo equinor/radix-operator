@@ -4858,8 +4858,7 @@
               }
             },
             "required": [
-              "name",
-              "schedulerPort"
+              "name"
             ],
             "type": "object"
           },

@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.126.1](https://github.com/equinor/radix-operator/compare/v1.126.0..v1.126.1) - 2026-08-21
+
+### 🐛 Bug Fixes
+
+- Allow no schedulerPort if atleast one cron schedule is defined (#1833) - ([56625fc](https://github.com/equinor/radix-operator/commit/56625fc4e33ca30d6eb532b0b84b51bed5ccf299)) by @Richard87 in [#1833](https://github.com/equinor/radix-operator/pull/1833)
+
+
+## [1.126.0](https://github.com/equinor/radix-operator/compare/v1.125.0..v1.126.0) - 2026-08-19
+
+### 🚀 Features
+
+- Return cron schedules for the job component. (#1888) - ([f2047b6](https://github.com/equinor/radix-operator/commit/f2047b6f770171ccaf4197ba3452eab7cd00506d)) by @jacobsolbergholm in [#1888](https://github.com/equinor/radix-operator/pull/1888)
+
+
+### 🐛 Bug Fixes
+
+- Validate subdomain length constrain (#1900) - ([a4f673a](https://github.com/equinor/radix-operator/commit/a4f673abebc4acd8fe71ed8de5fc1dc291436483)) by @herda1 in [#1900](https://github.com/equinor/radix-operator/pull/1900)
+
+- Remove deprecated field ´deployment´ (#1903) - ([16206ff](https://github.com/equinor/radix-operator/commit/16206ff1d328f06c299b347c419beb6ba29635f3)) by @herda1 in [#1903](https://github.com/equinor/radix-operator/pull/1903)
+
+
 ## [1.125.0](https://github.com/equinor/radix-operator/compare/v1.124.1..v1.125.0) - 2026-08-12
 
 ### 🚀 Features

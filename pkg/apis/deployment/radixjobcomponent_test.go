@@ -21,7 +21,7 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 		WithJobComponents(
 			utils.AnApplicationJobComponent().
 				WithName("job1").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithPayloadPath(new("/path/to/payload")),
 			utils.AnApplicationJobComponent().
 				WithName("job2"),
@@ -36,7 +36,7 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 	assert.Equal(t, "job1", jobs[0].Name)
-	assert.Equal(t, int32(8888), jobs[0].SchedulerPort)
+	assert.Equal(t, int32(8888), *jobs[0].SchedulerPort)
 	assert.Equal(t, "/path/to/payload", jobs[0].Payload.Path)
 	assert.Equal(t, "job2", jobs[1].Name)
 	assert.Zero(t, jobs[1].SchedulerPort)
@@ -50,7 +50,7 @@ func Test_GetRadixJobComponentsWithNode_BuildAllJobComponents(t *testing.T) {
 		WithJobComponents(
 			utils.AnApplicationJobComponent().
 				WithName("job1").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithPayloadPath(new("/path/to/payload")).
 				WithNode(radixv1.RadixNode{Gpu: gpu, GpuCount: gpuCount}),
 			utils.AnApplicationJobComponent().
@@ -396,7 +396,7 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 		WithJobComponents(
 			utils.AnApplicationJobComponent().
 				WithName("this job name does get set").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithTimeLimitSeconds(new(int64(200))).
 				WithEnvironmentConfigs(
 					utils.NewJobComponentEnvironmentBuilder().

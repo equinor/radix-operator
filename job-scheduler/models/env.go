@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -18,7 +17,7 @@ type Env struct {
 	RadixDeploymentName                          string
 	RadixDeploymentNamespace                     string
 	RadixJobSchedulersPerEnvironmentHistoryLimit int
-	RadixPort                                    string
+	RadixPort                                    *string
 	LogLevel                                     string
 	RadixAppName                                 string
 	RadixEnvironmentName                         string
@@ -34,7 +33,6 @@ func NewEnv() *Env {
 		radixComponentName                           = strings.TrimSpace(os.Getenv(defaults.RadixComponentEnvironmentVariable))
 		radixDeployment                              = strings.TrimSpace(os.Getenv(defaults.RadixDeploymentEnvironmentVariable))
 		radixJobSchedulersPerEnvironmentHistoryLimit = strings.TrimSpace(os.Getenv("RADIX_JOB_SCHEDULERS_PER_ENVIRONMENT_HISTORY_LIMIT"))
-		radixPorts                                   = strings.TrimSpace(os.Getenv(defaults.RadixPortsEnvironmentVariable))
 		logLevel                                     = os.Getenv("LOG_LEVEL")
 	)
 	env := Env{
@@ -48,7 +46,6 @@ func NewEnv() *Env {
 		LogLevel:    logLevel,
 		UseProfiler: useProfiler,
 	}
-	setPort(radixPorts, &env)
 	setHistoryLimit(radixJobSchedulersPerEnvironmentHistoryLimit, &env)
 	return &env
 }
@@ -59,15 +56,4 @@ func setHistoryLimit(radixJobSchedulersPerEnvironmentHistoryLimit string, env *E
 			env.RadixJobSchedulersPerEnvironmentHistoryLimit = historyLimit
 		}
 	}
-}
-
-func setPort(radixPorts string, env *Env) {
-	radixPorts = strings.ReplaceAll(radixPorts, "(", "")
-	radixPorts = strings.ReplaceAll(radixPorts, ")", "")
-	ports := strings.Split(radixPorts, ",")
-	if len(ports) > 0 {
-		env.RadixPort = ports[0]
-		return
-	}
-	panic(fmt.Errorf("RADIX_PORTS not set"))
 }

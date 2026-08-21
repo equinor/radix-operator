@@ -226,7 +226,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -238,7 +238,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "Compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "Compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -252,7 +252,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -264,7 +264,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -278,7 +278,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -290,7 +290,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 1023}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(1023))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -304,7 +304,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, TimeLimitSeconds: new(int64(3600))}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), TimeLimitSeconds: new(int64(3600))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -316,7 +316,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, TimeLimitSeconds: new(int64(0))}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), TimeLimitSeconds: new(int64(0))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -330,7 +330,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, BackoffLimit: new(int32(3))}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), BackoffLimit: new(int32(3))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -342,7 +342,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, BackoffLimit: new(int32(-1))}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), BackoffLimit: new(int32(-1))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -356,7 +356,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, RunAsUser: new(int64(1000))}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), RunAsUser: new(int64(1000))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -368,7 +368,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, RunAsUser: new(int64(0))}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), RunAsUser: new(int64(0))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -398,7 +398,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 					{
 						Name:             "processor",
 						Image:            "myregistry/processor:v1.0.0",
-						SchedulerPort:    8080,
+						SchedulerPort:    new(int32(8080)),
 						TimeLimitSeconds: new(int64(3600)),
 						BackoffLimit:     new(int32(3)),
 						RunAsUser:        new(int64(1002)),

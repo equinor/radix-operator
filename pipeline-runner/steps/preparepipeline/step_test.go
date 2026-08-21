@@ -1027,7 +1027,7 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 					WithAppName(appName).
 					WithEnvironment(internalTest.Env1, branchName).
 					WithComponent(utils.NewApplicationComponentBuilder().WithName("frontend")).
-					WithJobComponent(utils.NewApplicationJobComponentBuilder().WithName("compute").WithSchedulerPort(8888)),
+					WithJobComponent(utils.NewApplicationJobComponentBuilder().WithName("compute").WithSchedulerPort(new(int32(8888)))),
 			},
 			args: args{
 				envName: envName,

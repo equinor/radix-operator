@@ -410,8 +410,8 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 					{Name: "backend"},
 				},
 				Jobs: []v1.RadixJobComponent{
-					{Name: "batch-job", SchedulerPort: int32(8000)},
-					{Name: "import-job", SchedulerPort: int32(8001)},
+					{Name: "batch-job", SchedulerPort: new(int32(8000))},
+					{Name: "import-job", SchedulerPort: new(int32(8001))},
 				},
 			},
 		}
@@ -433,7 +433,7 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 					{Name: "api"},
 				},
 				Jobs: []v1.RadixJobComponent{
-					{Name: "worker", SchedulerPort: int32(8000)}, // Duplicate with component
+					{Name: "worker", SchedulerPort: new(int32(8000))}, // Duplicate with component
 				},
 			},
 		}

@@ -2276,7 +2276,6 @@ spec:
                   required:
                   - image
                   - name
-                  - schedulerPort
                   type: object
                 type: array
             required:
