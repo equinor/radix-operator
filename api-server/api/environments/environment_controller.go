@@ -11,238 +11,239 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/deployments"
 	environmentsModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/logs"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/gorilla/mux"
 )
 
 const rootPath = "/applications/{appName}"
 
 type environmentController struct {
-	*models.DefaultController
+	*controller.DefaultController
 	environmentHandlerFactory EnvironmentHandlerFactory
 }
 
 // NewEnvironmentController Constructor
-func NewEnvironmentController(environmentHandlerFactory EnvironmentHandlerFactory) models.Controller {
+func NewEnvironmentController(environmentHandlerFactory EnvironmentHandlerFactory) controller.Controller {
 	return &environmentController{
 		environmentHandlerFactory: environmentHandlerFactory,
 	}
 }
 
 // GetRoutes List the supported routes of this handler
-func (c *environmentController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (c *environmentController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/deployments",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetApplicationEnvironmentDeployments,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetEnvironmentSummary,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetEnvironment,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}",
 			Method:      http.MethodPost,
 			HandlerFunc: c.CreateEnvironment,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}",
 			Method:      http.MethodDelete,
 			HandlerFunc: c.DeleteEnvironment,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/events",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetEnvironmentEvents,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/events/components/{componentName}",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetComponentEvents,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/events/components/{componentName}/replicas/{podName}",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetPodEvents,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/stop",
 			Method:      http.MethodPost,
 			HandlerFunc: c.StopComponent,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/start",
 			Method:      http.MethodPost,
 			HandlerFunc: c.ResetScaledComponent,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/reset-scale",
 			Method:      http.MethodPost,
 			HandlerFunc: c.ResetScaledComponent,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/restart",
 			Method:      http.MethodPost,
 			HandlerFunc: c.RestartComponent,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/aux/{type}/restart",
 			Method:      http.MethodPost,
 			HandlerFunc: c.RestartOAuthAuxiliaryResource,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/stop",
 			Method:      http.MethodPost,
 			HandlerFunc: c.StopEnvironment,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/start",
 			Method:      http.MethodPost,
 			HandlerFunc: c.ResetManuallyStoppedComponentsInEnvironment,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/reset-scale",
 			Method:      http.MethodPost,
 			HandlerFunc: c.ResetManuallyStoppedComponentsInEnvironment,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/restart",
 			Method:      http.MethodPost,
 			HandlerFunc: c.RestartEnvironment,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/stop",
 			Method:      http.MethodPost,
 			HandlerFunc: c.StopApplication,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/start",
 			Method:      http.MethodPost,
 			HandlerFunc: c.ResetManuallyScaledComponentsInApplication,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/reset-scale",
 			Method:      http.MethodPost,
 			HandlerFunc: c.ResetManuallyScaledComponentsInApplication,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/restart",
 			Method:      http.MethodPost,
 			HandlerFunc: c.RestartApplication,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/replicas/{podName}/logs",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetPodLog,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/scheduledjobs/{scheduledJobName}/logs",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetScheduledJobLog,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/aux/{type}/replicas/{podName}/logs",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetOAuthAuxiliaryResourcePodLog,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/deployments",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetJobComponentDeployments,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/jobs",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetJobs,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName}",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetJob,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName}/restart",
 			Method:      http.MethodPost,
 			HandlerFunc: c.RestartJob,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName}/copy",
 			Method:      http.MethodPost,
 			HandlerFunc: c.CopyJob,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName}",
 			Method:      http.MethodDelete,
 			HandlerFunc: c.DeleteJob,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName}/payload",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetJobPayload,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/batches",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetBatches,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/batches/{batchName}",
 			Method:      http.MethodGet,
 			HandlerFunc: c.GetBatch,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/batches/{batchName}/restart",
 			Method:      http.MethodPost,
 			HandlerFunc: c.RestartBatch,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/batches/{batchName}/copy",
 			Method:      http.MethodPost,
 			HandlerFunc: c.CopyBatch,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/batches/{batchName}",
 			Method:      http.MethodDelete,
 			HandlerFunc: c.DeleteBatch,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/scale/{replicas}",
 			Method:      http.MethodPost,
 			HandlerFunc: c.ScaleComponent,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName}/stop",
 			Method:      http.MethodPost,
 			HandlerFunc: c.StopJob,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/jobs/stop",
 			Method:      http.MethodPost,
 			HandlerFunc: c.StopAllJobs,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/batches/{batchName}/stop",
 			Method:      http.MethodPost,
 			HandlerFunc: c.StopBatch,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/batches/stop",
 			Method:      http.MethodPost,
 			HandlerFunc: c.StopAllBatches,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/{jobComponentName}/stop",
 			Method:      http.MethodPost,
 			HandlerFunc: c.StopAllBatchesAndJobsForJobComponent,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/jobcomponents/stop",
 			Method:      http.MethodPost,
 			HandlerFunc: c.StopAllBatchesAndJobsForEnvironment,
@@ -252,7 +253,7 @@ func (c *environmentController) GetRoutes() models.Routes {
 }
 
 // GetApplicationEnvironmentDeployments Lists the application environment deployments
-func (c *environmentController) GetApplicationEnvironmentDeployments(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetApplicationEnvironmentDeployments(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/deployments environment getApplicationEnvironmentDeployments
 	// ---
 	// summary: Lists the application environment deployments
@@ -318,7 +319,7 @@ func (c *environmentController) GetApplicationEnvironmentDeployments(accounts mo
 }
 
 // CreateEnvironment Creates a new environment
-func (c *environmentController) CreateEnvironment(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) CreateEnvironment(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName} environment createEnvironment
 	// ---
 	// summary: Creates application environment
@@ -365,7 +366,7 @@ func (c *environmentController) CreateEnvironment(accounts models.Accounts, w ht
 }
 
 // GetEnvironment Get details for an application environment
-func (c *environmentController) GetEnvironment(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetEnvironment(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName} environment getEnvironment
 	// ---
 	// summary: Get details for an application environment
@@ -416,7 +417,7 @@ func (c *environmentController) GetEnvironment(accounts models.Accounts, w http.
 }
 
 // DeleteEnvironment Deletes environment
-func (c *environmentController) DeleteEnvironment(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) DeleteEnvironment(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation DELETE /applications/{appName}/environments/{envName} environment deleteEnvironment
 	// ---
 	// summary: Deletes application environment
@@ -464,7 +465,7 @@ func (c *environmentController) DeleteEnvironment(accounts models.Accounts, w ht
 }
 
 // GetEnvironmentSummary Lists the environments for an application
-func (c *environmentController) GetEnvironmentSummary(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetEnvironmentSummary(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments environment getEnvironmentSummary
 	// ---
 	// summary: Lists the environments for an application
@@ -509,7 +510,7 @@ func (c *environmentController) GetEnvironmentSummary(accounts models.Accounts, 
 }
 
 // GetEnvironmentEvents Get events for an application environment
-func (c *environmentController) GetEnvironmentEvents(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetEnvironmentEvents(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/events environment getEnvironmentEvents
 	// ---
 	// summary: Lists events for an application environment
@@ -562,7 +563,7 @@ func (c *environmentController) GetEnvironmentEvents(accounts models.Accounts, w
 }
 
 // GetComponentEvents Get events for an application environment component
-func (c *environmentController) GetComponentEvents(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetComponentEvents(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/events/components/{componentName} environment getComponentEvents
 	// ---
 	// summary: Lists events for an application environment
@@ -620,7 +621,7 @@ func (c *environmentController) GetComponentEvents(accounts models.Accounts, w h
 }
 
 // GetPodEvents Get events for an application environment component
-func (c *environmentController) GetPodEvents(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetPodEvents(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/events/components/{componentName}/replicas/{podName} environment getReplicaEvents
 	// ---
 	// summary: Lists events for an application environment
@@ -684,7 +685,7 @@ func (c *environmentController) GetPodEvents(accounts models.Accounts, w http.Re
 }
 
 // StopComponent Stops job
-func (c *environmentController) StopComponent(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StopComponent(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/components/{componentName}/stop component stopComponent
 	// ---
 	// summary: Stops component
@@ -737,7 +738,7 @@ func (c *environmentController) StopComponent(accounts models.Accounts, w http.R
 }
 
 // ResetScaledComponent reset manually scaled component and resumes normal operation
-func (c *environmentController) ResetScaledComponent(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) ResetScaledComponent(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/components/{componentName}/reset-scale component resetScaledComponent
 	// ---
 	// summary: Reset manually scaled component and resumes normal operation
@@ -790,7 +791,7 @@ func (c *environmentController) ResetScaledComponent(accounts models.Accounts, w
 }
 
 // StartComponent Starts job
-func (c *environmentController) StartComponent(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StartComponent(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/components/{componentName}/start component startComponent
 	// ---
 	// summary: Deprecated Start component. Use reset-scale instead. This does the same thing, but naming is wrong. This endpoint will be removed after 1. september 2025.
@@ -844,7 +845,7 @@ func (c *environmentController) StartComponent(accounts models.Accounts, w http.
 }
 
 // RestartComponent Restarts job
-func (c *environmentController) RestartComponent(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) RestartComponent(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/components/{componentName}/restart component restartComponent
 	// ---
 	// summary: |
@@ -901,7 +902,7 @@ func (c *environmentController) RestartComponent(accounts models.Accounts, w htt
 }
 
 // StopEnvironment  all components in the environment
-func (c *environmentController) StopEnvironment(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StopEnvironment(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/stop environment stopEnvironment
 	// ---
 	// summary: Stops all components in the environment
@@ -948,7 +949,7 @@ func (c *environmentController) StopEnvironment(accounts models.Accounts, w http
 }
 
 // ResetManuallyStoppedComponentsInEnvironment Reset all manually scaled component and resumes normal operation in environment
-func (c *environmentController) ResetManuallyStoppedComponentsInEnvironment(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) ResetManuallyStoppedComponentsInEnvironment(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/reset-scale environment resetManuallyScaledComponentsInEnvironment
 	// ---
 	// summary: Reset all manually scaled component and resumes normal operation in environment
@@ -995,7 +996,7 @@ func (c *environmentController) ResetManuallyStoppedComponentsInEnvironment(acco
 }
 
 // StartEnvironment Starts all components in the environment
-func (c *environmentController) StartEnvironment(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StartEnvironment(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/start environment startEnvironment
 	// ---
 	// summary: Deprecated. Use reset-scale instead that does the same thing, but with better naming. This method will be removed after 1. september 2025.
@@ -1043,7 +1044,7 @@ func (c *environmentController) StartEnvironment(accounts models.Accounts, w htt
 }
 
 // RestartEnvironment Restarts all components in the environment
-func (c *environmentController) RestartEnvironment(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) RestartEnvironment(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/restart environment restartEnvironment
 	// ---
 	// summary: |
@@ -1096,7 +1097,7 @@ func (c *environmentController) RestartEnvironment(accounts models.Accounts, w h
 }
 
 // StopApplication  all components in all environments of the application
-func (c *environmentController) StopApplication(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StopApplication(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/stop application stopApplication
 	// ---
 	// summary: Stops all components in the environment
@@ -1137,7 +1138,7 @@ func (c *environmentController) StopApplication(accounts models.Accounts, w http
 }
 
 // ResetManuallyScaledComponentsInApplication Resets and resumes normal opperation for all manually stopped components in all environments of the application
-func (c *environmentController) ResetManuallyScaledComponentsInApplication(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) ResetManuallyScaledComponentsInApplication(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/reset-scale application resetManuallyScaledComponentsInApplication
 	// ---
 	// summary: Resets and resumes normal opperation for all manually stopped components in all environments of the application
@@ -1178,7 +1179,7 @@ func (c *environmentController) ResetManuallyScaledComponentsInApplication(accou
 }
 
 // StartApplication Starts all components in all environments of the application
-func (c *environmentController) StartApplication(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StartApplication(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/start application startApplication
 	// ---
 	// summary: Deprecated. Use reset scale that does the same thing instead. This will be removed after 1. september 2025.
@@ -1220,7 +1221,7 @@ func (c *environmentController) StartApplication(accounts models.Accounts, w htt
 }
 
 // RestartApplication Restarts all components in all environments of the application
-func (c *environmentController) RestartApplication(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) RestartApplication(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/restart application restartApplication
 	// ---
 	// summary: |
@@ -1265,7 +1266,7 @@ func (c *environmentController) RestartApplication(accounts models.Accounts, w h
 }
 
 // RestartOAuthAuxiliaryResource Restarts oauth auxiliary resource for a component
-func (c *environmentController) RestartOAuthAuxiliaryResource(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) RestartOAuthAuxiliaryResource(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/components/{componentName}/aux/{type}/restart component restartOAuthAuxiliaryResource
 	// ---
 	// summary: Restarts an auxiliary resource for a component
@@ -1330,7 +1331,7 @@ func (c *environmentController) RestartOAuthAuxiliaryResource(accounts models.Ac
 }
 
 // GetPodLog Get logs of a single pod
-func (c *environmentController) GetPodLog(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetPodLog(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/components/{componentName}/replicas/{podName}/logs component replicaLog
 	// ---
 	// summary: Get logs from a deployed pod
@@ -1433,7 +1434,7 @@ func (c *environmentController) GetPodLog(accounts models.Accounts, w http.Respo
 }
 
 // GetScheduledJobLog Get log from a scheduled job
-func (c *environmentController) GetScheduledJobLog(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetScheduledJobLog(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/scheduledjobs/{scheduledJobName}/logs job jobLog
 	// ---
 	// summary: Get log from a scheduled job
@@ -1534,7 +1535,7 @@ func (c *environmentController) GetScheduledJobLog(accounts models.Accounts, w h
 }
 
 // GetJobComponentDeployments Get list of deployments for the job component
-func (c *environmentController) GetJobComponentDeployments(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetJobComponentDeployments(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/deployments job GetJobComponentDeployments
 	// ---
 	// summary: Get list of deployments for the job component
@@ -1589,7 +1590,7 @@ func (c *environmentController) GetJobComponentDeployments(accounts models.Accou
 }
 
 // GetJobs Get list of scheduled jobs
-func (c *environmentController) GetJobs(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetJobs(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/jobs job getJobs
 	// ---
 	// summary: Get list of scheduled jobs
@@ -1644,7 +1645,7 @@ func (c *environmentController) GetJobs(accounts models.Accounts, w http.Respons
 }
 
 // GetJob Get a scheduled job
-func (c *environmentController) GetJob(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetJob(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName} job getJob
 	// ---
 	// summary: Get list of scheduled jobs
@@ -1703,7 +1704,7 @@ func (c *environmentController) GetJob(accounts models.Accounts, w http.Response
 }
 
 // StopJob Stop a scheduled job
-func (c *environmentController) StopJob(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StopJob(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName}/stop job stopJob
 	// ---
 	// summary: Stop scheduled job
@@ -1766,7 +1767,7 @@ func (c *environmentController) StopJob(accounts models.Accounts, w http.Respons
 }
 
 // StopAllJobs Stop all scheduled jobs
-func (c *environmentController) StopAllJobs(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StopAllJobs(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/jobs/stop job stopAllJobs
 	// ---
 	// summary: Stop all scheduled jobs
@@ -1823,7 +1824,7 @@ func (c *environmentController) StopAllJobs(accounts models.Accounts, w http.Res
 }
 
 // RestartJob Start a running or stopped scheduled job
-func (c *environmentController) RestartJob(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) RestartJob(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName}/restart job restartJob
 	// ---
 	// summary: Restart a running or stopped scheduled job
@@ -1886,7 +1887,7 @@ func (c *environmentController) RestartJob(accounts models.Accounts, w http.Resp
 }
 
 // DeleteJob Delete a job
-func (c *environmentController) DeleteJob(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) DeleteJob(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation DELETE /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName} job deleteJob
 	// ---
 	// summary: Delete job
@@ -1949,7 +1950,7 @@ func (c *environmentController) DeleteJob(accounts models.Accounts, w http.Respo
 }
 
 // GetBatches Get list of scheduled batches
-func (c *environmentController) GetBatches(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetBatches(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/batches job getBatches
 	// ---
 	// summary: Get list of scheduled batches
@@ -2004,7 +2005,7 @@ func (c *environmentController) GetBatches(accounts models.Accounts, w http.Resp
 }
 
 // GetBatch Get a scheduled batch
-func (c *environmentController) GetBatch(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetBatch(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/batches/{batchName} job getBatch
 	// ---
 	// summary: Get list of scheduled batches
@@ -2063,7 +2064,7 @@ func (c *environmentController) GetBatch(accounts models.Accounts, w http.Respon
 }
 
 // StopBatch Stop a scheduled batch
-func (c *environmentController) StopBatch(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StopBatch(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/batches/{batchName}/stop job stopBatch
 	// ---
 	// summary: Stop scheduled batch
@@ -2126,7 +2127,7 @@ func (c *environmentController) StopBatch(accounts models.Accounts, w http.Respo
 }
 
 // StopAllBatches Stop all scheduled batches
-func (c *environmentController) StopAllBatches(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StopAllBatches(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/batches/stop job stopAllBatches
 	// ---
 	// summary: Stop scheduled batch
@@ -2183,7 +2184,7 @@ func (c *environmentController) StopAllBatches(accounts models.Accounts, w http.
 }
 
 // StopAllBatchesAndJobsForJobComponent Stop all scheduled batches in the job-component
-func (c *environmentController) StopAllBatchesAndJobsForJobComponent(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StopAllBatchesAndJobsForJobComponent(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/stop job stopAllBatchesAndJobsForJobComponent
 	// ---
 	// summary: Stop all scheduled batches for the job-component
@@ -2240,7 +2241,7 @@ func (c *environmentController) StopAllBatchesAndJobsForJobComponent(accounts mo
 }
 
 // StopAllBatchesAndJobsForEnvironment Stop all scheduled batches and jobs in the environment
-func (c *environmentController) StopAllBatchesAndJobsForEnvironment(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) StopAllBatchesAndJobsForEnvironment(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/jobcomponents/stop job stopAllBatchesAndJobsForEnvironment
 	// ---
 	// summary: Stop all scheduled batches and jobs in the environment
@@ -2291,7 +2292,7 @@ func (c *environmentController) StopAllBatchesAndJobsForEnvironment(accounts mod
 }
 
 // RestartBatch Restart a scheduled or stopped batch
-func (c *environmentController) RestartBatch(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) RestartBatch(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/batches/{batchName}/restart job restartBatch
 	// ---
 	// summary: Restart a scheduled or stopped batch
@@ -2354,7 +2355,7 @@ func (c *environmentController) RestartBatch(accounts models.Accounts, w http.Re
 }
 
 // CopyBatch Create a copy of existing scheduled batch with optional changes
-func (c *environmentController) CopyBatch(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) CopyBatch(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/batches/{batchName}/copy job copyBatch
 	// ---
 	// summary: Create a copy of existing scheduled batch with optional changes
@@ -2430,7 +2431,7 @@ func (c *environmentController) CopyBatch(accounts models.Accounts, w http.Respo
 }
 
 // CopyJob Create a copy of existing scheduled job with optional changes
-func (c *environmentController) CopyJob(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) CopyJob(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName}/copy job copyJob
 	// ---
 	// summary: Create a copy of existing scheduled job with optional changes
@@ -2506,7 +2507,7 @@ func (c *environmentController) CopyJob(accounts models.Accounts, w http.Respons
 }
 
 // DeleteBatch Delete a batch
-func (c *environmentController) DeleteBatch(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) DeleteBatch(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation DELETE /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/batches/{batchName} job deleteBatch
 	// ---
 	// summary: Delete batch
@@ -2569,7 +2570,7 @@ func (c *environmentController) DeleteBatch(accounts models.Accounts, w http.Res
 }
 
 // GetOAuthAuxiliaryResourcePodLog Get log for a single auxiliary resource pod
-func (c *environmentController) GetOAuthAuxiliaryResourcePodLog(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetOAuthAuxiliaryResourcePodLog(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/components/{componentName}/aux/{type}/replicas/{podName}/logs component getOAuthPodLog
 	// ---
 	// summary: Get logs for an oauth auxiliary resource pod
@@ -2683,7 +2684,7 @@ func (c *environmentController) GetOAuthAuxiliaryResourcePodLog(accounts models.
 }
 
 // GetJobPayload Get a scheduled job payload
-func (c *environmentController) GetJobPayload(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) GetJobPayload(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/jobcomponents/{jobComponentName}/jobs/{jobName}/payload job getJobPayload
 	// ---
 	// summary: Get payload of a scheduled job
@@ -2742,7 +2743,7 @@ func (c *environmentController) GetJobPayload(accounts models.Accounts, w http.R
 }
 
 // ScaleComponent Scale component replicas
-func (c *environmentController) ScaleComponent(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *environmentController) ScaleComponent(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/environments/{envName}/components/{componentName}/scale/{replicas} component scaleComponent
 	// ---
 	// summary: Scale a component replicas

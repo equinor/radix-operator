@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
@@ -102,7 +101,7 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 		ServiceAccountName: utils.GetSubPipelineServiceAccountName(internalTest.Env1),
 		PodTemplate: &pod.Template{
 			SecurityContext: &corev1.PodSecurityContext{
-				RunAsNonRoot: pointers.Ptr(true),
+				RunAsNonRoot: new(true),
 			},
 			NodeSelector: map[string]string{
 				corev1.LabelArchStable: "amd64",

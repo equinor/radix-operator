@@ -1,4 +1,4 @@
-package utils
+package predicate
 
 import (
 	"time"
@@ -8,14 +8,13 @@ type Job interface {
 	GetCreated() *time.Time
 	GetStarted() *time.Time
 	GetEnded() *time.Time
-	GetStatus() string
 }
 
-// IsBefore Checks that job-j is before job-i
-func IsBefore(j, i Job) bool {
-	jCreated := j.GetCreated()
+// IsJobBefore checks if job j1 is before job j2
+func IsJobBefore(j1, i Job) bool {
+	jCreated := j1.GetCreated()
 	iCreated := i.GetCreated()
-	jStarted := j.GetStarted()
+	jStarted := j1.GetStarted()
 	iStarted := i.GetStarted()
 
 	if jCreated == nil {

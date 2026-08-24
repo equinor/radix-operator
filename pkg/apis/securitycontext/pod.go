@@ -1,7 +1,6 @@
 package securitycontext
 
 import (
-	commonUtils "github.com/equinor/radix-common/utils"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -29,7 +28,7 @@ func WithPodRunAsNonRoot(runAsNonRoot *bool) PodOption {
 
 func Pod(options ...PodOption) *corev1.PodSecurityContext {
 	securityContext := &corev1.PodSecurityContext{
-		RunAsNonRoot: commonUtils.BoolPtr(true),
+		RunAsNonRoot: new(true),
 	}
 
 	for _, o := range options {

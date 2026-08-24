@@ -32,13 +32,3 @@ func GetGithubRepositoryURLFromCloneURL(cloneURL string) string {
 	repo := fmt.Sprintf("%s%s", githubRepoURL, repoName)
 	return repo
 }
-
-// TernaryString operator
-func TernaryString(condition bool, trueValue, falseValue string) string {
-	return map[bool]string{true: trueValue, false: falseValue}[condition]
-}
-
-// StringPtr returns a pointer to the passed string.
-func StringPtr(s string) *string {
-	return &s
-}

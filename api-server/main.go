@@ -34,7 +34,7 @@ import (
 	token "github.com/equinor/radix-operator/api-server/api/utils/token"
 	_ "github.com/equinor/radix-operator/api-server/docs"
 	"github.com/equinor/radix-operator/api-server/internal/config"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -101,7 +101,6 @@ func initializeMetricsServer(c config.Config) *http.Server {
 
 func startServers(servers ...*http.Server) {
 	for _, srv := range servers {
-		srv := srv
 		go func() {
 			log.Info().Msgf("Starting server on address %s", srv.Addr)
 			if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
@@ -122,15 +121,12 @@ func shutdownServersGracefulOnSignal(servers ...*http.Server) {
 	var wg sync.WaitGroup
 
 	for _, srv := range servers {
-		srv := srv
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			log.Info().Msgf("Shutting down server on address %s", srv.Addr)
 			if err := srv.Shutdown(shutdownCtx); err != nil {
 				log.Warn().Err(err).Msgf("shutdown of server on address %s returned an error", srv.Addr)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -158,7 +154,7 @@ func setupLogger(logLevelStr string, prettyPrint bool) {
 	zerolog.DefaultContextLogger = &logger
 }
 
-func getControllers(config config.Config, kubeUtil utils.KubeUtil) ([]models.Controller, error) {
+func getControllers(config config.Config, kubeUtil utils.KubeUtil) ([]controller.Controller, error) {
 	buildStatus := buildModels.NewPipelineBadge()
 	applicationFactory := applications.NewApplicationHandlerFactory(config)
 	prometheusClient, err := prometheus.NewPrometheusClient(config.PrometheusUrl)
@@ -173,7 +169,7 @@ func getControllers(config config.Config, kubeUtil utils.KubeUtil) ([]models.Con
 		return nil, fmt.Errorf("failed to create event recorder: %w", err)
 	}
 
-	return []models.Controller{
+	return []controller.Controller{
 		applications.NewApplicationController(nil, applicationFactory, metricsHandler),
 		deployments.NewDeploymentController(),
 		jobs.NewJobController(),

@@ -16,8 +16,6 @@ import (
 	"go.uber.org/mock/gomock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
@@ -676,14 +674,14 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 								Name: "step1",
 								SecurityContext: &corev1.SecurityContext{
 									Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
-									Privileged:               commonUtils.BoolPtr(true),
+									Privileged:               new(true),
 									SELinuxOptions:           &corev1.SELinuxOptions{},
 									WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
-									RunAsUser:                pointers.Ptr(int64(0)),
-									RunAsGroup:               pointers.Ptr(int64(0)),
-									RunAsNonRoot:             commonUtils.BoolPtr(false),
-									AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
-									ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
+									RunAsUser:                new(int64(0)),
+									RunAsGroup:               new(int64(0)),
+									RunAsNonRoot:             new(false),
+									AllowPrivilegeEscalation: new(true),
+									ProcMount:                new(corev1.ProcMountType("Default")),
 									SeccompProfile:           &corev1.SeccompProfile{},
 								},
 							},
@@ -702,9 +700,9 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 				require.Len(t, task.Spec.Steps, 1)
 				taskStep := task.Spec.Steps[0]
 				assert.NotNil(t, taskStep.SecurityContext)
-				assert.Equal(t, commonUtils.BoolPtr(true), taskStep.SecurityContext.RunAsNonRoot)
-				assert.Equal(t, commonUtils.BoolPtr(false), taskStep.SecurityContext.Privileged)
-				assert.Equal(t, commonUtils.BoolPtr(false), taskStep.SecurityContext.AllowPrivilegeEscalation)
+				assert.Equal(t, new(true), taskStep.SecurityContext.RunAsNonRoot)
+				assert.Equal(t, new(false), taskStep.SecurityContext.Privileged)
+				assert.Equal(t, new(false), taskStep.SecurityContext.AllowPrivilegeEscalation)
 				assert.Nil(t, taskStep.SecurityContext.RunAsUser)
 				assert.Nil(t, taskStep.SecurityContext.RunAsGroup)
 				assert.Nil(t, taskStep.SecurityContext.WindowsOptions)
@@ -730,14 +728,14 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 							{
 								SecurityContext: &corev1.SecurityContext{
 									Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
-									Privileged:               commonUtils.BoolPtr(true),
+									Privileged:               new(true),
 									SELinuxOptions:           &corev1.SELinuxOptions{},
 									WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
-									RunAsUser:                pointers.Ptr(int64(0)),
-									RunAsGroup:               pointers.Ptr(int64(0)),
-									RunAsNonRoot:             commonUtils.BoolPtr(false),
-									AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
-									ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
+									RunAsUser:                new(int64(0)),
+									RunAsGroup:               new(int64(0)),
+									RunAsNonRoot:             new(false),
+									AllowPrivilegeEscalation: new(true),
+									ProcMount:                new(corev1.ProcMountType("Default")),
 									SeccompProfile:           &corev1.SeccompProfile{},
 								},
 							},
@@ -760,9 +758,9 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 				require.Len(t, task.Spec.Sidecars, 1)
 				sidecar := task.Spec.Sidecars[0]
 				assert.NotNil(t, sidecar.SecurityContext)
-				assert.Equal(t, commonUtils.BoolPtr(true), sidecar.SecurityContext.RunAsNonRoot)
-				assert.Equal(t, commonUtils.BoolPtr(false), sidecar.SecurityContext.Privileged)
-				assert.Equal(t, commonUtils.BoolPtr(false), sidecar.SecurityContext.AllowPrivilegeEscalation)
+				assert.Equal(t, new(true), sidecar.SecurityContext.RunAsNonRoot)
+				assert.Equal(t, new(false), sidecar.SecurityContext.Privileged)
+				assert.Equal(t, new(false), sidecar.SecurityContext.AllowPrivilegeEscalation)
 				assert.Nil(t, sidecar.SecurityContext.RunAsUser)
 				assert.Nil(t, sidecar.SecurityContext.RunAsGroup)
 				assert.Nil(t, sidecar.SecurityContext.WindowsOptions)
@@ -787,14 +785,14 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 						StepTemplate: &pipelinev1.StepTemplate{
 							SecurityContext: &corev1.SecurityContext{
 								Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
-								Privileged:               commonUtils.BoolPtr(true),
+								Privileged:               new(true),
 								SELinuxOptions:           &corev1.SELinuxOptions{},
 								WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
-								RunAsUser:                pointers.Ptr(int64(0)),
-								RunAsGroup:               pointers.Ptr(int64(0)),
-								RunAsNonRoot:             commonUtils.BoolPtr(false),
-								AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
-								ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
+								RunAsUser:                new(int64(0)),
+								RunAsGroup:               new(int64(0)),
+								RunAsNonRoot:             new(false),
+								AllowPrivilegeEscalation: new(true),
+								ProcMount:                new(corev1.ProcMountType("Default")),
 								SeccompProfile:           &corev1.SeccompProfile{},
 							},
 						},
@@ -814,9 +812,9 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 				stepTemplate := task.Spec.StepTemplate
 				assert.NotNil(t, stepTemplate)
 				assert.NotNil(t, stepTemplate.SecurityContext)
-				assert.Equal(t, commonUtils.BoolPtr(true), stepTemplate.SecurityContext.RunAsNonRoot)
-				assert.Equal(t, commonUtils.BoolPtr(false), stepTemplate.SecurityContext.Privileged)
-				assert.Equal(t, commonUtils.BoolPtr(false), stepTemplate.SecurityContext.AllowPrivilegeEscalation)
+				assert.Equal(t, new(true), stepTemplate.SecurityContext.RunAsNonRoot)
+				assert.Equal(t, new(false), stepTemplate.SecurityContext.Privileged)
+				assert.Equal(t, new(false), stepTemplate.SecurityContext.AllowPrivilegeEscalation)
 				assert.Nil(t, stepTemplate.SecurityContext.RunAsUser)
 				assert.Nil(t, stepTemplate.SecurityContext.RunAsGroup)
 				assert.Nil(t, stepTemplate.SecurityContext.WindowsOptions)
@@ -841,8 +839,8 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 							{
 								Name: "step1",
 								SecurityContext: &corev1.SecurityContext{
-									RunAsUser:  pointers.Ptr(int64(10)),
-									RunAsGroup: pointers.Ptr(int64(20)),
+									RunAsUser:  new(int64(10)),
+									RunAsGroup: new(int64(20)),
 								},
 							},
 						},
@@ -882,8 +880,8 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 						Sidecars: []pipelinev1.Sidecar{
 							{
 								SecurityContext: &corev1.SecurityContext{
-									RunAsUser:  pointers.Ptr(int64(10)),
-									RunAsGroup: pointers.Ptr(int64(20)),
+									RunAsUser:  new(int64(10)),
+									RunAsGroup: new(int64(20)),
 								},
 							},
 						},
@@ -923,8 +921,8 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 						Steps: []pipelinev1.Step{{Name: "step1"}},
 						StepTemplate: &pipelinev1.StepTemplate{
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:  pointers.Ptr(int64(10)),
-								RunAsGroup: pointers.Ptr(int64(20)),
+								RunAsUser:  new(int64(10)),
+								RunAsGroup: new(int64(20)),
 							},
 						},
 					}
@@ -1666,7 +1664,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(true),
+					WebhookEnabled: new(true),
 				},
 			}},
 			triggeredFromWebhook: false,
@@ -1677,7 +1675,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(false),
+					WebhookEnabled: new(false),
 				},
 			},
 			},
@@ -1689,7 +1687,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(false),
+					WebhookEnabled: new(false),
 				},
 			},
 			},
@@ -1719,7 +1717,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(true),
+					WebhookEnabled: new(true),
 				},
 			},
 				{
@@ -1737,7 +1735,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(false),
+					WebhookEnabled: new(false),
 				},
 			},
 				{
@@ -1756,7 +1754,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(false),
+					WebhookEnabled: new(false),
 				},
 			},
 				{

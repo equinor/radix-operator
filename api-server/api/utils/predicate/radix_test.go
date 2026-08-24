@@ -3,7 +3,6 @@ package predicate
 import (
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,11 +17,11 @@ func Test_IsActiveRadixDeployment(t *testing.T) {
 func Test_IsNotOrphanEnvironment(t *testing.T) {
 	assert.True(t, IsNotOrphanEnvironment(radixv1.RadixEnvironment{}))
 	assert.True(t, IsNotOrphanEnvironment(radixv1.RadixEnvironment{Status: radixv1.RadixEnvironmentStatus{Orphaned: false, OrphanedTimestamp: nil}}))
-	assert.False(t, IsNotOrphanEnvironment(radixv1.RadixEnvironment{Status: radixv1.RadixEnvironmentStatus{Orphaned: true, OrphanedTimestamp: pointers.Ptr(metav1.Now())}}))
+	assert.False(t, IsNotOrphanEnvironment(radixv1.RadixEnvironment{Status: radixv1.RadixEnvironmentStatus{Orphaned: true, OrphanedTimestamp: new(metav1.Now())}}))
 }
 
 func Test_IsOrphanEnvironment(t *testing.T) {
-	assert.True(t, IsOrphanEnvironment(radixv1.RadixEnvironment{Status: radixv1.RadixEnvironmentStatus{Orphaned: true, OrphanedTimestamp: pointers.Ptr(metav1.Now())}}))
+	assert.True(t, IsOrphanEnvironment(radixv1.RadixEnvironment{Status: radixv1.RadixEnvironmentStatus{Orphaned: true, OrphanedTimestamp: new(metav1.Now())}}))
 	assert.False(t, IsOrphanEnvironment(radixv1.RadixEnvironment{}))
 	assert.False(t, IsOrphanEnvironment(radixv1.RadixEnvironment{Status: radixv1.RadixEnvironmentStatus{Orphaned: false, OrphanedTimestamp: nil}}))
 }

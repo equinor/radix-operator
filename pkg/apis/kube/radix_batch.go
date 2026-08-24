@@ -46,7 +46,7 @@ func (kubeutil *Kube) ListRadixBatches(ctx context.Context, namespace string) ([
 		return nil, fmt.Errorf("failed to get all RadixBatches: %w", err)
 	}
 
-	return slice.PointersOf(rbs.Items).([]*v1.RadixBatch), nil
+	return slice.PointersOf(rbs.Items), nil
 
 }
 

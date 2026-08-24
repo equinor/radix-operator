@@ -82,7 +82,7 @@ func (handler *jobHandler) getJobStatusesWithEvents(ctx context.Context, combine
 		return nil, err
 	}
 	var jobStatuses []modelsv1.JobStatus
-	for i := 0; i < len(combinedBatchStatuses); i++ {
+	for i := range combinedBatchStatuses {
 		for j := 0; j < len(combinedBatchStatuses[i].JobStatuses); j++ {
 			jobStatus := combinedBatchStatuses[i].JobStatuses[j]
 			handlerInternal.SetBatchJobEventMessageToBatchJobStatus(&jobStatus, batchJobPodsMap, eventMessageForPods)

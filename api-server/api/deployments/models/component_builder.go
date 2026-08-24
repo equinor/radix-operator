@@ -3,10 +3,10 @@ package models
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
 	"github.com/equinor/radix-operator/api-server/api/utils/secret"
 	volumemountUtils "github.com/equinor/radix-operator/api-server/api/utils/volumemount"
@@ -276,20 +276,16 @@ func (b *componentBuilder) BuildComponentSummary() (*ComponentSummary, error) {
 		Runtime:  b.buildRuntimeModel(),
 	}
 	if b.resources != nil && (len(b.resources.Limits) > 0 || len(b.resources.Requests) > 0) {
-		summary.Resources = pointers.Ptr(ConvertRadixResourceRequirements(*b.resources))
+		summary.Resources = new(ConvertRadixResourceRequirements(*b.resources))
 	}
 	return &summary, b.buildError()
 }
 
 func (b *componentBuilder) BuildComponent() (*Component, error) {
 	variables := radixv1.EnvVarsMap{}
-	for name, value := range b.environmentVariables {
-		variables[name] = value
-	}
+	maps.Copy(variables, b.environmentVariables)
 
-	for name, value := range b.radixEnvironmentVariables {
-		variables[name] = value
-	}
+	maps.Copy(variables, b.radixEnvironmentVariables)
 
 	component := Component{
 		Name:                     b.componentName,
@@ -316,7 +312,7 @@ func (b *componentBuilder) BuildComponent() (*Component, error) {
 		CronSchedules:            b.cronSchedules,
 	}
 	if b.resources != nil && (len(b.resources.Limits) > 0 || len(b.resources.Requests) > 0) {
-		component.Resources = pointers.Ptr(ConvertRadixResourceRequirements(*b.resources))
+		component.Resources = new(ConvertRadixResourceRequirements(*b.resources))
 	}
 	return &component, b.buildError()
 }

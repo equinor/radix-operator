@@ -5,11 +5,9 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,10 +29,10 @@ func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 		memoryTarget         *int
 		expectedMemoryTarget *int
 	}{
-		{"cpu and memory are nil, cpu defaults to 80", nil, numbers.IntPtr(radixv1.DefaultTargetCPUUtilizationPercentage), nil, nil},
-		{"cpu is nil and memory is non-nil", nil, nil, numbers.IntPtr(70), numbers.IntPtr(70)},
-		{"cpu is non-nil and memory is nil", numbers.IntPtr(68), numbers.IntPtr(68), nil, nil},
-		{"cpu and memory are non-nil", numbers.IntPtr(68), numbers.IntPtr(68), numbers.IntPtr(70), numbers.IntPtr(70)},
+		{"cpu and memory are nil, cpu defaults to 80", nil, new(radixv1.DefaultTargetCPUUtilizationPercentage), nil, nil},
+		{"cpu is nil and memory is non-nil", nil, nil, new(70), new(70)},
+		{"cpu is non-nil and memory is nil", new(68), new(68), nil, nil},
+		{"cpu and memory are non-nil", new(68), new(68), new(70), new(70)},
 	}
 
 	for _, testcase := range testScenarios {
@@ -107,20 +105,20 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithReplicas(pointers.Ptr(1)).
-				WithReplicasOverride(pointers.Ptr(0)).
+				WithReplicas(new(1)).
+				WithReplicasOverride(new(0)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(pointers.Ptr(1)).
+				WithReplicas(new(1)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(pointers.Ptr(1)).
+				WithReplicas(new(1)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).WithAzureServiceBusTrigger("test", "abcd", "queue", "", "", "", nil, nil).Build())))
 	require.NoError(t, err)
 
@@ -143,20 +141,20 @@ func TestHorizontalAutoscalingConfig(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithReplicas(pointers.Ptr(1)).
-				WithReplicasOverride(pointers.Ptr(0)).
+				WithReplicas(new(1)).
+				WithReplicasOverride(new(0)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(pointers.Ptr(1)).
+				WithReplicas(new(1)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
-				WithReplicas(pointers.Ptr(1))))
+				WithReplicas(new(1))))
 	require.NoError(t, err)
 
 	scalers, _ = kedaClient.KedaV1alpha1().ScaledObjects(envNamespace).List(context.Background(), metav1.ListOptions{})
@@ -209,7 +207,7 @@ func TestScalerTriggers(t *testing.T) {
 		},
 		{
 			name:    "AzureServiceBus-Queue Workload Identity",
-			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", "", pointers.Ptr(5), pointers.Ptr(10)),
+			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "", "", "", new(5), new(10)),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-service-bus",
 				Type: "azure-servicebus",
@@ -224,13 +222,13 @@ func TestScalerTriggers(t *testing.T) {
 			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
 				PodIdentity: &v1alpha1.AuthPodIdentity{
 					Provider:   "azure-workload",
-					IdentityID: pointers.Ptr("abcd"),
+					IdentityID: new("abcd"),
 				},
 			},
 		},
 		{
 			name:    "AzureServiceBus-Queue Connection String",
-			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "", "queue-name", "", "", "CONNECTION_STRING", pointers.Ptr(5), pointers.Ptr(10)),
+			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "", "queue-name", "", "", "CONNECTION_STRING", new(5), new(10)),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-service-bus",
 				Type: "azure-servicebus",
@@ -247,7 +245,7 @@ func TestScalerTriggers(t *testing.T) {
 		},
 		{
 			name:    "AzureServiceBus-Topic",
-			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "", "topic-name", "subscription-name", "", pointers.Ptr(5), pointers.Ptr(10)),
+			builder: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "", "topic-name", "subscription-name", "", new(5), new(10)),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-service-bus",
 				Type: "azure-servicebus",
@@ -263,7 +261,7 @@ func TestScalerTriggers(t *testing.T) {
 			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
 				PodIdentity: &v1alpha1.AuthPodIdentity{
 					Provider:   "azure-workload",
-					IdentityID: pointers.Ptr("abcd"),
+					IdentityID: new("abcd"),
 				},
 			},
 		},
@@ -276,8 +274,8 @@ func TestScalerTriggers(t *testing.T) {
 				StorageAccount:                      "some-storage-account",
 				Container:                           "some-container",
 				CheckpointStrategy:                  "goSdk",
-				UnprocessedEventThreshold:           pointers.Ptr(100),
-				ActivationUnprocessedEventThreshold: pointers.Ptr(2),
+				UnprocessedEventThreshold:           new(100),
+				ActivationUnprocessedEventThreshold: new(2),
 			}),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-event-hub",
@@ -297,7 +295,7 @@ func TestScalerTriggers(t *testing.T) {
 			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
 				PodIdentity: &v1alpha1.AuthPodIdentity{
 					Provider:   "azure-workload",
-					IdentityID: pointers.Ptr("some-client-id"),
+					IdentityID: new("some-client-id"),
 				},
 			},
 		},
@@ -310,8 +308,8 @@ func TestScalerTriggers(t *testing.T) {
 				StorageAccount:                      "some-storage-account",
 				Container:                           "some-container",
 				CheckpointStrategy:                  "goSdk",
-				UnprocessedEventThreshold:           pointers.Ptr(100),
-				ActivationUnprocessedEventThreshold: pointers.Ptr(2),
+				UnprocessedEventThreshold:           new(100),
+				ActivationUnprocessedEventThreshold: new(2),
 			}),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-event-hub",
@@ -331,7 +329,7 @@ func TestScalerTriggers(t *testing.T) {
 			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
 				PodIdentity: &v1alpha1.AuthPodIdentity{
 					Provider:   "azure-workload",
-					IdentityID: pointers.Ptr("some-client-id"),
+					IdentityID: new("some-client-id"),
 				},
 			},
 		},
@@ -358,7 +356,7 @@ func TestScalerTriggers(t *testing.T) {
 			expecedAuth: &v1alpha1.TriggerAuthenticationSpec{
 				PodIdentity: &v1alpha1.AuthPodIdentity{
 					Provider:   "azure-workload",
-					IdentityID: pointers.Ptr("some-client-id"),
+					IdentityID: new("some-client-id"),
 				},
 			},
 		},
@@ -371,8 +369,8 @@ func TestScalerTriggers(t *testing.T) {
 				StorageConnectionFromEnv:            "STORAGE_CONNECTION",
 				Container:                           "some-container",
 				CheckpointStrategy:                  "goSdk",
-				UnprocessedEventThreshold:           pointers.Ptr(100),
-				ActivationUnprocessedEventThreshold: pointers.Ptr(2),
+				UnprocessedEventThreshold:           new(100),
+				ActivationUnprocessedEventThreshold: new(2),
 			}),
 			expected: v1alpha1.ScaleTriggers{
 				Name: "azure-event-hub",

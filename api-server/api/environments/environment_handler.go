@@ -6,8 +6,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/deployments"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
@@ -16,14 +14,15 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	apimodels "github.com/equinor/radix-operator/api-server/api/models"
 	"github.com/equinor/radix-operator/api-server/api/pods"
-	"github.com/equinor/radix-operator/api-server/api/utils"
 	"github.com/equinor/radix-operator/api-server/api/utils/predicate"
 	"github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/http"
 	deployUtils "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	k8sObjectUtils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +34,7 @@ import (
 type EnvironmentHandlerOptions func(*EnvironmentHandler)
 
 // WithAccounts configures all EnvironmentHandler fields
-func WithAccounts(accounts models.Accounts) EnvironmentHandlerOptions {
+func WithAccounts(accounts accounts.Accounts) EnvironmentHandlerOptions {
 	return func(eh *EnvironmentHandler) {
 		eh.deployHandler = deployments.Init(accounts)
 		eh.eventHandler = events.Init(accounts)
@@ -64,11 +63,11 @@ func WithComponentStatuserFunc(statuser deploymentModels.ComponentStatuserFunc) 
 }
 
 // EnvironmentHandlerFactory defines a factory function for EnvironmentHandler
-type EnvironmentHandlerFactory func(accounts models.Accounts) EnvironmentHandler
+type EnvironmentHandlerFactory func(accounts accounts.Accounts) EnvironmentHandler
 
 // NewEnvironmentHandlerFactory creates a new EnvironmentHandlerFactory
 func NewEnvironmentHandlerFactory(opts ...EnvironmentHandlerOptions) EnvironmentHandlerFactory {
-	return func(accounts models.Accounts) EnvironmentHandler {
+	return func(accounts accounts.Accounts) EnvironmentHandler {
 		// We must make a new slice and copy values from opts into it.
 		// Appending to the original opts will modify its underlying array and cause a memory leak.
 		newOpts := make([]EnvironmentHandlerOptions, len(opts), len(opts)+1)
@@ -83,7 +82,7 @@ func NewEnvironmentHandlerFactory(opts ...EnvironmentHandlerOptions) Environment
 type EnvironmentHandler struct {
 	deployHandler     deployments.DeployHandler
 	eventHandler      events.EventHandler
-	accounts          models.Accounts
+	accounts          accounts.Accounts
 	tlsValidator      tlsvalidation.Validator
 	ComponentStatuser deploymentModels.ComponentStatuserFunc
 }
@@ -409,11 +408,11 @@ func (eh EnvironmentHandler) getRadixCommonComponentUpdater(ctx context.Context,
 	var updater radixDeployCommonComponentUpdater
 	var componentToPatch radixv1.RadixCommonDeployComponent
 	componentIndex, componentToPatch := deployUtils.GetDeploymentComponent(rd, componentName)
-	if !radixutils.IsNil(componentToPatch) {
+	if !pointers.IsNil(componentToPatch) {
 		updater = &radixDeployComponentUpdater{base: baseUpdater}
 	} else {
 		componentIndex, componentToPatch = deployUtils.GetDeploymentJobComponent(rd, componentName)
-		if radixutils.IsNil(componentToPatch) {
+		if pointers.IsNil(componentToPatch) {
 			return nil, environmentModels.NonExistingComponent(appName, componentName)
 		}
 		updater = &radixDeployJobComponentUpdater{base: baseUpdater}
@@ -421,12 +420,6 @@ func (eh EnvironmentHandler) getRadixCommonComponentUpdater(ctx context.Context,
 
 	baseUpdater.componentIndex = componentIndex
 	baseUpdater.componentToPatch = componentToPatch
-
-	ra, err := kubequery.GetRadixApplication(ctx, eh.accounts.UserAccount.RadixClient, appName)
-	if err != nil {
-		return nil, err
-	}
-	baseUpdater.environmentConfig = utils.GetComponentEnvironmentConfig(ra, envName, componentName)
 	baseUpdater.componentState, err = eh.getComponentStateFromSpec(ctx, rd, componentToPatch)
 	if err != nil {
 		return nil, err

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -110,7 +110,7 @@ func (kubeutil *Kube) ListDeploymentsWithSelector(ctx context.Context, namespace
 			return nil, err
 		}
 
-		deployments = slice.PointersOf(list.Items).([]*appsv1.Deployment)
+		deployments = slice.PointersOf(list.Items)
 	}
 
 	return deployments, nil

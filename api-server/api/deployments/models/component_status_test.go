@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/api-server/api/deployments/models"
 	operatordefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -22,7 +20,7 @@ func TestNoKubeDeployments_IsReconciling(t *testing.T) {
 
 func TestKubeDeploymentsWithRestartLabel_IsRestarting(t *testing.T) {
 	status := models.ComponentStatusFromDeployment(
-		&radixv1.RadixDeployComponent{EnvironmentVariables: map[string]string{operatordefaults.RadixRestartEnvironmentVariable: radixutils.FormatTimestamp(time.Now())}},
+		&radixv1.RadixDeployComponent{EnvironmentVariables: map[string]string{operatordefaults.RadixRestartEnvironmentVariable: time.Now().Format(time.RFC3339)}},
 		createKubeDeployment(0),
 		&radixv1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Generation: 2},
@@ -67,7 +65,7 @@ func createKubeDeployment(replicas int32) *appsv1.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "helloworld",
 			Annotations:     map[string]string{kube.RadixDeploymentObservedGeneration: "1"},
-			OwnerReferences: []metav1.OwnerReference{{Controller: pointers.Ptr(true)}}},
-		Spec: appsv1.DeploymentSpec{Replicas: pointers.Ptr[int32](replicas)},
+			OwnerReferences: []metav1.OwnerReference{{Controller: new(true)}}},
+		Spec: appsv1.DeploymentSpec{Replicas: new(int32(replicas))},
 	}
 }

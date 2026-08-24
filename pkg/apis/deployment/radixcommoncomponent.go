@@ -3,14 +3,15 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 	"strings"
 
 	"dario.cat/mergo"
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
@@ -34,7 +35,7 @@ func updateComponentNode(ctx context.Context, component v1.RadixCommonComponent,
 
 func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) v1.EnvVarsMap {
 	var variables v1.EnvVarsMap
-	if !commonUtils.IsNil(environmentSpecificConfig) {
+	if !pointers.IsNil(environmentSpecificConfig) {
 		variables = environmentSpecificConfig.GetVariables().DeepCopy()
 	}
 
@@ -50,16 +51,14 @@ func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environme
 	}
 
 	// Append system default environment variables
-	for key, value := range defaultEnvVars {
-		variables[key] = value
-	}
+	maps.Copy(variables, defaultEnvVars)
 
 	return variables
 }
 
 func getRadixCommonComponentResources(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.ResourceRequirements {
 	var resources v1.ResourceRequirements
-	if !commonUtils.IsNil(environmentSpecificConfig) {
+	if !pointers.IsNil(environmentSpecificConfig) {
 		resources = environmentSpecificConfig.GetResources()
 	}
 	if reflect.DeepEqual(resources, v1.ResourceRequirements{}) {
@@ -70,7 +69,7 @@ func getRadixCommonComponentResources(component v1.RadixCommonComponent, environ
 
 func getRadixCommonComponentNode(ctx context.Context, radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.RadixNode {
 	var node v1.RadixNode
-	if !commonUtils.IsNil(environmentSpecificConfig) {
+	if !pointers.IsNil(environmentSpecificConfig) {
 		node = environmentSpecificConfig.GetNode() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	}
 	updateComponentNode(ctx, radixComponent, &node)
@@ -102,7 +101,7 @@ func getImageTagName(componentImage pipeline.DeployComponentImage, componentImag
 	if componentImage.ImageTagName != "" {
 		return componentImage.ImageTagName // provided via radix api-server build request
 	}
-	if commonUtils.IsNil(environmentSpecificConfig) {
+	if pointers.IsNil(environmentSpecificConfig) {
 		return componentImageTagName
 	}
 	if environmentImageTagName := environmentSpecificConfig.GetImageTagName(); environmentImageTagName != "" {
@@ -119,7 +118,7 @@ func getRadixCommonComponentRadixSecretRefs(component v1.RadixCommonComponent, e
 
 func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) []v1.RadixAzureKeyVault {
 	if len(radixComponent.GetSecretRefs().AzureKeyVaults) == 0 {
-		if !commonUtils.IsNil(environmentSpecificConfig) {
+		if !pointers.IsNil(environmentSpecificConfig) {
 			return environmentSpecificConfig.GetSecretRefs().AzureKeyVaults
 		}
 		return nil
@@ -128,7 +127,7 @@ func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommo
 	envAzureKeyVaultsMap := make(map[string]v1.RadixAzureKeyVault)
 	envSecretRefsExistingEnvVarsMap := make(map[string]bool)
 
-	if !commonUtils.IsNil(environmentSpecificConfig) {
+	if !pointers.IsNil(environmentSpecificConfig) {
 		for _, envAzureKeyVault := range environmentSpecificConfig.GetSecretRefs().AzureKeyVaults {
 			envAzureKeyVaultsMap[envAzureKeyVault.Name] = envAzureKeyVault
 			for _, envKeyVaultItem := range envAzureKeyVault.Items {
@@ -203,13 +202,13 @@ func getRadixCommonComponentIdentity(radixComponent v1.RadixCommonComponent, env
 
 	identity = &v1.Identity{}
 
-	if !commonUtils.IsNil(radixComponent) {
+	if !pointers.IsNil(radixComponent) {
 		if componentIdentity := radixComponent.GetIdentity(); componentIdentity != nil {
 			componentIdentity.DeepCopyInto(identity)
 		}
 	}
 
-	if !commonUtils.IsNil(environmentConfig) {
+	if !pointers.IsNil(environmentConfig) {
 		if environmentIdentity := environmentConfig.GetIdentity(); environmentIdentity != nil {
 			if err := mergo.Merge(identity, environmentIdentity, mergo.WithOverride); err != nil {
 				return nil, err
@@ -247,13 +246,13 @@ func getRadixJobComponentNotification(radixComponent *v1.RadixJobComponent, envi
 
 	notifications = &v1.Notifications{}
 
-	if !commonUtils.IsNil(radixComponent) {
+	if !pointers.IsNil(radixComponent) {
 		if componentNotifications := radixComponent.GetNotifications(); componentNotifications != nil {
 			componentNotifications.DeepCopyInto(notifications)
 		}
 	}
 
-	if !commonUtils.IsNil(environmentConfig) {
+	if !pointers.IsNil(environmentConfig) {
 		if environmentNotifications := environmentConfig.GetNotifications(); environmentNotifications != nil {
 			if err := mergo.Merge(notifications, environmentNotifications, mergo.WithOverride); err != nil {
 				return nil, err

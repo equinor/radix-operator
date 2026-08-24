@@ -3,28 +3,29 @@ package configuration
 import (
 	"net/http"
 
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 )
 
 const rootPath = "/configuration"
 
 type configurationController struct {
-	*models.DefaultController
+	*controller.DefaultController
 
 	handler ConfigurationHandler
 }
 
 // NewConfigurationController Constructor
-func NewConfigurationController(handler ConfigurationHandler) models.Controller {
+func NewConfigurationController(handler ConfigurationHandler) controller.Controller {
 	return &configurationController{
 		handler: handler,
 	}
 }
 
 // GetRoutes List the supported routes of this handler
-func (c *configurationController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (c *configurationController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:                      rootPath,
 			Method:                    "GET",
 			HandlerFunc:               c.GetClusterConfiguration,
@@ -36,7 +37,7 @@ func (c *configurationController) GetRoutes() models.Routes {
 }
 
 // GetClusterConfiguration reveals the settings for the selected cluster environment
-func (c *configurationController) GetClusterConfiguration(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *configurationController) GetClusterConfiguration(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /configuration Configuration getConfiguration
 	// ---
 	// summary: Show the cluster environment

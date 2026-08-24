@@ -42,7 +42,7 @@ const (
 	anyUser         = "a_user@equinor.com"
 )
 
-func setupTest(t *testing.T) (*commontest.Utils, *controllertest.Utils, kubernetes.Interface, radixclient.Interface, kedav2.Interface, secretsstorevclient.Interface, *certclientfake.Clientset) {
+func setupTest(t *testing.T) (*commontest.Utils, *controllertest.TestUtils, kubernetes.Interface, radixclient.Interface, kedav2.Interface, secretsstorevclient.Interface, *certclientfake.Clientset) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset() //nolint:staticcheck
 	radixclient := fake.NewSimpleClientset()    //nolint:staticcheck

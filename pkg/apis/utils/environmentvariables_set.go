@@ -57,7 +57,7 @@ func (set *environmentVariablesSet) Get(name string) (corev1.EnvVar, bool) {
 
 func getMap(environmentVariables []corev1.EnvVar) map[string]*corev1.EnvVar {
 	environmentVariablesMap := make(map[string]*corev1.EnvVar, len(environmentVariables))
-	for i := 0; i < len(environmentVariables); i++ {
+	for i := range environmentVariables {
 		environmentVariablesMap[environmentVariables[i].Name] = &(environmentVariables[i])
 	}
 	return environmentVariablesMap

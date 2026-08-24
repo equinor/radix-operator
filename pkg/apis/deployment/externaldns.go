@@ -329,14 +329,8 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 		return errors.New("gateway cluster issuer not set in certificate automation config")
 	}
 
-	duration := deploy.config.CertificateAutomation.Duration
-	if duration < minCertDuration {
-		duration = minCertDuration
-	}
-	renewBefore := deploy.config.CertificateAutomation.RenewBefore
-	if renewBefore < minCertRenewBefore {
-		renewBefore = minCertRenewBefore
-	}
+	duration := max(deploy.config.CertificateAutomation.Duration, minCertDuration)
+	renewBefore := max(deploy.config.CertificateAutomation.RenewBefore, minCertRenewBefore)
 
 	certificate := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{

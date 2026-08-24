@@ -3,8 +3,7 @@ package kube
 import (
 	"context"
 
-	commonslice "github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	"github.com/equinor/radix-common/utils/slice"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,13 +12,13 @@ import (
 
 // IsJobSucceeded returns true if the job has a Complete or SuccessCriteriaMet condition with status True.
 func IsJobSucceeded(jobStatus batchv1.JobStatus) bool {
-	_, ok := commonslice.FindFirst(jobStatus.Conditions, JobHasOneOfConditionTypes(batchv1.JobComplete, batchv1.JobSuccessCriteriaMet))
+	_, ok := slice.FindFirst(jobStatus.Conditions, JobHasOneOfConditionTypes(batchv1.JobComplete, batchv1.JobSuccessCriteriaMet))
 	return ok
 }
 
 // IsJobFailed returns true if the job has a Failed condition with status True.
 func IsJobFailed(jobStatus batchv1.JobStatus) bool {
-	_, ok := commonslice.FindFirst(jobStatus.Conditions, JobHasOneOfConditionTypes(batchv1.JobFailed))
+	_, ok := slice.FindFirst(jobStatus.Conditions, JobHasOneOfConditionTypes(batchv1.JobFailed))
 	return ok
 }
 
@@ -31,7 +30,7 @@ func IsJobRunning(jobStatus batchv1.JobStatus) bool {
 // JobHasOneOfConditionTypes returns a predicate that checks if a job condition matches any of the given types with status True.
 func JobHasOneOfConditionTypes(conditionTypes ...batchv1.JobConditionType) func(batchv1.JobCondition) bool {
 	return func(condition batchv1.JobCondition) bool {
-		return commonslice.Any(conditionTypes, func(c batchv1.JobConditionType) bool {
+		return slice.Any(conditionTypes, func(c batchv1.JobConditionType) bool {
 			return condition.Type == c && condition.Status == corev1.ConditionTrue
 		})
 	}
@@ -51,7 +50,7 @@ func (kubeutil *Kube) ListJobs(ctx context.Context, namespace string) ([]*batchv
 			return nil, err
 		}
 
-		jobs := slice.PointersOf(list.Items).([]*batchv1.Job)
+		jobs := slice.PointersOf(list.Items)
 		return jobs, nil
 	}
 }
@@ -71,6 +70,6 @@ func (kubeutil *Kube) ListJobsWithSelector(ctx context.Context, namespace, label
 		return nil, err
 	}
 
-	return slice.PointersOf(list.Items).([]*batchv1.Job), nil
+	return slice.PointersOf(list.Items), nil
 
 }

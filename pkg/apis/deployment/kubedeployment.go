@@ -4,7 +4,6 @@ import (
 	"context"
 	"maps"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -95,7 +94,7 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 			Annotations: radixannotations.ForKubernetesDeploymentObservedGeneration(deploy.radixDeployment),
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointers.Ptr[int32](1),
+			Replicas: new(int32(1)),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: radixlabels.Merge(
 					radixlabels.ForApplicationName(deploy.registration.Name),
@@ -125,7 +124,7 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 							Image:           deploy.config.DeploymentSyncer.JobAuxImage,
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							SecurityContext: securitycontext.Container(
-								securitycontext.WithReadOnlyRootFileSystem(pointers.Ptr(true)),
+								securitycontext.WithReadOnlyRootFileSystem(new(true)),
 								securitycontext.WithContainerRunAsUser(1000),
 							),
 							Command:      []string{"sh"},
@@ -187,7 +186,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointers.Ptr(defaults.DefaultReplicas),
+			Replicas: new(defaults.DefaultReplicas),
 			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -288,7 +287,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.ObjectMeta.Annotations = deploy.getDeploymentAnnotations()
 
 	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
-	desiredDeployment.Spec.Replicas = pointers.Ptr(getDeployComponentReplicas(deployComponent))
+	desiredDeployment.Spec.Replicas = new(getDeployComponentReplicas(deployComponent))
 	desiredDeployment.Spec.RevisionHistoryLimit = getRevisionHistoryLimit(deployComponent)
 
 	deploymentStrategy, err := getDeploymentStrategy()
@@ -422,9 +421,9 @@ func getDeployComponentReplicas(deployComponent v1.RadixCommonDeployComponent) i
 
 func getRevisionHistoryLimit(deployComponent v1.RadixCommonDeployComponent) *int32 {
 	if len(deployComponent.GetSecretRefs().AzureKeyVaults) > 0 {
-		return pointers.Ptr(int32(0))
+		return new(int32(0))
 	}
-	return pointers.Ptr(int32(10))
+	return new(int32(10))
 }
 
 func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {

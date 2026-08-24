@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -430,8 +429,8 @@ func Test_DNSAlias_ClusterRolesAndBinding_Spec(t *testing.T) {
 		Kind:               "RadixRegistration",
 		Name:               appName,
 		UID:                rrUID,
-		Controller:         pointers.Ptr(true),
-		BlockOwnerDeletion: pointers.Ptr(true),
+		Controller:         new(true),
+		BlockOwnerDeletion: new(true),
 	}}
 	assert.ElementsMatch(t, expectedClusterRoleOwners, adminClusterRole.OwnerReferences)
 	assert.ElementsMatch(t, expectedClusterRoleOwners, readerClusterRole.OwnerReferences)
@@ -463,8 +462,8 @@ func Test_DNSAlias_ClusterRolesAndBinding_Spec(t *testing.T) {
 		Kind:               "RadixRegistration",
 		Name:               appName,
 		UID:                rrUID,
-		Controller:         pointers.Ptr(true),
-		BlockOwnerDeletion: pointers.Ptr(true),
+		Controller:         new(true),
+		BlockOwnerDeletion: new(true),
 	}}
 	assert.ElementsMatch(t, expectedClusterRoleBindingOwners, adminClusterRoleBinding.OwnerReferences)
 	assert.ElementsMatch(t, expectedClusterRoleBindingOwners, readerClusterRoleBinding.OwnerReferences)

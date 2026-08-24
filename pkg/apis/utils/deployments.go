@@ -3,11 +3,13 @@ package utils
 import (
 	"fmt"
 	"strings"
+
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 )
 
 // GetDeploymentName Function to get deployment name
 func GetDeploymentName(env, tag string) string {
-	random := strings.ToLower(RandString(8))
+	random := strings.ToLower(random.RandString(8))
 	return fmt.Sprintf("%s-%s-%s", env, tag, random)
 }
 

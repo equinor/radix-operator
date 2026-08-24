@@ -52,7 +52,7 @@ func (kubeutil *Kube) ListNamespacesWithSelector(ctx context.Context, labelSelec
 		return nil, err
 	}
 
-	return slice.PointersOf(list.Items).([]*corev1.Namespace), nil
+	return slice.PointersOf(list.Items), nil
 }
 
 // GetEnvNamespacesForApp Get all env namespaces for an application

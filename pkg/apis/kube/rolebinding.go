@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -281,7 +281,7 @@ func (kubeutil *Kube) ListRoleBindingsWithSelector(ctx context.Context, namespac
 			return nil, err
 		}
 
-		roleBindings = slice.PointersOf(list.Items).([]*rbacv1.RoleBinding)
+		roleBindings = slice.PointersOf(list.Items)
 	}
 
 	return roleBindings, nil
@@ -308,7 +308,7 @@ func (kubeutil *Kube) ListClusterRoleBindingsWithSelector(ctx context.Context, l
 			return nil, err
 		}
 
-		clusterRoleBindings = slice.PointersOf(list.Items).([]*rbacv1.ClusterRoleBinding)
+		clusterRoleBindings = slice.PointersOf(list.Items)
 	}
 
 	return clusterRoleBindings, nil

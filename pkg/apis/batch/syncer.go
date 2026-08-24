@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"sync"
 
-	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/clock"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -32,7 +32,7 @@ type Syncer interface {
 
 type SyncerOption func(syncer *syncer)
 
-func WithClock(clock commonutils.Clock) SyncerOption {
+func WithClock(clock clock.Clock) SyncerOption {
 	return func(syncer *syncer) {
 		syncer.clock = clock
 	}
@@ -48,7 +48,7 @@ func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient
 		registration:  registration,
 		config:        config,
 		restartedJobs: map[string]radixv1.RadixBatchJob{},
-		clock:         commonutils.RealClock{},
+		clock:         clock.RealClock{},
 	}
 
 	for _, opt := range options {
@@ -66,7 +66,7 @@ type syncer struct {
 	registration  *radixv1.RadixRegistration
 	config        config.Config
 	restartedJobs map[string]radixv1.RadixBatchJob
-	clock         commonutils.Clock
+	clock         clock.Clock
 }
 
 // OnSync Syncs RadixBatches

@@ -7,80 +7,81 @@ import (
 
 	"github.com/equinor/radix-operator/api-server/api/deployments"
 	"github.com/equinor/radix-operator/api-server/api/utils/logs"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/gorilla/mux"
 )
 
 const rootPath = "/applications/{appName}"
 
 type jobController struct {
-	*models.DefaultController
+	*controller.DefaultController
 }
 
 // NewJobController Constructor
-func NewJobController() models.Controller {
+func NewJobController() controller.Controller {
 	return &jobController{}
 }
 
 // GetRoutes List the supported routes of this handler
-func (jc *jobController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (jc *jobController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:        rootPath + "/jobs",
 			Method:      "GET",
 			HandlerFunc: jc.GetApplicationJobs,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}",
 			Method:      "GET",
 			HandlerFunc: jc.GetApplicationJob,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}/stop",
 			Method:      "POST",
 			HandlerFunc: jc.StopApplicationJob,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}/rerun",
 			Method:      "POST",
 			HandlerFunc: jc.RerunApplicationJob,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}/pipelineruns",
 			Method:      "GET",
 			HandlerFunc: jc.GetTektonPipelineRuns,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}/pipelineruns/{pipelineRunName}",
 			Method:      "GET",
 			HandlerFunc: jc.GetTektonPipelineRun,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}/pipelineruns/{pipelineRunName}/tasks",
 			Method:      "GET",
 			HandlerFunc: jc.GetTektonPipelineRunTasks,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}/pipelineruns/{pipelineRunName}/tasks/{taskName}",
 			Method:      "GET",
 			HandlerFunc: jc.GetTektonPipelineRunTask,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}/pipelineruns/{pipelineRunName}/tasks/{taskName}/steps",
 			Method:      "GET",
 			HandlerFunc: jc.GetTektonPipelineRunTaskSteps,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}/pipelineruns/{pipelineRunName}/tasks/{taskName}/step/{stepName}",
 			Method:      "GET",
 			HandlerFunc: jc.GetTektonPipelineRunTaskStep,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}/pipelineruns/{pipelineRunName}/tasks/{taskName}/logs/{stepName}",
 			Method:      "GET",
 			HandlerFunc: jc.GetTektonPipelineRunTaskStepLogs,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/jobs/{jobName}/logs/{stepName}",
 			Method:      "GET",
 			HandlerFunc: jc.GetPipelineJobStepLogs,
@@ -91,7 +92,7 @@ func (jc *jobController) GetRoutes() models.Routes {
 }
 
 // GetApplicationJobs gets pipeline-job summaries
-func (jc *jobController) GetApplicationJobs(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) GetApplicationJobs(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/jobs pipeline-job getApplicationJobs
 	// ---
 	// summary: Gets the summary of jobs for a given application
@@ -136,7 +137,7 @@ func (jc *jobController) GetApplicationJobs(accounts models.Accounts, w http.Res
 }
 
 // GetApplicationJob gets specific pipeline-job details
-func (jc *jobController) GetApplicationJob(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) GetApplicationJob(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/jobs/{jobName} pipeline-job getApplicationJob
 	// ---
 	// summary: Gets the detail of a given pipeline-job for a given application
@@ -185,7 +186,7 @@ func (jc *jobController) GetApplicationJob(accounts models.Accounts, w http.Resp
 }
 
 // StopApplicationJob Stops job
-func (jc *jobController) StopApplicationJob(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) StopApplicationJob(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/jobs/{jobName}/stop pipeline-job stopApplicationJob
 	// ---
 	// summary: Stops job
@@ -232,7 +233,7 @@ func (jc *jobController) StopApplicationJob(accounts models.Accounts, w http.Res
 }
 
 // RerunApplicationJob Reruns the pipeline job
-func (jc *jobController) RerunApplicationJob(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) RerunApplicationJob(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/jobs/{jobName}/rerun pipeline-job rerunApplicationJob
 	// ---
 	// summary: Reruns the pipeline job
@@ -278,7 +279,7 @@ func (jc *jobController) RerunApplicationJob(accounts models.Accounts, w http.Re
 }
 
 // GetTektonPipelineRuns Get the Tekton pipeline runs overview
-func (jc *jobController) GetTektonPipelineRuns(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) GetTektonPipelineRuns(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/jobs/{jobName}/pipelineruns pipeline-job getTektonPipelineRuns
 	// ---
 	// summary: Gets list of pipeline runs for a pipeline-job
@@ -329,7 +330,7 @@ func (jc *jobController) GetTektonPipelineRuns(accounts models.Accounts, w http.
 }
 
 // GetTektonPipelineRun Get the Tekton pipeline run overview
-func (jc *jobController) GetTektonPipelineRun(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) GetTektonPipelineRun(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/jobs/{jobName}/pipelineruns/{pipelineRunName} pipeline-job getTektonPipelineRun
 	// ---
 	// summary: Gets a pipeline run for a pipeline-job
@@ -384,7 +385,7 @@ func (jc *jobController) GetTektonPipelineRun(accounts models.Accounts, w http.R
 }
 
 // GetTektonPipelineRunTasks Get the Tekton task list of a pipeline run
-func (jc *jobController) GetTektonPipelineRunTasks(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) GetTektonPipelineRunTasks(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/jobs/{jobName}/pipelineruns/{pipelineRunName}/tasks pipeline-job getTektonPipelineRunTasks
 	// ---
 	// summary: Gets list of pipeline run tasks of a pipeline-job
@@ -441,7 +442,7 @@ func (jc *jobController) GetTektonPipelineRunTasks(accounts models.Accounts, w h
 }
 
 // GetTektonPipelineRunTask Get the Tekton task of a pipeline run
-func (jc *jobController) GetTektonPipelineRunTask(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) GetTektonPipelineRunTask(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/jobs/{jobName}/pipelineruns/{pipelineRunName}/tasks/{taskName} pipeline-job getTektonPipelineRunTask
 	// ---
 	// summary: Gets list of pipeline run task of a pipeline-job
@@ -502,7 +503,7 @@ func (jc *jobController) GetTektonPipelineRunTask(accounts models.Accounts, w ht
 }
 
 // GetTektonPipelineRunTaskSteps Get the Tekton task step list of a pipeline run
-func (jc *jobController) GetTektonPipelineRunTaskSteps(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) GetTektonPipelineRunTaskSteps(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/jobs/{jobName}/pipelineruns/{pipelineRunName}/tasks/{taskName}/steps pipeline-job getTektonPipelineRunTaskSteps
 	// ---
 	// summary: Gets list of steps for a pipeline run task of a pipeline-job
@@ -565,7 +566,7 @@ func (jc *jobController) GetTektonPipelineRunTaskSteps(accounts models.Accounts,
 }
 
 // GetTektonPipelineRunTaskStep Get the Tekton task step of a pipeline run
-func (jc *jobController) GetTektonPipelineRunTaskStep(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) GetTektonPipelineRunTaskStep(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/jobs/{jobName}/pipelineruns/{pipelineRunName}/tasks/{taskName}/step/{stepName} pipeline-job getTektonPipelineRunTaskStep
 	// ---
 	// summary: Gets a step for a pipeline run task of a pipeline-job
@@ -632,7 +633,7 @@ func (jc *jobController) GetTektonPipelineRunTaskStep(accounts models.Accounts, 
 }
 
 // GetTektonPipelineRunTaskStepLogs Get step logs of a pipeline run task for a pipeline job
-func (jc *jobController) GetTektonPipelineRunTaskStepLogs(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) GetTektonPipelineRunTaskStepLogs(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/jobs/{jobName}/pipelineruns/{pipelineRunName}/tasks/{taskName}/logs/{stepName} pipeline-job getTektonPipelineRunTaskStepLogs
 	// ---
 	// summary: Gets logs of pipeline runs for a pipeline-job
@@ -735,7 +736,7 @@ func (jc *jobController) GetTektonPipelineRunTaskStepLogs(accounts models.Accoun
 }
 
 // GetPipelineJobStepLogs Get log of a pipeline job step
-func (jc *jobController) GetPipelineJobStepLogs(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (jc *jobController) GetPipelineJobStepLogs(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/jobs/{jobName}/logs/{stepName} pipeline-job getPipelineJobStepLogs
 	// ---
 	// summary: Gets logs of a pipeline job step

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -76,7 +75,7 @@ func (suite *ConfigMapSuite) Test_CreateConfigMap() {
 			}})
 		assert.Nil(t, err)
 
-		assert.True(t, radixutils.EqualStringMaps(labels, configMap.ObjectMeta.Labels))
+		assert.Equal(t, labels, configMap.ObjectMeta.Labels)
 		assert.Equal(t, name, configMap.ObjectMeta.Name)
 		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
 	})
@@ -114,7 +113,7 @@ func (suite *ConfigMapSuite) Test_ConfigMapInCluster() {
 
 			assert.Len(t, configMaps.Items, 1)
 			savedConfigMap := configMaps.Items[0]
-			assert.True(t, radixutils.EqualStringMaps(labels, savedConfigMap.ObjectMeta.Labels))
+			assert.Equal(t, labels, savedConfigMap.ObjectMeta.Labels)
 			assert.Equal(t, scenario.cmName, savedConfigMap.ObjectMeta.Name)
 			assert.Equal(t, namespace, savedConfigMap.ObjectMeta.Namespace)
 		}
@@ -139,7 +138,7 @@ func Test_GetConfigMap(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, name, configMap.ObjectMeta.Name)
 		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
-		assert.True(t, radixutils.EqualStringMaps(testConfigMap.Data, configMap.Data))
+		assert.Equal(t, testConfigMap.Data, configMap.Data)
 	})
 }
 
@@ -179,6 +178,6 @@ func Test_ApplyConfigMap(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, name, configMap.ObjectMeta.Name)
 		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
-		assert.True(t, radixutils.EqualStringMaps(desiredConfigMap.Data, configMap.Data))
+		assert.Equal(t, desiredConfigMap.Data, configMap.Data)
 	})
 }

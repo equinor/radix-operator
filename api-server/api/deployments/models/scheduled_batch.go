@@ -79,7 +79,7 @@ type ScheduledJobSummary struct {
 	// Resources Resource requirements for the job
 	//
 	// required: false
-	Resources ResourceRequirements `json:"resources,omitempty"`
+	Resources ResourceRequirements `json:"resources"`
 
 	// Node Defines node attributes, where pod should be scheduled
 	//

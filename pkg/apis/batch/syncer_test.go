@@ -9,9 +9,6 @@ import (
 	"time"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	commonutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/numbers"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -21,6 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/clock"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -397,7 +395,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		expectedPodAnnotations := map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}
 		s.Equal(expectedPodAnnotations, kubejob.Spec.Template.Annotations)
 		s.Equal(ownerReference(batch), kubejob.OwnerReferences)
-		s.Equal(numbers.Int32Ptr(0), kubejob.Spec.BackoffLimit)
+		s.Equal(new(int32(0)), kubejob.Spec.BackoffLimit)
 		s.Equal(new(int32(86400)), kubejob.Spec.TTLSecondsAfterFinished)
 		s.Equal(corev1.RestartPolicyNever, kubejob.Spec.Template.Spec.RestartPolicy)
 		s.Equal(securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)), kubejob.Spec.Template.Spec.SecurityContext)
@@ -423,7 +421,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		}))
 		s.Equal(corev1.PullAlways, kubejob.Spec.Template.Spec.Containers[0].ImagePullPolicy)
 		s.Equal("default", kubejob.Spec.Template.Spec.ServiceAccountName)
-		s.Equal(pointers.Ptr(false), kubejob.Spec.Template.Spec.AutomountServiceAccountToken)
+		s.Equal(new(false), kubejob.Spec.Template.Spec.AutomountServiceAccountToken)
 		expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
 			{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
 			{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
@@ -811,7 +809,7 @@ func (s *syncerTestSuite) Test_BatchJobTimeLimitSeconds() {
 			},
 			Jobs: []radixv1.RadixBatchJob{
 				{Name: job1Name},
-				{Name: job2Name, TimeLimitSeconds: numbers.Int64Ptr(234)},
+				{Name: job2Name, TimeLimitSeconds: new(int64(234))},
 			},
 		},
 	}
@@ -822,7 +820,7 @@ func (s *syncerTestSuite) Test_BatchJobTimeLimitSeconds() {
 			Jobs: []radixv1.RadixDeployJobComponent{
 				{
 					Name:             componentName,
-					TimeLimitSeconds: numbers.Int64Ptr(123),
+					TimeLimitSeconds: new(int64(123)),
 				},
 			},
 		},
@@ -836,9 +834,9 @@ func (s *syncerTestSuite) Test_BatchJobTimeLimitSeconds() {
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 2)
 	job1 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
-	s.Equal(numbers.Int64Ptr(123), job1.Spec.Template.Spec.ActiveDeadlineSeconds)
+	s.Equal(new(int64(123)), job1.Spec.Template.Spec.ActiveDeadlineSeconds)
 	job2 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job2Name) })[0]
-	s.Equal(numbers.Int64Ptr(234), job2.Spec.Template.Spec.ActiveDeadlineSeconds)
+	s.Equal(new(int64(234)), job2.Spec.Template.Spec.ActiveDeadlineSeconds)
 }
 
 func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithJobComponentDefault() {
@@ -853,7 +851,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithJobComponentDefault() {
 			},
 			Jobs: []radixv1.RadixBatchJob{
 				{Name: job1Name},
-				{Name: job2Name, BackoffLimit: numbers.Int32Ptr(5)},
+				{Name: job2Name, BackoffLimit: new(int32(5))},
 			},
 		},
 	}
@@ -864,7 +862,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithJobComponentDefault() {
 			Jobs: []radixv1.RadixDeployJobComponent{
 				{
 					Name:         componentName,
-					BackoffLimit: numbers.Int32Ptr(4),
+					BackoffLimit: new(int32(4)),
 				},
 			},
 		},
@@ -878,9 +876,9 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithJobComponentDefault() {
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 2)
 	job1 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
-	s.Equal(numbers.Int32Ptr(4), job1.Spec.BackoffLimit)
+	s.Equal(new(int32(4)), job1.Spec.BackoffLimit)
 	job2 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job2Name) })[0]
-	s.Equal(numbers.Int32Ptr(5), job2.Spec.BackoffLimit)
+	s.Equal(new(int32(5)), job2.Spec.BackoffLimit)
 }
 
 func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithoutJobComponentDefault() {
@@ -895,7 +893,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithoutJobComponentDefault()
 			},
 			Jobs: []radixv1.RadixBatchJob{
 				{Name: job1Name},
-				{Name: job2Name, BackoffLimit: numbers.Int32Ptr(5)},
+				{Name: job2Name, BackoffLimit: new(int32(5))},
 			},
 		},
 	}
@@ -919,9 +917,9 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithoutJobComponentDefault()
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(allJobs.Items, 2)
 	job1 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
-	s.Equal(numbers.Int32Ptr(0), job1.Spec.BackoffLimit)
+	s.Equal(new(int32(0)), job1.Spec.BackoffLimit)
 	job2 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job2Name) })[0]
-	s.Equal(numbers.Int32Ptr(5), job2.Spec.BackoffLimit)
+	s.Equal(new(int32(5)), job2.Spec.BackoffLimit)
 }
 
 func (s *syncerTestSuite) Test_JobWithIdentity() {
@@ -961,7 +959,7 @@ func (s *syncerTestSuite) Test_JobWithIdentity() {
 	expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAppIDLabel: "00000000000000000000000001", kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName, "azure.workload.identity/use": "true"}
 	s.Equal(expectedPodLabels, jobs.Items[0].Spec.Template.Labels)
 	s.Equal(utils.GetComponentServiceAccountName(componentName), jobs.Items[0].Spec.Template.Spec.ServiceAccountName)
-	s.Equal(pointers.Ptr(false), jobs.Items[0].Spec.Template.Spec.AutomountServiceAccountToken)
+	s.Equal(new(false), jobs.Items[0].Spec.Template.Spec.AutomountServiceAccountToken)
 }
 
 func (s *syncerTestSuite) Test_JobWithPayload() {
@@ -1041,8 +1039,8 @@ func (s *syncerTestSuite) Test_ReadOnlyFileSystem() {
 	}
 	tests := map[string]scenarioSpec{
 		"notSet": {readOnlyFileSystem: nil, expectedReadOnlyFileSystem: nil},
-		"false":  {readOnlyFileSystem: pointers.Ptr(false), expectedReadOnlyFileSystem: pointers.Ptr(false)},
-		"true":   {readOnlyFileSystem: pointers.Ptr(true), expectedReadOnlyFileSystem: pointers.Ptr(true)},
+		"false":  {readOnlyFileSystem: new(false), expectedReadOnlyFileSystem: new(false)},
+		"true":   {readOnlyFileSystem: new(true), expectedReadOnlyFileSystem: new(true)},
 	}
 	for name, test := range tests {
 		s.Run(name, func() {
@@ -1092,8 +1090,8 @@ func (s *syncerTestSuite) Test_RunAsUser() {
 		runAsUser         *int64
 		expectedRunAsUser *int64
 	}
-	usr1000 := pointers.Ptr(int64(1000))
-	usr1001 := pointers.Ptr(int64(1001))
+	usr1000 := new(int64(1000))
+	usr1001 := new(int64(1001))
 	tests := map[string]scenarioSpec{
 		"notSet": {runAsUser: nil, expectedRunAsUser: nil},
 		"false":  {runAsUser: usr1001, expectedRunAsUser: usr1001},
@@ -1305,8 +1303,8 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 					Name: componentName,
 					SecretRefs: radixv1.RadixSecretRefs{
 						AzureKeyVaults: []radixv1.RadixAzureKeyVault{
-							{Name: "kv1", Path: utils.StringPtr("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET1"}}},
-							{Name: "kv2", Path: utils.StringPtr("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET2"}}},
+							{Name: "kv1", Path: new("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET1"}}},
+							{Name: "kv2", Path: new("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET2"}}},
 						},
 					},
 				},
@@ -1435,7 +1433,7 @@ func (s *syncerTestSuite) Test_StopJob() {
 	s.Require().Len(allJobs.Items, 2)
 
 	// Stop first job and check that k8s job is deleted
-	batch.Spec.Jobs[0].Stop = pointers.Ptr(true)
+	batch.Spec.Jobs[0].Stop = new(true)
 	sut = s.createSyncer(batch, nil)
 	s.Require().NoError(sut.OnSync(context.Background()))
 	allJobs, _ = s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
@@ -1583,13 +1581,12 @@ func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
 	}
 
 	for _, scenario := range scenarios {
-		scenario := scenario
 		s.Run(scenario.testName, func() {
 			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 			s.Require().NoError(err)
 			for jobName, stop := range scenario.stopStatus {
 				i := slice.FindIndex(batch.Spec.Jobs, func(j radixv1.RadixBatchJob) bool { return j.Name == jobName })
-				batch.Spec.Jobs[i].Stop = pointers.Ptr(stop)
+				batch.Spec.Jobs[i].Stop = new(stop)
 			}
 			sut := s.createSyncer(batch, nil)
 			err = sut.OnSync(context.Background())
@@ -1766,7 +1763,7 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 					status: batchv1.JobStatus{
 						Failed:     5,
 						Active:     1,
-						Ready:      pointers.Ptr[int32](1),
+						Ready:      new(int32(1)),
 						StartTime:  &metav1.Time{Time: now.Add(-6 * time.Hour)},
 						Conditions: []batchv1.JobCondition{{Type: "any-condition-type", Status: corev1.ConditionTrue, Reason: "any-condition-reason", Message: "any-condition-message", LastTransitionTime: metav1.Now()}},
 					}}},
@@ -1784,7 +1781,7 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 					status: batchv1.JobStatus{
 						Failed:     5,
 						Active:     1,
-						Ready:      pointers.Ptr[int32](1),
+						Ready:      new(int32(1)),
 						StartTime:  &metav1.Time{Time: now.Add(-6 * time.Hour)},
 						Conditions: []batchv1.JobCondition{{Type: "any-condition-type", Status: corev1.ConditionTrue, Reason: "any-condition-reason", Message: "any-condition-message", LastTransitionTime: metav1.Now()}},
 					}},
@@ -1814,7 +1811,7 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 					status: batchv1.JobStatus{
 						Failed:    5,
 						Active:    1,
-						Ready:     pointers.Ptr[int32](1),
+						Ready:     new(int32(1)),
 						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
 						Conditions: []batchv1.JobCondition{{
 							Type:               batchv1.JobComplete,
@@ -1841,7 +1838,7 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 					status: batchv1.JobStatus{
 						Failed:    5,
 						Active:    1,
-						Ready:     pointers.Ptr[int32](1),
+						Ready:     new(int32(1)),
 						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
 						Conditions: []batchv1.JobCondition{{
 							Type:               batchv1.JobComplete,
@@ -1880,7 +1877,7 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 					status: batchv1.JobStatus{
 						Failed:    5,
 						Active:    1,
-						Ready:     pointers.Ptr[int32](1),
+						Ready:     new(int32(1)),
 						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
 						Conditions: []batchv1.JobCondition{{
 							Type:               batchv1.JobSuccessCriteriaMet,
@@ -1907,7 +1904,7 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 					status: batchv1.JobStatus{
 						Failed:    5,
 						Active:    1,
-						Ready:     pointers.Ptr[int32](1),
+						Ready:     new(int32(1)),
 						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
 						Conditions: []batchv1.JobCondition{{
 							Type:               batchv1.JobSuccessCriteriaMet,
@@ -1946,7 +1943,7 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 					status: batchv1.JobStatus{
 						Failed:    5,
 						Active:    1,
-						Ready:     pointers.Ptr[int32](1),
+						Ready:     new(int32(1)),
 						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
 						Conditions: []batchv1.JobCondition{{
 							Type:               batchv1.JobFailed,
@@ -1973,7 +1970,7 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 					status: batchv1.JobStatus{
 						Failed:    5,
 						Active:    1,
-						Ready:     pointers.Ptr[int32](1),
+						Ready:     new(int32(1)),
 						StartTime: &metav1.Time{Time: now.Add(-6 * time.Hour)},
 						Conditions: []batchv1.JobCondition{{
 							Type:               batchv1.JobFailed,
@@ -2057,7 +2054,7 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 			}
 
 			// Run test
-			sut := s.createSyncer(batch, nil, WithClock(commonutils.NewFakeClock(now)))
+			sut := s.createSyncer(batch, nil, WithClock(clock.NewFakeClock(now)))
 			s.Require().NoError(sut.OnSync(context.Background()))
 			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -2094,7 +2091,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 
 	waitingJob := jobSpec{kubeJobStatus: batchv1.JobStatus{}}
 	activeJob := jobSpec{kubeJobStatus: batchv1.JobStatus{Active: 1}}
-	runningJob := jobSpec{kubeJobStatus: batchv1.JobStatus{Active: 1, Ready: pointers.Ptr[int32](1)}}
+	runningJob := jobSpec{kubeJobStatus: batchv1.JobStatus{Active: 1, Ready: new(int32(1))}}
 	succeededJob := jobSpec{kubeJobStatus: batchv1.JobStatus{Conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue}}}}
 	failedJob := jobSpec{kubeJobStatus: batchv1.JobStatus{Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue}}}}
 	stoppedJob := jobSpec{stop: true}
@@ -2211,7 +2208,7 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 			s.Require().NoError(err)
 
 			// Run test
-			sut := s.createSyncer(batch, nil, WithClock(commonutils.NewFakeClock(now)))
+			sut := s.createSyncer(batch, nil, WithClock(clock.NewFakeClock(now)))
 			s.Require().NoError(sut.OnSync(context.Background()))
 			batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -2729,80 +2726,80 @@ func (s *syncerTestSuite) Test_SafeToRestartAnnotation() {
 			expectedAnnotationValue: "true",
 		},
 		"component safeToRestart true": {
-			componentSafeToRestart:  pointers.Ptr(true),
+			componentSafeToRestart:  new(true),
 			threshold:               600,
 			expectedAnnotationValue: "true",
 		},
 		"component safeToRestart false": {
-			componentSafeToRestart:  pointers.Ptr(false),
+			componentSafeToRestart:  new(false),
 			threshold:               600,
 			expectedAnnotationValue: "false",
 		},
 		"batchJob safeToRestart true overrides component false": {
-			componentSafeToRestart:  pointers.Ptr(false),
-			batchJobSafeToRestart:   pointers.Ptr(true),
+			componentSafeToRestart:  new(false),
+			batchJobSafeToRestart:   new(true),
 			threshold:               600,
 			expectedAnnotationValue: "true",
 		},
 		"batchJob safeToRestart false overrides component true": {
-			componentSafeToRestart:  pointers.Ptr(true),
-			batchJobSafeToRestart:   pointers.Ptr(false),
+			componentSafeToRestart:  new(true),
+			batchJobSafeToRestart:   new(false),
 			threshold:               600,
 			expectedAnnotationValue: "false",
 		},
 		"batchJob safeToRestart true, no component safeToRestart": {
-			batchJobSafeToRestart:   pointers.Ptr(true),
+			batchJobSafeToRestart:   new(true),
 			threshold:               600,
 			expectedAnnotationValue: "true",
 		},
 		"batchJob safeToRestart false, no component safeToRestart": {
-			batchJobSafeToRestart:   pointers.Ptr(false),
+			batchJobSafeToRestart:   new(false),
 			threshold:               600,
 			expectedAnnotationValue: "false",
 		},
 		"component timeLimitSeconds below threshold": {
-			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
+			componentTimeLimitSeconds: new(int64(100)),
 			threshold:                 600,
 			expectedAnnotationValue:   "false",
 		},
 		"component timeLimitSeconds above threshold": {
-			componentTimeLimitSeconds: pointers.Ptr(int64(1000)),
+			componentTimeLimitSeconds: new(int64(1000)),
 			threshold:                 600,
 			expectedAnnotationValue:   "true",
 		},
 		"component timeLimitSeconds equal to threshold": {
-			componentTimeLimitSeconds: pointers.Ptr(int64(600)),
+			componentTimeLimitSeconds: new(int64(600)),
 			threshold:                 600,
 			expectedAnnotationValue:   "true",
 		},
 		"batchJob timeLimitSeconds overrides component timeLimitSeconds, below threshold": {
-			componentTimeLimitSeconds: pointers.Ptr(int64(1000)),
-			batchJobTimeLimitSeconds:  pointers.Ptr(int64(100)),
+			componentTimeLimitSeconds: new(int64(1000)),
+			batchJobTimeLimitSeconds:  new(int64(100)),
 			threshold:                 600,
 			expectedAnnotationValue:   "false",
 		},
 		"batchJob timeLimitSeconds overrides component timeLimitSeconds, above threshold": {
-			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
-			batchJobTimeLimitSeconds:  pointers.Ptr(int64(1000)),
+			componentTimeLimitSeconds: new(int64(100)),
+			batchJobTimeLimitSeconds:  new(int64(1000)),
 			threshold:                 600,
 			expectedAnnotationValue:   "true",
 		},
 		"safeToRestart takes precedence over timeLimitSeconds, component safeToRestart true with low time limit": {
-			componentSafeToRestart:    pointers.Ptr(true),
-			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
+			componentSafeToRestart:    new(true),
+			componentTimeLimitSeconds: new(int64(100)),
 			threshold:                 600,
 			expectedAnnotationValue:   "true",
 		},
 		"safeToRestart takes precedence over timeLimitSeconds, component safeToRestart false with high time limit": {
-			componentSafeToRestart:    pointers.Ptr(false),
-			componentTimeLimitSeconds: pointers.Ptr(int64(1000)),
+			componentSafeToRestart:    new(false),
+			componentTimeLimitSeconds: new(int64(1000)),
 			threshold:                 600,
 			expectedAnnotationValue:   "false",
 		},
 		"batchJob safeToRestart takes precedence over both timeLimitSeconds": {
-			componentTimeLimitSeconds: pointers.Ptr(int64(100)),
-			batchJobTimeLimitSeconds:  pointers.Ptr(int64(1000)),
-			batchJobSafeToRestart:     pointers.Ptr(false),
+			componentTimeLimitSeconds: new(int64(100)),
+			batchJobTimeLimitSeconds:  new(int64(1000)),
+			batchJobSafeToRestart:     new(false),
 			threshold:                 600,
 			expectedAnnotationValue:   "false",
 		},

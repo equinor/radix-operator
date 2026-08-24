@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -90,7 +90,7 @@ func (kubeutil *Kube) ListServicesWithSelector(ctx context.Context, namespace, l
 			return nil, err
 		}
 
-		services = slice.PointersOf(list.Items).([]*corev1.Service)
+		services = slice.PointersOf(list.Items)
 	}
 
 	return services, nil

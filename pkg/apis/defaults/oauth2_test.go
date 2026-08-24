@@ -3,7 +3,6 @@ package defaults
 import (
 	"testing"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/suite"
 )
@@ -97,18 +96,18 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_SessionStoreType() {
 
 func (s *oauth2DefaultConfigOptionsTestSuite) Test_SetAuthorizationHeader() {
 	expected := s.oauthConfig()
-	expected.SetAuthorizationHeader = commonUtils.BoolPtr(true)
+	expected.SetAuthorizationHeader = new(true)
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.MergeWith(&v1.OAuth2{SetAuthorizationHeader: commonUtils.BoolPtr(true)})
+	actual, err := sut.MergeWith(&v1.OAuth2{SetAuthorizationHeader: new(true)})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
 
 func (s *oauth2DefaultConfigOptionsTestSuite) Test_SetXAuthRequestHeaders() {
 	expected := s.oauthConfig()
-	expected.SetXAuthRequestHeaders = commonUtils.BoolPtr(true)
+	expected.SetXAuthRequestHeaders = new(true)
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.MergeWith(&v1.OAuth2{SetXAuthRequestHeaders: commonUtils.BoolPtr(true)})
+	actual, err := sut.MergeWith(&v1.OAuth2{SetXAuthRequestHeaders: new(true)})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -151,18 +150,18 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_Cookie_SameSite() {
 
 func (s *oauth2DefaultConfigOptionsTestSuite) Test_CookieStore_Minimal() {
 	expected := s.oauthConfig()
-	expected.CookieStore.Minimal = commonUtils.BoolPtr(true)
+	expected.CookieStore.Minimal = new(true)
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.MergeWith(&v1.OAuth2{CookieStore: &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}})
+	actual, err := sut.MergeWith(&v1.OAuth2{CookieStore: &v1.OAuth2CookieStore{Minimal: new(true)}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
 
 func (s *oauth2DefaultConfigOptionsTestSuite) Test_OIDC_InsecureSkipVerifyNonce() {
 	expected := s.oauthConfig()
-	expected.OIDC.InsecureSkipVerifyNonce = commonUtils.BoolPtr(true)
+	expected.OIDC.InsecureSkipVerifyNonce = new(true)
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.MergeWith(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{InsecureSkipVerifyNonce: commonUtils.BoolPtr(true)}})
+	actual, err := sut.MergeWith(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{InsecureSkipVerifyNonce: new(true)}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -187,9 +186,9 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_OIDC_JWKSURL() {
 
 func (s *oauth2DefaultConfigOptionsTestSuite) Test_OIDC_SkipDiscovery() {
 	expected := s.oauthConfig()
-	expected.OIDC.SkipDiscovery = commonUtils.BoolPtr(true)
+	expected.OIDC.SkipDiscovery = new(true)
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.MergeWith(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{SkipDiscovery: commonUtils.BoolPtr(true)}})
+	actual, err := sut.MergeWith(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{SkipDiscovery: new(true)}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -207,8 +206,8 @@ func (*oauth2DefaultConfigOptionsTestSuite) oauthConfig() v1.OAuth2 {
 	return v1.OAuth2{
 		ClientID:               "expectedclientid",
 		Scope:                  "expectedscope",
-		SetXAuthRequestHeaders: commonUtils.BoolPtr(false),
-		SetAuthorizationHeader: commonUtils.BoolPtr(false),
+		SetXAuthRequestHeaders: new(false),
+		SetAuthorizationHeader: new(false),
 		ProxyPrefix:            "expectedprefix",
 		LoginURL:               "expectedloginurl",
 		RedeemURL:              "expectedredeemurl",
@@ -216,8 +215,8 @@ func (*oauth2DefaultConfigOptionsTestSuite) oauthConfig() v1.OAuth2 {
 		OIDC: &v1.OAuth2OIDC{
 			IssuerURL:               "expectedissuerurl",
 			JWKSURL:                 "expectedjwksurl",
-			SkipDiscovery:           commonUtils.BoolPtr(false),
-			InsecureSkipVerifyNonce: commonUtils.BoolPtr(false),
+			SkipDiscovery:           new(false),
+			InsecureSkipVerifyNonce: new(false),
 		},
 		Cookie: &v1.OAuth2Cookie{
 			Name:     "expectedname",
@@ -226,7 +225,7 @@ func (*oauth2DefaultConfigOptionsTestSuite) oauthConfig() v1.OAuth2 {
 			SameSite: v1.CookieSameSiteType("expectedsamesite"),
 		},
 		CookieStore: &v1.OAuth2CookieStore{
-			Minimal: commonUtils.BoolPtr(false),
+			Minimal: new(false),
 		},
 		RedisStore: &v1.OAuth2RedisStore{
 			ConnectionURL: "expectedconnectionurl",

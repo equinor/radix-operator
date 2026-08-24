@@ -88,7 +88,7 @@ func (k *KindCluster) exists(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("failed to list kind clusters: %w", err)
 	}
 
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		if strings.TrimSpace(line) == k.Name {
 			return true, nil
 		}

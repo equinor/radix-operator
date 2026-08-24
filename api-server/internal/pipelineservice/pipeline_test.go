@@ -3,8 +3,8 @@ package pipelineservice
 import (
 	"testing"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"

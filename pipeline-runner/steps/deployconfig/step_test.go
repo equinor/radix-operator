@@ -2,11 +2,12 @@ package deployconfig_test
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -573,7 +574,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 			s.createUsedNamespaces(ts)
 			existingRdByEnvMap := s.createRadixDeployments(ts.existingRadixDeploymentBuilderProps, existingRa)
 			expectedRdByEnvMap := getRadixDeploymentsByEnvMap(s.buildRadixDeployments(ts.expectedNewRadixDeploymentBuilderProps, pipelineInfo.RadixApplication, existingRdByEnvMap))
-			affectedEnvs := maps.GetKeysFromMap(expectedRdByEnvMap)
+			affectedEnvs := slices.Collect(maps.Keys(expectedRdByEnvMap))
 
 			radixDeploymentWatcher := watcher.NewMockRadixDeploymentWatcher(s.ctrl)
 			radixDeploymentWatcher.EXPECT().WaitForActive(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(len(affectedEnvs))
@@ -599,7 +600,7 @@ func (s *deployConfigTestSuite) TestDeployConfig() {
 				if !s.Len(actualRdList, len(expectedRdList), "Invalid number of Radix Deployments for environment %s", envName) {
 					continue
 				}
-				for i := 0; i < len(expectedRdList); i++ {
+				for i := range expectedRdList {
 					expectedRd := expectedRdList[i]
 					actualRd := actualRdList[i]
 					if !s.Len(actualRd.Spec.Components, len(expectedRd.Spec.Components), "Invalid number of components") {
@@ -735,7 +736,7 @@ func (s *deployConfigTestSuite) createUsedNamespaces(ts scenario) {
 	for _, envName := range ts.applyingRaProps.envs {
 		usedNamespacesSet[envName] = struct{}{}
 	}
-	usedNamespaces := maps.GetKeysFromMap(usedNamespacesSet)
+	usedNamespaces := slices.Collect(maps.Keys(usedNamespacesSet))
 	for _, namespace := range usedNamespaces {
 		_, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, namespace)}}, metav1.CreateOptions{})
 		s.Require().NoError(err)

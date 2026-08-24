@@ -250,7 +250,7 @@ type radixBatchMatcher struct {
 	matches func(*radixv1.RadixBatch) bool
 }
 
-func (m *radixBatchMatcher) Matches(x interface{}) bool {
+func (m *radixBatchMatcher) Matches(x any) bool {
 	radixBatch := x.(*radixv1.RadixBatch)
 	return m.matches(radixBatch)
 }
@@ -267,7 +267,7 @@ type radixBatchJobStatusesMatcher struct {
 	matches func([]radixv1.RadixBatchJobStatus) bool
 }
 
-func (m *radixBatchJobStatusesMatcher) Matches(x interface{}) bool {
+func (m *radixBatchJobStatusesMatcher) Matches(x any) bool {
 	radixBatchJobStatuses := x.([]radixv1.RadixBatchJobStatus)
 	return m.matches(radixBatchJobStatuses)
 }

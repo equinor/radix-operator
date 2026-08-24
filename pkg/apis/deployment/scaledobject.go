@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -150,7 +149,7 @@ func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.
 		},
 		Spec: kedav1.ScaledObjectSpec{
 			MinReplicaCount: config.MinReplicas,
-			MaxReplicaCount: pointers.Ptr(config.MaxReplicas),
+			MaxReplicaCount: new(config.MaxReplicas),
 			PollingInterval: config.PollingInterval,
 			CooldownPeriod:  config.CooldownPeriod,
 			Advanced:        &kedav1.AdvancedConfig{RestoreToOriginalReplicaCount: false},

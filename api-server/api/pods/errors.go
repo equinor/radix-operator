@@ -3,7 +3,7 @@ package pods
 import (
 	"fmt"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 )
 
 // PodNotFoundError Pod not found

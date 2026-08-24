@@ -7,7 +7,7 @@ import (
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	alertModels "github.com/equinor/radix-operator/api-server/api/alerting/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	operatoralert "github.com/equinor/radix-operator/pkg/apis/alert"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -24,7 +24,7 @@ import (
 
 type HandlerTestSuite struct {
 	suite.Suite
-	accounts models.Accounts
+	accounts accounts.Accounts
 }
 
 func (s *HandlerTestSuite) SetupTest() {
@@ -41,7 +41,7 @@ func (s *HandlerTestSuite) setupTest() {
 	kedaClient := kedafake.NewSimpleClientset()
 	secretProviderClient := secretproviderfake.NewSimpleClientset()
 	certClient := certclientfake.NewSimpleClientset()
-	s.accounts = models.NewAccounts(kubeClient, radixClient, kedaClient, secretProviderClient, nil, certClient, kubeClient, radixClient, kedaClient, secretProviderClient, nil, certClient)
+	s.accounts = accounts.NewAccounts(kubeClient, radixClient, kedaClient, secretProviderClient, nil, certClient, kubeClient, radixClient, kedaClient, secretProviderClient, nil, certClient)
 }
 
 func TestHandlerTestSuite(t *testing.T) {

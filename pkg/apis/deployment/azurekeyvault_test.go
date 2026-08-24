@@ -68,7 +68,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 			azureKeyVaults: []v1.RadixAzureKeyVault{
 				{
 					Name:  "kv1",
-					Path:  utils.StringPtr("/mnt/customPath"),
+					Path:  new("/mnt/customPath"),
 					Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
 				},
 				{
@@ -142,7 +142,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 				continue
 			}
 
-			for i := 0; i < len(volumes); i++ {
+			for i := range volumes {
 				volume := volumes[i]
 				assert.Less(t, len(volume.Name), 64, "volume name is too long")
 				assert.NotNil(t, volume.CSI, "CSI should ne not nil")
@@ -191,7 +191,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 				continue
 			}
 
-			for i := 0; i < len(volumeMounts); i++ {
+			for i := range volumeMounts {
 				volumeMount := volumeMounts[i]
 				volumeProp := scenario.expectedVolumeProps[i]
 				assert.Less(t, len(volumeMount.Name), 64, "volumemount name is too long")

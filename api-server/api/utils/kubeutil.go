@@ -5,10 +5,10 @@ import (
 	"os"
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
-	radixmodels "github.com/equinor/radix-common/models"
 	"github.com/equinor/radix-operator/api-server/api/metrics"
 	"github.com/equinor/radix-operator/api-server/api/utils/logs"
 	"github.com/equinor/radix-operator/api-server/api/utils/warningcollector"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/prometheus/client_golang/prometheus"
@@ -39,7 +39,7 @@ func WithBurst(burst int) RestClientConfigOption {
 
 // KubeUtil Interface to be mocked in tests
 type KubeUtil interface {
-	GetUserKubernetesClient(string, radixmodels.Impersonation, ...RestClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, secretproviderclient.Interface, tektonclient.Interface, certclient.Interface)
+	GetUserKubernetesClient(string, accounts.Impersonation, ...RestClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, secretproviderclient.Interface, tektonclient.Interface, certclient.Interface)
 	GetServerKubernetesClient(...RestClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, secretproviderclient.Interface, tektonclient.Interface, certclient.Interface)
 }
 
@@ -59,7 +59,7 @@ func NewKubeUtil() KubeUtil {
 }
 
 // GetUserKubernetesClient Gets a kubernetes client using the bearer token from the radix api client
-func (ku *kubeUtil) GetUserKubernetesClient(token string, impersonation radixmodels.Impersonation, options ...RestClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, secretproviderclient.Interface, tektonclient.Interface, certclient.Interface) {
+func (ku *kubeUtil) GetUserKubernetesClient(token string, impersonation accounts.Impersonation, options ...RestClientConfigOption) (kubernetes.Interface, radixclient.Interface, kedav2.Interface, secretproviderclient.Interface, tektonclient.Interface, certclient.Interface) {
 	config := getUserClientConfig(token, impersonation, options)
 	return getKubernetesClientFromConfig(config)
 }
@@ -70,7 +70,7 @@ func (ku *kubeUtil) GetServerKubernetesClient(options ...RestClientConfigOption)
 	return getKubernetesClientFromConfig(config)
 }
 
-func getUserClientConfig(token string, impersonation radixmodels.Impersonation, options []RestClientConfigOption) *restclient.Config {
+func getUserClientConfig(token string, impersonation accounts.Impersonation, options []RestClientConfigOption) *restclient.Config {
 	cfg := getServerClientConfig(options)
 
 	kubeConfig := &restclient.Config{

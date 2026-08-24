@@ -5,13 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	"github.com/equinor/radix-operator/api-server/api/utils/labelselector"
+	"github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -85,7 +83,7 @@ func (eh EnvironmentHandler) StopComponent(ctx context.Context, appName, envName
 		}
 		return environmentModels.CannotStopComponent(appName, componentName, componentStatus)
 	}
-	return eh.patchRadixDeploymentWithReplicas(ctx, updater, pointers.Ptr(0))
+	return eh.patchRadixDeploymentWithReplicas(ctx, updater, new(0))
 }
 
 // RestartComponent Restarts a component
@@ -179,7 +177,7 @@ func (eh EnvironmentHandler) patchDeploymentForRestart(ctx context.Context, depl
 			deployToPatch.Spec.Template.Annotations = make(map[string]string)
 		}
 
-		deployToPatch.Spec.Template.Annotations[restartedAtAnnotation] = radixutils.FormatTimestamp(time.Now())
+		deployToPatch.Spec.Template.Annotations[restartedAtAnnotation] = time.Now().Format(time.RFC3339)
 		_, err = deployClient.Update(ctx, deployToPatch, metav1.UpdateOptions{})
 		return err
 	})
@@ -204,7 +202,7 @@ func (eh EnvironmentHandler) patch(ctx context.Context, namespace, name string, 
 func (eh EnvironmentHandler) patchRadixDeploymentWithReplicas(ctx context.Context, updater radixDeployCommonComponentUpdater, replicas *int) error {
 	return eh.commit(ctx, updater, func(updater radixDeployCommonComponentUpdater) error {
 		updater.setReplicasOverrideToComponent(replicas)
-		updater.setUserMutationTimestampAnnotation(radixutils.FormatTimestamp(time.Now()))
+		updater.setUserMutationTimestampAnnotation(time.Now().Format(time.RFC3339))
 		return nil
 	})
 }
@@ -215,9 +213,9 @@ func (eh EnvironmentHandler) patchRadixDeploymentWithTimestampInEnvVar(ctx conte
 		if environmentVariables == nil {
 			environmentVariables = make(map[string]string)
 		}
-		environmentVariables[envVarName] = radixutils.FormatTimestamp(time.Now())
+		environmentVariables[envVarName] = time.Now().Format(time.RFC3339)
 		updater.setEnvironmentVariablesToComponent(environmentVariables)
-		updater.setUserMutationTimestampAnnotation(radixutils.FormatTimestamp(time.Now()))
+		updater.setUserMutationTimestampAnnotation(time.Now().Format(time.RFC3339))
 		return nil
 	})
 }

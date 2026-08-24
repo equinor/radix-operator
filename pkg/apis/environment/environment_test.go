@@ -328,7 +328,6 @@ func commonAsserts(t *testing.T, env Environment, resources []metav1.Object, nam
 func namespacesAsMeta(items []core.Namespace) []metav1.Object {
 	var slice []metav1.Object
 	for _, w := range items {
-		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice
@@ -336,7 +335,6 @@ func namespacesAsMeta(items []core.Namespace) []metav1.Object {
 func roleBindingsAsMeta(items []rbac.RoleBinding) []metav1.Object {
 	var slice []metav1.Object
 	for _, w := range items {
-		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice
@@ -344,7 +342,6 @@ func roleBindingsAsMeta(items []rbac.RoleBinding) []metav1.Object {
 func limitRangesAsMeta(items []core.LimitRange) []metav1.Object {
 	var slice []metav1.Object
 	for _, w := range items {
-		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice

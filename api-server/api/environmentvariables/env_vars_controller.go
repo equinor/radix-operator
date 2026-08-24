@@ -5,7 +5,8 @@ import (
 	"net/http"
 
 	envvarsmodels "github.com/equinor/radix-operator/api-server/api/environmentvariables/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 )
@@ -13,12 +14,12 @@ import (
 const rootPath = "/applications/{appName}"
 
 type envVarsController struct {
-	*models.DefaultController
+	*controller.DefaultController
 	handlerFactory envVarsHandlerFactory
 }
 
 // NewEnvVarsController Constructor
-func NewEnvVarsController() models.Controller {
+func NewEnvVarsController() controller.Controller {
 	return &envVarsController{
 		handlerFactory: &defaultEnvVarsHandlerFactory{},
 	}
@@ -30,17 +31,17 @@ func (controller *envVarsController) withHandlerFactory(factory envVarsHandlerFa
 }
 
 // GetRoutes List the supported routes of this handler
-func (controller *envVarsController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (c *envVarsController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/envvars",
 			Method:      "GET",
-			HandlerFunc: controller.GetComponentEnvVars,
+			HandlerFunc: c.GetComponentEnvVars,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/envvars",
 			Method:      "PATCH",
-			HandlerFunc: controller.ChangeEnvVar,
+			HandlerFunc: c.ChangeEnvVar,
 		},
 	}
 
@@ -48,7 +49,7 @@ func (controller *envVarsController) GetRoutes() models.Routes {
 }
 
 // GetComponentEnvVars Get log from a scheduled job
-func (controller *envVarsController) GetComponentEnvVars(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (controller *envVarsController) GetComponentEnvVars(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/components/{componentName}/envvars component envVars
 	// ---
 	// summary: Get environment variables for component
@@ -101,7 +102,7 @@ func (controller *envVarsController) GetComponentEnvVars(accounts models.Account
 }
 
 // ChangeEnvVar Modifies an environment variable
-func (controller *envVarsController) ChangeEnvVar(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (controller *envVarsController) ChangeEnvVar(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation PATCH /applications/{appName}/environments/{envName}/components/{componentName}/envvars component changeEnvVar
 	// ---
 	// summary: Update an environment variable

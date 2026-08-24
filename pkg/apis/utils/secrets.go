@@ -7,6 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -14,7 +15,7 @@ import (
 func GetComponentSecretName(componentName string) string {
 	// include a hash so that users cannot get access to a secret they should not get
 	// by naming component the same as secret object
-	hash := strings.ToLower(RandStringStrSeed(8, componentName))
+	hash := strings.ToLower(random.RandStringStrSeed(8, componentName))
 	return strings.ToLower(fmt.Sprintf("%s-%s", componentName, hash))
 }
 

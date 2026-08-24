@@ -5,12 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/operator/scheduler/tasks"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -47,8 +46,8 @@ func TestCleanupRadixEnvironments(t *testing.T) {
 		env2            = "env2"
 	)
 	now := time.Now()
-	expiredOrphanedTimestamp := pointers.Ptr(metav1.Time{Time: now.Add(time.Hour * -5)})
-	notExpiredOrphanedTimestamp := pointers.Ptr(metav1.Time{Time: now.Add(time.Hour * 5)})
+	expiredOrphanedTimestamp := new(metav1.Time{Time: now.Add(time.Hour * -5)})
+	notExpiredOrphanedTimestamp := new(metav1.Time{Time: now.Add(time.Hour * 5)})
 	scenarios := []scenario{
 		{
 			name:                 "No environments",
@@ -126,7 +125,7 @@ func convertToEnvMap(radixEnvironments []radixv1.RadixEnvironment) map[string]ra
 }
 
 func createRadixEnvironment(prop envProps) *radixv1.RadixEnvironment {
-	appName := utils.RandString(5)
+	appName := random.RandString(5)
 	return &radixv1.RadixEnvironment{
 		ObjectMeta: metav1.ObjectMeta{Name: appName},
 		Spec:       radixv1.RadixEnvironmentSpec{AppName: appName, EnvName: prop.name},
