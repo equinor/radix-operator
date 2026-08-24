@@ -40,6 +40,8 @@ type deploymentBuilder struct {
 	repository         string
 	useBuildCache      *bool
 	refreshBuildCache  *bool
+	gitRef			  string
+	gitRefType		  string
 }
 
 // NewDeploymentBuilder Constructor for application deploymentBuilder
@@ -66,6 +68,8 @@ func (b *deploymentBuilder) WithRadixDeployment(rd *v1.RadixDeployment) Deployme
 		withActiveTo(activeTo).
 		withUseBuildCache(rd.Annotations[kube.RadixUseBuildCache]).
 		withRefreshBuildCache(rd.Annotations[kube.RadixRefreshBuildCache]).
+		withGitRef(rd.Annotations[kube.RadixGitRefAnnotation]).
+		withGitRefType(rd.Annotations[kube.RadixGitRefTypeAnnotation]).
 		WithGitCommitHash(rd.Annotations[kube.RadixCommitAnnotation]).
 		WithGitTags(rd.Annotations[kube.RadixGitTagsAnnotation])
 
@@ -93,6 +97,16 @@ func (b *deploymentBuilder) WithGitCommitHash(gitCommitHash string) DeploymentBu
 
 func (b *deploymentBuilder) WithGitTags(gitTags string) DeploymentBuilder {
 	b.gitTags = gitTags
+	return b
+}
+
+func (b *deploymentBuilder) withGitRef(gitRef string) *deploymentBuilder {
+	b.gitRef = gitRef
+	return b
+}
+
+func (b *deploymentBuilder) withGitRefType(gitRefType string) *deploymentBuilder {
+	b.gitRefType = gitRefType
 	return b
 }
 
@@ -233,8 +247,8 @@ func (b *deploymentBuilder) buildDeploySummaryPipelineJobInfo() DeploymentSummar
 		jobInfo.CommitID = b.pipelineJob.Spec.Build.CommitID
 		jobInfo.PipelineJobType = string(b.pipelineJob.Spec.PipeLineType)
 		jobInfo.BuiltFromBranch = b.pipelineJob.Spec.Build.Branch //nolint:staticcheck
-		jobInfo.GitRef = b.pipelineJob.Spec.Build.GitRef
-		jobInfo.GitRefType = string(b.pipelineJob.Spec.Build.GitRefType)
+		jobInfo.GitRef = b.gitRef
+		jobInfo.GitRefType = b.gitRefType	
 		jobInfo.PromotedFromEnvironment = b.pipelineJob.Spec.Promote.FromEnvironment
 	}
 
@@ -261,8 +275,8 @@ func (b *deploymentBuilder) BuildDeployment() (*Deployment, error) {
 	}
 	if b.pipelineJob != nil {
 		deployment.BuiltFromBranch = b.pipelineJob.Spec.Build.Branch //nolint:staticcheck
-		deployment.GitRef = b.pipelineJob.Spec.Build.GitRef
-		deployment.GitRefType = string(b.pipelineJob.Spec.Build.GitRefType)
+		deployment.GitRef = b.gitRef
+		deployment.GitRefType = b.gitRefType
 	}
 	return &deployment, b.buildError()
 }
