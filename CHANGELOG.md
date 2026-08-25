@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.127.0](https://github.com/equinor/radix-operator/compare/v1.126.1..v1.127.0) - 2026-08-24
+
+### 🚀 Features
+
+- Update codebase to use modern go constructs (#1905) - ([78ebc54](https://github.com/equinor/radix-operator/commit/78ebc5475549d94459e9af2c80de69fb317d4810)) by @nilsgstrabo in [#1905](https://github.com/equinor/radix-operator/pull/1905)
+
+
 ## [1.126.1](https://github.com/equinor/radix-operator/compare/v1.126.0..v1.126.1) - 2026-08-21
 
 ### 🐛 Bug Fixes
