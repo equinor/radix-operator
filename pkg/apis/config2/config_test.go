@@ -34,7 +34,7 @@ func TestParse_HappyPath(t *testing.T) {
 }
 
 func TestParse_EnvOverride(t *testing.T) {
-	t.Setenv("LOG_LEVEL", "debug")
+	t.Setenv("OPERATOR_LOG_LEVEL", "debug")
 	configYaml, err := os.ReadFile("testdata/config-happypath.yaml")
 	require.NoError(t, err)
 
@@ -66,4 +66,32 @@ func TestParse_MissingRequiredField(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, cfg)
+}
+
+func TestParse_AllOperatorConfig(t *testing.T) {
+	configYaml, err := os.ReadFile("testdata/config-happypath.yaml")
+	require.NoError(t, err)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "radix-common-config", Namespace: "default"},
+		Data:       map[string]string{"config": string(configYaml)},
+	}
+	client := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(cm).Build()
+
+	cfg, err := config2.Parse(context.Background(), client)
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Equal(t, config2.OperatorConfig{
+		LogLevel:                      "info",
+		LogPrettyPrint:                true,
+		RegistrationControllerThreads: 1,
+		ApplicationControllerThreads:  2,
+		EnvironmentControllerThreads:  3,
+		DeploymentControllerThreads:   4,
+		JobControllerThreads:          5,
+		AlertControllerThreads:        6,
+		KubeClientRateLimitBurst:      100,
+		KubeClientRateLimitQPS:        50.5,
+	}, cfg.Operator)
 }

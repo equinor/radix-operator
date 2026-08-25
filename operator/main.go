@@ -61,19 +61,8 @@ const (
 	resyncPeriod = 0
 )
 
-type Options struct {
-	registrationControllerThreads int
-	applicationControllerThreads  int
-	environmentControllerThreads  int
-	deploymentControllerThreads   int
-	jobControllerThreads          int
-	alertControllerThreads        int
-	kubeClientRateLimitBurst      int
-	kubeClientRateLimitQPS        float32
-}
-
 type App struct {
-	opts                 Options
+	config2              config2.Config
 	eventRecorder        record.EventRecorder
 	kubeInformerFactory  kubeinformers.SharedInformerFactory
 	radixInformerFactory radixinformers.SharedInformerFactory
@@ -120,17 +109,14 @@ func initializeApp(ctx context.Context) (*App, error) {
 	var err error
 
 	client, _ := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
-	cfg := config2.MustParse(ctx, client)
+	app.config2 = config2.MustParse(ctx, client)
 
 	app.config = apiconfig.MustParse()
 	initLogger(app.config)
 	log.Ctx(ctx).Info().Interface("config", app.config).Msg("config parsed")
+	log.Ctx(ctx).Info().Interface("config", app.config2).Msg("config2 parsed")
 
-	app.opts, err = getInitParams()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get init parameters: %w", err)
-	}
-	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
+	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.config2.Operator.KubeClientRateLimitQPS, app.config2.Operator.KubeClientRateLimitBurst))
 	warningHandler := utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
 	app.dynamicCache, app.dynamicClient = initializeClient(ctx, rateLimitConfig, warningHandler)
 	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(rateLimitConfig, warningHandler)
@@ -221,14 +207,14 @@ func (a *App) Run(ctx context.Context) error {
 	dnsAliasesController := a.createDNSAliasesController(ctx)
 
 	g.Go(func() error { return startMetricsServer(ctx) })
-	g.Go(func() error { return registrationController.Run(ctx, a.opts.registrationControllerThreads) })
-	g.Go(func() error { return applicationController.Run(ctx, a.opts.applicationControllerThreads) })
-	g.Go(func() error { return environmentController.Run(ctx, a.opts.environmentControllerThreads) })
-	g.Go(func() error { return deploymentController.Run(ctx, a.opts.deploymentControllerThreads) })
-	g.Go(func() error { return jobController.Run(ctx, a.opts.jobControllerThreads) })
-	g.Go(func() error { return alertController.Run(ctx, a.opts.alertControllerThreads) })
+	g.Go(func() error { return registrationController.Run(ctx, a.config2.Operator.RegistrationControllerThreads) })
+	g.Go(func() error { return applicationController.Run(ctx, a.config2.Operator.ApplicationControllerThreads) })
+	g.Go(func() error { return environmentController.Run(ctx, a.config2.Operator.EnvironmentControllerThreads) })
+	g.Go(func() error { return deploymentController.Run(ctx, a.config2.Operator.DeploymentControllerThreads) })
+	g.Go(func() error { return jobController.Run(ctx, a.config2.Operator.JobControllerThreads) })
+	g.Go(func() error { return alertController.Run(ctx, a.config2.Operator.AlertControllerThreads) })
 	g.Go(func() error { return batchController.Run(ctx, 1) })
-	g.Go(func() error { return dnsAliasesController.Run(ctx, a.opts.environmentControllerThreads) })
+	g.Go(func() error { return dnsAliasesController.Run(ctx, a.config2.Operator.EnvironmentControllerThreads) })
 	g.Go(func() error { return a.runSchedulers(ctx) })
 
 	// Informers must be started after all controllers are initialized
@@ -267,28 +253,6 @@ func getOAuthDefaultConfig() defaults.OAuth2Config {
 		defaults.WithOAuth2Defaults(),
 		defaults.WithOIDCIssuerURL(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)),
 	)
-}
-
-func getInitParams() (Options, error) {
-	registrationControllerThreads, regErr := defaults.GetRegistrationControllerThreads()
-	applicationControllerThreads, appErr := defaults.GetApplicationControllerThreads()
-	environmentControllerThreads, envErr := defaults.GetEnvironmentControllerThreads()
-	deploymentControllerThreads, depErr := defaults.GetDeploymentControllerThreads()
-	jobControllerThreads, jobErr := defaults.GetJobControllerThreads()
-	alertControllerThreads, aleErr := defaults.GetAlertControllerThreads()
-	kubeClientRateLimitBurst, burstErr := defaults.GetKubeClientRateLimitBurst()
-	kubeClientRateLimitQPS, qpsErr := defaults.GetKubeClientRateLimitQps()
-
-	return Options{
-		registrationControllerThreads: registrationControllerThreads,
-		applicationControllerThreads:  applicationControllerThreads,
-		environmentControllerThreads:  environmentControllerThreads,
-		deploymentControllerThreads:   deploymentControllerThreads,
-		jobControllerThreads:          jobControllerThreads,
-		alertControllerThreads:        alertControllerThreads,
-		kubeClientRateLimitBurst:      kubeClientRateLimitBurst,
-		kubeClientRateLimitQPS:        kubeClientRateLimitQPS,
-	}, errors.Join(regErr, appErr, envErr, depErr, jobErr, aleErr, burstErr, qpsErr)
 }
 
 func (a *App) createRegistrationController(ctx context.Context) *common.Controller {

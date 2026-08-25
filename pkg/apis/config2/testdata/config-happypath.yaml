@@ -1,4 +1,13 @@
+common:
+  clusterName: test-cluster
 operator:
   logLevel: info
   logPrettyPrint: true
-  clusterName: test-cluster
+  registrationControllerThreads: 1
+  applicationControllerThreads: 2
+  environmentControllerThreads: 3
+  deploymentControllerThreads: 4
+  jobControllerThreads: 5
+  alertControllerThreads: 6
+  kubeClientRateLimitBurst: 100
+  kubeClientRateLimitQPS: 50.5

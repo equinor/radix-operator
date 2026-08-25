@@ -20,11 +20,20 @@ type Config struct {
 }
 
 type CommonConfig struct {
-	ClusterName string `json:"clusterName" envconfig:"CLUSTER_NAME" required:"true"`
+	ClusterName string `json:"clusterName" env:"CLUSTER_NAME" required:"true"`
 }
 type OperatorConfig struct {
-	LogLevel       string `json:"logLevel" envconfig:"OPERATOR_LOG_LEVEL"`
-	LogPrettyPrint bool   `json:"logPrettyPrint" envconfig:"OPERATOR_LOG_PRETTY_PRINT"`
+	LogLevel       string `json:"logLevel" env:"OPERATOR_LOG_LEVEL"`
+	LogPrettyPrint bool   `json:"logPrettyPrint" env:"OPERATOR_LOG_PRETTY_PRINT"`
+
+	RegistrationControllerThreads int     `json:"registrationControllerThreads" env:"OPERATOR_REGISTRATION_CONTROLLER_THREADS" required:"true"`
+	ApplicationControllerThreads  int     `json:"applicationControllerThreads" env:"OPERATOR_APPLICATION_CONTROLLER_THREADS" required:"true"`
+	EnvironmentControllerThreads  int     `json:"environmentControllerThreads" env:"OPERATOR_ENVIRONMENT_CONTROLLER_THREADS" required:"true"`
+	DeploymentControllerThreads   int     `json:"deploymentControllerThreads" env:"OPERATOR_DEPLOYMENT_CONTROLLER_THREADS" required:"true"`
+	JobControllerThreads          int     `json:"jobControllerThreads" env:"OPERATOR_JOB_CONTROLLER_THREADS" required:"true"`
+	AlertControllerThreads        int     `json:"alertControllerThreads" env:"OPERATOR_ALERT_CONTROLLER_THREADS" required:"true"`
+	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_BURST" required:"true"`
+	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_QPS" required:"true"`
 }
 
 func Parse(ctx context.Context, c client.Client) (*Config, error) {
@@ -54,12 +63,12 @@ func Parse(ctx context.Context, c client.Client) (*Config, error) {
 	return &cfg, nil
 }
 
-func MustParse(ctx context.Context, c client.Client) *Config {
+func MustParse(ctx context.Context, c client.Client) Config {
 	cfg, err := Parse(ctx, c)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse config")
 	}
-	return cfg
+	return *cfg
 }
 
 func validateConfig(cfg *Config) error {
@@ -76,7 +85,7 @@ func validateConfig(cfg *Config) error {
 
 func processEnvOverrides(cfg *Config) error {
 	return processFields(cfg, func(field reflect.StructField, value reflect.Value) error {
-		envTag := field.Tag.Get("envconfig")
+		envTag := field.Tag.Get("env")
 		if envTag == "" {
 			return nil
 		}
