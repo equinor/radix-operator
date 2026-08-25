@@ -1,0 +1,4 @@
+operator:
+  logLevel: info
+  logPrettyPrint: true
+  clusterName: test-cluster

@@ -1,8 +1,6 @@
 module github.com/equinor/radix-operator
 
-go 1.26.5
-
-godebug default=go1.26
+go 1.27.0
 
 require (
 	dario.cat/mergo v1.0.2

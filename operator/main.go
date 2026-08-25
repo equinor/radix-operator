@@ -27,6 +27,7 @@ import (
 	"github.com/equinor/radix-operator/operator/scheduler"
 	"github.com/equinor/radix-operator/operator/scheduler/tasks"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -118,6 +119,9 @@ func initializeApp(ctx context.Context) (*App, error) {
 	var app App
 	var err error
 
+	client, _ := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
+	cfg := config2.MustParse(ctx, client)
+
 	app.config = apiconfig.MustParse()
 	initLogger(app.config)
 	log.Ctx(ctx).Info().Interface("config", app.config).Msg("config parsed")
@@ -128,8 +132,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	}
 	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.opts.kubeClientRateLimitQPS, app.opts.kubeClientRateLimitBurst))
 	warningHandler := utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
-
-	app.dynamicCache, app.dynamicClient = app.initializeClient(ctx, rateLimitConfig, warningHandler)
+	app.dynamicCache, app.dynamicClient = initializeClient(ctx, rateLimitConfig, warningHandler)
 	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(rateLimitConfig, warningHandler)
 	app.eventRecorder, err = event.NewRecorder("Radix controller", app.client.CoreV1().Events(""))
 	if err != nil {
@@ -149,7 +152,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	return &app, nil
 }
 
-func (a *App) initializeClient(cacheCtx context.Context, configOptions ...utils.KubernetesClientConfigOption) (cache.Cache, client.Client) {
+func initializeClient(cacheCtx context.Context, configOptions ...utils.KubernetesClientConfigOption) (cache.Cache, client.Client) {
 	zerologr.NameFieldName = "logger"
 	zerologr.NameSeparator = "/"
 	zerologr.SetMaxV(2)
