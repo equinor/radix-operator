@@ -77,7 +77,7 @@ func MustParse(ctx context.Context, c client.Client) Config {
 }
 
 func validateConfig(cfg *Config) error {
-	processFields(cfg, func(field reflect.StructField, value reflect.Value) error {
+	return processFields(cfg, func(field reflect.StructField, value reflect.Value) error {
 		requiredTag := field.Tag.Get("required")
 		required, _ := strconv.ParseBool(requiredTag)
 		if required && value.IsZero() {
@@ -85,7 +85,6 @@ func validateConfig(cfg *Config) error {
 		}
 		return nil
 	})
-	return nil
 }
 
 func processEnvOverrides(cfg *Config) error {
@@ -130,7 +129,7 @@ func setFieldValue(field reflect.Value, value string) error {
 func processFields(cfg any, fn func(field reflect.StructField, value reflect.Value) error) error {
 	val := reflect.ValueOf(cfg)
 	var typ reflect.Type
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		typ = val.Elem().Type()
 	} else {
 		typ = val.Type()
