@@ -62,8 +62,6 @@ func TestMustParse(t *testing.T) {
 	cfg := MustParse()
 
 	// Config top-level fields
-	assert.Equal(t, "INFO", cfg.LogLevel)
-	assert.Equal(t, true, cfg.LogPretty)
 	assert.Equal(t, "dev.radix.equinor.com", cfg.DNSZone)
 	assert.Equal(t, "development", cfg.ClusterType)
 	assert.Equal(t, "radixdev.azurecr.io", cfg.ContainerRegistryName)

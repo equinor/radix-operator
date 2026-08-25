@@ -112,7 +112,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	app.config2 = config2.MustParse(ctx, client)
 
 	app.config = apiconfig.MustParse()
-	initLogger(app.config)
+	initLogger(app.config2)
 	log.Ctx(ctx).Info().Interface("config", app.config).Msg("config parsed")
 	log.Ctx(ctx).Info().Interface("config", app.config2).Msg("config2 parsed")
 
@@ -225,8 +225,8 @@ func (a *App) Run(ctx context.Context) error {
 	return g.Wait()
 }
 
-func initLogger(cfg *apiconfig.Config) {
-	logLevelStr := cfg.LogLevel
+func initLogger(cfg config2.Config) {
+	logLevelStr := cfg.Operator.LogLevel
 	if len(logLevelStr) == 0 {
 		logLevelStr = zerolog.LevelInfoValue
 	}
@@ -238,7 +238,7 @@ func initLogger(cfg *apiconfig.Config) {
 	}
 
 	var logWriter io.Writer = os.Stderr
-	if cfg.LogPretty {
+	if cfg.Operator.LogPrettyPrint {
 		logWriter = &zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
 	}
 

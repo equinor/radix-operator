@@ -7,8 +7,6 @@ import (
 
 // Config from environment variables
 type Config struct {
-	LogLevel  string `envconfig:"LOG_LEVEL" required:"true"`
-	LogPretty bool   `envconfig:"LOG_PRETTY" default:"false"`
 	// DNSConfig Settings for the cluster DNS
 	DNSZone               string `envconfig:"DNS_ZONE" required:"true"`
 	ClusterType           string `envconfig:"RADIXOPERATOR_CLUSTER_TYPE" required:"true"`

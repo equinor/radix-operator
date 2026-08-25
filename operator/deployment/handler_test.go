@@ -51,7 +51,7 @@ func (s *handlerSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
-	s.config = &config.Config{LogLevel: "some_non_default_value", ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: "anysecret"}} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
+	s.config = &config.Config{ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: "anysecret"}} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
 	s.config2 = config2.Config{}
 	s.eventRecorder = &record.FakeRecorder{}
 }
