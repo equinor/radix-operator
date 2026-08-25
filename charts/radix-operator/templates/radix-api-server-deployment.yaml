@@ -72,7 +72,7 @@ spec:
             - name: RADIX_DNS_ZONE
               value: {{ .Values.dnsZone | quote }}
             - name: RADIX_CLUSTERNAME
-              value: {{ .Values.clusterName | quote }}
+              value: {{ .Values.config.common.clusterName | quote }}
             - name: USE_PROFILER
               value: {{ .Values.radixApiServer.useProfiler | quote }}
             - name: LOG_LEVEL

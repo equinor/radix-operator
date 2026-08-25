@@ -6,5 +6,5 @@ metadata:
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
 data:
-  clustername: {{ .Values.clusterName }}
+  clustername: {{ .Values.config.common.clusterName }}
   subscriptionId: {{ .Values.subscriptionId }}

@@ -1,16 +1,23 @@
 # Default values for radix-operator.
 nameOverride: ""
 fullnameOverride: ""
-clusterName: xx
 
-registrationControllerThreads: 1
-applicationControllerThreads: 1
-environmentControllerThreads: 1
-deploymentControllerThreads: 1
-jobControllerThreads: 1
-alertControllerThreads: 1
-kubeClientRateLimitBurst: 5
-kubeClientRateLimitQPS: 5
+# Radix common configuration rendered into the "radix-common-config" ConfigMap
+# and consumed by the operator at startup.
+config:
+  common:
+    clusterName: dev
+  operator:
+    logLevel: debug
+    logPrettyPrint: false
+    registrationControllerThreads: 1
+    applicationControllerThreads: 1
+    environmentControllerThreads: 1
+    deploymentControllerThreads: 1
+    jobControllerThreads: 1
+    alertControllerThreads: 1
+    kubeClientRateLimitBurst: 5
+    kubeClientRateLimitQPS: 5
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
@@ -310,7 +317,7 @@ radixApiServer:
         - api.radix.equinor.com
         #  - "api.{{ .Values.dnsZone }}"
         #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.dnsZone }}"
-        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.clusterName }}.{{ .Values.dnsZone }}"
+        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.config.common.clusterName }}.{{ .Values.dnsZone }}"
       backendPort: 3002
       filters:
         - responseHeaderModifier:
