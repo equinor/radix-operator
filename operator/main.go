@@ -311,6 +311,7 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.dynamicClient,
 		a.eventRecorder,
 		*a.config,
+		a.config2,
 		dnsalias.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 	)
 
@@ -341,6 +342,7 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.certClient,
 		a.eventRecorder,
 		a.config,
+		a.config2,
 		deployment.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),
 		deployment.WithOAuth2RedisDockerImage(oauth2RedisDockerImage),
@@ -360,7 +362,8 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config)
+		a.config,
+		a.config2)
 
 	return job.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory)
 }
@@ -383,6 +386,7 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
 		*a.config,
+		a.config2,
 	)
 
 	return batch.NewController(ctx,

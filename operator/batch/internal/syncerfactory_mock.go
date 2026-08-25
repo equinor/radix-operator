@@ -14,6 +14,7 @@ import (
 
 	batch "github.com/equinor/radix-operator/pkg/apis/batch"
 	config "github.com/equinor/radix-operator/pkg/apis/config"
+	config2 "github.com/equinor/radix-operator/pkg/apis/config2"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -46,9 +47,9 @@ func (m *MockSyncerFactory) EXPECT() *MockSyncerFactoryMockRecorder {
 }
 
 // CreateSyncer mocks base method.
-func (m *MockSyncerFactory) CreateSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, registration *v1.RadixRegistration, radixBatch *v1.RadixBatch, arg5 config.Config, options ...batch.SyncerOption) batch.Syncer {
+func (m *MockSyncerFactory) CreateSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned.Interface, registration *v1.RadixRegistration, radixBatch *v1.RadixBatch, arg5 config.Config, arg6 config2.Config, options ...batch.SyncerOption) batch.Syncer {
 	m.ctrl.T.Helper()
-	varargs := []any{kubeclient, kubeutil, radixclient, registration, radixBatch, arg5}
+	varargs := []any{kubeclient, kubeutil, radixclient, registration, radixBatch, arg5, arg6}
 	for _, a := range options {
 		varargs = append(varargs, a)
 	}
@@ -58,8 +59,8 @@ func (m *MockSyncerFactory) CreateSyncer(kubeclient kubernetes.Interface, kubeut
 }
 
 // CreateSyncer indicates an expected call of CreateSyncer.
-func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeclient, kubeutil, radixclient, registration, radixBatch, arg5 any, options ...any) *gomock.Call {
+func (mr *MockSyncerFactoryMockRecorder) CreateSyncer(kubeclient, kubeutil, radixclient, registration, radixBatch, arg5, arg6 any, options ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]any{kubeclient, kubeutil, radixclient, registration, radixBatch, arg5}, options...)
+	varargs := append([]any{kubeclient, kubeutil, radixclient, registration, radixBatch, arg5, arg6}, options...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSyncer", reflect.TypeOf((*MockSyncerFactory)(nil).CreateSyncer), varargs...)
 }

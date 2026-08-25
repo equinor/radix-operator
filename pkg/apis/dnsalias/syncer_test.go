@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/gateway"
@@ -77,6 +78,7 @@ func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dns
 		s.radixClient,
 		s.dynamicClient,
 		s.config,
+		config2.Config{},
 		s.oauthConfig,
 	)
 }
@@ -91,7 +93,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{}, s.oauthConfig)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -104,7 +106,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{}, s.oauthConfig)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -121,7 +123,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{}, s.oauthConfig)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})

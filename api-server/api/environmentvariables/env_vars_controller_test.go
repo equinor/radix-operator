@@ -11,6 +11,7 @@ import (
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -218,11 +219,10 @@ func setupDeployment(commonTestUtils *commontest.Utils, kubeClient kubernetes.In
 	}
 
 	deploymentSyncer := deployment.NewDeploymentSyncer(kubeClient, commonTestUtils.GetKubeUtil(), radixClient, dynamicClient, certClient, radixRegistration, rd, nil, &config.Config{
-		ClusterName:           clusterName,
 		ClusterType:           clusterType,
 		DNSZone:               "dev.radix.equinor.com",
 		ContainerRegistryName: "any.container.registry",
-	})
+	}, config2.Config{Common: config2.CommonConfig{ClusterName: clusterName}})
 
 	return deploymentSyncer.OnSync(context.Background())
 }

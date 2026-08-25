@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -62,6 +63,6 @@ func ApplyDeploymentWithSync(client kubernetes.Interface, radixclient radixclien
 
 	kubeUtils, _ := kube.New(client, radixclient, kedaClient, secretproviderclient)
 	rd, _ := commonTestUtils.ApplyDeployment(context.Background(), deploymentBuilder)
-	deploymentSyncer := deployment.NewDeploymentSyncer(client, kubeUtils, radixclient, dynamicClient, certClient, registrationBuilder.BuildRR(), rd, []deployment.AuxiliaryResourceManager{}, &config.Config{})
+	deploymentSyncer := deployment.NewDeploymentSyncer(client, kubeUtils, radixclient, dynamicClient, certClient, registrationBuilder.BuildRR(), rd, []deployment.AuxiliaryResourceManager{}, &config.Config{}, config2.Config{})
 	return deploymentSyncer.OnSync(context.Background())
 }

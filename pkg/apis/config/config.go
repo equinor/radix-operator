@@ -12,7 +12,6 @@ type Config struct {
 	// DNSConfig Settings for the cluster DNS
 	DNSZone               string `envconfig:"DNS_ZONE" required:"true"`
 	ClusterType           string `envconfig:"RADIXOPERATOR_CLUSTER_TYPE" required:"true"`
-	ClusterName           string `envconfig:"RADIX_CLUSTERNAME" required:"true"`
 	ContainerRegistryName string `envconfig:"RADIX_CONTAINER_REGISTRY" required:"true"`
 
 	PipelineJobConfig       PipelineJobConfig

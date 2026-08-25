@@ -5,6 +5,7 @@ import (
 
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -65,6 +66,7 @@ type handler struct {
 	oauth2RedisDockerImage  string
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 	config                  *config.Config
+	config2                 config2.Config
 }
 
 // NewHandler Constructor
@@ -76,6 +78,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	certClient certclient.Interface,
 	eventRecorder record.EventRecorder,
 	config *config.Config,
+	config2 config2.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	handler := &handler{
@@ -88,6 +91,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		deploymentSyncerFactory: deployment.DeploymentSyncerFactoryFunc(deployment.NewDeploymentSyncer),
 		events:                  common.NewSyncEventRecorder(eventRecorder),
 		config:                  config,
+		config2:                 config2,
 	}
 
 	for _, option := range options {
@@ -132,7 +136,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	}
 
 	syncRD := rd.DeepCopy()
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.dynamicClient, t.certClient, radixRegistration, syncRD, auxResourceManagers, t.config)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.dynamicClient, t.certClient, radixRegistration, syncRD, auxResourceManagers, t.config, t.config2)
 	err = deployment.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRD, err)

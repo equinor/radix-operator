@@ -7,6 +7,7 @@ import (
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -46,6 +47,7 @@ type GatewayTestSuite struct {
 	certClient    *certfake.Clientset
 	testUtils     *test.Utils
 	cfg           *config.Config
+	cfg2          config2.Config
 }
 
 func TestGatewayTestSuite(t *testing.T) {
@@ -93,6 +95,11 @@ func (s *GatewayTestSuite) setupTest() {
 			SectionName: testGatewaySectionName,
 		},
 	}
+	s.cfg2 = config2.Config{
+		Common: config2.CommonConfig{
+			ClusterName: testClusterName,
+		},
+	}
 }
 
 func (s *GatewayTestSuite) applyDeploymentWithSync(deploymentBuilder utils.DeploymentBuilder) (*radixv1.RadixDeployment, error) {
@@ -106,7 +113,7 @@ func (s *GatewayTestSuite) applyDeploymentWithSync(deploymentBuilder utils.Deplo
 		return nil, err
 	}
 
-	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, s.cfg)
+	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, s.cfg, s.cfg2)
 	if err := syncer.OnSync(context.Background()); err != nil {
 		return nil, err
 	}

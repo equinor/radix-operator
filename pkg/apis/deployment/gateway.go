@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/gateway"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/domain"
@@ -47,7 +46,7 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 	if component.IsPublic() {
 		// HTTPRoute for external dns is reconciled in externaldns.go, so filter out those
 		hosts = slice.FindAll(
-			getComponentDNSInfo(ctx, component, *deploy.radixDeployment, *deploy.kubeutil),
+			getComponentDNSInfo(component, *deploy.radixDeployment, deploy.config2.Common.ClusterName),
 			func(host dnsInfo) bool { return host.dnsType != dnsTypeExternal })
 	}
 
@@ -126,7 +125,7 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 	return nil
 }
 
-func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, kubeutil kube.Kube) []dnsInfo {
+func getComponentDNSInfo(component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, clusterName string) []dnsInfo {
 	var info []dnsInfo
 
 	if component.IsDNSAppAlias() {
@@ -159,17 +158,13 @@ func getComponentDNSInfo(ctx context.Context, component radixv1.RadixCommonDeplo
 		})
 	}
 
-	if clustername, err := kubeutil.GetClusterName(ctx); err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("failed to read cluster name")
-	} else {
-		if hostname := getHostName(component.GetName(), rd.Namespace, clustername); hostname != "" {
-			info = append(info, dnsInfo{
-				fqdn:         hostname,
-				tlsSecret:    "",
-				dnsType:      dnsTypeClusterName,
-				resourceName: getDefaultIngressName(component.GetName()),
-			})
-		}
+	if hostname := getHostName(component.GetName(), rd.Namespace, clusterName); hostname != "" {
+		info = append(info, dnsInfo{
+			fqdn:         hostname,
+			tlsSecret:    "",
+			dnsType:      dnsTypeClusterName,
+			resourceName: getDefaultIngressName(component.GetName()),
+		})
 	}
 
 	return info
