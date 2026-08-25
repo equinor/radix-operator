@@ -25,7 +25,6 @@ radixZone: xx
 containerRegistry: radixdev.azurecr.io
 appContainerRegistry: radixdevapp.azurecr.io
 tenantId: xx
-subscriptionId: xx
 
 app:
   # Limit range on app namespace

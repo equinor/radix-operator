@@ -157,10 +157,6 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 	if err != nil {
 		return nil, err
 	}
-	subscriptionId, err := job.kubeutil.GetSubscriptionId(ctx)
-	if err != nil {
-		return nil, err
-	}
 
 	if job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.IsZero() ||
 		job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.IsZero() ||
@@ -190,7 +186,6 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 		fmt.Sprintf("--%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
 		fmt.Sprintf("--%s=%s", defaults.ContainerRegistryEnvironmentVariable, containerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.AppContainerRegistryEnvironmentVariable, appContainerRegistry),
-		fmt.Sprintf("--%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
 		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
 		fmt.Sprintf("--%s=%v", defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, job.radixJob.Spec.TriggeredFromWebhook),

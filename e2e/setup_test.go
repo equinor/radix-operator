@@ -380,8 +380,7 @@ func createClusterPrerequisites(ctx context.Context, c client.Client, gitKnownHo
 			Namespace: corev1.NamespaceDefault,
 		},
 		Data: map[string]string{
-			"clustername":    "weekly-e2e",
-			"subscriptionId": "00000000-0000-0000-0000-000000000000",
+			"clustername": "weekly-e2e",
 		},
 	}
 	if err := c.Create(ctx, configMap); err != nil && !apierrors.IsAlreadyExists(err) {

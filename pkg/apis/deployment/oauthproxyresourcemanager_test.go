@@ -82,7 +82,7 @@ func (s *OAuthProxyResourceManagerTestSuite) setupTest() {
 	s.oauth2Config = defaults.NewMockOAuth2Config(s.ctrl)
 	s.clusterName = "any-cluster"
 	handlerTestUtils := test.NewTestUtils(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
-	if err := handlerTestUtils.CreateClusterPrerequisites(s.clusterName, ""); err != nil {
+	if err := handlerTestUtils.CreateClusterPrerequisites(s.clusterName); err != nil {
 		panic(fmt.Errorf("failed to setup test: %w", err))
 	}
 }

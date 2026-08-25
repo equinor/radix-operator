@@ -34,7 +34,6 @@ const (
 	appName         = "any-app"
 	environmentName = "dev"
 	componentName   = "backend"
-	subscriptionId  = "12347718-c8f8-4995-bfbb-02655ff1f89c"
 )
 
 func setupTestWithMockHandler(t *testing.T, mockCtrl *gomock.Controller) (*commontest.Utils, *controllertest.TestUtils, kubernetes.Interface, radixclient.Interface, dynamicclient.Client, certclient.Interface, *MockEnvVarsHandler) {
@@ -63,7 +62,7 @@ func setupTest(t *testing.T) (*kubefake.Clientset, *radixfake.Clientset, *kedafa
 
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName, subscriptionId)
+	err := commonTestUtils.CreateClusterPrerequisites(clusterName)
 	require.NoError(t, err)
 	return kubeclient, radixclient, kedaClient, dynamicClient, commonTestUtils, commonTestUtils.GetKubeUtil(), secretproviderclient, certClient
 }

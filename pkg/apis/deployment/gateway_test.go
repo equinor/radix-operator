@@ -82,7 +82,7 @@ func (s *GatewayTestSuite) setupTest() {
 	s.certClient = certfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, radixClient, kedaClient, secretProviderClient)
 	handlerTestUtils := test.NewTestUtils(s.kubeClient, radixClient, kedaClient, secretProviderClient)
-	s.Require().NoError(handlerTestUtils.CreateClusterPrerequisites(testClusterName, "anysubid"))
+	s.Require().NoError(handlerTestUtils.CreateClusterPrerequisites(testClusterName))
 	s.testUtils = &handlerTestUtils
 	s.cfg = &config.Config{
 		DeploymentSyncer:      testConfig.DeploymentSyncer,

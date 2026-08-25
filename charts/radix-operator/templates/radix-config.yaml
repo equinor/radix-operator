@@ -7,4 +7,3 @@ metadata:
     {{- include "radix-operator.labels" . | nindent 4 }}
 data:
   clustername: {{ .Values.config.common.clusterName }}
-  subscriptionId: {{ .Values.subscriptionId }}

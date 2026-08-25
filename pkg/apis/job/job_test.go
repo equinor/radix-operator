@@ -45,7 +45,6 @@ type RadixJobTestSuiteBase struct {
 		clusterType    string
 		registry       string
 		appRegistry    string
-		subscriptionID string
 	}
 }
 
@@ -59,7 +58,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		clusterType    string
 		registry       string
 		appRegistry    string
-		subscriptionID string
 	}{
 		clusterName:    "AnyClusterName",
 		buildkitImage:  "docker.io/buildkit:any",
@@ -69,7 +67,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		clusterType:    "anyclustertype",
 		registry:       "anyregistry",
 		appRegistry:    "anyAppRegistry",
-		subscriptionID: "anysubid",
 	}
 }
 
@@ -85,7 +82,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
-	err := handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.subscriptionID)
+	err := handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName)
 	s.Require().NoError(err)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient
 
@@ -302,7 +299,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_CLUSTERNAME=%s", s.config.clusterName),
 				fmt.Sprintf("--RADIX_CONTAINER_REGISTRY=%s", s.config.registry),
 				fmt.Sprintf("--RADIX_APP_CONTAINER_REGISTRY=%s", s.config.appRegistry),
-				fmt.Sprintf("--AZURE_SUBSCRIPTION_ID=%s", s.config.subscriptionID),
 				"--RADIX_GITHUB_WORKSPACE=/workspace",
 				"--RADIX_FILE_NAME=some-radixconfig.yaml",
 				"--TRIGGERED_FROM_WEBHOOK=false",

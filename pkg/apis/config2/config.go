@@ -40,7 +40,12 @@ func Parse(ctx context.Context, c client.Client) (*Config, error) {
 	var cfg Config
 
 	// Load config from cluster
-	cm := &corev1.ConfigMap{Name: "radix-common-config", Namespace: os.Getenv("POD_NAMESPACE")}
+	namespace := os.Getenv("POD_NAMESPACE")
+	if namespace == "" {
+		namespace = "default"
+	}
+
+	cm := &corev1.ConfigMap{Name: "radix-common-config", Namespace: namespace}
 	if err := c.Get(ctx, client.ObjectKeyFromObject(cm), cm); err != nil {
 		return nil, fmt.Errorf("failed to load config from cluster: %w", err)
 	}

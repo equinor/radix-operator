@@ -95,7 +95,7 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	kedaClient := kedafake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
-	if err := handlerTestUtils.CreateClusterPrerequisites(clusterName, "anysubid"); err != nil {
+	if err := handlerTestUtils.CreateClusterPrerequisites(clusterName); err != nil {
 		return nil, nil, nil, nil, err
 	}
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient, nil
