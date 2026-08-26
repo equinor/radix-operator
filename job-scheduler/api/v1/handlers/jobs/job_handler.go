@@ -130,7 +130,7 @@ func (handler *jobHandler) CreateJob(ctx context.Context, jobScheduleDescription
 // CopyJob Copy a job with  deployment and optional parameters
 func (handler *jobHandler) CopyJob(ctx context.Context, jobName string, deploymentName string) (*modelsv1.JobStatus, error) {
 	logger := log.Ctx(ctx)
-	logger.Debug().Msgf("stop the job %s for namespace: %s", jobName, handler.GetEnv().RadixDeploymentNamespace)
+	logger.Debug().Msgf("copy the job %s for namespace: %s", jobName, handler.GetEnv().RadixDeploymentNamespace)
 	radixBatch, err := handler.CopyRadixBatchJob(ctx, jobName, deploymentName)
 	if err != nil {
 		return nil, err
@@ -185,7 +185,7 @@ func (handler *jobHandler) StopAllJobs(ctx context.Context) error {
 
 func getSingleJobStatusFromRadixBatchJob(radixBatch *modelsv1.BatchStatus) (*modelsv1.JobStatus, error) {
 	if len(radixBatch.JobStatuses) != 1 {
-		return nil, fmt.Errorf("batch should have only one job")
+		return nil, fmt.Errorf("batch should have exactly one job, but has %d", len(radixBatch.JobStatuses))
 	}
 	return &radixBatch.JobStatuses[0], nil
 }
