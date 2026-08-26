@@ -7015,18 +7015,6 @@
           "format": "date-time",
           "x-go-name": "ActiveTo"
         },
-        "builtFromBranch": {
-          "description": "Name of the branch used to build the deployment",
-          "type": "string",
-          "x-go-name": "BuiltFromBranch",
-          "example": "main"
-        },
-        "commitID": {
-          "description": "CommitID the commit ID of the branch to build",
-          "type": "string",
-          "x-go-name": "CommitID",
-          "example": "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
-        },
         "components": {
           "description": "Array of component summaries",
           "type": "array",
@@ -7132,7 +7120,6 @@
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/deployments/models"
     },
-    "DeploymentSummaryPipelineJobInfo": {},
     "EnvVar": {
       "description": "EnvVar environment variable with metadata",
       "type": "object",
