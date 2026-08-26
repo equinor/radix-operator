@@ -2,8 +2,9 @@ package models
 
 import "time"
 
-// swagger:ignore
-type DeploymentSummaryPipelineJobInfo struct {
+// DeploymentSummary describe an deployment
+// swagger:model DeploymentSummary
+type DeploymentSummary struct {
 	// Name of job creating deployment
 	//
 	// required: false
@@ -16,24 +17,12 @@ type DeploymentSummaryPipelineJobInfo struct {
 	// example: build-deploy
 	PipelineJobType string `json:"pipelineJobType,omitempty"`
 
-	// Name of the branch used to build the deployment
-	//
-	// required: false
-	// example: main
-	BuiltFromBranch string `json:"builtFromBranch,omitempty"`
-
 	// Name of the environment the deployment was promoted from
 	// Applies only for pipeline jobs of type 'promote'
 	//
 	// required: false
 	// example: qa
 	PromotedFromEnvironment string `json:"promotedFromEnvironment,omitempty"`
-
-	// CommitID the commit ID of the branch to build
-	//
-	// required: false
-	// example: 4faca8595c5283a9d0f17a623b9255a0d9866a2e
-	CommitID string `json:"commitID,omitempty"`
 
 	// GitRef Branch or tag to build from
 	//
@@ -50,12 +39,6 @@ type DeploymentSummaryPipelineJobInfo struct {
 	// enum: branch,tag,""
 	// example: branch
 	GitRefType string `json:"gitRefType,omitempty"`
-}
-
-// DeploymentSummary describe an deployment
-// swagger:model DeploymentSummary
-type DeploymentSummary struct {
-	DeploymentSummaryPipelineJobInfo `json:",inline"`
 
 	// Name the unique name of the Radix application deployment
 	//

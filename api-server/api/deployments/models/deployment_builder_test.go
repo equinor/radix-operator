@@ -53,14 +53,12 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 		actual, err := b.BuildDeploymentSummary()
 		assert.NoError(t, err)
 		expected := &DeploymentSummary{
-			Name:        deploymentName,
-			Environment: envName,
-			Status:      DeploymentStatusReady,
-			ActiveFrom:  activeFrom,
-			ActiveTo:    &activeTo,
-			DeploymentSummaryPipelineJobInfo: DeploymentSummaryPipelineJobInfo{
-				CreatedByJob: jobName,
-			},
+			Name:         deploymentName,
+			Environment:  envName,
+			Status:       DeploymentStatusReady,
+			ActiveFrom:   activeFrom,
+			ActiveTo:     &activeTo,
+			CreatedByJob: jobName,
 			Components: []*ComponentSummary{
 				{Name: "comp1", Image: "comp_image1", Type: string(radixv1.RadixComponentTypeComponent), Runtime: &Runtime{Architecture: defaults.DefaultNodeSelectorArchitecture}},
 				{Name: "comp2", Image: "comp_image2", Type: string(radixv1.RadixComponentTypeComponent), Runtime: &Runtime{Architecture: string(radixv1.RuntimeArchitectureArm64)}},
@@ -211,13 +209,8 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 		actual, err := b.BuildDeploymentSummary()
 		assert.NoError(t, err)
 		expected := &DeploymentSummary{
-			DeploymentSummaryPipelineJobInfo: DeploymentSummaryPipelineJobInfo{
-				CreatedByJob:            jobName,
-				CommitID:                commitID,
-				PipelineJobType:         string(radixv1.BuildDeploy),
-				PromotedFromEnvironment: promoteFromEnv,
-				BuiltFromBranch:         buildFromBranch,
-			},
+			CreatedByJob:    jobName,
+			PipelineJobType: string(radixv1.BuildDeploy),
 		}
 		assert.Equal(t, expected, actual)
 	})

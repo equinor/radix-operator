@@ -138,9 +138,7 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob() {
 			{Name: comp1Name, Image: comp1Image, Type: comp1Type},
 			{Name: comp2Name, Image: comp2Image, Type: comp2Type},
 		},
-		DeploymentSummaryPipelineJobInfo: deploymentModels.DeploymentSummaryPipelineJobInfo{
-			CreatedByJob: "any_job",
-		},
+		CreatedByJob: "any_job",
 	}
 
 	s.Run("radixjob does not exist", func() {
