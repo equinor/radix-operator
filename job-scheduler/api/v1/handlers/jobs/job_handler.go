@@ -185,7 +185,7 @@ func (handler *jobHandler) StopAllJobs(ctx context.Context) error {
 
 func getSingleJobStatusFromRadixBatchJob(radixBatch *modelsv1.BatchStatus) (*modelsv1.JobStatus, error) {
 	if len(radixBatch.JobStatuses) != 1 {
-		return nil, fmt.Errorf("batch should have only one job")
+		return nil, fmt.Errorf("batch should have exactly one job, but has %d", len(radixBatch.JobStatuses))
 	}
 	return &radixBatch.JobStatuses[0], nil
 }
