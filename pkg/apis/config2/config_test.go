@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -19,12 +18,13 @@ func TestParse_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "radix-common-config", Namespace: "default"},
-		Data:       map[string]string{"config": string(configYaml)},
+		Name:      "radix-common-config",
+		Namespace: "default",
+		Data:      map[string]string{"config": string(configYaml)},
 	}
 	client := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(cm).Build()
 
-	cfg, err := config2.Parse(context.Background(), client)
+	cfg, err := config2.Parse(context.Background(), client, "default", "radix-common-config")
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -39,12 +39,13 @@ func TestParse_EnvOverride(t *testing.T) {
 	require.NoError(t, err)
 
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "radix-common-config", Namespace: "default"},
-		Data:       map[string]string{"config": string(configYaml)},
+		Name:      "radix-common-config",
+		Namespace: "default",
+		Data:      map[string]string{"config": string(configYaml)},
 	}
 	client := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(cm).Build()
 
-	cfg, err := config2.Parse(context.Background(), client)
+	cfg, err := config2.Parse(context.Background(), client, "default", "radix-common-config")
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -57,12 +58,13 @@ func TestParse_MissingRequiredField(t *testing.T) {
 	require.NoError(t, err)
 
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "radix-common-config", Namespace: "default"},
-		Data:       map[string]string{"config": string(configYaml)},
+		Name:      "radix-common-config",
+		Namespace: "default",
+		Data:      map[string]string{"config": string(configYaml)},
 	}
 	client := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(cm).Build()
 
-	cfg, err := config2.Parse(context.Background(), client)
+	cfg, err := config2.Parse(context.Background(), client, "default", "radix-common-config")
 
 	require.Error(t, err)
 	assert.Nil(t, cfg)
@@ -73,12 +75,13 @@ func TestParse_AllOperatorConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "radix-common-config", Namespace: "default"},
-		Data:       map[string]string{"config": string(configYaml)},
+		Name:      "radix-common-config",
+		Namespace: "default",
+		Data:      map[string]string{"config": string(configYaml)},
 	}
 	client := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(cm).Build()
 
-	cfg, err := config2.Parse(context.Background(), client)
+	cfg, err := config2.Parse(context.Background(), client, "default", "radix-common-config")
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)

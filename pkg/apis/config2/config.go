@@ -36,16 +36,10 @@ type OperatorConfig struct {
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_QPS" required:"true"`
 }
 
-func Parse(ctx context.Context, c client.Client) (*Config, error) {
+func Parse(ctx context.Context, c client.Client, namespace, name string) (*Config, error) {
 	var cfg Config
 
-	// Load config from cluster
-	namespace := os.Getenv("POD_NAMESPACE")
-	if namespace == "" {
-		namespace = "default"
-	}
-
-	cm := &corev1.ConfigMap{Name: "radix-common-config", Namespace: namespace}
+	cm := &corev1.ConfigMap{Namespace: namespace, Name: name}
 	if err := c.Get(ctx, client.ObjectKeyFromObject(cm), cm); err != nil {
 		return nil, fmt.Errorf("failed to load config from cluster: %w", err)
 	}
@@ -68,8 +62,8 @@ func Parse(ctx context.Context, c client.Client) (*Config, error) {
 	return &cfg, nil
 }
 
-func MustParse(ctx context.Context, c client.Client) Config {
-	cfg, err := Parse(ctx, c)
+func MustParse(ctx context.Context, c client.Client, namespace, name string) Config {
+	cfg, err := Parse(ctx, c, namespace, name)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse config")
 	}
