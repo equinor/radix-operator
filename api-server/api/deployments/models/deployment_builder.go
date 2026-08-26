@@ -40,8 +40,8 @@ type deploymentBuilder struct {
 	repository         string
 	useBuildCache      *bool
 	refreshBuildCache  *bool
-	gitRef			  string
-	gitRefType		  string
+	gitRef             string
+	gitRefType         string
 }
 
 // NewDeploymentBuilder Constructor for application deploymentBuilder
@@ -248,7 +248,7 @@ func (b *deploymentBuilder) buildDeploySummaryPipelineJobInfo() DeploymentSummar
 		jobInfo.PipelineJobType = string(b.pipelineJob.Spec.PipeLineType)
 		jobInfo.BuiltFromBranch = b.pipelineJob.Spec.Build.Branch //nolint:staticcheck
 		jobInfo.GitRef = b.gitRef
-		jobInfo.GitRefType = b.gitRefType	
+		jobInfo.GitRefType = b.gitRefType
 		jobInfo.PromotedFromEnvironment = b.pipelineJob.Spec.Promote.FromEnvironment
 	}
 
