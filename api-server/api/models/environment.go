@@ -34,9 +34,6 @@ func BuildEnvironment(ctx context.Context, rr *radixv1.RadixRegistration, ra *ra
 	if activeRd, ok := slice.FindFirst(rdList, isActiveDeploymentForAppAndEnv(ra.Name, re.Spec.EnvName)); ok {
 		activeDeployment = BuildDeployment(rr, ra, &activeRd, deploymentList, podList, hpaList, secretList, eventList, rjList, certs, certRequests, tlsValidator, scaledObjects)
 		secrets = BuildSecrets(ctx, secretList, secretProviderClassList, &activeRd)
-		if len(activeDeployment.BuiltFromBranch) > 0 {
-			buildFromBranch = activeDeployment.BuiltFromBranch
-		}
 	}
 
 	return &environmentModels.Environment{

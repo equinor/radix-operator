@@ -72,6 +72,9 @@ func (b *deploymentBuilder) WithRadixDeployment(rd *v1.RadixDeployment) Deployme
 		withGitRef(rd.Annotations[kube.RadixGitRefAnnotation]).
 		withGitRefType(rd.Annotations[kube.RadixGitRefTypeAnnotation]).
 		withPromotedFromEnvironment(rd.Annotations[kube.RadixDeploymentPromotedFromEnvironmentAnnotation]).
+		withGitRef(rd.Annotations[kube.RadixGitRefAnnotation]).
+		withGitRefType(rd.Annotations[kube.RadixGitRefTypeAnnotation]).
+		withPromotedFromEnvironment(rd.Annotations[kube.RadixDeploymentPromotedFromEnvironmentAnnotation]).
 		WithGitCommitHash(rd.Annotations[kube.RadixCommitAnnotation]).
 		WithGitTags(rd.Annotations[kube.RadixGitTagsAnnotation])
 

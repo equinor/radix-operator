@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// DeploymentSummary describe an deployment
+// DeploymentSummary describes a deployment
 // swagger:model DeploymentSummary
 type DeploymentSummary struct {
 	// Name of job creating deployment

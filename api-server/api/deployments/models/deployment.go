@@ -73,12 +73,6 @@ type Deployment struct {
 	// example: https://github.com/equinor/radix-canary-golang
 	Repository string `json:"repository,omitempty"`
 
-	// Name of the branch used to build the deployment
-	//
-	// required: false
-	// example: main
-	BuiltFromBranch string `json:"builtFromBranch,omitempty"`
-
 	// Defaults to true.
 	//
 	// required: false
