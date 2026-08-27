@@ -52,23 +52,23 @@ func (jh JobHandler) StopJob(ctx context.Context, appName, jobName string) error
 }
 
 // RerunJob Reruns the pipeline job as a copy
-func (jh JobHandler) RerunJob(ctx context.Context, appName, jobName string) error {
+func (jh JobHandler) RerunJob(ctx context.Context, appName, jobName string) (*jobModels.JobSummary, error) {
 	log.Ctx(ctx).Info().Msgf("Rerunning the job %s in the application %s", jobName, appName)
 	radixJob, err := jh.getPipelineJobByName(ctx, appName, jobName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !slice.Any(jobConditionsValidForJobRerun, func(condition radixv1.RadixJobCondition) bool { return condition == radixJob.Status.Condition }) {
-		return jobModels.JobHasInvalidConditionToRerunError(appName, jobName, radixJob.Status.Condition)
+		return nil, jobModels.JobHasInvalidConditionToRerunError(appName, jobName, radixJob.Status.Condition)
 	}
 
 	copiedRadixJob := jh.buildPipelineJobToRerunFrom(ctx, radixJob)
-	_, err = jh.createPipelineJob(ctx, appName, copiedRadixJob)
+	jobSummary, err := jh.createPipelineJob(ctx, appName, copiedRadixJob)
 	if err != nil {
-		return fmt.Errorf("failed to create a job %s to rerun: %v", radixJob.GetName(), err)
+		return nil, fmt.Errorf("failed to create a job %s to rerun: %v", radixJob.GetName(), err)
 	}
 
-	return nil
+	return jobSummary, nil
 }
 func (jh JobHandler) createPipelineJob(ctx context.Context, appName string, job *radixv1.RadixJob) (*jobModels.JobSummary, error) {
 	log.Ctx(ctx).Info().Msgf("Starting job: %s", job.GetName())

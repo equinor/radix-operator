@@ -259,8 +259,10 @@ func (jc *jobController) RerunApplicationJob(accounts accounts.Accounts, w http.
 	//   type: string
 	//   required: false
 	// responses:
-	//   "204":
-	//     description: "Job rerun ok"
+	//   "200":
+	//     description: "New job summary"
+	//     schema:
+	//        "$ref": "#/definitions/JobSummary"
 	//   "401":
 	//     description: "Unauthorized"
 	//   "404":
@@ -268,14 +270,14 @@ func (jc *jobController) RerunApplicationJob(accounts accounts.Accounts, w http.
 	appName := mux.Vars(r)["appName"]
 	jobName := mux.Vars(r)["jobName"]
 	handler := Init(accounts, deployments.Init(accounts))
-	err := handler.RerunJob(r.Context(), appName, jobName)
+	jobSummary, err := handler.RerunJob(r.Context(), appName, jobName)
 
 	if err != nil {
 		jc.ErrorResponse(w, r, err)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	jc.JSONResponse(w, r, jobSummary)
 }
 
 // GetTektonPipelineRuns Get the Tekton pipeline runs overview
