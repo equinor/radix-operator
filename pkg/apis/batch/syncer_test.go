@@ -1,3 +1,4 @@
+//nolint:staticcheck // RadixDeploymentSpec.AppName is deprecated but still used by these tests
 package batch
 
 import (

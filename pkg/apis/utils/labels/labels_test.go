@@ -184,7 +184,7 @@ func Test_ForBlobCSIAzurePersistentVolumeClaim(t *testing.T) {
 	}
 	assert.Equal(t, expected, actual)
 
-	actual = ForBlobCSIAzurePersistentVolumeClaim("any-app", "any-comp", radixv1.RadixVolumeMount{Name: "any-vol", Type: "any-type"})
+	actual = ForBlobCSIAzurePersistentVolumeClaim("any-app", "any-comp", radixv1.RadixVolumeMount{Name: "any-vol", Type: "any-type"}) //nolint:staticcheck
 	expected = kubelabels.Set{
 		kube.RadixAppLabel:             "any-app",
 		kube.RadixComponentLabel:       "any-comp",

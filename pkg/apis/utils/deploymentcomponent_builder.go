@@ -269,7 +269,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Image:                   dcb.image,
 		Name:                    dcb.name,
 		Ports:                   dcb.ports,
-		Public:                  dcb.public,
+		Public:                  dcb.public, //nolint:staticcheck
 		PublicPort:              dcb.publicPort,
 		Monitoring:              dcb.monitoring,
 		MonitoringConfig:        dcb.monitoringConfig,
@@ -279,14 +279,14 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		SecretRefs:              dcb.secretRefs,
 		EnvironmentVariables:    dcb.environmentVariables,
 		DNSAppAlias:             dcb.dnsAppAlias,
-		DNSExternalAlias:        dcb.externalAppAlias,
+		DNSExternalAlias:        dcb.externalAppAlias, //nolint:staticcheck
 		ExternalDNS:             dcb.externalDNS,
 		Resources:               dcb.resources,
 		HealthChecks:            dcb.healthChecks,
 		HorizontalScaling:       dcb.horizontalScaling,
 		VolumeMounts:            dcb.volumeMounts,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
-		Node:                    dcb.node,
+		Node:                    dcb.node, //nolint:staticcheck
 		Authentication:          dcb.authentication,
 		Identity:                dcb.identity,
 		ReadOnlyFileSystem:      dcb.readOnlyFileSystem,

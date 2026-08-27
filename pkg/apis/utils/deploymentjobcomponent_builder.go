@@ -225,7 +225,7 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		SchedulerPort:           dcb.schedulerPort,
 		Payload:                 payload,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
-		Node:                    dcb.node,
+		Node:                    dcb.node, //nolint:staticcheck
 		TimeLimitSeconds:        dcb.timeLimitSeconds,
 		Identity:                dcb.identity,
 		Notifications:           dcb.notifications,

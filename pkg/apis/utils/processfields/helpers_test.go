@@ -31,7 +31,7 @@ type selfMutatingTextValue struct {
 }
 
 func (value selfMutatingTextValue) UnmarshalText(text []byte) error {
-	value.Received = string(text)
+	value.Received = string(text) //nolint:staticcheck
 	return nil
 }
 

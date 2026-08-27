@@ -116,7 +116,7 @@ func (c *jobComponentsBuilder) buildJobComponent(ctx context.Context, radixJobCo
 		Image:                image,
 		EnvironmentVariables: getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig, defaultEnvVars),
 		Resources:            getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig),
-		Node:                 getRadixCommonComponentNode(ctx, &radixJobComponent, environmentSpecificConfig),
+		Node:                 getRadixCommonComponentNode(ctx, &radixJobComponent, environmentSpecificConfig), //nolint:staticcheck
 		SecretRefs:           getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig),
 		BackoffLimit:         getRadixJobComponentBackoffLimit(radixJobComponent, environmentSpecificConfig),
 		TimeLimitSeconds:     getRadixJobComponentTimeLimitSeconds(radixJobComponent, environmentSpecificConfig),

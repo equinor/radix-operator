@@ -209,7 +209,7 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 			AppName:      jb.appName,
 			PipeLineType: jb.pipeline,
 			Build: v1.RadixBuildSpec{
-				Branch:                jb.branch,
+				Branch:                jb.branch, //nolint:staticcheck
 				GitRef:                jb.gitRef,
 				GitRefType:            v1.GitRefType(jb.gitRefType),
 				ToEnvironment:         jb.toEnvironment,

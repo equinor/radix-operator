@@ -1,3 +1,4 @@
+//nolint:staticcheck // PipelineArguments.Branch is deprecated but still used by these tests
 package applyconfig_test
 
 import (

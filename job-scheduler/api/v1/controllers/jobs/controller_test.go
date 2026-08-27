@@ -236,7 +236,7 @@ func TestCreateJob(t *testing.T) {
 						"memory": "128M",
 					},
 				},
-				Node: &models.Node{
+				Node: &models.Node{ //nolint:staticcheck
 					Gpu:      "nvidia",
 					GpuCount: "6",
 				},

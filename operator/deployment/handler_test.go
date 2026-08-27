@@ -97,7 +97,7 @@ func (s *handlerSuite) Test_Sync() {
 
 	activeRd := &radixv1.RadixDeployment{
 		ObjectMeta: v1.ObjectMeta{Name: activeRdName, Namespace: namespace},
-		Spec:       radixv1.RadixDeploymentSpec{AppName: appName},
+		Spec:       radixv1.RadixDeploymentSpec{AppName: appName}, //nolint:staticcheck
 		Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 	}
 	err = s.radixClient.Tracker().Add(activeRd)
