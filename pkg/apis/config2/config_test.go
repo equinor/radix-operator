@@ -3,6 +3,7 @@ package config2_test
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/config2"
@@ -51,6 +52,26 @@ func TestParse_EnvOverride(t *testing.T) {
 	require.NotNil(t, cfg)
 	assert.Equal(t, "debug", cfg.Operator.LogLevel)
 
+}
+
+func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
+	t.Setenv("CLUSTER_NAME", "env-cluster")
+	configYaml, err := os.ReadFile("testdata/config-happypath.yaml")
+	require.NoError(t, err)
+	configYaml = []byte(strings.ReplaceAll(string(configYaml), "common:\n  clusterName: test-cluster\n", "common: {}\n"))
+
+	cm := &corev1.ConfigMap{
+		Name:      "radix-common-config",
+		Namespace: "default",
+		Data:      map[string]string{"config": string(configYaml)},
+	}
+	client := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(cm).Build()
+
+	cfg, err := config2.Parse(context.Background(), client, "default", "radix-common-config")
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Equal(t, "env-cluster", cfg.Common.ClusterName)
 }
 
 func TestParse_MissingRequiredField(t *testing.T) {

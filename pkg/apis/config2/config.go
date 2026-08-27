@@ -6,8 +6,9 @@ import (
 	"os"
 	"reflect"
 	"strconv"
-	"strings"
+	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,6 +26,9 @@ type CommonConfig struct {
 type OperatorConfig struct {
 	LogLevel       string `json:"logLevel" env:"OPERATOR_LOG_LEVEL"`
 	LogPrettyPrint bool   `json:"logPrettyPrint" env:"OPERATOR_LOG_PRETTY_PRINT"`
+
+	RunAt  time.Time
+	StopAt *time.Time
 
 	RegistrationControllerThreads int     `json:"registrationControllerThreads" env:"OPERATOR_REGISTRATION_CONTROLLER_THREADS" required:"true"`
 	ApplicationControllerThreads  int     `json:"applicationControllerThreads" env:"OPERATOR_APPLICATION_CONTROLLER_THREADS" required:"true"`
@@ -71,18 +75,19 @@ func MustParse(ctx context.Context, c client.Client, namespace, name string) Con
 }
 
 func validateConfig(cfg *Config) error {
-	return processFields(cfg, func(field reflect.StructField, value reflect.Value) error {
+	return processfields.WalkFields(cfg, func(path string, field reflect.StructField, value reflect.Value, _ processfields.SetValFunc) error {
 		requiredTag := field.Tag.Get("required")
 		required, _ := strconv.ParseBool(requiredTag)
+
 		if required && value.IsZero() {
-			return fmt.Errorf("field %q is required but not set", field.Name)
+			return fmt.Errorf("field %q is required but not set", path)
 		}
 		return nil
 	})
 }
 
 func processEnvOverrides(cfg *Config) error {
-	return processFields(cfg, func(field reflect.StructField, value reflect.Value) error {
+	return processfields.WalkFields(cfg, func(path string, field reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
 		envTag := field.Tag.Get("env")
 		if envTag == "" {
 			return nil
@@ -93,71 +98,9 @@ func processEnvOverrides(cfg *Config) error {
 			return nil
 		}
 
-		if err := setFieldValue(value, envValue); err != nil {
-			return fmt.Errorf("failed to set field %q from env %q: %w", field.Name, envTag, err)
+		if err := setter(envValue); err != nil {
+			return fmt.Errorf("failed to set field %q from env %q: %w", path, envTag, err)
 		}
 		return nil
 	})
-}
-
-func setFieldValue(field reflect.Value, value string) error {
-	if !field.CanSet() {
-		return fmt.Errorf("cannot set field %q", field.Type().Name())
-	}
-
-	switch field.Kind() {
-	case reflect.String:
-		field.SetString(value)
-	case reflect.Bool:
-		boolValue, err := strconv.ParseBool(value)
-		if err != nil {
-			return fmt.Errorf("failed to parse bool: %w", err)
-		}
-		field.SetBool(boolValue)
-	default:
-		return fmt.Errorf("unsupported field type: %s", field.Kind())
-	}
-	return nil
-}
-
-func processFields(cfg any, fn func(field reflect.StructField, value reflect.Value) error) error {
-	val := reflect.ValueOf(cfg)
-	var typ reflect.Type
-	if val.Kind() == reflect.Pointer {
-		typ = val.Elem().Type()
-	} else {
-		typ = val.Type()
-	}
-
-	for i := 0; i < typ.NumField(); i++ {
-		// pull out the struct tags:
-		//    required - whether the field is required
-		field := typ.Field(i)
-		fieldV := reflect.Indirect(val).Field(i)
-
-		requiredTag := field.Tag.Get("required")
-		required, _ := strconv.ParseBool(requiredTag)
-		if required && fieldV.IsZero() {
-			return fmt.Errorf("field %q is required but not set", field.Name)
-		}
-
-		if field.Name == strings.ToLower(field.Name) {
-			// Unexported fields cannot be set by a user, so won't have tags or flags, skip them
-			continue
-		}
-
-		if field.Type.Kind() == reflect.Struct {
-			err := processFields(fieldV.Addr().Interface(), fn)
-			if err != nil {
-				return err
-			}
-			continue
-		}
-		err := fn(field, fieldV)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
