@@ -299,8 +299,12 @@ func (s *JobHandlerTestSuite) TestJobHandler_RerunJob() {
 				s.NoError(err)
 			}
 
-			_, err := jh.RerunJob(context.Background(), appName, tt.jobNameToRerun)
+			jobSummary, err := jh.RerunJob(context.Background(), appName, tt.jobNameToRerun)
 			s.Equal(tt.expectedError, err)
+			if tt.expectedError == nil {
+				s.NotNil(jobSummary)
+				s.NotEmpty(jobSummary.Name)
+			}
 		})
 	}
 }
