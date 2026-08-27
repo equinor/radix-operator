@@ -6854,12 +6854,6 @@
           "format": "date-time",
           "x-go-name": "ActiveTo"
         },
-        "builtFromBranch": {
-          "description": "Name of the branch used to build the deployment",
-          "type": "string",
-          "x-go-name": "BuiltFromBranch",
-          "example": "main"
-        },
         "components": {
           "description": "Array of components",
           "type": "array",
@@ -6994,7 +6988,7 @@
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/deployments/models"
     },
     "DeploymentSummary": {
-      "description": "DeploymentSummary describe an deployment",
+      "description": "DeploymentSummary describes a deployment",
       "type": "object",
       "required": [
         "name",
