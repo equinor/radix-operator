@@ -10,8 +10,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/rs/zerolog/log"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
@@ -40,16 +38,15 @@ type OperatorConfig struct {
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_QPS" required:"true"`
 }
 
-func Parse(ctx context.Context, c client.Client, namespace, name string) (*Config, error) {
+type ConfigReader func(ctx context.Context) (string, error)
+
+func Parse(ctx context.Context, reader ConfigReader) (*Config, error) {
 	var cfg Config
 
-	cm := &corev1.ConfigMap{Namespace: namespace, Name: name}
-	if err := c.Get(ctx, client.ObjectKeyFromObject(cm), cm); err != nil {
-		return nil, fmt.Errorf("failed to load config from cluster: %w", err)
+	configYaml, err := reader(ctx)
+	if err != nil {
+		return nil, err
 	}
-
-	// Parse config
-	configYaml := cm.Data["config"]
 	if err := yaml.Unmarshal([]byte(configYaml), &cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config YAML: %w", err)
 	}
@@ -66,8 +63,8 @@ func Parse(ctx context.Context, c client.Client, namespace, name string) (*Confi
 	return &cfg, nil
 }
 
-func MustParse(ctx context.Context, c client.Client, namespace, name string) Config {
-	cfg, err := Parse(ctx, c, namespace, name)
+func MustParse(ctx context.Context, reader ConfigReader) Config {
+	cfg, err := Parse(ctx, reader)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse config")
 	}

@@ -109,17 +109,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 	var err error
 
 	cfgClient, _ := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
-
-	// Load config from cluster
-	namespace := os.Getenv("POD_NAMESPACE")
-	if namespace == "" {
-		namespace = "default"
-	}
-	commonConfigName := os.Getenv("RADIX_COMMON_CONFIG_NAME")
-	if commonConfigName == "" {
-		commonConfigName = "radix-common-config"
-	}
-	app.config2 = config2.MustParse(ctx, cfgClient, namespace, commonConfigName)
+	app.config2 = config2.MustParse(ctx, config2.EnvConfigMapReader(cfgClient))
 
 	app.config = apiconfig.MustParse()
 	initLogger(app.config2)
