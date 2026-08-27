@@ -215,6 +215,27 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 		assert.Equal(t, expected, actual)
 	})
 
+	t.Run("build with gitRef, gitRefType and promotedFromEnvironment from annotations", func(t *testing.T) {
+		t.Parallel()
+		b := NewDeploymentBuilder().WithRadixDeployment(
+			&radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: deploymentName,
+					Annotations: map[string]string{
+						kube.RadixGitRefAnnotation:                            "main",
+						kube.RadixGitRefTypeAnnotation:                        "branch",
+						kube.RadixDeploymentPromotedFromEnvironmentAnnotation: promoteFromEnv,
+					},
+				},
+			},
+		)
+		actual, err := b.BuildDeploymentSummary()
+		assert.NoError(t, err)
+		assert.Equal(t, "main", actual.GitRef)
+		assert.Equal(t, "branch", actual.GitRefType)
+		assert.Equal(t, promoteFromEnv, actual.PromotedFromEnvironment)
+	})
+
 	t.Run("deploy specific components", func(t *testing.T) {
 		t.Parallel()
 		b := NewDeploymentBuilder().WithPipelineJob(
