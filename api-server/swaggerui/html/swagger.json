@@ -5043,8 +5043,11 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "Job rerun ok"
+          "200": {
+            "description": "New job summary",
+            "schema": {
+              "$ref": "#/definitions/JobSummary"
+            }
           },
           "401": {
             "description": "Unauthorized"
