@@ -1,7 +1,6 @@
 package config2
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"reflect"
@@ -38,7 +37,7 @@ type OperatorConfig struct {
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_QPS" required:"true"`
 }
 
-func Parse(ctx context.Context, configYaml string) (*Config, error) {
+func Parse(configYaml string) (*Config, error) {
 	var cfg Config
 
 	if err := yaml.Unmarshal([]byte(configYaml), &cfg); err != nil {
@@ -57,8 +56,8 @@ func Parse(ctx context.Context, configYaml string) (*Config, error) {
 	return &cfg, nil
 }
 
-func MustParse(ctx context.Context, configYaml string) Config {
-	cfg, err := Parse(ctx, configYaml)
+func MustParse(configYaml string) Config {
+	cfg, err := Parse(configYaml)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse config")
 	}

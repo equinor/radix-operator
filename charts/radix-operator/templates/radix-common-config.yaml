@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
 data:
-  config: |
+  configYaml: |
     common:
       clusterName: {{ .Values.config.common.clusterName | quote }}
     operator:

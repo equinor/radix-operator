@@ -22,7 +22,7 @@ var configHappyYaml string
 var configMissingRequiredYaml string
 
 func TestParse_HappyPath(t *testing.T) {
-	cfg, err := config2.Parse(t.Context(), configHappyYaml)
+	cfg, err := config2.Parse(configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -34,7 +34,7 @@ func TestParse_HappyPath(t *testing.T) {
 func TestParse_EnvOverride(t *testing.T) {
 	t.Setenv("OPERATOR_LOG_LEVEL", "debug")
 
-	cfg, err := config2.Parse(t.Context(), configHappyYaml)
+	cfg, err := config2.Parse(configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -45,7 +45,7 @@ func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
 	t.Setenv("CLUSTER_NAME", "env-cluster")
 	configYamlStr := strings.ReplaceAll(configHappyYaml, "common:\n  clusterName: test-cluster\n", "common: {}\n")
 
-	cfg, err := config2.Parse(t.Context(), configYamlStr)
+	cfg, err := config2.Parse(configYamlStr)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -53,14 +53,14 @@ func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
 }
 
 func TestParse_MissingRequiredField(t *testing.T) {
-	cfg, err := config2.Parse(t.Context(), configMissingRequiredYaml)
+	cfg, err := config2.Parse(configMissingRequiredYaml)
 
 	require.Error(t, err)
 	assert.Nil(t, cfg)
 }
 
 func TestParse_AllOperatorConfig(t *testing.T) {
-	cfg, err := config2.Parse(t.Context(), configHappyYaml)
+	cfg, err := config2.Parse(configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -110,6 +110,13 @@ func TestEnvConfigMapReader(t *testing.T) {
 			},
 			expectErr: true,
 		},
+		"key not found in configmap": {
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: "radix-common-config", Namespace: "default"},
+				Data:       map[string]string{"someOtherKey": string(configYaml)},
+			},
+			expectErr: true,
+		},
 	}
 
 	for name, test := range tests {
@@ -127,7 +134,7 @@ func TestEnvConfigMapReader(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			cfg, err := config2.Parse(t.Context(), reader)
+			cfg, err := config2.Parse(reader)
 			require.NoError(t, err)
 			require.NotNil(t, cfg)
 			assert.Equal(t, "test-cluster", cfg.Common.ClusterName)
