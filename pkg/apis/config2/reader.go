@@ -14,22 +14,22 @@ import (
 func EnvConfigMapReader(c client.Client) ConfigReader {
 	return func(ctx context.Context) (string, error) {
 		logger := log.Ctx(ctx).With().Str("pkg", "config2").Logger()
-		
+
 		namespace := os.Getenv("POD_NAMESPACE")
 		if namespace == "" {
 			logger.Warn().Msg("POD_NAMESPACE env var not set, defaulting to 'default' namespace")
 			namespace = "default"
 		}
 
-		name := os.Getenv("RADIX_OPERATOR_CONFIG_NAME")
+		name := os.Getenv("RADIX_COMMON_CONFIG_NAME")
 		if name == "" {
-			logger.Warn().Msg("RADIX_OPERATOR_CONFIG_NAME env var not set, defaulting to 'radix-common-config' configmap")
+			logger.Warn().Msg("RADIX_COMMON_CONFIG_NAME env var not set, defaulting to 'radix-common-config' configmap")
 			name = "radix-common-config"
 		}
 
-		key := os.Getenv("RADIX_OPERATOR_CONFIG_KEY")
+		key := os.Getenv("RADIX_COMMON_CONFIG_KEY")
 		if key == "" {
-			logger.Warn().Msg("RADIX_OPERATOR_CONFIG_KEY env var not set, defaulting to 'configYaml' key")
+			logger.Warn().Msg("RADIX_COMMON_CONFIG_KEY env var not set, defaulting to 'configYaml' key")
 			key = "configYaml"
 		}
 
