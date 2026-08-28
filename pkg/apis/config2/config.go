@@ -5,7 +5,6 @@ import (
 	"os"
 	"reflect"
 	"strconv"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/rs/zerolog/log"
@@ -23,9 +22,6 @@ type CommonConfig struct {
 type OperatorConfig struct {
 	LogLevel       string `json:"logLevel" env:"OPERATOR_LOG_LEVEL"`
 	LogPrettyPrint bool   `json:"logPrettyPrint" env:"OPERATOR_LOG_PRETTY_PRINT"`
-
-	RunAt  time.Time
-	StopAt *time.Time
 
 	RegistrationControllerThreads int     `json:"registrationControllerThreads" env:"OPERATOR_REGISTRATION_CONTROLLER_THREADS" required:"true"`
 	ApplicationControllerThreads  int     `json:"applicationControllerThreads" env:"OPERATOR_APPLICATION_CONTROLLER_THREADS" required:"true"`
