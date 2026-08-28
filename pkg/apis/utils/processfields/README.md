@@ -56,7 +56,7 @@ ignored.
 - Embedded structs are flattened — their fields appear as if declared on the outer struct,
   and contribute nothing to the error path. This includes embedded *unexported* struct
   types, whose exported fields are settable through reflection.
-- Slices and arrays of structs (or of struct pointers) are walked element by element.
+- Slices and arrays of nested structs (or of nested struct pointers) are walked element by element.
 - Unexported fields are skipped.
 - A `nil` pointer to a struct is allocated so its fields can be visited, and dropped again
   if it stayed empty. See [Optional sections](#optional-sections) below.
