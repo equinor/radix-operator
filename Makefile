@@ -238,5 +238,5 @@ ifndef HAS_YQ
 	go install github.com/mikefarah/yq/v4@latest
 endif
 ifndef HAS_SWAGGER
-	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.36.v
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.36.4
 endif
