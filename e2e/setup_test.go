@@ -370,8 +370,7 @@ func labelNodesForRadixJobs(ctx context.Context, c client.Client) error {
 }
 
 // createClusterPrerequisites creates the cluster-wide resources the operator expects to exist,
-// which are normally provisioned during Radix bootstrap: the radix-config ConfigMap (cluster name
-// and subscription id) and the radix-known-hosts-git Secret, both in the default namespace. These
+// which are normally provisioned during Radix bootstrap: the radix-known-hosts-git Secret in the default namespace. These
 // are required by the job- and registration-controllers. The function is idempotent.
 func createClusterPrerequisites(ctx context.Context, c client.Client, gitKnownHosts string) error {
 	knownHostsSecret := &corev1.Secret{
