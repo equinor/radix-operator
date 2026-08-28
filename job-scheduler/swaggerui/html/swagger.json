@@ -608,7 +608,7 @@
           "description": "BatchType Single job or multiple jobs batch",
           "type": "string",
           "x-go-name": "BatchType",
-          "example": "\"job\""
+          "example": "job"
         },
         "created": {
           "description": "Created timestamp",
@@ -626,7 +626,7 @@
           "$ref": "#/definitions/Event"
         },
         "failed": {
-          "description": "The number of times the container for the job has failed.\n+optional",
+          "description": "The number of times the container for the job has failed.",
           "type": "integer",
           "format": "int32",
           "x-go-name": "Failed"
@@ -649,7 +649,7 @@
           "description": "Message, if any, of the job",
           "type": "string",
           "x-go-name": "Message",
-          "example": "\"Error occurred\""
+          "example": "Error occurred"
         },
         "name": {
           "description": "Name of the job",
@@ -666,7 +666,7 @@
           "x-go-name": "PodStatuses"
         },
         "restart": {
-          "description": "Timestamp of the job restart, if applied.\n+optional",
+          "description": "Timestamp of the job restart, if applied.",
           "type": "string",
           "x-go-name": "Restart"
         },
@@ -677,7 +677,7 @@
           "x-go-name": "Started"
         },
         "status": {
-          "description": "Status of the job\nRunning = Job is running\nSucceeded = Job has succeeded\nFailed = Job has failed\nWaiting = Job is waiting\nStopping = Job is stopping\nStopped = Job has been stopped\nActive = Job is active\nCompleted = Job is completed",
+          "description": "Status of the job\n- Running = Job is running\n- Succeeded = Job has succeeded\n- Failed = Job has failed\n- Waiting = Job is waiting\n- Stopping = Job is stopping\n- Stopped = Job has been stopped\n- Active = Job is active\n- Completed = Job is completed",
           "type": "string",
           "enum": [
             "Running",
@@ -755,7 +755,7 @@
           "description": "BatchType Single job or multiple jobs batch",
           "type": "string",
           "x-go-name": "BatchType",
-          "example": "\"job\""
+          "example": "job"
         },
         "created": {
           "description": "Created timestamp",
@@ -770,7 +770,7 @@
           "x-go-name": "Ended"
         },
         "failed": {
-          "description": "The number of times the container for the job has failed.\n+optional",
+          "description": "The number of times the container for the job has failed.",
           "type": "integer",
           "format": "int32",
           "x-go-name": "Failed"
@@ -793,7 +793,7 @@
           "description": "Message, if any, of the job",
           "type": "string",
           "x-go-name": "Message",
-          "example": "\"Error occurred\""
+          "example": "Error occurred"
         },
         "name": {
           "description": "Name of the job",
@@ -810,7 +810,7 @@
           "x-go-name": "PodStatuses"
         },
         "restart": {
-          "description": "Timestamp of the job restart, if applied.\n+optional",
+          "description": "Timestamp of the job restart, if applied.",
           "type": "string",
           "x-go-name": "Restart"
         },
@@ -821,7 +821,7 @@
           "x-go-name": "Started"
         },
         "status": {
-          "description": "Status of the job\nRunning = Job is running\nSucceeded = Job has succeeded\nFailed = Job has failed\nWaiting = Job is waiting\nStopping = Job is stopping\nStopped = Job has been stopped\nActive = Job is active\nCompleted = Job is completed",
+          "description": "Status of the job\n- Running = Job is running\n- Succeeded = Job has succeeded\n- Failed = Job has failed\n- Waiting = Job is waiting\n- Stopping = Job is stopping\n- Stopped = Job has been stopped\n- Active = Job is active\n- Completed = Job is completed",
           "type": "string",
           "enum": [
             "Running",
@@ -922,7 +922,6 @@
         "values": {
           "description": "Specifies the set of values. The job replica's exit code is checked against this set of\nvalues with respect to the operator. The list must not contain duplicates.\nValue '0' cannot be used for the In operator.",
           "type": "array",
-          "minimum": 0,
           "maxItems": 255,
           "minItems": 1,
           "items": {
@@ -939,7 +938,7 @@
       "type": "object",
       "properties": {
         "args": {
-          "description": "Arguments to the entrypoint.\nThe container image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional\n+listType=atomic",
+          "description": "Arguments to the entrypoint.\nThe container image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
           "type": "array",
           "items": {
             "type": "string"
@@ -953,7 +952,7 @@
           "x-go-name": "BackoffLimit"
         },
         "command": {
-          "description": "Entrypoint array. Not executed within a shell.\nThe container image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional\n+listType=atomic",
+          "description": "Entrypoint array. Not executed within a shell.\nThe container image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
           "type": "array",
           "items": {
             "type": "string"
@@ -964,7 +963,7 @@
           "$ref": "#/definitions/FailurePolicy"
         },
         "image": {
-          "description": "Name of an existing container image to use when running the job. Overrides an image in the RadixDeployment\nMore info: https://www.radix.equinor.com/radix-config#image-2\n+optional",
+          "description": "Name of an existing container image to use when running the job. Overrides an image in the RadixDeployment\nMore info: https://www.radix.equinor.com/radix-config#image-2",
           "type": "string",
           "x-go-name": "Image"
         },
@@ -992,7 +991,7 @@
           "$ref": "#/definitions/Resources"
         },
         "runAsUser": {
-          "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser\n+optional",
+          "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
           "type": "integer",
           "format": "int64",
           "x-go-name": "RunAsUser"
@@ -1053,7 +1052,7 @@
           "x-go-name": "Ended"
         },
         "failed": {
-          "description": "The number of times the container for the job has failed.\n+optional",
+          "description": "The number of times the container for the job has failed.",
           "type": "integer",
           "format": "int32",
           "x-go-name": "Failed"
@@ -1068,7 +1067,7 @@
           "description": "Message, if any, of the job",
           "type": "string",
           "x-go-name": "Message",
-          "example": "\"Error occurred\""
+          "example": "Error occurred"
         },
         "name": {
           "description": "Name of the job",
@@ -1085,7 +1084,7 @@
           "x-go-name": "PodStatuses"
         },
         "restart": {
-          "description": "Timestamp of the job restart, if applied.\n+optional",
+          "description": "Timestamp of the job restart, if applied.",
           "type": "string",
           "x-go-name": "Restart"
         },
@@ -1096,7 +1095,7 @@
           "x-go-name": "Started"
         },
         "status": {
-          "description": "Status of the job\nRunning = Job is running\nSucceeded = Job has succeeded\nFailed = Job has failed\nWaiting = Job is waiting\nStopping = Job is stopping\nStopped = Job has been stopped\nActive = Job is active\nCompleted = Job is completed",
+          "description": "Status of the job\n- Running = Job is running\n- Succeeded = Job has succeeded\n- Failed = Job has failed\n- Waiting = Job is waiting\n- Stopping = Job is stopping\n- Stopped = Job has been stopped\n- Active = Job is active\n- Completed = Job is completed",
           "type": "string",
           "enum": [
             "Running",
@@ -1225,7 +1224,7 @@
       "type": "object",
       "properties": {
         "args": {
-          "description": "Arguments to the entrypoint.\nThe container image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional\n+listType=atomic",
+          "description": "Arguments to the entrypoint.\nThe container image's CMD is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
           "type": "array",
           "items": {
             "type": "string"
@@ -1239,7 +1238,7 @@
           "x-go-name": "BackoffLimit"
         },
         "command": {
-          "description": "Entrypoint array. Not executed within a shell.\nThe container image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell\n+optional\n+listType=atomic",
+          "description": "Entrypoint array. Not executed within a shell.\nThe container image's ENTRYPOINT is used if this is not provided.\nVariable references $(VAR_NAME) are expanded using the container's environment. If a variable\ncannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will\nproduce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless\nof whether the variable exists or not. Cannot be updated.\nMore info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
           "type": "array",
           "items": {
             "type": "string"
@@ -1250,7 +1249,7 @@
           "$ref": "#/definitions/FailurePolicy"
         },
         "image": {
-          "description": "Name of an existing container image to use when running the job. Overrides an image in the RadixDeployment\nMore info: https://www.radix.equinor.com/radix-config#image-2\n+optional",
+          "description": "Name of an existing container image to use when running the job. Overrides an image in the RadixDeployment\nMore info: https://www.radix.equinor.com/radix-config#image-2",
           "type": "string",
           "x-go-name": "Image"
         },
@@ -1266,7 +1265,7 @@
           "$ref": "#/definitions/Resources"
         },
         "runAsUser": {
-          "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser\n+optional",
+          "description": "User ID to run the container as\nMore info: https://www.radix.equinor.com/radix-config#runasuser",
           "type": "integer",
           "format": "int64",
           "x-go-name": "RunAsUser"
@@ -1299,7 +1298,7 @@
       ],
       "properties": {
         "status": {
-          "description": "Status of the container\nPending = Container in Waiting state and the reason is ContainerCreating\nFailed = Container is failed\nFailing = Container is failed\nRunning = Container in Running state\nSucceeded = Container in Succeeded state\nTerminated = Container in Terminated state\nStopped = Job has been stopped",
+          "description": "Status of the container\n- Pending = Container in Waiting state and the reason is ContainerCreating\n- Failed = Container is failed\n- Failing = Container is failed\n- Running = Container in Running state\n- Succeeded = Container in Succeeded state\n- Terminated = Container in Terminated state\n- Stopped = Job has been stopped",
           "type": "string",
           "enum": [
             "Pending",
@@ -1348,7 +1347,7 @@
           "example": "amd64"
         },
         "nodeType": {
-          "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype\n+kubebuilder:validation:MaxLength=120\n+kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$\n+optional",
+          "description": "Defines the node type for the component. It is a node-pool label and taint, where the component's or job's pods will be scheduled.\nMore info: https://www.radix.equinor.com/radix-config#nodetype",
           "type": "string",
           "x-go-name": "NodeType"
         }

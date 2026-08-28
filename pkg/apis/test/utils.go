@@ -326,20 +326,6 @@ func (tu *Utils) CreateClusterPrerequisites(clustername string) error {
 		metav1.CreateOptions{})
 	errs = append(errs, err)
 
-	_, err = tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
-		context.Background(),
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "radix-config",
-				Namespace: corev1.NamespaceDefault,
-			},
-			Data: map[string]string{
-				"clustername": clustername,
-			},
-		},
-		metav1.CreateOptions{})
-	errs = append(errs, err)
-
 	_, err = tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.Background(),
 		&corev1.Secret{
