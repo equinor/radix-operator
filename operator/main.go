@@ -109,7 +109,8 @@ func initializeApp(ctx context.Context) (*App, error) {
 	var err error
 
 	cfgClient, _ := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
-	app.config2 = config2.MustParse(ctx, config2.EnvConfigMapReader(cfgClient))
+	cfgYaml := config2.MustEnvConfigMapReader(ctx, cfgClient)
+	app.config2 = config2.MustParse(ctx, cfgYaml)
 
 	app.config = apiconfig.MustParse()
 	initLogger(app.config2)

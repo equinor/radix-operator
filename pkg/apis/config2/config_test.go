@@ -1,11 +1,10 @@
 package config2_test
 
 import (
-	"context"
-	"errors"
-	"os"
 	"strings"
 	"testing"
+
+	_ "embed"
 
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
@@ -16,21 +15,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func testReader(configYaml string) config2.ConfigReader {
-	return func(_ context.Context) (string, error) {
-		return configYaml, nil
-	}
-}
+//go:embed testdata/config-happypath.yaml
+var configHappyYaml string
 
-func testFileReader(t *testing.T, path string) config2.ConfigReader {
-	t.Helper()
-	configYaml, err := os.ReadFile(path)
-	require.NoError(t, err)
-	return testReader(string(configYaml))
-}
+//go:embed testdata/config-missing-required.yaml
+var configMissingRequiredYaml string
 
 func TestParse_HappyPath(t *testing.T) {
-	cfg, err := config2.Parse(t.Context(), testFileReader(t, "testdata/config-happypath.yaml"))
+	cfg, err := config2.Parse(t.Context(), configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -42,7 +34,7 @@ func TestParse_HappyPath(t *testing.T) {
 func TestParse_EnvOverride(t *testing.T) {
 	t.Setenv("OPERATOR_LOG_LEVEL", "debug")
 
-	cfg, err := config2.Parse(t.Context(), testFileReader(t, "testdata/config-happypath.yaml"))
+	cfg, err := config2.Parse(t.Context(), configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -51,11 +43,9 @@ func TestParse_EnvOverride(t *testing.T) {
 
 func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
 	t.Setenv("CLUSTER_NAME", "env-cluster")
-	configYaml, err := os.ReadFile("testdata/config-happypath.yaml")
-	require.NoError(t, err)
-	configYaml = []byte(strings.ReplaceAll(string(configYaml), "common:\n  clusterName: test-cluster\n", "common: {}\n"))
+	configYamlStr := strings.ReplaceAll(configHappyYaml, "common:\n  clusterName: test-cluster\n", "common: {}\n")
 
-	cfg, err := config2.Parse(t.Context(), testReader(string(configYaml)))
+	cfg, err := config2.Parse(t.Context(), configYamlStr)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -63,24 +53,14 @@ func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
 }
 
 func TestParse_MissingRequiredField(t *testing.T) {
-	cfg, err := config2.Parse(t.Context(), testFileReader(t, "testdata/config-missing-required.yaml"))
+	cfg, err := config2.Parse(t.Context(), configMissingRequiredYaml)
 
 	require.Error(t, err)
 	assert.Nil(t, cfg)
 }
 
-func TestParse_ReaderError(t *testing.T) {
-	readerErr := errors.New("reader failed")
-	reader := func(_ context.Context) (string, error) { return "", readerErr }
-
-	cfg, err := config2.Parse(t.Context(), reader)
-
-	require.ErrorIs(t, err, readerErr)
-	assert.Nil(t, cfg)
-}
-
 func TestParse_AllOperatorConfig(t *testing.T) {
-	cfg, err := config2.Parse(t.Context(), testFileReader(t, "testdata/config-happypath.yaml"))
+	cfg, err := config2.Parse(t.Context(), configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -99,8 +79,7 @@ func TestParse_AllOperatorConfig(t *testing.T) {
 }
 
 func TestEnvConfigMapReader(t *testing.T) {
-	configYaml, err := os.ReadFile("testdata/config-happypath.yaml")
-	require.NoError(t, err)
+	configYaml := configHappyYaml
 
 	tests := map[string]struct {
 		env       map[string]string
@@ -115,9 +94,9 @@ func TestEnvConfigMapReader(t *testing.T) {
 		},
 		"env vars select namespace, name and key": {
 			env: map[string]string{
-				"POD_NAMESPACE":              "radix-system",
-				"RADIX_OPERATOR_CONFIG_NAME": "custom-config",
-				"RADIX_OPERATOR_CONFIG_KEY":  "customKey",
+				"POD_NAMESPACE":            "radix-system",
+				"RADIX_COMMON_CONFIG_NAME": "custom-config",
+				"RADIX_COMMON_CONFIG_KEY":  "customKey",
 			},
 			configMap: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{Name: "custom-config", Namespace: "radix-system"},
@@ -140,13 +119,15 @@ func TestEnvConfigMapReader(t *testing.T) {
 			}
 			client := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(test.configMap).Build()
 
-			cfg, err := config2.Parse(t.Context(), config2.EnvConfigMapReader(client))
-
+			reader, err := config2.EnvConfigMapReader(t.Context(), client)
 			if test.expectErr {
 				require.Error(t, err)
-				assert.Nil(t, cfg)
+				assert.Empty(t, reader)
 				return
 			}
+			require.NoError(t, err)
+
+			cfg, err := config2.Parse(t.Context(), reader)
 			require.NoError(t, err)
 			require.NotNil(t, cfg)
 			assert.Equal(t, "test-cluster", cfg.Common.ClusterName)

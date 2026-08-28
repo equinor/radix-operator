@@ -38,15 +38,9 @@ type OperatorConfig struct {
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_QPS" required:"true"`
 }
 
-type ConfigReader func(ctx context.Context) (string, error)
-
-func Parse(ctx context.Context, reader ConfigReader) (*Config, error) {
+func Parse(ctx context.Context, configYaml string) (*Config, error) {
 	var cfg Config
 
-	configYaml, err := reader(ctx)
-	if err != nil {
-		return nil, err
-	}
 	if err := yaml.Unmarshal([]byte(configYaml), &cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config YAML: %w", err)
 	}
@@ -63,8 +57,8 @@ func Parse(ctx context.Context, reader ConfigReader) (*Config, error) {
 	return &cfg, nil
 }
 
-func MustParse(ctx context.Context, reader ConfigReader) Config {
-	cfg, err := Parse(ctx, reader)
+func MustParse(ctx context.Context, configYaml string) Config {
+	cfg, err := Parse(ctx, configYaml)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse config")
 	}
