@@ -42,9 +42,6 @@ func createGetLogEndpoint(appName, podName string) string {
 }
 
 func setupTest(t *testing.T) (*commontest.Utils, *controllertest.TestUtils, kubernetes.Interface, radixclient.Interface, kedav2.Interface, client.Client, secretsstorevclient.Interface, *certfake.Clientset) {
-	const (
-		clusterName = "AnyClusterName"
-	)
 	kubeClient := kubefake.NewClientset()         //nolint:staticcheck
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
 	kedaClient := kedafake.NewSimpleClientset()
@@ -53,7 +50,7 @@ func setupTest(t *testing.T) (*commontest.Utils, *controllertest.TestUtils, kube
 	dynamicClient := commontest.CreateClient()
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeClient, radixClient, kedaClient, secretProviderClient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 
 	// controllerTestUtils is used for issuing HTTP request and processing responses

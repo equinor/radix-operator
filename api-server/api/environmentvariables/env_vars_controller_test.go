@@ -63,7 +63,7 @@ func setupTest(t *testing.T) (*kubefake.Clientset, *radixfake.Clientset, *kedafa
 
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	return kubeclient, radixclient, kedaClient, dynamicClient, commonTestUtils, commonTestUtils.GetKubeUtil(), secretproviderclient, certClient
 }

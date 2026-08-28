@@ -68,7 +68,7 @@ func setupTest(t *testing.T, envHandlerOpts []EnvironmentHandlerOptions) (*commo
 
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixClient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 
 	mockValidator := authnmock.NewMockValidatorInterface(gomock.NewController(t))

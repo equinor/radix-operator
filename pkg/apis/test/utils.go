@@ -307,7 +307,7 @@ func SetRequiredEnvironmentVariables() {
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername string) error {
+func (tu *Utils) CreateClusterPrerequisites() error {
 	SetRequiredEnvironmentVariables()
 
 	var errs []error

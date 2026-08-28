@@ -38,7 +38,6 @@ import (
 )
 
 const (
-	clusterName        = "AnyClusterName"
 	anyAppName         = "any-app"
 	anyComponentName   = "app"
 	anyJobName         = "job"
@@ -56,7 +55,7 @@ func setupTest(t *testing.T, tlsValidator tlsvalidation.Validator) (*commontest.
 	certClient := certclientfake.NewSimpleClientset()
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 
 	// secretControllerTestUtils is used for issuing HTTP request and processing responses

@@ -96,7 +96,7 @@ func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 		secretProviderClient,
 	)
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, kedaClient, secretProviderClient)
-	err := handlerTestUtils.CreateClusterPrerequisites(testClusterName)
+	err := handlerTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, kedaClient, dynamicClient, secretProviderClient, certClient
 }

@@ -48,7 +48,6 @@ import (
 )
 
 const (
-	clusterName                            = "AnyClusterName"
 	dnsZone                                = "some-dns-zone.com"
 	federatedCredentialsMigratedAnnotation = kube.RadixFederatedCredentialsMigratedAnnotation
 )
@@ -81,7 +80,7 @@ func setupTestWithFactory(t *testing.T, handlerFactory ApplicationHandlerFactory
 
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	prometheusHandlerMock := createPrometheusHandlerMock(t, nil)
 

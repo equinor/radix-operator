@@ -54,7 +54,7 @@ func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, *radix.Cl
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(fakekube, fakeradix, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix, kedaClient, secretproviderclient)
-	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName")
+	err := handlerTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 
 	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
