@@ -7,16 +7,4 @@ metadata:
     {{- include "radix-operator.labels" . | nindent 4 }}
 data:
   configYaml: |
-    common:
-      clusterName: {{ .Values.config.common.clusterName | quote }}
-    operator:
-      logLevel: {{ .Values.config.operator.logLevel | quote }}
-      logPrettyPrint: {{ .Values.config.operator.logPrettyPrint }}
-      registrationControllerThreads: {{ .Values.config.operator.registrationControllerThreads }}
-      applicationControllerThreads: {{ .Values.config.operator.applicationControllerThreads }}
-      environmentControllerThreads: {{ .Values.config.operator.environmentControllerThreads }}
-      deploymentControllerThreads: {{ .Values.config.operator.deploymentControllerThreads }}
-      jobControllerThreads: {{ .Values.config.operator.jobControllerThreads }}
-      alertControllerThreads: {{ .Values.config.operator.alertControllerThreads }}
-      kubeClientRateLimitBurst: {{ .Values.config.operator.kubeClientRateLimitBurst }}
-      kubeClientRateLimitQPS: {{ .Values.config.operator.kubeClientRateLimitQPS }}
+    {{- .Values.config | toYaml | nindent 4 }}
