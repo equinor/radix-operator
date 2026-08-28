@@ -108,7 +108,10 @@ func initializeApp(ctx context.Context) (*App, error) {
 	var app App
 	var err error
 
-	cfgClient, _ := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
+	cfgClient, err := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create config reader client: %w", err)
+	}
 	cfgYaml := config2.MustEnvConfigMapReader(ctx, cfgClient)
 	app.config2 = config2.MustParse(cfgYaml)
 
