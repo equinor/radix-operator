@@ -56,6 +56,17 @@ func TestParse_EnvOverride(t *testing.T) {
 	assert.Equal(t, "debug", cfg.Operator.LogLevel)
 }
 
+// Only slice fields are comma separated, a scalar keeps the value as it is.
+func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
+	t.Setenv("OPERATOR_LOG_LEVEL", "debug,info")
+
+	cfg, err := config2.Parse(configHappyYaml)
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Equal(t, "debug,info", cfg.Operator.LogLevel)
+}
+
 func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
 	t.Setenv("CLUSTER_NAME", "env-cluster")
 	configYamlStr := strings.ReplaceAll(configHappyYaml, "common:\n  clusterName: test-cluster\n", "common: {}\n")

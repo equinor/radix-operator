@@ -97,6 +97,13 @@ func setAll(cfg any, value string) error {
 	})
 }
 
+// setAllValues invokes the setter for every visited field using the same input values.
+func setAllValues(cfg any, values ...string) error {
+	return WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, setter SetValFunc) error {
+		return setter(values...)
+	})
+}
+
 // visitAll records the name of every field handed to the callback, in traversal order.
 func visitAll(cfg any) ([]string, error) {
 	var visited []string

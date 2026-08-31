@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/rs/zerolog/log"
@@ -84,7 +85,12 @@ func processEnvOverrides(cfg *Config) error {
 			return nil
 		}
 
-		if err := setter(envValue); err != nil {
+		values := []string{envValue}
+		if field.Type.Kind() == reflect.Slice {
+			values = strings.Split(envValue, ",")
+		}
+
+		if err := setter(values...); err != nil {
 			return fmt.Errorf("failed to set field %q from env %q: %w", path, envTag, err)
 		}
 		return nil

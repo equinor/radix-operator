@@ -205,10 +205,10 @@ func TestSetBasicTypeReturnsErrors(t *testing.T) {
 			config:      &struct{ Value int }{},
 			errorString: "failed to parse int",
 		},
-		"unsupported slice": {
+		"unsupported slice element": {
 			value:       "value",
-			config:      &struct{ Value []string }{},
-			errorString: "unsupported field type: slice",
+			config:      &struct{ Value []any }{},
+			errorString: "field \"Value[0]\": unsupported field type: interface",
 		},
 		"unsupported map": {
 			value:       "value",

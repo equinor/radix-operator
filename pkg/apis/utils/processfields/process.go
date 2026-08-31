@@ -10,7 +10,9 @@ import (
 	"time"
 )
 
-type SetValFunc func(value string) error
+// SetValFunc sets a field from one or more string values. A slice field takes one value per
+// element, any other field takes exactly one.
+type SetValFunc func(values ...string) error
 
 type WalkFunc func(path string, field reflect.StructField, value reflect.Value, setter SetValFunc) error
 
@@ -81,8 +83,8 @@ func (w *walker) walkStruct(val reflect.Value, path string) error {
 			continue
 		}
 
-		setter := func(value string) error {
-			return setFieldValue(fieldValue, value, fieldPath)
+		setter := func(values ...string) error {
+			return setFieldValue(fieldValue, values, fieldPath)
 		}
 		if err := w.fn(fieldPath, fieldType, fieldValue, setter); err != nil {
 			return err
@@ -123,23 +125,46 @@ func (w *walker) walkList(list reflect.Value, path string) error {
 	return nil
 }
 
-func setFieldValue(field reflect.Value, value, path string) error {
+func setFieldValue(field reflect.Value, values []string, path string) error {
 	if !field.CanSet() {
 		return fmt.Errorf("cannot set field %q", path)
 	}
 	if field.Kind() != reflect.Pointer {
-		return setValue(field, value, path)
+		return setValues(field, values, path)
 	}
 	if !field.IsNil() {
-		return setValue(field.Elem(), value, path)
+		return setValues(field.Elem(), values, path)
 	}
 
 	// Allocate into a temporary so the field stays nil when the value is invalid.
 	temp := reflect.New(field.Type().Elem())
-	if err := setValue(temp.Elem(), value, path); err != nil {
+	if err := setValues(temp.Elem(), values, path); err != nil {
 		return err
 	}
 	field.Set(temp)
+	return nil
+}
+
+func setValues(field reflect.Value, values []string, path string) error {
+	// An unmarshaler owns its own parsing, even when the underlying kind is a slice.
+	if field.Kind() == reflect.Slice && !implementsUnmarshaler(field.Type()) {
+		return setSlice(field, values, path)
+	}
+	if len(values) != 1 {
+		return fmt.Errorf("field %q: expected a single value, got %d", path, len(values))
+	}
+	return setValue(field, values[0], path)
+}
+
+func setSlice(field reflect.Value, values []string, path string) error {
+	// Filled in full before assignment, so a bad element leaves the field untouched.
+	slice := reflect.MakeSlice(field.Type(), len(values), len(values))
+	for i, value := range values {
+		if err := setValue(slice.Index(i), value, fmt.Sprintf("%s[%d]", path, i)); err != nil {
+			return err
+		}
+	}
+	field.Set(slice)
 	return nil
 }
 

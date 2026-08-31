@@ -42,6 +42,7 @@ fail with `cannot set field "X"`.
 | `encoding.TextUnmarshaler`                    | `UnmarshalText`                                               |
 | `encoding.BinaryUnmarshaler`                  | `UnmarshalBinary`                                             |
 | `json.Unmarshaler`                            | `UnmarshalJSON`, given the value as a JSON string             |
+| slice of any of the above                     | one value per element                                         |
 
 Defined types built on those kinds work too, e.g. `type logLevel string`.
 
@@ -50,6 +51,25 @@ above, which is also how you add support for a type of your own. When a type imp
 several of the interfaces, text wins over binary, and binary over JSON. The unmarshaler
 must have a **pointer receiver**; a value receiver would unmarshal into a copy and lose the
 result, so it is rejected with an error rather than silently ignored.
+
+## Slices of leaf types
+
+The setter is variadic. A slice field takes one value per element, any other field takes
+exactly one and rejects anything else with `expected a single value, got N`:
+
+```go
+setter("a", "b")            // Groups []string  -> []string{"a", "b"}
+setter()                    // Groups []string  -> []string{}
+setter(strings.Split(os.Getenv("GROUPS"), ",")...)
+```
+
+Splitting is the caller's job — the package does not pick a separator. Elements are parsed
+with the same rules as any other leaf, so `[]time.Duration` and slices of unmarshaler types
+work. The slice is built in full before it is assigned, so a bad element leaves the field
+untouched and the error names the index: `field "Groups[1]": failed to parse int: ...`.
+
+A slice type that implements an unmarshaler itself, such as a `[]byte` with
+`UnmarshalBinary`, is a leaf and parses the whole value on its own.
 
 ## Traversal
 
@@ -112,10 +132,8 @@ Give a section its own `UnmarshalText` if you want it treated as a leaf instead.
 
 ## Not supported
 
-- **Slices and maps of non-struct types** — `[]string`, `map[string]string`. They are
-  visited, but the setter fails with `unsupported field type: slice`.
-- **Pointer to slice** — `*[]Section` is neither a nested struct nor a list, so it falls
-  through to the leaf path and errors.
+- **Maps** — `map[string]string` is visited, but the setter fails with
+  `unsupported field type: map`.
 - **Interface, channel, function and complex fields.**
 - **Recursive types** — a struct that reaches itself is rejected with
   `recursive type ... is not supported` rather than looped over.
