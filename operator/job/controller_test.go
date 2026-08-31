@@ -41,8 +41,6 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 		err := sut.Run(s.Ctx, 4)
 		s.Require().NoError(err)
 	}()
-	s.KubeInformerFactory.WaitForCacheSync(s.Ctx.Done())
-	s.RadixInformerFactory.WaitForCacheSync(s.Ctx.Done())
 
 	rj := &v1.RadixJob{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: jobName}, Spec: v1.RadixJobSpec{AppName: appName}}
 

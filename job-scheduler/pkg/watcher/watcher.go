@@ -120,9 +120,11 @@ func NewRadixBatchWatcher(ctx context.Context, radixClient radixclient.Interface
 }
 
 func notify(ctx context.Context, notifier notifications.Notifier, ev events.Event, newRadixBatch *radixv1.RadixBatch, updatedJobStatuses []radixv1.RadixBatchJobStatus) {
-	if err := notifier.Notify(ev, newRadixBatch, updatedJobStatuses); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to notify")
-	}
+	go func() {
+		if err := notifier.Notify(ev, newRadixBatch, updatedJobStatuses); err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("failed to notify")
+		}
+	}()
 }
 
 func (w *watcher) cleanupJobHistory(ctx context.Context, existingRadixBatchNamesMap map[string]struct{}) {
