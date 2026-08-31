@@ -108,7 +108,6 @@ func TestSetSupportedBasicTypes(t *testing.T) {
 	}
 }
 
-// Unsigned integers are a common config shape (ports, sizes) and are not handled today.
 func TestSetUnsignedIntegerTypes(t *testing.T) {
 	t.Parallel()
 
