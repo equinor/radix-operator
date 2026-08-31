@@ -23,12 +23,25 @@ var configMissingRequiredYaml string
 
 func TestParse_HappyPath(t *testing.T) {
 	cfg, err := config2.Parse(configHappyYaml)
-
 	require.NoError(t, err)
-	require.NotNil(t, cfg)
-	assert.Equal(t, "info", cfg.Operator.LogLevel)
-	assert.True(t, cfg.Operator.LogPrettyPrint)
-	assert.Equal(t, "test-cluster", cfg.Common.ClusterName)
+
+	assert.Equal(t, &config2.Config{
+		Common: config2.CommonConfig{
+			ClusterName: "test-cluster",
+		},
+		Operator: config2.OperatorConfig{
+			LogLevel:                      "info",
+			LogPrettyPrint:                true,
+			RegistrationControllerThreads: 1,
+			ApplicationControllerThreads:  2,
+			EnvironmentControllerThreads:  3,
+			DeploymentControllerThreads:   4,
+			JobControllerThreads:          5,
+			AlertControllerThreads:        6,
+			KubeClientRateLimitBurst:      100,
+			KubeClientRateLimitQPS:        50.5,
+		},
+	}, cfg)
 }
 
 func TestParse_EnvOverride(t *testing.T) {
@@ -57,25 +70,6 @@ func TestParse_MissingRequiredField(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, cfg)
-}
-
-func TestParse_AllOperatorConfig(t *testing.T) {
-	cfg, err := config2.Parse(configHappyYaml)
-
-	require.NoError(t, err)
-	require.NotNil(t, cfg)
-	assert.Equal(t, config2.OperatorConfig{
-		LogLevel:                      "info",
-		LogPrettyPrint:                true,
-		RegistrationControllerThreads: 1,
-		ApplicationControllerThreads:  2,
-		EnvironmentControllerThreads:  3,
-		DeploymentControllerThreads:   4,
-		JobControllerThreads:          5,
-		AlertControllerThreads:        6,
-		KubeClientRateLimitBurst:      100,
-		KubeClientRateLimitQPS:        50.5,
-	}, cfg.Operator)
 }
 
 func TestEnvConfigMapReader(t *testing.T) {
