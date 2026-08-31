@@ -38,13 +38,8 @@ func BuildEnvironmentSummaryList(rr *radixv1.RadixRegistration, ra *radixv1.Radi
 
 	for _, re := range slice.FindAll(reList, predicate.IsOrphanEnvironment) {
 		deploymentSummary := getActiveDeploymentSummary(ra.GetName(), re.Spec.EnvName, rdList)
-		buildFromBranch := ""
-		if deploymentSummary != nil && deploymentSummary.GitRefType == "branch" {
-			buildFromBranch = deploymentSummary.GitRef
-		}
 		env := &environmentModels.EnvironmentSummary{
 			Name:             re.Spec.EnvName,
-			BranchMapping:    buildFromBranch,
 			ActiveDeployment: deploymentSummary,
 			Status:           getEnvironmentConfigurationStatus(&re).String(),
 		}
