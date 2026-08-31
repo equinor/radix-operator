@@ -70,12 +70,7 @@ func TestWalkFieldsDoesNotSilentlyDiscardValueReceiverWrites(t *testing.T) {
 	cfg := &struct{ Value selfMutatingTextValue }{}
 
 	err := setAll(cfg, "radix")
-
-	if err != nil {
-		assert.ErrorContains(t, err, "Value")
-		return
-	}
-	assert.Equal(t, "radix", cfg.Value.Received)
+	assert.ErrorContains(t, err, "Value")
 }
 
 // Pointers to primitives are the idiomatic way to model optional config values.
