@@ -25,7 +25,7 @@ func TestParse_HappyPath(t *testing.T) {
 	cfg, err := config2.Parse(configHappyYaml)
 	require.NoError(t, err)
 
-	assert.Equal(t, &config2.Config{
+	expected := &config2.Config{
 		Common: config2.CommonConfig{
 			ClusterName: "test-cluster",
 		},
@@ -41,7 +41,9 @@ func TestParse_HappyPath(t *testing.T) {
 			KubeClientRateLimitBurst:      100,
 			KubeClientRateLimitQPS:        50.5,
 		},
-	}, cfg)
+	}
+
+	assert.Equal(t, expected, cfg)
 }
 
 func TestParse_EnvOverride(t *testing.T) {
