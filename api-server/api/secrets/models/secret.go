@@ -66,7 +66,6 @@ type SecretType string
 
 const (
 	SecretTypeGeneric               SecretType = "generic"
-	SecretTypeAzureBlobFuseVolume   SecretType = "azure-blob-fuse-volume"
 	SecretTypeCsiAzureBlobVolume    SecretType = "csi-azure-blob-volume"
 	SecretTypeCsiAzureKeyVaultCreds SecretType = "csi-azure-key-vault-creds"
 	SecretTypeCsiAzureKeyVaultItem  SecretType = "csi-azure-key-vault-item"
