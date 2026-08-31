@@ -8973,17 +8973,16 @@
           "example": "Consistent"
         },
         "type": {
-          "description": "Type of the secret\ngeneric SecretTypeGeneric\nazure-blob-fuse-volume SecretTypeAzureBlobFuseVolume\ncsi-azure-blob-volume SecretTypeCsiAzureBlobVolume\ncsi-azure-key-vault-creds SecretTypeCsiAzureKeyVaultCreds\ncsi-azure-key-vault-item SecretTypeCsiAzureKeyVaultItem\noauth2-proxy SecretTypeOAuth2Proxy",
+          "description": "Type of the secret\ngeneric SecretTypeGeneric\ncsi-azure-blob-volume SecretTypeCsiAzureBlobVolume\ncsi-azure-key-vault-creds SecretTypeCsiAzureKeyVaultCreds\ncsi-azure-key-vault-item SecretTypeCsiAzureKeyVaultItem\noauth2-proxy SecretTypeOAuth2Proxy",
           "type": "string",
           "enum": [
             "generic",
-            "azure-blob-fuse-volume",
             "csi-azure-blob-volume",
             "csi-azure-key-vault-creds",
             "csi-azure-key-vault-item",
             "oauth2-proxy"
           ],
-          "x-go-enum-desc": "generic SecretTypeGeneric\nazure-blob-fuse-volume SecretTypeAzureBlobFuseVolume\ncsi-azure-blob-volume SecretTypeCsiAzureBlobVolume\ncsi-azure-key-vault-creds SecretTypeCsiAzureKeyVaultCreds\ncsi-azure-key-vault-item SecretTypeCsiAzureKeyVaultItem\noauth2-proxy SecretTypeOAuth2Proxy",
+          "x-go-enum-desc": "generic SecretTypeGeneric\ncsi-azure-blob-volume SecretTypeCsiAzureBlobVolume\ncsi-azure-key-vault-creds SecretTypeCsiAzureKeyVaultCreds\ncsi-azure-key-vault-item SecretTypeCsiAzureKeyVaultItem\noauth2-proxy SecretTypeOAuth2Proxy",
           "x-go-name": "Type",
           "example": "generic"
         },
