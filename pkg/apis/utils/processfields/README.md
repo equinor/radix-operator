@@ -41,14 +41,15 @@ fail with `cannot set field "X"`.
 | `time.Duration`                               | `time.ParseDuration` — a unit is required, `"30"` is rejected |
 | `encoding.TextUnmarshaler`                    | `UnmarshalText`                                               |
 | `encoding.BinaryUnmarshaler`                  | `UnmarshalBinary`                                             |
+| `json.Unmarshaler`                            | `UnmarshalJSON`, given the value as a JSON string             |
 
 Defined types built on those kinds work too, e.g. `type logLevel string`.
 
-`time.Time` and `url.URL` are supported through the unmarshaler rows above, which is also
-how you add support for a type of your own. When a type implements both interfaces, text
-wins. The unmarshaler must have a **pointer receiver**; a value receiver would unmarshal
-into a copy and lose the result, so it is rejected with an error rather than silently
-ignored.
+`time.Time`, `url.URL` and `resource.Quantity` are supported through the unmarshaler rows
+above, which is also how you add support for a type of your own. When a type implements
+several of the interfaces, text wins over binary, and binary over JSON. The unmarshaler
+must have a **pointer receiver**; a value receiver would unmarshal into a copy and lose the
+result, so it is rejected with an error rather than silently ignored.
 
 ## Traversal
 

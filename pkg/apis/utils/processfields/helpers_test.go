@@ -1,6 +1,7 @@
 package processfields
 
 import (
+	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -56,6 +57,36 @@ func (value *dualUnmarshaler) UnmarshalText(_ []byte) error {
 
 func (value *dualUnmarshaler) UnmarshalBinary(_ []byte) error {
 	value.Method = "binary"
+	return nil
+}
+
+type jsonValue struct {
+	Value string
+}
+
+func (value *jsonValue) UnmarshalJSON(data []byte) error {
+	var text string
+	if err := json.Unmarshal(data, &text); err != nil {
+		return err
+	}
+	if text == "invalid" {
+		return errors.New("invalid json value")
+	}
+	value.Value = strings.ToUpper(text)
+	return nil
+}
+
+type binaryJSONUnmarshaler struct {
+	Method string
+}
+
+func (value *binaryJSONUnmarshaler) UnmarshalBinary(_ []byte) error {
+	value.Method = "binary"
+	return nil
+}
+
+func (value *binaryJSONUnmarshaler) UnmarshalJSON(_ []byte) error {
+	value.Method = "json"
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type timeout time.Duration
@@ -44,6 +45,18 @@ func TestSetUnmarshalerAndParsedTypes(t *testing.T) {
 			field:    "Value",
 			expected: dualUnmarshaler{Method: "text"},
 		},
+		"binary unmarshaler takes precedence over json": {
+			value:    "radix",
+			config:   &struct{ Value binaryJSONUnmarshaler }{},
+			field:    "Value",
+			expected: binaryJSONUnmarshaler{Method: "binary"},
+		},
+		"json unmarshaler": {
+			value:    "radix",
+			config:   &struct{ Value jsonValue }{},
+			field:    "Value",
+			expected: jsonValue{Value: "RADIX"},
+		},
 		"URL": {
 			value:    expectedURL.String(),
 			config:   &struct{ Value url.URL }{},
@@ -61,6 +74,12 @@ func TestSetUnmarshalerAndParsedTypes(t *testing.T) {
 			config:   &struct{ Value time.Duration }{},
 			field:    "Value",
 			expected: 5*time.Minute + 30*time.Second,
+		},
+		"quantity": {
+			value:    "500m",
+			config:   &struct{ Value resource.Quantity }{},
+			field:    "Value",
+			expected: resource.MustParse("500m"),
 		},
 	}
 
@@ -129,6 +148,16 @@ func TestSetUnmarshalerReturnsErrors(t *testing.T) {
 			config:      &struct{ Value binaryValue }{},
 			errorString: "failed to unmarshal binary: invalid binary value",
 		},
+		"json unmarshaler error": {
+			value:       "invalid",
+			config:      &struct{ Value jsonValue }{},
+			errorString: "failed to unmarshal json: invalid json value",
+		},
+		"invalid quantity": {
+			value:       "not-a-quantity",
+			config:      &struct{ Value resource.Quantity }{},
+			errorString: "failed to unmarshal json",
+		},
 		"invalid URL": {
 			value:       "https://example.com/%zz",
 			config:      &struct{ Value url.URL }{},
@@ -165,10 +194,12 @@ func TestWalkFieldsTreatsUnmarshalerStructsAsLeaves(t *testing.T) {
 		Timestamp time.Time
 		URL       url.URL
 		Dual      dualUnmarshaler
+		JSON      jsonValue
+		Quantity  resource.Quantity
 	}
 
 	visited, err := visitAll(&config{})
 
 	require.NoError(t, err)
-	assert.Equal(t, []string{"Timestamp", "URL", "Dual"}, visited)
+	assert.Equal(t, []string{"Timestamp", "URL", "Dual", "JSON", "Quantity"}, visited)
 }

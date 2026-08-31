@@ -2,6 +2,7 @@ package processfields
 
 import (
 	"encoding"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"slices"
@@ -219,6 +220,14 @@ func unmarshalValue(field reflect.Value, value, path string) (bool, error) {
 		}
 		return true, nil
 	}
+	if unmarshaler, ok := target.(json.Unmarshaler); ok {
+		// Config values are plain strings, so they are handed over as a JSON string literal.
+		encoded, _ := json.Marshal(value)
+		if err := unmarshaler.UnmarshalJSON(encoded); err != nil {
+			return true, fmt.Errorf("field %q: failed to unmarshal json: %w", path, err)
+		}
+		return true, nil
+	}
 	return false, nil
 }
 
@@ -241,7 +250,9 @@ func implementsUnmarshaler(typ reflect.Type) bool {
 }
 
 func implementsAnyUnmarshaler(typ reflect.Type) bool {
-	return typ.Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) || typ.Implements(reflect.TypeFor[encoding.BinaryUnmarshaler]())
+	return typ.Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) ||
+		typ.Implements(reflect.TypeFor[encoding.BinaryUnmarshaler]()) ||
+		typ.Implements(reflect.TypeFor[json.Unmarshaler]())
 }
 
 func joinPath(parent, name string) string {
