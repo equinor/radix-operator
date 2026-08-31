@@ -53,14 +53,12 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 		actual, err := b.BuildDeploymentSummary()
 		assert.NoError(t, err)
 		expected := &DeploymentSummary{
-			Name:        deploymentName,
-			Environment: envName,
-			Status:      DeploymentStatusReady,
-			ActiveFrom:  activeFrom,
-			ActiveTo:    &activeTo,
-			DeploymentSummaryPipelineJobInfo: DeploymentSummaryPipelineJobInfo{
-				CreatedByJob: jobName,
-			},
+			Name:         deploymentName,
+			Environment:  envName,
+			Status:       DeploymentStatusReady,
+			ActiveFrom:   activeFrom,
+			ActiveTo:     &activeTo,
+			CreatedByJob: jobName,
 			Components: []*ComponentSummary{
 				{Name: "comp1", Image: "comp_image1", Type: string(radixv1.RadixComponentTypeComponent), Runtime: &Runtime{Architecture: defaults.DefaultNodeSelectorArchitecture}},
 				{Name: "comp2", Image: "comp_image2", Type: string(radixv1.RadixComponentTypeComponent), Runtime: &Runtime{Architecture: string(radixv1.RuntimeArchitectureArm64)}},
@@ -211,15 +209,31 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 		actual, err := b.BuildDeploymentSummary()
 		assert.NoError(t, err)
 		expected := &DeploymentSummary{
-			DeploymentSummaryPipelineJobInfo: DeploymentSummaryPipelineJobInfo{
-				CreatedByJob:            jobName,
-				CommitID:                commitID,
-				PipelineJobType:         string(radixv1.BuildDeploy),
-				PromotedFromEnvironment: promoteFromEnv,
-				BuiltFromBranch:         buildFromBranch,
-			},
+			CreatedByJob:    jobName,
+			PipelineJobType: string(radixv1.BuildDeploy),
 		}
 		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("build with gitRef, gitRefType and promotedFromEnvironment from annotations", func(t *testing.T) {
+		t.Parallel()
+		b := NewDeploymentBuilder().WithRadixDeployment(
+			&radixv1.RadixDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: deploymentName,
+					Annotations: map[string]string{
+						kube.RadixGitRefAnnotation:                            "main",
+						kube.RadixGitRefTypeAnnotation:                        "branch",
+						kube.RadixDeploymentPromotedFromEnvironmentAnnotation: promoteFromEnv,
+					},
+				},
+			},
+		)
+		actual, err := b.BuildDeploymentSummary()
+		assert.NoError(t, err)
+		assert.Equal(t, "main", actual.GitRef)
+		assert.Equal(t, "branch", actual.GitRefType)
+		assert.Equal(t, promoteFromEnv, actual.PromotedFromEnvironment)
 	})
 
 	t.Run("deploy specific components", func(t *testing.T) {
