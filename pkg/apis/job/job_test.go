@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config/quantity"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -45,7 +46,6 @@ type RadixJobTestSuiteBase struct {
 		clusterType    string
 		registry       string
 		appRegistry    string
-		subscriptionID string
 	}
 }
 
@@ -59,7 +59,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		clusterType    string
 		registry       string
 		appRegistry    string
-		subscriptionID string
 	}{
 		clusterName:    "AnyClusterName",
 		buildkitImage:  "docker.io/buildkit:any",
@@ -69,7 +68,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		clusterType:    "anyclustertype",
 		registry:       "anyregistry",
 		appRegistry:    "anyAppRegistry",
-		subscriptionID: "anysubid",
 	}
 }
 
@@ -85,7 +83,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
-	err := handlerTestUtils.CreateClusterPrerequisites(s.config.clusterName, s.config.subscriptionID)
+	err := handlerTestUtils.CreateClusterPrerequisites()
 	s.Require().NoError(err)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient
 
@@ -128,7 +126,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBu
 }
 
 func (s *RadixJobTestSuiteBase) runSync(rr *radixv1.RadixRegistration, rj *radixv1.RadixJob, config *config.Config) error {
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, config)
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, config, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
 	return job.OnSync(context.Background())
 }
 
@@ -161,7 +159,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rj.Generation
-	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, cfg)
+	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, cfg, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -174,7 +172,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	// Second sync with updated generation
 	rj.Generation++
 	expectedGen = rj.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, cfg)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, cfg, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -189,7 +187,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	rjStop, err = s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rjStop, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	expectedGen = rjStop.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjStop, cfg)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjStop, cfg, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rjStop, err = s.radixClient.RadixV1().RadixJobs(rjStop.Namespace).Get(context.Background(), rjStop.Name, metav1.GetOptions{})
@@ -208,7 +206,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 		return true, nil, errors.New(errorMsg)
 	})
 	expectedGen = rjErr.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjErr, cfg)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjErr, cfg, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rjErr, err = s.radixClient.RadixV1().RadixJobs(rjErr.Namespace).Get(context.Background(), rjErr.Name, metav1.GetOptions{})
@@ -302,7 +300,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_CLUSTERNAME=%s", s.config.clusterName),
 				fmt.Sprintf("--RADIX_CONTAINER_REGISTRY=%s", s.config.registry),
 				fmt.Sprintf("--RADIX_APP_CONTAINER_REGISTRY=%s", s.config.appRegistry),
-				fmt.Sprintf("--AZURE_SUBSCRIPTION_ID=%s", s.config.subscriptionID),
 				"--RADIX_GITHUB_WORKSPACE=/workspace",
 				"--RADIX_FILE_NAME=some-radixconfig.yaml",
 				"--TRIGGERED_FROM_WEBHOOK=false",

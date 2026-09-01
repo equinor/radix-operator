@@ -77,7 +77,7 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 			Spec: v1.RadixJobSpec{
 				AppName:      appName,
 				PipeLineType: v1.BuildDeploy,
-				Build:        v1.RadixBuildSpec{Branch: branch, GitRef: branch, GitRefType: v1.GitRefBranch},
+				Build:        v1.RadixBuildSpec{Branch: branch, GitRef: branch, GitRefType: v1.GitRefBranch}, //nolint:staticcheck
 			},
 		}
 		require.NoError(t, c.Create(t.Context(), rj), "should create build-deploy job %s", name)

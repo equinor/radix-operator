@@ -359,7 +359,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = nil
 	}
 
-	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, deploy.config, appName, deploy.radixDeployment, deployComponent)
+	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, deploy.config, deploy.config2, appName, deploy.radixDeployment, deployComponent)
 	if err != nil {
 		return err
 	}

@@ -25,9 +25,7 @@ import (
 )
 
 const (
-	clusterName    = "AnyClusterName"
-	anyAppName     = "any-app"
-	subscriptionId = "12347718-c8f8-4995-bfbb-02655ff1f89c"
+	anyAppName = "any-app"
 )
 
 func setupTest(t *testing.T) (*commontest.Utils, *controllertest.TestUtils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset) {
@@ -40,7 +38,7 @@ func setupTest(t *testing.T) (*commontest.Utils, *controllertest.TestUtils, *kub
 
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName, subscriptionId)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	// controllerTestUtils is used for issuing HTTP request and processing responses
 	mockValidator := authnmock.NewMockValidatorInterface(gomock.NewController(t))

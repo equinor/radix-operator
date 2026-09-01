@@ -1303,7 +1303,7 @@ func Test_HorizontalScalingSummary_Properties(t *testing.T) {
 			horizontalScaling: &v1.RadixHorizontalScaling{
 				MinReplicas: new(int32(2)),
 				MaxReplicas: 9,
-				RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{
+				RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{ //nolint:staticcheck
 					Cpu:    &v1.RadixHorizontalScalingResource{AverageUtilization: new(int32(55))},
 					Memory: &v1.RadixHorizontalScalingResource{AverageUtilization: new(int32(70))},
 				},

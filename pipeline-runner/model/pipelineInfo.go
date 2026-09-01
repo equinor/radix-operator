@@ -141,8 +141,6 @@ type PipelineArguments struct {
 	ContainerRegistry string
 	// AppContainerRegistry the name of the app container registry
 	AppContainerRegistry string
-	// SubscriptionId Azure subscription ID
-	SubscriptionId string
 	// Used to indicate debugging session
 	Debug bool
 	// Image tag names for components: component-name:image-tag

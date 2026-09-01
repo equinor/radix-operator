@@ -11,6 +11,7 @@ import (
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -34,7 +35,6 @@ const (
 	appName         = "any-app"
 	environmentName = "dev"
 	componentName   = "backend"
-	subscriptionId  = "12347718-c8f8-4995-bfbb-02655ff1f89c"
 )
 
 func setupTestWithMockHandler(t *testing.T, mockCtrl *gomock.Controller) (*commontest.Utils, *controllertest.TestUtils, kubernetes.Interface, radixclient.Interface, dynamicclient.Client, certclient.Interface, *MockEnvVarsHandler) {
@@ -63,7 +63,7 @@ func setupTest(t *testing.T) (*kubefake.Clientset, *radixfake.Clientset, *kedafa
 
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName, subscriptionId)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	return kubeclient, radixclient, kedaClient, dynamicClient, commonTestUtils, commonTestUtils.GetKubeUtil(), secretproviderclient, certClient
 }
@@ -219,11 +219,10 @@ func setupDeployment(commonTestUtils *commontest.Utils, kubeClient kubernetes.In
 	}
 
 	deploymentSyncer := deployment.NewDeploymentSyncer(kubeClient, commonTestUtils.GetKubeUtil(), radixClient, dynamicClient, certClient, radixRegistration, rd, nil, &config.Config{
-		ClusterName:           clusterName,
 		ClusterType:           clusterType,
 		DNSZone:               "dev.radix.equinor.com",
 		ContainerRegistryName: "any.container.registry",
-	})
+	}, config2.Config{Common: config2.CommonConfig{ClusterName: clusterName}})
 
 	return deploymentSyncer.OnSync(context.Background())
 }

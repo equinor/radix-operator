@@ -14,6 +14,8 @@ spec:
       {{- include "radix-operator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/radix-common-config: {{ include (print $.Template.BasePath "/radix-common-config.yaml") . | sha256sum }}
       labels:
         {{- include "radix-operator.selectorLabels" . | nindent 8 }}
     spec:
@@ -31,12 +33,14 @@ spec:
               containerPort: {{ .Values.service.internalPort }}
               protocol: TCP
           env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: DNS_ZONE
               value: {{ .Values.dnsZone }}
             - name: RADIX_ZONE
               value: {{ .Values.radixZone }}
-            - name: RADIX_CLUSTERNAME
-              value: {{ .Values.clusterName }}
             - name: APP_ALIAS_BASE_URL
               value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
@@ -103,22 +107,6 @@ spec:
               value: {{ .Values.oauth2redis.image.repository }}:{{ .Values.oauth2redis.image.tag }}
             - name: RADIXOPERATOR_JOB_AUX_IMAGE
               value: {{ .Values.jobAux.image.repository }}:{{ .Values.jobAux.image.tag }}
-            - name: REGISTRATION_CONTROLLER_THREADS
-              value: {{ .Values.registrationControllerThreads | quote }}
-            - name: APPLICATION_CONTROLLER_THREADS
-              value: {{ .Values.applicationControllerThreads | quote }}
-            - name: ENVIRONMENT_CONTROLLER_THREADS
-              value: {{ .Values.environmentControllerThreads | quote }}
-            - name: DEPLOYMENT_CONTROLLER_THREADS
-              value: {{ .Values.deploymentControllerThreads | quote }}
-            - name: JOB_CONTROLLER_THREADS
-              value: {{ .Values.jobControllerThreads | quote }}
-            - name: ALERT_CONTROLLER_THREADS
-              value: {{ .Values.alertControllerThreads | quote }}
-            - name: KUBE_CLIENT_RATE_LIMIT_BURST
-              value: {{ .Values.kubeClientRateLimitBurst | quote }}
-            - name: KUBE_CLIENT_RATE_LIMIT_QPS
-              value: {{ .Values.kubeClientRateLimitQPS | quote }}
             {{- if .Values.podSecurityStandard.enforce.level }}
             - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL
               value: {{ .Values.podSecurityStandard.enforce.level }}

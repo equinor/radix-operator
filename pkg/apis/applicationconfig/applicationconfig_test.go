@@ -34,7 +34,6 @@ import (
 const (
 	sampleRegistration = "./testdata/sampleregistration.yaml"
 	sampleApp          = "./testdata/radixconfig.yaml"
-	clusterName        = "AnyClusterName"
 )
 
 func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *radixfake.Clientset) {
@@ -44,7 +43,7 @@ func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
-	err := handlerTestUtils.CreateClusterPrerequisites(clusterName, "anysubid")
+	err := handlerTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -243,7 +244,7 @@ func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStat
 	err := s.initScenario(scenario)
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixRegistration, scenario.radixJob, nil)
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixRegistration, scenario.radixJob, nil, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
 	err = job.syncStatus(context.Background(), nil)
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 

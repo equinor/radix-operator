@@ -302,7 +302,7 @@ func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv
 }
 
 func (s *syncer) getContainerEnvironmentVariables(ctx context.Context, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob, kubeJobName string) ([]corev1.EnvVar, error) {
-	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(ctx, s.kubeUtil, &s.config, rd.Spec.AppName, rd, jobComponent) //nolint:staticcheck
+	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(ctx, s.kubeUtil, &s.config, s.config2, rd.Spec.AppName, rd, jobComponent) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}

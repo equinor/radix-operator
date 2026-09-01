@@ -370,24 +370,9 @@ func labelNodesForRadixJobs(ctx context.Context, c client.Client) error {
 }
 
 // createClusterPrerequisites creates the cluster-wide resources the operator expects to exist,
-// which are normally provisioned during Radix bootstrap: the radix-config ConfigMap (cluster name
-// and subscription id) and the radix-known-hosts-git Secret, both in the default namespace. These
+// which are normally provisioned during Radix bootstrap: the radix-known-hosts-git Secret in the default namespace. These
 // are required by the job- and registration-controllers. The function is idempotent.
 func createClusterPrerequisites(ctx context.Context, c client.Client, gitKnownHosts string) error {
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "radix-config",
-			Namespace: corev1.NamespaceDefault,
-		},
-		Data: map[string]string{
-			"clustername":    "weekly-e2e",
-			"subscriptionId": "00000000-0000-0000-0000-000000000000",
-		},
-	}
-	if err := c.Create(ctx, configMap); err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create radix-config config map: %w", err)
-	}
-
 	knownHostsSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "radix-known-hosts-git",

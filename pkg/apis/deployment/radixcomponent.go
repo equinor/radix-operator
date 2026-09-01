@@ -36,7 +36,7 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		}
 		deployComponent := radixv1.RadixDeployComponent{
 			Name:             componentName,
-			Public:           false,
+			Public:           false, //nolint:staticcheck
 			Ports:            radixComponent.Ports,
 			MonitoringConfig: radixComponent.MonitoringConfig,
 			Secrets:          radixComponent.Secrets,

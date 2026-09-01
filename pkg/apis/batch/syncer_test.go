@@ -1,3 +1,4 @@
+//nolint:staticcheck // RadixDeploymentSpec.AppName is deprecated but still used by these tests
 package batch
 
 import (
@@ -11,6 +12,7 @@ import (
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -59,7 +61,7 @@ func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, cfg *config.C
 		cfg = &config.Config{}
 	}
 
-	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, defaultRR, forJob, *cfg, options...)
+	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, defaultRR, forJob, *cfg, config2.Config{}, options...)
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
@@ -1315,7 +1317,7 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	s.Require().NoError(err)
 	rd, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, &config.Config{})
+	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, &config.Config{}, config2.Config{})
 	s.Require().NoError(deploySyncer.OnSync(context.Background()))
 
 	sut := s.createSyncer(batch, nil)

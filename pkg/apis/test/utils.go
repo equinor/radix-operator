@@ -307,7 +307,7 @@ func SetRequiredEnvironmentVariables() {
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername, subscriptionId string) error {
+func (tu *Utils) CreateClusterPrerequisites() error {
 	SetRequiredEnvironmentVariables()
 
 	var errs []error
@@ -321,21 +321,6 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, subscriptionId string) 
 			},
 			Data: map[string][]byte{
 				"known_hosts": []byte("abcd"),
-			},
-		},
-		metav1.CreateOptions{})
-	errs = append(errs, err)
-
-	_, err = tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
-		context.Background(),
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "radix-config",
-				Namespace: corev1.NamespaceDefault,
-			},
-			Data: map[string]string{
-				"clustername":    clustername,
-				"subscriptionId": subscriptionId,
 			},
 		},
 		metav1.CreateOptions{})

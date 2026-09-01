@@ -48,9 +48,7 @@ import (
 )
 
 const (
-	clusterName                            = "AnyClusterName"
 	dnsZone                                = "some-dns-zone.com"
-	subscriptionId                         = "12347718-c8f8-4995-bfbb-02655ff1f89c"
 	federatedCredentialsMigratedAnnotation = kube.RadixFederatedCredentialsMigratedAnnotation
 )
 
@@ -82,7 +80,7 @@ func setupTestWithFactory(t *testing.T, handlerFactory ApplicationHandlerFactory
 
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName, subscriptionId)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	prometheusHandlerMock := createPrometheusHandlerMock(t, nil)
 
@@ -957,7 +955,7 @@ func TestHandleTriggerPipeline_ForNonMappedAndMappedAndMagicBranchEnvironment_Jo
 	// Test
 	unmappedBranch := "feature"
 
-	parameters := applicationModels.PipelineParametersBuild{Branch: unmappedBranch}
+	parameters := applicationModels.PipelineParametersBuild{Branch: unmappedBranch} //nolint:staticcheck
 	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", anyAppName, v1.BuildDeploy), parameters)
 	response := <-responseChannel
 
@@ -967,14 +965,14 @@ func TestHandleTriggerPipeline_ForNonMappedAndMappedAndMagicBranchEnvironment_Jo
 	assert.Equal(t, (expectedError.(*radixhttp.Error)).Message, errorResponse.Message)
 
 	// Mapped branch should start job
-	parameters = applicationModels.PipelineParametersBuild{Branch: "dev"}
+	parameters = applicationModels.PipelineParametersBuild{Branch: "dev"} //nolint:staticcheck
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", anyAppName, v1.BuildDeploy), parameters)
 	response = <-responseChannel
 
 	assert.Equal(t, http.StatusOK, response.Code)
 
 	// Magic branch should start job, even if it is not mapped
-	parameters = applicationModels.PipelineParametersBuild{Branch: configBranch}
+	parameters = applicationModels.PipelineParametersBuild{Branch: configBranch} //nolint:staticcheck
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", anyAppName, v1.BuildDeploy), parameters)
 	response = <-responseChannel
 
@@ -998,7 +996,7 @@ func TestHandleTriggerPipeline_ExistingAndNonExistingApplication_JobIsCreatedFor
 	// Test
 	const pushCommitID = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
 
-	parameters := applicationModels.PipelineParametersBuild{Branch: "master", CommitID: pushCommitID}
+	parameters := applicationModels.PipelineParametersBuild{Branch: "master", CommitID: pushCommitID} //nolint:staticcheck
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", "another-app", v1.BuildDeploy), parameters)
 	response := <-responseChannel
 
@@ -1006,7 +1004,7 @@ func TestHandleTriggerPipeline_ExistingAndNonExistingApplication_JobIsCreatedFor
 	errorResponse, _ := controllertest.GetErrorResponse(response)
 	assert.Equal(t, controllertest.AppNotFoundErrorMsg("another-app"), errorResponse.Message)
 
-	parameters = applicationModels.PipelineParametersBuild{Branch: "", CommitID: pushCommitID}
+	parameters = applicationModels.PipelineParametersBuild{Branch: "", CommitID: pushCommitID} //nolint:staticcheck
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", "any-app", v1.BuildDeploy), parameters)
 	response = <-responseChannel
 
@@ -1015,7 +1013,7 @@ func TestHandleTriggerPipeline_ExistingAndNonExistingApplication_JobIsCreatedFor
 	expectedError := applicationModels.AppNameAndBranchAreRequiredForStartingPipeline()
 	assert.Equal(t, (expectedError.(*radixhttp.Error)).Message, errorResponse.Message)
 
-	parameters = applicationModels.PipelineParametersBuild{Branch: "maincfg", CommitID: pushCommitID}
+	parameters = applicationModels.PipelineParametersBuild{Branch: "maincfg", CommitID: pushCommitID} //nolint:staticcheck
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", "any-app", v1.BuildDeploy), parameters)
 	response = <-responseChannel
 	assert.Equal(t, http.StatusOK, response.Code)

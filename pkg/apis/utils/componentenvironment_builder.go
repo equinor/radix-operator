@@ -195,7 +195,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() radixv1.Radix
 		Replicas:                ceb.replicas,
 		Resources:               ceb.resources,
 		VolumeMounts:            ceb.volumeMounts,
-		Node:                    ceb.node,
+		Node:                    ceb.node, //nolint:staticcheck
 		SecretRefs:              ceb.secretRefs,
 		Monitoring:              ceb.monitoring,
 		AlwaysPullImageOnDeploy: ceb.alwaysPullImageOnDeploy,

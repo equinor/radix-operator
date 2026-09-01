@@ -251,7 +251,7 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 			UID:               db.UID,
 		},
 		Spec: v1.RadixDeploymentSpec{
-			AppName:          db.AppName,
+			AppName:          db.AppName, //nolint:staticcheck
 			Components:       components,
 			Jobs:             jobComponents,
 			Environment:      db.Environment,

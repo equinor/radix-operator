@@ -133,7 +133,7 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 			Annotations: deploymentAnnotations,
 		},
 		Spec: radixv1.RadixDeploymentSpec{
-			AppName:          appName,
+			AppName:          appName, //nolint:staticcheck
 			Environment:      env,
 			Components:       components,
 			Jobs:             jobs,

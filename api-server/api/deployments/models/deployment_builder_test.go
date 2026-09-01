@@ -198,7 +198,7 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 					PipeLineType: radixv1.BuildDeploy,
 					Build: radixv1.RadixBuildSpec{
 						CommitID: commitID,
-						Branch:   buildFromBranch,
+						Branch:   buildFromBranch, //nolint:staticcheck
 					},
 					Promote: radixv1.RadixPromoteSpec{
 						FromEnvironment: promoteFromEnv,

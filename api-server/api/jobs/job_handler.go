@@ -350,7 +350,7 @@ func (jh JobHandler) getJobFromRadixJob(ctx context.Context, job *v1.RadixJob, j
 		Pipeline:             string(job.Spec.PipeLineType),
 		Steps:                steps,
 		Deployments:          jobDeployments,
-		Components:           jobComponents,
+		Components:           jobComponents, //nolint:staticcheck
 		TriggeredFromWebhook: job.Spec.TriggeredFromWebhook,
 		TriggeredBy:          job.Spec.TriggeredBy,
 		RerunFromJob:         job.Annotations[jobModels.RadixPipelineJobRerunAnnotation],

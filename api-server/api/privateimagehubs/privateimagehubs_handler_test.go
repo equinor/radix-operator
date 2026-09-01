@@ -23,10 +23,6 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-const (
-	clusterName = "AnyClusterName"
-)
-
 func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
 	kubeUtil, err := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{})
 	require.NoError(t, err)
@@ -95,7 +91,7 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	kedaClient := kedafake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
-	if err := handlerTestUtils.CreateClusterPrerequisites(clusterName, "anysubid"); err != nil {
+	if err := handlerTestUtils.CreateClusterPrerequisites(); err != nil {
 		return nil, nil, nil, nil, err
 	}
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient, nil

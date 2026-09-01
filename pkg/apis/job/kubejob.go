@@ -53,7 +53,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 	}
 
 	workspace := git.Workspace
-	containerArguments, err := job.getPipelineJobArguments(ctx, appName, jobName, workspace, radixConfigFullName, job.radixJob.Spec, pipeline)
+	containerArguments, err := job.getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName, job.radixJob.Spec, pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -141,23 +141,16 @@ func (job *Job) getInitContainersForRadixConfig(workspace string) []corev1.Conta
 	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, job.config.PipelineJobConfig.GitCloneImage)
 }
 
-func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
+func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
 
-	clusterName, err := job.kubeutil.GetClusterName(ctx)
-	if err != nil {
-		return nil, err
-	}
+	clusterName := job.config2.Common.ClusterName
 	containerRegistry, err := defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
 	if err != nil {
 		return nil, err
 	}
 	appContainerRegistry, err := defaults.GetEnvVar(defaults.AppContainerRegistryEnvironmentVariable)
-	if err != nil {
-		return nil, err
-	}
-	subscriptionId, err := job.kubeutil.GetSubscriptionId(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +183,6 @@ func (job *Job) getPipelineJobArguments(ctx context.Context, appName, jobName, w
 		fmt.Sprintf("--%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
 		fmt.Sprintf("--%s=%s", defaults.ContainerRegistryEnvironmentVariable, containerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.AppContainerRegistryEnvironmentVariable, appContainerRegistry),
-		fmt.Sprintf("--%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
 		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
 		fmt.Sprintf("--%s=%v", defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, job.radixJob.Spec.TriggeredFromWebhook),

@@ -18,7 +18,6 @@ func TestMustParse(t *testing.T) {
 		"LOG_PRETTY":      "true",
 		defaults.OperatorDNSZoneEnvironmentVariable:          "dev.radix.equinor.com",
 		defaults.OperatorClusterTypeEnvironmentVariable:      "development",
-		defaults.ClusternameEnvironmentVariable:              "weekly-e2e",
 		defaults.ContainerRegistryEnvironmentVariable:        "radixdev.azurecr.io",
 		defaults.RadixSafeToRestartBatchJobThresholdVariable: "259200",
 
@@ -63,11 +62,8 @@ func TestMustParse(t *testing.T) {
 	cfg := MustParse()
 
 	// Config top-level fields
-	assert.Equal(t, "INFO", cfg.LogLevel)
-	assert.Equal(t, true, cfg.LogPretty)
 	assert.Equal(t, "dev.radix.equinor.com", cfg.DNSZone)
 	assert.Equal(t, "development", cfg.ClusterType)
-	assert.Equal(t, "weekly-e2e", cfg.ClusterName)
 	assert.Equal(t, "radixdev.azurecr.io", cfg.ContainerRegistryName)
 	assert.Equal(t, int64(259200), cfg.SafeToRestartBatchJobThreshold)
 

@@ -361,7 +361,7 @@ func TestCreateJob(t *testing.T) {
 		handler := New(kubeUtil, modelsEnv.NewEnv(), &radixDeployJobComponent)
 		jobStatus, err := handler.CreateJob(context.TODO(), &models.JobScheduleDescription{
 			RadixJobComponentConfig: models.RadixJobComponentConfig{
-				Node: &models.Node{
+				Node: &models.Node{ //nolint:staticcheck
 					Gpu:      "gpu1, gpu2",
 					GpuCount: "2",
 				},
@@ -376,7 +376,7 @@ func TestCreateJob(t *testing.T) {
 		assert.Len(t, radixBatch.Spec.Jobs, 1)
 		expectedJob := radixv1.RadixBatchJob{
 			Name: jobName,
-			Node: &radixv1.RadixNode{
+			Node: &radixv1.RadixNode{ //nolint:staticcheck
 				Gpu:      "gpu1, gpu2",
 				GpuCount: "2",
 			},

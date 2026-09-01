@@ -1,3 +1,4 @@
+//nolint:staticcheck // RadixDeploymentSpec.AppName is deprecated but still validated by kubebuilder rules
 package e2e
 
 import (

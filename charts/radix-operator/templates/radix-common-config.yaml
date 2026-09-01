@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: radix-config
+  name: radix-common-config
   namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
 data:
-  clustername: {{ .Values.clusterName }}
-  subscriptionId: {{ .Values.subscriptionId }}
+  configYaml: |
+    {{- .Values.config | toYaml | nindent 4 }}
