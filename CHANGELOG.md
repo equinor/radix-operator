@@ -2,7 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.127.0](https://github.com/equinor/radix-operator/compare/v1.126.1..v1.127.0) - 2026-08-24
+## [1.128.0](https://github.com/equinor/radix-operator/compare/v1.127.0..v1.128.0) - 2026-09-01
+
+### 🚀 Features
+
+- *(api-server)* Rerun job returns pipeline jobId  (#1936) - ([e1149a7](https://github.com/equinor/radix-operator/commit/e1149a709b4925b4878a3934bae8dc2976492422)) by @herda1 in [#1936](https://github.com/equinor/radix-operator/pull/1936)
+
+
+### 🐛 Bug Fixes
+
+- *(api-server)* Get gitRef and gitRefType from Annotations instead (#1934) - ([84680b2](https://github.com/equinor/radix-operator/commit/84680b21a9e35066ffa3d01ba4006323020a4365)) by @herda1 in [#1934](https://github.com/equinor/radix-operator/pull/1934)
+
+- *(api-server)* Remove deprecated secret type 'azure-blob-fuse-volume' (#1938) - ([ddeabd5](https://github.com/equinor/radix-operator/commit/ddeabd5ecc39fd71b7c4ac2663666827dc6bd156)) by @nilsgstrabo in [#1938](https://github.com/equinor/radix-operator/pull/1938)
+
+- Potential fixes for 2 code quality findings (#1931) - ([c512c73](https://github.com/equinor/radix-operator/commit/c512c73e56aa9e28fcf87e69d45a9539bbe70b65)) by @jacobsolbergholm in [#1931](https://github.com/equinor/radix-operator/pull/1931)
+
+
+## [1.127.0](https://github.com/equinor/radix-operator/compare/v1.126.1..v1.127.0) - 2026-08-25
 
 ### 🚀 Features
 
