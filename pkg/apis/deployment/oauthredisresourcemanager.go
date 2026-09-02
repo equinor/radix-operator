@@ -38,6 +38,7 @@ func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistrati
 		oauthRedisDockerImage:      cfg.Common.OAuth2Proxy.RedisImage.String(),
 		externalRegistryAuthSecret: externalRegistryAuthSecret,
 		logger:                     log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth-redis").Logger(),
+		config2:                    cfg,
 	}
 }
 
@@ -48,6 +49,7 @@ type oauthRedisResourceManager struct {
 	oauthRedisDockerImage      string
 	externalRegistryAuthSecret string
 	logger                     zerolog.Logger
+	config2                    config2.Config
 }
 
 func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
@@ -236,7 +238,7 @@ func (o *oauthRedisResourceManager) getCurrentAndDesiredDeployment(ctx context.C
 func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
 	componentName := component.GetName()
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
-	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(v1.OAuthRedisPortNumber)
+	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(o.config2, v1.OAuthRedisPortNumber)
 	if err != nil {
 		return nil, err
 	}

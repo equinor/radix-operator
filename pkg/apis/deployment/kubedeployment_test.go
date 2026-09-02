@@ -18,14 +18,13 @@ import (
 )
 
 func teardownReadinessProbe() {
-	_ = os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
 	_ = os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 }
 
 func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
 	teardownReadinessProbe()
 
-	probe, err := getDefaultReadinessProbeForComponent(&v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
+	probe, err := getDefaultReadinessProbeForComponent(testConfig2, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
 	assert.Error(t, err)
 	assert.Nil(t, probe)
 }
@@ -33,10 +32,10 @@ func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
 func TestGetReadinessProbe_Custom(t *testing.T) {
 	test.SetRequiredEnvironmentVariables()
 
-	probe, err := getDefaultReadinessProbeForComponent(&v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
+	probe, err := getDefaultReadinessProbeForComponent(testConfig2, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
 	assert.Nil(t, err)
 
-	assert.Equal(t, int32(5), probe.InitialDelaySeconds)
+	assert.Equal(t, testConfig2.Operator.ReadinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
 	assert.Equal(t, int32(10), probe.PeriodSeconds)
 	assert.Equal(t, int32(5000), probe.ProbeHandler.TCPSocket.Port.IntVal)
 
@@ -118,7 +117,7 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe, "default readiness probe should be set")
 	assert.Nil(t, deployment.Spec.Template.Spec.Containers[0].LivenessProbe, "liveness probe should not be set")
 	assert.Nil(t, deployment.Spec.Template.Spec.Containers[0].StartupProbe, "startup probe should not be set")
-	assert.Equal(t, int32(5), deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid default readiness probe initial delay")
+	assert.Equal(t, testConfig2.Operator.ReadinessProbeInitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid default readiness probe initial delay")
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.TCPSocket, "default readiness probe should be tcp")
 	assert.Equal(t, int32(8000), deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.TCPSocket.Port.IntVal, "invalid default readiness probe port")
 }

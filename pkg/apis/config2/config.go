@@ -34,6 +34,8 @@ type OperatorConfig struct {
 	AlertControllerThreads        int     `json:"alertControllerThreads" required:"true"`
 	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" required:"true"`
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
+
+	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
 }
 
 type OAuth2ProxyConfig struct {

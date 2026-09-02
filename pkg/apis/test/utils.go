@@ -297,7 +297,6 @@ func SetRequiredEnvironmentVariables() {
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
 	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
 	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")

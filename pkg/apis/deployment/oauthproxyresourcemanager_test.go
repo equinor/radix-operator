@@ -57,7 +57,6 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	s.T().Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
 	s.T().Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
@@ -320,7 +319,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 
 	for name, scenario := range scenarios {
 		s.Run(name, func() {
-			sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, defaults.NewOAuth2Config(), "proxy:123", "somesecret", zerolog.Nop()}
+			sut := &oauthProxyResourceManager{config2.Config{}, scenario.rd, rr, s.kubeUtil, defaults.NewOAuth2Config(), "proxy:123", "somesecret", zerolog.Nop()}
 			if scenario.existingSa != nil {
 				_, err := s.kubeClient.CoreV1().ServiceAccounts(scenario.existingSa.Namespace).Create(context.Background(), scenario.existingSa, metav1.CreateOptions{})
 				s.NoError(err, "Failed to create service account")

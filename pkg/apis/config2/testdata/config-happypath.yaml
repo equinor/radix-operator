@@ -16,3 +16,4 @@ operator:
   alertControllerThreads: 6
   kubeClientRateLimitBurst: 100
   kubeClientRateLimitQPS: 50.5
+  readinessProbeInitialDelaySeconds: 5

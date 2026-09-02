@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -350,7 +351,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = hc.LivenessProbe.MapToCoreProbe()
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = hc.StartupProbe.MapToCoreProbe()
 	} else {
-		readinessProbe, err := getDefaultReadinessProbeForComponent(deployComponent)
+		readinessProbe, err := getDefaultReadinessProbeForComponent(deploy.config2, deployComponent)
 		if err != nil {
 			return err
 		}
@@ -498,19 +499,16 @@ func (deploy *Deployment) isEligibleForGarbageCollectComponent(componentName Rad
 	return componentType != commonComponent.GetType()
 }
 
-func getDefaultReadinessProbeForComponent(component v1.RadixCommonDeployComponent) (*corev1.Probe, error) {
+func getDefaultReadinessProbeForComponent(cfg config2.Config, component v1.RadixCommonDeployComponent) (*corev1.Probe, error) {
 	if len(component.GetPorts()) == 0 {
 		return nil, nil
 	}
 
-	return getReadinessProbeWithDefaultsFromEnv(component.GetPorts()[0].Port)
+	return getReadinessProbeWithDefaultsFromEnv(cfg, component.GetPorts()[0].Port)
 }
 
-func getReadinessProbeWithDefaultsFromEnv(componentPort int32) (*corev1.Probe, error) {
-	initialDelaySeconds, err := defaults.GetDefaultReadinessProbeInitialDelaySeconds()
-	if err != nil {
-		return nil, err
-	}
+func getReadinessProbeWithDefaultsFromEnv(cfg config2.Config, componentPort int32) (*corev1.Probe, error) {
+	initialDelaySeconds := cfg.Operator.ReadinessProbeInitialDelaySeconds
 
 	periodSeconds, err := defaults.GetDefaultReadinessProbePeriodSeconds()
 	if err != nil {

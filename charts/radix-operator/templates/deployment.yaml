@@ -70,9 +70,6 @@ spec:
               value: {{ .Values.app.builder.resources.requests.memory | quote }}
             - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU
               value: {{ .Values.app.builder.resources.requests.cpu | quote }}
-            # For configuring readiness probe
-            - name: RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS
-              value: {{ .Values.app.readinessProbe.initialDelaySeconds | quote }}
             - name: RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS
               value: {{ .Values.app.readinessProbe.periodSeconds | quote }}
             # For configuring rolling update

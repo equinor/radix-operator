@@ -58,6 +58,7 @@ func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.Radix
 }
 
 type oauthProxyResourceManager struct {
+	config2                    config2.Config
 	rd                         *radixv1.RadixDeployment
 	rr                         *radixv1.RadixRegistration
 	kubeutil                   *kube.Kube
@@ -559,7 +560,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 	componentName := component.GetName()
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	oauth2 := component.GetAuthentication().GetOAuth2()
-	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(defaults.OAuthProxyPortNumber)
+	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(o.config2, defaults.OAuthProxyPortNumber)
 	if err != nil {
 		return nil, err
 	}

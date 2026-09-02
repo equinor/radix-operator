@@ -26,6 +26,7 @@ config:
     alertControllerThreads: 1
     kubeClientRateLimitBurst: 5
     kubeClientRateLimitQPS: 5
+    readinessProbeInitialDelaySeconds: 5
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
