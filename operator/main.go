@@ -329,10 +329,7 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 }
 
 func (a *App) createDeploymentController(ctx context.Context) *common.Controller {
-	oauth2DockerImage := os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable)
-	if oauth2DockerImage == "" {
-		panic(fmt.Errorf("failed to read OAuth2 Docker image from environment variable %s", defaults.RadixOAuthProxyImageEnvironmentVariable))
-	}
+	oauth2DockerImage := a.config2.Common.OAuth2Proxy.ProxyImage
 	oauth2RedisDockerImage := os.Getenv(defaults.RadixOAuthRedisImageEnvironmentVariable)
 	if oauth2RedisDockerImage == "" {
 		panic(fmt.Errorf("failed to read Redis Docker image from environment variable %s", defaults.RadixOAuthRedisImageEnvironmentVariable))

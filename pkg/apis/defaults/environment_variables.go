@@ -100,9 +100,6 @@ const (
 	// RadixImageTagNameEnvironmentVariable Image tag name for Radix application components
 	RadixImageTagNameEnvironmentVariable = "IMAGE_TAG_NAME"
 
-	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
-	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
-
 	// RadixOAuthRedisImageEnvironmentVariable specifies the name and tag of the OAuth Redis image
 	RadixOAuthRedisImageEnvironmentVariable = "RADIX_OAUTH_REDIS_IMAGE"
 
