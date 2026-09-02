@@ -81,6 +81,12 @@ func TestSetUnmarshalerAndParsedTypes(t *testing.T) {
 			field:    "Value",
 			expected: resource.MustParse("500m"),
 		},
+		"url": {
+			value:    "https://example.com/path?query=value#fragment",
+			config:   &struct{ Value url.URL }{},
+			field:    "Value",
+			expected: *expectedURL,
+		},
 	}
 
 	for name, testCase := range testCases {

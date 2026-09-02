@@ -1,6 +1,7 @@
 package config2
 
 import (
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"reflect"
@@ -38,8 +39,13 @@ type OperatorConfig struct {
 func Parse(configYaml string) (*Config, error) {
 	var cfg Config
 
-	if err := yaml.Unmarshal([]byte(configYaml), &cfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config YAML: %w", err)
+	configJson, err := yaml.YAMLToJSON([]byte(configYaml))
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert YAML to JSON: %w", err)
+	}
+
+	if err := json.Unmarshal(configJson, &cfg, binaryUnmarshaler); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 
 	// Parse env overrides
@@ -67,7 +73,7 @@ func validateConfig(cfg *Config) error {
 		requiredTag := field.Tag.Get("required")
 		required, _ := strconv.ParseBool(requiredTag)
 
-		if required && value.IsZero() {
+		if required && (value.IsZero() || value.IsNil()) {
 			return fmt.Errorf("field %q is required but not set", path)
 		}
 		return nil
