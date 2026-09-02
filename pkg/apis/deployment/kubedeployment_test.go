@@ -2,11 +2,9 @@ package deployment
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -17,30 +15,43 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func teardownReadinessProbe() {
-	_ = os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
-}
-
 func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
-	teardownReadinessProbe()
-
-	probe, err := getDefaultReadinessProbeForComponent(testConfig2, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
-	assert.Error(t, err)
-	assert.Nil(t, probe)
+	probe := getDefaultReadinessProbeForComponent(testConfig2, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
+	assert.NotNil(t, probe)
 }
 
 func TestGetReadinessProbe_Custom(t *testing.T) {
 	test.SetRequiredEnvironmentVariables()
 
-	probe, err := getDefaultReadinessProbeForComponent(testConfig2, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
-	assert.Nil(t, err)
+	probe := getDefaultReadinessProbeForComponent(testConfig2, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
 
 	assert.Equal(t, testConfig2.Operator.ReadinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
-	assert.Equal(t, int32(10), probe.PeriodSeconds)
+	assert.Equal(t, testConfig2.Operator.ReadinessProbePeriodSeconds, probe.PeriodSeconds)
 	assert.Equal(t, int32(5000), probe.ProbeHandler.TCPSocket.Port.IntVal)
-
-	teardownReadinessProbe()
 }
+
+func TestDeploymentReadinessProbeUsesConfig(t *testing.T) {
+	tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	_, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
+		utils.ARadixDeployment().
+			WithAppName("any-app").
+			WithEnvironment("test").
+			WithComponents(utils.NewDeployComponentBuilder().
+				WithName("comp1").
+				WithPorts([]v1.ComponentPort{{Name: "http", Port: 8000}})))
+	require.NoError(t, err, "failed to apply deployment")
+
+	deployment, err := kubeClient.AppsV1().Deployments("any-app-test").Get(context.Background(), "comp1", metav1.GetOptions{})
+	require.NoError(t, err, "failed to get deployment")
+
+	probe := deployment.Spec.Template.Spec.Containers[0].ReadinessProbe
+	require.NotNil(t, probe, "readiness probe should be set")
+	assert.Equal(t, testConfig2.Operator.ReadinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
+	assert.Equal(t, testConfig2.Operator.ReadinessProbePeriodSeconds, probe.PeriodSeconds)
+	require.NotNil(t, probe.TCPSocket, "readiness probe should be tcp")
+	assert.Equal(t, int32(8000), probe.TCPSocket.Port.IntVal)
+}
+
 func TestComponentWithoutCustomHealthChecks(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,

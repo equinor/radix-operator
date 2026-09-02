@@ -351,10 +351,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = hc.LivenessProbe.MapToCoreProbe()
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = hc.StartupProbe.MapToCoreProbe()
 	} else {
-		readinessProbe, err := getDefaultReadinessProbeForComponent(deploy.config2, deployComponent)
-		if err != nil {
-			return err
-		}
+		readinessProbe := getDefaultReadinessProbeForComponent(deploy.config2, deployComponent)
 		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = nil
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = nil
@@ -499,24 +496,29 @@ func (deploy *Deployment) isEligibleForGarbageCollectComponent(componentName Rad
 	return componentType != commonComponent.GetType()
 }
 
-func getDefaultReadinessProbeForComponent(cfg config2.Config, component v1.RadixCommonDeployComponent) (*corev1.Probe, error) {
+func getDefaultReadinessProbeForComponent(cfg config2.Config, component v1.RadixCommonDeployComponent) *corev1.Probe {
 	if len(component.GetPorts()) == 0 {
-		return nil, nil
+		return nil
 	}
 
 	return getReadinessProbeWithDefaultsFromEnv(cfg, component.GetPorts()[0].Port)
 }
 
-func getReadinessProbeWithDefaultsFromEnv(cfg config2.Config, componentPort int32) (*corev1.Probe, error) {
-	initialDelaySeconds := cfg.Operator.ReadinessProbeInitialDelaySeconds
-
-	periodSeconds, err := defaults.GetDefaultReadinessProbePeriodSeconds()
-	if err != nil {
-		return nil, err
+func getReadinessProbeWithDefaultsFromEnv(cfg config2.Config, componentPort int32) *corev1.Probe {
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					IntVal: componentPort,
+				},
+			},
+		},
+		InitialDelaySeconds: cfg.Operator.ReadinessProbeInitialDelaySeconds,
+		PeriodSeconds:       cfg.Operator.ReadinessProbePeriodSeconds,
+		TimeoutSeconds:      1,
+		FailureThreshold:    3,
+		SuccessThreshold:    1,
 	}
-
-	probe := getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds)
-	return &probe, nil
 }
 
 func getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds int32) corev1.Probe {

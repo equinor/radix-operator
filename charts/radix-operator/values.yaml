@@ -27,6 +27,7 @@ config:
     kubeClientRateLimitBurst: 5
     kubeClientRateLimitQPS: 5
     readinessProbeInitialDelaySeconds: 5
+    readinessProbePeriodSeconds: 10
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com

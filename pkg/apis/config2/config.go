@@ -36,6 +36,9 @@ type OperatorConfig struct {
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
 
 	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
+
+	//RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS
+	ReadinessProbePeriodSeconds int32 `json:"readinessProbePeriodSeconds" required:"true"`
 }
 
 type OAuth2ProxyConfig struct {

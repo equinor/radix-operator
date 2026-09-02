@@ -227,21 +227,15 @@ func (o *oauthRedisResourceManager) getCurrentAndDesiredDeployment(ctx context.C
 	if err != nil && !kubeerrors.IsNotFound(err) {
 		return nil, nil, err
 	}
-	desiredDeployment, err := o.getDesiredDeployment(component)
-	if err != nil {
-		return nil, nil, err
-	}
+	desiredDeployment := o.getDesiredDeployment(component)
 
 	return currentDeployment, desiredDeployment, nil
 }
 
-func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
+func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) *appsv1.Deployment {
 	componentName := component.GetName()
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
-	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(o.config2, v1.OAuthRedisPortNumber)
-	if err != nil {
-		return nil, err
-	}
+	readinessProbe := getReadinessProbeWithDefaultsFromEnv(o.config2, v1.OAuthRedisPortNumber)
 
 	var replicas int32 = 1
 	if isComponentStopped(component) || component.HasZeroReplicas() {
@@ -322,7 +316,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 		},
 	}
 	oauthutil.MergeAuxOAuthRedisComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component) //nolint:staticcheck
-	return desiredDeployment, nil
+	return desiredDeployment
 }
 
 func (o *oauthRedisResourceManager) getEmptyDirVolume(name string) corev1.Volume {

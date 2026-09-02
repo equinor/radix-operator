@@ -80,7 +80,8 @@ var testConfig2 = config2.Config{
 		ClusterName: testClusterName,
 	},
 	Operator: config2.OperatorConfig{
-		//	ReadinessProbeInitialDelaySeconds: 5,
+		ReadinessProbeInitialDelaySeconds: 25,
+		ReadinessProbePeriodSeconds:       15,
 	},
 }
 
@@ -108,7 +109,6 @@ func TeardownTest() {
 	// Cleanup setup
 	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
 	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-	_ = os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	_ = os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)

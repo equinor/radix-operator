@@ -49,6 +49,7 @@ func TestParse_HappyPath(t *testing.T) {
 			KubeClientRateLimitBurst:          100,
 			KubeClientRateLimitQPS:            50.5,
 			ReadinessProbeInitialDelaySeconds: 5,
+			ReadinessProbePeriodSeconds:       10,
 		},
 	}
 

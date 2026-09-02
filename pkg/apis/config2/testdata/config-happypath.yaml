@@ -17,3 +17,4 @@ operator:
   kubeClientRateLimitBurst: 100
   kubeClientRateLimitQPS: 50.5
   readinessProbeInitialDelaySeconds: 5
+  readinessProbePeriodSeconds: 10
