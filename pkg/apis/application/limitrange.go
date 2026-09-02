@@ -14,13 +14,12 @@ const (
 
 func (app *Application) createLimitRangeOnAppNamespace(ctx context.Context) error {
 	namespace := utils.GetAppNamespace(app.registration.Name)
-	defaultMemoryLimit := defaults.GetDefaultMemoryLimitForAppNamespace()
+	defaultMemoryLimit := app.config2.Operator.AppNsLimitRange.DefaultMemory
 	defaultCPURequest := defaults.GetDefaultCPURequestForAppNamespace()
 	defaultMemoryRequest := defaults.GetDefaultMemoryRequestForAppNamespace()
 
 	// If not all limits are defined, then don't put any limits on namespace
-	if defaultMemoryLimit == nil ||
-		defaultCPURequest == nil ||
+	if defaultCPURequest == nil ||
 		defaultMemoryRequest == nil {
 		log.Ctx(ctx).Warn().Msgf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
 		return nil

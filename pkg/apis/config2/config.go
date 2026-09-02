@@ -10,6 +10,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/rs/zerolog/log"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/yaml"
 )
 
@@ -36,15 +37,19 @@ type OperatorConfig struct {
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
 
 	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
+	ReadinessProbePeriodSeconds       int32 `json:"readinessProbePeriodSeconds" required:"true"`
 
-	//RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS
-	ReadinessProbePeriodSeconds int32 `json:"readinessProbePeriodSeconds" required:"true"`
+	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
 }
 
 type OAuth2ProxyConfig struct {
 	DefaultOIDCIssuer string         `json:"defaultOIDCIssuer"`
 	ProxyImage        ContainerImage `json:"proxyImage" required:"true"`
 	RedisImage        ContainerImage `json:"redisImage" required:"true"`
+}
+
+type LimitRangeConfig struct {
+	DefaultMemory *resource.Quantity `json:"defaultMemory" required:"true"`
 }
 
 func Parse(configYaml string) (*Config, error) {

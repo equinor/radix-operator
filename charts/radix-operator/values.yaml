@@ -29,6 +29,9 @@ config:
     readinessProbeInitialDelaySeconds: 5
     readinessProbePeriodSeconds: 10
 
+    appNsLimitRange:
+      defaultMemory: 450M
+
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
@@ -39,8 +42,6 @@ tenantId: xx
 app:
   # Limit range on app namespace
   limitrange:
-    default:
-      memory: 450M
     defaultRequest:
       memory: 450M
       cpu: 100m

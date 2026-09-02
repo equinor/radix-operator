@@ -255,6 +255,7 @@ func (a *App) createRegistrationController(ctx context.Context) *common.Controll
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
+		a.config2,
 	)
 
 	return registration.NewController(ctx,

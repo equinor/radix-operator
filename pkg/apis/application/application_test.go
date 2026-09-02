@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -20,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -27,6 +29,14 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
+
+var testConfig2 = config2.Config{
+	Operator: config2.OperatorConfig{
+		AppNsLimitRange: config2.LimitRangeConfig{
+			DefaultMemory: new(resource.MustParse("250M")),
+		},
+	},
+}
 
 func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, radixclient.Interface, *kedafake.Clientset) {
 	client := fake.NewSimpleClientset()
@@ -50,7 +60,7 @@ func Test_ReconcileStatus(t *testing.T) {
 
 	// First sync sets status
 	expectedGen := rr.Generation
-	sut := NewApplication(client, kubeUtil, radixClient, rr)
+	sut := NewApplication(client, kubeUtil, radixClient, rr, testConfig2)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	rr, err = radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rr.Name, metav1.GetOptions{})
@@ -63,7 +73,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	rr.Generation++
 	expectedGen = rr.Generation
-	sut = NewApplication(client, kubeUtil, radixClient, rr)
+	sut = NewApplication(client, kubeUtil, radixClient, rr, testConfig2)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	rr, err = radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rr.Name, metav1.GetOptions{})
@@ -80,7 +90,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	})
 	rr.Generation++
 	expectedGen = rr.Generation
-	sut = NewApplication(client, kubeUtil, radixClient, rr)
+	sut = NewApplication(client, kubeUtil, radixClient, rr, testConfig2)
 	err = sut.OnSync(context.Background())
 	require.ErrorContains(t, err, errorMsg)
 	rr, err = radixClient.RadixV1().RadixRegistrations().Get(context.Background(), rr.Name, metav1.GetOptions{})
@@ -275,7 +285,6 @@ func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
-	os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "300M")
 	os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "0.25")
 	os.Setenv(defaults.OperatorAppLimitDefaultRequestMemoryEnvironmentVariable, "256M")
 
@@ -294,7 +303,6 @@ func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
-	os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "")
 	os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "")
 	os.Setenv(defaults.OperatorAppLimitDefaultRequestMemoryEnvironmentVariable, "")
 
@@ -315,7 +323,7 @@ func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeU
 		return nil, err
 	}
 
-	application := NewApplication(client, kubeUtil, radixclient, rr)
+	application := NewApplication(client, kubeUtil, radixclient, rr, testConfig2)
 	err = application.OnSync(context.Background())
 	if err != nil {
 		return nil, err

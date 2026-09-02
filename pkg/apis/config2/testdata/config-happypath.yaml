@@ -18,3 +18,5 @@ operator:
   kubeClientRateLimitQPS: 50.5
   readinessProbeInitialDelaySeconds: 5
   readinessProbePeriodSeconds: 10
+  appNsLimitRange:
+    defaultMemory: 500M

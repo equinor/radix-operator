@@ -14,7 +14,6 @@ const (
 	OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY"
 	OperatorEnvLimitDefaultRequestCPUEnvironmentVariable    = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU"
 
-	OperatorAppLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY"
 	OperatorAppLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY"
 	OperatorAppLimitDefaultRequestCPUEnvironmentVariable    = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU"
 
@@ -23,11 +22,6 @@ const (
 	OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable = "RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY"
 	OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable    = "RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU"
 )
-
-// GetDefaultMemoryLimitForAppNamespace Gets the default container memory limit for app namespaces defined as an environment variable
-func GetDefaultMemoryLimitForAppNamespace() *resource.Quantity {
-	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultMemoryEnvironmentVariable)
-}
 
 // GetDefaultCPURequestForAppNamespace Gets the default container CPU request for app namespaces defined as an environment variable
 func GetDefaultCPURequestForAppNamespace() *resource.Quantity {
