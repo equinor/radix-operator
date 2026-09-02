@@ -32,6 +32,7 @@ type OperatorConfig struct {
 	AlertControllerThreads        int     `json:"alertControllerThreads" env:"OPERATOR_ALERT_CONTROLLER_THREADS" required:"true"`
 	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_BURST" required:"true"`
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_QPS" required:"true"`
+	OAuthProxyDefaultOIDCIssuer   string  `json:"oauthProxyDefaultOIDCIssuer" env:"OPERATOR_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL" required:"true"`
 }
 
 func Parse(configYaml string) (*Config, error) {

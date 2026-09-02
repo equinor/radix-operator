@@ -138,7 +138,7 @@ func initializeApp(ctx context.Context) (*App, error) {
 		app.kubeInformerFactory,
 		app.radixInformerFactory,
 	)
-	app.oauthDefaultConfig = getOAuthDefaultConfig()
+	app.oauthDefaultConfig = getOAuthDefaultConfig(app.config2)
 	return &app, nil
 }
 
@@ -252,10 +252,10 @@ func initLogger(cfg config2.Config) {
 	zerolog.DefaultContextLogger = &logger
 }
 
-func getOAuthDefaultConfig() defaults.OAuth2Config {
+func getOAuthDefaultConfig(cfg config2.Config) defaults.OAuth2Config {
 	return defaults.NewOAuth2Config(
 		defaults.WithOAuth2Defaults(),
-		defaults.WithOIDCIssuerURL(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)),
+		defaults.WithOIDCIssuerURL(cfg.Operator.OAuthProxyDefaultOIDCIssuer),
 	)
 }
 

@@ -100,9 +100,6 @@ const (
 	// RadixImageTagNameEnvironmentVariable Image tag name for Radix application components
 	RadixImageTagNameEnvironmentVariable = "IMAGE_TAG_NAME"
 
-	// RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable Default OIDC issuer URL for OAuth Proxy
-	RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable = "RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL"
-
 	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
 	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
 

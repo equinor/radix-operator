@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -42,6 +43,7 @@ type OAuthProxyResourceManagerTestSuite struct {
 	oauth2Config         *defaults.MockOAuth2Config
 	dnsZone              string
 	appAliasDnsZone      string
+	config               config2.Config
 }
 
 func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
@@ -60,7 +62,7 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	s.T().Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
-	s.T().Setenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable, "oidc_issuer_url")
+	s.config = config2.Config{Operator: config2.OperatorConfig{OAuthProxyDefaultOIDCIssuer: "https://oidc_issuer_url"}}
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) SetupTest() {
