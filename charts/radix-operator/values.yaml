@@ -31,6 +31,7 @@ config:
 
     appNsLimitRange:
       defaultMemory: 450M
+      defaultRequestMemory: 450M
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
@@ -43,7 +44,6 @@ app:
   # Limit range on app namespace
   limitrange:
     defaultRequest:
-      memory: 450M
       cpu: 100m
   env:
     # Limit range on env namespace

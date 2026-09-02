@@ -49,7 +49,8 @@ type OAuth2ProxyConfig struct {
 }
 
 type LimitRangeConfig struct {
-	DefaultMemory *resource.Quantity `json:"defaultMemory" required:"true"`
+	DefaultMemory        *resource.Quantity `json:"defaultMemory" required:"true"`
+	DefaultRequestMemory *resource.Quantity `json:"defaultRequestMemory" required:"true"`
 }
 
 func Parse(configYaml string) (*Config, error) {

@@ -20,3 +20,4 @@ operator:
   readinessProbePeriodSeconds: 10
   appNsLimitRange:
     defaultMemory: 500M
+    defaultRequestMemory: 450M

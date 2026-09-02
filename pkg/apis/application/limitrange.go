@@ -16,11 +16,10 @@ func (app *Application) createLimitRangeOnAppNamespace(ctx context.Context) erro
 	namespace := utils.GetAppNamespace(app.registration.Name)
 	defaultMemoryLimit := app.config2.Operator.AppNsLimitRange.DefaultMemory
 	defaultCPURequest := defaults.GetDefaultCPURequestForAppNamespace()
-	defaultMemoryRequest := defaults.GetDefaultMemoryRequestForAppNamespace()
+	defaultMemoryRequest := app.config2.Operator.AppNsLimitRange.DefaultRequestMemory
 
 	// If not all limits are defined, then don't put any limits on namespace
-	if defaultCPURequest == nil ||
-		defaultMemoryRequest == nil {
+	if defaultCPURequest == nil {
 		log.Ctx(ctx).Warn().Msgf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
 		return nil
 	}

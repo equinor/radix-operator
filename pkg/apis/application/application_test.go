@@ -33,7 +33,8 @@ import (
 var testConfig2 = config2.Config{
 	Operator: config2.OperatorConfig{
 		AppNsLimitRange: config2.LimitRangeConfig{
-			DefaultMemory: new(resource.MustParse("250M")),
+			DefaultMemory:        new(resource.MustParse("250M")),
+			DefaultRequestMemory: new(resource.MustParse("200M")),
 		},
 	},
 }
@@ -286,7 +287,6 @@ func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 	os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "0.25")
-	os.Setenv(defaults.OperatorAppLimitDefaultRequestMemoryEnvironmentVariable, "256M")
 
 	// Test
 	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
@@ -304,7 +304,6 @@ func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 	os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "")
-	os.Setenv(defaults.OperatorAppLimitDefaultRequestMemoryEnvironmentVariable, "")
 
 	// Test
 	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
