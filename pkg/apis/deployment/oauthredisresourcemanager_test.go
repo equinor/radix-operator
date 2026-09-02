@@ -38,7 +38,7 @@ type OAuthRedisResourceManagerTestSuite struct {
 	secretProviderClient secretProviderClient.Interface
 	kubeUtil             *kube.Kube
 	ctrl                 *gomock.Controller
-	config               config2.Config
+	config2              config2.Config
 }
 
 func TestOAuthRedisResourceManagerTestSuite(t *testing.T) {
@@ -54,7 +54,10 @@ func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
 	s.T().Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
-	s.config = config2.Config{Common: config2.CommonConfig{OAuth2Proxy: config2.OAuth2ProxyConfig{DefaultOIDCIssuer: "https://oidc_issuer_url"}}}
+	s.config2 = config2.Config{Common: config2.CommonConfig{OAuth2Proxy: config2.OAuth2ProxyConfig{
+		DefaultOIDCIssuer: "https://oidc_issuer_url",
+		ProxyImage:        config2.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
+	}}}
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) SetupTest() {
@@ -80,13 +83,13 @@ func (s *OAuthRedisResourceManagerTestSuite) TestNewOAuthRedisResourceManager() 
 	rd := utils.NewDeploymentBuilder().BuildRD()
 	rr := utils.NewRegistrationBuilder().BuildRR()
 
-	oauthManager := NewOAuthRedisResourceManager(rd, rr, s.kubeUtil, "redis:123", "some-secret")
+	oauthManager := NewOAuthRedisResourceManager(rd, rr, s.kubeUtil, s.config2, "some-secret")
 	sut, ok := oauthManager.(*oauthRedisResourceManager)
 	s.True(ok)
 	s.Equal(rd, sut.rd)
 	s.Equal(rr, sut.rr)
 	s.Equal(s.kubeUtil, sut.kubeutil)
-	s.Equal("redis:123", sut.oauthRedisDockerImage)
+	s.Equal(s.config2.Common.OAuth2Proxy.RedisImage.String(), sut.oauthRedisDockerImage)
 	s.Equal("some-secret", sut.externalRegistryAuthSecret)
 }
 

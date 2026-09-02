@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -29,12 +30,12 @@ const (
 )
 
 // NewOAuthRedisResourceManager creates a new RedisResourceManager
-func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2RedisDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
+func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, cfg config2.Config, externalRegistryAuthSecret string) AuxiliaryResourceManager {
 	return &oauthRedisResourceManager{
 		rd:                         rd,
 		rr:                         rr,
 		kubeutil:                   kubeutil,
-		oauthRedisDockerImage:      oauth2RedisDockerImage,
+		oauthRedisDockerImage:      cfg.Common.OAuth2Proxy.RedisImage.String(),
 		externalRegistryAuthSecret: externalRegistryAuthSecret,
 		logger:                     log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth-redis").Logger(),
 	}

@@ -99,8 +99,6 @@ spec:
               value: {{ .Values.appContainerRegistry }}
             - name: RADIXOPERATOR_TENANT_ID
               value: {{ .Values.tenantId }}
-            - name: RADIX_OAUTH_REDIS_IMAGE
-              value: {{ .Values.oauth2redis.image.repository }}:{{ .Values.oauth2redis.image.tag }}
             - name: RADIXOPERATOR_JOB_AUX_IMAGE
               value: {{ .Values.jobAux.image.repository }}:{{ .Values.jobAux.image.tag }}
             {{- if .Values.podSecurityStandard.enforce.level }}

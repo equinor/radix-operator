@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -39,13 +40,13 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, oauth2ProxyDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, cfg config2.Config, externalRegistryAuthSecret string) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
 		kubeutil:                   kubeutil,
 		oauth2DefaultConfig:        oauth2DefaultConfig,
-		oauth2ProxyDockerImage:     oauth2ProxyDockerImage,
+		oauth2ProxyDockerImage:     cfg.Common.OAuth2Proxy.ProxyImage.String(),
 		externalRegistryAuthSecret: externalRegistryAuthSecret,
 		logger:                     log.Logger.With().Str("resource_kind", radixv1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth2").Logger(),
 	}

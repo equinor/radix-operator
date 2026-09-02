@@ -39,6 +39,7 @@ type OperatorConfig struct {
 type OAuth2ProxyConfig struct {
 	DefaultOIDCIssuer string         `json:"defaultOIDCIssuer"`
 	ProxyImage        ContainerImage `json:"proxyImage" required:"true"`
+	RedisImage        ContainerImage `json:"redisImage" required:"true"`
 }
 
 func Parse(configYaml string) (*Config, error) {

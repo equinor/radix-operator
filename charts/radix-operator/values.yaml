@@ -9,7 +9,12 @@ config:
     clusterName: dev
     oauth2Proxy:
       defaultOIDCIssuer: "https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0"
-      proxyImage: quay.io/oauth2-proxy/oauth2-proxy:v7.15.2
+      proxyImage:
+        repository: quay.io/oauth2-proxy/oauth2-proxy
+        tag: latest
+      redisImage:
+        repository: docker.io/redis
+        tag: latest
   operator:
     logLevel: debug
     logPrettyPrint: false
@@ -21,7 +26,7 @@ config:
     alertControllerThreads: 1
     kubeClientRateLimitBurst: 5
     kubeClientRateLimitQPS: 5
-  
+
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
@@ -182,16 +187,6 @@ gitClone:
   image:
     repository: docker.io/alpine/git
     tag: "2.45.2"
-
-oauth2proxy:
-  image:
-    repository: quay.io/oauth2-proxy/oauth2-proxy
-    tag: "v7.9.0"
-
-oauth2redis:
-  image:
-    repository: docker.io/redis
-    tag: "8.0"
 
 jobAux:
   image:

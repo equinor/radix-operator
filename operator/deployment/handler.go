@@ -31,20 +31,6 @@ func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOp
 	}
 }
 
-// WithOAuth2ProxyDockerImage configures the Docker image to use for OAuth2 proxy auxiliary component
-func WithOAuth2ProxyDockerImage(image string) HandlerConfigOption {
-	return func(h *handler) {
-		h.oauth2ProxyDockerImage = image
-	}
-}
-
-// WithOAuth2RedisDockerImage configures the Docker image to use for OAuth2 redis auxiliary component
-func WithOAuth2RedisDockerImage(image string) HandlerConfigOption {
-	return func(h *handler) {
-		h.oauth2RedisDockerImage = image
-	}
-}
-
 // WithDeploymentSyncerFactory configures the deploymentSyncerFactory for the Handler
 func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) HandlerConfigOption {
 	return func(h *handler) {
@@ -62,8 +48,6 @@ type handler struct {
 	events                  common.SyncEventRecorder
 	kubeutil                *kube.Kube
 	oauth2DefaultConfig     defaults.OAuth2Config
-	oauth2ProxyDockerImage  string
-	oauth2RedisDockerImage  string
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 	config                  *config.Config
 	config2                 config2.Config
@@ -131,8 +115,8 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, t.oauth2ProxyDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2RedisDockerImage, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, t.config2, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.config2, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 	}
 
 	syncRD := rd.DeepCopy()
