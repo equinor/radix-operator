@@ -19,7 +19,8 @@ type Config struct {
 }
 
 type CommonConfig struct {
-	ClusterName string `json:"clusterName" env:"CLUSTER_NAME" required:"true"`
+	ClusterName string            `json:"clusterName" env:"CLUSTER_NAME" required:"true"`
+	OAuth2Proxy OAuth2ProxyConfig `json:"oauth2Proxy"`
 }
 type OperatorConfig struct {
 	LogLevel       string `json:"logLevel" env:"OPERATOR_LOG_LEVEL"`
@@ -33,7 +34,10 @@ type OperatorConfig struct {
 	AlertControllerThreads        int     `json:"alertControllerThreads" env:"OPERATOR_ALERT_CONTROLLER_THREADS" required:"true"`
 	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_BURST" required:"true"`
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_QPS" required:"true"`
-	OAuthProxyDefaultOIDCIssuer   string  `json:"oauthProxyDefaultOIDCIssuer" env:"OPERATOR_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL" required:"true"`
+}
+
+type OAuth2ProxyConfig struct {
+	DefaultOIDCIssuer string `json:"defaultOIDCIssuer" env:"OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL"`
 }
 
 func Parse(configYaml string) (*Config, error) {

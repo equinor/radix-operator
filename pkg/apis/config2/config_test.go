@@ -29,6 +29,9 @@ func TestParse_HappyPath(t *testing.T) {
 	expected := &config2.Config{
 		Common: config2.CommonConfig{
 			ClusterName: "test-cluster",
+			OAuth2Proxy: config2.OAuth2ProxyConfig{
+				DefaultOIDCIssuer: "https://example.com",
+			},
 		},
 		Operator: config2.OperatorConfig{
 			LogLevel:                      "info",
@@ -41,7 +44,6 @@ func TestParse_HappyPath(t *testing.T) {
 			AlertControllerThreads:        6,
 			KubeClientRateLimitBurst:      100,
 			KubeClientRateLimitQPS:        50.5,
-			OAuthProxyDefaultOIDCIssuer:   "https://example.com",
 		},
 	}
 

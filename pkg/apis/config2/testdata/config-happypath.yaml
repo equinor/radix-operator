@@ -1,5 +1,7 @@
 common:
   clusterName: test-cluster
+  oauth2Proxy:
+    defaultOIDCIssuer: "https://example.com"
 operator:
   logLevel: info
   logPrettyPrint: true
@@ -11,4 +13,4 @@ operator:
   alertControllerThreads: 6
   kubeClientRateLimitBurst: 100
   kubeClientRateLimitQPS: 50.5
-  oauthProxyDefaultOIDCIssuer: "https://example.com"
+

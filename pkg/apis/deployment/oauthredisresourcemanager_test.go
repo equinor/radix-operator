@@ -54,7 +54,7 @@ func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
 	s.T().Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
-	s.config = config2.Config{Operator: config2.OperatorConfig{OAuthProxyDefaultOIDCIssuer: "https://oidc_issuer_url"}}
+	s.config = config2.Config{Common: config2.CommonConfig{OAuth2Proxy: config2.OAuth2ProxyConfig{DefaultOIDCIssuer: "https://oidc_issuer_url"}}}
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) SetupTest() {

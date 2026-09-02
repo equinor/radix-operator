@@ -255,7 +255,7 @@ func initLogger(cfg config2.Config) {
 func getOAuthDefaultConfig(cfg config2.Config) defaults.OAuth2Config {
 	return defaults.NewOAuth2Config(
 		defaults.WithOAuth2Defaults(),
-		defaults.WithOIDCIssuerURL(cfg.Operator.OAuthProxyDefaultOIDCIssuer),
+		defaults.WithOIDCIssuerURL(cfg.Common.OAuth2Proxy.DefaultOIDCIssuer),
 	)
 }
 
