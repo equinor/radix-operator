@@ -1,4 +1,4 @@
-package processfields
+package processfields_test
 
 import (
 	"net/url"

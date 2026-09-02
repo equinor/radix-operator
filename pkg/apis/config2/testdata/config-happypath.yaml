@@ -2,6 +2,9 @@ common:
   clusterName: test-cluster
   oauth2Proxy:
     defaultOIDCIssuer: "https://example.com"
+    proxyImage:
+      tag: v7.6.2
+      repository: quay.io/oauth2-proxy/oauth2-proxy
 operator:
   logLevel: info
   logPrettyPrint: true
@@ -13,4 +16,3 @@ operator:
   alertControllerThreads: 6
   kubeClientRateLimitBurst: 100
   kubeClientRateLimitQPS: 50.5
-

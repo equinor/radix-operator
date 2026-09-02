@@ -19,26 +19,26 @@ type Config struct {
 }
 
 type CommonConfig struct {
-	ClusterName string            `json:"clusterName" env:"CLUSTER_NAME" required:"true"`
+	ClusterName string            `json:"clusterName" required:"true"`
 	OAuth2Proxy OAuth2ProxyConfig `json:"oauth2Proxy"`
 }
 type OperatorConfig struct {
-	LogLevel       string `json:"logLevel" env:"OPERATOR_LOG_LEVEL"`
-	LogPrettyPrint bool   `json:"logPrettyPrint" env:"OPERATOR_LOG_PRETTY_PRINT"`
+	LogLevel       string `json:"logLevel"`
+	LogPrettyPrint bool   `json:"logPrettyPrint"`
 
-	RegistrationControllerThreads int     `json:"registrationControllerThreads" env:"OPERATOR_REGISTRATION_CONTROLLER_THREADS" required:"true"`
-	ApplicationControllerThreads  int     `json:"applicationControllerThreads" env:"OPERATOR_APPLICATION_CONTROLLER_THREADS" required:"true"`
-	EnvironmentControllerThreads  int     `json:"environmentControllerThreads" env:"OPERATOR_ENVIRONMENT_CONTROLLER_THREADS" required:"true"`
-	DeploymentControllerThreads   int     `json:"deploymentControllerThreads" env:"OPERATOR_DEPLOYMENT_CONTROLLER_THREADS" required:"true"`
-	JobControllerThreads          int     `json:"jobControllerThreads" env:"OPERATOR_JOB_CONTROLLER_THREADS" required:"true"`
-	AlertControllerThreads        int     `json:"alertControllerThreads" env:"OPERATOR_ALERT_CONTROLLER_THREADS" required:"true"`
-	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_BURST" required:"true"`
-	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_QPS" required:"true"`
+	RegistrationControllerThreads int     `json:"registrationControllerThreads" required:"true"`
+	ApplicationControllerThreads  int     `json:"applicationControllerThreads" required:"true"`
+	EnvironmentControllerThreads  int     `json:"environmentControllerThreads" required:"true"`
+	DeploymentControllerThreads   int     `json:"deploymentControllerThreads" required:"true"`
+	JobControllerThreads          int     `json:"jobControllerThreads" required:"true"`
+	AlertControllerThreads        int     `json:"alertControllerThreads" required:"true"`
+	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" required:"true"`
+	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
 }
 
 type OAuth2ProxyConfig struct {
-	DefaultOIDCIssuer string `json:"defaultOIDCIssuer" env:"OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL"`
-	ProxyImage        string `json:"image" env:"OAUTH_PROXY_IMAGE" required:"true"`
+	DefaultOIDCIssuer string         `json:"defaultOIDCIssuer"`
+	ProxyImage        ContainerImage `json:"proxyImage" required:"true"`
 }
 
 func Parse(configYaml string) (*Config, error) {
@@ -54,7 +54,7 @@ func Parse(configYaml string) (*Config, error) {
 	}
 
 	// Parse env overrides
-	if err := processEnvOverrides(&cfg); err != nil {
+	if err := processEnvOverrides(&cfg, "RADIX"); err != nil {
 		return nil, fmt.Errorf("failed to process env overrides: %w", err)
 	}
 
@@ -78,21 +78,20 @@ func validateConfig(cfg *Config) error {
 		requiredTag := field.Tag.Get("required")
 		required, _ := strconv.ParseBool(requiredTag)
 
-		if required && (value.IsZero() || value.IsNil()) {
+		if required && value.IsZero() {
 			return fmt.Errorf("field %q is required but not set", path)
 		}
 		return nil
 	})
 }
 
-func processEnvOverrides(cfg *Config) error {
+func processEnvOverrides(cfg *Config, prefix string) error {
 	return processfields.WalkFields(cfg, func(path string, field reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
-		envTag := field.Tag.Get("env")
-		if envTag == "" {
-			return nil
-		}
 
-		envValue := os.Getenv(envTag)
+		envTag := strings.ReplaceAll(path, ".", "_")
+		envName := strings.ToUpper(prefix + "_" + envTag)
+
+		envValue := os.Getenv(envName)
 		if envValue == "" {
 			return nil
 		}
@@ -103,7 +102,7 @@ func processEnvOverrides(cfg *Config) error {
 		}
 
 		if err := setter(values...); err != nil {
-			return fmt.Errorf("failed to set field %q from env %q: %w", path, envTag, err)
+			return fmt.Errorf("failed to set field %q from env %q: %w", path, envName, err)
 		}
 		return nil
 	})

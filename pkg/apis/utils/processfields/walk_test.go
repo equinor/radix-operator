@@ -1,10 +1,11 @@
-package processfields
+package processfields_test
 
 import (
 	"errors"
 	"reflect"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +26,7 @@ func TestWalkFieldsReturnsErrorForInvalidRoot(t *testing.T) {
 			t.Parallel()
 
 			assert.NotPanics(t, func() {
-				err := WalkFields(config, func(_ string, _ reflect.StructField, _ reflect.Value, _ SetValFunc) error {
+				err := processfields.WalkFields(config, func(_ string, _ reflect.StructField, _ reflect.Value, _ processfields.SetValFunc) error {
 					return nil
 				})
 				require.Error(t, err)
@@ -37,7 +38,7 @@ func TestWalkFieldsReturnsErrorForInvalidRoot(t *testing.T) {
 func TestWalkFieldsReturnsErrorForNilCallback(t *testing.T) {
 	t.Parallel()
 
-	err := WalkFields(&struct{ Value string }{}, nil)
+	err := processfields.WalkFields(&struct{ Value string }{}, nil)
 
 	require.ErrorContains(t, err, "callback")
 }
@@ -57,7 +58,7 @@ func TestWalkFieldsTraversesNestedStructsAndSkipsUnexportedFields(t *testing.T) 
 
 	cfg := &config{}
 	var visited []string
-	err := WalkFields(cfg, func(_ string, field reflect.StructField, _ reflect.Value, setter SetValFunc) error {
+	err := processfields.WalkFields(cfg, func(_ string, field reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
 		visited = append(visited, field.Name)
 		switch field.Name {
 		case "Name":
@@ -192,7 +193,7 @@ func TestWalkFieldsDoesNotInterpretFieldTags(t *testing.T) {
 	}{}
 	callbackCalled := false
 
-	err := WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, _ SetValFunc) error {
+	err := processfields.WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, _ processfields.SetValFunc) error {
 		callbackCalled = true
 		return nil
 	})
@@ -207,7 +208,7 @@ func TestWalkFieldsReturnsCallbackError(t *testing.T) {
 	expectedError := errors.New("callback failed")
 	cfg := &struct{ Value string }{}
 
-	err := WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, _ SetValFunc) error {
+	err := processfields.WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, _ processfields.SetValFunc) error {
 		return expectedError
 	})
 
@@ -223,7 +224,7 @@ func TestWalkFieldsStopsOnFirstCallbackError(t *testing.T) {
 	}
 
 	var visited []string
-	err := WalkFields(&config{}, func(_ string, field reflect.StructField, _ reflect.Value, _ SetValFunc) error {
+	err := processfields.WalkFields(&config{}, func(_ string, field reflect.StructField, _ reflect.Value, _ processfields.SetValFunc) error {
 		visited = append(visited, field.Name)
 		return errors.New("callback failed")
 	})
@@ -237,9 +238,9 @@ func TestWalkFieldsSetterRemainsValidAfterWalk(t *testing.T) {
 	t.Parallel()
 
 	cfg := &struct{ Value string }{}
-	var captured SetValFunc
+	var captured processfields.SetValFunc
 
-	err := WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, setter SetValFunc) error {
+	err := processfields.WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
 		captured = setter
 		return nil
 	})

@@ -31,6 +31,10 @@ func TestParse_HappyPath(t *testing.T) {
 			ClusterName: "test-cluster",
 			OAuth2Proxy: config2.OAuth2ProxyConfig{
 				DefaultOIDCIssuer: "https://example.com",
+				ProxyImage: config2.ContainerImage{
+					Repository: "quay.io/oauth2-proxy/oauth2-proxy",
+					Tag:        "v7.6.2",
+				},
 			},
 		},
 		Operator: config2.OperatorConfig{
@@ -51,7 +55,7 @@ func TestParse_HappyPath(t *testing.T) {
 }
 
 func TestParse_EnvOverride(t *testing.T) {
-	t.Setenv("OPERATOR_LOG_LEVEL", "debug")
+	t.Setenv("RADIX_OPERATOR_LOGLEVEL", "debug")
 
 	cfg, err := config2.Parse(configHappyYaml)
 
@@ -62,7 +66,7 @@ func TestParse_EnvOverride(t *testing.T) {
 
 // Only slice fields are comma separated, a scalar keeps the value as it is.
 func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
-	t.Setenv("OPERATOR_LOG_LEVEL", "debug,info")
+	t.Setenv("RADIX_OPERATOR_LOGLEVEL", "debug,info")
 
 	cfg, err := config2.Parse(configHappyYaml)
 
@@ -72,10 +76,33 @@ func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
 }
 
 func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
-	t.Setenv("CLUSTER_NAME", "env-cluster")
-	configYamlStr := strings.ReplaceAll(configHappyYaml, "common:\n  clusterName: test-cluster\n", "common: {}\n")
+	t.Setenv("RADIX_COMMON_CLUSTERNAME", "env-cluster")
+	configYamlStr := strings.ReplaceAll(configHappyYaml, "  clusterName: test-cluster\n", "")
 
 	cfg, err := config2.Parse(configYamlStr)
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Equal(t, "env-cluster", cfg.Common.ClusterName)
+}
+
+// A field without an env tag is overridden by the uppercased field path, with dots replaced by underscores.
+func TestParse_EnvOverrideFromFieldPath(t *testing.T) {
+	t.Setenv("RADIX_COMMON_OAUTH2PROXY_PROXYIMAGE_REPOSITORY", "ghcr.io/equinor/oauth2-proxy")
+	t.Setenv("RADIX_COMMON_OAUTH2PROXY_PROXYIMAGE_TAG", "v1.2.3")
+
+	cfg, err := config2.Parse(configHappyYaml)
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	expected := config2.ContainerImage{Repository: "ghcr.io/equinor/oauth2-proxy", Tag: "v1.2.3"}
+	assert.Equal(t, expected, cfg.Common.OAuth2Proxy.ProxyImage)
+}
+
+func TestParse_EnvTagTakesPrecedenceOverFieldPath(t *testing.T) {
+	t.Setenv("RADIX_COMMON_CLUSTERNAME", "env-cluster")
+
+	cfg, err := config2.Parse(configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
