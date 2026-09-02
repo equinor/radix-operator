@@ -35,6 +35,7 @@ var testConfig2 = config2.Config{
 		AppNsLimitRange: config2.LimitRangeConfig{
 			DefaultMemory:        new(resource.MustParse("250M")),
 			DefaultRequestMemory: new(resource.MustParse("200M")),
+			DefaultRequestCPU:    new(resource.MustParse("100m")),
 		},
 	},
 }
@@ -110,7 +111,7 @@ func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testin
 	// Test
 	appName := "any-app"
 	rr, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName(appName))
+		WithName(appName), testConfig2)
 	assert.NoError(t, err)
 
 	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
@@ -135,7 +136,7 @@ func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
 	// Test
 	appName := "any-app"
 	rr, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName(appName))
+		WithName(appName), testConfig2)
 	require.NoError(t, err)
 
 	roleBindings, _ := client.RbacV1().RoleBindings(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
@@ -159,7 +160,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	// Test
 	appName := "any-app"
 	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName(appName))
+		WithName(appName), testConfig2)
 	require.NoError(t, err)
 
 	ns, err := client.CoreV1().Namespaces().Get(context.Background(), utils.GetAppNamespace(appName), metav1.GetOptions{})
@@ -203,7 +204,7 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 	// Test
 	appName := "any-app"
 	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName(appName))
+		WithName(appName), testConfig2)
 	require.NoError(t, err)
 
 	ns, err := client.CoreV1().Namespaces().Get(context.Background(), utils.GetAppNamespace(appName), metav1.GetOptions{})
@@ -245,7 +246,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 
 	// Test
 	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName("any-app"))
+		WithName("any-app"), testConfig2)
 	require.NoError(t, err)
 
 	namespaces, _ := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
@@ -262,7 +263,7 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	os.Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, defaultGroups)
 
 	// Test
-	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().WithName("any-app").WithAdGroups([]string{}).WithReaderAdGroups([]string{}))
+	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().WithName("any-app").WithAdGroups([]string{}).WithReaderAdGroups([]string{}), testConfig2)
 	require.NoError(t, err)
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.Background(), metav1.ListOptions{})
@@ -285,12 +286,10 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)
-	defer os.Clearenv()
-	os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "0.25")
 
 	// Test
 	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName("any-app"))
+		WithName("any-app"), testConfig2)
 	require.NoError(t, err)
 
 	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(context.Background(), metav1.ListOptions{})
@@ -302,27 +301,24 @@ func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)
-	defer os.Clearenv()
-	os.Setenv(defaults.OperatorAppLimitDefaultRequestCPUEnvironmentVariable, "")
 
 	// Test
 	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName("any-app"))
+		WithName("any-app"), config2.Config{})
 	require.NoError(t, err)
 
 	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(context.Background(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(limitRanges.Items), "Number of limit ranges was not expected")
-
 }
 
 func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, registrationBuilder utils.RegistrationBuilder) (*v1.RadixRegistration, error) {
+	radixclient radixclient.Interface, registrationBuilder utils.RegistrationBuilder, cfg config2.Config) (*v1.RadixRegistration, error) {
 	rr, err := tu.ApplyRegistration(registrationBuilder)
 	if err != nil {
 		return nil, err
 	}
 
-	application := NewApplication(client, kubeUtil, radixclient, rr, testConfig2)
+	application := NewApplication(client, kubeUtil, radixclient, rr, cfg)
 	err = application.OnSync(context.Background())
 	if err != nil {
 		return nil, err

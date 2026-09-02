@@ -55,6 +55,7 @@ func TestParse_HappyPath(t *testing.T) {
 			AppNsLimitRange: config2.LimitRangeConfig{
 				DefaultMemory:        new(resource.MustParse("500M")),
 				DefaultRequestMemory: new(resource.MustParse("450M")),
+				DefaultRequestCPU:    new(resource.MustParse("100m")),
 			},
 		},
 	}

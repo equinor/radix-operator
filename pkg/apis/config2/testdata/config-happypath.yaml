@@ -21,3 +21,4 @@ operator:
   appNsLimitRange:
     defaultMemory: 500M
     defaultRequestMemory: 450M
+    defaultRequestCPU: 100m

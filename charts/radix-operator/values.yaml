@@ -32,6 +32,7 @@ config:
     appNsLimitRange:
       defaultMemory: 450M
       defaultRequestMemory: 450M
+      defaultRequestCPU: 100m
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
@@ -41,10 +42,6 @@ appContainerRegistry: radixdevapp.azurecr.io
 tenantId: xx
 
 app:
-  # Limit range on app namespace
-  limitrange:
-    defaultRequest:
-      cpu: 100m
   env:
     # Limit range on env namespace
     limitrange:
