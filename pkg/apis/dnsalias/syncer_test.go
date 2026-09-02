@@ -8,7 +8,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/gateway"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -38,7 +37,6 @@ type syncerTestSuite struct {
 	testUtils     test.Utils
 	promClient    *prometheusfake.Clientset
 	ctrl          *gomock.Controller
-	oauthConfig   *defaults.MockOAuth2Config
 	config        config.Config
 }
 
@@ -69,7 +67,6 @@ func (s *syncerTestSuite) setupTest() {
 		},
 	}
 	s.ctrl = gomock.NewController(s.T())
-	s.oauthConfig = defaults.NewMockOAuth2Config(s.ctrl)
 }
 
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
@@ -79,7 +76,6 @@ func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dns
 		s.dynamicClient,
 		s.config,
 		config2.Config{},
-		s.oauthConfig,
 	)
 }
 
@@ -93,7 +89,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{}, s.oauthConfig)
+	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -106,7 +102,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{}, s.oauthConfig)
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -123,7 +119,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{}, s.oauthConfig)
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -132,60 +128,6 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	s.Contains(rda.Status.Message, errorMsg)
 	s.Equal(expectedGen, rda.Status.ObservedGeneration)
 	s.False(rda.Status.Reconciled.IsZero())
-}
-
-func (s *syncerTestSuite) Test_OnSync_Errors() {
-	const (
-		appName  = "any-app"
-		envName  = "any-env"
-		compName = "any-comp"
-	)
-
-	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: "any-name"},
-		Spec: radixv1.RadixDNSAliasSpec{
-			AppName:     appName,
-			Environment: envName,
-			Component:   compName,
-		},
-	}
-	rr := utils.NewRegistrationBuilder().
-		WithName(appName).
-		BuildRR()
-	rd := utils.NewDeploymentBuilder().
-		WithDeploymentName("any-rd").
-		WithAppName(appName).
-		WithEnvironment(envName).
-		WithComponent(utils.NewDeployComponentBuilder().
-			WithName(compName).
-			WithPort("http", 8000).
-			WithPublicPort("http")).
-		BuildRD()
-	rdWithOAuth := utils.NewDeploymentBuilder().
-		WithDeploymentName("any-rd").
-		WithAppName(appName).
-		WithEnvironment(envName).
-		WithComponent(utils.NewDeployComponentBuilder().
-			WithName(compName).
-			WithPort("http", 8000).
-			WithPublicPort("http").
-			WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
-		BuildRD()
-
-	s.Run("oauth2Config.MergeWith returns error", func() {
-		_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-		s.Require().NoError(err)
-		_, err = s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rdWithOAuth, metav1.CreateOptions{})
-		s.Require().NoError(err)
-		_, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
-		s.Require().NoError(err)
-
-		sut := s.createSyncer(dnsAlias)
-		expectedError := errors.New("any error")
-		s.oauthConfig.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(nil, expectedError)
-		err = sut.OnSync(context.Background())
-		s.Require().ErrorIs(err, expectedError)
-	})
 }
 
 func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
@@ -322,7 +264,6 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_WithOAuth2() {
 	s.Require().NoError(err)
 
 	expectedOAuth := &radixv1.OAuth2{ProxyPrefix: "/any/oauth/path"}
-	s.oauthConfig.EXPECT().MergeWith(rd.Spec.Components[0].Authentication.OAuth2).AnyTimes().Return(expectedOAuth, nil)
 
 	sut := s.createSyncer(dnsAlias)
 	s.Require().NoError(sut.OnSync(context.Background()))
@@ -548,8 +489,6 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_HTTPRoutes() {
 			}
 			dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
 			s.Require().NoError(err)
-
-			s.oauthConfig.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{ProxyPrefix: "/any"}, nil)
 
 			// Initial sync - creates HTTPRoute
 			sut := s.createSyncer(dnsAlias)

@@ -28,7 +28,6 @@ import (
 	"github.com/equinor/radix-operator/operator/scheduler/tasks"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
@@ -72,7 +71,6 @@ type App struct {
 	dynamicClient        client.Client
 	secretProviderClient secretProviderClient.Interface
 	certClient           certclient.Interface
-	oauthDefaultConfig   defaults.OAuth2Config
 	kubeUtil             *kube.Kube
 	config               *apiconfig.Config
 	kedaClient           kedav2.Interface
@@ -138,7 +136,6 @@ func initializeApp(ctx context.Context) (*App, error) {
 		app.kubeInformerFactory,
 		app.radixInformerFactory,
 	)
-	app.oauthDefaultConfig = getOAuthDefaultConfig(app.config2)
 	return &app, nil
 }
 
@@ -252,13 +249,6 @@ func initLogger(cfg config2.Config) {
 	zerolog.DefaultContextLogger = &logger
 }
 
-func getOAuthDefaultConfig(cfg config2.Config) defaults.OAuth2Config {
-	return defaults.NewOAuth2Config(
-		defaults.WithOAuth2Defaults(),
-		defaults.WithOIDCIssuerURL(cfg.Common.OAuth2Proxy.DefaultOIDCIssuer),
-	)
-}
-
 func (a *App) createRegistrationController(ctx context.Context) *common.Controller {
 	handler := registration.NewHandler(
 		a.kubeUtil.KubeClient(),
@@ -316,7 +306,6 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.eventRecorder,
 		*a.config,
 		a.config2,
-		dnsalias.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 	)
 
 	return dnsalias.NewController(
@@ -339,7 +328,6 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.eventRecorder,
 		a.config,
 		a.config2,
-		deployment.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 	)
 
 	return deployment.NewController(ctx,

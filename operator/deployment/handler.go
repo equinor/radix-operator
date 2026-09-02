@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -24,13 +23,6 @@ import (
 // HandlerConfigOption defines a configuration function used for additional configuration of Handler
 type HandlerConfigOption func(*handler)
 
-// WithOAuth2DefaultConfig configures default OAuth2 settings
-func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOption {
-	return func(h *handler) {
-		h.oauth2DefaultConfig = oauth2Config
-	}
-}
-
 // WithDeploymentSyncerFactory configures the deploymentSyncerFactory for the Handler
 func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) HandlerConfigOption {
 	return func(h *handler) {
@@ -47,7 +39,6 @@ type handler struct {
 	kedaClient              kedav2.Interface
 	events                  common.SyncEventRecorder
 	kubeutil                *kube.Kube
-	oauth2DefaultConfig     defaults.OAuth2Config
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 	config                  *config.Config
 	config2                 config2.Config
@@ -115,7 +106,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, t.config2, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.config2, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.config2, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 	}
 

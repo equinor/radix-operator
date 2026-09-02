@@ -36,13 +36,18 @@ type syncer struct {
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, config2 config2.Config, oauth2Config defaults.OAuth2Config) Syncer {
+func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, config2 config2.Config) Syncer {
+	oauth2DefaultConfig := defaults.NewOAuth2Config(
+		defaults.WithOAuth2Defaults(),
+		defaults.WithOIDCIssuerURL(config2.Common.OAuth2Proxy.DefaultOIDCIssuer),
+	)
+
 	return &syncer{
 		radixClient:         radixClient,
 		dynamicClient:       dynamicClient,
 		config:              config,
 		config2:             config2,
-		oauth2DefaultConfig: oauth2Config,
+		oauth2DefaultConfig: oauth2DefaultConfig,
 		radixDNSAlias:       radixDNSAlias,
 	}
 }

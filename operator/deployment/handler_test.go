@@ -12,7 +12,6 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -159,7 +158,6 @@ func (s *handlerSuite) Test_Sync() {
 		s.NoError(err)
 	})
 	s.Run("active RD with existing RR calls factory with expected args", func() {
-		oauthConfig := defaults.NewOAuth2Config()
 
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
@@ -168,7 +166,7 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, s.config2, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, s.config2, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, s.config2, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 		}
 		factory.
@@ -176,7 +174,7 @@ func (s *handlerSuite) Test_Sync() {
 			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, activeRd, gomock.Eq(expectedAuxResources), s.config, gomock.Any()).
 			Return(syncer).
 			Times(1)
-		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, s.config2, WithDeploymentSyncerFactory(factory), WithOAuth2DefaultConfig(oauthConfig))
+		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, s.config2, WithDeploymentSyncerFactory(factory))
 		err := h.Sync(context.Background(), namespace, activeRdName)
 		s.NoError(err)
 	})

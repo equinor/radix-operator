@@ -40,7 +40,12 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, cfg config2.Config, externalRegistryAuthSecret string) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, cfg config2.Config, externalRegistryAuthSecret string) AuxiliaryResourceManager {
+	oauth2DefaultConfig := defaults.NewOAuth2Config(
+		defaults.WithOAuth2Defaults(),
+		defaults.WithOIDCIssuerURL(cfg.Common.OAuth2Proxy.DefaultOIDCIssuer),
+	)
+
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
