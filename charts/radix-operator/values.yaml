@@ -61,10 +61,7 @@ app:
       requests:
         memory: 500M
         cpu: 200m
-  # Readiness probe parameters
-  readinessProbe:
-    initialDelaySeconds: 5
-    periodSeconds: 10
+
   # Rolling update parameters
   rollingUpdate:
     maxUnavailable: 25%
