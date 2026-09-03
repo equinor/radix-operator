@@ -44,6 +44,35 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  name: radix-webhook-common-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: [{{ include "radix-common-config.name" . | quote }}]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: radix-webhook-common-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-webhook.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: radix-webhook-common-config
+subjects:
+  - kind: ServiceAccount
+    name: radix-webhook
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
   name: radix-webhook-secret-controller
   namespace: {{ .Release.Namespace }}
   labels:
