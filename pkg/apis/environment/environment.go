@@ -209,9 +209,9 @@ const limitRangeName = "mem-cpu-limit-range-env"
 // applyLimitRange sets resource usage limits to provided namespace
 func (env *Environment) applyLimitRange(ctx context.Context) error {
 	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
-	defaultMemoryLimit := defaults.GetDefaultMemoryLimit()
-	defaultCPURequest := defaults.GetDefaultCPURequest()
-	defaultMemoryRequest := defaults.GetDefaultMemoryRequest()
+	defaultMemoryLimit := env.config2.Operator.EnvNsLimitRange.DefaultMemory
+	defaultCPURequest := env.config2.Operator.EnvNsLimitRange.DefaultRequestCPU
+	defaultMemoryRequest := env.config2.Operator.EnvNsLimitRange.DefaultRequestMemory
 
 	// if not all limits are defined, then don't put any limits on namespace
 	if defaultMemoryLimit == nil ||

@@ -51,7 +51,6 @@ func (js *JobSchedulerComponent) GetEnvironmentVariables() radixv1.EnvVarsMap {
 		envVarsMap = radixv1.EnvVarsMap{}
 	}
 	envVarsMap[defaults.RadixDeploymentEnvironmentVariable] = js.radixDeployment.Name
-	envVarsMap[defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable] = os.Getenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable)
 	return envVarsMap
 }
 

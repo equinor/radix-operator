@@ -294,7 +294,6 @@ func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder utils.EnvironmentBuil
 func SetRequiredEnvironmentVariables() {
 	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
 	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")

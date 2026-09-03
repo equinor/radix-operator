@@ -73,12 +73,17 @@ func TestParse_HappyPath(t *testing.T) {
 			ReadinessProbeInitialDelaySeconds: 5,
 			ReadinessProbePeriodSeconds:       10,
 
-			// DefaultAppAdminGroups: []string{"default-app-admin-group1", "default-app-admin-group2"},
+			DefaultAppAdminGroups: []string{"default-app-admin-group1", "default-app-admin-group2"},
 
 			AppNsLimitRange: config2.LimitRangeConfig{
 				DefaultMemory:        new(resource.MustParse("500M")),
 				DefaultRequestMemory: new(resource.MustParse("450M")),
 				DefaultRequestCPU:    new(resource.MustParse("100m")),
+			},
+			EnvNsLimitRange: config2.LimitRangeConfig{
+				DefaultMemory:        new(resource.MustParse("555M")),
+				DefaultRequestMemory: new(resource.MustParse("444M")),
+				DefaultRequestCPU:    new(resource.MustParse("111m")),
 			},
 		},
 	}

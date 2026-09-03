@@ -43,6 +43,7 @@ type OperatorConfig struct {
 	ReadinessProbePeriodSeconds       int32 `json:"readinessProbePeriodSeconds" required:"true"`
 
 	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
+	EnvNsLimitRange LimitRangeConfig `json:"envNsLimitRange" required:"true"`
 }
 
 type OAuth2ProxyConfig struct {

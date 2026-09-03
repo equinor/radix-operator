@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -36,15 +37,20 @@ const (
 	egressRuleEnvConfigFileName = "./testdata/re_egress.yaml"
 	regConfigFileName           = "./testdata/rr.yaml"
 	namespaceName               = "testapp-testenv"
-
-	limitDefaultReqestCPU    = "234m" // 0.234
-	limitDefaultMemory       = "321M" // 321'000'000
-	limitDefaultReqestMemory = "123M" // 123'000'000
 )
 
 var testCfg config.Config = config.Config{
 	Gateway: config.GatewayConfig{
 		Name: "any-gateway-name",
+	},
+}
+var testCfg2 config2.Config = config2.Config{
+	Operator: config2.OperatorConfig{
+		EnvNsLimitRange: config2.LimitRangeConfig{
+			DefaultMemory:        new(resource.MustParse("321M")),
+			DefaultRequestCPU:    new(resource.MustParse("234m")),
+			DefaultRequestMemory: new(resource.MustParse("123M")),
+		},
 	},
 }
 
@@ -58,9 +64,6 @@ func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, *radix.Cl
 	err := handlerTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 
-	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
-	_ = os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
-	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
 	return handlerTestUtils, fakekube, kubeUtil, fakeradix
 }
 
@@ -68,7 +71,7 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 	rr := test.Load[*radixv1.RadixRegistration](regConfigFileName)
 	re := test.Load[*radixv1.RadixEnvironment](radixEnvFileName)
 	nw := networkpolicy.NewNetworkPolicy(client, kubeUtil, testCfg)
-	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, config2.Config{}, &nw)
+	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, testCfg2, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
 	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{}); err != nil {
 		return nil, nil, env, err
@@ -259,9 +262,10 @@ func Test_Create_LimitRange(t *testing.T) {
 	t.Run("Received correct limitrange values", func(t *testing.T) {
 		limits := limitranges.Items[0].Spec.Limits[0]
 		assert.True(t, limits.Default.Cpu().IsZero())
-		assert.Equal(t, limitDefaultReqestCPU, limits.DefaultRequest.Cpu().String())
-		assert.Equal(t, limitDefaultMemory, limits.Default.Memory().String())
-		assert.Equal(t, limitDefaultReqestMemory, limits.DefaultRequest.Memory().String())
+
+		assert.Equal(t, testCfg2.Operator.EnvNsLimitRange.DefaultRequestCPU.String(), limits.DefaultRequest.Cpu().String())
+		assert.Equal(t, testCfg2.Operator.EnvNsLimitRange.DefaultMemory.String(), limits.Default.Memory().String())
+		assert.Equal(t, testCfg2.Operator.EnvNsLimitRange.DefaultRequestMemory.String(), limits.DefaultRequest.Memory().String())
 	})
 }
 
@@ -306,21 +310,17 @@ func Test_Orphaned_Status(t *testing.T) {
 
 // commonAsserts runs a generic set of assertions about resource creation
 func commonAsserts(t *testing.T, env Environment, resources []metav1.Object, names ...string) {
-	t.Run("It creates a single resource", func(t *testing.T) {
-		assert.Len(t, resources, len(names))
-	})
+	t.Helper()
 
-	t.Run("Resource has a correct name", func(t *testing.T) {
-		for _, resource := range resources {
-			assert.Contains(t, names, resource.GetName())
-		}
-	})
+	assert.Len(t, resources, len(names), "It creates a single resource")
 
-	t.Run("Resource has a correct owner", func(t *testing.T) {
-		for _, resource := range resources {
-			assert.Equal(t, env.AsOwnerReference(), resource.GetOwnerReferences())
-		}
-	})
+	for _, resource := range resources {
+		assert.Contains(t, names, resource.GetName(), "Resource has a correct name")
+	}
+
+	for _, resource := range resources {
+		assert.Equal(t, env.AsOwnerReference(), resource.GetOwnerReferences(), "Resource has a correct owner")
+	}
 }
 
 // following code is necessary noise to account for the lack of covariance and overloading

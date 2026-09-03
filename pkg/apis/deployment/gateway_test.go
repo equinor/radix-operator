@@ -57,7 +57,6 @@ func TestGatewayTestSuite(t *testing.T) {
 func (s *GatewayTestSuite) SetupSuite() {
 	s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, testDNSZone)
 	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, testAppAliasBaseURL)
-	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")

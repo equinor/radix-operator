@@ -106,7 +106,6 @@ func (s *syncerTestSuite) setupTest() {
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, secretproviderfake.NewSimpleClientset())
-	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
 	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 }

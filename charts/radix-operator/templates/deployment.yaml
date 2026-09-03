@@ -45,13 +45,6 @@ spec:
               value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
               value: {{ .Values.clusterType }}
-            # For configuring limit ranges on env namespaces
-            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY
-              value: {{ .Values.app.env.limitrange.default.memory | quote }}
-            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY
-              value: {{ .Values.app.env.limitrange.defaultRequest.memory | quote }}
-            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU
-              value: {{ .Values.app.env.limitrange.defaultRequest.cpu | quote }}
             # For configuring limit ranges on app namespaces
             - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY
               value: {{ .Values.app.builder.resources.limits.memory | quote }}

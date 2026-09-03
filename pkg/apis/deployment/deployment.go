@@ -105,7 +105,7 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 	}
 
 	deploy.maintainHistoryLimit(ctx, deploy.config.DeploymentSyncer.DeploymentHistoryLimit)
-	return metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
+	return metrics.RequestedResources(deploy.config2, deploy.registration, deploy.radixDeployment)
 }
 
 func (deploy *Deployment) syncStatus(ctx context.Context, reconcileErr error) error {
