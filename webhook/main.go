@@ -14,13 +14,15 @@ import (
 	"github.com/rs/zerolog"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	internalconfig "github.com/equinor/radix-operator/webhook/internal/config"
 	"github.com/equinor/radix-operator/webhook/validation"
-
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
 	"github.com/rs/zerolog/log"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	siglog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
@@ -31,6 +33,7 @@ import (
 func main() {
 	ctx := signals.SetupSignalHandler()
 	c := internalconfig.MustParseConfig()
+	cfg2 := loadConfig(ctx)
 	logger := initLogger(c)
 	logger.Info().Str("version", internalconfig.Version).Msg("Starting Radix Webhook")
 	logger.Info().Interface("config", c).Msg("Configuration")
@@ -56,7 +59,7 @@ func main() {
 
 	certSetupFinished := addCertRotator(mgr, c)
 	addProbeEndpoints(mgr, certSetupFinished)
-	go setupWebhook(mgr, c, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
+	go setupWebhook(mgr, c, cfg2, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
 
 	logger.Info().Msg("starting manager")
 	if err := mgr.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -65,10 +68,19 @@ func main() {
 	logger.Info().Msg("shutting down")
 }
 
-func setupWebhook(mgr manager.Manager, c internalconfig.Config, certSetupFinished <-chan struct{}) {
+func loadConfig(ctx context.Context) config2.Config {
+	cfgClient, err := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create config reader client")
+	}
+	cfgYaml := config2.MustEnvConfigMapReader(ctx, cfgClient)
+	return config2.MustParse(cfgYaml)
+}
+
+func setupWebhook(mgr manager.Manager, c internalconfig.Config, cfg2 config2.Config, certSetupFinished <-chan struct{}) {
 	<-certSetupFinished
 	log.Debug().Msg("Configuring webhook...")
-	validation.SetupWebhook(mgr, c)
+	validation.SetupWebhook(mgr, c, cfg2)
 	log.Info().Msg("webhook setup complete")
 }
 

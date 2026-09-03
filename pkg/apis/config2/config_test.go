@@ -7,6 +7,7 @@ import (
 	_ "embed"
 
 	"github.com/equinor/radix-operator/pkg/apis/config2"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,10 +31,30 @@ func TestParse_HappyPath(t *testing.T) {
 		Common: config2.CommonConfig{
 			ClusterName: "test-cluster",
 			OAuth2Proxy: config2.OAuth2ProxyConfig{
-				DefaultOIDCIssuer: "https://example.com",
 				ProxyImage: config2.ContainerImage{
 					Repository: "quay.io/oauth2-proxy/oauth2-proxy",
 					Tag:        "v7.6.2",
+				},
+				RedisImage: config2.ContainerImage{
+					Repository: "docker.io/redis",
+					Tag:        "v8.6.0",
+				},
+				ProxyDefaults: v1.OAuth2{
+					Scope:                  "openid profile email",
+					ProxyPrefix:            "/oauth2",
+					SetXAuthRequestHeaders: new(false),
+					SetAuthorizationHeader: new(false),
+					SessionStoreType:       v1.SessionStoreCookie,
+					Cookie: &v1.OAuth2Cookie{
+						Name:     "_oauth2_proxy",
+						Expire:   "168h0m0s",
+						Refresh:  "60m0s",
+						SameSite: v1.SameSiteLax,
+					},
+					OIDC: &v1.OAuth2OIDC{
+						IssuerURL:     "https://issuer.com",
+						SkipDiscovery: new(false),
+					},
 				},
 			},
 		},

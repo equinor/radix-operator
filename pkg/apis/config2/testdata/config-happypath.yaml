@@ -1,10 +1,27 @@
 common:
   clusterName: test-cluster
   oauth2Proxy:
-    defaultOIDCIssuer: "https://example.com"
     proxyImage:
       tag: v7.6.2
       repository: quay.io/oauth2-proxy/oauth2-proxy
+    redisImage:
+      tag: v8.6.0
+      repository: docker.io/redis
+    proxyDefaults:
+      scope: "openid profile email"
+      proxyPrefix: "/oauth2"
+      setXAuthRequestHeaders: false
+      setAuthorizationHeader: false
+      sessionStoreType: cookie
+      cookie:
+        name: "_oauth2_proxy"
+        expire: "168h0m0s"
+        refresh: "60m0s"
+        sameSite: "lax"
+      oidc:
+        issuerUrl: "https://issuer.com"
+        skipDiscovery: false
+
 operator:
   logLevel: info
   logPrettyPrint: true
