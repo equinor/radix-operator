@@ -12,6 +12,7 @@ package alert
 import (
 	reflect "reflect"
 
+	config2 "github.com/equinor/radix-operator/pkg/apis/config2"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "go.uber.org/mock/gomock"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,15 +43,15 @@ func (m *MockAlertSyncerFactory) EXPECT() *MockAlertSyncerFactoryMockRecorder {
 }
 
 // CreateAlertSyncer mocks base method.
-func (m *MockAlertSyncerFactory) CreateAlertSyncer(dynamicClient client.Client, radixAlert *v1.RadixAlert) AlertSyncer {
+func (m *MockAlertSyncerFactory) CreateAlertSyncer(cfg config2.Config, dynamicClient client.Client, radixAlert *v1.RadixAlert) AlertSyncer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAlertSyncer", dynamicClient, radixAlert)
+	ret := m.ctrl.Call(m, "CreateAlertSyncer", cfg, dynamicClient, radixAlert)
 	ret0, _ := ret[0].(AlertSyncer)
 	return ret0
 }
 
 // CreateAlertSyncer indicates an expected call of CreateAlertSyncer.
-func (mr *MockAlertSyncerFactoryMockRecorder) CreateAlertSyncer(dynamicClient, radixAlert any) *gomock.Call {
+func (mr *MockAlertSyncerFactoryMockRecorder) CreateAlertSyncer(cfg, dynamicClient, radixAlert any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAlertSyncer", reflect.TypeOf((*MockAlertSyncerFactory)(nil).CreateAlertSyncer), dynamicClient, radixAlert)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAlertSyncer", reflect.TypeOf((*MockAlertSyncerFactory)(nil).CreateAlertSyncer), cfg, dynamicClient, radixAlert)
 }

@@ -47,7 +47,7 @@ func ApplyApplicationWithSync(client kubernetes.Interface, radixclient radixclie
 		return err
 	}
 
-	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtils, radixclient, registrationBuilder.BuildRR(), applicationBuilder.BuildRA())
+	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtils, radixclient, registrationBuilder.BuildRR(), applicationBuilder.BuildRA(), config2.Config{})
 	return applicationConfig.OnSync(context.Background())
 }
 

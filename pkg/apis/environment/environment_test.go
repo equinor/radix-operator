@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
@@ -67,7 +68,7 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 	rr := test.Load[*radixv1.RadixRegistration](regConfigFileName)
 	re := test.Load[*radixv1.RadixEnvironment](radixEnvFileName)
 	nw := networkpolicy.NewNetworkPolicy(client, kubeUtil, testCfg)
-	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, &nw)
+	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, config2.Config{}, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
 	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{}); err != nil {
 		return nil, nil, env, err
@@ -90,7 +91,7 @@ func Test_ReconcileStatus(t *testing.T) {
 
 	// First sync sets status
 	expectedGen := re.Generation
-	sut := NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, &np)
+	sut := NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -103,7 +104,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	re.Generation++
 	expectedGen = re.Generation
-	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, &np)
+	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -120,7 +121,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	})
 	re.Generation++
 	expectedGen = re.Generation
-	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, &np)
+	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.ErrorContains(t, err, errorMsg)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})

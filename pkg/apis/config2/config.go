@@ -37,6 +37,8 @@ type OperatorConfig struct {
 	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" required:"true"`
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
 
+	DefaultAppAdminGroups []string `json:"defaultAppAdminGroups"`
+
 	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
 	ReadinessProbePeriodSeconds       int32 `json:"readinessProbePeriodSeconds" required:"true"`
 
@@ -102,10 +104,15 @@ func validateConfig(cfg *Config) error {
 func processEnvOverrides(cfg *Config, prefix string) error {
 	return processfields.WalkFields(cfg, func(path string, field reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
 
-		envTag := strings.ReplaceAll(path, ".", "_")
-		envName := strings.ToUpper(prefix + "_" + envTag)
+		env := strings.ReplaceAll(path, ".", "_")
+		env = strings.ReplaceAll(env, "[", "_")
+		env = strings.ReplaceAll(env, "]", "_")
+		env = strings.ToUpper(prefix + "_" + env)
+		env = strings.ReplaceAll(env, "__", "_")
+		env = strings.TrimSuffix(env, "_")
+		env = strings.TrimPrefix(env, "_")
 
-		envValue := os.Getenv(envName)
+		envValue := os.Getenv(env)
 		if envValue == "" {
 			return nil
 		}
@@ -116,7 +123,7 @@ func processEnvOverrides(cfg *Config, prefix string) error {
 		}
 
 		if err := setter(values...); err != nil {
-			return fmt.Errorf("failed to set field %q from env %q: %w", path, envName, err)
+			return fmt.Errorf("failed to set field %q from env %q: %w", path, env, err)
 		}
 		return nil
 	})

@@ -18,7 +18,7 @@ func (app *Application) applyRbacAppNamespace(ctx context.Context) error {
 	registration := app.registration
 	appNamespace := utils.GetAppNamespace(registration.Name)
 
-	subjects := utils.GetAppAdminRbacSubjects(registration)
+	subjects := utils.GetAppAdminRbacSubjects(app.config2, registration)
 	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppAdminRoleName, subjects)
 
 	readerSubjects := utils.GetAppReaderRbacSubjects(registration)
@@ -40,7 +40,7 @@ func (app *Application) applyRbacRadixRegistration(ctx context.Context) error {
 	// Admin RBAC
 	clusterRoleName := fmt.Sprintf("radix-platform-user-rr-%s", appName)
 	adminClusterRole := app.buildRRClusterRole(ctx, clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"})
-	appAdminSubjects := utils.GetAppAdminRbacSubjects(rr)
+	appAdminSubjects := utils.GetAppAdminRbacSubjects(app.config2, rr)
 	adminClusterRoleBinding := app.rrClusterRoleBinding(ctx, adminClusterRole, appAdminSubjects)
 
 	// Reader RBAC

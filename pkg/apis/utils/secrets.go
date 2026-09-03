@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/random"
@@ -89,7 +90,7 @@ func GrantAppReaderAccessToSecret(ctx context.Context, kubeutil *kube.Kube, regi
 }
 
 // GrantAppAdminAccessToSecret grants access to a secret for app-admin groups
-func GrantAppAdminAccessToSecret(ctx context.Context, kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
+func GrantAppAdminAccessToSecret(ctx context.Context, cfg config2.Config, kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
 	namespace := GetAppNamespace(registration.Name)
 
 	// create role
@@ -100,7 +101,7 @@ func GrantAppAdminAccessToSecret(ctx context.Context, kubeutil *kube.Kube, regis
 	}
 
 	// create rolebinding
-	subjects := GetAppAdminRbacSubjects(registration)
+	subjects := GetAppAdminRbacSubjects(cfg, registration)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/equinor/radix-operator/operator/common"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
@@ -67,7 +68,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 
 	syncApplication := radixApplication.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync application %s", syncApplication.Name)
-	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication)
+	applicationConfig := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication, config2.Config{})
 	err = applicationConfig.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncApplication, err)

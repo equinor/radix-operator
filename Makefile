@@ -205,7 +205,7 @@ lint-golangci: bootstrap
 
 lint-helm: bootstrap
 	helm lint ./charts/radix-operator \
-		--set rbac.createApp.groups[0]=platform-users \
+		--set config.operator.defaultAppAdminGroups[0]=platform-users \
 		--set ingress.gateway.name=radix \
 		--set ingress.gateway.namespace=istio
 

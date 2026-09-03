@@ -65,7 +65,7 @@ func (app *Application) reconcile(ctx context.Context) error {
 		return fmt.Errorf("failed to apply pipeline secrets: %w", err)
 	}
 
-	if err := utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName); err != nil {
+	if err := utils.GrantAppAdminAccessToSecret(ctx, app.config2, app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName); err != nil {
 		return fmt.Errorf("failed to grant access to git private key secret: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msg("Applied secrets needed by pipelines")
@@ -74,7 +74,7 @@ func (app *Application) reconcile(ctx context.Context) error {
 		return fmt.Errorf("failed to apply webhook shared secret: %w", err)
 	}
 
-	if err := utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretName); err != nil {
+	if err := utils.GrantAppAdminAccessToSecret(ctx, app.config2, app.kubeutil, app.registration, defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretName); err != nil {
 		return fmt.Errorf("failed to grant admin access to webhook shared secret: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msg("Applied webhook shared secret")

@@ -42,6 +42,8 @@ config:
     readinessProbeInitialDelaySeconds: 5
     readinessProbePeriodSeconds: 10
 
+    defaultAppAdminGroups: []
+
     appNsLimitRange:
       defaultMemory: 450M
       defaultRequestMemory: 450M

@@ -32,6 +32,7 @@ import (
 
 var testConfig2 = config2.Config{
 	Operator: config2.OperatorConfig{
+		DefaultAppAdminGroups: []string{"group1", "group2"},
 		AppNsLimitRange: config2.LimitRangeConfig{
 			DefaultMemory:        new(resource.MustParse("250M")),
 			DefaultRequestMemory: new(resource.MustParse("200M")),
@@ -258,9 +259,6 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)
-	defaultGroups := "group1,group2"
-	defer os.Clearenv()
-	os.Setenv(defaults.OperatorDefaultAppAdminGroupsEnvironmentVariable, defaultGroups)
 
 	// Test
 	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().WithName("any-app").WithAdGroups([]string{}).WithReaderAdGroups([]string{}), testConfig2)

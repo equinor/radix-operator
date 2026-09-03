@@ -357,6 +357,7 @@ func (a *App) createAlertController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.dynamicClient,
 		a.eventRecorder,
+		a.config2,
 	)
 
 	return alert.NewController(ctx, a.kubeUtil.KubeClient(), a.radixClient, handler, a.kubeInformerFactory, a.radixInformerFactory)

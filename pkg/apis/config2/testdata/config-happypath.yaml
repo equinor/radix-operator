@@ -35,6 +35,9 @@ operator:
   kubeClientRateLimitQPS: 50.5
   readinessProbeInitialDelaySeconds: 5
   readinessProbePeriodSeconds: 10
+  # defaultAppAdminGroups:
+  #   - "default-app-admin-group1"
+  #   - "default-app-admin-group2"
   appNsLimitRange:
     defaultMemory: 500M
     defaultRequestMemory: 450M
