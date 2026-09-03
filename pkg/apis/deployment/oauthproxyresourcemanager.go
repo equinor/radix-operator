@@ -427,7 +427,7 @@ func (o *oauthProxyResourceManager) createOrUpdateAppAdminRbac(ctx context.Conte
 	}
 
 	// create rolebinding
-	subjects := utils.GetAppAdminRbacSubjects(o.config2, o.rr)
+	subjects := utils.GetAppAdminRbacSubjects(o.config, o.rr)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return o.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
