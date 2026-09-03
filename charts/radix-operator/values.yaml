@@ -39,6 +39,13 @@ config:
     alertControllerThreads: 1
     kubeClientRateLimitBurst: 5
     kubeClientRateLimitQPS: 5
+    readinessProbeInitialDelaySeconds: 5
+    readinessProbePeriodSeconds: 10
+
+    appNsLimitRange:
+      defaultMemory: 450M
+      defaultRequestMemory: 450M
+      defaultRequestCPU: 100m
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
@@ -48,13 +55,6 @@ appContainerRegistry: radixdevapp.azurecr.io
 tenantId: xx
 
 app:
-  # Limit range on app namespace
-  limitrange:
-    default:
-      memory: 450M
-    defaultRequest:
-      memory: 450M
-      cpu: 100m
   env:
     # Limit range on env namespace
     limitrange:
@@ -72,10 +72,7 @@ app:
       requests:
         memory: 500M
         cpu: 200m
-  # Readiness probe parameters
-  readinessProbe:
-    initialDelaySeconds: 5
-    periodSeconds: 10
+
   # Rolling update parameters
   rollingUpdate:
     maxUnavailable: 25%

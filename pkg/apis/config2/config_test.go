@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -59,16 +60,24 @@ func TestParse_HappyPath(t *testing.T) {
 			},
 		},
 		Operator: config2.OperatorConfig{
-			LogLevel:                      "info",
-			LogPrettyPrint:                true,
-			RegistrationControllerThreads: 1,
-			ApplicationControllerThreads:  2,
-			EnvironmentControllerThreads:  3,
-			DeploymentControllerThreads:   4,
-			JobControllerThreads:          5,
-			AlertControllerThreads:        6,
-			KubeClientRateLimitBurst:      100,
-			KubeClientRateLimitQPS:        50.5,
+			LogLevel:                          "info",
+			LogPrettyPrint:                    true,
+			RegistrationControllerThreads:     1,
+			ApplicationControllerThreads:      2,
+			EnvironmentControllerThreads:      3,
+			DeploymentControllerThreads:       4,
+			JobControllerThreads:              5,
+			AlertControllerThreads:            6,
+			KubeClientRateLimitBurst:          100,
+			KubeClientRateLimitQPS:            50.5,
+			ReadinessProbeInitialDelaySeconds: 5,
+			ReadinessProbePeriodSeconds:       10,
+
+			AppNsLimitRange: config2.LimitRangeConfig{
+				DefaultMemory:        new(resource.MustParse("500M")),
+				DefaultRequestMemory: new(resource.MustParse("450M")),
+				DefaultRequestCPU:    new(resource.MustParse("100m")),
+			},
 		},
 	}
 

@@ -47,13 +47,6 @@ spec:
               value: {{ .Values.clusterType }}
             - name: RADIXOPERATOR_DEFAULT_APP_ADMIN_GROUPS
               value: {{ .Values.rbac.createApp.groups | join "," | quote }}
-            # For configuring limit ranges on app namespaces
-            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY
-              value: {{ .Values.app.limitrange.default.memory | quote }}
-            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY
-              value: {{ .Values.app.limitrange.defaultRequest.memory | quote }}
-            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU
-              value: {{ .Values.app.limitrange.defaultRequest.cpu | quote }}
             # For configuring limit ranges on env namespaces
             - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY
               value: {{ .Values.app.env.limitrange.default.memory | quote }}
@@ -70,11 +63,6 @@ spec:
               value: {{ .Values.app.builder.resources.requests.memory | quote }}
             - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU
               value: {{ .Values.app.builder.resources.requests.cpu | quote }}
-            # For configuring readiness probe
-            - name: RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS
-              value: {{ .Values.app.readinessProbe.initialDelaySeconds | quote }}
-            - name: RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS
-              value: {{ .Values.app.readinessProbe.periodSeconds | quote }}
             # For configuring rolling update
             - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_UNAVAILABLE
               value: {{ .Values.app.rollingUpdate.maxUnavailable | quote }}

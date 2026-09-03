@@ -79,6 +79,10 @@ var testConfig2 = config2.Config{
 	Common: config2.CommonConfig{
 		ClusterName: testClusterName,
 	},
+	Operator: config2.OperatorConfig{
+		ReadinessProbeInitialDelaySeconds: 25,
+		ReadinessProbePeriodSeconds:       15,
+	},
 }
 
 func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *radixfake.Clientset, *kedafake.Clientset, client.Client, *secretproviderfake.Clientset, *certfake.Clientset) {
@@ -105,8 +109,6 @@ func TeardownTest() {
 	// Cleanup setup
 	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
 	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-	_ = os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
-	_ = os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	_ = os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)

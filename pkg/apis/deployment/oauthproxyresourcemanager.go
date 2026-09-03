@@ -552,10 +552,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 	componentName := component.GetName()
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	oauth2 := component.GetAuthentication().GetOAuth2()
-	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(defaults.OAuthProxyPortNumber)
-	if err != nil {
-		return nil, err
-	}
+	readinessProbe := getReadinessProbeWithDefaultsFromEnv(o.config, defaults.OAuthProxyPortNumber)
 
 	var replicas int32 = 1
 	if isComponentStopped(component) || component.HasZeroReplicas() {

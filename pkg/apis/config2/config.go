@@ -11,6 +11,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/rs/zerolog/log"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/yaml"
 )
 
@@ -35,12 +36,23 @@ type OperatorConfig struct {
 	AlertControllerThreads        int     `json:"alertControllerThreads" required:"true"`
 	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" required:"true"`
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
+
+	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
+	ReadinessProbePeriodSeconds       int32 `json:"readinessProbePeriodSeconds" required:"true"`
+
+	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
 }
 
 type OAuth2ProxyConfig struct {
 	ProxyImage    ContainerImage `json:"proxyImage" required:"true"`
 	RedisImage    ContainerImage `json:"redisImage" required:"true"`
 	ProxyDefaults v1.OAuth2      `json:"proxyDefaults"`
+}
+
+type LimitRangeConfig struct {
+	DefaultMemory        *resource.Quantity `json:"defaultMemory" required:"true"`
+	DefaultRequestMemory *resource.Quantity `json:"defaultRequestMemory" required:"true"`
+	DefaultRequestCPU    *resource.Quantity `json:"defaultRequestCPU" required:"true"`
 }
 
 func Parse(configYaml string) (*Config, error) {
