@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -114,7 +115,7 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg *config.Config, cfg2 conf
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 
 	envVarSet.Add(defaults.RadixClusterTypeEnvironmentVariable, cfg.ClusterType)
-	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, cfg.ContainerRegistryName)
+	envVarSet.Add(envvars.ContainerRegistry, cfg2.Operator.ContainerRegistry)
 	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, cfg.DNSZone)
 	envVarSet.Add(defaults.ClusternameEnvironmentVariable, cfg2.Common.ClusterName)
 	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)

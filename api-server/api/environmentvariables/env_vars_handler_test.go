@@ -8,6 +8,7 @@ import (
 	envvarsmodels "github.com/equinor/radix-operator/api-server/api/environmentvariables/models"
 	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
@@ -167,6 +168,6 @@ func assertRadixEnvVars(t *testing.T, envVarMap map[string]string) {
 	assert.Equal(t, clusterName, envVarMap[defaults.ClusternameEnvironmentVariable], "Invalid or missing RADIX_CLUSTERNAME env-var")
 	assert.Equal(t, clusterType, envVarMap[defaults.RadixClusterTypeEnvironmentVariable], "Invalid or missing RADIX_CLUSTER_TYPE env-var")
 	assert.Equal(t, componentName, envVarMap[defaults.RadixComponentEnvironmentVariable], "Invalid or missing RADIX_COMPONENT env-var")
-	assert.Equal(t, "any.container.registry", envVarMap[defaults.ContainerRegistryEnvironmentVariable], "Invalid or missing RADIX_CONTAINER_REGISTRY env-var")
+	assert.Equal(t, "any.container.registry", envVarMap[envvars.ContainerRegistry], "Invalid or missing RADIX_CONTAINER_REGISTRY env-var")
 	assert.Equal(t, "dev.radix.equinor.com", envVarMap[defaults.RadixDNSZoneEnvironmentVariable], "Invalid or missing RADIX_DNS_ZONE env-var")
 }

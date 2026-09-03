@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -91,7 +92,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 		assert.Equal(t, testEnv.cfg2.Common.ClusterName, resultEnvVarsMap[defaults.ClusternameEnvironmentVariable].Value)
 		assert.Equal(t, testEnv.cfg.ClusterType, resultEnvVarsMap[defaults.RadixClusterTypeEnvironmentVariable].Value)
 		assert.Equal(t, componentName, resultEnvVarsMap[defaults.RadixComponentEnvironmentVariable].Value)
-		assert.Equal(t, testEnv.cfg.ContainerRegistryName, resultEnvVarsMap[defaults.ContainerRegistryEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg2.Operator.ContainerRegistry, resultEnvVarsMap[envvars.ContainerRegistry].Value)
 		assert.Equal(t, testEnv.cfg.DNSZone, resultEnvVarsMap[defaults.RadixDNSZoneEnvironmentVariable].Value)
 	})
 
@@ -425,10 +426,16 @@ func setupTestEnv(t *testing.T) *testEnvProps {
 	testEnv := testEnvProps{}
 	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.secretproviderclient, testEnv.certClient = SetupTest(t)
 	testEnv.cfg = &config.Config{
-		ClusterType:           "development",
-		DNSZone:               "test.radix.equinor.com",
-		ContainerRegistryName: "testcr.azurecr.io",
+		ClusterType: "development",
+		DNSZone:     "test.radix.equinor.com",
 	}
-	testEnv.cfg2 = config2.Config{Common: config2.CommonConfig{ClusterName: testClusterName}}
+	testEnv.cfg2 = config2.Config{
+		Common: config2.CommonConfig{
+			ClusterName: testClusterName,
+		},
+		Operator: config2.OperatorConfig{
+			ContainerRegistry: "testcr.azurecr.io",
+		},
+	}
 	return &testEnv
 }

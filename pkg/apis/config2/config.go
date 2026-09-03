@@ -37,6 +37,9 @@ type OperatorConfig struct {
 	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" required:"true"`
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
 
+	ContainerRegistry    string `json:"containerRegistry" required:"true"`
+	AppContainerRegistry string `json:"appContainerRegistry" required:"true"`
+
 	DefaultAppAdminGroups []string `json:"defaultAppAdminGroups"`
 
 	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
