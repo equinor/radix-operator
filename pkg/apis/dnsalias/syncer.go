@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
@@ -24,31 +25,24 @@ type Syncer interface {
 
 // DNSAlias is the aggregate-root for manipulating RadixDNSAliases
 type syncer struct {
-	radixClient         radixclient.Interface
-	dynamicClient       client.Client
-	radixDNSAlias       *radixv1.RadixDNSAlias
-	oauth2DefaultConfig defaults.OAuth2Config
-	rd                  *radixv1.RadixDeployment
-	component           *radixv1.RadixDeployComponent
-	initMutex           sync.Mutex
-	config              config.Config
-	config2             config2.Config
+	radixClient   radixclient.Interface
+	dynamicClient client.Client
+	radixDNSAlias *radixv1.RadixDNSAlias
+	rd            *radixv1.RadixDeployment
+	component     *radixv1.RadixDeployComponent
+	initMutex     sync.Mutex
+	config        config.Config
+	config2       config2.Config
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
 func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, config2 config2.Config) Syncer {
-	oauth2DefaultConfig := defaults.NewOAuth2Config(
-		defaults.WithOAuth2Defaults(),
-		defaults.WithOIDCIssuerURL(config2.Common.OAuth2Proxy.DefaultOIDCIssuer),
-	)
-
 	return &syncer{
-		radixClient:         radixClient,
-		dynamicClient:       dynamicClient,
-		config:              config,
-		config2:             config2,
-		oauth2DefaultConfig: oauth2DefaultConfig,
-		radixDNSAlias:       radixDNSAlias,
+		radixClient:   radixClient,
+		dynamicClient: dynamicClient,
+		config:        config,
+		config2:       config2,
+		radixDNSAlias: radixDNSAlias,
 	}
 }
 
@@ -106,10 +100,11 @@ func (s *syncer) buildComponentWithOAuthDefaults(component *radixv1.RadixDeployC
 		return component, nil
 	}
 	componentWithOAuthDefaults := component.DeepCopy()
-	oauth, err := s.oauth2DefaultConfig.MergeWith(componentWithOAuthDefaults.Authentication.OAuth2)
+
+	oauth, err := defaults.MergeOAuth2(s.config2.Common.OAuth2Proxy.ProxyDefaults, *componentWithOAuthDefaults.Authentication.OAuth2)
 	if err != nil {
 		return nil, err
 	}
-	componentWithOAuthDefaults.Authentication.OAuth2 = oauth
+	componentWithOAuthDefaults.Authentication.OAuth2 = new(v1.OAuth2(oauth))
 	return componentWithOAuthDefaults, nil
 }

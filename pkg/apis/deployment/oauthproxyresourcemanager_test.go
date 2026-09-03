@@ -61,7 +61,6 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 	s.config2 = config2.Config{Common: config2.CommonConfig{
 		OAuth2Proxy: config2.OAuth2ProxyConfig{
-			DefaultOIDCIssuer: "https://oidc_issuer_url",
 			RedisImage: config2.ContainerImage{
 				Repository: "redis",
 				Tag:        "123",
@@ -69,6 +68,11 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 			ProxyImage: config2.ContainerImage{
 				Repository: "oauth2-proxy",
 				Tag:        "456",
+			},
+			ProxyDefaults: radixv1.OAuth2{
+				OIDC: &radixv1.OAuth2OIDC{
+					IssuerURL: "https://oidc_issuer_url",
+				},
 			},
 		},
 	}}
@@ -111,7 +115,6 @@ func (s *OAuthProxyResourceManagerTestSuite) TestNewOAuthProxyResourceManager() 
 	s.Equal(rd, sut.rd)
 	s.Equal(rr, sut.rr)
 	s.Equal(s.kubeUtil, sut.kubeutil)
-	s.Equal(s.config2.Common.OAuth2Proxy.ProxyImage.String(), sut.oauth2ProxyDockerImage)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() {
@@ -318,7 +321,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_UseClientSecretOrIdentity
 
 	for name, scenario := range scenarios {
 		s.Run(name, func() {
-			sut := &oauthProxyResourceManager{config2.Config{}, scenario.rd, rr, s.kubeUtil, defaults.NewOAuth2Config(), "proxy:123", "somesecret", zerolog.Nop()}
+			sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, s.config2, "somesecret", zerolog.Nop()}
 			if scenario.existingSa != nil {
 				_, err := s.kubeClient.CoreV1().ServiceAccounts(scenario.existingSa.Namespace).Create(context.Background(), scenario.existingSa, metav1.CreateOptions{})
 				s.NoError(err, "Failed to create service account")

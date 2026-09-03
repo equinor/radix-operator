@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -43,9 +44,9 @@ type OperatorConfig struct {
 }
 
 type OAuth2ProxyConfig struct {
-	DefaultOIDCIssuer string         `json:"defaultOIDCIssuer"`
-	ProxyImage        ContainerImage `json:"proxyImage" required:"true"`
-	RedisImage        ContainerImage `json:"redisImage" required:"true"`
+	ProxyImage    ContainerImage `json:"proxyImage" required:"true"`
+	RedisImage    ContainerImage `json:"redisImage" required:"true"`
+	ProxyDefaults v1.OAuth2      `json:"proxyDefaults"`
 }
 
 type LimitRangeConfig struct {

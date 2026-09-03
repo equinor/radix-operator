@@ -53,8 +53,12 @@ func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 	s.config2 = config2.Config{Common: config2.CommonConfig{OAuth2Proxy: config2.OAuth2ProxyConfig{
-		DefaultOIDCIssuer: "https://oidc_issuer_url",
-		ProxyImage:        config2.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
+		ProxyImage: config2.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
+		ProxyDefaults: v1.OAuth2{
+			OIDC: &v1.OAuth2OIDC{
+				IssuerURL: "https://oidc_issuer_url",
+			},
+		},
 	}}}
 }
 

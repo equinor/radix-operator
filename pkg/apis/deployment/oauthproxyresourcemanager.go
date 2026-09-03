@@ -41,29 +41,21 @@ const (
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
 func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, cfg config2.Config, externalRegistryAuthSecret string) AuxiliaryResourceManager {
-	oauth2DefaultConfig := defaults.NewOAuth2Config(
-		defaults.WithOAuth2Defaults(),
-		defaults.WithOIDCIssuerURL(cfg.Common.OAuth2Proxy.DefaultOIDCIssuer),
-	)
-
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
 		kubeutil:                   kubeutil,
-		oauth2DefaultConfig:        oauth2DefaultConfig,
-		oauth2ProxyDockerImage:     cfg.Common.OAuth2Proxy.ProxyImage.String(),
+		config:                     cfg,
 		externalRegistryAuthSecret: externalRegistryAuthSecret,
 		logger:                     log.Logger.With().Str("resource_kind", radixv1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth2").Logger(),
 	}
 }
 
 type oauthProxyResourceManager struct {
-	config2                    config2.Config
 	rd                         *radixv1.RadixDeployment
 	rr                         *radixv1.RadixRegistration
 	kubeutil                   *kube.Kube
-	oauth2DefaultConfig        defaults.OAuth2Config
-	oauth2ProxyDockerImage     string
+	config                     config2.Config
 	externalRegistryAuthSecret string
 	logger                     zerolog.Logger
 }
@@ -91,11 +83,11 @@ func (o *oauthProxyResourceManager) syncComponent(ctx context.Context, component
 
 func (o *oauthProxyResourceManager) buildComponentWithOAuthDefaults(component *radixv1.RadixDeployComponent) (*radixv1.RadixDeployComponent, error) {
 	componentWithOAuthDefaults := component.DeepCopy()
-	oauth, err := o.oauth2DefaultConfig.MergeWith(componentWithOAuthDefaults.Authentication.OAuth2)
+	oauth, err := defaults.MergeOAuth2(o.config.Common.OAuth2Proxy.ProxyDefaults, *componentWithOAuthDefaults.Authentication.OAuth2)
 	if err != nil {
 		return nil, err
 	}
-	componentWithOAuthDefaults.Authentication.OAuth2 = oauth
+	componentWithOAuthDefaults.Authentication.OAuth2 = new(radixv1.OAuth2(oauth))
 	return componentWithOAuthDefaults, nil
 }
 
@@ -560,7 +552,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 	componentName := component.GetName()
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	oauth2 := component.GetAuthentication().GetOAuth2()
-	readinessProbe := getReadinessProbeWithDefaultsFromEnv(o.config2, defaults.OAuthProxyPortNumber)
+	readinessProbe := getReadinessProbeWithDefaultsFromEnv(o.config, defaults.OAuthProxyPortNumber)
 
 	var replicas int32 = 1
 	if isComponentStopped(component) || component.HasZeroReplicas() {
@@ -602,7 +594,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 					Containers: []corev1.Container{
 						{
 							Name:            componentName,
-							Image:           o.oauth2ProxyDockerImage,
+							Image:           o.config.Common.OAuth2Proxy.ProxyImage.String(),
 							ImagePullPolicy: corev1.PullAlways,
 							Env:             envVars,
 							Ports: []corev1.ContainerPort{
