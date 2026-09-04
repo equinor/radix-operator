@@ -37,7 +37,7 @@
 				"--SECCOMP_PROFILE_FILENAME=allow-buildah.json",
 				"--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=docker.io/alpine/git:2.45.2",
 				"--RADIX_CLUSTER_TYPE=development",
-				"--RADIX_COMMON_CLUSTERNAME=weekly-28",
+				"--cluster-name=weekly-28",
 				"--container-registry=radixdev.azurecr.io",
 				"--RADIX_APP_CONTAINER_REGISTRY=radixdevapp.azurecr.io",
 				"--AZURE_SUBSCRIPTION_ID=16ede44b-1f74-40a5-b428-46cca9a5741b",
@@ -88,7 +88,7 @@
 				"--DEBUG=true",
 				"--RADIX_FILE_NAME=radixconfig.yaml",
 				"--RADIX_CLUSTER_TYPE=development",
-				"--RADIX_COMMON_CLUSTERNAME=weekly-28",
+				"--cluster-name=weekly-28",
 				"--container-registry=radixdev.azurecr.io",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
@@ -108,7 +108,7 @@
 				"--DEBUG=true",
 				"--RADIX_FILE_NAME=radixconfig.yaml",
 				"--RADIX_CLUSTER_TYPE=development",
-				"--RADIX_COMMON_CLUSTERNAME=weekly-28",
+				"--cluster-name=weekly-28",
 				"--container-registry=radixdev.azurecr.io",
 				"--APPLY_CONFIG_DEPLOY_EXTERNALDNS=true",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
