@@ -93,6 +93,16 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 		Operator: config2.OperatorConfig{
 			ContainerRegistry:    s.config.registry,
 			AppContainerRegistry: s.config.appRegistry,
+			BuilderResources: config2.Resources{
+				Requests: config2.ResourceRequirements{
+					CPU:    new(resource.MustParse("100m")),
+					Memory: new(resource.MustParse("1000Mi")),
+				},
+				Limits: config2.ResourceRequirements{
+					CPU:    new(resource.MustParse("200m")),
+					Memory: new(resource.MustParse("2000Mi")),
+				},
+			},
 		},
 	}
 
@@ -286,10 +296,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_APP=%s", appName),
 				fmt.Sprintf("--JOB_NAME=%s", jobName),
 				fmt.Sprintf("--PIPELINE_TYPE=%s", radixv1.BuildDeploy),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, "1000Mi"),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, "100m"),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, "2000Mi"),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, "200m"),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, s.config2.Operator.BuilderResources.Requests.Memory.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, s.config2.Operator.BuilderResources.Requests.CPU.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.config2.Operator.BuilderResources.Limits.Memory.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.config2.Operator.BuilderResources.Limits.CPU.String()),
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
