@@ -2689,7 +2689,6 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 			sut := s.createSyncer(batch, nil)
 			s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, "dev")
 			s.T().Setenv(defaults.RadixClusterTypeEnvironmentVariable, "development")
-			s.T().Setenv(defaults.ContainerRegistryEnvironmentVariable, "dev-acr")
 			s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 
 			s.Require().NoError(sut.OnSync(context.Background()))

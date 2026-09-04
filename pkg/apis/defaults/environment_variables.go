@@ -22,12 +22,6 @@ const (
 	// ClusternameEnvironmentVariable The name of the cluster
 	ClusternameEnvironmentVariable = "RADIX_CLUSTERNAME"
 
-	// ContainerRegistryEnvironmentVariable The name of the container registry
-	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
-
-	// AppContainerRegistryEnvironmentVariable The name of the app container registry
-	AppContainerRegistryEnvironmentVariable = "RADIX_APP_CONTAINER_REGISTRY"
-
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
 

@@ -39,7 +39,7 @@
 				"--RADIX_CLUSTER_TYPE=development",
 				"--RADIX_ZONE=dev",
 				"--RADIX_CLUSTERNAME=weekly-28",
-				"--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
+				"--container-registry=radixdev.azurecr.io",
 				"--RADIX_APP_CONTAINER_REGISTRY=radixdevapp.azurecr.io",
 				"--AZURE_SUBSCRIPTION_ID=16ede44b-1f74-40a5-b428-46cca9a5741b",
 				"--PUSH_IMAGE=true",
@@ -69,7 +69,7 @@
 				"--DEPLOYMENT_NAME=dev-hyxzv-j9pg34k2",
 				"--RADIX_FILE_NAME=radixconfig.yaml",
 				"--DEBUG=true",
-				"--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
+				"--container-registry=radixdev.azurecr.io",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
 		},
@@ -91,7 +91,7 @@
 				"--RADIX_CLUSTER_TYPE=development",
 				"--RADIX_ZONE=dev",
 				"--RADIX_CLUSTERNAME=weekly-28",
-				"--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
+				"--container-registry=radixdev.azurecr.io",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
 		},
@@ -112,7 +112,7 @@
 				"--RADIX_CLUSTER_TYPE=development",
 				"--RADIX_ZONE=dev",
 				"--RADIX_CLUSTERNAME=weekly-28",
-				"--RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io",
+				"--container-registry=radixdev.azurecr.io",
 				"--APPLY_CONFIG_DEPLOY_EXTERNALDNS=true",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]

@@ -73,6 +73,9 @@ func TestParse_HappyPath(t *testing.T) {
 			ReadinessProbeInitialDelaySeconds: 5,
 			ReadinessProbePeriodSeconds:       10,
 
+			ContainerRegistry:    "any.registry.com",
+			AppContainerRegistry: "app.registry.com",
+
 			DefaultAppAdminGroups: []string{"default-app-admin-group1", "default-app-admin-group2"},
 
 			AppNsLimitRange: config2.LimitRangeConfig{

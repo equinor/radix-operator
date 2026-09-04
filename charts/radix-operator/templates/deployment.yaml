@@ -63,10 +63,6 @@ spec:
               value: {{ .Values.logLevel }}
             - name: LOG_PRETTY
               value: {{ .Values.logPretty | quote }}
-            - name: RADIX_CONTAINER_REGISTRY
-              value: {{ .Values.containerRegistry }}
-            - name: RADIX_APP_CONTAINER_REGISTRY
-              value: {{ .Values.appContainerRegistry }}
             - name: RADIXOPERATOR_TENANT_ID
               value: {{ .Values.tenantId }}
             - name: RADIXOPERATOR_JOB_AUX_IMAGE

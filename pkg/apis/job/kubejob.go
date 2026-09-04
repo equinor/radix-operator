@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/equinor/radix-operator/pipeline-runner/flags"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -146,14 +147,8 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
 
 	clusterName := job.config2.Common.ClusterName
-	containerRegistry, err := defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
-	if err != nil {
-		return nil, err
-	}
-	appContainerRegistry, err := defaults.GetEnvVar(defaults.AppContainerRegistryEnvironmentVariable)
-	if err != nil {
-		return nil, err
-	}
+	containerRegistry := job.config2.Operator.ContainerRegistry
+	appContainerRegistry := job.config2.Operator.AppContainerRegistry
 
 	if job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.IsZero() ||
 		job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.IsZero() ||
@@ -181,8 +176,8 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		fmt.Sprintf("--%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
 		fmt.Sprintf("--%s=%s", defaults.RadixZoneEnvironmentVariable, radixZone),
 		fmt.Sprintf("--%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
-		fmt.Sprintf("--%s=%s", defaults.ContainerRegistryEnvironmentVariable, containerRegistry),
-		fmt.Sprintf("--%s=%s", defaults.AppContainerRegistryEnvironmentVariable, appContainerRegistry),
+		fmt.Sprintf("--%s=%s", flags.ContainerRegistry, containerRegistry),
+		fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, appContainerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
 		fmt.Sprintf("--%s=%v", defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, job.radixJob.Spec.TriggeredFromWebhook),

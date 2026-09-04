@@ -42,6 +42,9 @@ config:
     readinessProbeInitialDelaySeconds: 5
     readinessProbePeriodSeconds: 10
 
+    containerRegistry: ""
+    appContainerRegistry: ""
+
     defaultAppAdminGroups: []
 
     appNsLimitRange:
@@ -66,8 +69,6 @@ config:
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
-containerRegistry: radixdev.azurecr.io
-appContainerRegistry: radixdevapp.azurecr.io
 tenantId: xx
 
 app:
