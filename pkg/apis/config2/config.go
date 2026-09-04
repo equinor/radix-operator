@@ -113,7 +113,6 @@ func MustParse(configYaml string) Config {
 }
 
 func validateConfig(cfg *Config) error {
-
 	validator, err := NewValidator()
 	if err != nil {
 		return fmt.Errorf("failed to create config validator: %w", err)
@@ -154,6 +153,10 @@ func processEnvOverrides(cfg *Config, prefix string) error {
 		envValue := os.Getenv(env)
 		if envValue == "" {
 			return nil
+		}
+
+		if setter == nil {
+			return fmt.Errorf("its not allowed to use env-overrides (%s) on a struct on path %s", env, path)
 		}
 
 		values := []string{envValue}

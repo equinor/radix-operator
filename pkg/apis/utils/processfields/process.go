@@ -11,7 +11,7 @@ import (
 )
 
 // SetValFunc sets a field from one or more string values. A slice field takes one value per
-// element, any other field takes exactly one.
+// element, any other field takes exactly one. It is nil for container fields.
 type SetValFunc func(values ...string) error
 
 type WalkFunc func(path string, field reflect.StructField, value reflect.Value, setter SetValFunc) error
@@ -65,6 +65,11 @@ func (w *walker) walkStruct(val reflect.Value, path string) error {
 		}
 
 		if nested {
+			if fieldType.IsExported() {
+				if err := w.fn(fieldPath, fieldType, fieldValue, nil); err != nil {
+					return err
+				}
+			}
 			if err := w.walkNested(fieldValue, fieldPath); err != nil {
 				return err
 			}
@@ -72,6 +77,9 @@ func (w *walker) walkStruct(val reflect.Value, path string) error {
 		}
 
 		if fieldType.IsExported() && isNestedStructList(fieldType.Type) {
+			if err := w.fn(fieldPath, fieldType, fieldValue, nil); err != nil {
+				return err
+			}
 			if err := w.walkList(fieldValue, fieldPath); err != nil {
 				return err
 			}
