@@ -45,6 +45,9 @@ type OperatorConfig struct {
 	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
 	ReadinessProbePeriodSeconds       int32 `json:"readinessProbePeriodSeconds" required:"true"`
 
+	DefaultRollingUpdateMaxUnavailable string `json:"defaultRollingUpdateMaxUnavailable" required:"true"`
+	DefaultRollingUpdateMaxSurge       string `json:"defaultRollingUpdateMaxSurge" required:"true"`
+
 	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
 	EnvNsLimitRange LimitRangeConfig `json:"envNsLimitRange" required:"true"`
 

@@ -42,6 +42,9 @@ config:
     readinessProbeInitialDelaySeconds: 5
     readinessProbePeriodSeconds: 10
 
+    defaultRollingUpdateMaxUnavailable: 25%
+    defaultRollingUpdateMaxSurge: 25%
+
     containerRegistry: ""
     appContainerRegistry: ""
 
@@ -70,12 +73,6 @@ appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
 tenantId: xx
-
-app:
-  # Rolling update parameters
-  rollingUpdate:
-    maxUnavailable: 25%
-    maxSurge: 25%
 
 replicaCount: 1
 
