@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/pipeline-runner/flags"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config/quantity"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
@@ -89,8 +90,6 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, s.config.clusterType)
 	s.T().Setenv(defaults.RadixZoneEnvironmentVariable, s.config.radixZone)
-	s.T().Setenv(defaults.ContainerRegistryEnvironmentVariable, s.config.registry)
-	s.T().Setenv(defaults.AppContainerRegistryEnvironmentVariable, s.config.appRegistry)
 	s.T().Setenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable, s.config.buildkitImage)
 	s.T().Setenv(defaults.SeccompProfileFileNameEnvironmentVariable, s.config.buildahSecComp)
 	s.T().Setenv(defaults.RadixGitCloneGitImageEnvironmentVariable, s.config.gitImage)
@@ -126,7 +125,16 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBu
 }
 
 func (s *RadixJobTestSuiteBase) runSync(rr *radixv1.RadixRegistration, rj *radixv1.RadixJob, config *config.Config) error {
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, config, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
+	cfg2 := config2.Config{
+		Common: config2.CommonConfig{
+			ClusterName: s.config.clusterName,
+		},
+		Operator: config2.OperatorConfig{
+			ContainerRegistry:    s.config.registry,
+			AppContainerRegistry: s.config.appRegistry,
+		},
+	}
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, config, cfg2)
 	return job.OnSync(context.Background())
 }
 
@@ -298,8 +306,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_CLUSTER_TYPE=%s", s.config.clusterType),
 				fmt.Sprintf("--RADIX_ZONE=%s", s.config.radixZone),
 				fmt.Sprintf("--RADIX_CLUSTERNAME=%s", s.config.clusterName),
-				fmt.Sprintf("--RADIX_CONTAINER_REGISTRY=%s", s.config.registry),
-				fmt.Sprintf("--RADIX_APP_CONTAINER_REGISTRY=%s", s.config.appRegistry),
+				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.config.registry),
+				fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, s.config.appRegistry),
 				"--RADIX_GITHUB_WORKSPACE=/workspace",
 				"--RADIX_FILE_NAME=some-radixconfig.yaml",
 				"--TRIGGERED_FROM_WEBHOOK=false",

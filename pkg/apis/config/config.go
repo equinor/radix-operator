@@ -8,9 +8,8 @@ import (
 // Config from environment variables
 type Config struct {
 	// DNSConfig Settings for the cluster DNS
-	DNSZone               string `envconfig:"DNS_ZONE" required:"true"`
-	ClusterType           string `envconfig:"RADIXOPERATOR_CLUSTER_TYPE" required:"true"`
-	ContainerRegistryName string `envconfig:"RADIX_CONTAINER_REGISTRY" required:"true"`
+	DNSZone     string `envconfig:"DNS_ZONE" required:"true"`
+	ClusterType string `envconfig:"RADIXOPERATOR_CLUSTER_TYPE" required:"true"`
 
 	PipelineJobConfig       PipelineJobConfig
 	DeploymentSyncer        DeploymentSyncerConfig

@@ -18,7 +18,6 @@ func TestMustParse(t *testing.T) {
 		"LOG_PRETTY":      "true",
 		defaults.OperatorDNSZoneEnvironmentVariable:          "dev.radix.equinor.com",
 		defaults.OperatorClusterTypeEnvironmentVariable:      "development",
-		defaults.ContainerRegistryEnvironmentVariable:        "radixdev.azurecr.io",
 		defaults.RadixSafeToRestartBatchJobThresholdVariable: "259200",
 
 		// Gateway
@@ -64,7 +63,6 @@ func TestMustParse(t *testing.T) {
 	// Config top-level fields
 	assert.Equal(t, "dev.radix.equinor.com", cfg.DNSZone)
 	assert.Equal(t, "development", cfg.ClusterType)
-	assert.Equal(t, "radixdev.azurecr.io", cfg.ContainerRegistryName)
 	assert.Equal(t, int64(259200), cfg.SafeToRestartBatchJobThreshold)
 
 	// Gateway

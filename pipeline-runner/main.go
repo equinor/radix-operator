@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/equinor/radix-operator/pipeline-runner/flags"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
@@ -107,8 +108,8 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.SeccompProfileFileName, defaults.SeccompProfileFileNameEnvironmentVariable, "", "Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node")
 	cmd.Flags().StringVar(&pipelineArgs.Clustertype, defaults.RadixClusterTypeEnvironmentVariable, "", "Cluster type")
 	cmd.Flags().StringVar(&pipelineArgs.Clustername, defaults.ClusternameEnvironmentVariable, "", "Cluster name")
-	cmd.Flags().StringVar(&pipelineArgs.ContainerRegistry, defaults.ContainerRegistryEnvironmentVariable, "", "Container registry")
-	cmd.Flags().StringVar(&pipelineArgs.AppContainerRegistry, defaults.AppContainerRegistryEnvironmentVariable, "", "App Container registry")
+	cmd.Flags().StringVar(&pipelineArgs.ContainerRegistry, flags.ContainerRegistry, "", "Container registry")
+	cmd.Flags().StringVar(&pipelineArgs.AppContainerRegistry, flags.AppContainerRegistry, "", "App Container registry")
 	cmd.Flags().StringVar(&pipelineArgs.RadixZone, defaults.RadixZoneEnvironmentVariable, "", "Radix zone")
 	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, defaults.RadixConfigFileEnvironmentVariable, "", "Radix config file name. Example: radixconfig.yaml")
 	cmd.Flags().StringVar(&pipelineArgs.ImageTag, defaults.RadixImageTagEnvironmentVariable, "latest", "Docker image tag")
