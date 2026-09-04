@@ -57,15 +57,8 @@ config:
       defaultRequestMemory: 500M
       defaultRequestCPU: 100m
 
-appAliasBaseURL: app.dev.radix.equinor.com
-dnsZone: dev.radix.equinor.com
-radixZone: xx
-tenantId: xx
-
-app:
-  builder:
-    # Limit range on builder job in app namespace
-    resources:
+    # Should probably be in a builderSpecDefaults section, but for now we keep it here since it is used by the operator to set env vars for the pipeline runner job
+    builderResources:
       limits:
         memory: 500M
         cpu: 2000m
@@ -73,6 +66,12 @@ app:
         memory: 500M
         cpu: 200m
 
+appAliasBaseURL: app.dev.radix.equinor.com
+dnsZone: dev.radix.equinor.com
+radixZone: xx
+tenantId: xx
+
+app:
   # Rolling update parameters
   rollingUpdate:
     maxUnavailable: 25%

@@ -47,6 +47,8 @@ type OperatorConfig struct {
 
 	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
 	EnvNsLimitRange LimitRangeConfig `json:"envNsLimitRange" required:"true"`
+
+	BuilderResources Resources `json:"builderResources" required:"true"`
 }
 
 type OAuth2ProxyConfig struct {
@@ -59,6 +61,16 @@ type LimitRangeConfig struct {
 	DefaultMemory        *resource.Quantity `json:"defaultMemory" required:"true"`
 	DefaultRequestMemory *resource.Quantity `json:"defaultRequestMemory" required:"true"`
 	DefaultRequestCPU    *resource.Quantity `json:"defaultRequestCPU" required:"true"`
+}
+
+// TODO: Probably convert to pod spec defaults instead of just resources, but for now we only need resources
+type Resources struct {
+	Requests ResourceRequirements `json:"requests" required:"true"`
+	Limits   ResourceRequirements `json:"limits" required:"true"`
+}
+type ResourceRequirements struct {
+	Memory *resource.Quantity `json:"memory" required:"true" validate:"compareQuantity(self, config.operator.builderResources.requests.memory) >= 0"`
+	CPU    *resource.Quantity `json:"cpu" required:"true" validate:"compareQuantity(self, config.operator.builderResources.requests.cpu) >= 0"`
 }
 
 func Parse(configYaml string) (*Config, error) {
@@ -94,6 +106,12 @@ func MustParse(configYaml string) Config {
 }
 
 func validateConfig(cfg *Config) error {
+
+	validator, err := NewValidator()
+	if err != nil {
+		return fmt.Errorf("failed to create config validator: %w", err)
+	}
+
 	return processfields.WalkFields(cfg, func(path string, field reflect.StructField, value reflect.Value, _ processfields.SetValFunc) error {
 		requiredTag := field.Tag.Get("required")
 		required, _ := strconv.ParseBool(requiredTag)
@@ -101,6 +119,16 @@ func validateConfig(cfg *Config) error {
 		if required && value.IsZero() {
 			return fmt.Errorf("field %q is required but not set", path)
 		}
+
+		expression := field.Tag.Get("validate")
+		if expression != "" {
+			if valid, err := validator.ValidateField(expression, cfg, value); err != nil {
+				return fmt.Errorf("field %q validation failed expression: %w", path, err)
+			} else if !valid {
+				return fmt.Errorf("field %q did not pass validation expression", path)
+			}
+		}
+
 		return nil
 	})
 }

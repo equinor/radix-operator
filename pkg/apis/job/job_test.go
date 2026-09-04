@@ -11,7 +11,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/flags"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config/quantity"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -38,8 +37,8 @@ type RadixJobTestSuiteBase struct {
 	kubeClient  *kubernetes.Clientset
 	kubeUtils   *kube.Kube
 	radixClient *radix.Clientset
+	config2     config2.Config
 	config      struct {
-		clusterName    string
 		buildkitImage  string
 		buildahSecComp string
 		gitImage       string
@@ -52,7 +51,6 @@ type RadixJobTestSuiteBase struct {
 
 func (s *RadixJobTestSuiteBase) SetupSuite() {
 	s.config = struct {
-		clusterName    string
 		buildkitImage  string
 		buildahSecComp string
 		gitImage       string
@@ -61,7 +59,7 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		registry       string
 		appRegistry    string
 	}{
-		clusterName:    "AnyClusterName",
+
 		buildkitImage:  "docker.io/buildkit:any",
 		buildahSecComp: "anyseccomp",
 		gitImage:       "docker.io/git:any",
@@ -88,6 +86,26 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	s.Require().NoError(err)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient
 
+	s.config2 = config2.Config{
+		Common: config2.CommonConfig{
+			ClusterName: "AnyClusterName",
+		},
+		Operator: config2.OperatorConfig{
+			ContainerRegistry:    s.config.registry,
+			AppContainerRegistry: s.config.appRegistry,
+			BuilderResources: config2.Resources{
+				Requests: config2.ResourceRequirements{
+					CPU:    new(resource.MustParse("100m")),
+					Memory: new(resource.MustParse("1000Mi")),
+				},
+				Limits: config2.ResourceRequirements{
+					CPU:    new(resource.MustParse("200m")),
+					Memory: new(resource.MustParse("2000Mi")),
+				},
+			},
+		},
+	}
+
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, s.config.clusterType)
 	s.T().Setenv(defaults.RadixZoneEnvironmentVariable, s.config.radixZone)
 	s.T().Setenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable, s.config.buildkitImage)
@@ -95,7 +113,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	s.T().Setenv(defaults.RadixGitCloneGitImageEnvironmentVariable, s.config.gitImage)
 }
 
-func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBuilder, jobBuilder utils.JobBuilder, config *config.Config) (*radixv1.RadixJob, *radixv1.RadixRegistration, error) {
+func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBuilder, jobBuilder utils.JobBuilder, config *config.Config, config2 config2.Config) (*radixv1.RadixJob, *radixv1.RadixRegistration, error) {
 	rj, err := s.testUtils.ApplyJob(jobBuilder)
 	if err != nil {
 		return nil, nil, err
@@ -106,7 +124,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBu
 		return nil, nil, err
 	}
 
-	err = s.runSync(rr, rj, config)
+	err = s.runSync(rr, rj, config, config2)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -124,17 +142,8 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBu
 	return newRj, newRr, nil
 }
 
-func (s *RadixJobTestSuiteBase) runSync(rr *radixv1.RadixRegistration, rj *radixv1.RadixJob, config *config.Config) error {
-	cfg2 := config2.Config{
-		Common: config2.CommonConfig{
-			ClusterName: s.config.clusterName,
-		},
-		Operator: config2.OperatorConfig{
-			ContainerRegistry:    s.config.registry,
-			AppContainerRegistry: s.config.appRegistry,
-		},
-	}
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, config, cfg2)
+func (s *RadixJobTestSuiteBase) runSync(rr *radixv1.RadixRegistration, rj *radixv1.RadixJob, config *config.Config, config2 config2.Config) error {
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, config, config2)
 	return job.OnSync(context.Background())
 }
 
@@ -151,15 +160,6 @@ func (s *RadixJobTestSuite) SetupSubTest() {
 }
 
 func (s *RadixJobTestSuite) Test_ReconcileStatus() {
-	qty := createQuantity("1")
-	cfg := &config.Config{
-		PipelineJobConfig: config.PipelineJobConfig{
-			AppBuilderResourcesLimitsCPU:      qty,
-			AppBuilderResourcesLimitsMemory:   qty,
-			AppBuilderResourcesRequestsCPU:    qty,
-			AppBuilderResourcesRequestsMemory: qty,
-		},
-	}
 	rr := &radixv1.RadixRegistration{}
 	rj := &radixv1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
 	rj, err := s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rj, metav1.CreateOptions{})
@@ -167,7 +167,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rj.Generation
-	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, cfg, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
+	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, &config.Config{}, s.config2)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -180,7 +180,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	// Second sync with updated generation
 	rj.Generation++
 	expectedGen = rj.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, cfg, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, &config.Config{}, s.config2)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -195,7 +195,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	rjStop, err = s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rjStop, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	expectedGen = rjStop.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjStop, cfg, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjStop, &config.Config{}, s.config2)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rjStop, err = s.radixClient.RadixV1().RadixJobs(rjStop.Namespace).Get(context.Background(), rjStop.Name, metav1.GetOptions{})
@@ -214,7 +214,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 		return true, nil, errors.New(errorMsg)
 	})
 	expectedGen = rjErr.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjErr, cfg, config2.Config{Common: config2.CommonConfig{ClusterName: s.config.clusterName}})
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjErr, &config.Config{}, s.config2)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rjErr, err = s.radixClient.RadixV1().RadixJobs(rjErr.Namespace).Get(context.Background(), rjErr.Name, metav1.GetOptions{})
@@ -234,7 +234,7 @@ func (s *RadixJobTestSuite) Test_QueuedJob_ReconcileStatus() {
 
 	// Sync job -> queued
 	expectedGen := int64(42)
-	secondJob, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithGeneration(expectedGen).WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	secondJob, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithGeneration(expectedGen).WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config, s.config2)
 	s.Require().NoError(err)
 	s.Equal(radixv1.JobQueued, secondJob.Status.Condition)
 	s.Equal(radixv1.RadixJobReconcileSucceeded, secondJob.Status.ReconcileStatus)
@@ -260,7 +260,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 			WithImageTag(imageTag).
 			WithDeploymentName(deploymentName).
 			WithPipelineType(radixv1.BuildDeploy),
-		config)
+		config, s.config2)
 	s.Require().NoError(err)
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
@@ -296,16 +296,16 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_APP=%s", appName),
 				fmt.Sprintf("--JOB_NAME=%s", jobName),
 				fmt.Sprintf("--PIPELINE_TYPE=%s", radixv1.BuildDeploy),
-				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY=1000Mi",
-				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU=100m",
-				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY=2000Mi",
-				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU=200m",
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, s.config2.Operator.BuilderResources.Requests.Memory.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, s.config2.Operator.BuilderResources.Requests.CPU.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.config2.Operator.BuilderResources.Limits.Memory.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.config2.Operator.BuilderResources.Limits.CPU.String()),
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
 				fmt.Sprintf("--RADIX_CLUSTER_TYPE=%s", s.config.clusterType),
 				fmt.Sprintf("--RADIX_ZONE=%s", s.config.radixZone),
-				fmt.Sprintf("--RADIX_CLUSTERNAME=%s", s.config.clusterName),
+				fmt.Sprintf("--RADIX_CLUSTERNAME=%s", s.config2.Common.ClusterName),
 				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.config.registry),
 				fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, s.config.appRegistry),
 				"--RADIX_GITHUB_WORKSPACE=/workspace",
@@ -516,7 +516,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
 					WithPipelineType(radixv1.BuildDeploy).
 					WithOverrideUseBuildCache(scenario.overrideUseBuildCache).
 					WithRefreshBuildCache(scenario.refreshBuildCache),
-				getConfigWithPipelineJobsHistoryLimit(3))
+				getConfigWithPipelineJobsHistoryLimit(3),
+				s.config2)
 			s.Require().NoError(err)
 			jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 			s.Require().Len(jobs.Items, 1)
@@ -568,7 +569,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_GitCloneArguments() {
 					WithJobName(jobName).
 					WithAppName(appName).
 					WithPipelineType(radixv1.BuildDeploy),
-				config)
+				config,
+				s.config2,
+			)
 			s.Require().NoError(err)
 			jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 			s.Require().Len(jobs.Items, 1)
@@ -588,7 +591,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 	s.Require().NoError(err)
 
 	// Test
-	secondJob, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	secondJob, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config, s.config2)
 	s.Require().NoError(err)
 	s.Equal(radixv1.JobQueued, secondJob.Status.Condition)
 
@@ -597,7 +600,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.Background(), firstJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	err = s.runSync(rr, firstJob, config)
+	err = s.runSync(rr, firstJob, config, s.config2)
 	s.Require().NoError(err)
 
 	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.Background(), secondJob.Name, metav1.GetOptions{})
@@ -611,7 +614,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 	s.Require().NoError(err)
 
 	// Test
-	secondJob, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	secondJob, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config, s.config2)
 	s.Require().NoError(err)
 	s.Equal(radixv1.JobQueued, secondJob.Status.Condition)
 
@@ -620,7 +623,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.Background(), firstJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	err = s.runSync(rr, firstJob, config)
+	err = s.runSync(rr, firstJob, config, s.config2)
 	s.Require().NoError(err)
 
 	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.Background(), secondJob.Name, metav1.GetOptions{})
@@ -632,7 +635,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StoppingWaitingJob_DeletesPipelineJ
 
 	// Sync a build-deploy job. As the only job, it is reconciled to Waiting and its pipeline
 	// Kubernetes job is created.
-	rj, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("WaitingJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	rj, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("WaitingJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config, s.config2)
 	s.Require().NoError(err)
 	s.Require().Equal(radixv1.JobWaiting, rj.Status.Condition)
 
@@ -646,7 +649,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StoppingWaitingJob_DeletesPipelineJ
 	_, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Update(context.Background(), rj, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	err = s.runSync(rr, rj, config)
+	err = s.runSync(rr, rj, config, s.config2)
 	s.Require().NoError(err)
 
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -706,7 +709,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_OldestPendingJobRunsFirst() {
 	rr, err := s.testUtils.ApplyRegistration(utils.ARadixRegistration())
 	s.Require().NoError(err)
 
-	err = s.runSync(rr, newestJob, config)
+	err = s.runSync(rr, newestJob, config, s.config2)
 	s.Require().NoError(err)
 
 	oldestJob, err = s.radixClient.RadixV1().RadixJobs(oldestJob.ObjectMeta.Namespace).Get(context.Background(), oldestJob.Name, metav1.GetOptions{})
@@ -720,7 +723,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_OldestPendingJobRunsFirst() {
 	s.Equal(radixv1.RadixJobCondition(""), middleJob.Status.Condition)
 	s.Require().Equal(radixv1.JobQueued, newestJob.Status.Condition)
 
-	err = s.runSync(rr, middleJob, config)
+	err = s.runSync(rr, middleJob, config, s.config2)
 	s.Require().NoError(err)
 
 	oldestJob, err = s.radixClient.RadixV1().RadixJobs(oldestJob.ObjectMeta.Namespace).Get(context.Background(), oldestJob.Name, metav1.GetOptions{})
@@ -734,7 +737,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_OldestPendingJobRunsFirst() {
 	s.Require().Equal(radixv1.JobQueued, middleJob.Status.Condition)
 	s.Equal(radixv1.JobQueued, newestJob.Status.Condition)
 
-	err = s.runSync(rr, oldestJob, config)
+	err = s.runSync(rr, oldestJob, config, s.config2)
 	s.Require().NoError(err)
 
 	oldestJob, err = s.radixClient.RadixV1().RadixJobs(oldestJob.ObjectMeta.Namespace).Get(context.Background(), oldestJob.Name, metav1.GetOptions{})
@@ -750,7 +753,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_OldestPendingJobRunsFirst() {
 
 	// A job targeting another environment must run even though older jobs targeting a different
 	// environment are still pending or queued.
-	err = s.runSync(rr, otherEnvJob, config)
+	err = s.runSync(rr, otherEnvJob, config, s.config2)
 	s.Require().NoError(err)
 
 	otherEnvJob, err = s.radixClient.RadixV1().RadixJobs(otherEnvJob.ObjectMeta.Namespace).Get(context.Background(), otherEnvJob.Name, metav1.GetOptions{})
@@ -777,12 +780,12 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 	s.Require().NoError(err)
 
 	// Test
-	secondJob, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithRadixApplication(nil).WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	secondJob, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithRadixApplication(nil).WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config, s.config2)
 	s.Require().NoError(err)
 	s.Equal(radixv1.JobQueued, secondJob.Status.Condition)
 
 	// Third job differen branch
-	thirdJob, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithRadixApplication(nil).WithJobName("ThirdJob").WithBranch("qa"), config)
+	thirdJob, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithRadixApplication(nil).WithJobName("ThirdJob").WithBranch("qa"), config, s.config2)
 	s.Require().NoError(err)
 	s.Equal(radixv1.JobWaiting, thirdJob.Status.Condition)
 
@@ -791,7 +794,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 	_, err = s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.Background(), firstJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	err = s.runSync(rr, firstJob, config)
+	err = s.runSync(rr, firstJob, config, s.config2)
 	s.Require().NoError(err)
 
 	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.Background(), secondJob.Name, metav1.GetOptions{})
@@ -805,7 +808,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJ
 	s.Require().NoError(err)
 
 	// Test
-	secondJob, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("release"), config)
+	secondJob, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("release"), config, s.config2)
 	s.Require().NoError(err)
 
 	s.Equal(radixv1.JobWaiting, secondJob.Status.Condition)
@@ -816,7 +819,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_KubernetesJobStarted_RadixJobRunnin
 
 	// First sync creates the underlying Kubernetes pipeline job. With no active pods yet the
 	// RadixJob is Waiting.
-	rj, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("FirstJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	rj, rr, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("FirstJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config, s.config2)
 	s.Require().NoError(err)
 	s.Require().Equal(radixv1.JobWaiting, rj.Status.Condition)
 
@@ -828,7 +831,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_KubernetesJobStarted_RadixJobRunnin
 	_, err = s.kubeClient.BatchV1().Jobs(rj.GetNamespace()).UpdateStatus(context.Background(), pipelineJob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	err = s.runSync(rr, rj, config)
+	err = s.runSync(rr, rj, config, s.config2)
 	s.Require().NoError(err)
 
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.GetNamespace()).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -1280,7 +1283,7 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 
 			testingRadixJob, err := s.testUtils.ApplyJob(scenario.testingRadixJobBuilder.WithAppName(appName))
 			s.Require().NoError(err)
-			err = s.runSync(rr, testingRadixJob, config)
+			err = s.runSync(rr, testingRadixJob, config, s.config2)
 			s.NoError(err)
 
 			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})
@@ -1554,7 +1557,7 @@ func (s *RadixJobTestSuite) Test_MultipleJobsForSameEnv() {
 
 			testingRadixJob, err := s.testUtils.ApplyJob(scenario.testingRadixJobBuilder.WithAppName(appName))
 			s.Require().NoError(err)
-			err = s.runSync(rr, testingRadixJob, config)
+			err = s.runSync(rr, testingRadixJob, config, s.config2)
 			s.NoError(err)
 
 			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})
@@ -1605,7 +1608,7 @@ func (s *RadixJobTestSuite) applyJobWithSyncFor(rrBuilder utils.RegistrationBuil
 			WithBranch(rdJob.env).
 			WithStatus(utils.NewJobStatusBuilder().
 				WithCondition(rdJob.jobStatus)),
-		config)
+		config, s.config2)
 	return err
 }
 
@@ -1613,7 +1616,7 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentIsSetWhenRadixApplicationExist(
 	config := getConfigWithPipelineJobsHistoryLimit(3)
 
 	expectedEnvs := []string{"test"}
-	job, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("test").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	job, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("test").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config, s.config2)
 	s.Require().NoError(err)
 	// Master maps to Test env
 	s.Equal(job.Spec.Build.GetGitRefOrDefault(), "master")
@@ -1625,7 +1628,7 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName("some-app").BuildRR(), metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	job, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithRadixApplication(nil).WithJobName("test").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config)
+	job, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithRadixApplication(nil).WithJobName("test").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config, s.config2)
 	s.Require().NoError(err)
 	// Master maps to Test env
 	s.Equal(job.Spec.Build.GetGitRefOrDefault(), "master")
@@ -1633,65 +1636,27 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
-	scenarios := map[string]struct {
-		config                                    *config.Config
-		expectedAppBuilderResourcesRequestsCPU    string
-		expectedAppBuilderResourcesRequestsMemory string
-		expectedAppBuilderResourcesLimitsMemory   string
-		expectedAppBuilderResourcesLimitsCPU      string
-		expectedError                             string
-	}{
-		"Configured AppBuilderResources": {
-			config: &config.Config{
-				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: config.PipelineJobConfig{
-					PipelineJobsHistoryLimit:          3,
-					AppBuilderResourcesRequestsCPU:    createQuantity("123m"),
-					AppBuilderResourcesLimitsCPU:      createQuantity("456m"),
-					AppBuilderResourcesRequestsMemory: createQuantity("1234Mi"),
-					AppBuilderResourcesLimitsMemory:   createQuantity("2345Mi"),
-					PipelineImage:                     "docker.io/anypipeline:tag",
-					GitCloneImage:                     "docker.io/git:any",
+
+	testCfg := config2.Config{
+		Operator: config2.OperatorConfig{
+			BuilderResources: config2.Resources{
+				Requests: config2.ResourceRequirements{
+					CPU:    new(resource.MustParse("123m")),
+					Memory: new(resource.MustParse("1234Mi")),
+				},
+				Limits: config2.ResourceRequirements{
+					CPU:    new(resource.MustParse("456m")),
+					Memory: new(resource.MustParse("2345Mi")),
 				},
 			},
-			expectedError:                             "",
-			expectedAppBuilderResourcesRequestsCPU:    "123m",
-			expectedAppBuilderResourcesRequestsMemory: "1234Mi",
-			expectedAppBuilderResourcesLimitsMemory:   "2345Mi",
-			expectedAppBuilderResourcesLimitsCPU:      "456m",
 		},
-		"Missing config for ResourcesRequestsCPU": {
-			config: &config.Config{
-				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: config.PipelineJobConfig{
-					AppBuilderResourcesRequestsMemory: createQuantity("1234Mi"),
-					AppBuilderResourcesLimitsMemory:   createQuantity("2345Mi"),
-					PipelineImage:                     "docker.io/anypipeline:tag",
-					GitCloneImage:                     "docker.io/git:any",
-				}},
-			expectedError: "invalid or missing app builder resources",
-		},
-		"Missing config for ResourcesRequestsMemory": {
-			config: &config.Config{
-				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: config.PipelineJobConfig{
-					AppBuilderResourcesRequestsCPU:  createQuantity("123m"),
-					AppBuilderResourcesLimitsMemory: createQuantity("2345Mi"),
-					PipelineImage:                   "docker.io/anypipeline:tag",
-					GitCloneImage:                   "docker.io/git:any",
-				}},
-			expectedError: "invalid or missing app builder resources",
-		},
-		"Missing config for ResourcesLimitsMemory": {
-			config: &config.Config{
-				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: config.PipelineJobConfig{
-					AppBuilderResourcesRequestsCPU:    createQuantity("123m"),
-					AppBuilderResourcesRequestsMemory: createQuantity("1234Mi"),
-					PipelineImage:                     "docker.io/anypipeline:tag",
-					GitCloneImage:                     "docker.io/git:any",
-				}},
-			expectedError: "invalid or missing app builder resources",
+	}
+
+	scenarios := map[string]struct {
+		expectedError string
+	}{
+		"Configured AppBuilderResources": {
+			expectedError: "",
 		},
 	}
 	for name, scenario := range scenarios {
@@ -1702,7 +1667,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 					WithJobName("job1").
 					WithGitRef("master").
 					WithGitRefType(string(radixv1.GitRefBranch)),
-				scenario.config)
+				&config.Config{}, testCfg)
 			switch {
 			case len(scenario.expectedError) > 0 && err == nil:
 				s.Fail(fmt.Sprintf("Missing expected error '%s'", scenario.expectedError))
@@ -1721,10 +1686,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 
 			s.Len(jobList, 1)
 			job := jobList[0]
-			s.Equal(scenario.expectedAppBuilderResourcesRequestsCPU, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable), "Invalid or missing AppBuilderResourcesRequestsCPU")
-			s.Equal(scenario.expectedAppBuilderResourcesRequestsMemory, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable), "Invalid or missing AppBuilderResourcesRequestsMemory")
-			s.Equal(scenario.expectedAppBuilderResourcesLimitsMemory, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable), "Invalid or missing AppBuilderResourcesLimitsMemory")
-			s.Equal(scenario.expectedAppBuilderResourcesLimitsCPU, getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesLimitsCPUEnvironmentVariable), "Invalid or missing AppBuilderResourcesLimitsCPU")
+			s.Equal(testCfg.Operator.BuilderResources.Requests.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsCPU), "Invalid or missing AppBuilderResourcesRequestsCPU")
+			s.Equal(testCfg.Operator.BuilderResources.Requests.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsMemory), "Invalid or missing AppBuilderResourcesRequestsMemory")
+			s.Equal(testCfg.Operator.BuilderResources.Limits.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsMemory), "Invalid or missing AppBuilderResourcesLimitsMemory")
+			s.Equal(testCfg.Operator.BuilderResources.Limits.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsCPU), "Invalid or missing AppBuilderResourcesLimitsCPU")
 		})
 
 	}
@@ -1744,25 +1709,13 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 	return &config.Config{
 		DNSZone: "dev.radix.equinor.com",
 		PipelineJobConfig: config.PipelineJobConfig{
-			PipelineJobsHistoryLimit:          historyLimit,
-			AppBuilderResourcesLimitsMemory:   createQuantity("2000Mi"),
-			AppBuilderResourcesLimitsCPU:      createQuantity("200m"),
-			AppBuilderResourcesRequestsCPU:    createQuantity("100m"),
-			AppBuilderResourcesRequestsMemory: createQuantity("1000Mi"),
-			PipelineImage:                     "docker.io/anypipeline:tag",
-			PipelineImagePullPolicy:           corev1.PullAlways,
-			GitCloneImage:                     "docker.io/git:any",
+			PipelineJobsHistoryLimit: historyLimit,
+			PipelineImage:            "docker.io/anypipeline:tag",
+			PipelineImagePullPolicy:  corev1.PullAlways,
+			GitCloneImage:            "docker.io/git:any",
 		},
 		ContainerRegistryConfig: config.ContainerRegistryConfig{
 			ExternalRegistryAuthSecret: "an-external-registry-secret",
 		},
 	}
-}
-
-func createQuantity(value string) *quantity.Quantity {
-	q := &quantity.Quantity{}
-	if err := q.Decode(value); err != nil {
-		panic(err)
-	}
-	return q
 }

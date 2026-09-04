@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/yaml"
 )
 
 //go:embed testdata/config-happypath.yaml
@@ -88,6 +89,16 @@ func TestParse_HappyPath(t *testing.T) {
 				DefaultRequestMemory: new(resource.MustParse("444M")),
 				DefaultRequestCPU:    new(resource.MustParse("111m")),
 			},
+			BuilderResources: config2.Resources{
+				Limits: config2.ResourceRequirements{
+					Memory: new(resource.MustParse("500M")),
+					CPU:    new(resource.MustParse("2000m")),
+				},
+				Requests: config2.ResourceRequirements{
+					Memory: new(resource.MustParse("500M")),
+					CPU:    new(resource.MustParse("200m")),
+				},
+			},
 		},
 	}
 
@@ -153,6 +164,53 @@ func TestParse_MissingRequiredField(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, cfg)
+}
+
+func TestParse_BuilderResourceLimits(t *testing.T) {
+	tests := map[string]struct {
+		modifyConfig func(*config2.Config)
+		errorPath    string
+	}{
+		"equivalent CPU quantities are valid": {
+			modifyConfig: func(cfg *config2.Config) {
+				cfg.Operator.BuilderResources.Limits.CPU = new(resource.MustParse("1"))
+				cfg.Operator.BuilderResources.Requests.CPU = new(resource.MustParse("1000m"))
+			},
+		},
+		"CPU limit below request is invalid": {
+			modifyConfig: func(cfg *config2.Config) {
+				cfg.Operator.BuilderResources.Limits.CPU = new(resource.MustParse("100m"))
+			},
+			errorPath: "Operator.BuilderResources.Limits.CPU",
+		},
+		"memory limit below request is invalid": {
+			modifyConfig: func(cfg *config2.Config) {
+				cfg.Operator.BuilderResources.Limits.Memory = new(resource.MustParse("499M"))
+			},
+			errorPath: "Operator.BuilderResources.Limits.Memory",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var sourceConfig config2.Config
+			require.NoError(t, yaml.Unmarshal([]byte(configHappyYaml), &sourceConfig))
+			test.modifyConfig(&sourceConfig)
+			configYaml, err := yaml.Marshal(sourceConfig)
+			require.NoError(t, err)
+
+			cfg, err := config2.Parse(string(configYaml))
+			if test.errorPath == "" {
+				require.NoError(t, err)
+				assert.NotNil(t, cfg)
+				return
+			}
+
+			require.Error(t, err)
+			assert.Nil(t, cfg)
+			assert.ErrorContains(t, err, test.errorPath)
+		})
+	}
 }
 
 func TestEnvConfigMapReader(t *testing.T) {

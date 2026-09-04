@@ -48,3 +48,10 @@ operator:
     defaultMemory: 555M
     defaultRequestMemory: 444M
     defaultRequestCPU: 111m
+  builderResources:
+    limits:
+      memory: 500M
+      cpu: 2000m
+    requests:
+      memory: 500M
+      cpu: 200m
