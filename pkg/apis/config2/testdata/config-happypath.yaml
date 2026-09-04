@@ -55,3 +55,24 @@ operator:
     requests:
       memory: 500M
       cpu: 200m
+  podSecurityStandard:
+    appNamespace:
+      enforce:
+        level: "app-enforce-level"
+        version: "app-enforce-version"
+      audit:
+        level: "app-audit-level"
+        version: "app-audit-version"
+      warn:
+        level: "app-warn-level"
+        version: "app-warn-version"
+    envNamespace:
+      enforce:
+        level: "env-enforce-level"
+        version: "env-enforce-version"
+      audit:
+        level: "env-audit-level"
+        version: "env-audit-version"
+      warn:
+        level: "env-warn-level"
+        version: "env-warn-version"

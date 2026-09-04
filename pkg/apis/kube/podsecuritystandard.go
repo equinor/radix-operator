@@ -1,9 +1,7 @@
 package kube
 
 import (
-	"os"
-
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 )
 
 type podSecurityMode string
@@ -22,45 +20,19 @@ const (
 )
 
 // NewAppNamespacePodSecurityStandardFromEnv builds pod security standard for app namespaces from environment variables
-func NewAppNamespacePodSecurityStandardFromEnv() *PodSecurityStandard {
-	pss := newPodSecurityStandardFromEnv()
-
-	// Set Enforce level
-	if level := os.Getenv(defaults.PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable); len(level) > 0 {
-		version := os.Getenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable)
-		pss.Enforce(PodSecurityLevel(level), version)
-	}
-
-	return pss
-}
-
-// NewEnvNamespacePodSecurityStandardFromEnv builds pod security standard for env namespaces from environment variables
-func NewEnvNamespacePodSecurityStandardFromEnv() *PodSecurityStandard {
-	pss := newPodSecurityStandardFromEnv()
-
-	// Set Enforce level
-	if level := os.Getenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable); len(level) > 0 {
-		version := os.Getenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable)
-		pss.Enforce(PodSecurityLevel(level), version)
-	}
-
-	return pss
-}
-
-func newPodSecurityStandardFromEnv() *PodSecurityStandard {
+func NewPodSecurityStandardFromConfig(cfg config2.PodSecurityStandardPolicyConfig) *PodSecurityStandard {
 	pss := &PodSecurityStandard{}
 
-	// Set Audit level
-	if level := os.Getenv(defaults.PodSecurityStandardAuditLevelEnvironmentVariable); len(level) > 0 {
-		version := os.Getenv(defaults.PodSecurityStandardAuditVersionEnvironmentVariable)
-		pss.Audit(PodSecurityLevel(level), version)
+	setMode := func(mode config2.PodSecurityStandardModeConfig, modeFunc func(level PodSecurityLevel, version string)) {
+		if len(mode.Level) == 0 || len(mode.Version) == 0 {
+			return
+		}
+		modeFunc(PodSecurityLevel(mode.Level), mode.Version)
 	}
 
-	// Set Warn level
-	if level := os.Getenv(defaults.PodSecurityStandardWarnLevelEnvironmentVariable); len(level) > 0 {
-		version := os.Getenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable)
-		pss.Warn(PodSecurityLevel(level), version)
-	}
+	setMode(cfg.Enforce, pss.Enforce)
+	setMode(cfg.Audit, pss.Audit)
+	setMode(cfg.Warn, pss.Warn)
 
 	return pss
 }

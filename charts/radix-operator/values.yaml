@@ -47,6 +47,29 @@ config:
 
     defaultAppAdminGroups: []
 
+    # Ref https://kubernetes.io/docs/concepts/security/pod-security-standards/ for docs and valid values for level and version
+    podSecurityStandard:
+      appNamespace:
+        enforce:
+          level: "privileged"
+          version: "latest"
+        audit:
+          level: ""
+          version: ""
+        warn:
+          level: ""
+          version: ""
+      envNamespace:
+        enforce:
+          level: "baseline"
+          version: "latest"
+        audit:
+          level: ""
+          version: ""
+        warn:
+          level: ""
+          version: ""
+
     appNsLimitRange:
       defaultMemory: 450M
       defaultRequestMemory: 450M
@@ -174,22 +197,6 @@ seccompProfile:
       requests:
         cpu: 10m
         memory: 10Mi
-
-# Ref https://kubernetes.io/docs/concepts/security/pod-security-standards/ for docs and valid values for level and version
-podSecurityStandard:
-  appNamespace:
-    enforce:
-      level: privileged
-      version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"
-  enforce:
-    level: "" # One of privileged, baseline, restricted
-    version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"
-  audit:
-    level: "" # One of privileged, baseline, restricted
-    version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"
-  warn:
-    level: "" # One of privileged, baseline, restricted
-    version: "" # "latest" or a kubernetes minor version, e.g. "v1.23" or "v1.24"
 
 # Image containing git
 gitClone:

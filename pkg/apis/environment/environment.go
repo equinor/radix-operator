@@ -144,7 +144,7 @@ func (env *Environment) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 		kube.RadixAppLabel:    env.config.Spec.AppName,
 		kube.RadixEnvLabel:    env.config.Spec.EnvName,
 	})
-	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels())
+	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, kube.NewPodSecurityStandardFromConfig(env.config2.Operator.PodSecurityStandard.EnvNamespace).Labels())
 
 	// We don't use these anymore, remove line if no more namespaces contains this label
 	delete(desired.Labels, "cluster-wildcard-sync")

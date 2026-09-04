@@ -51,6 +51,36 @@ var testCfg2 config2.Config = config2.Config{
 			DefaultRequestCPU:    new(resource.MustParse("234m")),
 			DefaultRequestMemory: new(resource.MustParse("123M")),
 		},
+		PodSecurityStandard: config2.PodSecurityStandardConfig{
+			AppNamespace: config2.PodSecurityStandardPolicyConfig{
+				Enforce: config2.PodSecurityStandardModeConfig{
+					Level:   "app-enforce-level",
+					Version: "app-enforce-version",
+				},
+				Audit: config2.PodSecurityStandardModeConfig{
+					Level:   "app-audit-level",
+					Version: "app-audit-version",
+				},
+				Warn: config2.PodSecurityStandardModeConfig{
+					Level:   "app-warn-level",
+					Version: "app-warn-version",
+				},
+			},
+			EnvNamespace: config2.PodSecurityStandardPolicyConfig{
+				Enforce: config2.PodSecurityStandardModeConfig{
+					Level:   "env-enforce-level",
+					Version: "env-enforce-version",
+				},
+				Audit: config2.PodSecurityStandardModeConfig{
+					Level:   "env-audit-level",
+					Version: "env-audit-version",
+				},
+				Warn: config2.PodSecurityStandardModeConfig{
+					Level:   "env-warn-level",
+					Version: "env-warn-version",
+				},
+			},
+		},
 	},
 }
 
@@ -162,13 +192,6 @@ func Test_Create_Namespace(t *testing.T) {
 
 func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest(t)
-	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
-	os.Setenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable, "enforceVer")
-	os.Setenv(defaults.PodSecurityStandardAuditLevelEnvironmentVariable, "auditLvl")
-	os.Setenv(defaults.PodSecurityStandardAuditVersionEnvironmentVariable, "auditVer")
-	os.Setenv(defaults.PodSecurityStandardWarnLevelEnvironmentVariable, "warnLvl")
-	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "warnVer")
-	defer os.Clearenv()
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
@@ -187,12 +210,12 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
 		kube.RadixAppLabel:                           env.config.Spec.AppName,
 		kube.RadixEnvLabel:                           env.config.Spec.EnvName,
-		"pod-security.kubernetes.io/enforce":         "enforceLvl",
-		"pod-security.kubernetes.io/enforce-version": "enforceVer",
-		"pod-security.kubernetes.io/audit":           "auditLvl",
-		"pod-security.kubernetes.io/audit-version":   "auditVer",
-		"pod-security.kubernetes.io/warn":            "warnLvl",
-		"pod-security.kubernetes.io/warn-version":    "warnVer",
+		"pod-security.kubernetes.io/enforce":         testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Level,
+		"pod-security.kubernetes.io/enforce-version": testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Version,
+		"pod-security.kubernetes.io/audit":           testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Level,
+		"pod-security.kubernetes.io/audit-version":   testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Version,
+		"pod-security.kubernetes.io/warn":            testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Level,
+		"pod-security.kubernetes.io/warn-version":    testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Version,
 	}
 	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
 }

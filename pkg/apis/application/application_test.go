@@ -38,6 +38,36 @@ var testConfig2 = config2.Config{
 			DefaultRequestMemory: new(resource.MustParse("200M")),
 			DefaultRequestCPU:    new(resource.MustParse("100m")),
 		},
+		PodSecurityStandard: config2.PodSecurityStandardConfig{
+			AppNamespace: config2.PodSecurityStandardPolicyConfig{
+				Enforce: config2.PodSecurityStandardModeConfig{
+					Level:   "app-enforce-level",
+					Version: "app-enforce-version",
+				},
+				Audit: config2.PodSecurityStandardModeConfig{
+					Level:   "app-audit-level",
+					Version: "app-audit-version",
+				},
+				Warn: config2.PodSecurityStandardModeConfig{
+					Level:   "app-warn-level",
+					Version: "app-warn-version",
+				},
+			},
+			EnvNamespace: config2.PodSecurityStandardPolicyConfig{
+				Enforce: config2.PodSecurityStandardModeConfig{
+					Level:   "env-enforce-level",
+					Version: "env-enforce-version",
+				},
+				Audit: config2.PodSecurityStandardModeConfig{
+					Level:   "env-audit-level",
+					Version: "env-audit-version",
+				},
+				Warn: config2.PodSecurityStandardModeConfig{
+					Level:   "env-warn-level",
+					Version: "env-warn-version",
+				},
+			},
+		},
 	},
 }
 
@@ -193,14 +223,6 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, _ := setupTest(t)
-	defer os.Clearenv()
-	os.Setenv(defaults.PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable, "enforceAppNsLvl")
-	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
-	os.Setenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable, "enforceVer")
-	os.Setenv(defaults.PodSecurityStandardAuditLevelEnvironmentVariable, "auditLvl")
-	os.Setenv(defaults.PodSecurityStandardAuditVersionEnvironmentVariable, "auditVer")
-	os.Setenv(defaults.PodSecurityStandardWarnLevelEnvironmentVariable, "warnLvl")
-	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "warnVer")
 
 	// Test
 	appName := "any-app"
@@ -214,12 +236,12 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 	expected := map[string]string{
 		kube.RadixAppLabel:                           appName,
 		kube.RadixEnvLabel:                           utils.AppNamespaceEnvName,
-		"pod-security.kubernetes.io/enforce":         "enforceAppNsLvl",
-		"pod-security.kubernetes.io/enforce-version": "enforceVer",
-		"pod-security.kubernetes.io/audit":           "auditLvl",
-		"pod-security.kubernetes.io/audit-version":   "auditVer",
-		"pod-security.kubernetes.io/warn":            "warnLvl",
-		"pod-security.kubernetes.io/warn-version":    "warnVer",
+		"pod-security.kubernetes.io/enforce":         testConfig2.Operator.PodSecurityStandard.AppNamespace.Enforce.Level,
+		"pod-security.kubernetes.io/enforce-version": testConfig2.Operator.PodSecurityStandard.AppNamespace.Enforce.Version,
+		"pod-security.kubernetes.io/audit":           testConfig2.Operator.PodSecurityStandard.AppNamespace.Audit.Level,
+		"pod-security.kubernetes.io/audit-version":   testConfig2.Operator.PodSecurityStandard.AppNamespace.Audit.Version,
+		"pod-security.kubernetes.io/warn":            testConfig2.Operator.PodSecurityStandard.AppNamespace.Warn.Level,
+		"pod-security.kubernetes.io/warn-version":    testConfig2.Operator.PodSecurityStandard.AppNamespace.Warn.Version,
 	}
 	assert.Equal(t, expected, ns.GetLabels())
 }

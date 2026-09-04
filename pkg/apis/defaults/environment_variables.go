@@ -151,27 +151,6 @@ const (
 	// LogLevel Log level: ERROR, WARN, INFO (default), DEBUG
 	LogLevel = "LOG_LEVEL"
 
-	// PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable Pod Security Standard enforce level for app namespaces
-	PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_APP_NAMESPACE_ENFORCE_LEVEL"
-
-	// PodSecurityStandardEnforceLevelEnvironmentVariable Pod Security Standard enforce level for environment namespaces
-	PodSecurityStandardEnforceLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL"
-
-	// PodSecurityStandardEnforceVersionEnvironmentVariable Pod Security Standard enforce version for app and environment namespaces
-	PodSecurityStandardEnforceVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_VERSION"
-
-	// PodSecurityStandardAuditLevelEnvironmentVariable Pod Security Standard audit level for app and environment namespaces
-	PodSecurityStandardAuditLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_LEVEL"
-
-	// PodSecurityStandardAuditVersionEnvironmentVariable Pod Security Standard audit version for app and environment namespaces
-	PodSecurityStandardAuditVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_VERSION"
-
-	// PodSecurityStandardWarnLevelEnvironmentVariable Pod Security Standard warn level for app and environment namespaces
-	PodSecurityStandardWarnLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_LEVEL"
-
-	// PodSecurityStandardWarnVersionEnvironmentVariable Pod Security Standard warn version for app and environment namespaces
-	PodSecurityStandardWarnVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION"
-
 	// SeccompProfileFileNameEnvironmentVariable Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory
 	SeccompProfileFileNameEnvironmentVariable = "SECCOMP_PROFILE_FILENAME"
 
