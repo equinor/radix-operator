@@ -115,7 +115,7 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg *config.Config, cfg2 conf
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 
 	envVarSet.Add(defaults.RadixClusterTypeEnvironmentVariable, cfg.ClusterType)
-	envVarSet.Add(envvars.ContainerRegistry, cfg2.Operator.ContainerRegistry)
+	envVarSet.Add(envvars.ComponentContainerRegistry, cfg2.Operator.ContainerRegistry)
 	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, cfg.DNSZone)
 	envVarSet.Add(defaults.ClusternameEnvironmentVariable, cfg2.Common.ClusterName)
 	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)

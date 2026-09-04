@@ -92,7 +92,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 		assert.Equal(t, testEnv.cfg2.Common.ClusterName, resultEnvVarsMap[defaults.ClusternameEnvironmentVariable].Value)
 		assert.Equal(t, testEnv.cfg.ClusterType, resultEnvVarsMap[defaults.RadixClusterTypeEnvironmentVariable].Value)
 		assert.Equal(t, componentName, resultEnvVarsMap[defaults.RadixComponentEnvironmentVariable].Value)
-		assert.Equal(t, testEnv.cfg2.Operator.ContainerRegistry, resultEnvVarsMap[envvars.ContainerRegistry].Value)
+		assert.Equal(t, testEnv.cfg2.Operator.ContainerRegistry, resultEnvVarsMap[envvars.ComponentContainerRegistry].Value)
 		assert.Equal(t, testEnv.cfg.DNSZone, resultEnvVarsMap[defaults.RadixDNSZoneEnvironmentVariable].Value)
 	})
 
