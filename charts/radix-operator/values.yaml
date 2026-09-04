@@ -6,7 +6,7 @@ fullnameOverride: ""
 # and consumed by the operator at startup.
 config:
   common:
-    clusterName: dev
+    clusterName: ""
     oauth2Proxy:
       proxyImage:
         repository: quay.io/oauth2-proxy/oauth2-proxy
@@ -29,7 +29,7 @@ config:
         #   issuerUrl: "https://issuer.com"
         #   skipDiscovery: false
   operator:
-    logLevel: debug
+    logLevel: info
     logPrettyPrint: false
     registrationControllerThreads: 1
     applicationControllerThreads: 1
