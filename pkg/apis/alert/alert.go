@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,16 +21,18 @@ type alertSyncer struct {
 	radixAlert           *radixv1.RadixAlert
 	slackMessageTemplate slackMessageTemplate
 	alertConfigs         AlertConfigs
+	config2              config2.Config
 }
 
 // New creates a new alert syncer
-func New(dynamicClient client.Client, radixAlert *radixv1.RadixAlert) AlertSyncer {
+func New(cfg config2.Config, dynamicClient client.Client, radixAlert *radixv1.RadixAlert) AlertSyncer {
 
 	return &alertSyncer{
 		dynamicClient:        dynamicClient,
 		radixAlert:           radixAlert,
 		slackMessageTemplate: defaultSlackMessageTemplate,
 		alertConfigs:         defaultAlertConfigs,
+		config2:              cfg,
 	}
 }
 

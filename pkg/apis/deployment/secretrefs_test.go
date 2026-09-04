@@ -22,10 +22,6 @@ import (
 
 func teardownSecretRefsTest() {
 	// Cleanup setup
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
-	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 }

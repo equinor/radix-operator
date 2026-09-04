@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -289,13 +290,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
 	desiredDeployment.Spec.Replicas = new(getDeployComponentReplicas(deployComponent))
 	desiredDeployment.Spec.RevisionHistoryLimit = getRevisionHistoryLimit(deployComponent)
-
-	deploymentStrategy, err := getDeploymentStrategy()
-	if err != nil {
-		return err
-	}
-	desiredDeployment.Spec.Strategy = deploymentStrategy
-
+	desiredDeployment.Spec.Strategy = getDeploymentStrategy(deploy.config2)
 	desiredDeployment.Spec.Template.ObjectMeta.Labels = deploy.getDeploymentPodLabels(deployComponent)
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations = deploy.getDeploymentPodAnnotations(deployComponent)
 
@@ -332,7 +327,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = containerSecurityCtx
-	desiredDeployment.Spec.Template.Spec.Containers[0].Resources, err = utils.GetResourceRequirements(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources, err = utils.GetResourceRequirements(deploy.config2, deployComponent)
 	if err != nil {
 		return err
 	}
@@ -350,10 +345,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = hc.LivenessProbe.MapToCoreProbe()
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = hc.StartupProbe.MapToCoreProbe()
 	} else {
-		readinessProbe, err := getDefaultReadinessProbeForComponent(deployComponent)
-		if err != nil {
-			return err
-		}
+		readinessProbe := getDefaultReadinessProbeForComponent(deploy.config2, deployComponent)
 		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = nil
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = nil
@@ -426,32 +418,20 @@ func getRevisionHistoryLimit(deployComponent v1.RadixCommonDeployComponent) *int
 	return new(int32(10))
 }
 
-func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
-	rollingUpdateMaxUnavailable, err := defaults.GetDefaultRollingUpdateMaxUnavailable()
-	if err != nil {
-		return appsv1.DeploymentStrategy{}, err
-	}
-
-	rollingUpdateMaxSurge, err := defaults.GetDefaultRollingUpdateMaxSurge()
-	if err != nil {
-		return appsv1.DeploymentStrategy{}, err
-	}
-
-	deploymentStrategy := appsv1.DeploymentStrategy{
+func getDeploymentStrategy(cfg config2.Config) appsv1.DeploymentStrategy {
+	return appsv1.DeploymentStrategy{
 		Type: appsv1.RollingUpdateDeploymentStrategyType,
 		RollingUpdate: &appsv1.RollingUpdateDeployment{
 			MaxUnavailable: &intstr.IntOrString{
 				Type:   intstr.String,
-				StrVal: rollingUpdateMaxUnavailable,
+				StrVal: cfg.Operator.DefaultRollingUpdateMaxUnavailable,
 			},
 			MaxSurge: &intstr.IntOrString{
 				Type:   intstr.String,
-				StrVal: rollingUpdateMaxSurge,
+				StrVal: cfg.Operator.DefaultRollingUpdateMaxSurge,
 			},
 		},
 	}
-
-	return deploymentStrategy, nil
 }
 
 func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec(ctx context.Context) error {
@@ -498,31 +478,16 @@ func (deploy *Deployment) isEligibleForGarbageCollectComponent(componentName Rad
 	return componentType != commonComponent.GetType()
 }
 
-func getDefaultReadinessProbeForComponent(component v1.RadixCommonDeployComponent) (*corev1.Probe, error) {
+func getDefaultReadinessProbeForComponent(cfg config2.Config, component v1.RadixCommonDeployComponent) *corev1.Probe {
 	if len(component.GetPorts()) == 0 {
-		return nil, nil
+		return nil
 	}
 
-	return getReadinessProbeWithDefaultsFromEnv(component.GetPorts()[0].Port)
+	return getReadinessProbeWithDefaultsFromEnv(cfg, component.GetPorts()[0].Port)
 }
 
-func getReadinessProbeWithDefaultsFromEnv(componentPort int32) (*corev1.Probe, error) {
-	initialDelaySeconds, err := defaults.GetDefaultReadinessProbeInitialDelaySeconds()
-	if err != nil {
-		return nil, err
-	}
-
-	periodSeconds, err := defaults.GetDefaultReadinessProbePeriodSeconds()
-	if err != nil {
-		return nil, err
-	}
-
-	probe := getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds)
-	return &probe, nil
-}
-
-func getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds int32) corev1.Probe {
-	return corev1.Probe{
+func getReadinessProbeWithDefaultsFromEnv(cfg config2.Config, componentPort int32) *corev1.Probe {
+	return &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{
@@ -530,8 +495,8 @@ func getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds int32) 
 				},
 			},
 		},
-		InitialDelaySeconds: initialDelaySeconds,
-		PeriodSeconds:       periodSeconds,
+		InitialDelaySeconds: cfg.Operator.ReadinessProbeInitialDelaySeconds,
+		PeriodSeconds:       cfg.Operator.ReadinessProbePeriodSeconds,
 		TimeoutSeconds:      1,
 		FailureThreshold:    3,
 		SuccessThreshold:    1,

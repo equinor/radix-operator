@@ -6,9 +6,31 @@ fullnameOverride: ""
 # and consumed by the operator at startup.
 config:
   common:
-    clusterName: dev
+    dnsZone: ""
+    clusterName: ""
+    oauth2Proxy:
+      proxyImage:
+        repository: quay.io/oauth2-proxy/oauth2-proxy
+        tag: latest
+      redisImage:
+        repository: docker.io/redis
+        tag: latest
+      proxyDefaults:
+        scope: "openid profile email"
+        proxyPrefix: "/oauth2"
+        setXAuthRequestHeaders: false
+        setAuthorizationHeader: false
+        sessionStoreType: cookie # Do not override default sessionStoreType since this is currently not supported by api-server, ref https://github.com/equinor/radix-operator/issues/1949
+        cookie:
+          name: "_oauth2_proxy"
+          expire: "168h0m0s"
+          refresh: "60m0s"
+          sameSite: "lax"
+        # oidc:
+        #   issuerUrl: "https://issuer.com"
+        #   skipDiscovery: false
   operator:
-    logLevel: debug
+    logLevel: info
     logPrettyPrint: false
     registrationControllerThreads: 1
     applicationControllerThreads: 1
@@ -18,47 +40,40 @@ config:
     alertControllerThreads: 1
     kubeClientRateLimitBurst: 5
     kubeClientRateLimitQPS: 5
+    readinessProbeInitialDelaySeconds: 5
+    readinessProbePeriodSeconds: 10
 
-appAliasBaseURL: app.dev.radix.equinor.com
-dnsZone: dev.radix.equinor.com
-radixZone: xx
-containerRegistry: radixdev.azurecr.io
-appContainerRegistry: radixdevapp.azurecr.io
-tenantId: xx
+    defaultRollingUpdateMaxUnavailable: 25%
+    defaultRollingUpdateMaxSurge: 25%
 
-app:
-  # Limit range on app namespace
-  limitrange:
-    default:
-      memory: 450M
-    defaultRequest:
-      memory: 450M
-      cpu: 100m
-  env:
-    # Limit range on env namespace
-    limitrange:
-      default:
-        memory: 500M
-      defaultRequest:
-        memory: 500M
-        cpu: 100m
-  builder:
-    # Limit range on builder job in app namespace
-    resources:
+    containerRegistry: ""
+    appContainerRegistry: ""
+
+    defaultAppAdminGroups: []
+
+    appNsLimitRange:
+      defaultMemory: 450M
+      defaultRequestMemory: 450M
+      defaultRequestCPU: 100m
+
+    envNsLimitRange:
+      defaultMemory: 500M
+      defaultRequestMemory: 500M
+      defaultRequestCPU: 100m
+
+    # Should probably be in a builderSpecDefaults section, but for now we keep it here since it is used by the operator to set env vars for the pipeline runner job
+    builderResources:
       limits:
         memory: 500M
         cpu: 2000m
       requests:
         memory: 500M
         cpu: 200m
-  # Readiness probe parameters
-  readinessProbe:
-    initialDelaySeconds: 5
-    periodSeconds: 10
-  # Rolling update parameters
-  rollingUpdate:
-    maxUnavailable: 25%
-    maxSurge: 25%
+
+appAliasBaseURL: app.dev.radix.equinor.com
+dnsZone: dev.radix.equinor.com
+radixZone: xx
+tenantId: xx
 
 replicaCount: 1
 
@@ -179,16 +194,6 @@ gitClone:
   image:
     repository: docker.io/alpine/git
     tag: "2.45.2"
-
-oauth2proxy:
-  image:
-    repository: quay.io/oauth2-proxy/oauth2-proxy
-    tag: "v7.9.0"
-
-oauth2redis:
-  image:
-    repository: docker.io/redis
-    tag: "8.0"
 
 jobAux:
   image:

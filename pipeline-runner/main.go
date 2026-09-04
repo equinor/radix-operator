@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/equinor/radix-operator/pipeline-runner/flags"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
@@ -106,17 +107,16 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.BuildKitImageBuilder, defaults.RadixBuildKitImageBuilderEnvironmentVariable, "", "Radix Build Kit Image Builder container image")
 	cmd.Flags().StringVar(&pipelineArgs.SeccompProfileFileName, defaults.SeccompProfileFileNameEnvironmentVariable, "", "Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node")
 	cmd.Flags().StringVar(&pipelineArgs.Clustertype, defaults.RadixClusterTypeEnvironmentVariable, "", "Cluster type")
-	cmd.Flags().StringVar(&pipelineArgs.Clustername, defaults.ClusternameEnvironmentVariable, "", "Cluster name")
-	cmd.Flags().StringVar(&pipelineArgs.ContainerRegistry, defaults.ContainerRegistryEnvironmentVariable, "", "Container registry")
-	cmd.Flags().StringVar(&pipelineArgs.AppContainerRegistry, defaults.AppContainerRegistryEnvironmentVariable, "", "App Container registry")
-	cmd.Flags().StringVar(&pipelineArgs.RadixZone, defaults.RadixZoneEnvironmentVariable, "", "Radix zone")
+	cmd.Flags().StringVar(&pipelineArgs.Clustername, flags.ClusterName, "", "Cluster name")
+	cmd.Flags().StringVar(&pipelineArgs.ContainerRegistry, flags.ContainerRegistry, "", "Container registry")
+	cmd.Flags().StringVar(&pipelineArgs.AppContainerRegistry, flags.AppContainerRegistry, "", "App Container registry")
 	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, defaults.RadixConfigFileEnvironmentVariable, "", "Radix config file name. Example: radixconfig.yaml")
 	cmd.Flags().StringVar(&pipelineArgs.ImageTag, defaults.RadixImageTagEnvironmentVariable, "latest", "Docker image tag")
 	cmd.Flags().StringVar(&pipelineArgs.LogLevel, defaults.LogLevel, "INFO", "Log level: ERROR, WARN, INFO (default), DEBUG")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsMemory, defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, "2000M", "Image builder resource limit memory")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsCPU, defaults.OperatorAppBuilderResourcesLimitsCPUEnvironmentVariable, "1000m", "Image builder resource limit CPU")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsCPU, defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, "200m", "Image builder resource requests CPU")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsMemory, defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, "500M", "Image builder resource requests memory")
+	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsMemory, flags.BuilderResourcesLimitsMemory, "2000M", "Image builder resource limit memory")
+	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsCPU, flags.BuilderResourcesLimitsCPU, "1000m", "Image builder resource limit CPU")
+	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsCPU, flags.BuilderResourcesRequestsCPU, "200m", "Image builder resource requests CPU")
+	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsMemory, flags.BuilderResourcesRequestsMemory, "500M", "Image builder resource requests memory")
 	cmd.Flags().StringVar(&pipelineArgs.ExternalContainerRegistryDefaultAuthSecret, defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, "", "Name of secret of type `kubernetes.io/dockerconfigjson` containign default credentials for external container registries")
 	cmd.Flags().Var(&overrideUseBuildCache, defaults.RadixOverrideUseBuildCacheEnvironmentVariable, "Optional. Overrides configured or default useBuildCache option. It is applicable when the useBuildKit option is set as true.")
 	cmd.Flags().Var(&refreshBuildCache, defaults.RadixRefreshBuildCacheEnvironmentVariable, "Optional. Forces to rebuild cache when useBuildKit and useBuildCache or overrideUseBuildCache are true.")

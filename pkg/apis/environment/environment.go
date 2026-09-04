@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -28,6 +29,7 @@ type Environment struct {
 	radixclient   radixclient.Interface
 	kubeutil      *kube.Kube
 	config        *v1.RadixEnvironment
+	config2       config2.Config
 	regConfig     *v1.RadixRegistration
 	appConfig     *v1.RadixApplication
 	logger        zerolog.Logger
@@ -42,6 +44,7 @@ func NewEnvironment(
 	config *v1.RadixEnvironment,
 	regConfig *v1.RadixRegistration,
 	appConfig *v1.RadixApplication,
+	config2 config2.Config,
 	networkPolicy *networkpolicy.NetworkPolicy) Environment {
 
 	return Environment{
@@ -51,6 +54,7 @@ func NewEnvironment(
 		config:        config,
 		regConfig:     regConfig,
 		appConfig:     appConfig,
+		config2:       config2,
 		networkPolicy: networkPolicy,
 		logger:        log.Logger.With().Str("resource_kind", v1.KindRadixEnvironment).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
 	}
@@ -153,7 +157,7 @@ func (env *Environment) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 // applyAdGroupRoleBinding grants access to environment namespace
 func (env *Environment) applyAdGroupRoleBinding(ctx context.Context) error {
 	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
-	adminSubjects := utils.GetAppAdminRbacSubjects(env.regConfig)
+	adminSubjects := utils.GetAppAdminRbacSubjects(env.config2, env.regConfig)
 	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, adminSubjects)
 	adminRoleBinding.SetOwnerReferences(env.AsOwnerReference())
 
@@ -205,9 +209,9 @@ const limitRangeName = "mem-cpu-limit-range-env"
 // applyLimitRange sets resource usage limits to provided namespace
 func (env *Environment) applyLimitRange(ctx context.Context) error {
 	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
-	defaultMemoryLimit := defaults.GetDefaultMemoryLimit()
-	defaultCPURequest := defaults.GetDefaultCPURequest()
-	defaultMemoryRequest := defaults.GetDefaultMemoryRequest()
+	defaultMemoryLimit := env.config2.Operator.EnvNsLimitRange.DefaultMemory
+	defaultCPURequest := env.config2.Operator.EnvNsLimitRange.DefaultRequestCPU
+	defaultMemoryRequest := env.config2.Operator.EnvNsLimitRange.DefaultRequestMemory
 
 	// if not all limits are defined, then don't put any limits on namespace
 	if defaultMemoryLimit == nil ||

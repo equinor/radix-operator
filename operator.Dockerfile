@@ -10,6 +10,7 @@ COPY ./go.mod ./go.sum ./
 RUN go mod download
 COPY ./operator ./operator
 COPY ./pkg ./pkg
+COPY ./pipeline-runner/flags ./pipeline-runner/flags
 WORKDIR /src/operator
 RUN go build -ldflags="-s -w" -o /build/radix-operator
 

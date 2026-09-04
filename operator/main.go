@@ -28,7 +28,6 @@ import (
 	"github.com/equinor/radix-operator/operator/scheduler/tasks"
 	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
@@ -72,7 +71,6 @@ type App struct {
 	dynamicClient        client.Client
 	secretProviderClient secretProviderClient.Interface
 	certClient           certclient.Interface
-	oauthDefaultConfig   defaults.OAuth2Config
 	kubeUtil             *kube.Kube
 	config               *apiconfig.Config
 	kedaClient           kedav2.Interface
@@ -138,7 +136,6 @@ func initializeApp(ctx context.Context) (*App, error) {
 		app.kubeInformerFactory,
 		app.radixInformerFactory,
 	)
-	app.oauthDefaultConfig = getOAuthDefaultConfig()
 	return &app, nil
 }
 
@@ -252,19 +249,13 @@ func initLogger(cfg config2.Config) {
 	zerolog.DefaultContextLogger = &logger
 }
 
-func getOAuthDefaultConfig() defaults.OAuth2Config {
-	return defaults.NewOAuth2Config(
-		defaults.WithOAuth2Defaults(),
-		defaults.WithOIDCIssuerURL(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)),
-	)
-}
-
 func (a *App) createRegistrationController(ctx context.Context) *common.Controller {
 	handler := registration.NewHandler(
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
+		a.config2,
 	)
 
 	return registration.NewController(ctx,
@@ -316,7 +307,6 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.eventRecorder,
 		*a.config,
 		a.config2,
-		dnsalias.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
 	)
 
 	return dnsalias.NewController(
@@ -329,14 +319,6 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 }
 
 func (a *App) createDeploymentController(ctx context.Context) *common.Controller {
-	oauth2DockerImage := os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable)
-	if oauth2DockerImage == "" {
-		panic(fmt.Errorf("failed to read OAuth2 Docker image from environment variable %s", defaults.RadixOAuthProxyImageEnvironmentVariable))
-	}
-	oauth2RedisDockerImage := os.Getenv(defaults.RadixOAuthRedisImageEnvironmentVariable)
-	if oauth2RedisDockerImage == "" {
-		panic(fmt.Errorf("failed to read Redis Docker image from environment variable %s", defaults.RadixOAuthRedisImageEnvironmentVariable))
-	}
 	handler := deployment.NewHandler(
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
@@ -347,9 +329,6 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.eventRecorder,
 		a.config,
 		a.config2,
-		deployment.WithOAuth2DefaultConfig(a.oauthDefaultConfig),
-		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),
-		deployment.WithOAuth2RedisDockerImage(oauth2RedisDockerImage),
 	)
 
 	return deployment.NewController(ctx,
@@ -378,6 +357,7 @@ func (a *App) createAlertController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.dynamicClient,
 		a.eventRecorder,
+		a.config2,
 	)
 
 	return alert.NewController(ctx, a.kubeUtil.KubeClient(), a.radixClient, handler, a.kubeInformerFactory, a.radixInformerFactory)

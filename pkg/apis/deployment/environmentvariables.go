@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -114,17 +115,17 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg *config.Config, cfg2 conf
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 
 	envVarSet.Add(defaults.RadixClusterTypeEnvironmentVariable, cfg.ClusterType)
-	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, cfg.ContainerRegistryName)
-	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, cfg.DNSZone)
-	envVarSet.Add(defaults.ClusternameEnvironmentVariable, cfg2.Common.ClusterName)
+	envVarSet.Add(envvars.ComponentContainerRegistry, cfg2.Operator.ContainerRegistry)
+	envVarSet.Add(envvars.ComponentDNSZone, cfg2.Common.DNSZone)
+	envVarSet.Add(envvars.ComponentClusterName, cfg2.Common.ClusterName)
 	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)
 	envVarSet.Add(defaults.RadixAppEnvironmentVariable, appName)
 	envVarSet.Add(defaults.RadixComponentEnvironmentVariable, deployComponent.GetName())
 
 	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
 	if isPortPublic {
-		canonicalHostName := getHostName(deployComponent.GetName(), namespace, cfg2.Common.ClusterName)
-		publicHostName := getActiveClusterHostName(deployComponent.GetName(), namespace)
+		canonicalHostName := getHostName(deployComponent.GetName(), namespace, cfg2.Common.ClusterName, cfg2.Common.DNSZone)
+		publicHostName := getActiveClusterHostName(deployComponent.GetName(), namespace, cfg2.Common.DNSZone)
 		envVarSet.Add(defaults.PublicEndpointEnvironmentVariable, publicHostName)
 		envVarSet.Add(defaults.CanonicalEndpointEnvironmentVariable, canonicalHostName)
 	}

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func TestMustParse(t *testing.T) {
@@ -16,9 +15,7 @@ func TestMustParse(t *testing.T) {
 		// Config
 		defaults.LogLevel: "INFO",
 		"LOG_PRETTY":      "true",
-		defaults.OperatorDNSZoneEnvironmentVariable:          "dev.radix.equinor.com",
 		defaults.OperatorClusterTypeEnvironmentVariable:      "development",
-		defaults.ContainerRegistryEnvironmentVariable:        "radixdev.azurecr.io",
 		defaults.RadixSafeToRestartBatchJobThresholdVariable: "259200",
 
 		// Gateway
@@ -32,15 +29,11 @@ func TestMustParse(t *testing.T) {
 		defaults.RadixCertificateAutomationRenewBeforeVariable:          "720h",
 
 		// PipelineJobConfig
-		defaults.PipelineJobsHistoryLimitEnvironmentVariable:                  "5",
-		defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable:            "720h",
-		defaults.DeploymentsHistoryLimitEnvironmentVariable:                   "10",
-		defaults.OperatorAppBuilderResourcesLimitsCPUEnvironmentVariable:      "2000m",
-		defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable:   "500M",
-		defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable:    "200m",
-		defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable: "500M",
-		defaults.RadixGitCloneGitImageEnvironmentVariable:                     "docker.io/alpine/git:2.45.2",
-		defaults.RadixPipelineImageEnvironmentVariable:                        "radixdev.azurecr.io/radix-pipeline:latest",
+		defaults.PipelineJobsHistoryLimitEnvironmentVariable:       "5",
+		defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable: "720h",
+		defaults.DeploymentsHistoryLimitEnvironmentVariable:        "10",
+		defaults.RadixGitCloneGitImageEnvironmentVariable:          "docker.io/alpine/git:2.45.2",
+		defaults.RadixPipelineImageEnvironmentVariable:             "radixdev.azurecr.io/radix-pipeline:latest",
 
 		// DeploymentSyncer
 		defaults.OperatorTenantIdEnvironmentVariable:  "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",
@@ -62,9 +55,7 @@ func TestMustParse(t *testing.T) {
 	cfg := MustParse()
 
 	// Config top-level fields
-	assert.Equal(t, "dev.radix.equinor.com", cfg.DNSZone)
 	assert.Equal(t, "development", cfg.ClusterType)
-	assert.Equal(t, "radixdev.azurecr.io", cfg.ContainerRegistryName)
 	assert.Equal(t, int64(259200), cfg.SafeToRestartBatchJobThreshold)
 
 	// Gateway
@@ -82,10 +73,6 @@ func TestMustParse(t *testing.T) {
 	assert.Equal(t, 5, cfg.PipelineJobConfig.PipelineJobsHistoryLimit)
 	assert.Equal(t, 720*time.Hour, cfg.PipelineJobConfig.PipelineJobsHistoryPeriodLimit)
 	assert.Equal(t, 10, cfg.PipelineJobConfig.DeploymentsHistoryLimitPerEnvironment)
-	assert.Equal(t, resource.MustParse("2000m"), cfg.PipelineJobConfig.AppBuilderResourcesLimitsCPU.Quantity)
-	assert.Equal(t, resource.MustParse("500M"), cfg.PipelineJobConfig.AppBuilderResourcesLimitsMemory.Quantity)
-	assert.Equal(t, resource.MustParse("200m"), cfg.PipelineJobConfig.AppBuilderResourcesRequestsCPU.Quantity)
-	assert.Equal(t, resource.MustParse("500M"), cfg.PipelineJobConfig.AppBuilderResourcesRequestsMemory.Quantity)
 	assert.Equal(t, "docker.io/alpine/git:2.45.2", cfg.PipelineJobConfig.GitCloneImage)
 	assert.Equal(t, "radixdev.azurecr.io/radix-pipeline:latest", cfg.PipelineJobConfig.PipelineImage)
 

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	"github.com/rs/zerolog/log"
 
@@ -25,6 +26,7 @@ type handler struct {
 	kubeutil    *kube.Kube
 	radixclient radixclient.Interface
 	config      config.Config
+	config2     config2.Config
 	events      common.SyncEventRecorder
 }
 
@@ -41,6 +43,7 @@ func NewHandler(
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
 		config:      config,
+		config2:     config2.Config{},
 		events:      common.NewSyncEventRecorder(eventRecorder),
 	}
 
@@ -80,7 +83,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 		Get(ctx, syncEnvironment.Spec.AppName, meta.GetOptions{})
 
 	nw := networkpolicy.NewNetworkPolicy(t.kubeclient, t.kubeutil, t.config)
-	env := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, &nw)
+	env := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, t.config2, &nw)
 	err = env.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncEnvironment, err)

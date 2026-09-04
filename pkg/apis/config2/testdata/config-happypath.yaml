@@ -1,5 +1,28 @@
 common:
+  dnsZone: dev.local.radix.equinor.com
   clusterName: test-cluster
+  oauth2Proxy:
+    proxyImage:
+      tag: v7.6.2
+      repository: quay.io/oauth2-proxy/oauth2-proxy
+    redisImage:
+      tag: v8.6.0
+      repository: docker.io/redis
+    proxyDefaults:
+      scope: "openid profile email"
+      proxyPrefix: "/oauth2"
+      setXAuthRequestHeaders: false
+      setAuthorizationHeader: false
+      sessionStoreType: cookie
+      cookie:
+        name: "_oauth2_proxy"
+        expire: "168h0m0s"
+        refresh: "60m0s"
+        sameSite: "lax"
+      oidc:
+        issuerUrl: "https://issuer.com"
+        skipDiscovery: false
+
 operator:
   logLevel: info
   logPrettyPrint: true
@@ -11,3 +34,27 @@ operator:
   alertControllerThreads: 6
   kubeClientRateLimitBurst: 100
   kubeClientRateLimitQPS: 50.5
+  readinessProbeInitialDelaySeconds: 5
+  readinessProbePeriodSeconds: 10
+  defaultRollingUpdateMaxUnavailable: 25%
+  defaultRollingUpdateMaxSurge: 35%
+  containerRegistry: "any.registry.com"
+  appContainerRegistry: "app.registry.com"
+  defaultAppAdminGroups:
+    - "default-app-admin-group1"
+    - "default-app-admin-group2"
+  appNsLimitRange:
+    defaultMemory: 500M
+    defaultRequestMemory: 450M
+    defaultRequestCPU: 100m
+  envNsLimitRange:
+    defaultMemory: 555M
+    defaultRequestMemory: 444M
+    defaultRequestCPU: 111m
+  builderResources:
+    limits:
+      memory: 500M
+      cpu: 2000m
+    requests:
+      memory: 500M
+      cpu: 200m

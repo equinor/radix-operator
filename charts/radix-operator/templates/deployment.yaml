@@ -37,49 +37,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: DNS_ZONE
-              value: {{ .Values.dnsZone }}
-            - name: RADIX_ZONE
-              value: {{ .Values.radixZone }}
             - name: APP_ALIAS_BASE_URL
               value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
               value: {{ .Values.clusterType }}
-            - name: RADIXOPERATOR_DEFAULT_APP_ADMIN_GROUPS
-              value: {{ .Values.rbac.createApp.groups | join "," | quote }}
-            # For configuring limit ranges on app namespaces
-            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY
-              value: {{ .Values.app.limitrange.default.memory | quote }}
-            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY
-              value: {{ .Values.app.limitrange.defaultRequest.memory | quote }}
-            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU
-              value: {{ .Values.app.limitrange.defaultRequest.cpu | quote }}
-            # For configuring limit ranges on env namespaces
-            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY
-              value: {{ .Values.app.env.limitrange.default.memory | quote }}
-            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY
-              value: {{ .Values.app.env.limitrange.defaultRequest.memory | quote }}
-            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU
-              value: {{ .Values.app.env.limitrange.defaultRequest.cpu | quote }}
-            # For configuring limit ranges on app namespaces
-            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY
-              value: {{ .Values.app.builder.resources.limits.memory | quote }}
-            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU
-              value: {{ .Values.app.builder.resources.limits.cpu | quote }}
-            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY
-              value: {{ .Values.app.builder.resources.requests.memory | quote }}
-            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU
-              value: {{ .Values.app.builder.resources.requests.cpu | quote }}
-            # For configuring readiness probe
-            - name: RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS
-              value: {{ .Values.app.readinessProbe.initialDelaySeconds | quote }}
-            - name: RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS
-              value: {{ .Values.app.readinessProbe.periodSeconds | quote }}
-            # For configuring rolling update
-            - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_UNAVAILABLE
-              value: {{ .Values.app.rollingUpdate.maxUnavailable | quote }}
-            - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE
-              value: {{ .Values.app.rollingUpdate.maxSurge | quote }}
             # Maximum custom resources
             - name: RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT
               value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
@@ -93,18 +54,8 @@ spec:
               value: {{ .Values.logLevel }}
             - name: LOG_PRETTY
               value: {{ .Values.logPretty | quote }}
-            - name: RADIX_CONTAINER_REGISTRY
-              value: {{ .Values.containerRegistry }}
-            - name: RADIX_APP_CONTAINER_REGISTRY
-              value: {{ .Values.appContainerRegistry }}
             - name: RADIXOPERATOR_TENANT_ID
               value: {{ .Values.tenantId }}
-            - name: RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL
-              value: {{ .Values.oauthProxyDefaultIssuerUrl }}
-            - name: RADIX_OAUTH_PROXY_IMAGE
-              value: {{ .Values.oauth2proxy.image.repository }}:{{ .Values.oauth2proxy.image.tag }}
-            - name: RADIX_OAUTH_REDIS_IMAGE
-              value: {{ .Values.oauth2redis.image.repository }}:{{ .Values.oauth2redis.image.tag }}
             - name: RADIXOPERATOR_JOB_AUX_IMAGE
               value: {{ .Values.jobAux.image.repository }}:{{ .Values.jobAux.image.tag }}
             {{- if .Values.podSecurityStandard.enforce.level }}

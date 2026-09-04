@@ -106,9 +106,6 @@ func (s *syncerTestSuite) setupTest() {
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, secretproviderfake.NewSimpleClientset())
-	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "1500Mi")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 }
 
 func (s *syncerTestSuite) Test_ReconcileStatus() {
@@ -2688,9 +2685,7 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 			s.Require().NoError(err)
 
 			sut := s.createSyncer(batch, nil)
-			s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, "dev")
 			s.T().Setenv(defaults.RadixClusterTypeEnvironmentVariable, "development")
-			s.T().Setenv(defaults.ContainerRegistryEnvironmentVariable, "dev-acr")
 			s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 
 			s.Require().NoError(sut.OnSync(context.Background()))

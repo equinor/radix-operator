@@ -37,7 +37,7 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) er
 		return fmt.Errorf("failed to grant reader access to private image hub secret: %w", err)
 	}
 
-	err = utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
+	err = utils.GrantAppAdminAccessToSecret(ctx, app.config2, app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to private image hub secret: %w", err)
 	}

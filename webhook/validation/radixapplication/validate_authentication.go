@@ -1,13 +1,16 @@
 package radixapplication
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 )
@@ -17,12 +20,56 @@ var (
 	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
 )
 
-func validateOAuth(oauth *radixv1.OAuth2, component *radixv1.RadixComponent, environmentName string) (errors []error) {
+func createComponentAuthenticationValidator(cfg config2.Config) validatorFunc {
+	return func(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
+		var wrns []string
+		var errs []error
+
+		for _, component := range ra.Spec.Components {
+			errs = append(errs, validateComponentAuthentication(&component, ra.Spec.Environments, cfg)...)
+		}
+
+		return wrns, errs
+	}
+}
+
+func validateComponentAuthentication(component *radixv1.RadixComponent, environments []radixv1.Environment, cfg config2.Config) []error {
+	componentAuth := component.Authentication
+	envAuthConfigGetter := func(name string) *radixv1.Authentication {
+		for _, envConfig := range component.EnvironmentConfig {
+			if envConfig.Environment == name {
+				return envConfig.Authentication
+			}
+		}
+		return nil
+	}
+
+	var errs []error
+	for _, environment := range environments {
+		environmentAuth := envAuthConfigGetter(environment.Name)
+		if componentAuth == nil && environmentAuth == nil {
+			continue
+		}
+		combinedAuth, err := deployment.GetAuthenticationForComponent(componentAuth, environmentAuth)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if combinedAuth == nil {
+			continue
+		}
+
+		errs = append(errs, validateOAuth(combinedAuth.OAuth2, cfg.Common.OAuth2Proxy.ProxyDefaults, component, environment.Name)...)
+	}
+	return errs
+}
+
+func validateOAuth(oauth *radixv1.OAuth2, defaultOAuth2Config radixv1.OAuth2, component *radixv1.RadixComponent, environmentName string) (errors []error) {
 	if oauth == nil {
 		return
 	}
 
-	oauthWithDefaults, err := defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()).MergeWith(oauth)
+	// oauthWithDefaults, err := defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()).MergeWith(oauth)
+	oauthWithDefaults, err := defaults.MergeOAuth2(defaultOAuth2Config, *oauth)
 	if err != nil {
 		errors = append(errors, err)
 		return

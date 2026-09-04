@@ -133,8 +133,6 @@ type PipelineArguments struct {
 	SeccompProfileFileName string
 	// Used for tagging meta-information
 	Clustertype string
-	// RadixZone  The radix zone.
-	RadixZone string
 	// Clustername The name of the cluster
 	Clustername string
 	// ContainerRegistry The name of the container registry

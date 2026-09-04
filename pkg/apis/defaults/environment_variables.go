@@ -1,9 +1,6 @@
 package defaults
 
 const (
-	// OperatorDNSZoneEnvironmentVariable The DNS zone used fro creating ingress of the cluster
-	OperatorDNSZoneEnvironmentVariable = "DNS_ZONE"
-
 	// OperatorAppAliasBaseURLEnvironmentVariable The base url for any app alias of the cluster
 	OperatorAppAliasBaseURLEnvironmentVariable = "APP_ALIAS_BASE_URL"
 
@@ -18,15 +15,6 @@ const (
 
 	// PipelineJobsHistoryPeriodLimitEnvironmentVariable Controls how long an RJ should exist in an app namespace, per groups by environment and status
 	PipelineJobsHistoryPeriodLimitEnvironmentVariable = "RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT"
-
-	// ClusternameEnvironmentVariable The name of the cluster
-	ClusternameEnvironmentVariable = "RADIX_CLUSTERNAME"
-
-	// ContainerRegistryEnvironmentVariable The name of the container registry
-	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
-
-	// AppContainerRegistryEnvironmentVariable The name of the app container registry
-	AppContainerRegistryEnvironmentVariable = "RADIX_APP_CONTAINER_REGISTRY"
 
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
@@ -48,12 +36,6 @@ const (
 
 	// RadixPortNamesEnvironmentVariable The environment variable holding the available port names of the component
 	RadixPortNamesEnvironmentVariable = "RADIX_PORT_NAMES"
-
-	// RadixDNSZoneEnvironmentVariable The environment variable on a radix app giving the dns zone. Will be equal to OperatorDNSZoneEnvironmentVariable
-	RadixDNSZoneEnvironmentVariable = "RADIX_DNS_ZONE"
-
-	// RadixZoneEnvironmentVariable The environment variable on a radix app giving the radix zone.
-	RadixZoneEnvironmentVariable = "RADIX_ZONE"
 
 	// RadixClusterTypeEnvironmentVariable The type of cluster dev|playground|prod. Will be equal to OperatorClusterTypeEnvironmentVariable
 	RadixClusterTypeEnvironmentVariable = "RADIX_CLUSTER_TYPE"
@@ -99,15 +81,6 @@ const (
 
 	// RadixImageTagNameEnvironmentVariable Image tag name for Radix application components
 	RadixImageTagNameEnvironmentVariable = "IMAGE_TAG_NAME"
-
-	// RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable Default OIDC issuer URL for OAuth Proxy
-	RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable = "RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL"
-
-	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
-	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
-
-	// RadixOAuthRedisImageEnvironmentVariable specifies the name and tag of the OAuth Redis image
-	RadixOAuthRedisImageEnvironmentVariable = "RADIX_OAUTH_REDIS_IMAGE"
 
 	// RadixJobAuxImageEnvironmentVariable specifies the name and tag of the job aux image
 	RadixJobAuxImageEnvironmentVariable = "RADIXOPERATOR_JOB_AUX_IMAGE"

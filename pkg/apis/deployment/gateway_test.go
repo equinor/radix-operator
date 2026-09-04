@@ -55,13 +55,7 @@ func TestGatewayTestSuite(t *testing.T) {
 }
 
 func (s *GatewayTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, testDNSZone)
 	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, testAppAliasBaseURL)
-	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	s.T().Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
-	s.T().Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 }
@@ -97,6 +91,7 @@ func (s *GatewayTestSuite) setupTest() {
 	}
 	s.cfg2 = config2.Config{
 		Common: config2.CommonConfig{
+			DNSZone:     testDNSZone,
 			ClusterName: testClusterName,
 		},
 	}
@@ -582,13 +577,13 @@ func (s *GatewayTestSuite) TestHTTPRouteHostnames_ContainsNonExternalDNSTypes() 
 	s.NotContains(routeHostnames, externalDNSFQDN, "external DNS hostname should not be in component HTTPRoute")
 
 	// Active cluster hostname
-	activeClusterHostname := getActiveClusterHostName(testComponentName, ns)
+	activeClusterHostname := getActiveClusterHostName(testComponentName, ns, testDNSZone)
 	if activeClusterHostname != "" {
 		s.Contains(routeHostnames, activeClusterHostname, "should contain active cluster hostname")
 	}
 
 	// Cluster-specific hostname
-	clusterHostname := getHostName(testComponentName, ns, testClusterName)
+	clusterHostname := getHostName(testComponentName, ns, testClusterName, testDNSZone)
 	if clusterHostname != "" {
 		s.Contains(routeHostnames, clusterHostname, "should contain cluster-specific hostname")
 	}

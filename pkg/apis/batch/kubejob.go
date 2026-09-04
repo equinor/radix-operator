@@ -333,10 +333,10 @@ func applyBatchJobEnvironmentVariables(batchJob *radixv1.RadixBatchJob, componen
 
 func (s *syncer) getContainerResources(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) (corev1.ResourceRequirements, error) {
 	if batchJob.Resources != nil {
-		return operatorUtils.BuildResourceRequirement(batchJob.Resources)
+		return operatorUtils.BuildResourceRequirement(s.config2, batchJob.Resources)
 	}
 
-	return operatorUtils.GetResourceRequirements(jobComponent)
+	return operatorUtils.GetResourceRequirements(s.config2, jobComponent)
 }
 
 func getContainerPorts(radixJobComponent *radixv1.RadixDeployJobComponent) []corev1.ContainerPort {

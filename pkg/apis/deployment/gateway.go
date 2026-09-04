@@ -46,7 +46,7 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 	if component.IsPublic() {
 		// HTTPRoute for external dns is reconciled in externaldns.go, so filter out those
 		hosts = slice.FindAll(
-			getComponentDNSInfo(component, *deploy.radixDeployment, deploy.config2.Common.ClusterName),
+			getComponentDNSInfo(component, *deploy.radixDeployment, deploy.config2.Common.ClusterName, deploy.config2.Common.DNSZone),
 			func(host dnsInfo) bool { return host.dnsType != dnsTypeExternal })
 	}
 
@@ -125,7 +125,7 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 	return nil
 }
 
-func getComponentDNSInfo(component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, clusterName string) []dnsInfo {
+func getComponentDNSInfo(component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, clusterName, dnsZone string) []dnsInfo {
 	var info []dnsInfo
 
 	if component.IsDNSAppAlias() {
@@ -149,7 +149,7 @@ func getComponentDNSInfo(component radixv1.RadixCommonDeployComponent, rd radixv
 		})
 	}
 
-	if hostname := getActiveClusterHostName(component.GetName(), rd.Namespace); hostname != "" {
+	if hostname := getActiveClusterHostName(component.GetName(), rd.Namespace, dnsZone); hostname != "" {
 		info = append(info, dnsInfo{
 			fqdn:         hostname,
 			tlsSecret:    "",
@@ -158,7 +158,7 @@ func getComponentDNSInfo(component radixv1.RadixCommonDeployComponent, rd radixv
 		})
 	}
 
-	if hostname := getHostName(component.GetName(), rd.Namespace, clusterName); hostname != "" {
+	if hostname := getHostName(component.GetName(), rd.Namespace, clusterName, dnsZone); hostname != "" {
 		info = append(info, dnsInfo{
 			fqdn:         hostname,
 			tlsSecret:    "",
@@ -242,20 +242,11 @@ func (deploy *Deployment) garbageCollectListenerSetsNoLongerInSpec(ctx context.C
 	return nil
 }
 
-func getActiveClusterHostName(componentName, namespace string) string {
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
-		return ""
-	}
-
+func getActiveClusterHostName(componentName, namespace, dnsZone string) string {
 	return fmt.Sprintf("%s.%s", domain.GetComponentHostname(componentName, namespace), dnsZone)
 }
 
-func getHostName(componentName, namespace, clustername string) string {
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
-		return ""
-	}
+func getHostName(componentName, namespace, clustername, dnsZone string) string {
 	hostnameTemplate := "%s.%s.%s"
 	return fmt.Sprintf(hostnameTemplate, domain.GetComponentHostname(componentName, namespace), clustername, dnsZone)
 }
