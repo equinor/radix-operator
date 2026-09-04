@@ -1707,7 +1707,6 @@ func getJobContainerArgument(container corev1.Container, variableName string) st
 
 func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 	return &config.Config{
-		DNSZone: "dev.radix.equinor.com",
 		PipelineJobConfig: config.PipelineJobConfig{
 			PipelineJobsHistoryLimit: historyLimit,
 			PipelineImage:            "docker.io/anypipeline:tag",

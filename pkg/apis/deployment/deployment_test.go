@@ -61,7 +61,6 @@ const (
 
 var testConfig = config.Config{
 	ClusterType: "development",
-	DNSZone:     "dev.radix.equinor.com",
 	DeploymentSyncer: config.DeploymentSyncerConfig{
 		TenantID:               "123456789",
 		KubernetesAPIPort:      543,
@@ -77,6 +76,7 @@ var testConfig = config.Config{
 
 var testConfig2 = config2.Config{
 	Common: config2.CommonConfig{
+		DNSZone:     "dev.radix.equinor.com",
 		ClusterName: testClusterName,
 	},
 	Operator: config2.OperatorConfig{
@@ -261,7 +261,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 				assert.Equal(t, 12, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, testConfig2.Operator.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, componentNameApp, deployments))
-				assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, testConfig2.Common.DNSZone, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, defaults.ClusternameEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(kubeclient, defaults.PublicEndpointEnvironmentVariable, componentNameApp, deployments))
@@ -642,7 +642,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, 12, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, "a_value", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", jobName, deployments))
 				assert.Equal(t, testConfig2.Operator.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, jobName, deployments))
-				assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, testConfig2.Common.DNSZone, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, defaults.ClusternameEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixAppEnvironmentVariable, jobName, deployments))
@@ -1685,7 +1685,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
 		assert.Equal(t, testConfig2.Operator.ContainerRegistry, getEnvVariableByName(envvars.ComponentContainerRegistry, templateSpecEnv, nil))
-		assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv, cm))
+		assert.Equal(t, testConfig2.Common.DNSZone, getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, testClusterName, getEnvVariableByName(defaults.ClusternameEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, anyEnvironment, getEnvVariableByName(defaults.EnvironmentnameEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, "app", getEnvVariableByName(defaults.RadixAppEnvironmentVariable, templateSpecEnv, cm))

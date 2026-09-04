@@ -31,6 +31,7 @@ func TestParse_HappyPath(t *testing.T) {
 
 	expected := &config2.Config{
 		Common: config2.CommonConfig{
+			DNSZone:     "dev.local.radix.equinor.com",
 			ClusterName: "test-cluster",
 			OAuth2Proxy: config2.OAuth2ProxyConfig{
 				ProxyImage: config2.ContainerImage{

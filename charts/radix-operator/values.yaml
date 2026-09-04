@@ -6,6 +6,7 @@ fullnameOverride: ""
 # and consumed by the operator at startup.
 config:
   common:
+    dnsZone: ""
     clusterName: ""
     oauth2Proxy:
       proxyImage:

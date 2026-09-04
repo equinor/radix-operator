@@ -220,10 +220,10 @@ func setupDeployment(commonTestUtils *commontest.Utils, kubeClient kubernetes.In
 
 	deploymentSyncer := deployment.NewDeploymentSyncer(kubeClient, commonTestUtils.GetKubeUtil(), radixClient, dynamicClient, certClient, radixRegistration, rd, nil, &config.Config{
 		ClusterType: clusterType,
-		DNSZone:     "dev.radix.equinor.com",
 	}, config2.Config{
 		Common: config2.CommonConfig{
 			ClusterName: clusterName,
+			DNSZone:     "dev.radix.equinor.com",
 		},
 		Operator: config2.OperatorConfig{
 			ContainerRegistry: "any.container.registry",

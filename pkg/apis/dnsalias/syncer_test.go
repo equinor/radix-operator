@@ -38,6 +38,7 @@ type syncerTestSuite struct {
 	promClient    *prometheusfake.Clientset
 	ctrl          *gomock.Controller
 	config        config.Config
+	config2       config2.Config
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -59,11 +60,15 @@ func (s *syncerTestSuite) setupTest() {
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.testUtils = test.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)
 	s.config = config.Config{
-		DNSZone: "dev.radix.equinor.com",
 		Gateway: config.GatewayConfig{
 			Name:        "any-gateway",
 			Namespace:   "any-namespace",
 			SectionName: "any-section",
+		},
+	}
+	s.config2 = config2.Config{
+		Common: config2.CommonConfig{
+			DNSZone: "dev.radix.equinor.com",
 		},
 	}
 	s.ctrl = gomock.NewController(s.T())
@@ -75,7 +80,7 @@ func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dns
 		s.radixClient,
 		s.dynamicClient,
 		s.config,
-		config2.Config{},
+		s.config2,
 	)
 }
 
@@ -191,7 +196,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
 	s.True(*route.OwnerReferences[0].BlockOwnerDeletion)
 
 	// Verify hostname
-	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.DNSZone)
+	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config2.Common.DNSZone)
 	s.Require().Len(route.Spec.Hostnames, 1)
 	s.Equal(gatewayapiv1.Hostname(expectedHostName), route.Spec.Hostnames[0])
 

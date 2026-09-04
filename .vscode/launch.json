@@ -124,9 +124,9 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/operator/main.go",
 			"env": {
+				"RADIX_COMMON_DNSZONE": "dev.radix.equinor.com",
 				"USE_PROFILER": "true",
 				"APP_ALIAS_BASE_URL": "app.dev.radix.equinor.com",
-				"DNS_ZONE": "dev.radix.equinor.com",
 				"RADIX_CLUSTERNAME": "weekly-27",
 				"RADIXOPERATOR_CLUSTER_TYPE": "development",
 				"RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE": "ghcr.io/equinor/radix/buildkit-builder:latest",
@@ -225,7 +225,7 @@
 			"env": {
 				"POD_NAMESPACE": "default",
 				"RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
-				"RADIX_DNS_ZONE": "dev.radix.equinor.com",
+				"RADIX_COMMON_DNSZONE": "dev.radix.equinor.com",
 				"PROMETHEUS_URL": "http://localhost:9091",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",

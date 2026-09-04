@@ -1,9 +1,6 @@
 package defaults
 
 const (
-	// OperatorDNSZoneEnvironmentVariable The DNS zone used fro creating ingress of the cluster
-	OperatorDNSZoneEnvironmentVariable = "DNS_ZONE"
-
 	// OperatorAppAliasBaseURLEnvironmentVariable The base url for any app alias of the cluster
 	OperatorAppAliasBaseURLEnvironmentVariable = "APP_ALIAS_BASE_URL"
 
@@ -43,7 +40,7 @@ const (
 	// RadixPortNamesEnvironmentVariable The environment variable holding the available port names of the component
 	RadixPortNamesEnvironmentVariable = "RADIX_PORT_NAMES"
 
-	// RadixDNSZoneEnvironmentVariable The environment variable on a radix app giving the dns zone. Will be equal to OperatorDNSZoneEnvironmentVariable
+	// RadixDNSZoneEnvironmentVariable The environment variable on a radix app giving the dns zone. Will be equal to RADIX_COMMON_DNSZONE
 	RadixDNSZoneEnvironmentVariable = "RADIX_DNS_ZONE"
 
 	// RadixZoneEnvironmentVariable The environment variable on a radix app giving the radix zone.

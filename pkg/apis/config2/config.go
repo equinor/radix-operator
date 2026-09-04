@@ -21,6 +21,7 @@ type Config struct {
 }
 
 type CommonConfig struct {
+	DNSZone     string            `json:"dnsZone" required:"true"`
 	ClusterName string            `json:"clusterName" required:"true"`
 	OAuth2Proxy OAuth2ProxyConfig `json:"oauth2Proxy"`
 }
