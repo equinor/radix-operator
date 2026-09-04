@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -53,6 +54,10 @@ func validateRadixComponentSecrets(component radixv1.RadixCommonComponent, app *
 		return err
 	}
 
+	if err := validateAzureKeyVaultAzureIdentity(component, app.Spec.Environments); err != nil {
+		return err
+	}
+
 	return validateConflictingEnvironmentAndSecretRefsNames(component, envsEnvVarsMap)
 }
 
@@ -92,12 +97,6 @@ func validateSecretRefs(commonComponent radixv1.RadixCommonComponent, secretRefs
 				return fmt.Errorf("azure Key vault %s, component %s, path %s: %w", azureKeyVault.Name, commonComponent.GetName(), *path, ErrDuplicatePathForAzureKeyVault)
 			}
 			existingAzureKeyVaultPath[*path] = true
-		}
-		useAzureIdentity := azureKeyVault.UseAzureIdentity
-		if useAzureIdentity != nil && *useAzureIdentity {
-			if !azureIdentityIsSet(commonComponent) {
-				return fmt.Errorf("azure Key vault %s, component %s: %w", azureKeyVault.Name, commonComponent.GetName(), ErrMissingAzureIdentityForAzureKeyVault)
-			}
 		}
 		for _, keyVaultItem := range azureKeyVault.Items {
 			if len(keyVaultItem.EnvVar) > 0 {
@@ -155,21 +154,59 @@ func getEnvVarNameMap(componentEnvVarsMap radixv1.EnvVarsMap, envsEnvVarsMap rad
 	return envVarsMap
 }
 
-func azureIdentityIsSet(commonComponent radixv1.RadixCommonComponent) bool {
-	identity := commonComponent.GetIdentity()
-	if identity != nil && identity.Azure != nil && identity.Azure.ClientId != "" {
-		return true
-	}
-	for _, envConfig := range commonComponent.GetEnvironmentConfig() {
-		if !commonComponent.GetEnabledForEnvironmentConfig(envConfig) {
+// validateAzureKeyVaultAzureIdentity verifies that, for every environment where the component is enabled
+// and has an Azure Key Vault with useAzureIdentity enabled, an identity.azure.clientId is configured in
+// either the common component config or the environment config.
+func validateAzureKeyVaultAzureIdentity(component radixv1.RadixCommonComponent, environments []radixv1.Environment) error {
+	commonIdentitySet := azureIdentityClientIdIsSet(component.GetIdentity())
+	for _, env := range environments {
+		if !component.GetEnabledForEnvironment(env.Name) {
 			continue
 		}
-		envIdentity := envConfig.GetIdentity()
-		if envIdentity != nil && envIdentity.Azure != nil && envIdentity.Azure.ClientId != "" {
-			return true
+		envConfig := component.GetEnvironmentConfigByName(env.Name)
+		if commonIdentitySet || azureIdentityClientIdIsSet(environmentConfigIdentity(envConfig)) {
+			continue
+		}
+		for _, azureKeyVaultName := range azureKeyVaultsUsingAzureIdentityForEnvironment(component, envConfig) {
+			return fmt.Errorf("azure Key vault %s, component %s, environment %s: %w", azureKeyVaultName, component.GetName(), env.Name, ErrMissingAzureIdentityForAzureKeyVault)
 		}
 	}
-	return false
+	return nil
+}
+
+// azureKeyVaultsUsingAzureIdentityForEnvironment returns the names of Azure Key Vaults with an effective
+// useAzureIdentity enabled for the environment, applying environment overrides over the common config.
+func azureKeyVaultsUsingAzureIdentityForEnvironment(component radixv1.RadixCommonComponent, envConfig radixv1.RadixCommonEnvironmentConfig) []string {
+	effectiveUseAzureIdentity := make(map[string]*bool)
+	for _, azureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
+		effectiveUseAzureIdentity[azureKeyVault.Name] = azureKeyVault.UseAzureIdentity
+	}
+	if envConfig != radixv1.RadixCommonEnvironmentConfig(nil) {
+		for _, azureKeyVault := range envConfig.GetSecretRefs().AzureKeyVaults {
+			if _, exists := effectiveUseAzureIdentity[azureKeyVault.Name]; !exists || azureKeyVault.UseAzureIdentity != nil {
+				effectiveUseAzureIdentity[azureKeyVault.Name] = azureKeyVault.UseAzureIdentity
+			}
+		}
+	}
+	var names []string
+	for name, useAzureIdentity := range effectiveUseAzureIdentity {
+		if useAzureIdentity != nil && *useAzureIdentity {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
+}
+
+func environmentConfigIdentity(envConfig radixv1.RadixCommonEnvironmentConfig) *radixv1.Identity {
+	if envConfig == radixv1.RadixCommonEnvironmentConfig(nil) {
+		return nil
+	}
+	return envConfig.GetIdentity()
+}
+
+func azureIdentityClientIdIsSet(identity *radixv1.Identity) bool {
+	return identity != nil && identity.Azure != nil && identity.Azure.ClientId != ""
 }
 
 func validateConflictingEnvironmentAndSecretRefsNames(component radixv1.RadixCommonComponent, envsEnvVarMap map[string]map[string]bool) error {

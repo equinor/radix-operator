@@ -1849,6 +1849,127 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 	}
 }
 
+func Test_ValidationOfSecretRefsAzureIdentity(t *testing.T) {
+	const clientId = "11111111-2222-3333-4444-555555555555"
+
+	boolPtr := func(b bool) *bool { return &b }
+	azureKeyVaults := func(useAzureIdentity *bool) radixv1.RadixSecretRefs {
+		return radixv1.RadixSecretRefs{
+			AzureKeyVaults: []radixv1.RadixAzureKeyVault{
+				{
+					Name:             "my-key-vault",
+					UseAzureIdentity: useAzureIdentity,
+					Items:            []radixv1.RadixAzureKeyVaultItem{{Name: "secret1"}},
+				},
+			},
+		}
+	}
+	getComponent := func(ra *radixv1.RadixApplication, name string) *radixv1.RadixComponent {
+		for i := range ra.Spec.Components {
+			if ra.Spec.Components[i].Name == name {
+				return &ra.Spec.Components[i]
+			}
+		}
+		require.FailNowf(t, "component not found", "component %s", name)
+		return nil
+	}
+	getEnvConfig := func(component *radixv1.RadixComponent, environment string) *radixv1.RadixEnvironmentConfig {
+		for i := range component.EnvironmentConfig {
+			if component.EnvironmentConfig[i].Environment == environment {
+				return &component.EnvironmentConfig[i]
+			}
+		}
+		require.FailNowf(t, "environment config not found", "environment %s", environment)
+		return nil
+	}
+	azureIdentity := &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: clientId}}
+
+	// The "redis" component in testdata has no identity and is enabled in both dev and prod.
+	var testScenarios = map[string]struct {
+		updateRA      func(ra *radixv1.RadixApplication)
+		expectedError error
+	}{
+		"common useAzureIdentity without any identity fails": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				getComponent(ra, "redis").SecretRefs = azureKeyVaults(boolPtr(true))
+			},
+			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
+		},
+		"common useAzureIdentity with identity only in one environment fails for the other": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				component.SecretRefs = azureKeyVaults(boolPtr(true))
+				getEnvConfig(component, "prod").Identity = azureIdentity
+			},
+			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
+		},
+		"common useAzureIdentity with common identity succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				component.SecretRefs = azureKeyVaults(boolPtr(true))
+				component.Identity = azureIdentity
+			},
+			expectedError: nil,
+		},
+		"common useAzureIdentity with identity in all environments succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				component.SecretRefs = azureKeyVaults(boolPtr(true))
+				getEnvConfig(component, "dev").Identity = azureIdentity
+				getEnvConfig(component, "prod").Identity = azureIdentity
+			},
+			expectedError: nil,
+		},
+		"useAzureIdentity disabled without identity succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				getComponent(ra, "redis").SecretRefs = azureKeyVaults(boolPtr(false))
+			},
+			expectedError: nil,
+		},
+		"environment useAzureIdentity with identity in the same environment succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				envConfig := getEnvConfig(component, "dev")
+				envConfig.SecretRefs = azureKeyVaults(boolPtr(true))
+				envConfig.Identity = azureIdentity
+			},
+			expectedError: nil,
+		},
+		"environment useAzureIdentity with identity in another environment fails": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				getEnvConfig(component, "dev").SecretRefs = azureKeyVaults(boolPtr(true))
+				getEnvConfig(component, "prod").Identity = azureIdentity
+			},
+			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
+		},
+		"environment useAzureIdentity overriding common useAzureIdentity to false succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				component.SecretRefs = azureKeyVaults(boolPtr(true))
+				getEnvConfig(component, "dev").SecretRefs = azureKeyVaults(boolPtr(false))
+				getEnvConfig(component, "prod").SecretRefs = azureKeyVaults(boolPtr(false))
+			},
+			expectedError: nil,
+		},
+	}
+
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for name, scenario := range testScenarios {
+		t.Run(name, func(t *testing.T) {
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			scenario.updateRA(validRA)
+			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			_, err := validator.Validate(context.Background(), validRA)
+			if scenario.expectedError == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorIs(t, err, scenario.expectedError)
+			}
+		})
+	}
+}
+
 func Test_HorizontalScaling_Validation(t *testing.T) {
 	var testScenarios = []struct {
 		name     string
