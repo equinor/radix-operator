@@ -47,6 +47,14 @@ type OperatorConfig struct {
 
 	AppNsLimitRange  LimitRangeConfig `json:"appNsLimitRange" required:"true"`
 	EnvNsLimitRange  LimitRangeConfig `json:"envNsLimitRange" required:"true"`
+
+	//TODO: Validate resources:
+	// if pjc.AppBuilderResourcesRequestsCPU.Cmp(pjc.AppBuilderResourcesLimitsCPU.Quantity) > 0 {
+	// 	log.Fatal().Msg("--builder-resources-limits-cpu must be greater than --builder-resources-requests-cpu")
+	// }
+	// if pjc.AppBuilderResourcesRequestsMemory.Cmp(pjc.AppBuilderResourcesLimitsMemory.Quantity) > 0 {
+	// 	log.Fatal().Msg("--builder-resources-limits-memory must be greater than --builder-resources-requests-memory")
+	// }
 	BuilderResources Resources        `json:"builderResources" required:"true"`
 }
 

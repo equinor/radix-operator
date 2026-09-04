@@ -11,7 +11,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/flags"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config/quantity"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -151,15 +150,6 @@ func (s *RadixJobTestSuite) SetupSubTest() {
 }
 
 func (s *RadixJobTestSuite) Test_ReconcileStatus() {
-	qty := createQuantity("1")
-	cfg := &config.Config{
-		PipelineJobConfig: config.PipelineJobConfig{
-			AppBuilderResourcesLimitsCPU:      qty,
-			AppBuilderResourcesLimitsMemory:   qty,
-			AppBuilderResourcesRequestsCPU:    qty,
-			AppBuilderResourcesRequestsMemory: qty,
-		},
-	}
 	rr := &radixv1.RadixRegistration{}
 	rj := &radixv1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
 	rj, err := s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rj, metav1.CreateOptions{})
@@ -167,7 +157,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rj.Generation
-	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, cfg, s.config2)
+	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, &config.Config{}, s.config2)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -180,7 +170,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	// Second sync with updated generation
 	rj.Generation++
 	expectedGen = rj.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, cfg, s.config2)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, &config.Config{}, s.config2)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -195,7 +185,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	rjStop, err = s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rjStop, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	expectedGen = rjStop.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjStop, cfg, s.config2)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjStop, &config.Config{}, s.config2)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rjStop, err = s.radixClient.RadixV1().RadixJobs(rjStop.Namespace).Get(context.Background(), rjStop.Name, metav1.GetOptions{})
@@ -214,7 +204,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 		return true, nil, errors.New(errorMsg)
 	})
 	expectedGen = rjErr.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjErr, cfg, s.config2)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjErr, &config.Config{}, s.config2)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rjErr, err = s.radixClient.RadixV1().RadixJobs(rjErr.Namespace).Get(context.Background(), rjErr.Name, metav1.GetOptions{})
@@ -296,10 +286,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_APP=%s", appName),
 				fmt.Sprintf("--JOB_NAME=%s", jobName),
 				fmt.Sprintf("--PIPELINE_TYPE=%s", radixv1.BuildDeploy),
-				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY=1000Mi",
-				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU=100m",
-				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY=2000Mi",
-				"--RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU=200m",
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, "1000Mi"),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, "100m"),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, "2000Mi"),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, "200m"),
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
@@ -1653,56 +1643,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 	}
 
 	scenarios := map[string]struct {
-		config        *config.Config
 		expectedError string
 	}{
 		"Configured AppBuilderResources": {
-			config: &config.Config{
-				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: config.PipelineJobConfig{
-					PipelineJobsHistoryLimit:          3,
-					AppBuilderResourcesRequestsCPU:    createQuantity("123m"),
-					AppBuilderResourcesLimitsCPU:      createQuantity("456m"),
-					AppBuilderResourcesRequestsMemory: createQuantity("1234Mi"),
-					AppBuilderResourcesLimitsMemory:   createQuantity("2345Mi"),
-					PipelineImage:                     "docker.io/anypipeline:tag",
-					GitCloneImage:                     "docker.io/git:any",
-				},
-			},
 			expectedError: "",
-		},
-		"Missing config for ResourcesRequestsCPU": {
-			config: &config.Config{
-				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: config.PipelineJobConfig{
-					AppBuilderResourcesRequestsMemory: createQuantity("1234Mi"),
-					AppBuilderResourcesLimitsMemory:   createQuantity("2345Mi"),
-					PipelineImage:                     "docker.io/anypipeline:tag",
-					GitCloneImage:                     "docker.io/git:any",
-				}},
-			expectedError: "invalid or missing app builder resources",
-		},
-		"Missing config for ResourcesRequestsMemory": {
-			config: &config.Config{
-				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: config.PipelineJobConfig{
-					AppBuilderResourcesRequestsCPU:  createQuantity("123m"),
-					AppBuilderResourcesLimitsMemory: createQuantity("2345Mi"),
-					PipelineImage:                   "docker.io/anypipeline:tag",
-					GitCloneImage:                   "docker.io/git:any",
-				}},
-			expectedError: "invalid or missing app builder resources",
-		},
-		"Missing config for ResourcesLimitsMemory": {
-			config: &config.Config{
-				DNSZone: "dev.radix.equinor.com",
-				PipelineJobConfig: config.PipelineJobConfig{
-					AppBuilderResourcesRequestsCPU:    createQuantity("123m"),
-					AppBuilderResourcesRequestsMemory: createQuantity("1234Mi"),
-					PipelineImage:                     "docker.io/anypipeline:tag",
-					GitCloneImage:                     "docker.io/git:any",
-				}},
-			expectedError: "invalid or missing app builder resources",
 		},
 	}
 	for name, scenario := range scenarios {
@@ -1713,7 +1657,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 					WithJobName("job1").
 					WithGitRef("master").
 					WithGitRefType(string(radixv1.GitRefBranch)),
-				scenario.config, testCfg)
+				&config.Config{}, testCfg)
 			switch {
 			case len(scenario.expectedError) > 0 && err == nil:
 				s.Fail(fmt.Sprintf("Missing expected error '%s'", scenario.expectedError))
@@ -1732,10 +1676,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 
 			s.Len(jobList, 1)
 			job := jobList[0]
-			s.Equal(testCfg.Operator.BuilderResources.Requests.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable), "Invalid or missing AppBuilderResourcesRequestsCPU")
-			s.Equal(testCfg.Operator.BuilderResources.Requests.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable), "Invalid or missing AppBuilderResourcesRequestsMemory")
-			s.Equal(testCfg.Operator.BuilderResources.Limits.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable), "Invalid or missing AppBuilderResourcesLimitsMemory")
-			s.Equal(testCfg.Operator.BuilderResources.Limits.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], defaults.OperatorAppBuilderResourcesLimitsCPUEnvironmentVariable), "Invalid or missing AppBuilderResourcesLimitsCPU")
+			s.Equal(testCfg.Operator.BuilderResources.Requests.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsCPU), "Invalid or missing AppBuilderResourcesRequestsCPU")
+			s.Equal(testCfg.Operator.BuilderResources.Requests.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsMemory), "Invalid or missing AppBuilderResourcesRequestsMemory")
+			s.Equal(testCfg.Operator.BuilderResources.Limits.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsMemory), "Invalid or missing AppBuilderResourcesLimitsMemory")
+			s.Equal(testCfg.Operator.BuilderResources.Limits.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsCPU), "Invalid or missing AppBuilderResourcesLimitsCPU")
 		})
 
 	}
@@ -1755,25 +1699,13 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 	return &config.Config{
 		DNSZone: "dev.radix.equinor.com",
 		PipelineJobConfig: config.PipelineJobConfig{
-			PipelineJobsHistoryLimit:          historyLimit,
-			AppBuilderResourcesLimitsMemory:   createQuantity("2000Mi"),
-			AppBuilderResourcesLimitsCPU:      createQuantity("200m"),
-			AppBuilderResourcesRequestsCPU:    createQuantity("100m"),
-			AppBuilderResourcesRequestsMemory: createQuantity("1000Mi"),
-			PipelineImage:                     "docker.io/anypipeline:tag",
-			PipelineImagePullPolicy:           corev1.PullAlways,
-			GitCloneImage:                     "docker.io/git:any",
+			PipelineJobsHistoryLimit: historyLimit,
+			PipelineImage:            "docker.io/anypipeline:tag",
+			PipelineImagePullPolicy:  corev1.PullAlways,
+			GitCloneImage:            "docker.io/git:any",
 		},
 		ContainerRegistryConfig: config.ContainerRegistryConfig{
 			ExternalRegistryAuthSecret: "an-external-registry-secret",
 		},
 	}
-}
-
-func createQuantity(value string) *quantity.Quantity {
-	q := &quantity.Quantity{}
-	if err := q.Decode(value); err != nil {
-		panic(err)
-	}
-	return q
 }

@@ -54,11 +54,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 	}
 
 	workspace := git.Workspace
-	containerArguments, err := job.getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName, job.radixJob.Spec, pipeline)
-	if err != nil {
-		return nil, err
-	}
-
+	containerArguments := job.getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName, job.radixJob.Spec, pipeline)
 	initContainers := job.getInitContainersForRadixConfig(workspace)
 
 	jobCfg := batchv1.Job{
@@ -142,7 +138,7 @@ func (job *Job) getInitContainersForRadixConfig(workspace string) []corev1.Conta
 	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, job.config.PipelineJobConfig.GitCloneImage)
 }
 
-func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
+func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
 
@@ -150,22 +146,15 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 	containerRegistry := job.config2.Operator.ContainerRegistry
 	appContainerRegistry := job.config2.Operator.AppContainerRegistry
 
-	if job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.IsZero() ||
-		job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU == nil || job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.IsZero() ||
-		job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory == nil || job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.IsZero() ||
-		job.config.PipelineJobConfig.AppBuilderResourcesLimitsCPU == nil || job.config.PipelineJobConfig.AppBuilderResourcesLimitsCPU.IsZero() {
-		return nil, fmt.Errorf("invalid or missing app builder resources")
-	}
-
 	// Base arguments for all types of pipeline
 	args := []string{
 		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
-		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsMemory.String()),
-		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesRequestsCPU.String()),
-		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesLimitsMemory.String()),
-		fmt.Sprintf("--%s=%s", defaults.OperatorAppBuilderResourcesLimitsCPUEnvironmentVariable, job.config.PipelineJobConfig.AppBuilderResourcesLimitsCPU.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, job.config2.Operator.BuilderResources.Requests.Memory.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, job.config2.Operator.BuilderResources.Requests.CPU.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, job.config2.Operator.BuilderResources.Limits.Memory.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, job.config2.Operator.BuilderResources.Limits.CPU.String()),
 		fmt.Sprintf("--%s=%s", defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, job.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images
@@ -216,7 +205,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixPipelineApplyConfigDeployExternalDNSFlag, jobSpec.ApplyConfig.DeployExternalDNS))
 	}
 
-	return args, nil
+	return args
 }
 
 func getPipelineJobLabels(appName, jobName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) map[string]string {
