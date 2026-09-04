@@ -71,6 +71,10 @@ config:
         memory: 500M
         cpu: 200m
 
+    jobSchedulerImage:
+      repository: ghcr.io/equinor/radix/job-scheduler
+      tag: latest
+
 dnsZone: dev.radix.equinor.com
 radixZone: xx
 tenantId: xx
@@ -212,12 +216,6 @@ radixBuildKitImageBuilder:
   image:
     repository: ghcr.io/equinor/radix/buildkit-builder
     tag: latest
-
-radixJobScheduler:
-  image:
-    repository: ghcr.io/equinor/radix/job-scheduler
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: ""
 
 radixApiServer:
   useProfiler: false

@@ -55,7 +55,6 @@ func TestGatewayTestSuite(t *testing.T) {
 }
 
 func (s *GatewayTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 }
 

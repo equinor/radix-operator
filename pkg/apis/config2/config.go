@@ -54,6 +54,8 @@ type OperatorConfig struct {
 	EnvNsLimitRange LimitRangeConfig `json:"envNsLimitRange" required:"true"`
 
 	BuilderResources Resources `json:"builderResources" required:"true"`
+
+	JobSchedulerImage ContainerImage `json:"jobSchedulerImage" required:"true"`
 }
 
 type OAuth2ProxyConfig struct {

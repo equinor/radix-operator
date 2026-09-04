@@ -85,6 +85,10 @@ var testConfig2 = config2.Config{
 		DefaultRollingUpdateMaxUnavailable: "25%",
 		DefaultRollingUpdateMaxSurge:       "35%",
 		ContainerRegistry:                  "any.container.registry",
+		JobSchedulerImage: config2.ContainerImage{
+			Repository: "docker.io/radix-job-scheduler",
+			Tag:        "main-latest",
+		},
 	},
 }
 
@@ -110,7 +114,6 @@ func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 
 func TeardownTest() {
 	// Cleanup setup
-	_ = os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
@@ -518,7 +521,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 		}
 
 		tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-		os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, jobSchedulerImage)
 
 		t.Run("Test Suite", func(t *testing.T) {
 			aRadixRegistrationBuilder := utils.ARadixRegistration().WithAdGroups(adminGroups).WithAdUsers(adminUsers).WithReaderAdGroups(readerGroups).WithReaderAdUsers(readerUsers)
@@ -637,8 +639,9 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 
 				assert.Equal(t, jobName, getDeploymentByName(jobName, deployments).Name, "app deployment not there")
 				assert.Equal(t, int32(1), *getDeploymentByName(jobName, deployments).Spec.Replicas, "number of replicas was unexpected")
-
-				envVars := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers).Env
+				jobContainer := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers)
+				assert.Equal(t, "docker.io/radix-job-scheduler:main-latest", jobContainer.Image)
+				envVars := jobContainer.Env
 				assert.Equal(t, 12, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, "a_value", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", jobName, deployments))
 				assert.Equal(t, testConfig2.Operator.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, jobName, deployments))

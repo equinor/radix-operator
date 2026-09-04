@@ -22,7 +22,6 @@ import (
 
 func teardownSecretRefsTest() {
 	// Cleanup setup
-	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 }
 

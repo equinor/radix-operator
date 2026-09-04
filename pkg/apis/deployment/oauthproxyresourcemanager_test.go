@@ -52,7 +52,6 @@ func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
 func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	s.dnsZone = "dev.radix.equinor.com"
 	s.appAliasDnsZone = "app.dev.radix.equinor.com"
-	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 	s.config2 = config2.Config{
 		Common: config2.CommonConfig{

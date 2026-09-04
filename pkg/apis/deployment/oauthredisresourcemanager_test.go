@@ -46,7 +46,6 @@ func TestOAuthRedisResourceManagerTestSuite(t *testing.T) {
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 	s.config2 = config2.Config{
 		Common: config2.CommonConfig{
