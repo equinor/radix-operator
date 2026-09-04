@@ -104,7 +104,6 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	}
 
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, s.config.clusterType)
-	s.T().Setenv(defaults.RadixZoneEnvironmentVariable, s.config.radixZone)
 	s.T().Setenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable, s.config.buildkitImage)
 	s.T().Setenv(defaults.SeccompProfileFileNameEnvironmentVariable, s.config.buildahSecComp)
 	s.T().Setenv(defaults.RadixGitCloneGitImageEnvironmentVariable, s.config.gitImage)
@@ -301,7 +300,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
 				fmt.Sprintf("--RADIX_CLUSTER_TYPE=%s", s.config.clusterType),
-				fmt.Sprintf("--RADIX_CLUSTERNAME=%s", s.config2.Common.ClusterName),
+				fmt.Sprintf("--%s=%s", flags.ClusterName, s.config2.Common.ClusterName),
 				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.config.registry),
 				fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, s.config.appRegistry),
 				"--RADIX_GITHUB_WORKSPACE=/workspace",

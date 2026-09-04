@@ -1,6 +1,7 @@
 package flags
 
 const (
+	ClusterName          = "cluster-name"
 	ContainerRegistry    = "container-registry"
 	AppContainerRegistry = "app-container-registry"
 

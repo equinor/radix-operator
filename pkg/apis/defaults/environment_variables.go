@@ -16,9 +16,6 @@ const (
 	// PipelineJobsHistoryPeriodLimitEnvironmentVariable Controls how long an RJ should exist in an app namespace, per groups by environment and status
 	PipelineJobsHistoryPeriodLimitEnvironmentVariable = "RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT"
 
-	// ClusternameEnvironmentVariable The name of the cluster
-	ClusternameEnvironmentVariable = "RADIX_CLUSTERNAME"
-
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
 

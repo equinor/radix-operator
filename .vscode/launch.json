@@ -37,7 +37,7 @@
 				"--SECCOMP_PROFILE_FILENAME=allow-buildah.json",
 				"--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=docker.io/alpine/git:2.45.2",
 				"--RADIX_CLUSTER_TYPE=development",
-				"--RADIX_CLUSTERNAME=weekly-28",
+				"--RADIX_COMMON_CLUSTERNAME=weekly-28",
 				"--container-registry=radixdev.azurecr.io",
 				"--RADIX_APP_CONTAINER_REGISTRY=radixdevapp.azurecr.io",
 				"--AZURE_SUBSCRIPTION_ID=16ede44b-1f74-40a5-b428-46cca9a5741b",
@@ -88,7 +88,7 @@
 				"--DEBUG=true",
 				"--RADIX_FILE_NAME=radixconfig.yaml",
 				"--RADIX_CLUSTER_TYPE=development",
-				"--RADIX_CLUSTERNAME=weekly-28",
+				"--RADIX_COMMON_CLUSTERNAME=weekly-28",
 				"--container-registry=radixdev.azurecr.io",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
@@ -108,7 +108,7 @@
 				"--DEBUG=true",
 				"--RADIX_FILE_NAME=radixconfig.yaml",
 				"--RADIX_CLUSTER_TYPE=development",
-				"--RADIX_CLUSTERNAME=weekly-28",
+				"--RADIX_COMMON_CLUSTERNAME=weekly-28",
 				"--container-registry=radixdev.azurecr.io",
 				"--APPLY_CONFIG_DEPLOY_EXTERNALDNS=true",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
@@ -123,7 +123,6 @@
 			"env": {
 				"USE_PROFILER": "true",
 				"APP_ALIAS_BASE_URL": "app.dev.radix.equinor.com",
-				"RADIX_CLUSTERNAME": "weekly-27",
 				"RADIXOPERATOR_CLUSTER_TYPE": "development",
 				"RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE": "ghcr.io/equinor/radix/buildkit-builder:latest",
 				"RADIXOPERATOR_JOB_SCHEDULER_IMAGE": "ghcr.io/equinor/radix/job-scheduler:1.113.1",
@@ -228,7 +227,7 @@
 				"OIDC_AZURE_AUDIENCE": "6dae42f8-4368-4678-94ff-3960e28e3630",
 				"OIDC_KUBERNETES_ISSUER": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d9638477-2a54-40df-bb15-32f73505f631/",
 				"OIDC_KUBERNETES_AUDIENCE": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d9638477-2a54-40df-bb15-32f73505f631/",
-				"RADIX_CLUSTERNAME": "weekly-29",
+				"RADIX_COMMON_CLUSTERNAME": "weekly-29",
 				"CLUSTER_OIDC_ISSUERS": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d9638477-2a54-40df-bb15-32f73505f631/,https://test-issuer.internal.radix.equinor.com",
 				"CLUSTER_EGRESS_IPS": "0.0.0.0"
 			}

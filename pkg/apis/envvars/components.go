@@ -6,4 +6,7 @@ const (
 
 	// ComponentDNSZone The environment variable on a radix app giving the dns zone. Will be equal to RADIX_COMMON_DNSZONE
 	ComponentDNSZone = "RADIX_DNS_ZONE"
+
+	// ComponentClusterName The name of the cluster
+	ComponentClusterName = "RADIX_CLUSTERNAME"
 )
