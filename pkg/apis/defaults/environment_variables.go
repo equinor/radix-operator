@@ -40,9 +40,6 @@ const (
 	// RadixPortNamesEnvironmentVariable The environment variable holding the available port names of the component
 	RadixPortNamesEnvironmentVariable = "RADIX_PORT_NAMES"
 
-	// RadixZoneEnvironmentVariable The environment variable on a radix app giving the radix zone.
-	RadixZoneEnvironmentVariable = "RADIX_ZONE"
-
 	// RadixClusterTypeEnvironmentVariable The type of cluster dev|playground|prod. Will be equal to OperatorClusterTypeEnvironmentVariable
 	RadixClusterTypeEnvironmentVariable = "RADIX_CLUSTER_TYPE"
 

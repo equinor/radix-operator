@@ -42,7 +42,6 @@ type RadixJobTestSuiteBase struct {
 		buildkitImage  string
 		buildahSecComp string
 		gitImage       string
-		radixZone      string
 		clusterType    string
 		registry       string
 		appRegistry    string
@@ -54,7 +53,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		buildkitImage  string
 		buildahSecComp string
 		gitImage       string
-		radixZone      string
 		clusterType    string
 		registry       string
 		appRegistry    string
@@ -63,7 +61,6 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		buildkitImage:  "docker.io/buildkit:any",
 		buildahSecComp: "anyseccomp",
 		gitImage:       "docker.io/git:any",
-		radixZone:      "anyzone",
 		clusterType:    "anyclustertype",
 		registry:       "anyregistry",
 		appRegistry:    "anyAppRegistry",
@@ -304,7 +301,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
 				fmt.Sprintf("--RADIX_CLUSTER_TYPE=%s", s.config.clusterType),
-				fmt.Sprintf("--RADIX_ZONE=%s", s.config.radixZone),
 				fmt.Sprintf("--RADIX_CLUSTERNAME=%s", s.config2.Common.ClusterName),
 				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.config.registry),
 				fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, s.config.appRegistry),
