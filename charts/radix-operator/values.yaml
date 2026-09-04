@@ -54,6 +54,14 @@ config:
       defaultRequestMemory: 500M
       defaultRequestCPU: 100m
 
+    builderResources:
+      limits:
+        memory: 500M
+        cpu: 2000m
+      requests:
+        memory: 500M
+        cpu: 200m
+
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
@@ -62,16 +70,6 @@ appContainerRegistry: radixdevapp.azurecr.io
 tenantId: xx
 
 app:
-  builder:
-    # Limit range on builder job in app namespace
-    resources:
-      limits:
-        memory: 500M
-        cpu: 2000m
-      requests:
-        memory: 500M
-        cpu: 200m
-
   # Rolling update parameters
   rollingUpdate:
     maxUnavailable: 25%

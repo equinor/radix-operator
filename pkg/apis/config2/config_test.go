@@ -85,6 +85,16 @@ func TestParse_HappyPath(t *testing.T) {
 				DefaultRequestMemory: new(resource.MustParse("444M")),
 				DefaultRequestCPU:    new(resource.MustParse("111m")),
 			},
+			BuilderResources: config2.Resources{
+				Limits: config2.ResourceRequirements{
+					Memory: new(resource.MustParse("500M")),
+					CPU:    new(resource.MustParse("2000m")),
+				},
+				Requests: config2.ResourceRequirements{
+					Memory: new(resource.MustParse("500M")),
+					CPU:    new(resource.MustParse("200m")),
+				},
+			},
 		},
 	}
 

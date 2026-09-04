@@ -42,8 +42,9 @@ type OperatorConfig struct {
 	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
 	ReadinessProbePeriodSeconds       int32 `json:"readinessProbePeriodSeconds" required:"true"`
 
-	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
-	EnvNsLimitRange LimitRangeConfig `json:"envNsLimitRange" required:"true"`
+	AppNsLimitRange  LimitRangeConfig `json:"appNsLimitRange" required:"true"`
+	EnvNsLimitRange  LimitRangeConfig `json:"envNsLimitRange" required:"true"`
+	BuilderResources Resources        `json:"builderResources" required:"true"`
 }
 
 type OAuth2ProxyConfig struct {
@@ -56,6 +57,16 @@ type LimitRangeConfig struct {
 	DefaultMemory        *resource.Quantity `json:"defaultMemory" required:"true"`
 	DefaultRequestMemory *resource.Quantity `json:"defaultRequestMemory" required:"true"`
 	DefaultRequestCPU    *resource.Quantity `json:"defaultRequestCPU" required:"true"`
+}
+
+// TODO: Probably convert to pod spec defaults instead of just resources, but for now we only need resources
+type Resources struct {
+	Requests ResourceRequirements `json:"requests" required:"true"`
+	Limits   ResourceRequirements `json:"limits" required:"true"`
+}
+type ResourceRequirements struct {
+	Memory *resource.Quantity `json:"memory" required:"true"`
+	CPU    *resource.Quantity `json:"cpu" required:"true"`
 }
 
 func Parse(configYaml string) (*Config, error) {
