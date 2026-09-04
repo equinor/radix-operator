@@ -140,11 +140,6 @@ func (job *Job) getInitContainersForRadixConfig(workspace string) []corev1.Conta
 
 func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
-	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
-
-	clusterName := job.config2.Common.ClusterName
-	containerRegistry := job.config2.Operator.ContainerRegistry
-	appContainerRegistry := job.config2.Operator.AppContainerRegistry
 
 	// Base arguments for all types of pipeline
 	args := []string{
@@ -163,10 +158,9 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 
 		// Used for tagging source of image
 		fmt.Sprintf("--%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
-		fmt.Sprintf("--%s=%s", defaults.RadixZoneEnvironmentVariable, radixZone),
-		fmt.Sprintf("--%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
-		fmt.Sprintf("--%s=%s", flags.ContainerRegistry, containerRegistry),
-		fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, appContainerRegistry),
+		fmt.Sprintf("--%s=%s", flags.ClusterName, job.config2.Common.ClusterName),
+		fmt.Sprintf("--%s=%s", flags.ContainerRegistry, job.config2.Operator.ContainerRegistry),
+		fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, job.config2.Operator.AppContainerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
 		fmt.Sprintf("--%s=%v", defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, job.radixJob.Spec.TriggeredFromWebhook),

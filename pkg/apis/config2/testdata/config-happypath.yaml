@@ -1,4 +1,5 @@
 common:
+  dnsZone: dev.local.radix.equinor.com
   clusterName: test-cluster
   oauth2Proxy:
     proxyImage:

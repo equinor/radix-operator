@@ -50,7 +50,6 @@ func TestExternalDNSTestSuite(t *testing.T) {
 }
 
 func (s *ExternalDNSTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, testDNSZone)
 	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, testAppAliasBaseURL)
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")

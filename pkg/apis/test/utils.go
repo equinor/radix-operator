@@ -25,8 +25,6 @@ import (
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
-const dnsZone = "dev.radix.equinor.com"
-
 // Utils Instance variables
 type Utils struct {
 	client      kubernetes.Interface
@@ -292,7 +290,6 @@ func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder utils.EnvironmentBuil
 // SetRequiredEnvironmentVariables  Sets the required environment
 // variables needed for the operator to run properly
 func SetRequiredEnvironmentVariables() {
-	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
 	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
 	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
