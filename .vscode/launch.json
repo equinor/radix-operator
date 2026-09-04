@@ -129,8 +129,6 @@
 				"DNS_ZONE": "dev.radix.equinor.com",
 				"RADIX_CLUSTERNAME": "weekly-27",
 				"RADIXOPERATOR_CLUSTER_TYPE": "development",
-				"RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_UNAVAILABLE": "25%",
-				"RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE": "25%",
 				"RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE": "ghcr.io/equinor/radix/buildkit-builder:latest",
 				"RADIXOPERATOR_JOB_SCHEDULER_IMAGE": "ghcr.io/equinor/radix/job-scheduler:1.113.1",
 				"RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",

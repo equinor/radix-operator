@@ -54,8 +54,6 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	s.appAliasDnsZone = "app.dev.radix.equinor.com"
 	s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, s.dnsZone)
 	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, s.appAliasDnsZone)
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 	s.config2 = config2.Config{Common: config2.CommonConfig{

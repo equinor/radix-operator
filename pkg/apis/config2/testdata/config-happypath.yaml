@@ -35,6 +35,8 @@ operator:
   kubeClientRateLimitQPS: 50.5
   readinessProbeInitialDelaySeconds: 5
   readinessProbePeriodSeconds: 10
+  defaultRollingUpdateMaxUnavailable: 25%
+  defaultRollingUpdateMaxSurge: 35%
   containerRegistry: "any.registry.com"
   appContainerRegistry: "app.registry.com"
   defaultAppAdminGroups:

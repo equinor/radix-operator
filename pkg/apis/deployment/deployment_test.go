@@ -80,9 +80,11 @@ var testConfig2 = config2.Config{
 		ClusterName: testClusterName,
 	},
 	Operator: config2.OperatorConfig{
-		ReadinessProbeInitialDelaySeconds: 25,
-		ReadinessProbePeriodSeconds:       15,
-		ContainerRegistry:                 "any.container.registry",
+		ReadinessProbeInitialDelaySeconds:  25,
+		ReadinessProbePeriodSeconds:        15,
+		DefaultRollingUpdateMaxUnavailable: "25%",
+		DefaultRollingUpdateMaxSurge:       "35%",
+		ContainerRegistry:                  "any.container.registry",
 	},
 }
 
@@ -108,8 +110,6 @@ func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 
 func TeardownTest() {
 	// Cleanup setup
-	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
-	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
 	_ = os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
@@ -353,7 +353,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					Type: appsv1.RollingUpdateDeploymentStrategyType,
 					RollingUpdate: &appsv1.RollingUpdateDeployment{
 						MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
-						MaxSurge:       &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
+						MaxSurge:       &intstr.IntOrString{Type: intstr.String, StrVal: "35%"},
 					},
 				}
 

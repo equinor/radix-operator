@@ -74,6 +74,9 @@ func TestParse_HappyPath(t *testing.T) {
 			ReadinessProbeInitialDelaySeconds: 5,
 			ReadinessProbePeriodSeconds:       10,
 
+			DefaultRollingUpdateMaxUnavailable: "25%",
+			DefaultRollingUpdateMaxSurge:       "35%",
+
 			ContainerRegistry:    "any.registry.com",
 			AppContainerRegistry: "app.registry.com",
 
