@@ -75,6 +75,8 @@ func TestParse_HappyPath(t *testing.T) {
 			ReadinessProbeInitialDelaySeconds: 5,
 			ReadinessProbePeriodSeconds:       10,
 
+			AppAliasBaseURL: "app.dev.radix.equinor.com",
+
 			DefaultRollingUpdateMaxUnavailable: "25%",
 			DefaultRollingUpdateMaxSurge:       "35%",
 
@@ -102,6 +104,10 @@ func TestParse_HappyPath(t *testing.T) {
 					Memory: new(resource.MustParse("500M")),
 					CPU:    new(resource.MustParse("200m")),
 				},
+			},
+			JobSchedulerImage: config2.ContainerImage{
+				Repository: "ghcr.io/equinor/radix-job-scheduler",
+				Tag:        "v1.2.3",
 			},
 		},
 	}
@@ -168,6 +174,16 @@ func TestParse_MissingRequiredField(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, cfg)
+}
+
+func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
+	configYaml := strings.ReplaceAll(configHappyYaml, "  jobSchedulerImage:\n    repository: ghcr.io/equinor/radix-job-scheduler\n    tag: v1.2.3\n", "")
+
+	cfg, err := config2.Parse(configYaml)
+
+	require.Error(t, err)
+	assert.Nil(t, cfg)
+	assert.ErrorContains(t, err, `field "Operator.JobSchedulerImage" is required but not set`)
 }
 
 func TestParse_BuilderResourceLimits(t *testing.T) {

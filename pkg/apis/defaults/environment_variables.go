@@ -1,9 +1,6 @@
 package defaults
 
 const (
-	// OperatorAppAliasBaseURLEnvironmentVariable The base url for any app alias of the cluster
-	OperatorAppAliasBaseURLEnvironmentVariable = "APP_ALIAS_BASE_URL"
-
 	// OperatorClusterTypeEnvironmentVariable The type of cluster dev|playground|prod
 	OperatorClusterTypeEnvironmentVariable = "RADIXOPERATOR_CLUSTER_TYPE"
 
@@ -51,9 +48,6 @@ const (
 
 	// RadixRestartEnvironmentVariable Environment variable to indicate that a restart was triggered
 	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
-
-	// OperatorRadixJobSchedulerEnvironmentVariable Points to the image used to deploy job scheduler REST API for RD jobs
-	OperatorRadixJobSchedulerEnvironmentVariable = "RADIXOPERATOR_JOB_SCHEDULER_IMAGE"
 
 	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
 	RadixDeploymentEnvironmentVariable = "RADIX_DEPLOYMENT"

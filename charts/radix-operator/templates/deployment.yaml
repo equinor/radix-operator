@@ -37,8 +37,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: APP_ALIAS_BASE_URL
-              value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
               value: {{ .Values.clusterType }}
             # Maximum custom resources
@@ -48,8 +46,6 @@ spec:
               value: {{ .Values.pipelineJobsHistoryLimit | quote }}
             - name: RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT
               value: {{ .Values.pipelineJobsHistoryPeriodLimit | quote }}
-            - name: RADIXOPERATOR_JOB_SCHEDULER_IMAGE
-              value: {{ .Values.radixJobScheduler.image.repository }}:{{ .Values.radixJobScheduler.image.tag | default .Chart.AppVersion }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: LOG_PRETTY

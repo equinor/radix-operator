@@ -194,7 +194,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 	}
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		ctx := log.Ctx(ctx).With().Str("jobComponent", jobComponent.Name).Logger().WithContext(ctx)
-		jobSchedulerComponent := internal.NewJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
+		jobSchedulerComponent := internal.NewJobSchedulerComponent(deploy.config2, &jobComponent, deploy.radixDeployment)
 		if err := deploy.syncDeploymentForRadixComponent(ctx, jobSchedulerComponent); err != nil {
 			errs = append(errs, fmt.Errorf("failed to sync job %s: %w", jobSchedulerComponent.GetName(), err))
 		}

@@ -95,6 +95,9 @@ func (value *binaryJSONUnmarshaler) UnmarshalJSON(_ []byte) error {
 // setAll invokes the setter for every visited field using the same input value.
 func setAll(cfg any, value string) error {
 	return processfields.WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
+		if setter == nil {
+			return nil
+		}
 		return setter(value)
 	})
 }
@@ -102,6 +105,9 @@ func setAll(cfg any, value string) error {
 // setAllValues invokes the setter for every visited field using the same input values.
 func setAllValues(cfg any, values ...string) error {
 	return processfields.WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
+		if setter == nil {
+			return nil
+		}
 		return setter(values...)
 	})
 }
@@ -109,7 +115,10 @@ func setAllValues(cfg any, values ...string) error {
 // visitAll records the name of every field handed to the callback, in traversal order.
 func visitAll(cfg any) ([]string, error) {
 	var visited []string
-	err := processfields.WalkFields(cfg, func(_ string, field reflect.StructField, _ reflect.Value, _ processfields.SetValFunc) error {
+	err := processfields.WalkFields(cfg, func(_ string, field reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
+		if setter == nil {
+			return nil
+		}
 		visited = append(visited, field.Name)
 		return nil
 	})
@@ -119,7 +128,10 @@ func visitAll(cfg any) ([]string, error) {
 // visitAllPaths records the path of every field handed to the callback, in traversal order.
 func visitAllPaths(cfg any) ([]string, error) {
 	var visited []string
-	err := processfields.WalkFields(cfg, func(path string, _ reflect.StructField, _ reflect.Value, _ processfields.SetValFunc) error {
+	err := processfields.WalkFields(cfg, func(path string, _ reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
+		if setter == nil {
+			return nil
+		}
 		visited = append(visited, path)
 		return nil
 	})
