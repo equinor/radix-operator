@@ -124,7 +124,6 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/operator/main.go",
 			"env": {
-				"RADIX_COMMON_DNSZONE": "dev.radix.equinor.com",
 				"USE_PROFILER": "true",
 				"APP_ALIAS_BASE_URL": "app.dev.radix.equinor.com",
 				"RADIX_CLUSTERNAME": "weekly-27",
@@ -225,7 +224,7 @@
 			"env": {
 				"POD_NAMESPACE": "default",
 				"RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
-				"RADIX_COMMON_DNSZONE": "dev.radix.equinor.com",
+				"RADIX_COMMON_DNSZONE": "dev.radix.equinor.com", // TODO: Read from cm
 				"PROMETHEUS_URL": "http://localhost:9091",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",

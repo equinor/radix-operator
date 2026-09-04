@@ -40,9 +40,6 @@ const (
 	// RadixPortNamesEnvironmentVariable The environment variable holding the available port names of the component
 	RadixPortNamesEnvironmentVariable = "RADIX_PORT_NAMES"
 
-	// RadixDNSZoneEnvironmentVariable The environment variable on a radix app giving the dns zone. Will be equal to RADIX_COMMON_DNSZONE
-	RadixDNSZoneEnvironmentVariable = "RADIX_DNS_ZONE"
-
 	// RadixZoneEnvironmentVariable The environment variable on a radix app giving the radix zone.
 	RadixZoneEnvironmentVariable = "RADIX_ZONE"
 
