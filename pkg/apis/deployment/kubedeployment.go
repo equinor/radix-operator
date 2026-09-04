@@ -521,23 +521,6 @@ func getReadinessProbeWithDefaultsFromEnv(cfg config2.Config, componentPort int3
 	}
 }
 
-func getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds int32) corev1.Probe {
-	return corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: componentPort,
-				},
-			},
-		},
-		InitialDelaySeconds: initialDelaySeconds,
-		PeriodSeconds:       periodSeconds,
-		TimeoutSeconds:      1,
-		FailureThreshold:    3,
-		SuccessThreshold:    1,
-	}
-}
-
 func getContainerPorts(deployComponent v1.RadixCommonDeployComponent) []corev1.ContainerPort {
 	componentPorts := deployComponent.GetPorts()
 	var ports []corev1.ContainerPort

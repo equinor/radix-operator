@@ -21,7 +21,6 @@ import (
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
 	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	siglog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -39,7 +38,7 @@ func main() {
 	logger.Info().Interface("config", c).Msg("Configuration")
 
 	logger.Info().Msg("setting up manager")
-	mgr, err := manager.New(config.GetConfigOrDie(), manager.Options{
+	mgr, err := manager.New(k8sconfig.GetConfigOrDie(), manager.Options{
 		Scheme:                 scheme.NewScheme(),
 		Logger:                 initLogr(logger),
 		LeaderElection:         false,

@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
@@ -105,6 +104,6 @@ func (s *syncer) buildComponentWithOAuthDefaults(component *radixv1.RadixDeployC
 	if err != nil {
 		return nil, err
 	}
-	componentWithOAuthDefaults.Authentication.OAuth2 = new(v1.OAuth2(oauth))
+	componentWithOAuthDefaults.Authentication.OAuth2 = new(radixv1.OAuth2(oauth))
 	return componentWithOAuthDefaults, nil
 }
