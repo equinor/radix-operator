@@ -38,6 +38,7 @@ type OperatorConfig struct {
 	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" required:"true"`
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
 
+	AppAliasBaseURL      string `json:"appAliasBaseURL" required:"true"`
 	ContainerRegistry    string `json:"containerRegistry" required:"true"`
 	AppContainerRegistry string `json:"appContainerRegistry" required:"true"`
 

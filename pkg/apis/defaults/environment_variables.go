@@ -1,9 +1,6 @@
 package defaults
 
 const (
-	// OperatorAppAliasBaseURLEnvironmentVariable The base url for any app alias of the cluster
-	OperatorAppAliasBaseURLEnvironmentVariable = "APP_ALIAS_BASE_URL"
-
 	// OperatorClusterTypeEnvironmentVariable The type of cluster dev|playground|prod
 	OperatorClusterTypeEnvironmentVariable = "RADIXOPERATOR_CLUSTER_TYPE"
 

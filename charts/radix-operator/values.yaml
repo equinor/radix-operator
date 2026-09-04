@@ -48,6 +48,7 @@ config:
 
     containerRegistry: ""
     appContainerRegistry: ""
+    appAliasBaseURL: app.dev.radix.equinor.com
 
     defaultAppAdminGroups: []
 
@@ -70,7 +71,6 @@ config:
         memory: 500M
         cpu: 200m
 
-appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 radixZone: xx
 tenantId: xx

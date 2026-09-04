@@ -75,6 +75,8 @@ func TestParse_HappyPath(t *testing.T) {
 			ReadinessProbeInitialDelaySeconds: 5,
 			ReadinessProbePeriodSeconds:       10,
 
+			AppAliasBaseURL: "app.dev.radix.equinor.com",
+
 			DefaultRollingUpdateMaxUnavailable: "25%",
 			DefaultRollingUpdateMaxSurge:       "35%",
 

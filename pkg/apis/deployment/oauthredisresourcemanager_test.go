@@ -46,17 +46,18 @@ func TestOAuthRedisResourceManagerTestSuite(t *testing.T) {
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
-	s.config2 = config2.Config{Common: config2.CommonConfig{OAuth2Proxy: config2.OAuth2ProxyConfig{
-		ProxyImage: config2.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
-		ProxyDefaults: v1.OAuth2{
-			OIDC: &v1.OAuth2OIDC{
-				IssuerURL: "https://oidc_issuer_url",
+	s.config2 = config2.Config{
+		Common: config2.CommonConfig{
+			OAuth2Proxy: config2.OAuth2ProxyConfig{
+				RedisImage: config2.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
 			},
 		},
-	}}}
+		Operator: config2.OperatorConfig{
+			AppAliasBaseURL: "app.dev.radix.equinor.com",
+		},
+	}
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) SetupTest() {

@@ -43,6 +43,7 @@ type ExternalDNSTestSuite struct {
 	certClient    *certfake.Clientset
 	testUtils     *test.Utils
 	cfg           *config.Config
+	cfg2          *config2.Config
 }
 
 func TestExternalDNSTestSuite(t *testing.T) {
@@ -50,7 +51,6 @@ func TestExternalDNSTestSuite(t *testing.T) {
 }
 
 func (s *ExternalDNSTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, testAppAliasBaseURL)
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 }
@@ -81,6 +81,11 @@ func (s *ExternalDNSTestSuite) setupTest() {
 		Gateway: config.GatewayConfig{
 			Name:      edTestGatewayName,
 			Namespace: edTestGatewayNamespace,
+		},
+	}
+	s.cfg2 = &config2.Config{
+		Operator: config2.OperatorConfig{
+			AppAliasBaseURL: testAppAliasBaseURL,
 		},
 	}
 }

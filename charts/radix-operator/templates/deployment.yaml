@@ -37,8 +37,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: APP_ALIAS_BASE_URL
-              value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
               value: {{ .Values.clusterType }}
             # Maximum custom resources

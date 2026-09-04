@@ -122,7 +122,6 @@
 			"program": "${workspaceFolder}/operator/main.go",
 			"env": {
 				"USE_PROFILER": "true",
-				"APP_ALIAS_BASE_URL": "app.dev.radix.equinor.com",
 				"RADIXOPERATOR_CLUSTER_TYPE": "development",
 				"RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE": "ghcr.io/equinor/radix/buildkit-builder:latest",
 				"RADIXOPERATOR_JOB_SCHEDULER_IMAGE": "ghcr.io/equinor/radix/job-scheduler:1.113.1",

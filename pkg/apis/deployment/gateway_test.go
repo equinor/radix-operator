@@ -55,7 +55,6 @@ func TestGatewayTestSuite(t *testing.T) {
 }
 
 func (s *GatewayTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, testAppAliasBaseURL)
 	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 }
@@ -93,6 +92,9 @@ func (s *GatewayTestSuite) setupTest() {
 		Common: config2.CommonConfig{
 			DNSZone:     testDNSZone,
 			ClusterName: testClusterName,
+		},
+		Operator: config2.OperatorConfig{
+			AppAliasBaseURL: testAppAliasBaseURL,
 		},
 	}
 }
