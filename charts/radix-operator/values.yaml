@@ -54,6 +54,7 @@ config:
       defaultRequestMemory: 500M
       defaultRequestCPU: 100m
 
+    # Should probably be in a builderSpecDefaults section, but for now we keep it here since it is used by the operator to set env vars for the pipeline runner job
     builderResources:
       limits:
         memory: 500M
