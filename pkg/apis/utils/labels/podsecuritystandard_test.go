@@ -6,12 +6,13 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/stretchr/testify/assert"
+	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
 
 func Test_PodSecurityStandardFromConfig(t *testing.T) {
 	tests := map[string]struct {
 		cfg      config2.PodSecurityStandardPolicyConfig
-		expected map[string]string
+		expected kubelabels.Set
 	}{
 		"all modes": {
 			cfg: config2.PodSecurityStandardPolicyConfig{
