@@ -52,27 +52,30 @@ func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
 func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	s.dnsZone = "dev.radix.equinor.com"
 	s.appAliasDnsZone = "app.dev.radix.equinor.com"
-	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, s.appAliasDnsZone)
-	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
-	s.config2 = config2.Config{Common: config2.CommonConfig{
-		DNSZone: s.dnsZone,
-		OAuth2Proxy: config2.OAuth2ProxyConfig{
-			RedisImage: config2.ContainerImage{
-				Repository: "redis",
-				Tag:        "123",
-			},
-			ProxyImage: config2.ContainerImage{
-				Repository: "oauth2-proxy",
-				Tag:        "456",
-			},
-			ProxyDefaults: radixv1.OAuth2{
-				OIDC: &radixv1.OAuth2OIDC{
-					IssuerURL: "https://oidc_issuer_url",
+	s.config2 = config2.Config{
+		Common: config2.CommonConfig{
+			DNSZone: s.dnsZone,
+			OAuth2Proxy: config2.OAuth2ProxyConfig{
+				RedisImage: config2.ContainerImage{
+					Repository: "redis",
+					Tag:        "123",
+				},
+				ProxyImage: config2.ContainerImage{
+					Repository: "oauth2-proxy",
+					Tag:        "456",
+				},
+				ProxyDefaults: radixv1.OAuth2{
+					OIDC: &radixv1.OAuth2OIDC{
+						IssuerURL: "https://oidc_issuer_url",
+					},
 				},
 			},
 		},
-	}}
+		Operator: config2.OperatorConfig{
+			AppAliasBaseURL: s.appAliasDnsZone,
+		},
+	}
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) SetupTest() {

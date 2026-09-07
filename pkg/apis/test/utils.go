@@ -290,8 +290,6 @@ func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder utils.EnvironmentBuil
 // SetRequiredEnvironmentVariables  Sets the required environment
 // variables needed for the operator to run properly
 func SetRequiredEnvironmentVariables() {
-	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
-	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
 	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 	os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
 }

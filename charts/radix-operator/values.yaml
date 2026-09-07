@@ -48,6 +48,7 @@ config:
 
     containerRegistry: ""
     appContainerRegistry: ""
+    appAliasBaseURL: app.dev.radix.equinor.com
 
     defaultAppAdminGroups: []
 
@@ -93,7 +94,10 @@ config:
         memory: 500M
         cpu: 200m
 
-appAliasBaseURL: app.dev.radix.equinor.com
+    jobSchedulerImage:
+      repository: ghcr.io/equinor/radix/job-scheduler
+      tag: ""
+
 dnsZone: dev.radix.equinor.com
 radixZone: xx
 tenantId: xx
@@ -219,12 +223,6 @@ radixBuildKitImageBuilder:
   image:
     repository: ghcr.io/equinor/radix/buildkit-builder
     tag: latest
-
-radixJobScheduler:
-  image:
-    repository: ghcr.io/equinor/radix/job-scheduler
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: ""
 
 radixApiServer:
   useProfiler: false

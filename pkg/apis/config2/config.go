@@ -15,6 +15,10 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+type Validator interface {
+	Validate() error
+}
+
 type Config struct {
 	Operator OperatorConfig `json:"operator"`
 	Common   CommonConfig   `json:"common"`
@@ -38,6 +42,7 @@ type OperatorConfig struct {
 	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" required:"true"`
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
 
+	AppAliasBaseURL      string `json:"appAliasBaseURL" required:"true"`
 	ContainerRegistry    string `json:"containerRegistry" required:"true"`
 	AppContainerRegistry string `json:"appContainerRegistry" required:"true"`
 
@@ -54,6 +59,7 @@ type OperatorConfig struct {
 
 	BuilderResources Resources `json:"builderResources" required:"true"`
 
+	JobSchedulerImage ContainerImage `json:"jobSchedulerImage" required:"true"`
 	PodSecurityStandard PodSecurityStandardConfig `json:"podSecurityStandard"`
 }
 
@@ -128,8 +134,7 @@ func MustParse(configYaml string) Config {
 }
 
 func validateConfig(cfg *Config) error {
-
-	validator, err := NewValidator()
+	validator, err := NewCelValidator()
 	if err != nil {
 		return fmt.Errorf("failed to create config validator: %w", err)
 	}
@@ -138,8 +143,18 @@ func validateConfig(cfg *Config) error {
 		requiredTag := field.Tag.Get("required")
 		required, _ := strconv.ParseBool(requiredTag)
 
-		if required && value.IsZero() {
-			return fmt.Errorf("field %q is required but not set", path)
+		if value.IsZero() {
+			if required {
+				return fmt.Errorf("field %q is required but not set", path)
+			}
+
+			return nil
+		}
+
+		if val, ok := value.Interface().(Validator); ok {
+			if err := val.Validate(); err != nil {
+				return fmt.Errorf("field %q validation failed: %w", path, err)
+			}
 		}
 
 		expression := field.Tag.Get("validate")
@@ -169,6 +184,10 @@ func processEnvOverrides(cfg *Config, prefix string) error {
 		envValue := os.Getenv(env)
 		if envValue == "" {
 			return nil
+		}
+
+		if setter == nil {
+			return fmt.Errorf("its not allowed to use env-overrides (%s) on a struct on path %s", env, path)
 		}
 
 		values := []string{envValue}

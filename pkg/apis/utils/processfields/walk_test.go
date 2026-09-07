@@ -75,7 +75,27 @@ func TestWalkFieldsTraversesNestedStructsAndSkipsUnexportedFields(t *testing.T) 
 	assert.True(t, cfg.Nested.Enabled)
 	assert.Empty(t, cfg.hidden)
 	assert.Empty(t, cfg.internalValue)
-	assert.ElementsMatch(t, []string{"Name", "Enabled"}, visited)
+	assert.ElementsMatch(t, []string{"Name", "Nested", "Enabled"}, visited)
+}
+
+func TestWalkFieldsVisitsNestedStructs(t *testing.T) {
+	t.Parallel()
+
+	type nestedConfig struct {
+		Enabled bool
+	}
+	type config struct {
+		Nested nestedConfig `required:"true"`
+	}
+
+	err := processfields.WalkFields(&config{}, func(path string, field reflect.StructField, value reflect.Value, _ processfields.SetValFunc) error {
+		if field.Tag.Get("required") == "true" && value.IsZero() {
+			return errors.New(path + " is required")
+		}
+		return nil
+	})
+
+	require.EqualError(t, err, "Nested is required")
 }
 
 func TestWalkFieldsVisitsFieldsInDeclarationOrder(t *testing.T) {

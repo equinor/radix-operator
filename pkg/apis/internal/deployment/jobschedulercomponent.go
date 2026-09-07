@@ -1,20 +1,21 @@
 package deployment
 
 import (
-	"os"
-
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 type JobSchedulerComponent struct {
+	cfg             config2.Config
 	radixJob        *radixv1.RadixDeployJobComponent
 	radixDeployment *radixv1.RadixDeployment
 }
 
 // NewJobSchedulerComponent Constructor
-func NewJobSchedulerComponent(jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) radixv1.RadixCommonDeployComponent {
+func NewJobSchedulerComponent(cfg config2.Config, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) radixv1.RadixCommonDeployComponent {
 	return &JobSchedulerComponent{
+		cfg,
 		jobComponent,
 		rd,
 	}
@@ -29,7 +30,7 @@ func (js *JobSchedulerComponent) GetType() radixv1.RadixComponentType {
 }
 
 func (js *JobSchedulerComponent) GetImage() string {
-	return os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	return js.cfg.Operator.JobSchedulerImage.String()
 }
 
 func (js *JobSchedulerComponent) GetPorts() []radixv1.ComponentPort {

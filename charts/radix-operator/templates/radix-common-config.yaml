@@ -7,4 +7,11 @@ metadata:
     {{- include "radix-operator.labels" . | nindent 4 }}
 data:
   configYaml: |
-    {{- .Values.config | toYaml | nindent 4 }}
+    {{- $chartValues := dict
+      "operator" (dict
+        "jobSchedulerImage" (dict
+          "tag" (.Values.config.operator.jobSchedulerImage.tag | default .Chart.Version)
+        )
+      )
+    -}}
+    {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}
