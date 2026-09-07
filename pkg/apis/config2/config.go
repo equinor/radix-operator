@@ -117,7 +117,7 @@ func MustParse(configYaml string) Config {
 }
 
 func validateConfig(cfg *Config) error {
-	validator, err := NewValidator()
+	validator, err := NewCelValidator()
 	if err != nil {
 		return fmt.Errorf("failed to create config validator: %w", err)
 	}

@@ -11,11 +11,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-type ExpressionValidator struct {
+type CelValidator struct {
 	environment *cel.Env
 }
 
-func NewValidator() (*ExpressionValidator, error) {
+func NewCelValidator() (*CelValidator, error) {
 	environment, err := cel.NewEnv(
 		cel.Variable("self", cel.DynType),
 		cel.Variable("config", cel.DynType),
@@ -31,10 +31,10 @@ func NewValidator() (*ExpressionValidator, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create validation environment: %w", err)
 	}
-	return &ExpressionValidator{environment: environment}, nil
+	return &CelValidator{environment: environment}, nil
 }
 
-func (v *ExpressionValidator) ValidateField(expression string, config any, value reflect.Value) (valid bool, err error) {
+func (v *CelValidator) ValidateField(expression string, config any, value reflect.Value) (valid bool, err error) {
 	configValue, err := toJSONValue(config)
 	if err != nil {
 		return false, fmt.Errorf("failed to convert config for validation: %w", err)
