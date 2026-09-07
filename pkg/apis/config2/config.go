@@ -15,6 +15,10 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+type Validator interface {
+	Validate() error
+}
+
 type Config struct {
 	Operator OperatorConfig `json:"operator"`
 	Common   CommonConfig   `json:"common"`
@@ -122,8 +126,18 @@ func validateConfig(cfg *Config) error {
 		requiredTag := field.Tag.Get("required")
 		required, _ := strconv.ParseBool(requiredTag)
 
-		if required && value.IsZero() {
-			return fmt.Errorf("field %q is required but not set", path)
+		if value.IsZero() {
+			if required {
+				return fmt.Errorf("field %q is required but not set", path)
+			}
+
+			return nil
+		}
+
+		if val, ok := value.Interface().(Validator); ok {
+			if err := val.Validate(); err != nil {
+				return fmt.Errorf("field %q validation failed: %w", path, err)
+			}
 		}
 
 		expression := field.Tag.Get("validate")

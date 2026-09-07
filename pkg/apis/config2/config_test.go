@@ -201,6 +201,38 @@ func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
 	assert.ErrorContains(t, err, `field "Operator.JobSchedulerImage" is required but not set`)
 }
 
+func TestParse_FieldValidator(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"repository is required": {
+			mutateConfig: func(cfg *config2.Config) {
+				cfg.Operator.JobSchedulerImage.Repository = ""
+			},
+			expectedError: `field "Operator.JobSchedulerImage" validation failed: repository is required`,
+		},
+		"tag is required": {
+			mutateConfig: func(cfg *config2.Config) {
+				cfg.Operator.JobSchedulerImage.Tag = ""
+			},
+			expectedError: `field "Operator.JobSchedulerImage" validation failed: tag is required`,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := mutateConfig(t, test.mutateConfig)
+
+			cfg, err := config2.Parse(configYaml)
+
+			require.Error(t, err)
+			assert.Nil(t, cfg)
+			assert.ErrorContains(t, err, test.expectedError)
+		})
+	}
+}
+
 func TestParse_BuilderResourceLimits(t *testing.T) {
 	tests := map[string]struct {
 		modifyConfig MutateConfigFunc
