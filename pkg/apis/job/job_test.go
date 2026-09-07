@@ -42,9 +42,6 @@ type RadixJobTestSuiteBase struct {
 		buildkitImage  string
 		buildahSecComp string
 		gitImage       string
-		clusterType    string
-		registry       string
-		appRegistry    string
 	}
 }
 
@@ -53,17 +50,10 @@ func (s *RadixJobTestSuiteBase) SetupSuite() {
 		buildkitImage  string
 		buildahSecComp string
 		gitImage       string
-		clusterType    string
-		registry       string
-		appRegistry    string
 	}{
-
 		buildkitImage:  "docker.io/buildkit:any",
 		buildahSecComp: "anyseccomp",
 		gitImage:       "docker.io/git:any",
-		clusterType:    "anyclustertype",
-		registry:       "anyregistry",
-		appRegistry:    "anyAppRegistry",
 	}
 }
 
@@ -88,8 +78,8 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 			ClusterName: "AnyClusterName",
 		},
 		Operator: config2.OperatorConfig{
-			ContainerRegistry:    s.config.registry,
-			AppContainerRegistry: s.config.appRegistry,
+			ContainerRegistry:    "anybuildregistry",
+			AppContainerRegistry: "anycacheregistry",
 			BuilderResources: config2.Resources{
 				Requests: config2.ResourceRequirements{
 					CPU:    new(resource.MustParse("100m")),
@@ -100,10 +90,10 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 					Memory: new(resource.MustParse("2000Mi")),
 				},
 			},
+			ClusterType: "anyclustertype",
 		},
 	}
 
-	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, s.config.clusterType)
 	s.T().Setenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable, s.config.buildkitImage)
 	s.T().Setenv(defaults.SeccompProfileFileNameEnvironmentVariable, s.config.buildahSecComp)
 	s.T().Setenv(defaults.RadixGitCloneGitImageEnvironmentVariable, s.config.gitImage)
@@ -299,10 +289,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE=%s", s.config.buildkitImage),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
-				fmt.Sprintf("--RADIX_CLUSTER_TYPE=%s", s.config.clusterType),
+				fmt.Sprintf("--%s=%s", flags.ClusterType, s.config2.Operator.ClusterType),
 				fmt.Sprintf("--%s=%s", flags.ClusterName, s.config2.Common.ClusterName),
-				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.config.registry),
-				fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, s.config.appRegistry),
+				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.config2.Operator.ContainerRegistry),
+				fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, s.config2.Operator.AppContainerRegistry),
 				"--RADIX_GITHUB_WORKSPACE=/workspace",
 				"--RADIX_FILE_NAME=some-radixconfig.yaml",
 				"--TRIGGERED_FROM_WEBHOOK=false",

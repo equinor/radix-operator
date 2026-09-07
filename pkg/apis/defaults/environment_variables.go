@@ -1,9 +1,6 @@
 package defaults
 
 const (
-	// OperatorClusterTypeEnvironmentVariable The type of cluster dev|playground|prod
-	OperatorClusterTypeEnvironmentVariable = "RADIXOPERATOR_CLUSTER_TYPE"
-
 	// DeploymentsHistoryLimitEnvironmentVariable Controls the number of RDs we can have in a environment
 	DeploymentsHistoryLimitEnvironmentVariable = "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT"
 
@@ -33,9 +30,6 @@ const (
 
 	// RadixPortNamesEnvironmentVariable The environment variable holding the available port names of the component
 	RadixPortNamesEnvironmentVariable = "RADIX_PORT_NAMES"
-
-	// RadixClusterTypeEnvironmentVariable The type of cluster dev|playground|prod. Will be equal to OperatorClusterTypeEnvironmentVariable
-	RadixClusterTypeEnvironmentVariable = "RADIX_CLUSTER_TYPE"
 
 	// RadixCommitHashEnvironmentVariable Contains the commit id of the build
 	RadixCommitHashEnvironmentVariable = "RADIX_GIT_COMMIT_HASH"

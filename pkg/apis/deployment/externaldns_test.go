@@ -50,10 +50,6 @@ func TestExternalDNSTestSuite(t *testing.T) {
 	suite.Run(t, new(ExternalDNSTestSuite))
 }
 
-func (s *ExternalDNSTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
-}
-
 func (s *ExternalDNSTestSuite) SetupTest() {
 	s.setupTest()
 }

@@ -7,8 +7,6 @@ import (
 
 // Config from environment variables
 type Config struct {
-	ClusterType string `envconfig:"RADIXOPERATOR_CLUSTER_TYPE" required:"true"`
-
 	PipelineJobConfig       PipelineJobConfig
 	DeploymentSyncer        DeploymentSyncerConfig
 	ContainerRegistryConfig ContainerRegistryConfig

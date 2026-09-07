@@ -9,4 +9,7 @@ const (
 
 	// ComponentClusterName The name of the cluster
 	ComponentClusterName = "RADIX_CLUSTERNAME"
+
+	// ComponentClusterType The type of cluster dev|playground|prod
+	ComponentClusterType = "RADIX_CLUSTER_TYPE"
 )
