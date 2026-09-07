@@ -53,19 +53,20 @@ operator:
     defaultMemory: 555M
     defaultRequestMemory: 444M
     defaultRequestCPU: 111m
-  builderResources:
-    limits:
-      memory: 500M
-      cpu: 2000m
-    requests:
-      memory: 500M
-      cpu: 200m
+  builder:
+    resources:
+      limits:
+        memory: 500M
+        cpu: 2000m
+      requests:
+        memory: 500M
+        cpu: 200m
+    image:
+      repository: ghcr.io/equinor/radix/buildkit-builder
+      tag: v3.4.5
   jobSchedulerImage:
     repository: ghcr.io/equinor/radix-job-scheduler
     tag: v1.2.3
-  builderImage:
-    repository: ghcr.io/equinor/radix/buildkit-builder
-    tag: v3.4.5
   podSecurityStandard:
     appNamespace:
       enforce:

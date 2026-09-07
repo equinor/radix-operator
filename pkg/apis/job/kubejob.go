@@ -145,14 +145,14 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, job.config2.Operator.BuilderResources.Requests.Memory.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, job.config2.Operator.BuilderResources.Requests.CPU.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, job.config2.Operator.BuilderResources.Limits.Memory.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, job.config2.Operator.BuilderResources.Limits.CPU.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, job.config2.Operator.Builder.Resources.Requests.Memory.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, job.config2.Operator.Builder.Resources.Requests.CPU.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, job.config2.Operator.Builder.Resources.Limits.Memory.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, job.config2.Operator.Builder.Resources.Limits.CPU.String()),
 		fmt.Sprintf("--%s=%s", defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, job.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images
-		fmt.Sprintf("--%s=%s", flags.BuilderImage, job.config2.Operator.BuilderImage.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderImage, job.config2.Operator.Builder.Image.String()),
 		fmt.Sprintf("--%s=%s", defaults.SeccompProfileFileNameEnvironmentVariable, os.Getenv(defaults.SeccompProfileFileNameEnvironmentVariable)),
 
 		// Used for tagging source of image

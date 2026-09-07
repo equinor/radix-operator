@@ -75,22 +75,22 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 			ClusterName: "AnyClusterName",
 		},
 		Operator: config2.OperatorConfig{
-			ContainerRegistry:    s.config.registry,
-			AppContainerRegistry: s.config.appRegistry,
-			BuilderImage: config2.ContainerImage{
-				Repository: "docker.io/buildkit",
-				Tag:        "any",
-			},
 			ContainerRegistry:    "anybuildregistry",
 			AppContainerRegistry: "anycacheregistry",
-			BuilderResources: config2.Resources{
-				Requests: config2.ResourceRequirements{
-					CPU:    new(resource.MustParse("100m")),
-					Memory: new(resource.MustParse("1000Mi")),
+			Builder: config2.BuilderConfig{
+				Image: config2.ContainerImage{
+					Repository: "docker.io/buildkit",
+					Tag:        "any",
 				},
-				Limits: config2.ResourceRequirements{
-					CPU:    new(resource.MustParse("200m")),
-					Memory: new(resource.MustParse("2000Mi")),
+				Resources: config2.Resources{
+					Requests: config2.ResourceRequirements{
+						CPU:    new(resource.MustParse("100m")),
+						Memory: new(resource.MustParse("1000Mi")),
+					},
+					Limits: config2.ResourceRequirements{
+						CPU:    new(resource.MustParse("200m")),
+						Memory: new(resource.MustParse("2000Mi")),
+					},
 				},
 			},
 			ClusterType: "anyclustertype",
@@ -284,12 +284,12 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_APP=%s", appName),
 				fmt.Sprintf("--JOB_NAME=%s", jobName),
 				fmt.Sprintf("--PIPELINE_TYPE=%s", radixv1.BuildDeploy),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, s.config2.Operator.BuilderResources.Requests.Memory.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, s.config2.Operator.BuilderResources.Requests.CPU.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.config2.Operator.BuilderResources.Limits.Memory.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.config2.Operator.BuilderResources.Limits.CPU.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, s.config2.Operator.Builder.Resources.Requests.Memory.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, s.config2.Operator.Builder.Resources.Requests.CPU.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.config2.Operator.Builder.Resources.Limits.Memory.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.config2.Operator.Builder.Resources.Limits.CPU.String()),
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-				fmt.Sprintf("--%s=%s", flags.BuilderImage, s.config2.Operator.BuilderImage.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderImage, s.config2.Operator.Builder.Image.String()),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
 				fmt.Sprintf("--%s=%s", flags.ClusterType, s.config2.Operator.ClusterType),
 				fmt.Sprintf("--%s=%s", flags.ClusterName, s.config2.Common.ClusterName),
@@ -1626,14 +1626,16 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 
 	testCfg := config2.Config{
 		Operator: config2.OperatorConfig{
-			BuilderResources: config2.Resources{
-				Requests: config2.ResourceRequirements{
-					CPU:    new(resource.MustParse("123m")),
-					Memory: new(resource.MustParse("1234Mi")),
-				},
-				Limits: config2.ResourceRequirements{
-					CPU:    new(resource.MustParse("456m")),
-					Memory: new(resource.MustParse("2345Mi")),
+			Builder: config2.BuilderConfig{
+				Resources: config2.Resources{
+					Requests: config2.ResourceRequirements{
+						CPU:    new(resource.MustParse("123m")),
+						Memory: new(resource.MustParse("1234Mi")),
+					},
+					Limits: config2.ResourceRequirements{
+						CPU:    new(resource.MustParse("456m")),
+						Memory: new(resource.MustParse("2345Mi")),
+					},
 				},
 			},
 		},
@@ -1673,10 +1675,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 
 			s.Len(jobList, 1)
 			job := jobList[0]
-			s.Equal(testCfg.Operator.BuilderResources.Requests.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsCPU), "Invalid or missing AppBuilderResourcesRequestsCPU")
-			s.Equal(testCfg.Operator.BuilderResources.Requests.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsMemory), "Invalid or missing AppBuilderResourcesRequestsMemory")
-			s.Equal(testCfg.Operator.BuilderResources.Limits.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsMemory), "Invalid or missing AppBuilderResourcesLimitsMemory")
-			s.Equal(testCfg.Operator.BuilderResources.Limits.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsCPU), "Invalid or missing AppBuilderResourcesLimitsCPU")
+			s.Equal(testCfg.Operator.Builder.Resources.Requests.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsCPU), "Invalid or missing AppBuilderResourcesRequestsCPU")
+			s.Equal(testCfg.Operator.Builder.Resources.Requests.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsMemory), "Invalid or missing AppBuilderResourcesRequestsMemory")
+			s.Equal(testCfg.Operator.Builder.Resources.Limits.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsMemory), "Invalid or missing AppBuilderResourcesLimitsMemory")
+			s.Equal(testCfg.Operator.Builder.Resources.Limits.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsCPU), "Invalid or missing AppBuilderResourcesLimitsCPU")
 		})
 
 	}
