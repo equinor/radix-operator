@@ -59,9 +59,9 @@ type OperatorConfig struct {
 
 	BuilderResources Resources `json:"builderResources" required:"true"`
 
-	JobSchedulerImage    ContainerImage            `json:"jobSchedulerImage" required:"true"`
-	BuildKitImageBuilder ContainerImage            `json:"buildKitImageBuilder" required:"true"`
-	PodSecurityStandard  PodSecurityStandardConfig `json:"podSecurityStandard"`
+	JobSchedulerImage   ContainerImage            `json:"jobSchedulerImage" required:"true"`
+	BuilderImage        ContainerImage            `json:"builderImage" required:"true"`
+	PodSecurityStandard PodSecurityStandardConfig `json:"podSecurityStandard"`
 }
 
 type OAuth2ProxyConfig struct {

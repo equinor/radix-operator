@@ -86,7 +86,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 		Operator: config2.OperatorConfig{
 			ContainerRegistry:    s.config.registry,
 			AppContainerRegistry: s.config.appRegistry,
-			BuildKitImageBuilder: config2.ContainerImage{
+			BuilderImage: config2.ContainerImage{
 				Repository: "docker.io/buildkit",
 				Tag:        "any",
 			},
@@ -296,7 +296,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.config2.Operator.BuilderResources.Limits.Memory.String()),
 				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.config2.Operator.BuilderResources.Limits.CPU.String()),
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-				fmt.Sprintf("--%s=%s", flags.BuildKitImageBuilder, s.config2.Operator.BuildKitImageBuilder.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderImage, s.config2.Operator.BuilderImage.String()),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
 				fmt.Sprintf("--RADIX_CLUSTER_TYPE=%s", s.config.clusterType),
 				fmt.Sprintf("--%s=%s", flags.ClusterName, s.config2.Common.ClusterName),

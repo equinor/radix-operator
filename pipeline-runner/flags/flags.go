@@ -10,5 +10,5 @@ const (
 	BuilderResourcesRequestsCPU    = "builder-resources-requests-cpu"
 	BuilderResourcesRequestsMemory = "builder-resources-requests-memory"
 
-	BuildKitImageBuilder = "buildkit-image-builder"
+	BuilderImage = "builder-image"
 )

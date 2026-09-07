@@ -98,7 +98,7 @@ config:
       repository: ghcr.io/equinor/radix/job-scheduler
       tag: "" # Fallback to .Chart.Version
 
-    buildKitImageBuilder:
+    builderImage:
       repository: ghcr.io/equinor/radix/buildkit-builder
       tag: "latest"
 
