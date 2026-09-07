@@ -33,7 +33,7 @@
 				"--IMAGE_TAG=abcdl",
 				"--PIPELINE_TYPE=build-deploy",
 				"--DEBUG=true",
-				"--buildkit-image-builder=ghcr.io/equinor/radix/buildkit-builder:latest",
+				"--builder-image=ghcr.io/equinor/radix/buildkit-builder:latest",
 				"--SECCOMP_PROFILE_FILENAME=allow-buildah.json",
 				"--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=docker.io/alpine/git:2.45.2",
 				"--RADIX_CLUSTER_TYPE=development",
