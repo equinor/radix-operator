@@ -63,6 +63,9 @@ operator:
   jobSchedulerImage:
     repository: ghcr.io/equinor/radix-job-scheduler
     tag: v1.2.3
+  builderImage:
+    repository: ghcr.io/equinor/radix/buildkit-builder
+    tag: v1.3.5
   podSecurityStandard:
     appNamespace:
       enforce:

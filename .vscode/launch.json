@@ -33,7 +33,6 @@
 				"--IMAGE_TAG=abcdl",
 				"--PIPELINE_TYPE=build-deploy",
 				"--DEBUG=true",
-				"--RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE=ghcr.io/equinor/radix/buildkit-builder:latest",
 				"--SECCOMP_PROFILE_FILENAME=allow-buildah.json",
 				"--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=docker.io/alpine/git:2.45.2",
 				"--RADIX_CLUSTER_TYPE=development",
@@ -122,7 +121,6 @@
 			"program": "${workspaceFolder}/operator/main.go",
 			"env": {
 				"USE_PROFILER": "true",
-				"RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE": "ghcr.io/equinor/radix/buildkit-builder:latest",
 				"RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
 				"RADIX_APP_CONTAINER_REGISTRY": "radixdevapp.azurecr.io",
 				"RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.15.2",

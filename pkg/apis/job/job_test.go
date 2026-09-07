@@ -39,7 +39,6 @@ type RadixJobTestSuiteBase struct {
 	radixClient *radix.Clientset
 	config2     config2.Config
 	config      struct {
-		buildkitImage  string
 		buildahSecComp string
 		gitImage       string
 	}
@@ -47,11 +46,9 @@ type RadixJobTestSuiteBase struct {
 
 func (s *RadixJobTestSuiteBase) SetupSuite() {
 	s.config = struct {
-		buildkitImage  string
 		buildahSecComp string
 		gitImage       string
 	}{
-		buildkitImage:  "docker.io/buildkit:any",
 		buildahSecComp: "anyseccomp",
 		gitImage:       "docker.io/git:any",
 	}
@@ -91,10 +88,13 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 				},
 			},
 			ClusterType: "anyclustertype",
+			BuilderImage: config2.ContainerImage{
+				Repository: "docker.io/buildkit",
+				Tag:        "anytag",
+			},
 		},
 	}
 
-	s.T().Setenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable, s.config.buildkitImage)
 	s.T().Setenv(defaults.SeccompProfileFileNameEnvironmentVariable, s.config.buildahSecComp)
 	s.T().Setenv(defaults.RadixGitCloneGitImageEnvironmentVariable, s.config.gitImage)
 }
@@ -287,7 +287,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.config2.Operator.BuilderResources.Limits.Memory.String()),
 				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.config2.Operator.BuilderResources.Limits.CPU.String()),
 				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-				fmt.Sprintf("--RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE=%s", s.config.buildkitImage),
+				fmt.Sprintf("--%s=%s", flags.BuilderImage, s.config2.Operator.BuilderImage.String()),
 				fmt.Sprintf("--SECCOMP_PROFILE_FILENAME=%s", s.config.buildahSecComp),
 				fmt.Sprintf("--%s=%s", flags.ClusterType, s.config2.Operator.ClusterType),
 				fmt.Sprintf("--%s=%s", flags.ClusterName, s.config2.Common.ClusterName),
