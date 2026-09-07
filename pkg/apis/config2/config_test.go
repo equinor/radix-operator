@@ -25,6 +25,19 @@ var configHappyYaml string
 //go:embed testdata/config-missing-required.yaml
 var configMissingRequiredYaml string
 
+type MutateConfigFunc func(*config2.Config)
+
+func mutateConfig(t *testing.T, mutate func(*config2.Config)) string {
+	t.Helper()
+
+	var cfg config2.Config
+	require.NoError(t, yaml.Unmarshal([]byte(configHappyYaml), &cfg))
+	mutate(&cfg)
+	configYaml, err := yaml.Marshal(cfg)
+	require.NoError(t, err)
+	return string(configYaml)
+}
+
 func TestParse_HappyPath(t *testing.T) {
 	cfg, err := config2.Parse(configHappyYaml)
 	require.NoError(t, err)
@@ -177,7 +190,9 @@ func TestParse_MissingRequiredField(t *testing.T) {
 }
 
 func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
-	configYaml := strings.ReplaceAll(configHappyYaml, "  jobSchedulerImage:\n    repository: ghcr.io/equinor/radix-job-scheduler\n    tag: v1.2.3\n", "")
+	configYaml := mutateConfig(t, func(cfg *config2.Config) {
+		cfg.Operator.JobSchedulerImage = config2.ContainerImage{}
+	})
 
 	cfg, err := config2.Parse(configYaml)
 
@@ -188,7 +203,7 @@ func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
 
 func TestParse_BuilderResourceLimits(t *testing.T) {
 	tests := map[string]struct {
-		modifyConfig func(*config2.Config)
+		modifyConfig MutateConfigFunc
 		errorPath    string
 	}{
 		"equivalent CPU quantities are valid": {
@@ -213,13 +228,9 @@ func TestParse_BuilderResourceLimits(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var sourceConfig config2.Config
-			require.NoError(t, yaml.Unmarshal([]byte(configHappyYaml), &sourceConfig))
-			test.modifyConfig(&sourceConfig)
-			configYaml, err := yaml.Marshal(sourceConfig)
-			require.NoError(t, err)
+			configYaml := mutateConfig(t, test.modifyConfig)
 
-			cfg, err := config2.Parse(string(configYaml))
+			cfg, err := config2.Parse(configYaml)
 			if test.errorPath == "" {
 				require.NoError(t, err)
 				assert.NotNil(t, cfg)
