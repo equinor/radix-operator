@@ -46,6 +46,8 @@ type OperatorConfig struct {
 	ContainerRegistry    string `json:"containerRegistry" required:"true"`
 	AppContainerRegistry string `json:"appContainerRegistry" required:"true"`
 
+	ClusterType string `json:"clusterType" required:"true"`
+
 	DefaultAppAdminGroups []string `json:"defaultAppAdminGroups"`
 
 	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`

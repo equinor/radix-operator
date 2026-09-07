@@ -122,7 +122,6 @@
 			"program": "${workspaceFolder}/operator/main.go",
 			"env": {
 				"USE_PROFILER": "true",
-				"RADIXOPERATOR_CLUSTER_TYPE": "development",
 				"RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
 				"RADIX_APP_CONTAINER_REGISTRY": "radixdevapp.azurecr.io",
 				"RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.15.2",

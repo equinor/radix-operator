@@ -139,7 +139,6 @@ func (job *Job) getInitContainersForRadixConfig(workspace string) []corev1.Conta
 }
 
 func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
-	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 
 	// Base arguments for all types of pipeline
 	args := []string{
@@ -157,7 +156,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		fmt.Sprintf("--%s=%s", defaults.SeccompProfileFileNameEnvironmentVariable, os.Getenv(defaults.SeccompProfileFileNameEnvironmentVariable)),
 
 		// Used for tagging source of image
-		fmt.Sprintf("--%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
+		fmt.Sprintf("--%s=%s", flags.ClusterType, job.config2.Operator.ClusterType),
 		fmt.Sprintf("--%s=%s", flags.ClusterName, job.config2.Common.ClusterName),
 		fmt.Sprintf("--%s=%s", flags.ContainerRegistry, job.config2.Operator.ContainerRegistry),
 		fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, job.config2.Operator.AppContainerRegistry),

@@ -93,6 +93,8 @@ func TestParse_HappyPath(t *testing.T) {
 			DefaultRollingUpdateMaxUnavailable: "25%",
 			DefaultRollingUpdateMaxSurge:       "35%",
 
+			ClusterType: "development",
+
 			ContainerRegistry:    "any.registry.com",
 			AppContainerRegistry: "app.registry.com",
 
