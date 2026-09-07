@@ -85,18 +85,21 @@ config:
       defaultRequestMemory: 500M
       defaultRequestCPU: 100m
 
-    # Should probably be in a builderSpecDefaults section, but for now we keep it here since it is used by the operator to set env vars for the pipeline runner job
-    builderResources:
-      limits:
-        memory: 500M
-        cpu: 2000m
-      requests:
-        memory: 500M
-        cpu: 200m
+    builder:
+      image:
+        repository: ghcr.io/equinor/radix/buildkit-builder
+        tag: "latest"
+      resources:
+        limits:
+          memory: 500M
+          cpu: 2000m
+        requests:
+          memory: 500M
+          cpu: 200m
 
     jobSchedulerImage:
       repository: ghcr.io/equinor/radix/job-scheduler
-      tag: ""
+      tag: "" # Fallback to .Chart.Version
 
 dnsZone: dev.radix.equinor.com
 radixZone: xx
@@ -218,11 +221,6 @@ radixPipelineRunner:
     tag: ""
     # Pull policy for the pipeline job image. Defaults to Always.
     pullPolicy: Always
-
-radixBuildKitImageBuilder:
-  image:
-    repository: ghcr.io/equinor/radix/buildkit-builder
-    tag: latest
 
 radixApiServer:
   useProfiler: false

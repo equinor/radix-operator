@@ -10,4 +10,6 @@ const (
 	BuilderResourcesLimitsMemory   = "builder-resources-limits-memory"
 	BuilderResourcesRequestsCPU    = "builder-resources-requests-cpu"
 	BuilderResourcesRequestsMemory = "builder-resources-requests-memory"
+
+	BuilderImage = "builder-image"
 )

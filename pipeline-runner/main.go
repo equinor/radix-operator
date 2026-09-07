@@ -104,7 +104,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.DeploymentName, defaults.RadixPromoteDeploymentEnvironmentVariable, "", "Radix deployment name to promote")
 	cmd.Flags().StringVar(&pipelineArgs.FromEnvironment, defaults.RadixPromoteFromEnvironmentEnvironmentVariable, "", "Radix application environment name to promote from")
 	cmd.Flags().StringVar(&pipelineArgs.ToEnvironment, defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, "", "Radix application environment name to build-deploy or promote to")
-	cmd.Flags().StringVar(&pipelineArgs.BuildKitImageBuilder, defaults.RadixBuildKitImageBuilderEnvironmentVariable, "", "Radix Build Kit Image Builder container image")
+	cmd.Flags().StringVar(&pipelineArgs.Builder.Image, flags.BuilderImage, "", "Radix Build Kit Image Builder container image")
 	cmd.Flags().StringVar(&pipelineArgs.SeccompProfileFileName, defaults.SeccompProfileFileNameEnvironmentVariable, "", "Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node")
 	cmd.Flags().StringVar(&pipelineArgs.Clustertype, flags.ClusterType, "", "Cluster type")
 	cmd.Flags().StringVar(&pipelineArgs.Clustername, flags.ClusterName, "", "Cluster name")

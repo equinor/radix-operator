@@ -110,14 +110,20 @@ func TestParse_HappyPath(t *testing.T) {
 				DefaultRequestMemory: new(resource.MustParse("444M")),
 				DefaultRequestCPU:    new(resource.MustParse("111m")),
 			},
-			BuilderResources: config2.Resources{
-				Limits: config2.ResourceRequirements{
-					Memory: new(resource.MustParse("500M")),
-					CPU:    new(resource.MustParse("2000m")),
+			Builder: config2.BuilderConfig{
+				Resources: config2.Resources{
+					Limits: config2.ResourceRequirements{
+						Memory: new(resource.MustParse("500M")),
+						CPU:    new(resource.MustParse("2000m")),
+					},
+					Requests: config2.ResourceRequirements{
+						Memory: new(resource.MustParse("500M")),
+						CPU:    new(resource.MustParse("200m")),
+					},
 				},
-				Requests: config2.ResourceRequirements{
-					Memory: new(resource.MustParse("500M")),
-					CPU:    new(resource.MustParse("200m")),
+				Image: config2.ContainerImage{
+					Repository: "ghcr.io/equinor/radix/buildkit-builder",
+					Tag:        "v3.4.5",
 				},
 			},
 			JobSchedulerImage: config2.ContainerImage{
@@ -272,21 +278,21 @@ func TestParse_BuilderResourceLimits(t *testing.T) {
 	}{
 		"equivalent CPU quantities are valid": {
 			modifyConfig: func(cfg *config2.Config) {
-				cfg.Operator.BuilderResources.Limits.CPU = new(resource.MustParse("1"))
-				cfg.Operator.BuilderResources.Requests.CPU = new(resource.MustParse("1000m"))
+				cfg.Operator.Builder.Resources.Limits.CPU = new(resource.MustParse("1"))
+				cfg.Operator.Builder.Resources.Requests.CPU = new(resource.MustParse("1000m"))
 			},
 		},
 		"CPU limit below request is invalid": {
 			modifyConfig: func(cfg *config2.Config) {
-				cfg.Operator.BuilderResources.Limits.CPU = new(resource.MustParse("100m"))
+				cfg.Operator.Builder.Resources.Limits.CPU = new(resource.MustParse("100m"))
 			},
-			errorPath: "Operator.BuilderResources.Limits.CPU",
+			errorPath: "Operator.Builder.Resources",
 		},
 		"memory limit below request is invalid": {
 			modifyConfig: func(cfg *config2.Config) {
-				cfg.Operator.BuilderResources.Limits.Memory = new(resource.MustParse("499M"))
+				cfg.Operator.Builder.Resources.Limits.Memory = new(resource.MustParse("499M"))
 			},
-			errorPath: "Operator.BuilderResources.Limits.Memory",
+			errorPath: "Operator.Builder.Resources",
 		},
 	}
 
