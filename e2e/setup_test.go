@@ -223,6 +223,7 @@ func TestMain(m *testing.M) {
 		"config.operator.containerRegistry":     "local-kind-repo",
 		"config.operator.appContainerRegistry":  "local-kind-repo",
 		"config.common.clusterName":             "weekly-e2e",
+		"config.common.dnsZone":                 "radix.example.com",
 		"rbac.createApp.groups[0]":              "123",
 		"image.pullPolicy":                      "IfNotPresent",
 		"radixPipelineRunner.image.pullPolicy":  "IfNotPresent",
