@@ -41,6 +41,7 @@ operator:
   containerRegistry: "any.registry.com"
   appContainerRegistry: "app.registry.com"
   appAliasBaseURL: "app.dev.radix.equinor.com"
+  clusterType: "development"
   defaultAppAdminGroups:
     - "default-app-admin-group1"
     - "default-app-admin-group2"

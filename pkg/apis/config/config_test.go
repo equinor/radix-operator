@@ -15,7 +15,6 @@ func TestMustParse(t *testing.T) {
 		// Config
 		defaults.LogLevel: "INFO",
 		"LOG_PRETTY":      "true",
-		defaults.OperatorClusterTypeEnvironmentVariable:      "development",
 		defaults.RadixSafeToRestartBatchJobThresholdVariable: "259200",
 
 		// Gateway
@@ -55,7 +54,6 @@ func TestMustParse(t *testing.T) {
 	cfg := MustParse()
 
 	// Config top-level fields
-	assert.Equal(t, "development", cfg.ClusterType)
 	assert.Equal(t, int64(259200), cfg.SafeToRestartBatchJobThreshold)
 
 	// Gateway

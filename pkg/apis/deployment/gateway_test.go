@@ -54,10 +54,6 @@ func TestGatewayTestSuite(t *testing.T) {
 	suite.Run(t, new(GatewayTestSuite))
 }
 
-func (s *GatewayTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
-}
-
 func (s *GatewayTestSuite) SetupTest() {
 	s.setupTest()
 }

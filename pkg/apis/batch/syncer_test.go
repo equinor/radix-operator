@@ -2685,7 +2685,6 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 			s.Require().NoError(err)
 
 			sut := s.createSyncer(batch, nil)
-			s.T().Setenv(defaults.RadixClusterTypeEnvironmentVariable, "development")
 
 			s.Require().NoError(sut.OnSync(context.Background()))
 

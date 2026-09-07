@@ -60,7 +60,6 @@ const (
 )
 
 var testConfig = config.Config{
-	ClusterType: "development",
 	DeploymentSyncer: config.DeploymentSyncerConfig{
 		TenantID:               "123456789",
 		KubernetesAPIPort:      543,
@@ -89,6 +88,7 @@ var testConfig2 = config2.Config{
 			Repository: "docker.io/radix-job-scheduler",
 			Tag:        "main-latest",
 		},
+		ClusterType: "development",
 	},
 }
 
@@ -114,7 +114,6 @@ func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 
 func TeardownTest() {
 	// Cleanup setup
-	_ = os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	_ = os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
 
@@ -307,7 +306,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.True(t, envVariableByNameExistOnDeployment(envvars.ComponentDNSZone, componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(envvars.ComponentClusterName, componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, componentNameRedis, deployments))
-				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixClusterTypeEnvironmentVariable, componentNameRedis, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(envvars.ComponentClusterType, componentNameRedis, deployments))
 
 				if !componentsExist {
 					assert.Equal(t, "3001", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", componentNameRedis, deployments))
@@ -1681,7 +1680,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		assert.True(t, envVariableByNameExist(envvars.ComponentContainerRegistry, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(envvars.ComponentDNSZone, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(envvars.ComponentClusterName, templateSpecEnv))
-		assert.True(t, envVariableByNameExist(defaults.RadixClusterTypeEnvironmentVariable, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(envvars.ComponentClusterType, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixAppEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixComponentEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
