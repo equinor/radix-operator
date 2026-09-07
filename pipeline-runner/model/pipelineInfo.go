@@ -78,6 +78,9 @@ type EnvironmentSubPipelineToRun struct {
 
 // Builder Holds info about the builder arguments
 type Builder struct {
+	// Image Points to the BuildKit compliant image builder
+	Image string
+
 	ResourcesLimitsMemory   string
 	ResourcesLimitsCPU      string
 	ResourcesRequestsCPU    string
@@ -123,8 +126,6 @@ type PipelineArguments struct {
 	TriggeredFromWebhook bool
 	RadixConfigFile      string
 
-	// BuilderImage Points to the BuildKit compliant image builder (repository and tag only)
-	BuilderImage string
 	// GitCloneGitImage defines image containing git cli.
 	// Must support running as user 65534.
 	// Used as option to the CloneInitContainers function.
