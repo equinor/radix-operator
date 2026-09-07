@@ -152,7 +152,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		fmt.Sprintf("--%s=%s", defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, job.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images
-		fmt.Sprintf("--%s=%s", flags.BuilderImage, job.config2.Operator.BuilderImage.String()),
+		fmt.Sprintf("--%s=%s", defaults.RadixBuildKitImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixBuildKitImageBuilderEnvironmentVariable)),
 		fmt.Sprintf("--%s=%s", defaults.SeccompProfileFileNameEnvironmentVariable, os.Getenv(defaults.SeccompProfileFileNameEnvironmentVariable)),
 
 		// Used for tagging source of image

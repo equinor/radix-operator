@@ -130,6 +130,9 @@ const (
 	// SeccompProfileFileNameEnvironmentVariable Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory
 	SeccompProfileFileNameEnvironmentVariable = "SECCOMP_PROFILE_FILENAME"
 
+	// RadixBuildKitImageBuilderEnvironmentVariable Repository and tag for the buildkit image builder
+	RadixBuildKitImageBuilderEnvironmentVariable = "RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE"
+
 	RadixCertificateAutomationGatewayClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER"
 
 	// RadixCertificateAutomationDurationVariable Defines duration for certificates issued by cluster issuer

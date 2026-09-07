@@ -94,10 +94,6 @@ config:
         memory: 500M
         cpu: 200m
 
-    builderImage:
-      repository: ghcr.io/equinor/radix/buildkit-builder
-      tag: latest
-
     jobSchedulerImage:
       repository: ghcr.io/equinor/radix/job-scheduler
       tag: ""
