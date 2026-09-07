@@ -67,7 +67,7 @@ type OperatorConfig struct {
 
 type BuilderConfig struct {
 	Image     ContainerImage `json:"image" required:"true"`
-	Resources Resources      `json:"resources" required:"true"`
+	Resources Resources      `json:"resources" required:"true" validate:"compareQuantity(self.limits.memory, self.requests.memory) >= 0 && compareQuantity(self.limits.cpu, self.requests.cpu) >= 0"`
 }
 
 type OAuth2ProxyConfig struct {
@@ -88,8 +88,8 @@ type Resources struct {
 	Limits   ResourceRequirements `json:"limits" required:"true"`
 }
 type ResourceRequirements struct {
-	Memory *resource.Quantity `json:"memory" required:"true" validate:"compareQuantity(self, config.operator.builder.resources.requests.memory) >= 0"`
-	CPU    *resource.Quantity `json:"cpu" required:"true" validate:"compareQuantity(self, config.operator.builder.resources.requests.cpu) >= 0"`
+	Memory *resource.Quantity `json:"memory" required:"true"`
+	CPU    *resource.Quantity `json:"cpu" required:"true"`
 }
 
 type PodSecurityStandardConfig struct {

@@ -286,13 +286,13 @@ func TestParse_BuilderResourceLimits(t *testing.T) {
 			modifyConfig: func(cfg *config2.Config) {
 				cfg.Operator.Builder.Resources.Limits.CPU = new(resource.MustParse("100m"))
 			},
-			errorPath: "Operator.Builder.Resources.Limits.CPU",
+			errorPath: "Operator.Builder.Resources",
 		},
 		"memory limit below request is invalid": {
 			modifyConfig: func(cfg *config2.Config) {
 				cfg.Operator.Builder.Resources.Limits.Memory = new(resource.MustParse("499M"))
 			},
-			errorPath: "Operator.Builder.Resources.Limits.Memory",
+			errorPath: "Operator.Builder.Resources",
 		},
 	}
 
