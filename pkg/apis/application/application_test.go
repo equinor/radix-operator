@@ -198,8 +198,14 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.NoError(t, err)
 	assert.NotNil(t, ns)
 	expected := map[string]string{
-		kube.RadixAppLabel: appName,
-		kube.RadixEnvLabel: utils.AppNamespaceEnvName,
+		kube.RadixAppLabel:                           appName,
+		kube.RadixEnvLabel:                           utils.AppNamespaceEnvName,
+		"pod-security.kubernetes.io/enforce":         testConfig2.Operator.PodSecurityStandard.AppNamespace.Enforce.Level,
+		"pod-security.kubernetes.io/enforce-version": testConfig2.Operator.PodSecurityStandard.AppNamespace.Enforce.Version,
+		"pod-security.kubernetes.io/audit":           testConfig2.Operator.PodSecurityStandard.AppNamespace.Audit.Level,
+		"pod-security.kubernetes.io/audit-version":   testConfig2.Operator.PodSecurityStandard.AppNamespace.Audit.Version,
+		"pod-security.kubernetes.io/warn":            testConfig2.Operator.PodSecurityStandard.AppNamespace.Warn.Level,
+		"pod-security.kubernetes.io/warn-version":    testConfig2.Operator.PodSecurityStandard.AppNamespace.Warn.Version,
 	}
 	assert.Equal(t, expected, ns.GetLabels())
 

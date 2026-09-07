@@ -184,8 +184,14 @@ func Test_Create_Namespace(t *testing.T) {
 		"sync":                "cluster-wildcard-tls-cert",
 		"radix-wildcard-sync": "radix-wildcard-tls-cert",
 		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
-		kube.RadixAppLabel: env.config.Spec.AppName,
-		kube.RadixEnvLabel: env.config.Spec.EnvName,
+		kube.RadixAppLabel:                           env.config.Spec.AppName,
+		kube.RadixEnvLabel:                           env.config.Spec.EnvName,
+		"pod-security.kubernetes.io/enforce":         testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Level,
+		"pod-security.kubernetes.io/enforce-version": testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Version,
+		"pod-security.kubernetes.io/audit":           testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Level,
+		"pod-security.kubernetes.io/audit-version":   testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Version,
+		"pod-security.kubernetes.io/warn":            testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Level,
+		"pod-security.kubernetes.io/warn-version":    testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Version,
 	}
 	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
 }
