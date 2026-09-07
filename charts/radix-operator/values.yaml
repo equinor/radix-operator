@@ -96,7 +96,11 @@ config:
 
     jobSchedulerImage:
       repository: ghcr.io/equinor/radix/job-scheduler
-      tag: ""
+      tag: "" # Fallback to .Chart.Version
+
+    buildKitImageBuilder:
+      repository: ghcr.io/equinor/radix/buildkit-builder
+      tag: "latest"
 
 dnsZone: dev.radix.equinor.com
 radixZone: xx
@@ -218,11 +222,6 @@ radixPipelineRunner:
     tag: ""
     # Pull policy for the pipeline job image. Defaults to Always.
     pullPolicy: Always
-
-radixBuildKitImageBuilder:
-  image:
-    repository: ghcr.io/equinor/radix/buildkit-builder
-    tag: latest
 
 radixApiServer:
   useProfiler: false
