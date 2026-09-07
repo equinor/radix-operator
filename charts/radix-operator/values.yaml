@@ -73,7 +73,7 @@ config:
 
     jobSchedulerImage:
       repository: ghcr.io/equinor/radix/job-scheduler
-      tag: latest
+      tag: ""
 
 dnsZone: dev.radix.equinor.com
 radixZone: xx

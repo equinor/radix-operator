@@ -205,9 +205,15 @@ lint-golangci: bootstrap
 
 lint-helm: bootstrap
 	helm lint ./charts/radix-operator \
-		--set config.operator.defaultAppAdminGroups[0]=platform-users \
+		--set rbac.createApp.groups[0]=platform-users \
 		--set ingress.gateway.name=radix \
 		--set ingress.gateway.namespace=istio
+helm-render:
+	helm template ./charts/radix-operator \
+		--set rbac.createApp.groups[0]=platform-users \
+		--set ingress.gateway.name=radix \
+		--set ingress.gateway.namespace=istio
+
 
 .PHONY: generate
 generate: bootstrap code-gen helmresources mocks swagger
