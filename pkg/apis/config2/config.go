@@ -60,6 +60,7 @@ type OperatorConfig struct {
 	BuilderResources Resources `json:"builderResources" required:"true"`
 
 	JobSchedulerImage ContainerImage `json:"jobSchedulerImage" required:"true"`
+	PodSecurityStandard PodSecurityStandardConfig `json:"podSecurityStandard"`
 }
 
 type OAuth2ProxyConfig struct {
@@ -82,6 +83,22 @@ type Resources struct {
 type ResourceRequirements struct {
 	Memory *resource.Quantity `json:"memory" required:"true" validate:"compareQuantity(self, config.operator.builderResources.requests.memory) >= 0"`
 	CPU    *resource.Quantity `json:"cpu" required:"true" validate:"compareQuantity(self, config.operator.builderResources.requests.cpu) >= 0"`
+}
+
+type PodSecurityStandardConfig struct {
+	AppNamespace PodSecurityStandardPolicyConfig `json:"appNamespace"`
+	EnvNamespace PodSecurityStandardPolicyConfig `json:"envNamespace"`
+}
+
+type PodSecurityStandardPolicyConfig struct {
+	Enforce PodSecurityStandardModeConfig `json:"enforce"`
+	Audit   PodSecurityStandardModeConfig `json:"audit"`
+	Warn    PodSecurityStandardModeConfig `json:"warn"`
+}
+
+type PodSecurityStandardModeConfig struct {
+	Level   string `json:"level"`
+	Version string `json:"version"`
 }
 
 func Parse(configYaml string) (*Config, error) {

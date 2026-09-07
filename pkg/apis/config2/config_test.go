@@ -121,6 +121,35 @@ func TestParse_HappyPath(t *testing.T) {
 			JobSchedulerImage: config2.ContainerImage{
 				Repository: "ghcr.io/equinor/radix-job-scheduler",
 				Tag:        "v1.2.3",
+			PodSecurityStandard: config2.PodSecurityStandardConfig{
+				AppNamespace: config2.PodSecurityStandardPolicyConfig{
+					Enforce: config2.PodSecurityStandardModeConfig{
+						Level:   "app-enforce-level",
+						Version: "app-enforce-version",
+					},
+					Audit: config2.PodSecurityStandardModeConfig{
+						Level:   "app-audit-level",
+						Version: "app-audit-version",
+					},
+					Warn: config2.PodSecurityStandardModeConfig{
+						Level:   "app-warn-level",
+						Version: "app-warn-version",
+					},
+				},
+				EnvNamespace: config2.PodSecurityStandardPolicyConfig{
+					Enforce: config2.PodSecurityStandardModeConfig{
+						Level:   "env-enforce-level",
+						Version: "env-enforce-version",
+					},
+					Audit: config2.PodSecurityStandardModeConfig{
+						Level:   "env-audit-level",
+						Version: "env-audit-version",
+					},
+					Warn: config2.PodSecurityStandardModeConfig{
+						Level:   "env-warn-level",
+						Version: "env-warn-version",
+					},
+				},
 			},
 		},
 	}

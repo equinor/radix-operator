@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -18,7 +19,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -137,14 +138,14 @@ func (env *Environment) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 
 	desired.ObjectMeta.OwnerReferences = env.AsOwnerReference()
 	imagehubKey := fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName)
-	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, map[string]string{
+	desired.ObjectMeta.Labels = kubelabels.Merge(desired.ObjectMeta.Labels, map[string]string{
 		"sync":                "cluster-wildcard-tls-cert",
 		"radix-wildcard-sync": "radix-wildcard-tls-cert",
 		imagehubKey:           env.config.Spec.AppName,
 		kube.RadixAppLabel:    env.config.Spec.AppName,
 		kube.RadixEnvLabel:    env.config.Spec.EnvName,
 	})
-	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels())
+	desired.ObjectMeta.Labels = kubelabels.Merge(desired.ObjectMeta.Labels, labels.PodSecurityStandardFromConfig(env.config2.Operator.PodSecurityStandard.EnvNamespace))
 
 	// We don't use these anymore, remove line if no more namespaces contains this label
 	delete(desired.Labels, "cluster-wildcard-sync")
