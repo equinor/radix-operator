@@ -116,16 +116,16 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg *config.Config, cfg2 conf
 
 	envVarSet.Add(defaults.RadixClusterTypeEnvironmentVariable, cfg.ClusterType)
 	envVarSet.Add(envvars.ComponentContainerRegistry, cfg2.Operator.ContainerRegistry)
-	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, cfg.DNSZone)
-	envVarSet.Add(defaults.ClusternameEnvironmentVariable, cfg2.Common.ClusterName)
+	envVarSet.Add(envvars.ComponentDNSZone, cfg2.Common.DNSZone)
+	envVarSet.Add(envvars.ComponentClusterName, cfg2.Common.ClusterName)
 	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)
 	envVarSet.Add(defaults.RadixAppEnvironmentVariable, appName)
 	envVarSet.Add(defaults.RadixComponentEnvironmentVariable, deployComponent.GetName())
 
 	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
 	if isPortPublic {
-		canonicalHostName := getHostName(deployComponent.GetName(), namespace, cfg2.Common.ClusterName)
-		publicHostName := getActiveClusterHostName(deployComponent.GetName(), namespace)
+		canonicalHostName := getHostName(deployComponent.GetName(), namespace, cfg2.Common.ClusterName, cfg2.Common.DNSZone)
+		publicHostName := getActiveClusterHostName(deployComponent.GetName(), namespace, cfg2.Common.DNSZone)
 		envVarSet.Add(defaults.PublicEndpointEnvironmentVariable, publicHostName)
 		envVarSet.Add(defaults.CanonicalEndpointEnvironmentVariable, canonicalHostName)
 	}

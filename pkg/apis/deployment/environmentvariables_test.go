@@ -89,11 +89,11 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 
 		assert.Equal(t, appName, resultEnvVarsMap[defaults.RadixAppEnvironmentVariable].Value)
 		assert.Equal(t, envName, resultEnvVarsMap[defaults.EnvironmentnameEnvironmentVariable].Value)
-		assert.Equal(t, testEnv.cfg2.Common.ClusterName, resultEnvVarsMap[defaults.ClusternameEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg2.Common.ClusterName, resultEnvVarsMap[envvars.ComponentClusterName].Value)
 		assert.Equal(t, testEnv.cfg.ClusterType, resultEnvVarsMap[defaults.RadixClusterTypeEnvironmentVariable].Value)
 		assert.Equal(t, componentName, resultEnvVarsMap[defaults.RadixComponentEnvironmentVariable].Value)
 		assert.Equal(t, testEnv.cfg2.Operator.ContainerRegistry, resultEnvVarsMap[envvars.ComponentContainerRegistry].Value)
-		assert.Equal(t, testEnv.cfg.DNSZone, resultEnvVarsMap[defaults.RadixDNSZoneEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg2.Common.DNSZone, resultEnvVarsMap[envvars.ComponentDNSZone].Value)
 	})
 
 	t.Run("custom env vars from radix config", func(t *testing.T) {
@@ -427,10 +427,10 @@ func setupTestEnv(t *testing.T) *testEnvProps {
 	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.secretproviderclient, testEnv.certClient = SetupTest(t)
 	testEnv.cfg = &config.Config{
 		ClusterType: "development",
-		DNSZone:     "test.radix.equinor.com",
 	}
 	testEnv.cfg2 = config2.Config{
 		Common: config2.CommonConfig{
+			DNSZone:     "test.radix.equinor.com",
 			ClusterName: testClusterName,
 		},
 		Operator: config2.OperatorConfig{

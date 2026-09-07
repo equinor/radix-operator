@@ -21,6 +21,7 @@ type Config struct {
 }
 
 type CommonConfig struct {
+	DNSZone     string            `json:"dnsZone" required:"true"`
 	ClusterName string            `json:"clusterName" required:"true"`
 	OAuth2Proxy OAuth2ProxyConfig `json:"oauth2Proxy"`
 }
@@ -44,6 +45,9 @@ type OperatorConfig struct {
 
 	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
 	ReadinessProbePeriodSeconds       int32 `json:"readinessProbePeriodSeconds" required:"true"`
+
+	DefaultRollingUpdateMaxUnavailable string `json:"defaultRollingUpdateMaxUnavailable" required:"true"`
+	DefaultRollingUpdateMaxSurge       string `json:"defaultRollingUpdateMaxSurge" required:"true"`
 
 	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
 	EnvNsLimitRange LimitRangeConfig `json:"envNsLimitRange" required:"true"`

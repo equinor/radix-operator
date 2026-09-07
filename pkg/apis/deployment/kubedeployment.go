@@ -290,13 +290,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
 	desiredDeployment.Spec.Replicas = new(getDeployComponentReplicas(deployComponent))
 	desiredDeployment.Spec.RevisionHistoryLimit = getRevisionHistoryLimit(deployComponent)
-
-	deploymentStrategy, err := getDeploymentStrategy()
-	if err != nil {
-		return err
-	}
-	desiredDeployment.Spec.Strategy = deploymentStrategy
-
+	desiredDeployment.Spec.Strategy = getDeploymentStrategy(deploy.config2)
 	desiredDeployment.Spec.Template.ObjectMeta.Labels = deploy.getDeploymentPodLabels(deployComponent)
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations = deploy.getDeploymentPodAnnotations(deployComponent)
 
@@ -424,32 +418,20 @@ func getRevisionHistoryLimit(deployComponent v1.RadixCommonDeployComponent) *int
 	return new(int32(10))
 }
 
-func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
-	rollingUpdateMaxUnavailable, err := defaults.GetDefaultRollingUpdateMaxUnavailable()
-	if err != nil {
-		return appsv1.DeploymentStrategy{}, err
-	}
-
-	rollingUpdateMaxSurge, err := defaults.GetDefaultRollingUpdateMaxSurge()
-	if err != nil {
-		return appsv1.DeploymentStrategy{}, err
-	}
-
-	deploymentStrategy := appsv1.DeploymentStrategy{
+func getDeploymentStrategy(cfg config2.Config) appsv1.DeploymentStrategy {
+	return appsv1.DeploymentStrategy{
 		Type: appsv1.RollingUpdateDeploymentStrategyType,
 		RollingUpdate: &appsv1.RollingUpdateDeployment{
 			MaxUnavailable: &intstr.IntOrString{
 				Type:   intstr.String,
-				StrVal: rollingUpdateMaxUnavailable,
+				StrVal: cfg.Operator.DefaultRollingUpdateMaxUnavailable,
 			},
 			MaxSurge: &intstr.IntOrString{
 				Type:   intstr.String,
-				StrVal: rollingUpdateMaxSurge,
+				StrVal: cfg.Operator.DefaultRollingUpdateMaxSurge,
 			},
 		},
 	}
-
-	return deploymentStrategy, nil
 }
 
 func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec(ctx context.Context) error {

@@ -31,6 +31,7 @@ func TestParse_HappyPath(t *testing.T) {
 
 	expected := &config2.Config{
 		Common: config2.CommonConfig{
+			DNSZone:     "dev.local.radix.equinor.com",
 			ClusterName: "test-cluster",
 			OAuth2Proxy: config2.OAuth2ProxyConfig{
 				ProxyImage: config2.ContainerImage{
@@ -73,6 +74,9 @@ func TestParse_HappyPath(t *testing.T) {
 			KubeClientRateLimitQPS:            50.5,
 			ReadinessProbeInitialDelaySeconds: 5,
 			ReadinessProbePeriodSeconds:       10,
+
+			DefaultRollingUpdateMaxUnavailable: "25%",
+			DefaultRollingUpdateMaxSurge:       "35%",
 
 			ContainerRegistry:    "any.registry.com",
 			AppContainerRegistry: "app.registry.com",
