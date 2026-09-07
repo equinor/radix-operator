@@ -121,6 +121,7 @@ func TestParse_HappyPath(t *testing.T) {
 			JobSchedulerImage: config2.ContainerImage{
 				Repository: "ghcr.io/equinor/radix-job-scheduler",
 				Tag:        "v1.2.3",
+			},
 			PodSecurityStandard: config2.PodSecurityStandardConfig{
 				AppNamespace: config2.PodSecurityStandardPolicyConfig{
 					Enforce: config2.PodSecurityStandardModeConfig{

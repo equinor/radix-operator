@@ -59,7 +59,7 @@ type OperatorConfig struct {
 
 	BuilderResources Resources `json:"builderResources" required:"true"`
 
-	JobSchedulerImage ContainerImage `json:"jobSchedulerImage" required:"true"`
+	JobSchedulerImage   ContainerImage            `json:"jobSchedulerImage" required:"true"`
 	PodSecurityStandard PodSecurityStandardConfig `json:"podSecurityStandard"`
 }
 

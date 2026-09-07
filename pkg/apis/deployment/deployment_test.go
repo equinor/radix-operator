@@ -508,7 +508,6 @@ func TestObjectSynced_Components_AffinityAccordingToSpec(t *testing.T) {
 }
 
 func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
-	const jobSchedulerImage = "docker.io/radix-job-scheduler:latest"
 	defer TeardownTest()
 	commitId := string(uuid.NewUUID())
 	adminGroups, readerGroups := []string{"adm1", "adm2"}, []string{"rdr1", "rdr2"}
