@@ -127,9 +127,6 @@ const (
 	// LogLevel Log level: ERROR, WARN, INFO (default), DEBUG
 	LogLevel = "LOG_LEVEL"
 
-	// SeccompProfileFileNameEnvironmentVariable Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory
-	SeccompProfileFileNameEnvironmentVariable = "SECCOMP_PROFILE_FILENAME"
-
 	RadixCertificateAutomationGatewayClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER"
 
 	// RadixCertificateAutomationDurationVariable Defines duration for certificates issued by cluster issuer

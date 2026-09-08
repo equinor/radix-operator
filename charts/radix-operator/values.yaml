@@ -89,6 +89,7 @@ config:
       image:
         repository: ghcr.io/equinor/radix/buildkit-builder
         tag: "latest"
+      seccompProfileLocalhostProfile: ""
       resources:
         limits:
           memory: 500M

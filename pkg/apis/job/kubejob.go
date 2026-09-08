@@ -3,7 +3,6 @@ package job
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/flags"
@@ -153,7 +152,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 
 		// Pass tekton and builder images
 		fmt.Sprintf("--%s=%s", flags.BuilderImage, job.config2.Operator.Builder.Image.String()),
-		fmt.Sprintf("--%s=%s", defaults.SeccompProfileFileNameEnvironmentVariable, os.Getenv(defaults.SeccompProfileFileNameEnvironmentVariable)),
+		fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, job.config2.Operator.Builder.SeccompProfileLocalhostProfile),
 
 		// Used for tagging source of image
 		fmt.Sprintf("--%s=%s", flags.ClusterType, job.config2.Operator.ClusterType),

@@ -64,6 +64,7 @@ operator:
     image:
       repository: ghcr.io/equinor/radix/buildkit-builder
       tag: v3.4.5
+    seccompProfileLocalhostProfile: "anyseccomp.json"
   jobSchedulerImage:
     repository: ghcr.io/equinor/radix-job-scheduler
     tag: v1.2.3
