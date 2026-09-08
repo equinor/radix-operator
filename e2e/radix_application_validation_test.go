@@ -771,3 +771,116 @@ func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
 		})
 	}
 }
+
+// TestRadixApplicationAzureKeyVaultUseAzureIdentityValidation tests that a component with an Azure Key Vault
+// using useAzureIdentity requires identity.azure.clientId in the common or the relevant environment config.
+func TestRadixApplicationAzureKeyVaultUseAzureIdentityValidation(t *testing.T) {
+	c := getClient(t)
+	appName := "test-akv-identity"
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
+
+	clientId := "11111111-2222-3333-4444-555555555555"
+	azureIdentity := &v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}
+	azureKeyVaults := func(useAzureIdentity *bool) v1.RadixSecretRefs {
+		return v1.RadixSecretRefs{
+			AzureKeyVaults: []v1.RadixAzureKeyVault{
+				{
+					Name:             "my-key-vault",
+					UseAzureIdentity: useAzureIdentity,
+					Items:            []v1.RadixAzureKeyVaultItem{{Name: "my-secret"}},
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		name        string
+		component   v1.RadixComponent
+		shouldError bool
+	}{
+		{
+			name: "invalid - useAzureIdentity without any identity",
+			component: v1.RadixComponent{
+				Name:       "app",
+				SecretRefs: azureKeyVaults(new(true)),
+				EnvironmentConfig: []v1.RadixEnvironmentConfig{
+					{Environment: "dev"},
+					{Environment: "prod"},
+				},
+			},
+			shouldError: true,
+		},
+		{
+			name: "invalid - useAzureIdentity with identity only in one environment",
+			component: v1.RadixComponent{
+				Name:       "app",
+				SecretRefs: azureKeyVaults(new(true)),
+				EnvironmentConfig: []v1.RadixEnvironmentConfig{
+					{Environment: "dev"},
+					{Environment: "prod", Identity: azureIdentity},
+				},
+			},
+			shouldError: true,
+		},
+		{
+			name: "valid - useAzureIdentity with common identity",
+			component: v1.RadixComponent{
+				Name:       "app",
+				Identity:   azureIdentity,
+				SecretRefs: azureKeyVaults(new(true)),
+				EnvironmentConfig: []v1.RadixEnvironmentConfig{
+					{Environment: "dev"},
+					{Environment: "prod"},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid - useAzureIdentity with identity in all environments",
+			component: v1.RadixComponent{
+				Name:       "app",
+				SecretRefs: azureKeyVaults(new(true)),
+				EnvironmentConfig: []v1.RadixEnvironmentConfig{
+					{Environment: "dev", Identity: azureIdentity},
+					{Environment: "prod", Identity: azureIdentity},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid - useAzureIdentity disabled without identity",
+			component: v1.RadixComponent{
+				Name:       "app",
+				SecretRefs: azureKeyVaults(new(false)),
+				EnvironmentConfig: []v1.RadixEnvironmentConfig{
+					{Environment: "dev"},
+					{Environment: "prod"},
+				},
+			},
+			shouldError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ra := &v1.RadixApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1.RadixApplicationSpec{
+					Environments: []v1.Environment{{Name: "dev"}, {Name: "prod"}},
+					Components:   []v1.RadixComponent{tc.component},
+				},
+			}
+
+			err := c.Create(t.Context(), ra, client.DryRunAll)
+
+			if tc.shouldError {
+				assert.ErrorContains(t, err, "missing Azure identity for Azure Key vault with useAzureIdentity enabled")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
