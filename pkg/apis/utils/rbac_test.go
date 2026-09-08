@@ -111,11 +111,6 @@ func Test_GetAppReaderRbacSubjects(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			// cfg := config2.Config{
-			// 	Operator: config2.OperatorConfig{
-			// 		AppAdminGroups: test.defaultGroupsEnvValue,
-			// 	},
-			// }
 
 			rr := &radixv1.RadixRegistration{
 				Spec: radixv1.RadixRegistrationSpec{
