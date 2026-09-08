@@ -125,7 +125,6 @@
 				"RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
 				"RADIX_APP_CONTAINER_REGISTRY": "radixdevapp.azurecr.io",
 				"RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.15.2",
-				"RADIXOPERATOR_JOB_AUX_IMAGE": "docker.io/bash:latest",
 				"KUBERNETES_SERVICE_PORT": "443",
 				"REGISTRATION_CONTROLLER_THREADS": "10",
 				"APPLICATION_CONTROLLER_THREADS": "10",

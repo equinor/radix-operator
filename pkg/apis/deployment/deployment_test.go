@@ -62,7 +62,6 @@ var testConfig = config.Config{
 	DeploymentSyncer: config.DeploymentSyncerConfig{
 		KubernetesAPIPort:      543,
 		DeploymentHistoryLimit: 10,
-		JobAuxImage:            "docker.io/bash:alpine3.22",
 	},
 	CertificateAutomation: config.CertificateAutomationConfig{
 		GatewayClusterIssuer: "test-gateway-cert-issuer",
@@ -85,6 +84,10 @@ var testConfig2 = config2.Config{
 		JobSchedulerImage: config2.ContainerImage{
 			Repository: "docker.io/radix-job-scheduler",
 			Tag:        "main-latest",
+		},
+		JobSchedulerAuxImage: config2.ContainerImage{
+			Repository: "docker.io/bash",
+			Tag:        "latest",
 		},
 		ClusterType:           "development",
 		AzureKeyVaultTenantID: "123456789",
@@ -831,7 +834,7 @@ func TestObjectSynced_JobAux_DeploymentSpecIsSet(t *testing.T) {
 	require.Len(t, jobAuxDeployment.Spec.Template.Spec.Containers, 1)
 	container := jobAuxDeployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, jobAuxDeploymentName, container.Name)
-	assert.Equal(t, testConfig.DeploymentSyncer.JobAuxImage, container.Image)
+	assert.Equal(t, testConfig2.Operator.JobSchedulerAuxImage.String(), container.Image)
 	assert.Equal(t, corev1.PullIfNotPresent, container.ImagePullPolicy)
 	assert.Equal(t, []string{"sh"}, container.Command)
 	assert.Equal(t, []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}, container.Args)

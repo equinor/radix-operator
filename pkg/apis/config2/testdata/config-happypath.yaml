@@ -68,6 +68,9 @@ operator:
   jobSchedulerImage:
     repository: ghcr.io/equinor/radix-job-scheduler
     tag: v1.2.3
+  jobSchedulerAuxImage:
+    repository: docker.io/bash
+    tag: "latest"
   batchSafeToRestartJobThreshold: 1234
   externalRegistryAuthSecret: anyExternalAuth
   azureKeyVaultTenantID: any-tenant-id

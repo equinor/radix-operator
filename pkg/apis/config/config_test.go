@@ -35,7 +35,6 @@ func TestMustParse(t *testing.T) {
 
 		// DeploymentSyncer
 		defaults.KubernetesApiPortEnvironmentVariable: "443",
-		defaults.RadixJobAuxImageEnvironmentVariable:  "docker.io/bash:alpine3.22",
 
 		// TaskConfig
 		defaults.RadixOrphanedEnvironmentsRetentionPeriodVariable: "720h",
@@ -71,7 +70,6 @@ func TestMustParse(t *testing.T) {
 	// DeploymentSyncer
 	assert.Equal(t, int32(443), cfg.DeploymentSyncer.KubernetesAPIPort)
 	assert.Equal(t, 10, cfg.DeploymentSyncer.DeploymentHistoryLimit)
-	assert.Equal(t, "docker.io/bash:alpine3.22", cfg.DeploymentSyncer.JobAuxImage)
 
 	// TaskConfig
 	require.NotNil(t, cfg.TaskConfig)

@@ -70,9 +70,6 @@ const (
 	// RadixImageTagNameEnvironmentVariable Image tag name for Radix application components
 	RadixImageTagNameEnvironmentVariable = "IMAGE_TAG_NAME"
 
-	// RadixJobAuxImageEnvironmentVariable specifies the name and tag of the job aux image
-	RadixJobAuxImageEnvironmentVariable = "RADIXOPERATOR_JOB_AUX_IMAGE"
-
 	// RadixConfigFileEnvironmentVariable Path to a radixconfig.yaml
 	// to be loaded from Radix application config branch
 	RadixConfigFileEnvironmentVariable = "RADIX_FILE_NAME"

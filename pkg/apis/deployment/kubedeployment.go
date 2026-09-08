@@ -127,7 +127,7 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 					Containers: []corev1.Container{
 						{
 							Name:            jobAuxKubeDeploymentName,
-							Image:           deploy.config.DeploymentSyncer.JobAuxImage,
+							Image:           deploy.config2.Operator.JobSchedulerAuxImage.String(),
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithReadOnlyRootFileSystem(new(true)),

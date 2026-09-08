@@ -6287,9 +6287,7 @@
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/applications/models"
     },
-    "AuxiliaryResource": {
-      "description": "AuxiliaryResource describes an auxiliary resources for a component"
-    },
+    "AuxiliaryResource": {},
     "AuxiliaryResourceDeployment": {
       "description": "AuxiliaryResourceDeployment describes the state of the auxiliary resource's deployment",
       "type": "object",
@@ -6306,7 +6304,7 @@
           "x-go-name": "ReplicaList"
         },
         "status": {
-          "description": "Status of the auxiliary resource's deployment",
+          "description": "Status of the auxiliary resource's deployment\n- Consistent: All replicas are running with the desired state\n- Reconciling: Waiting for new replicas to enter desired state\n- Stopped: Replica count is set to 0",
           "type": "string",
           "enum": [
             "Stopped",
@@ -6322,7 +6320,7 @@
           "enum": [
             "oauth",
             "oauth-redis",
-            "\"\""
+            ""
           ],
           "x-go-name": "Type"
         }
@@ -6432,7 +6430,7 @@
           "example": "SECRET_1"
         },
         "status": {
-          "description": "Status of the secret\nPending = Secret value is not set\nConsistent = Secret value is set",
+          "description": "Status of the secret\n- Pending = Secret value is not set\n- Consistent = Secret value is set",
           "type": "string",
           "enum": [
             "Pending",
@@ -6524,7 +6522,7 @@
           "description": "GitTags the git tags that the git commit hash points to",
           "type": "string",
           "x-go-name": "GitTags",
-          "example": "\"v1.22.1 v1.22.3\""
+          "example": "v1.22.1 v1.22.3"
         },
         "horizontalScalingSummary": {
           "$ref": "#/definitions/HorizontalScalingSummary"
@@ -6557,7 +6555,7 @@
           "$ref": "#/definitions/OAuth2AuxiliaryResource"
         },
         "ports": {
-          "description": "Ports defines the port number and protocol that a component is exposed for internally in environment",
+          "description": "Ports defines the port number and protocol that a component is exposed for internally in environment\n\ntype: \"array\"\nitems:\n\"$ref\": \"#/definitions/Port\"",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Port"
@@ -6578,6 +6576,7 @@
           "items": {
             "type": "string"
           },
+          "x-deprecated": true,
           "x-go-name": "Replicas",
           "example": [
             "server-78fc8857c4-hm76l",
@@ -6602,7 +6601,7 @@
           "description": "ScheduledJobPayloadPath defines the payload path, where payload for Job Scheduler will be mapped as a file. From radixconfig.yaml",
           "type": "string",
           "x-go-name": "ScheduledJobPayloadPath",
-          "example": "\"/tmp/payload\""
+          "example": "/tmp/payload"
         },
         "schedulerPort": {
           "description": "SchedulerPort defines the port number that a Job Scheduler is exposed internally in environment",
@@ -6630,7 +6629,7 @@
           "example": true
         },
         "status": {
-          "description": "Status of the component",
+          "description": "Status of the component\n- Stopped = Component is stopped (no replica)\n- Consistent = Component is consistent with config\n- Restarting = User has triggered restart, but this is not reconciled",
           "type": "string",
           "enum": [
             "Stopped",
@@ -6682,7 +6681,7 @@
           "description": "GitTags the git tags that the git commit hash points to",
           "type": "string",
           "x-go-name": "GitTags",
-          "example": "\"v1.22.1 v1.22.3\""
+          "example": "v1.22.1 v1.22.3"
         },
         "image": {
           "description": "Image name",
@@ -6841,7 +6840,6 @@
         "namespace",
         "environment",
         "status",
-        "activeFrom",
         "repository"
       ],
       "properties": {
@@ -6889,12 +6887,12 @@
           "example": "master"
         },
         "gitRefType": {
-          "description": "GitRefType When the pipeline job should be built from branch or tag specified in GitRef:\nbranch\ntag\n\u003cempty\u003e - either branch or tag",
+          "description": "GitRefType When the pipeline job should be built from branch or tag specified in GitRef:\n- branch\n- tag\n- \u003cempty\u003e - either branch or tag",
           "type": "string",
           "enum": [
             "branch",
             "tag",
-            "\"\""
+            ""
           ],
           "x-go-name": "GitRefType",
           "example": "branch"
@@ -6903,7 +6901,7 @@
           "description": "GitTags the git tags that the git commit hash points to",
           "type": "string",
           "x-go-name": "GitTags",
-          "example": "\"v1.22.1 v1.22.3\""
+          "example": "v1.22.1 v1.22.3"
         },
         "name": {
           "description": "Name the unique name of the Radix application deployment",
@@ -6930,7 +6928,7 @@
           "example": "https://github.com/equinor/radix-canary-golang"
         },
         "status": {
-          "description": "Status of deployment reconciliation\nReconciling DeploymentStatusReconciling  DeploymentStatusReconciling deployment is not fully reconciled\nReady DeploymentStatusReady  DeploymentStatusReady deployment is reconciled successfully\nFailed DeploymentStatusFailed  DeploymentStatusFailed deployment reconciliation failed\nInactive DeploymentStatusInactive  DeploymentStatusInactive deployment is inactive",
+          "description": "Status of deployment reconciliation\nReconciling DeploymentStatusReconciling deployment is not fully reconciled\nReady DeploymentStatusReady deployment is reconciled successfully\nFailed DeploymentStatusFailed deployment reconciliation failed\nInactive DeploymentStatusInactive deployment is inactive",
           "type": "string",
           "enum": [
             "Reconciling",
@@ -6938,7 +6936,7 @@
             "Failed",
             "Inactive"
           ],
-          "x-go-enum-desc": "Reconciling DeploymentStatusReconciling  DeploymentStatusReconciling deployment is not fully reconciled\nReady DeploymentStatusReady  DeploymentStatusReady deployment is reconciled successfully\nFailed DeploymentStatusFailed  DeploymentStatusFailed deployment reconciliation failed\nInactive DeploymentStatusInactive  DeploymentStatusInactive deployment is inactive",
+          "x-go-enum-desc": "Reconciling DeploymentStatusReconciling deployment is not fully reconciled\nReady DeploymentStatusReady deployment is reconciled successfully\nFailed DeploymentStatusFailed deployment reconciliation failed\nInactive DeploymentStatusInactive deployment is inactive",
           "x-go-name": "Status"
         },
         "statusReason": {
@@ -6959,8 +6957,7 @@
       "description": "DeploymentItem describe a deployment short info",
       "type": "object",
       "required": [
-        "name",
-        "activeFrom"
+        "name"
       ],
       "properties": {
         "activeFrom": {
@@ -6996,8 +6993,7 @@
       "required": [
         "name",
         "environment",
-        "status",
-        "activeFrom"
+        "status"
       ],
       "properties": {
         "activeFrom": {
@@ -7044,12 +7040,12 @@
           "example": "master"
         },
         "gitRefType": {
-          "description": "GitRefType When the pipeline job should be built from branch or tag specified in GitRef:\nbranch\ntag\n\u003cempty\u003e - either branch or tag",
+          "description": "GitRefType When the pipeline job should be built from branch or tag specified in GitRef:\n- branch\n- tag\n- \u003cempty\u003e - either branch or tag",
           "type": "string",
           "enum": [
             "branch",
             "tag",
-            "\"\""
+            ""
           ],
           "x-go-name": "GitRefType",
           "example": "branch"
@@ -7058,7 +7054,7 @@
           "description": "GitTags the git tags that the git commit hash points to",
           "type": "string",
           "x-go-name": "GitTags",
-          "example": "\"v1.22.1 v1.22.3\""
+          "example": "v1.22.1 v1.22.3"
         },
         "name": {
           "description": "Name the unique name of the Radix application deployment",
@@ -7092,7 +7088,7 @@
           "x-nullable": true
         },
         "status": {
-          "description": "Status of deployment reconciliation\nReconciling DeploymentStatusReconciling  DeploymentStatusReconciling deployment is not fully reconciled\nReady DeploymentStatusReady  DeploymentStatusReady deployment is reconciled successfully\nFailed DeploymentStatusFailed  DeploymentStatusFailed deployment reconciliation failed\nInactive DeploymentStatusInactive  DeploymentStatusInactive deployment is inactive",
+          "description": "Status of deployment reconciliation\nReconciling DeploymentStatusReconciling deployment is not fully reconciled\nReady DeploymentStatusReady deployment is reconciled successfully\nFailed DeploymentStatusFailed deployment reconciliation failed\nInactive DeploymentStatusInactive deployment is inactive",
           "type": "string",
           "enum": [
             "Reconciling",
@@ -7100,7 +7096,7 @@
             "Failed",
             "Inactive"
           ],
-          "x-go-enum-desc": "Reconciling DeploymentStatusReconciling  DeploymentStatusReconciling deployment is not fully reconciled\nReady DeploymentStatusReady  DeploymentStatusReady deployment is reconciled successfully\nFailed DeploymentStatusFailed  DeploymentStatusFailed deployment reconciliation failed\nInactive DeploymentStatusInactive  DeploymentStatusInactive deployment is inactive",
+          "x-go-enum-desc": "Reconciling DeploymentStatusReconciling deployment is not fully reconciled\nReady DeploymentStatusReady deployment is reconciled successfully\nFailed DeploymentStatusFailed deployment reconciliation failed\nInactive DeploymentStatusInactive deployment is inactive",
           "x-go-name": "Status"
         },
         "statusReason": {
@@ -7217,7 +7213,7 @@
           "x-go-name": "Secrets"
         },
         "status": {
-          "description": "Status of the environment\nPending = Environment exists in Radix config, but not in cluster\nConsistent = Environment exists in Radix config and in cluster\nOrphan = Environment does not exist in Radix config, but exists in cluster",
+          "description": "Status of the environment\n- Pending = Environment exists in Radix config, but not in cluster\n- Consistent = Environment exists in Radix config and in cluster\n- Orphan = Environment does not exist in Radix config, but exists in cluster",
           "type": "string",
           "enum": [
             "Pending",
@@ -7252,7 +7248,7 @@
           "example": "prod"
         },
         "status": {
-          "description": "Status of the environment\nPending = Environment exists in Radix config, but not in cluster\nConsistent = Environment exists in Radix config and in cluster\nOrphan = Environment does not exist in Radix config, but exists in cluster",
+          "description": "Status of the environment\n- Pending = Environment exists in Radix config, but not in cluster\n- Consistent = Environment exists in Radix config and in cluster\n- Orphan = Environment does not exist in Radix config, but exists in cluster",
           "type": "string",
           "enum": [
             "Pending",
@@ -7477,7 +7473,7 @@
           "example": "myprivaterepo.azurecr.io"
         },
         "status": {
-          "description": "Status of the secret\nPending = Secret value is not set\nConsistent = Secret value is set",
+          "description": "Status of the secret\n- Pending = Secret value is not set\n- Consistent = Secret value is set",
           "type": "string",
           "enum": [
             "Pending",
@@ -7521,11 +7517,12 @@
           "example": "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
         },
         "components": {
-          "description": "Components (array of ComponentSummary) created by the job\n\nDeprecated: Inspect each deployment to get list of components created by the job",
+          "description": "Components (array of ComponentSummary) created by the job\n\nDeprecated: Inspect each deployment to get list of components created by the job\n\ntype: \"array\"\nitems:\n\"$ref\": \"#/definitions/ComponentSummary\"",
           "type": "array",
           "items": {
             "$ref": "#/definitions/ComponentSummary"
           },
+          "x-deprecated": true,
           "x-go-name": "Components"
         },
         "created": {
@@ -7547,7 +7544,7 @@
           "example": "qa"
         },
         "deployments": {
-          "description": "Array of deployments",
+          "description": "Array of deployments\n\ntype: \"array\"\nitems:\n\"$ref\": \"#/definitions/DeploymentSummary\"",
           "type": "array",
           "items": {
             "$ref": "#/definitions/DeploymentSummary"
@@ -7567,12 +7564,12 @@
           "example": "master"
         },
         "gitRefType": {
-          "description": "GitRefType When the pipeline job should be built from branch or tag specified in GitRef:\nbranch\ntag\n\u003cempty\u003e - either branch or tag",
+          "description": "GitRefType When the pipeline job should be built from branch or tag specified in GitRef:\n- branch\n- tag\n- \u003cempty\u003e - either branch or tag",
           "type": "string",
           "enum": [
             "branch",
             "tag",
-            "\"\""
+            ""
           ],
           "x-go-name": "GitRefType",
           "example": "branch"
@@ -7666,7 +7663,7 @@
           "example": "Waiting"
         },
         "steps": {
-          "description": "Array of steps",
+          "description": "Array of steps\n\ntype: \"array\"\nitems:\n\"$ref\": \"#/definitions/Step\"",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Step"
@@ -7698,7 +7695,6 @@
       "type": "object",
       "required": [
         "name",
-        "created",
         "triggeredFromWebhook"
       ],
       "properties": {
@@ -7711,6 +7707,7 @@
         "branch": {
           "description": "Deprecated: use GitRef instead\nBranch to build from",
           "type": "string",
+          "x-deprecated": true,
           "x-go-name": "Branch",
           "example": "master"
         },
@@ -7757,12 +7754,12 @@
           "example": "master"
         },
         "gitRefType": {
-          "description": "GitRefType When the pipeline job should be built from branch or tag specified in GitRef:\nbranch\ntag\n\u003cempty\u003e - either branch or tag",
+          "description": "GitRefType When the pipeline job should be built from branch or tag specified in GitRef:\n- branch\n- tag\n- \u003cempty\u003e - either branch or tag",
           "type": "string",
           "enum": [
             "branch",
             "tag",
-            "\"\""
+            ""
           ],
           "x-go-name": "GitRefType",
           "example": "branch"
@@ -7917,7 +7914,7 @@
             "cookie",
             "redis",
             "systemManaged",
-            "\"\""
+            ""
           ],
           "x-go-name": "SessionStoreType"
         }
@@ -7960,6 +7957,7 @@
         "branch": {
           "description": "Deprecated: use GitRef instead\nBranch the branch to build\nREQUIRED for \"build\" and \"build-deploy\" pipelines",
           "type": "string",
+          "x-deprecated": true,
           "x-go-name": "Branch",
           "example": "master"
         },
@@ -7976,12 +7974,12 @@
           "example": "master"
         },
         "gitRefType": {
-          "description": "GitRefType When the pipeline job should be built from branch or tag specified in GitRef:\nbranch\ntag\n\u003cempty\u003e - either branch or tag",
+          "description": "GitRefType When the pipeline job should be built from branch or tag specified in GitRef:\n- branch\n- tag\n- \u003cempty\u003e - either branch or tag",
           "type": "string",
           "enum": [
             "branch",
             "tag",
-            "\"\""
+            ""
           ],
           "x-go-name": "GitRefType",
           "example": "branch"
@@ -8141,7 +8139,7 @@
           "example": "2006-01-02T15:04:05Z"
         },
         "status": {
-          "description": "Status of the step\nStarted TaskRunReasonStarted  TaskRunReasonStarted is the reason set when the TaskRun has just started\nRunning TaskRunReasonRunning  TaskRunReasonRunning is the reason set when the TaskRun is running\nSucceeded TaskRunReasonSuccessful  TaskRunReasonSuccessful is the reason set when the TaskRun completed successfully\nFailed TaskRunReasonFailed  TaskRunReasonFailed is the reason set when the TaskRun completed with a failure\nToBeRetried TaskRunReasonToBeRetried  TaskRunReasonToBeRetried is the reason set when the last TaskRun execution failed, and will be retried\nTaskRunCancelled TaskRunReasonCancelled  TaskRunReasonCancelled is the reason set when the TaskRun is cancelled by the user\nTaskRunTimeout TaskRunReasonTimedOut  TaskRunReasonTimedOut is the reason set when one TaskRun execution has timed out\nTaskRunImagePullFailed TaskRunReasonImagePullFailed  TaskRunReasonImagePullFailed is the reason set when the step of a task fails due to image not being pulled\nTaskRunResultLargerThanAllowedLimit TaskRunReasonResultLargerThanAllowedLimit  TaskRunReasonResultLargerThanAllowedLimit is the reason set when one of the results exceeds its maximum allowed limit of 1 KB\nTaskRunStopSidecarFailed TaskRunReasonStopSidecarFailed  TaskRunReasonStopSidecarFailed indicates that the sidecar is not properly stopped.\nInvalidParamValue TaskRunReasonInvalidParamValue  TaskRunReasonInvalidParamValue indicates that the TaskRun Param input value is not allowed.\nTaskRunResolutionFailed TaskRunReasonFailedResolution  TaskRunReasonFailedResolution indicated that the reason for failure status is  that references within the TaskRun could not be resolved\nTaskRunValidationFailed TaskRunReasonFailedValidation  TaskRunReasonFailedValidation indicated that the reason for failure status is  that taskrun failed runtime validation\nTaskValidationFailed TaskRunReasonTaskFailedValidation  TaskRunReasonTaskFailedValidation indicated that the reason for failure status is  that task failed runtime validation\nResourceVerificationFailed TaskRunReasonResourceVerificationFailed  TaskRunReasonResourceVerificationFailed indicates that the task fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nFailureIgnored TaskRunReasonFailureIgnored  TaskRunReasonFailureIgnored is the reason set when the Taskrun has failed due to pod execution error and the failure is ignored for the owning PipelineRun.  TaskRuns failed due to reconciler/validation error should not use this reason.",
+          "description": "Status of the step\nStarted TaskRunReasonStarted is the reason set when the TaskRun has just started\nRunning TaskRunReasonRunning is the reason set when the TaskRun is running\nSucceeded TaskRunReasonSuccessful is the reason set when the TaskRun completed successfully\nFailed TaskRunReasonFailed is the reason set when the TaskRun completed with a failure\nToBeRetried TaskRunReasonToBeRetried is the reason set when the last TaskRun execution failed, and will be retried\nTaskRunCancelled TaskRunReasonCancelled is the reason set when the TaskRun is cancelled by the user\nTaskRunTimeout TaskRunReasonTimedOut is the reason set when one TaskRun execution has timed out\nTaskRunImagePullFailed TaskRunReasonImagePullFailed is the reason set when the step of a task fails due to image not being pulled\nTaskRunResultLargerThanAllowedLimit TaskRunReasonResultLargerThanAllowedLimit is the reason set when one of the results exceeds its maximum allowed limit of 1 KB\nTaskRunStopSidecarFailed TaskRunReasonStopSidecarFailed indicates that the sidecar is not properly stopped.\nInvalidParamValue TaskRunReasonInvalidParamValue indicates that the TaskRun Param input value is not allowed.\nTaskRunResolutionFailed TaskRunReasonFailedResolution indicated that the reason for failure status is  that references within the TaskRun could not be resolved\nTaskRunValidationFailed TaskRunReasonFailedValidation indicated that the reason for failure status is  that taskrun failed runtime validation\nTaskValidationFailed TaskRunReasonTaskFailedValidation indicated that the reason for failure status is  that task failed runtime validation\nResourceVerificationFailed TaskRunReasonResourceVerificationFailed indicates that the task fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nFailureIgnored TaskRunReasonFailureIgnored is the reason set when the Taskrun has failed due to pod execution error and the failure is ignored for the owning PipelineRun.  TaskRuns failed due to reconciler/validation error should not use this reason.",
           "type": "string",
           "enum": [
             "Started",
@@ -8161,7 +8159,7 @@
             "ResourceVerificationFailed",
             "FailureIgnored"
           ],
-          "x-go-enum-desc": "Started TaskRunReasonStarted  TaskRunReasonStarted is the reason set when the TaskRun has just started\nRunning TaskRunReasonRunning  TaskRunReasonRunning is the reason set when the TaskRun is running\nSucceeded TaskRunReasonSuccessful  TaskRunReasonSuccessful is the reason set when the TaskRun completed successfully\nFailed TaskRunReasonFailed  TaskRunReasonFailed is the reason set when the TaskRun completed with a failure\nToBeRetried TaskRunReasonToBeRetried  TaskRunReasonToBeRetried is the reason set when the last TaskRun execution failed, and will be retried\nTaskRunCancelled TaskRunReasonCancelled  TaskRunReasonCancelled is the reason set when the TaskRun is cancelled by the user\nTaskRunTimeout TaskRunReasonTimedOut  TaskRunReasonTimedOut is the reason set when one TaskRun execution has timed out\nTaskRunImagePullFailed TaskRunReasonImagePullFailed  TaskRunReasonImagePullFailed is the reason set when the step of a task fails due to image not being pulled\nTaskRunResultLargerThanAllowedLimit TaskRunReasonResultLargerThanAllowedLimit  TaskRunReasonResultLargerThanAllowedLimit is the reason set when one of the results exceeds its maximum allowed limit of 1 KB\nTaskRunStopSidecarFailed TaskRunReasonStopSidecarFailed  TaskRunReasonStopSidecarFailed indicates that the sidecar is not properly stopped.\nInvalidParamValue TaskRunReasonInvalidParamValue  TaskRunReasonInvalidParamValue indicates that the TaskRun Param input value is not allowed.\nTaskRunResolutionFailed TaskRunReasonFailedResolution  TaskRunReasonFailedResolution indicated that the reason for failure status is  that references within the TaskRun could not be resolved\nTaskRunValidationFailed TaskRunReasonFailedValidation  TaskRunReasonFailedValidation indicated that the reason for failure status is  that taskrun failed runtime validation\nTaskValidationFailed TaskRunReasonTaskFailedValidation  TaskRunReasonTaskFailedValidation indicated that the reason for failure status is  that task failed runtime validation\nResourceVerificationFailed TaskRunReasonResourceVerificationFailed  TaskRunReasonResourceVerificationFailed indicates that the task fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nFailureIgnored TaskRunReasonFailureIgnored  TaskRunReasonFailureIgnored is the reason set when the Taskrun has failed due to pod execution error and the failure is ignored for the owning PipelineRun.  TaskRuns failed due to reconciler/validation error should not use this reason.",
+          "x-go-enum-desc": "Started TaskRunReasonStarted is the reason set when the TaskRun has just started\nRunning TaskRunReasonRunning is the reason set when the TaskRun is running\nSucceeded TaskRunReasonSuccessful is the reason set when the TaskRun completed successfully\nFailed TaskRunReasonFailed is the reason set when the TaskRun completed with a failure\nToBeRetried TaskRunReasonToBeRetried is the reason set when the last TaskRun execution failed, and will be retried\nTaskRunCancelled TaskRunReasonCancelled is the reason set when the TaskRun is cancelled by the user\nTaskRunTimeout TaskRunReasonTimedOut is the reason set when one TaskRun execution has timed out\nTaskRunImagePullFailed TaskRunReasonImagePullFailed is the reason set when the step of a task fails due to image not being pulled\nTaskRunResultLargerThanAllowedLimit TaskRunReasonResultLargerThanAllowedLimit is the reason set when one of the results exceeds its maximum allowed limit of 1 KB\nTaskRunStopSidecarFailed TaskRunReasonStopSidecarFailed indicates that the sidecar is not properly stopped.\nInvalidParamValue TaskRunReasonInvalidParamValue indicates that the TaskRun Param input value is not allowed.\nTaskRunResolutionFailed TaskRunReasonFailedResolution indicated that the reason for failure status is  that references within the TaskRun could not be resolved\nTaskRunValidationFailed TaskRunReasonFailedValidation indicated that the reason for failure status is  that taskrun failed runtime validation\nTaskValidationFailed TaskRunReasonTaskFailedValidation indicated that the reason for failure status is  that task failed runtime validation\nResourceVerificationFailed TaskRunReasonResourceVerificationFailed indicates that the task fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nFailureIgnored TaskRunReasonFailureIgnored is the reason set when the Taskrun has failed due to pod execution error and the failure is ignored for the owning PipelineRun.  TaskRuns failed due to reconciler/validation error should not use this reason.",
           "x-go-name": "Status"
         },
         "statusMessage": {
@@ -8219,7 +8217,7 @@
           "example": "2006-01-02T15:04:05Z"
         },
         "status": {
-          "description": "Status of the task\nStarted PipelineRunReasonStarted  PipelineRunReasonStarted is the reason set when the PipelineRun has just started\nRunning PipelineRunReasonRunning  PipelineRunReasonRunning is the reason set when the PipelineRun is running\nSucceeded PipelineRunReasonSuccessful  PipelineRunReasonSuccessful is the reason set when the PipelineRun completed successfully\nCompleted PipelineRunReasonCompleted  PipelineRunReasonCompleted is the reason set when the PipelineRun completed successfully with one or more skipped Tasks\nFailed PipelineRunReasonFailed  PipelineRunReasonFailed is the reason set when the PipelineRun completed with a failure\nCancelled PipelineRunReasonCancelled  PipelineRunReasonCancelled is the reason set when the PipelineRun cancelled by the user  This reason may be found with a corev1.ConditionFalse status, if the cancellation was processed successfully  This reason may be found with a corev1.ConditionUnknown status, if the cancellation is being processed or failed\nPipelineRunPending PipelineRunReasonPending  PipelineRunReasonPending is the reason set when the PipelineRun is in the pending state\nPipelineRunTimeout PipelineRunReasonTimedOut  PipelineRunReasonTimedOut is the reason set when the PipelineRun has timed out\nPipelineRunStopping PipelineRunReasonStopping  PipelineRunReasonStopping indicates that no new Tasks will be scheduled by the controller, and the  pipeline will stop once all running tasks complete their work\nCancelledRunningFinally PipelineRunReasonCancelledRunningFinally  PipelineRunReasonCancelledRunningFinally indicates that pipeline has been gracefully cancelled  and no new Tasks will be scheduled by the controller, but final tasks are now running\nStoppedRunningFinally PipelineRunReasonStoppedRunningFinally  PipelineRunReasonStoppedRunningFinally indicates that pipeline has been gracefully stopped  and no new Tasks will be scheduled by the controller, but final tasks are now running\nCouldntGetPipeline PipelineRunReasonCouldntGetPipeline  ReasonCouldntGetPipeline indicates that the reason for the failure status is that the  associated Pipeline couldn't be retrieved\nInvalidPipelineResourceBindings PipelineRunReasonInvalidBindings  ReasonInvalidBindings indicates that the reason for the failure status is that the  PipelineResources bound in the PipelineRun didn't match those declared in the Pipeline\nInvalidWorkspaceBindings PipelineRunReasonInvalidWorkspaceBinding  ReasonInvalidWorkspaceBinding indicates that a Pipeline expects a workspace but a  PipelineRun has provided an invalid binding.\nInvalidTaskRunSpecs PipelineRunReasonInvalidTaskRunSpec  ReasonInvalidTaskRunSpec indicates that PipelineRun.Spec.TaskRunSpecs[].PipelineTaskName is defined with  a not exist taskName in pipelineSpec.\nParameterTypeMismatch PipelineRunReasonParameterTypeMismatch  ReasonParameterTypeMismatch indicates that the reason for the failure status is that  parameter(s) declared in the PipelineRun do not have the some declared type as the  parameters(s) declared in the Pipeline that they are supposed to override.\nObjectParameterMissKeys PipelineRunReasonObjectParameterMissKeys  ReasonObjectParameterMissKeys indicates that the object param value provided from PipelineRun spec  misses some keys required for the object param declared in Pipeline spec.\nParamArrayIndexingInvalid PipelineRunReasonParamArrayIndexingInvalid  ReasonParamArrayIndexingInvalid indicates that the use of param array indexing is not under correct api fields feature gate  or the array is out of bound.\nCouldntGetTask PipelineRunReasonCouldntGetTask  ReasonCouldntGetTask indicates that the reason for the failure status is that the  associated Pipeline's Tasks couldn't all be retrieved\nParameterMissing PipelineRunReasonParameterMissing  ReasonParameterMissing indicates that the reason for the failure status is that the  associated PipelineRun didn't provide all the required parameters\nPipelineValidationFailed PipelineRunReasonFailedValidation  ReasonFailedValidation indicates that the reason for failure status is  that pipelinerun failed runtime validation\nCouldntGetPipelineResult PipelineRunReasonCouldntGetPipelineResult  PipelineRunReasonCouldntGetPipelineResult indicates that the pipeline fails to retrieve the  referenced result. This could be due to failed TaskRuns or Runs that were supposed to produce  the results\nPipelineInvalidGraph PipelineRunReasonInvalidGraph  ReasonInvalidGraph indicates that the reason for the failure status is that the  associated Pipeline is an invalid graph (a.k.a wrong order, cycle, …)\nPipelineRunCouldntCancel PipelineRunReasonCouldntCancel  ReasonCouldntCancel indicates that a PipelineRun was cancelled but attempting to update  all of the running TaskRuns as cancelled failed.\nPipelineRunCouldntTimeOut PipelineRunReasonCouldntTimeOut  ReasonCouldntTimeOut indicates that a PipelineRun was timed out but attempting to update  all of the running TaskRuns as timed out failed.\nInvalidMatrixParameterTypes PipelineRunReasonInvalidMatrixParameterTypes  ReasonInvalidMatrixParameterTypes indicates a matrix contains invalid parameter types\nInvalidTaskResultReference PipelineRunReasonInvalidTaskResultReference  ReasonInvalidTaskResultReference indicates a task result was declared  but was not initialized by that task\nRequiredWorkspaceMarkedOptional PipelineRunReasonRequiredWorkspaceMarkedOptional  ReasonRequiredWorkspaceMarkedOptional indicates an optional workspace  has been passed to a Task that is expecting a non-optional workspace\nResolvingPipelineRef PipelineRunReasonResolvingPipelineRef  ReasonResolvingPipelineRef indicates that the PipelineRun is waiting for  its pipelineRef to be asynchronously resolved.\nResourceVerificationFailed PipelineRunReasonResourceVerificationFailed  ReasonResourceVerificationFailed indicates that the pipeline fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nCreateRunFailed PipelineRunReasonCreateRunFailed  ReasonCreateRunFailed indicates that the pipeline fails to create the taskrun or other run resources\nCELEvaluationFailed PipelineRunReasonCELEvaluationFailed  ReasonCELEvaluationFailed indicates the pipeline fails the CEL evaluation\nInvalidParamValue PipelineRunReasonInvalidParamValue  PipelineRunReasonInvalidParamValue indicates that the PipelineRun Param input value is not allowed.",
+          "description": "Status of the task\nStarted PipelineRunReasonStarted is the reason set when the PipelineRun has just started\nRunning PipelineRunReasonRunning is the reason set when the PipelineRun is running\nSucceeded PipelineRunReasonSuccessful is the reason set when the PipelineRun completed successfully\nCompleted PipelineRunReasonCompleted is the reason set when the PipelineRun completed successfully with one or more skipped Tasks\nFailed PipelineRunReasonFailed is the reason set when the PipelineRun completed with a failure\nCancelled PipelineRunReasonCancelled is the reason set when the PipelineRun cancelled by the user  This reason may be found with a corev1.ConditionFalse status, if the cancellation was processed successfully  This reason may be found with a corev1.ConditionUnknown status, if the cancellation is being processed or failed\nPipelineRunPending PipelineRunReasonPending is the reason set when the PipelineRun is in the pending state\nPipelineRunTimeout PipelineRunReasonTimedOut is the reason set when the PipelineRun has timed out\nPipelineRunStopping PipelineRunReasonStopping indicates that no new Tasks will be scheduled by the controller, and the  pipeline will stop once all running tasks complete their work\nCancelledRunningFinally PipelineRunReasonCancelledRunningFinally indicates that pipeline has been gracefully cancelled  and no new Tasks will be scheduled by the controller, but final tasks are now running\nStoppedRunningFinally PipelineRunReasonStoppedRunningFinally indicates that pipeline has been gracefully stopped  and no new Tasks will be scheduled by the controller, but final tasks are now running\nCouldntGetPipeline PipelineRunReasonCouldntGetPipeline  ReasonCouldntGetPipeline indicates that the reason for the failure status is that the  associated Pipeline couldn't be retrieved\nInvalidPipelineResourceBindings PipelineRunReasonInvalidBindings  ReasonInvalidBindings indicates that the reason for the failure status is that the  PipelineResources bound in the PipelineRun didn't match those declared in the Pipeline\nInvalidWorkspaceBindings PipelineRunReasonInvalidWorkspaceBinding  ReasonInvalidWorkspaceBinding indicates that a Pipeline expects a workspace but a  PipelineRun has provided an invalid binding.\nInvalidTaskRunSpecs PipelineRunReasonInvalidTaskRunSpec  ReasonInvalidTaskRunSpec indicates that PipelineRun.Spec.TaskRunSpecs[].PipelineTaskName is defined with  a not exist taskName in pipelineSpec.\nParameterTypeMismatch PipelineRunReasonParameterTypeMismatch  ReasonParameterTypeMismatch indicates that the reason for the failure status is that  parameter(s) declared in the PipelineRun do not have the some declared type as the  parameters(s) declared in the Pipeline that they are supposed to override.\nObjectParameterMissKeys PipelineRunReasonObjectParameterMissKeys  ReasonObjectParameterMissKeys indicates that the object param value provided from PipelineRun spec  misses some keys required for the object param declared in Pipeline spec.\nParamArrayIndexingInvalid PipelineRunReasonParamArrayIndexingInvalid  ReasonParamArrayIndexingInvalid indicates that the use of param array indexing is not under correct api fields feature gate  or the array is out of bound.\nCouldntGetTask PipelineRunReasonCouldntGetTask  ReasonCouldntGetTask indicates that the reason for the failure status is that the  associated Pipeline's Tasks couldn't all be retrieved\nParameterMissing PipelineRunReasonParameterMissing  ReasonParameterMissing indicates that the reason for the failure status is that the  associated PipelineRun didn't provide all the required parameters\nPipelineValidationFailed PipelineRunReasonFailedValidation  ReasonFailedValidation indicates that the reason for failure status is  that pipelinerun failed runtime validation\nCouldntGetPipelineResult PipelineRunReasonCouldntGetPipelineResult indicates that the pipeline fails to retrieve the  referenced result. This could be due to failed TaskRuns or Runs that were supposed to produce  the results\nPipelineInvalidGraph PipelineRunReasonInvalidGraph  ReasonInvalidGraph indicates that the reason for the failure status is that the  associated Pipeline is an invalid graph (a.k.a wrong order, cycle, …)\nPipelineRunCouldntCancel PipelineRunReasonCouldntCancel  ReasonCouldntCancel indicates that a PipelineRun was cancelled but attempting to update  all of the running TaskRuns as cancelled failed.\nPipelineRunCouldntTimeOut PipelineRunReasonCouldntTimeOut  ReasonCouldntTimeOut indicates that a PipelineRun was timed out but attempting to update  all of the running TaskRuns as timed out failed.\nInvalidMatrixParameterTypes PipelineRunReasonInvalidMatrixParameterTypes  ReasonInvalidMatrixParameterTypes indicates a matrix contains invalid parameter types\nInvalidTaskResultReference PipelineRunReasonInvalidTaskResultReference  ReasonInvalidTaskResultReference indicates a task result was declared  but was not initialized by that task\nRequiredWorkspaceMarkedOptional PipelineRunReasonRequiredWorkspaceMarkedOptional  ReasonRequiredWorkspaceMarkedOptional indicates an optional workspace  has been passed to a Task that is expecting a non-optional workspace\nResolvingPipelineRef PipelineRunReasonResolvingPipelineRef  ReasonResolvingPipelineRef indicates that the PipelineRun is waiting for  its pipelineRef to be asynchronously resolved.\nResourceVerificationFailed PipelineRunReasonResourceVerificationFailed  ReasonResourceVerificationFailed indicates that the pipeline fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nCreateRunFailed PipelineRunReasonCreateRunFailed  ReasonCreateRunFailed indicates that the pipeline fails to create the taskrun or other run resources\nCELEvaluationFailed PipelineRunReasonCELEvaluationFailed  ReasonCELEvaluationFailed indicates the pipeline fails the CEL evaluation\nInvalidParamValue PipelineRunReasonInvalidParamValue indicates that the PipelineRun Param input value is not allowed.",
           "type": "string",
           "enum": [
             "Started",
@@ -8256,7 +8254,7 @@
             "CELEvaluationFailed",
             "InvalidParamValue"
           ],
-          "x-go-enum-desc": "Started PipelineRunReasonStarted  PipelineRunReasonStarted is the reason set when the PipelineRun has just started\nRunning PipelineRunReasonRunning  PipelineRunReasonRunning is the reason set when the PipelineRun is running\nSucceeded PipelineRunReasonSuccessful  PipelineRunReasonSuccessful is the reason set when the PipelineRun completed successfully\nCompleted PipelineRunReasonCompleted  PipelineRunReasonCompleted is the reason set when the PipelineRun completed successfully with one or more skipped Tasks\nFailed PipelineRunReasonFailed  PipelineRunReasonFailed is the reason set when the PipelineRun completed with a failure\nCancelled PipelineRunReasonCancelled  PipelineRunReasonCancelled is the reason set when the PipelineRun cancelled by the user  This reason may be found with a corev1.ConditionFalse status, if the cancellation was processed successfully  This reason may be found with a corev1.ConditionUnknown status, if the cancellation is being processed or failed\nPipelineRunPending PipelineRunReasonPending  PipelineRunReasonPending is the reason set when the PipelineRun is in the pending state\nPipelineRunTimeout PipelineRunReasonTimedOut  PipelineRunReasonTimedOut is the reason set when the PipelineRun has timed out\nPipelineRunStopping PipelineRunReasonStopping  PipelineRunReasonStopping indicates that no new Tasks will be scheduled by the controller, and the  pipeline will stop once all running tasks complete their work\nCancelledRunningFinally PipelineRunReasonCancelledRunningFinally  PipelineRunReasonCancelledRunningFinally indicates that pipeline has been gracefully cancelled  and no new Tasks will be scheduled by the controller, but final tasks are now running\nStoppedRunningFinally PipelineRunReasonStoppedRunningFinally  PipelineRunReasonStoppedRunningFinally indicates that pipeline has been gracefully stopped  and no new Tasks will be scheduled by the controller, but final tasks are now running\nCouldntGetPipeline PipelineRunReasonCouldntGetPipeline  ReasonCouldntGetPipeline indicates that the reason for the failure status is that the  associated Pipeline couldn't be retrieved\nInvalidPipelineResourceBindings PipelineRunReasonInvalidBindings  ReasonInvalidBindings indicates that the reason for the failure status is that the  PipelineResources bound in the PipelineRun didn't match those declared in the Pipeline\nInvalidWorkspaceBindings PipelineRunReasonInvalidWorkspaceBinding  ReasonInvalidWorkspaceBinding indicates that a Pipeline expects a workspace but a  PipelineRun has provided an invalid binding.\nInvalidTaskRunSpecs PipelineRunReasonInvalidTaskRunSpec  ReasonInvalidTaskRunSpec indicates that PipelineRun.Spec.TaskRunSpecs[].PipelineTaskName is defined with  a not exist taskName in pipelineSpec.\nParameterTypeMismatch PipelineRunReasonParameterTypeMismatch  ReasonParameterTypeMismatch indicates that the reason for the failure status is that  parameter(s) declared in the PipelineRun do not have the some declared type as the  parameters(s) declared in the Pipeline that they are supposed to override.\nObjectParameterMissKeys PipelineRunReasonObjectParameterMissKeys  ReasonObjectParameterMissKeys indicates that the object param value provided from PipelineRun spec  misses some keys required for the object param declared in Pipeline spec.\nParamArrayIndexingInvalid PipelineRunReasonParamArrayIndexingInvalid  ReasonParamArrayIndexingInvalid indicates that the use of param array indexing is not under correct api fields feature gate  or the array is out of bound.\nCouldntGetTask PipelineRunReasonCouldntGetTask  ReasonCouldntGetTask indicates that the reason for the failure status is that the  associated Pipeline's Tasks couldn't all be retrieved\nParameterMissing PipelineRunReasonParameterMissing  ReasonParameterMissing indicates that the reason for the failure status is that the  associated PipelineRun didn't provide all the required parameters\nPipelineValidationFailed PipelineRunReasonFailedValidation  ReasonFailedValidation indicates that the reason for failure status is  that pipelinerun failed runtime validation\nCouldntGetPipelineResult PipelineRunReasonCouldntGetPipelineResult  PipelineRunReasonCouldntGetPipelineResult indicates that the pipeline fails to retrieve the  referenced result. This could be due to failed TaskRuns or Runs that were supposed to produce  the results\nPipelineInvalidGraph PipelineRunReasonInvalidGraph  ReasonInvalidGraph indicates that the reason for the failure status is that the  associated Pipeline is an invalid graph (a.k.a wrong order, cycle, …)\nPipelineRunCouldntCancel PipelineRunReasonCouldntCancel  ReasonCouldntCancel indicates that a PipelineRun was cancelled but attempting to update  all of the running TaskRuns as cancelled failed.\nPipelineRunCouldntTimeOut PipelineRunReasonCouldntTimeOut  ReasonCouldntTimeOut indicates that a PipelineRun was timed out but attempting to update  all of the running TaskRuns as timed out failed.\nInvalidMatrixParameterTypes PipelineRunReasonInvalidMatrixParameterTypes  ReasonInvalidMatrixParameterTypes indicates a matrix contains invalid parameter types\nInvalidTaskResultReference PipelineRunReasonInvalidTaskResultReference  ReasonInvalidTaskResultReference indicates a task result was declared  but was not initialized by that task\nRequiredWorkspaceMarkedOptional PipelineRunReasonRequiredWorkspaceMarkedOptional  ReasonRequiredWorkspaceMarkedOptional indicates an optional workspace  has been passed to a Task that is expecting a non-optional workspace\nResolvingPipelineRef PipelineRunReasonResolvingPipelineRef  ReasonResolvingPipelineRef indicates that the PipelineRun is waiting for  its pipelineRef to be asynchronously resolved.\nResourceVerificationFailed PipelineRunReasonResourceVerificationFailed  ReasonResourceVerificationFailed indicates that the pipeline fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nCreateRunFailed PipelineRunReasonCreateRunFailed  ReasonCreateRunFailed indicates that the pipeline fails to create the taskrun or other run resources\nCELEvaluationFailed PipelineRunReasonCELEvaluationFailed  ReasonCELEvaluationFailed indicates the pipeline fails the CEL evaluation\nInvalidParamValue PipelineRunReasonInvalidParamValue  PipelineRunReasonInvalidParamValue indicates that the PipelineRun Param input value is not allowed.",
+          "x-go-enum-desc": "Started PipelineRunReasonStarted is the reason set when the PipelineRun has just started\nRunning PipelineRunReasonRunning is the reason set when the PipelineRun is running\nSucceeded PipelineRunReasonSuccessful is the reason set when the PipelineRun completed successfully\nCompleted PipelineRunReasonCompleted is the reason set when the PipelineRun completed successfully with one or more skipped Tasks\nFailed PipelineRunReasonFailed is the reason set when the PipelineRun completed with a failure\nCancelled PipelineRunReasonCancelled is the reason set when the PipelineRun cancelled by the user  This reason may be found with a corev1.ConditionFalse status, if the cancellation was processed successfully  This reason may be found with a corev1.ConditionUnknown status, if the cancellation is being processed or failed\nPipelineRunPending PipelineRunReasonPending is the reason set when the PipelineRun is in the pending state\nPipelineRunTimeout PipelineRunReasonTimedOut is the reason set when the PipelineRun has timed out\nPipelineRunStopping PipelineRunReasonStopping indicates that no new Tasks will be scheduled by the controller, and the  pipeline will stop once all running tasks complete their work\nCancelledRunningFinally PipelineRunReasonCancelledRunningFinally indicates that pipeline has been gracefully cancelled  and no new Tasks will be scheduled by the controller, but final tasks are now running\nStoppedRunningFinally PipelineRunReasonStoppedRunningFinally indicates that pipeline has been gracefully stopped  and no new Tasks will be scheduled by the controller, but final tasks are now running\nCouldntGetPipeline PipelineRunReasonCouldntGetPipeline  ReasonCouldntGetPipeline indicates that the reason for the failure status is that the  associated Pipeline couldn't be retrieved\nInvalidPipelineResourceBindings PipelineRunReasonInvalidBindings  ReasonInvalidBindings indicates that the reason for the failure status is that the  PipelineResources bound in the PipelineRun didn't match those declared in the Pipeline\nInvalidWorkspaceBindings PipelineRunReasonInvalidWorkspaceBinding  ReasonInvalidWorkspaceBinding indicates that a Pipeline expects a workspace but a  PipelineRun has provided an invalid binding.\nInvalidTaskRunSpecs PipelineRunReasonInvalidTaskRunSpec  ReasonInvalidTaskRunSpec indicates that PipelineRun.Spec.TaskRunSpecs[].PipelineTaskName is defined with  a not exist taskName in pipelineSpec.\nParameterTypeMismatch PipelineRunReasonParameterTypeMismatch  ReasonParameterTypeMismatch indicates that the reason for the failure status is that  parameter(s) declared in the PipelineRun do not have the some declared type as the  parameters(s) declared in the Pipeline that they are supposed to override.\nObjectParameterMissKeys PipelineRunReasonObjectParameterMissKeys  ReasonObjectParameterMissKeys indicates that the object param value provided from PipelineRun spec  misses some keys required for the object param declared in Pipeline spec.\nParamArrayIndexingInvalid PipelineRunReasonParamArrayIndexingInvalid  ReasonParamArrayIndexingInvalid indicates that the use of param array indexing is not under correct api fields feature gate  or the array is out of bound.\nCouldntGetTask PipelineRunReasonCouldntGetTask  ReasonCouldntGetTask indicates that the reason for the failure status is that the  associated Pipeline's Tasks couldn't all be retrieved\nParameterMissing PipelineRunReasonParameterMissing  ReasonParameterMissing indicates that the reason for the failure status is that the  associated PipelineRun didn't provide all the required parameters\nPipelineValidationFailed PipelineRunReasonFailedValidation  ReasonFailedValidation indicates that the reason for failure status is  that pipelinerun failed runtime validation\nCouldntGetPipelineResult PipelineRunReasonCouldntGetPipelineResult indicates that the pipeline fails to retrieve the  referenced result. This could be due to failed TaskRuns or Runs that were supposed to produce  the results\nPipelineInvalidGraph PipelineRunReasonInvalidGraph  ReasonInvalidGraph indicates that the reason for the failure status is that the  associated Pipeline is an invalid graph (a.k.a wrong order, cycle, …)\nPipelineRunCouldntCancel PipelineRunReasonCouldntCancel  ReasonCouldntCancel indicates that a PipelineRun was cancelled but attempting to update  all of the running TaskRuns as cancelled failed.\nPipelineRunCouldntTimeOut PipelineRunReasonCouldntTimeOut  ReasonCouldntTimeOut indicates that a PipelineRun was timed out but attempting to update  all of the running TaskRuns as timed out failed.\nInvalidMatrixParameterTypes PipelineRunReasonInvalidMatrixParameterTypes  ReasonInvalidMatrixParameterTypes indicates a matrix contains invalid parameter types\nInvalidTaskResultReference PipelineRunReasonInvalidTaskResultReference  ReasonInvalidTaskResultReference indicates a task result was declared  but was not initialized by that task\nRequiredWorkspaceMarkedOptional PipelineRunReasonRequiredWorkspaceMarkedOptional  ReasonRequiredWorkspaceMarkedOptional indicates an optional workspace  has been passed to a Task that is expecting a non-optional workspace\nResolvingPipelineRef PipelineRunReasonResolvingPipelineRef  ReasonResolvingPipelineRef indicates that the PipelineRun is waiting for  its pipelineRef to be asynchronously resolved.\nResourceVerificationFailed PipelineRunReasonResourceVerificationFailed  ReasonResourceVerificationFailed indicates that the pipeline fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nCreateRunFailed PipelineRunReasonCreateRunFailed  ReasonCreateRunFailed indicates that the pipeline fails to create the taskrun or other run resources\nCELEvaluationFailed PipelineRunReasonCELEvaluationFailed  ReasonCELEvaluationFailed indicates the pipeline fails the CEL evaluation\nInvalidParamValue PipelineRunReasonInvalidParamValue indicates that the PipelineRun Param input value is not allowed.",
           "x-go-name": "Status"
         },
         "statusMessage": {
@@ -8293,7 +8291,7 @@
           "example": "2006-01-02T15:04:05Z"
         },
         "status": {
-          "description": "Status of the task\nStarted TaskRunReasonStarted  TaskRunReasonStarted is the reason set when the TaskRun has just started\nRunning TaskRunReasonRunning  TaskRunReasonRunning is the reason set when the TaskRun is running\nSucceeded TaskRunReasonSuccessful  TaskRunReasonSuccessful is the reason set when the TaskRun completed successfully\nFailed TaskRunReasonFailed  TaskRunReasonFailed is the reason set when the TaskRun completed with a failure\nToBeRetried TaskRunReasonToBeRetried  TaskRunReasonToBeRetried is the reason set when the last TaskRun execution failed, and will be retried\nTaskRunCancelled TaskRunReasonCancelled  TaskRunReasonCancelled is the reason set when the TaskRun is cancelled by the user\nTaskRunTimeout TaskRunReasonTimedOut  TaskRunReasonTimedOut is the reason set when one TaskRun execution has timed out\nTaskRunImagePullFailed TaskRunReasonImagePullFailed  TaskRunReasonImagePullFailed is the reason set when the step of a task fails due to image not being pulled\nTaskRunResultLargerThanAllowedLimit TaskRunReasonResultLargerThanAllowedLimit  TaskRunReasonResultLargerThanAllowedLimit is the reason set when one of the results exceeds its maximum allowed limit of 1 KB\nTaskRunStopSidecarFailed TaskRunReasonStopSidecarFailed  TaskRunReasonStopSidecarFailed indicates that the sidecar is not properly stopped.\nInvalidParamValue TaskRunReasonInvalidParamValue  TaskRunReasonInvalidParamValue indicates that the TaskRun Param input value is not allowed.\nTaskRunResolutionFailed TaskRunReasonFailedResolution  TaskRunReasonFailedResolution indicated that the reason for failure status is  that references within the TaskRun could not be resolved\nTaskRunValidationFailed TaskRunReasonFailedValidation  TaskRunReasonFailedValidation indicated that the reason for failure status is  that taskrun failed runtime validation\nTaskValidationFailed TaskRunReasonTaskFailedValidation  TaskRunReasonTaskFailedValidation indicated that the reason for failure status is  that task failed runtime validation\nResourceVerificationFailed TaskRunReasonResourceVerificationFailed  TaskRunReasonResourceVerificationFailed indicates that the task fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nFailureIgnored TaskRunReasonFailureIgnored  TaskRunReasonFailureIgnored is the reason set when the Taskrun has failed due to pod execution error and the failure is ignored for the owning PipelineRun.  TaskRuns failed due to reconciler/validation error should not use this reason.",
+          "description": "Status of the task\nStarted TaskRunReasonStarted is the reason set when the TaskRun has just started\nRunning TaskRunReasonRunning is the reason set when the TaskRun is running\nSucceeded TaskRunReasonSuccessful is the reason set when the TaskRun completed successfully\nFailed TaskRunReasonFailed is the reason set when the TaskRun completed with a failure\nToBeRetried TaskRunReasonToBeRetried is the reason set when the last TaskRun execution failed, and will be retried\nTaskRunCancelled TaskRunReasonCancelled is the reason set when the TaskRun is cancelled by the user\nTaskRunTimeout TaskRunReasonTimedOut is the reason set when one TaskRun execution has timed out\nTaskRunImagePullFailed TaskRunReasonImagePullFailed is the reason set when the step of a task fails due to image not being pulled\nTaskRunResultLargerThanAllowedLimit TaskRunReasonResultLargerThanAllowedLimit is the reason set when one of the results exceeds its maximum allowed limit of 1 KB\nTaskRunStopSidecarFailed TaskRunReasonStopSidecarFailed indicates that the sidecar is not properly stopped.\nInvalidParamValue TaskRunReasonInvalidParamValue indicates that the TaskRun Param input value is not allowed.\nTaskRunResolutionFailed TaskRunReasonFailedResolution indicated that the reason for failure status is  that references within the TaskRun could not be resolved\nTaskRunValidationFailed TaskRunReasonFailedValidation indicated that the reason for failure status is  that taskrun failed runtime validation\nTaskValidationFailed TaskRunReasonTaskFailedValidation indicated that the reason for failure status is  that task failed runtime validation\nResourceVerificationFailed TaskRunReasonResourceVerificationFailed indicates that the task fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nFailureIgnored TaskRunReasonFailureIgnored is the reason set when the Taskrun has failed due to pod execution error and the failure is ignored for the owning PipelineRun.  TaskRuns failed due to reconciler/validation error should not use this reason.",
           "type": "string",
           "enum": [
             "Started",
@@ -8313,7 +8311,7 @@
             "ResourceVerificationFailed",
             "FailureIgnored"
           ],
-          "x-go-enum-desc": "Started TaskRunReasonStarted  TaskRunReasonStarted is the reason set when the TaskRun has just started\nRunning TaskRunReasonRunning  TaskRunReasonRunning is the reason set when the TaskRun is running\nSucceeded TaskRunReasonSuccessful  TaskRunReasonSuccessful is the reason set when the TaskRun completed successfully\nFailed TaskRunReasonFailed  TaskRunReasonFailed is the reason set when the TaskRun completed with a failure\nToBeRetried TaskRunReasonToBeRetried  TaskRunReasonToBeRetried is the reason set when the last TaskRun execution failed, and will be retried\nTaskRunCancelled TaskRunReasonCancelled  TaskRunReasonCancelled is the reason set when the TaskRun is cancelled by the user\nTaskRunTimeout TaskRunReasonTimedOut  TaskRunReasonTimedOut is the reason set when one TaskRun execution has timed out\nTaskRunImagePullFailed TaskRunReasonImagePullFailed  TaskRunReasonImagePullFailed is the reason set when the step of a task fails due to image not being pulled\nTaskRunResultLargerThanAllowedLimit TaskRunReasonResultLargerThanAllowedLimit  TaskRunReasonResultLargerThanAllowedLimit is the reason set when one of the results exceeds its maximum allowed limit of 1 KB\nTaskRunStopSidecarFailed TaskRunReasonStopSidecarFailed  TaskRunReasonStopSidecarFailed indicates that the sidecar is not properly stopped.\nInvalidParamValue TaskRunReasonInvalidParamValue  TaskRunReasonInvalidParamValue indicates that the TaskRun Param input value is not allowed.\nTaskRunResolutionFailed TaskRunReasonFailedResolution  TaskRunReasonFailedResolution indicated that the reason for failure status is  that references within the TaskRun could not be resolved\nTaskRunValidationFailed TaskRunReasonFailedValidation  TaskRunReasonFailedValidation indicated that the reason for failure status is  that taskrun failed runtime validation\nTaskValidationFailed TaskRunReasonTaskFailedValidation  TaskRunReasonTaskFailedValidation indicated that the reason for failure status is  that task failed runtime validation\nResourceVerificationFailed TaskRunReasonResourceVerificationFailed  TaskRunReasonResourceVerificationFailed indicates that the task fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nFailureIgnored TaskRunReasonFailureIgnored  TaskRunReasonFailureIgnored is the reason set when the Taskrun has failed due to pod execution error and the failure is ignored for the owning PipelineRun.  TaskRuns failed due to reconciler/validation error should not use this reason.",
+          "x-go-enum-desc": "Started TaskRunReasonStarted is the reason set when the TaskRun has just started\nRunning TaskRunReasonRunning is the reason set when the TaskRun is running\nSucceeded TaskRunReasonSuccessful is the reason set when the TaskRun completed successfully\nFailed TaskRunReasonFailed is the reason set when the TaskRun completed with a failure\nToBeRetried TaskRunReasonToBeRetried is the reason set when the last TaskRun execution failed, and will be retried\nTaskRunCancelled TaskRunReasonCancelled is the reason set when the TaskRun is cancelled by the user\nTaskRunTimeout TaskRunReasonTimedOut is the reason set when one TaskRun execution has timed out\nTaskRunImagePullFailed TaskRunReasonImagePullFailed is the reason set when the step of a task fails due to image not being pulled\nTaskRunResultLargerThanAllowedLimit TaskRunReasonResultLargerThanAllowedLimit is the reason set when one of the results exceeds its maximum allowed limit of 1 KB\nTaskRunStopSidecarFailed TaskRunReasonStopSidecarFailed indicates that the sidecar is not properly stopped.\nInvalidParamValue TaskRunReasonInvalidParamValue indicates that the TaskRun Param input value is not allowed.\nTaskRunResolutionFailed TaskRunReasonFailedResolution indicated that the reason for failure status is  that references within the TaskRun could not be resolved\nTaskRunValidationFailed TaskRunReasonFailedValidation indicated that the reason for failure status is  that taskrun failed runtime validation\nTaskValidationFailed TaskRunReasonTaskFailedValidation indicated that the reason for failure status is  that task failed runtime validation\nResourceVerificationFailed TaskRunReasonResourceVerificationFailed indicates that the task fails the trusted resource verification,  it could be the content has changed, signature is invalid or public key is invalid\nFailureIgnored TaskRunReasonFailureIgnored is the reason set when the Taskrun has failed due to pod execution error and the failure is ignored for the owning PipelineRun.  TaskRuns failed due to reconciler/validation error should not use this reason.",
           "x-go-name": "Status"
         },
         "statusMessage": {
@@ -8454,7 +8452,7 @@
       ],
       "properties": {
         "status": {
-          "description": "Status of the container\nPending = Container in Waiting state and the reason is ContainerCreating\nStarting = Container is starting\nFailed = Container is failed\nFailing = Container is failed\nRunning = Container in Running state\nSucceeded = Container in Succeeded state\nStopped = Replica was deleted du to job stopped\nTerminated = Container in Terminated state\nPending Pending  Pending container\nFailed Failed  Failed container permanently exists in a failed state\nFailing Failing  Failing container, which can attempt to restart\nRunning Running  Running container\nTerminated Terminated  Terminated container\nStarting Starting  Starting container\nStopped Stopped  Stopped container\nSucceeded Succeeded  Succeeded all containers in the pod have voluntarily terminated",
+          "description": "Status of the container\n- Pending = Container in Waiting state and the reason is ContainerCreating\n- Starting = Container is starting\n- Failed = Container is failed\n- Failing = Container is failed\n- Running = Container in Running state\n- Succeeded = Container in Succeeded state\n- Stopped = Replica was deleted du to job stopped\n- Terminated = Container in Terminated state\nPending Pending container\nFailed Failed container permanently exists in a failed state\nFailing Failing container, which can attempt to restart\nRunning Running container\nTerminated Terminated container\nStarting Starting container\nStopped Stopped container\nSucceeded Succeeded all containers in the pod have voluntarily terminated",
           "type": "string",
           "enum": [
             "Pending",
@@ -8466,7 +8464,7 @@
             "Stopped",
             "Succeeded"
           ],
-          "x-go-enum-desc": "Pending Pending  Pending container\nFailed Failed  Failed container permanently exists in a failed state\nFailing Failing  Failing container, which can attempt to restart\nRunning Running  Running container\nTerminated Terminated  Terminated container\nStarting Starting  Starting container\nStopped Stopped  Stopped container\nSucceeded Succeeded  Succeeded all containers in the pod have voluntarily terminated",
+          "x-go-enum-desc": "Pending Pending container\nFailed Failed container permanently exists in a failed state\nFailing Failing container, which can attempt to restart\nRunning Running container\nTerminated Terminated container\nStarting Starting container\nStopped Stopped container\nSucceeded Succeeded all containers in the pod have voluntarily terminated",
           "x-go-name": "Status",
           "example": "Running"
         }
@@ -8477,8 +8475,7 @@
       "description": "ReplicaSummary describes condition of a pod",
       "type": "object",
       "required": [
-        "name",
-        "created"
+        "name"
       ],
       "properties": {
         "containerStarted": {
@@ -8552,7 +8549,7 @@
           "x-go-name": "StatusMessage"
         },
         "type": {
-          "description": "Pod type\nComponentReplica = Replica of a Radix component\nScheduledJobReplica = Replica of a Radix job-component\nJobManager = Replica of a Radix job-component scheduler\nJobManagerAux = Replica of a Radix job-component scheduler auxiliary\nOAuth2 = Replica of a Radix OAuth2 component\nUndefined = Replica without defined type - to be extended",
+          "description": "Pod type\n- ComponentReplica = Replica of a Radix component\n- ScheduledJobReplica = Replica of a Radix job-component\n- JobManager = Replica of a Radix job-component scheduler\n- JobManagerAux = Replica of a Radix job-component scheduler auxiliary\n- OAuth2 = Replica of a Radix OAuth2 component\n- Undefined = Replica without defined type - to be extended",
           "type": "string",
           "enum": [
             "ComponentReplica",
@@ -8717,7 +8714,7 @@
           "x-go-name": "Started"
         },
         "status": {
-          "description": "Status of the job\nRunning ScheduledBatchJobStatusRunning  ScheduledBatchJobStatusRunning Active\nSucceeded ScheduledBatchJobStatusSucceeded  ScheduledBatchJobStatusSucceeded Job succeeded\nFailed ScheduledBatchJobStatusFailed  ScheduledBatchJobStatusFailed Job failed\nWaiting ScheduledBatchJobStatusWaiting  ScheduledBatchJobStatusWaiting Job pending\nStopping ScheduledBatchJobStatusStopping  ScheduledBatchJobStatusStopping job is stopping\nStopped ScheduledBatchJobStatusStopped  ScheduledBatchJobStatusStopped job stopped\nActive ScheduledBatchJobStatusActive  ScheduledBatchJobStatusActive job, one or more pods are not ready\nCompleted ScheduledBatchJobStatusCompleted  ScheduledBatchJobStatusCompleted batch jobs are completed",
+          "description": "Status of the job\nRunning ScheduledBatchJobStatusRunning Active\nSucceeded ScheduledBatchJobStatusSucceeded Job succeeded\nFailed ScheduledBatchJobStatusFailed Job failed\nWaiting ScheduledBatchJobStatusWaiting Job pending\nStopping ScheduledBatchJobStatusStopping job is stopping\nStopped ScheduledBatchJobStatusStopped job stopped\nActive ScheduledBatchJobStatusActive job, one or more pods are not ready\nCompleted ScheduledBatchJobStatusCompleted batch jobs are completed",
           "type": "string",
           "enum": [
             "Running",
@@ -8729,7 +8726,7 @@
             "Active",
             "Completed"
           ],
-          "x-go-enum-desc": "Running ScheduledBatchJobStatusRunning  ScheduledBatchJobStatusRunning Active\nSucceeded ScheduledBatchJobStatusSucceeded  ScheduledBatchJobStatusSucceeded Job succeeded\nFailed ScheduledBatchJobStatusFailed  ScheduledBatchJobStatusFailed Job failed\nWaiting ScheduledBatchJobStatusWaiting  ScheduledBatchJobStatusWaiting Job pending\nStopping ScheduledBatchJobStatusStopping  ScheduledBatchJobStatusStopping job is stopping\nStopped ScheduledBatchJobStatusStopped  ScheduledBatchJobStatusStopped job stopped\nActive ScheduledBatchJobStatusActive  ScheduledBatchJobStatusActive job, one or more pods are not ready\nCompleted ScheduledBatchJobStatusCompleted  ScheduledBatchJobStatusCompleted batch jobs are completed",
+          "x-go-enum-desc": "Running ScheduledBatchJobStatusRunning Active\nSucceeded ScheduledBatchJobStatusSucceeded Job succeeded\nFailed ScheduledBatchJobStatusFailed Job failed\nWaiting ScheduledBatchJobStatusWaiting Job pending\nStopping ScheduledBatchJobStatusStopping job is stopping\nStopped ScheduledBatchJobStatusStopped job stopped\nActive ScheduledBatchJobStatusActive job, one or more pods are not ready\nCompleted ScheduledBatchJobStatusCompleted batch jobs are completed",
           "x-go-name": "Status",
           "example": "Waiting"
         },
@@ -8767,7 +8764,7 @@
       ],
       "properties": {
         "Restart": {
-          "description": "Timestamp of the job restart, if applied.\n+optional",
+          "description": "Timestamp of the job restart, if applied.",
           "type": "string"
         },
         "args": {
@@ -8789,7 +8786,7 @@
           "description": "BatchName Batch name, if any",
           "type": "string",
           "x-go-name": "BatchName",
-          "example": "\"batch-abc\""
+          "example": "batch-abc"
         },
         "command": {
           "description": "Command is the entrypoint array specified for the job. Not executed within a shell.",
@@ -8809,7 +8806,7 @@
           "description": "CronSchedule is the cron schedule expression, if this job was created by a cron schedule.",
           "type": "string",
           "x-go-name": "CronSchedule",
-          "example": "\"0 1 * * *\""
+          "example": "0 1 * * *"
         },
         "deploymentName": {
           "description": "DeploymentName name of RadixDeployment for the job",
@@ -8833,13 +8830,13 @@
           "description": "JobId JobId, if any",
           "type": "string",
           "x-go-name": "JobId",
-          "example": "\"job1\""
+          "example": "job1"
         },
         "message": {
           "description": "Message of a status, if any, of the job",
           "type": "string",
           "x-go-name": "Message",
-          "example": "\"Error occurred\""
+          "example": "Error occurred"
         },
         "name": {
           "description": "Name of the scheduled job",
@@ -8871,7 +8868,7 @@
           "x-go-name": "Started"
         },
         "status": {
-          "description": "Status of the job\nRunning ScheduledBatchJobStatusRunning  ScheduledBatchJobStatusRunning Active\nSucceeded ScheduledBatchJobStatusSucceeded  ScheduledBatchJobStatusSucceeded Job succeeded\nFailed ScheduledBatchJobStatusFailed  ScheduledBatchJobStatusFailed Job failed\nWaiting ScheduledBatchJobStatusWaiting  ScheduledBatchJobStatusWaiting Job pending\nStopping ScheduledBatchJobStatusStopping  ScheduledBatchJobStatusStopping job is stopping\nStopped ScheduledBatchJobStatusStopped  ScheduledBatchJobStatusStopped job stopped\nActive ScheduledBatchJobStatusActive  ScheduledBatchJobStatusActive job, one or more pods are not ready\nCompleted ScheduledBatchJobStatusCompleted  ScheduledBatchJobStatusCompleted batch jobs are completed",
+          "description": "Status of the job\nRunning ScheduledBatchJobStatusRunning Active\nSucceeded ScheduledBatchJobStatusSucceeded Job succeeded\nFailed ScheduledBatchJobStatusFailed Job failed\nWaiting ScheduledBatchJobStatusWaiting Job pending\nStopping ScheduledBatchJobStatusStopping job is stopping\nStopped ScheduledBatchJobStatusStopped job stopped\nActive ScheduledBatchJobStatusActive job, one or more pods are not ready\nCompleted ScheduledBatchJobStatusCompleted batch jobs are completed",
           "type": "string",
           "enum": [
             "Running",
@@ -8883,7 +8880,7 @@
             "Active",
             "Completed"
           ],
-          "x-go-enum-desc": "Running ScheduledBatchJobStatusRunning  ScheduledBatchJobStatusRunning Active\nSucceeded ScheduledBatchJobStatusSucceeded  ScheduledBatchJobStatusSucceeded Job succeeded\nFailed ScheduledBatchJobStatusFailed  ScheduledBatchJobStatusFailed Job failed\nWaiting ScheduledBatchJobStatusWaiting  ScheduledBatchJobStatusWaiting Job pending\nStopping ScheduledBatchJobStatusStopping  ScheduledBatchJobStatusStopping job is stopping\nStopped ScheduledBatchJobStatusStopped  ScheduledBatchJobStatusStopped job stopped\nActive ScheduledBatchJobStatusActive  ScheduledBatchJobStatusActive job, one or more pods are not ready\nCompleted ScheduledBatchJobStatusCompleted  ScheduledBatchJobStatusCompleted batch jobs are completed",
+          "x-go-enum-desc": "Running ScheduledBatchJobStatusRunning Active\nSucceeded ScheduledBatchJobStatusSucceeded Job succeeded\nFailed ScheduledBatchJobStatusFailed Job failed\nWaiting ScheduledBatchJobStatusWaiting Job pending\nStopping ScheduledBatchJobStatusStopping job is stopping\nStopped ScheduledBatchJobStatusStopped job stopped\nActive ScheduledBatchJobStatusActive job, one or more pods are not ready\nCompleted ScheduledBatchJobStatusCompleted batch jobs are completed",
           "x-go-name": "Status",
           "example": "Waiting"
         },
@@ -8943,7 +8940,7 @@
           "example": "volumeAbc"
         },
         "status": {
-          "description": "Status of the secret\nPending = Secret exists in Radix config, but not in cluster\nConsistent = Secret exists in Radix config and in cluster\nNotAvailable = Secret is available in external secret configuration but not in cluster",
+          "description": "Status of the secret\n- Pending = Secret exists in Radix config, but not in cluster\n- Consistent = Secret exists in Radix config and in cluster\n- NotAvailable = Secret is available in external secret configuration but not in cluster",
           "type": "string",
           "enum": [
             "Pending",
@@ -9291,7 +9288,7 @@
       "type": "object",
       "properties": {
         "webhookUrl": {
-          "description": "WebhookURL the Slack webhook URL where alerts are sent\nSecret key for webhook URL is updated if a non-nil value is present, and deleted if omitted or set to null\n\nrequired:",
+          "description": "WebhookURL the Slack webhook URL where alerts are sent\nSecret key for webhook URL is updated if a non-nil value is present, and deleted if omitted or set to null",
           "type": "string",
           "x-go-name": "WebhookURL",
           "x-nullable": true
@@ -9304,9 +9301,7 @@
       "type": "object",
       "required": [
         "subject",
-        "issuer",
-        "notBefore",
-        "notAfter"
+        "issuer"
       ],
       "properties": {
         "dnsNames": {
