@@ -271,6 +271,7 @@ func (a *App) createApplicationController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.config2,
 		a.eventRecorder,
 	)
 
@@ -288,6 +289,7 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		*a.config,
+		a.config2,
 		a.eventRecorder,
 	)
 

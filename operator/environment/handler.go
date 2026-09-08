@@ -36,6 +36,7 @@ func NewHandler(
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	config config.Config,
+	config2 config2.Config,
 	eventRecorder record.EventRecorder) common.Handler {
 
 	handler := &handler{
@@ -43,7 +44,7 @@ func NewHandler(
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
 		config:      config,
-		config2:     config2.Config{},
+		config2:     config2,
 		events:      common.NewSyncEventRecorder(eventRecorder),
 	}
 
