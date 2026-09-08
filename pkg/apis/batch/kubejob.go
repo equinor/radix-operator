@@ -134,7 +134,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	if batchJob.SafeToRestart != nil {
 		safeToRestart = batchJob.SafeToRestart
 	}
-	podAnnotations := getSafeToRestartAnnotations(safeToRestart, timeLimitSeconds, s.config.SafeToRestartBatchJobThreshold)
+	podAnnotations := getSafeToRestartAnnotations(safeToRestart, timeLimitSeconds, s.config2.Operator.BatchSafeToRestartJobThreshold)
 
 	node := jobComponent.GetNode()
 	if batchJob.Node != nil { // nolint:staticcheck // SA1019: Ignore linting deprecated fields

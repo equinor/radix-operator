@@ -54,7 +54,6 @@ func TestMustParse(t *testing.T) {
 	cfg := MustParse()
 
 	// Config top-level fields
-	assert.Equal(t, int64(259200), cfg.SafeToRestartBatchJobThreshold)
 
 	// Gateway
 	assert.Equal(t, "radix-gateway", cfg.Gateway.Name)

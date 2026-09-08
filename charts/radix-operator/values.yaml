@@ -102,6 +102,8 @@ config:
       repository: ghcr.io/equinor/radix/job-scheduler
       tag: "" # Fallback to .Chart.Version
 
+    batchSafeToRestartJobThreshold: 259200
+
 dnsZone: dev.radix.equinor.com
 radixZone: xx
 tenantId: xx

@@ -68,6 +68,7 @@ operator:
   jobSchedulerImage:
     repository: ghcr.io/equinor/radix-job-scheduler
     tag: v1.2.3
+  batchSafeToRestartJobThreshold: 1234
   podSecurityStandard:
     appNamespace:
       enforce:

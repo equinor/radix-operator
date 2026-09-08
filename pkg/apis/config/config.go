@@ -13,10 +13,6 @@ type Config struct {
 	TaskConfig              TaskConfig
 	CertificateAutomation   CertificateAutomationConfig
 	Gateway                 GatewayConfig
-
-	// SafeToRestartBatchJobThreshold is the threshold in seconds for determining the cluster-autoscaler safe-to-evict annotation on batch jobs.
-	// Jobs with timeLimitSeconds >= SafeToRestartBatchJobThreshold are marked as safe to evict.
-	SafeToRestartBatchJobThreshold int64 `envconfig:"RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD" default:"259200"`
 }
 
 func MustParse() *Config {
