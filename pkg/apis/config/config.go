@@ -7,12 +7,11 @@ import (
 
 // Config from environment variables
 type Config struct {
-	PipelineJobConfig       PipelineJobConfig
-	DeploymentSyncer        DeploymentSyncerConfig
-	ContainerRegistryConfig ContainerRegistryConfig
-	TaskConfig              TaskConfig
-	CertificateAutomation   CertificateAutomationConfig
-	Gateway                 GatewayConfig
+	PipelineJobConfig     PipelineJobConfig
+	DeploymentSyncer      DeploymentSyncerConfig
+	TaskConfig            TaskConfig
+	CertificateAutomation CertificateAutomationConfig
+	Gateway               GatewayConfig
 }
 
 func MustParse() *Config {

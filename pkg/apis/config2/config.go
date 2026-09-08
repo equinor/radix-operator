@@ -67,6 +67,9 @@ type OperatorConfig struct {
 	// BatchSafeToRestartJobThreshold is the threshold in seconds for determining the cluster-autoscaler safe-to-evict annotation on batch jobs.
 	// Jobs with timeLimitSeconds >= BatchSafeToRestartJobThreshold are marked as safe to evict.
 	BatchSafeToRestartJobThreshold int64 `json:"batchSafeToRestartJobThreshold" required:"true"`
+
+	// Name of the secret container docker authentication for external registries
+	ExternalRegistryAuthSecret string `json:"externalRegistryAuthSecret"`
 }
 
 type BuilderConfig struct {

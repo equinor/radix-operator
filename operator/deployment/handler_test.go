@@ -50,7 +50,7 @@ func (s *handlerSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
-	s.config = &config.Config{ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: "anysecret"}} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
+	s.config = &config.Config{} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
 	s.config2 = config2.Config{
 		Common: config2.CommonConfig{
 			OAuth2Proxy: config2.OAuth2ProxyConfig{
@@ -64,6 +64,7 @@ func (s *handlerSuite) SetupTest() {
 				},
 			},
 		},
+		Operator: config2.OperatorConfig{ExternalRegistryAuthSecret: "anySecret"},
 	}
 	s.eventRecorder = &record.FakeRecorder{}
 }
@@ -166,8 +167,8 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, s.config2, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, s.config2, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, s.config2),
+			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, s.config2),
 		}
 		factory.
 			EXPECT().

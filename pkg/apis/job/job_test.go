@@ -91,7 +91,8 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 				},
 				SeccompProfileLocalhostProfile: "anyseccomp",
 			},
-			ClusterType: "anyclustertype",
+			ClusterType:                "anyclustertype",
+			ExternalRegistryAuthSecret: "an-external-registry-secret",
 		},
 	}
 
@@ -285,7 +286,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, s.config2.Operator.Builder.Resources.Requests.CPU.String()),
 				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.config2.Operator.Builder.Resources.Limits.Memory.String()),
 				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.config2.Operator.Builder.Resources.Limits.CPU.String()),
-				fmt.Sprintf("--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=%s", config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+				fmt.Sprintf("--%s=%s", flags.ExternalRegistryAuthSecret, s.config2.Operator.ExternalRegistryAuthSecret),
 				fmt.Sprintf("--%s=%s", flags.BuilderImage, s.config2.Operator.Builder.Image.String()),
 				fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, s.config2.Operator.Builder.SeccompProfileLocalhostProfile),
 				fmt.Sprintf("--%s=%s", flags.ClusterType, s.config2.Operator.ClusterType),
@@ -1698,9 +1699,6 @@ func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
 			PipelineImage:            "docker.io/anypipeline:tag",
 			PipelineImagePullPolicy:  corev1.PullAlways,
 			GitCloneImage:            "docker.io/git:any",
-		},
-		ContainerRegistryConfig: config.ContainerRegistryConfig{
-			ExternalRegistryAuthSecret: "an-external-registry-secret",
 		},
 	}
 }

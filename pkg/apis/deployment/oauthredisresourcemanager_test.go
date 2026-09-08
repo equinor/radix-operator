@@ -53,7 +53,8 @@ func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
 			},
 		},
 		Operator: config2.OperatorConfig{
-			AppAliasBaseURL: "app.dev.radix.equinor.com",
+			AppAliasBaseURL:            "app.dev.radix.equinor.com",
+			ExternalRegistryAuthSecret: "someSecret",
 		},
 	}
 }
@@ -81,14 +82,13 @@ func (s *OAuthRedisResourceManagerTestSuite) TestNewOAuthRedisResourceManager() 
 	rd := utils.NewDeploymentBuilder().BuildRD()
 	rr := utils.NewRegistrationBuilder().BuildRR()
 
-	oauthManager := NewOAuthRedisResourceManager(rd, rr, s.kubeUtil, s.config2, "some-secret")
+	oauthManager := NewOAuthRedisResourceManager(rd, rr, s.kubeUtil, s.config2)
 	sut, ok := oauthManager.(*oauthRedisResourceManager)
 	s.True(ok)
 	s.Equal(rd, sut.rd)
 	s.Equal(rr, sut.rr)
 	s.Equal(s.kubeUtil, sut.kubeutil)
 	s.Equal(s.config2.Common.OAuth2Proxy.RedisImage.String(), sut.oauthRedisDockerImage)
-	s.Equal("some-secret", sut.externalRegistryAuthSecret)
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() {
@@ -121,7 +121,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 	}
 	for _, test := range tests {
 		s.Run(test.name, func() {
-			sut := &oauthRedisResourceManager{test.rd, rr, s.kubeUtil, "redis:123", "somesecretname", zerolog.Nop(), s.config2}
+			sut := &oauthRedisResourceManager{test.rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.config2}
 			err := sut.Sync(context.Background())
 			s.Nil(err)
 			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
@@ -144,7 +144,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 
 	for _, scenario := range scenarios {
-		sut := &oauthRedisResourceManager{scenario.rd, rr, s.kubeUtil, "redis:123", "somesecretname", zerolog.Nop(), s.config2}
+		sut := &oauthRedisResourceManager{scenario.rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.config2}
 		err := sut.Sync(context.Background())
 		s.Nil(err)
 		deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
@@ -235,7 +235,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 	for _, test := range tests {
 		s.Run(test.name, func() {
 			s.setupTest()
-			sut := &oauthRedisResourceManager{test.rd, rr, s.kubeUtil, "redis:123", "somesecretname", zerolog.Nop(), s.config2}
+			sut := &oauthRedisResourceManager{test.rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.config2}
 			err := sut.Sync(context.Background())
 			s.Nil(err)
 			deploys, _ := sut.kubeutil.KubeClient().AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
@@ -256,7 +256,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisDeploymentCreat
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: inputOAuth}).WithRuntime(&v1.Runtime{Architecture: "customarch"})).
 		BuildRD()
 
-	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", "somesecretname", zerolog.Nop(), s.config2}
+	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.config2}
 	err := sut.Sync(context.Background())
 	s.Require().NoError(err, "failed to sync oauth redis manager")
 
@@ -323,7 +323,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisServiceCreated(
 		WithEnvironment(envName).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreSystemManaged}})).
 		BuildRD()
-	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", "somesecretname", zerolog.Nop(), s.config2}
+	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.config2}
 	err := sut.Sync(context.Background())
 	s.Nil(err)
 
@@ -350,7 +350,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisUninstall() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component1Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreSystemManaged}})).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreSystemManaged}})).
 		BuildRD()
-	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", "somesecretname", zerolog.Nop(), s.config2}
+	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.config2}
 	err := sut.Sync(context.Background())
 	s.NoError(err, "failed to sync oauth redis manager")
 
@@ -369,14 +369,14 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisUninstall() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component1Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreSystemManaged}})).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{})).
 		BuildRD()
-	sut = &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", "somesecretname", zerolog.Nop(), s.config2}
+	sut = &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.config2}
 	err = sut.Sync(context.Background())
 	s.Nil(err)
 	actualDeploys, err = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
 	s.NoError(err, "failed to list deployments after OAuth config change")
 	s.Len(actualDeploys.Items, 1)
 	s.Equal(utils.GetAuxiliaryComponentDeploymentName(component1Name, v1.OAuthRedisAuxiliaryComponentSuffix), actualDeploys.Items[0].Name)
-	s.Equal(actualDeploys.Items[0].Spec.Template.Spec.ImagePullSecrets[0].Name, "somesecretname")
+	s.Equal(s.config2.Operator.ExternalRegistryAuthSecret, actualDeploys.Items[0].Spec.Template.Spec.ImagePullSecrets[0].Name)
 	actualServices, err = s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
 	s.NoError(err, "failed to list services after OAuth config change")
 	s.Len(actualServices.Items, 1)

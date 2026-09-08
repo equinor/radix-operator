@@ -162,6 +162,7 @@ func TestParse_HappyPath(t *testing.T) {
 				},
 			},
 			BatchSafeToRestartJobThreshold: 1234,
+			ExternalRegistryAuthSecret:     "anyExternalAuth",
 		},
 	}
 

@@ -106,8 +106,8 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.config2, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.config2, t.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.config2),
+		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.config2),
 	}
 
 	syncRD := rd.DeepCopy()

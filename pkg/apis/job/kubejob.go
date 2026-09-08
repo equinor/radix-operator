@@ -44,6 +44,12 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 	radixConfigFullName := getRadixConfigFullName(job.registration)
 	log.Ctx(ctx).Info().Msgf("Using image: %s", job.config.PipelineJobConfig.PipelineImage)
 
+	var imagePullSecrets []corev1.LocalObjectReference
+
+	if job.config2.Operator.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: job.config2.Operator.ExternalRegistryAuthSecret})
+	}
+
 	appName := job.radixJob.Spec.AppName
 	jobName := job.radixJob.Name
 
@@ -76,7 +82,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
 				},
 				Spec: corev1.PodSpec{
-					ImagePullSecrets:             job.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth(),
+					ImagePullSecrets:             imagePullSecrets,
 					ServiceAccountName:           defaults.PipelineServiceAccountName,
 					AutomountServiceAccountToken: new(true),
 					SecurityContext: securitycontext.Pod(
@@ -148,7 +154,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, job.config2.Operator.Builder.Resources.Requests.CPU.String()),
 		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, job.config2.Operator.Builder.Resources.Limits.Memory.String()),
 		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, job.config2.Operator.Builder.Resources.Limits.CPU.String()),
-		fmt.Sprintf("--%s=%s", defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, job.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		fmt.Sprintf("--%s=%s", flags.ExternalRegistryAuthSecret, job.config2.Operator.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images
 		fmt.Sprintf("--%s=%s", flags.BuilderImage, job.config2.Operator.Builder.Image.String()),

@@ -736,8 +736,8 @@ func (s *syncerTestSuite) Test_Batch_ImagePullSecrets() {
 			_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
-			cfg := &config.Config{ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
-			sut := s.createSyncer(batch, cfg, config2.Config{})
+			cfg2 := config2.Config{Operator: config2.OperatorConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
+			sut := s.createSyncer(batch, &config.Config{}, cfg2)
 			s.Require().NoError(sut.OnSync(context.Background()))
 			allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 			s.Require().Len(allJobs.Items, 1)

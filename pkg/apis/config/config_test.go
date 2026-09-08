@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func TestMustParse(t *testing.T) {
@@ -38,9 +37,6 @@ func TestMustParse(t *testing.T) {
 		defaults.OperatorTenantIdEnvironmentVariable:  "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",
 		defaults.KubernetesApiPortEnvironmentVariable: "443",
 		defaults.RadixJobAuxImageEnvironmentVariable:  "docker.io/bash:alpine3.22",
-
-		// ContainerRegistryConfig
-		defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable: "radix-external-registry-auth",
 
 		// TaskConfig
 		defaults.RadixOrphanedEnvironmentsRetentionPeriodVariable: "720h",
@@ -79,21 +75,8 @@ func TestMustParse(t *testing.T) {
 	assert.Equal(t, 10, cfg.DeploymentSyncer.DeploymentHistoryLimit)
 	assert.Equal(t, "docker.io/bash:alpine3.22", cfg.DeploymentSyncer.JobAuxImage)
 
-	// ContainerRegistryConfig
-	assert.Equal(t, "radix-external-registry-auth", cfg.ContainerRegistryConfig.ExternalRegistryAuthSecret)
-
 	// TaskConfig
 	require.NotNil(t, cfg.TaskConfig)
 	assert.Equal(t, 720*time.Hour, cfg.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod)
 	assert.Equal(t, "0 0 * * *", cfg.TaskConfig.OrphanedEnvironmentsCleanupCron)
-}
-
-func Test_ImagePullSecretsFromDefaultAuth(t *testing.T) {
-	cfg := ContainerRegistryConfig{ExternalRegistryAuthSecret: ""}
-	assert.Len(t, cfg.ImagePullSecretsFromExternalRegistryAuth(), 0)
-
-	secretName := "a-secret"
-	cfg = ContainerRegistryConfig{ExternalRegistryAuthSecret: secretName}
-	expected := []corev1.LocalObjectReference{{Name: secretName}}
-	assert.ElementsMatch(t, expected, cfg.ImagePullSecretsFromExternalRegistryAuth())
 }

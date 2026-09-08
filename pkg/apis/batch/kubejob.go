@@ -198,9 +198,13 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 }
 
 func (s *syncer) getJobPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1.LocalObjectReference {
+	if s.config2.Operator.ExternalRegistryAuthSecret == "" {
+		return rd.Spec.ImagePullSecrets
+	}
+
 	return append(
 		rd.Spec.ImagePullSecrets,
-		s.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...,
+		corev1.LocalObjectReference{Name: s.config2.Operator.ExternalRegistryAuthSecret},
 	)
 }
 

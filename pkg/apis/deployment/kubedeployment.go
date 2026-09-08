@@ -78,6 +78,11 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 
 func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(deployComponent.GetName())
+	var imagePullSecrets []corev1.LocalObjectReference
+
+	if deploy.config2.Operator.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config2.Operator.ExternalRegistryAuthSecret})
+	}
 
 	var env []corev1.EnvVar
 	if restartComponentValue, ok := deployComponent.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
@@ -115,7 +120,7 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 				Spec: corev1.PodSpec{
 					AutomountServiceAccountToken: new(false),
 					SecurityContext:              securitycontext.Pod(),
-					ImagePullSecrets:             deploy.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth(),
+					ImagePullSecrets:             imagePullSecrets,
 					ServiceAccountName:           (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName(),
 					Affinity:                     utils.GetAffinityForJobAPIAuxComponent(),
 					Volumes:                      volumes,
@@ -251,8 +256,8 @@ func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCo
 
 func (deploy *Deployment) getDeploymentPodImagePullSecrets() []corev1.LocalObjectReference {
 	imagePullSecrets := deploy.radixDeployment.Spec.ImagePullSecrets
-	if deploy.config != nil {
-		imagePullSecrets = append(imagePullSecrets, deploy.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...)
+	if deploy.config2.Operator.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config2.Operator.ExternalRegistryAuthSecret})
 	}
 	return imagePullSecrets
 }
