@@ -1,4 +1,4 @@
-package processfields
+package processfields_test
 
 import (
 	"net/url"
@@ -80,6 +80,12 @@ func TestSetUnmarshalerAndParsedTypes(t *testing.T) {
 			config:   &struct{ Value resource.Quantity }{},
 			field:    "Value",
 			expected: resource.MustParse("500m"),
+		},
+		"url": {
+			value:    "https://example.com/path?query=value#fragment",
+			config:   &struct{ Value url.URL }{},
+			field:    "Value",
+			expected: *expectedURL,
 		},
 	}
 

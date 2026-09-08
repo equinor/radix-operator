@@ -3,6 +3,7 @@ package deployment
 import (
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -40,7 +41,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		assert.Equal(t, new(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Components[1].Name), spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(internal.NewJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
+		spec = NewServiceAccountSpec(internal.NewJobSchedulerComponent(config2.Config{}, &rd.Spec.Jobs[0], rd))
 		assert.Equal(t, new(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
@@ -48,7 +49,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		assert.Equal(t, new(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(internal.NewJobSchedulerComponent(&rd.Spec.Jobs[1], rd))
+		spec = NewServiceAccountSpec(internal.NewJobSchedulerComponent(config2.Config{}, &rd.Spec.Jobs[1], rd))
 		assert.Equal(t, new(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
@@ -71,7 +72,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		assert.Equal(t, new(false), spec.AutomountServiceAccountToken())
 		assert.Equal(t, "default", spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(internal.NewJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
+		spec = NewServiceAccountSpec(internal.NewJobSchedulerComponent(config2.Config{}, &rd.Spec.Jobs[0], rd))
 		assert.Equal(t, new(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 

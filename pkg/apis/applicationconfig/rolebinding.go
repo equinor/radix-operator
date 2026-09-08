@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -13,8 +14,8 @@ func rolebindingAppReaderToBuildSecrets(registration *radixv1.RadixRegistration,
 	roleName := role.ObjectMeta.Name
 	return kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 }
-func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
-	subjects := utils.GetAppAdminRbacSubjects(registration)
+func rolebindingAppAdminToBuildSecrets(cfg config2.Config, registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
+	subjects := utils.GetAppAdminRbacSubjects(cfg, registration)
 	roleName := role.ObjectMeta.Name
 	return kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 }
