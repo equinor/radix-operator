@@ -1,10 +1,20 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: radix-common-config
+  name: {{ include "radix-common-config.name" . }}
   namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
 data:
   configYaml: |
-    {{- .Values.config | toYaml | nindent 4 }}
+    {{- $chartValues := dict
+      "operator" (dict
+        "jobSchedulerImage" (dict
+          "tag" (.Values.config.operator.jobSchedulerImage.tag | default .Chart.Version)
+        )
+        "builder" (dict
+          "seccompProfileLocalhostProfile" (.Values.config.operator.builder.seccompProfileLocalhostProfile | default .Values.seccompProfile.fileNameOnNode)
+        )
+      )
+    -}}
+    {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}

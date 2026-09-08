@@ -1,7 +1,8 @@
 # processfields
 
-`WalkFields` walks every leaf field of a config struct and hands each one to a callback,
-together with a setter that parses a string into that field.
+`WalkFields` walks every exported field of a config struct and hands each one to a callback.
+Leaf fields receive a setter that parses a string into that field. Structs and lists of
+structs are containers and receive a nil setter before their fields are walked.
 
 The package holds no policy of its own. It does not read struct tags, does not know about
 environment variables, and does not decide what "required" means — the callback does. That
@@ -18,6 +19,9 @@ err := processfields.WalkFields(cfg, func(path string, field reflect.StructField
 
 // Override from the environment
 err := processfields.WalkFields(cfg, func(path string, field reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
+	if setter == nil {
+		return nil
+	}
 	if v := os.Getenv(field.Tag.Get("env")); v != "" {
 		return setter(v)
 	}

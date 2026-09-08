@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -21,6 +22,7 @@ type Application struct {
 	radixclient  radixclient.Interface
 	kubeutil     *kube.Kube
 	registration *v1.RadixRegistration
+	config2      config2.Config
 }
 
 // NewApplication Constructor
@@ -28,13 +30,15 @@ func NewApplication(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	registration *v1.RadixRegistration) Application {
+	registration *v1.RadixRegistration,
+	config2 config2.Config) Application {
 
 	return Application{
 		kubeclient:   kubeclient,
 		radixclient:  radixclient,
 		kubeutil:     kubeutil,
 		registration: registration,
+		config2:      config2,
 	}
 }
 
@@ -61,7 +65,7 @@ func (app *Application) reconcile(ctx context.Context) error {
 		return fmt.Errorf("failed to apply pipeline secrets: %w", err)
 	}
 
-	if err := utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName); err != nil {
+	if err := utils.GrantAppAdminAccessToSecret(ctx, app.config2, app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName); err != nil {
 		return fmt.Errorf("failed to grant access to git private key secret: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msg("Applied secrets needed by pipelines")
@@ -70,7 +74,7 @@ func (app *Application) reconcile(ctx context.Context) error {
 		return fmt.Errorf("failed to apply webhook shared secret: %w", err)
 	}
 
-	if err := utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretName); err != nil {
+	if err := utils.GrantAppAdminAccessToSecret(ctx, app.config2, app.kubeutil, app.registration, defaults.WebhookSharedSecretName, defaults.WebhookSharedSecretName); err != nil {
 		return fmt.Errorf("failed to grant admin access to webhook shared secret: %w", err)
 	}
 	log.Ctx(ctx).Debug().Msg("Applied webhook shared secret")

@@ -58,6 +58,13 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
+Create the name of the common configuration ConfigMap
+*/}}
+{{- define "radix-common-config.name" -}}
+radix-common-config
+{{- end -}}
+
+{{/*
 Utility function to take list to comma separated dictionary
 */}}
 {{- define "helm-toolkit.utils.joinMapWithComma" -}}

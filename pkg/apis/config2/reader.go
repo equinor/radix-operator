@@ -13,6 +13,7 @@ import (
 )
 
 func EnvConfigMapReader(ctx context.Context, c client.Client) (string, error) {
+	// Load config map before we attempt to read the configuration
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
 		log.Ctx(ctx).Warn().Msg("POD_NAMESPACE env var not set, defaulting to 'default' namespace")

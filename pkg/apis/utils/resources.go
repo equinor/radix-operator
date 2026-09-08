@@ -4,19 +4,19 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func GetResourceRequirements(deployComponent v1.RadixCommonDeployComponent) (corev1.ResourceRequirements, error) {
-	return BuildResourceRequirement(deployComponent.GetResources())
+func GetResourceRequirements(cfg config2.Config, deployComponent v1.RadixCommonDeployComponent) (corev1.ResourceRequirements, error) {
+	return BuildResourceRequirement(cfg, deployComponent.GetResources())
 }
 
-func BuildResourceRequirement(source *v1.ResourceRequirements) (corev1.ResourceRequirements, error) {
+func BuildResourceRequirement(cfg config2.Config, source *v1.ResourceRequirements) (corev1.ResourceRequirements, error) {
 	var errs []error
-	defaultMemoryLimit := defaults.GetDefaultMemoryLimit()
+	defaultMemoryLimit := cfg.Operator.EnvNsLimitRange.DefaultMemory
 	limits, err := mapResourceList(source.Limits)
 	if err != nil {
 		errs = append(errs, err)
