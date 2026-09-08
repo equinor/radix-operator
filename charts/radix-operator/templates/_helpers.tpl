@@ -61,6 +61,13 @@ Create the name of the service account to use
 Create the name of the common configuration ConfigMap
 */}}
 {{- define "radix-common-config.name" -}}
+{{- $_ := required "config.common.dnsZone is required" .Values.config.common.dnsZone -}}
+{{- $_ := required "config.common.clusterName is required" .Values.config.common.clusterName -}}
+{{- $_ := required "config.operator.appAliasBaseURL is required" .Values.config.operator.appAliasBaseURL -}}
+{{- $_ := required "config.operator.appContainerRegistry is required" .Values.config.operator.appContainerRegistry -}}
+{{- $_ := required "config.operator.azureKeyVaultTenantID is required" .Values.config.operator.azureKeyVaultTenantID -}}
+{{- $_ := required "config.operator.clusterType is required" .Values.config.operator.clusterType -}}
+{{- $_ := required "config.operator.containerRegistry is required" .Values.config.operator.containerRegistry -}}
 radix-common-config
 {{- end -}}
 

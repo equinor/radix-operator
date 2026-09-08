@@ -207,13 +207,26 @@ lint-helm: bootstrap
 	helm lint ./charts/radix-operator \
 		--set rbac.createApp.groups[0]=platform-users \
 		--set ingress.gateway.name=radix \
-		--set ingress.gateway.namespace=istio
+		--set ingress.gateway.namespace=istio \
+		--set config.common.dnsZone=radix.example.com \
+		--set config.common.clusterName=mycluster \
+		--set config.operator.appAliasBaseURL=app.radix.example.com \
+		--set config.operator.appContainerRegistry=cache.example.com \
+		--set config.operator.azureKeyVaultTenantID=1234 \
+		--set config.operator.clusterType=dev \
+		--set config.operator.containerRegistry=build.example.com
 helm-render:
 	helm template ./charts/radix-operator \
 		--set rbac.createApp.groups[0]=platform-users \
 		--set ingress.gateway.name=radix \
-		--set ingress.gateway.namespace=istio
-
+		--set ingress.gateway.namespace=istio \
+		--set config.common.dnsZone=radix.example.com \
+		--set config.common.clusterName=mycluster \
+		--set config.operator.appAliasBaseURL=app.radix.example.com \
+		--set config.operator.appContainerRegistry=cache.example.com \
+		--set config.operator.azureKeyVaultTenantID=1234 \
+		--set config.operator.clusterType=dev \
+		--set config.operator.containerRegistry=build.example.com
 
 .PHONY: generate
 generate: bootstrap code-gen helmresources mocks swagger

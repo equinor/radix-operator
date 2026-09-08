@@ -46,6 +46,8 @@ config:
     defaultRollingUpdateMaxUnavailable: 25%
     defaultRollingUpdateMaxSurge: 25%
 
+    clusterType: ""
+
     containerRegistry: ""
     appContainerRegistry: ""
     appAliasBaseURL: app.dev.radix.equinor.com
