@@ -87,7 +87,7 @@ func (o *oauthProxyResourceManager) buildComponentWithOAuthDefaults(component *r
 	if err != nil {
 		return nil, err
 	}
-	componentWithOAuthDefaults.Authentication.OAuth2 = new(radixv1.OAuth2(oauth))
+	componentWithOAuthDefaults.Authentication.OAuth2 = &oauth
 	return componentWithOAuthDefaults, nil
 }
 
