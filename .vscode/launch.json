@@ -34,7 +34,7 @@
 				"--PIPELINE_TYPE=build-deploy",
 				"--DEBUG=true",
 				"--builder-image=ghcr.io/equinor/radix/buildkit-builder:latest",
-				"--builder-seccompprofile-localhostprofile=allow-buildah.json",
+				"--builder-seccomp-profile-localhost-profile=allow-buildah.json",
 				"--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=docker.io/alpine/git:2.45.2",
 				"--RADIX_CLUSTER_TYPE=development",
 				"--cluster-name=weekly-28",

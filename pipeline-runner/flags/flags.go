@@ -13,5 +13,5 @@ const (
 
 	BuilderImage = "builder-image"
 
-	BuilderSeccompProfileLocalHostProfile = "builder-seccompprofile-localhostprofile"
+	BuilderSeccompProfileLocalHostProfile = "builder-seccomp-profile-localhost-profile"
 )
