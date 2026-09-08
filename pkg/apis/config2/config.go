@@ -195,7 +195,7 @@ func processEnvOverrides(cfg *Config, prefix string) error {
 		}
 
 		if setter == nil {
-			return fmt.Errorf("its not allowed to use env-overrides (%s) on a struct on path %s", env, path)
+			return fmt.Errorf("it's not allowed to use env-overrides (%s) on a struct on path %s", env, path)
 		}
 
 		values := []string{envValue}
