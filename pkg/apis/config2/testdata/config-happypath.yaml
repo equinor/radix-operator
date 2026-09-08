@@ -70,6 +70,7 @@ operator:
     tag: v1.2.3
   batchSafeToRestartJobThreshold: 1234
   externalRegistryAuthSecret: anyExternalAuth
+  azureKeyVaultTenantID: any-tenant-id
   podSecurityStandard:
     appNamespace:
       enforce:

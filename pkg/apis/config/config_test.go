@@ -34,7 +34,6 @@ func TestMustParse(t *testing.T) {
 		defaults.RadixPipelineImageEnvironmentVariable:             "radixdev.azurecr.io/radix-pipeline:latest",
 
 		// DeploymentSyncer
-		defaults.OperatorTenantIdEnvironmentVariable:  "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",
 		defaults.KubernetesApiPortEnvironmentVariable: "443",
 		defaults.RadixJobAuxImageEnvironmentVariable:  "docker.io/bash:alpine3.22",
 
@@ -70,7 +69,6 @@ func TestMustParse(t *testing.T) {
 	assert.Equal(t, "radixdev.azurecr.io/radix-pipeline:latest", cfg.PipelineJobConfig.PipelineImage)
 
 	// DeploymentSyncer
-	assert.Equal(t, "3aa4a235-b6e2-48d5-9195-7fcf05b459b0", cfg.DeploymentSyncer.TenantID)
 	assert.Equal(t, int32(443), cfg.DeploymentSyncer.KubernetesAPIPort)
 	assert.Equal(t, 10, cfg.DeploymentSyncer.DeploymentHistoryLimit)
 	assert.Equal(t, "docker.io/bash:alpine3.22", cfg.DeploymentSyncer.JobAuxImage)

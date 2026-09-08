@@ -70,6 +70,7 @@ type OperatorConfig struct {
 
 	// Name of the secret container docker authentication for external registries
 	ExternalRegistryAuthSecret string `json:"externalRegistryAuthSecret"`
+	AzureKeyVaultTenantID      string `json:"azureKeyVaultTenantID" required:"true"`
 }
 
 type BuilderConfig struct {

@@ -43,10 +43,6 @@ func TestAlertTestSuite(t *testing.T) {
 	suite.Run(t, new(alertTestSuite))
 }
 
-func (s *alertTestSuite) SetupSuite() {
-	test.SetRequiredEnvironmentVariables()
-}
-
 func (s *alertTestSuite) SetupTest() {
 	s.dynamicClient = test.CreateClient()
 }

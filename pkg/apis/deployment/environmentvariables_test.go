@@ -69,7 +69,6 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 
 	t.Run("static env vars are set", func(t *testing.T) {
 		testEnv := setupTestEnv(t)
-		defer TeardownTest()
 
 		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 			componentBuilder.WithEnvironmentVariables(map[string]string{
@@ -96,7 +95,6 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 
 	t.Run("custom env vars from radix config", func(t *testing.T) {
 		testEnv := setupTestEnv(t)
-		defer TeardownTest()
 
 		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 			componentBuilder.WithEnvironmentVariables(map[string]string{
@@ -125,7 +123,6 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 
 	t.Run("secrets are mapped as SecretKeyRef", func(t *testing.T) {
 		testEnv := setupTestEnv(t)
-		defer TeardownTest()
 
 		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 			componentBuilder.
@@ -167,7 +164,7 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 	namespace := utils.GetEnvironmentNamespace(appName, envName)
 	componentName := "any-component"
 	testEnv := setupTestEnv(t)
-	defer TeardownTest()
+
 	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
 		//goland:noinspection GoUnhandledErrorResult
 		_, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{

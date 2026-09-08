@@ -105,10 +105,9 @@ config:
     batchSafeToRestartJobThreshold: 259200
 
     externalRegistryAuthSecret: "" # Name of the secret containing default container registry credentials for pulling images when building with buildah and pulling external images for components and jobs
-
+    azureKeyVaultTenantID: "" # Tenant ID for Azure Key Vault used for secrets in Radix applications
 dnsZone: dev.radix.equinor.com
 radixZone: xx
-tenantId: xx
 
 replicaCount: 1
 

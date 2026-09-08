@@ -118,9 +118,6 @@ const (
 
 	RadixPipelineApplyConfigDeployExternalDNSFlag = "APPLY_CONFIG_DEPLOY_EXTERNALDNS"
 
-	// OperatorTenantIdEnvironmentVariable Tenant-id of the subscription
-	OperatorTenantIdEnvironmentVariable = "RADIXOPERATOR_TENANT_ID"
-
 	// KubernetesApiPortEnvironmentVariable Port which the K8s API server listens to for HTTPS
 	KubernetesApiPortEnvironmentVariable = "KUBERNETES_SERVICE_PORT"
 

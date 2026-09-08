@@ -6,7 +6,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
@@ -21,8 +20,6 @@ func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
 }
 
 func TestGetReadinessProbe_Custom(t *testing.T) {
-	test.SetRequiredEnvironmentVariables()
-
 	probe := getDefaultReadinessProbeForComponent(testConfig2, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
 
 	assert.Equal(t, testConfig2.Operator.ReadinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
