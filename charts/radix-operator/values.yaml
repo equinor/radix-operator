@@ -52,6 +52,8 @@ config:
     appContainerRegistry: ""
     appAliasBaseURL: app.dev.radix.equinor.com
 
+    kubernetesAPIPort: "$__env(KUBERNETES_SERVICE_PORT)"
+
     defaultAppAdminGroups: []
 
     # Ref https://kubernetes.io/docs/concepts/security/pod-security-standards/ for docs and valid values for level and version

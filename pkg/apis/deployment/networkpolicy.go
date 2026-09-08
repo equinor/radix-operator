@@ -22,7 +22,7 @@ func (deploy *Deployment) setDefaultNetworkPolicies(ctx context.Context) error {
 
 	networkPolicies := []*v1.NetworkPolicy{
 		defaultIngressNetworkPolicy(appName, env, owner, deploy.config.Gateway.Name),
-		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.config.DeploymentSyncer.KubernetesAPIPort),
+		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.config2.Operator.KubernetesAPIPort),
 		allowOauthAuxComponentEgressNetworkPolicy(appName, env, owner),
 	}
 

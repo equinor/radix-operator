@@ -74,6 +74,7 @@ operator:
   batchSafeToRestartJobThreshold: 1234
   externalRegistryAuthSecret: anyExternalAuth
   azureKeyVaultTenantID: any-tenant-id
+  kubernetesAPIPort: 443
   podSecurityStandard:
     appNamespace:
       enforce:

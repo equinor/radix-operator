@@ -60,7 +60,6 @@ const (
 
 var testConfig = config.Config{
 	DeploymentSyncer: config.DeploymentSyncerConfig{
-		KubernetesAPIPort:      543,
 		DeploymentHistoryLimit: 10,
 	},
 	CertificateAutomation: config.CertificateAutomationConfig{
@@ -91,6 +90,7 @@ var testConfig2 = config2.Config{
 		},
 		ClusterType:           "development",
 		AzureKeyVaultTenantID: "123456789",
+		KubernetesAPIPort:     543,
 	},
 }
 

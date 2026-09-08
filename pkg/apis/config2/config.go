@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -18,6 +19,8 @@ import (
 type Validator interface {
 	Validate() error
 }
+
+var envMacroJSONRegexp = regexp.MustCompile(`"\$__env\(([^)]+)\)"`)
 
 type Config struct {
 	Operator OperatorConfig `json:"operator"`
@@ -73,6 +76,8 @@ type OperatorConfig struct {
 	AzureKeyVaultTenantID      string `json:"azureKeyVaultTenantID" required:"true"`
 
 	JobSchedulerAuxImage ContainerImage `json:"jobSchedulerAuxImage" required:"true"`
+
+	KubernetesAPIPort int32 `json:"kubernetesAPIPort" required:"true"`
 }
 
 type BuilderConfig struct {
@@ -121,11 +126,11 @@ type PodSecurityStandardModeConfig struct {
 
 func Parse(configYaml string) (*Config, error) {
 	var cfg Config
-
 	configJson, err := yaml.YAMLToJSON([]byte(configYaml))
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert YAML to JSON: %w", err)
 	}
+	configJson = expandEnvMacros(configJson)
 
 	if err := json.Unmarshal(configJson, &cfg, binaryUnmarshaler); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
@@ -149,6 +154,17 @@ func MustParse(configYaml string) Config {
 		log.Fatal().Err(err).Msg("Failed to parse config")
 	}
 	return *cfg
+}
+
+func expandEnvMacros(configJson []byte) []byte {
+	return envMacroJSONRegexp.ReplaceAllFunc(configJson, func(macro []byte) []byte {
+		envName := string(macro[len(`"$__env(`) : len(macro)-2])
+		envValue := os.Getenv(envName)
+		if envValue == "" {
+			return macro
+		}
+		return []byte(envValue)
+	})
 }
 
 func validateConfig(cfg *Config) error {
@@ -189,8 +205,7 @@ func validateConfig(cfg *Config) error {
 }
 
 func processEnvOverrides(cfg *Config, prefix string) error {
-	return processfields.WalkFields(cfg, func(path string, field reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
-
+	return processfields.WalkFields(cfg, func(path string, field reflect.StructField, val reflect.Value, setter processfields.SetValFunc) error {
 		env := strings.ReplaceAll(path, ".", "_")
 		env = strings.ReplaceAll(env, "[", "_")
 		env = strings.ReplaceAll(env, "]", "_")

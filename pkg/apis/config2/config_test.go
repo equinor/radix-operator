@@ -168,6 +168,7 @@ func TestParse_HappyPath(t *testing.T) {
 			BatchSafeToRestartJobThreshold: 1234,
 			ExternalRegistryAuthSecret:     "anyExternalAuth",
 			AzureKeyVaultTenantID:          "any-tenant-id",
+			KubernetesAPIPort:              443,
 		},
 	}
 
@@ -182,6 +183,18 @@ func TestParse_EnvOverride(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	assert.Equal(t, "debug", cfg.Operator.LogLevel)
+}
+
+func TestParse_EnvMacro(t *testing.T) {
+	t.Setenv("TEST_KUBERNETES_API_PORT", "6443")
+
+	configYaml := strings.ReplaceAll(configHappyYaml, "kubernetesAPIPort: 443", `kubernetesAPIPort: "$__env(TEST_KUBERNETES_API_PORT)"`)
+
+	cfg, err := config2.Parse(configYaml)
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Equal(t, int32(6443), cfg.Operator.KubernetesAPIPort)
 }
 
 // Only slice fields are comma separated, a scalar keeps the value as it is.

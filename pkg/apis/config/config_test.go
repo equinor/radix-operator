@@ -68,7 +68,6 @@ func TestMustParse(t *testing.T) {
 	assert.Equal(t, "radixdev.azurecr.io/radix-pipeline:latest", cfg.PipelineJobConfig.PipelineImage)
 
 	// DeploymentSyncer
-	assert.Equal(t, int32(443), cfg.DeploymentSyncer.KubernetesAPIPort)
 	assert.Equal(t, 10, cfg.DeploymentSyncer.DeploymentHistoryLimit)
 
 	// TaskConfig
