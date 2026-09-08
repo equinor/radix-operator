@@ -125,6 +125,7 @@ func TestParse_HappyPath(t *testing.T) {
 					Repository: "ghcr.io/equinor/radix/buildkit-builder",
 					Tag:        "v3.4.5",
 				},
+				SeccompProfileLocalhostProfile: "anyseccomp.json",
 			},
 			JobSchedulerImage: config2.ContainerImage{
 				Repository: "ghcr.io/equinor/radix-job-scheduler",

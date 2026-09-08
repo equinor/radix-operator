@@ -12,4 +12,6 @@ const (
 	BuilderResourcesRequestsMemory = "builder-resources-requests-memory"
 
 	BuilderImage = "builder-image"
+
+	BuilderSeccompProfileLocalHostProfile = "builder-seccompprofile-localhostprofile"
 )
