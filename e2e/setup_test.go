@@ -222,6 +222,7 @@ func TestMain(m *testing.M) {
 	helmValues := map[string]string{
 		"config.operator.containerRegistry":     "local-kind-repo",
 		"config.operator.appContainerRegistry":  "local-kind-repo",
+		"config.operator.clusterType":           "test",
 		"config.common.clusterName":             "weekly-e2e",
 		"config.common.dnsZone":                 "radix.example.com",
 		"rbac.createApp.groups[0]":              "123",
