@@ -48,10 +48,6 @@ spec:
               value: {{ .Values.logPretty | quote }}
             - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE
               value: {{ .Values.gitClone.image.repository }}:{{ .Values.gitClone.image.tag | default "latest" }}
-            - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD
-              value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
-            - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
-              value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
             - name: RADIXOPERATOR_PIPELINE_IMAGE
               value: {{ .Values.radixPipelineRunner.image.repository }}:{{ .Values.radixPipelineRunner.image.tag | default .Chart.AppVersion }}
             - name: RADIXOPERATOR_PIPELINE_IMAGE_PULL_POLICY

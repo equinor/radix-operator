@@ -7,8 +7,7 @@ import (
 
 // Config from environment variables
 type Config struct {
-	PipelineJobConfig     PipelineJobConfig
-	TaskConfig            TaskConfig
+	PipelineJobConfig PipelineJobConfig
 }
 
 func MustParse() *Config {
@@ -18,6 +17,5 @@ func MustParse() *Config {
 		log.Fatal().Msg(err.Error())
 	}
 	c.PipelineJobConfig.MustValidate()
-	c.TaskConfig.MustValidate()
 	return &c
 }

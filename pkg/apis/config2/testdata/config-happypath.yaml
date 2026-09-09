@@ -105,3 +105,5 @@ operator:
     name: "gateway"
     namespace: "istio-system"
     sectionName: "https"
+  orphanedEnvironmentsRetentionPeriod: 720h
+  orphanedEnvironmentsCleanupCron: "0 0 * * *"

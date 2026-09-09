@@ -4,6 +4,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/google/cel-go/cel"
 	celtypes "github.com/google/cel-go/common/types"
@@ -25,6 +26,14 @@ func NewCelValidator() (*CelValidator, error) {
 				[]*cel.Type{cel.StringType, cel.StringType},
 				cel.IntType,
 				cel.BinaryBinding(compareQuantity),
+			),
+		),
+		cel.Function("compareDuration",
+			cel.Overload(
+				"compare_duration_string_string",
+				[]*cel.Type{cel.StringType, cel.StringType},
+				cel.IntType,
+				cel.BinaryBinding(compareDuration),
 			),
 		),
 	)
@@ -85,4 +94,22 @@ func compareQuantity(lhs, rhs ref.Val) ref.Val {
 		return celtypes.NewErr("invalid quantity %q: %v", rhs.Value(), err)
 	}
 	return celtypes.Int(left.Cmp(right))
+}
+
+func compareDuration(lhs, rhs ref.Val) ref.Val {
+	left, err := time.ParseDuration(string(lhs.(celtypes.String)))
+	if err != nil {
+		return celtypes.NewErr("invalid duration %q: %v", lhs.Value(), err)
+	}
+	right, err := time.ParseDuration(string(rhs.(celtypes.String)))
+	if err != nil {
+		return celtypes.NewErr("invalid duration %q: %v", rhs.Value(), err)
+	}
+	if left == right {
+		return celtypes.Int(0)
+	} else if left < right {
+		return celtypes.Int(-1)
+	} else {
+		return celtypes.Int(1)
+	}
 }

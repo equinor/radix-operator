@@ -191,6 +191,8 @@ func TestParse_HappyPath(t *testing.T) {
 				Duration:             8760 * time.Hour,
 				RenewBefore:          720 * time.Hour,
 			},
+			OrphanedRadixEnvironmentsRetentionPeriod: 720 * time.Hour,
+			OrphanedEnvironmentsCleanupCron:          "0 0 * * *",
 		},
 	}
 
@@ -284,6 +286,43 @@ func TestParse_DeploymentHistoryLimitValidation(t *testing.T) {
 		"equal to 3 should pass": {
 			mutateConfig: func(cfg *config2.Config) {
 				cfg.Operator.DeploymentHistoryLimit = 3
+			},
+			expectedError: ``,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := mutateConfig(t, test.mutateConfig)
+
+			cfg, err := config2.Parse(configYaml)
+
+			if test.expectedError == "" {
+				require.NoError(t, err)
+				return
+			} else {
+				require.Error(t, err)
+				assert.Nil(t, cfg)
+				assert.ErrorContains(t, err, test.expectedError)
+			}
+		})
+	}
+
+}
+func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"below 5 minutes should fail": {
+			mutateConfig: func(cfg *config2.Config) {
+				cfg.Operator.OrphanedRadixEnvironmentsRetentionPeriod = 4 * time.Minute
+			},
+			expectedError: `failed to validate config: field "Operator.OrphanedRadixEnvironmentsRetentionPeriod" did not pass validation expression`,
+		},
+		"equal to 5 minutes should pass": {
+			mutateConfig: func(cfg *config2.Config) {
+				cfg.Operator.OrphanedRadixEnvironmentsRetentionPeriod = 5 * time.Minute
 			},
 			expectedError: ``,
 		},
