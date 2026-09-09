@@ -1,6 +1,7 @@
 package config2_test
 
 import (
+	"encoding/json/v2"
 	"strings"
 	"testing"
 
@@ -31,9 +32,18 @@ func mutateConfig(t *testing.T, mutate func(*config2.Config)) string {
 	t.Helper()
 
 	var cfg config2.Config
-	require.NoError(t, yaml.Unmarshal([]byte(configHappyYaml), &cfg))
+
+	configJson, err := yaml.YAMLToJSON([]byte(configHappyYaml))
+	require.NoError(t, err)
+
+	require.NoError(t, json.Unmarshal(configJson, &cfg, config2.BinaryUnmarshaler, config2.DurationUnmarshaler))
+
 	mutate(&cfg)
-	configYaml, err := yaml.Marshal(cfg)
+
+	cfgJson, err := json.Marshal(cfg, config2.DurationMarshaller)
+	require.NoError(t, err)
+
+	configYaml, err := yaml.JSONToYAML(cfgJson)
 	require.NoError(t, err)
 	return string(configYaml)
 }

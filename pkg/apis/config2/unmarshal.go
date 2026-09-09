@@ -10,7 +10,7 @@ import (
 )
 
 // encoding/json/v2 ignores encoding.BinaryUnmarshaler, so types like url.URL need it wired up manually.
-var binaryUnmarshaler = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
+var BinaryUnmarshaler = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
 	unmarshaler, ok := v.(encoding.BinaryUnmarshaler)
 	if !ok {
 		return errors.ErrUnsupported // fall back to the default decoding
@@ -22,7 +22,7 @@ var binaryUnmarshaler = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec *j
 	return unmarshaler.UnmarshalBinary([]byte(raw))
 }))
 
-var durationUnmarshaler = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
+var DurationUnmarshaler = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
 	val, ok := v.(*time.Duration)
 	if !ok {
 		return errors.ErrUnsupported // fall back to the default decoding
@@ -56,7 +56,7 @@ var durationUnmarshaler = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec 
 	}
 }))
 
-var durationMarshaller = json.WithMarshalers(
+var DurationMarshaller = json.WithMarshalers(
 	json.MarshalToFunc(func(enc *jsontext.Encoder, val time.Duration) error {
 		return json.MarshalEncode(enc, val.String())
 	}),

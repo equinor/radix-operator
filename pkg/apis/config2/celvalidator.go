@@ -64,7 +64,7 @@ func (v *CelValidator) ValidateField(expression string, config any, value reflec
 }
 
 func toJSONValue(value any) (any, error) {
-	valueJSON, err := json.Marshal(value, durationMarshaller)
+	valueJSON, err := json.Marshal(value, DurationMarshaller)
 	if err != nil {
 		return nil, err
 	}
