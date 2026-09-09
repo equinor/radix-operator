@@ -114,6 +114,7 @@ config:
     jobSchedulerAuxImage:
       repository: docker.io/bash
       tag: "latest"
+    deploymentHistoryLimit: 10
 
 dnsZone: dev.radix.equinor.com
 radixZone: xx

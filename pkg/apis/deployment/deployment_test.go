@@ -59,9 +59,6 @@ const (
 )
 
 var testConfig = config.Config{
-	DeploymentSyncer: config.DeploymentSyncerConfig{
-		DeploymentHistoryLimit: 10,
-	},
 	CertificateAutomation: config.CertificateAutomationConfig{
 		GatewayClusterIssuer: "test-gateway-cert-issuer",
 		Duration:             10000 * time.Hour,
@@ -88,9 +85,10 @@ var testConfig2 = config2.Config{
 			Repository: "docker.io/bash",
 			Tag:        "latest",
 		},
-		ClusterType:           "development",
-		AzureKeyVaultTenantID: "123456789",
-		KubernetesAPIPort:     543,
+		ClusterType:            "development",
+		AzureKeyVaultTenantID:  "123456789",
+		KubernetesAPIPort:      543,
+		DeploymentHistoryLimit: 10,
 	},
 }
 
@@ -2118,9 +2116,7 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 						utils.NewDeployJobComponentBuilder().WithName("job1"),
 					), func(syncer DeploymentSyncer) {
 					if s, ok := syncer.(*Deployment); ok {
-						newcfg := *s.config
-						newcfg.DeploymentSyncer.DeploymentHistoryLimit = 2
-						s.config = &newcfg
+						s.config2.Operator.DeploymentHistoryLimit = 2
 					}
 				})
 				require.NoError(t, err)
@@ -2447,101 +2443,6 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	assert.Len(t, secrets.Items, 1)
 	anyComponentSecret = getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
 	assert.ElementsMatch(t, []string{"a_secret", "a_third_secret"}, slices.Collect(maps.Keys(anyComponentSecret.Data)), "Component secret data is not as expected")
-}
-
-func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
-	anyAppName := "any-app"
-	anyComponentName := "frontend"
-	anyEnvironment := "dev"
-	anyLimit := 3
-
-	tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-
-	// Current cluster is active cluster
-	deploymentHistoryLimitSetter := func(syncer DeploymentSyncer) {
-		if s, ok := syncer.(*Deployment); ok {
-			newcfg := *s.config
-			newcfg.DeploymentSyncer.DeploymentHistoryLimit = anyLimit
-			s.config = &newcfg
-		}
-	}
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	_, err := applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithDeploymentName("firstdeployment").
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")),
-		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithDeploymentName("seconddeployment").
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")),
-		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithDeploymentName("thirddeployment").
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")),
-		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithDeploymentName("fourthdeployment").
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")),
-		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
-	deployments, _ := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
-
-	assert.False(t, radixDeploymentByNameExists("firstdeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("seconddeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("thirddeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("fourthdeployment", deployments))
-
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithDeploymentName("fifthdeployment").
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")),
-		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
-	deployments, _ = radixclient.RadixV1().RadixDeployments(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
-
-	assert.False(t, radixDeploymentByNameExists("firstdeployment", deployments))
-	assert.False(t, radixDeploymentByNameExists("seconddeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("thirddeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("fourthdeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("fifthdeployment", deployments))
 }
 
 func TestMonitoringConfig(t *testing.T) {

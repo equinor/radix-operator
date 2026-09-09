@@ -77,7 +77,8 @@ type OperatorConfig struct {
 
 	JobSchedulerAuxImage ContainerImage `json:"jobSchedulerAuxImage" required:"true"`
 
-	KubernetesAPIPort int32 `json:"kubernetesAPIPort" required:"true"`
+	KubernetesAPIPort      int32 `json:"kubernetesAPIPort" required:"true"`
+	DeploymentHistoryLimit int   `json:"deploymentHistoryLimit" required:"true" validate:"self >= 3"`
 }
 
 type BuilderConfig struct {

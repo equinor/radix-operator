@@ -96,3 +96,4 @@ operator:
       warn:
         level: "env-warn-level"
         version: "env-warn-version"
+  deploymentHistoryLimit: 10

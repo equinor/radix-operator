@@ -104,7 +104,7 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 		return fmt.Errorf("failed to sync deployment %s for application %s: %w", deploy.radixDeployment.Name, deploy.radixDeployment.Spec.AppName, err) //nolint:staticcheck
 	}
 
-	deploy.maintainHistoryLimit(ctx, deploy.config.DeploymentSyncer.DeploymentHistoryLimit)
+	deploy.maintainHistoryLimit(ctx, deploy.config2.Operator.DeploymentHistoryLimit)
 	return metrics.RequestedResources(deploy.config2, deploy.registration, deploy.radixDeployment)
 }
 

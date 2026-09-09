@@ -8,7 +8,6 @@ import (
 // Config from environment variables
 type Config struct {
 	PipelineJobConfig     PipelineJobConfig
-	DeploymentSyncer      DeploymentSyncerConfig
 	TaskConfig            TaskConfig
 	CertificateAutomation CertificateAutomationConfig
 	Gateway               GatewayConfig

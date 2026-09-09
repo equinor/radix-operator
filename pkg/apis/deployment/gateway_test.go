@@ -75,7 +75,6 @@ func (s *GatewayTestSuite) setupTest() {
 	s.Require().NoError(handlerTestUtils.CreateClusterPrerequisites())
 	s.testUtils = &handlerTestUtils
 	s.cfg = &config.Config{
-		DeploymentSyncer:      testConfig.DeploymentSyncer,
 		CertificateAutomation: testConfig.CertificateAutomation,
 		Gateway: config.GatewayConfig{
 			Name:        testGatewayName,

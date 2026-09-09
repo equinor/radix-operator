@@ -88,7 +88,8 @@ func TestParse_HappyPath(t *testing.T) {
 			ReadinessProbeInitialDelaySeconds: 5,
 			ReadinessProbePeriodSeconds:       10,
 
-			AppAliasBaseURL: "app.dev.radix.equinor.com",
+			AppAliasBaseURL:        "app.dev.radix.equinor.com",
+			DeploymentHistoryLimit: 10,
 
 			DefaultRollingUpdateMaxUnavailable: "25%",
 			DefaultRollingUpdateMaxSurge:       "35%",
@@ -246,6 +247,44 @@ func TestParse_MissingRequiredField(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, cfg)
+}
+
+func TestParse_DeploymentHistoryLimitValidation(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"below 3 should fail": {
+			mutateConfig: func(cfg *config2.Config) {
+				cfg.Operator.DeploymentHistoryLimit = 2
+			},
+			expectedError: `failed to validate config: field "Operator.DeploymentHistoryLimit" did not pass validation expression`,
+		},
+		"equal to 3 should pass": {
+			mutateConfig: func(cfg *config2.Config) {
+				cfg.Operator.DeploymentHistoryLimit = 3
+			},
+			expectedError: ``,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := mutateConfig(t, test.mutateConfig)
+
+			cfg, err := config2.Parse(configYaml)
+
+			if test.expectedError == "" {
+				require.NoError(t, err)
+				return
+			} else {
+				require.Error(t, err)
+				assert.Nil(t, cfg)
+				assert.ErrorContains(t, err, test.expectedError)
+			}
+		})
+	}
+
 }
 
 func TestParse_RequiredStructMustNotBeZero(t *testing.T) {

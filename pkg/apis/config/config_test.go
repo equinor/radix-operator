@@ -63,12 +63,8 @@ func TestMustParse(t *testing.T) {
 	require.NotNil(t, cfg.PipelineJobConfig)
 	assert.Equal(t, 5, cfg.PipelineJobConfig.PipelineJobsHistoryLimit)
 	assert.Equal(t, 720*time.Hour, cfg.PipelineJobConfig.PipelineJobsHistoryPeriodLimit)
-	assert.Equal(t, 10, cfg.PipelineJobConfig.DeploymentsHistoryLimitPerEnvironment)
 	assert.Equal(t, "docker.io/alpine/git:2.45.2", cfg.PipelineJobConfig.GitCloneImage)
 	assert.Equal(t, "radixdev.azurecr.io/radix-pipeline:latest", cfg.PipelineJobConfig.PipelineImage)
-
-	// DeploymentSyncer
-	assert.Equal(t, 10, cfg.DeploymentSyncer.DeploymentHistoryLimit)
 
 	// TaskConfig
 	require.NotNil(t, cfg.TaskConfig)
