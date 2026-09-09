@@ -170,6 +170,11 @@ func TestParse_HappyPath(t *testing.T) {
 			ExternalRegistryAuthSecret:     "anyExternalAuth",
 			AzureKeyVaultTenantID:          "any-tenant-id",
 			KubernetesAPIPort:              443,
+			Gateway: config2.GatewayConfig{
+				Name:        "gateway",
+				Namespace:   "istio-system",
+				SectionName: "https",
+			},
 		},
 	}
 

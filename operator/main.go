@@ -288,7 +288,6 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		*a.config,
 		a.config2,
 		a.eventRecorder,
 	)
@@ -307,7 +306,6 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.kubeUtil.RadixClient(),
 		a.dynamicClient,
 		a.eventRecorder,
-		*a.config,
 		a.config2,
 	)
 

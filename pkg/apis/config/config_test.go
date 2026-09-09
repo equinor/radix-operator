@@ -16,11 +16,6 @@ func TestMustParse(t *testing.T) {
 		"LOG_PRETTY":      "true",
 		defaults.RadixSafeToRestartBatchJobThresholdVariable: "259200",
 
-		// Gateway
-		defaults.RadixIngressGatewayNameVariable:        "radix-gateway",
-		defaults.RadixIngressGatewayNamespaceVariable:   "radix-gateway-ns",
-		defaults.RadixIngressGatewaySectionNameVariable: "https",
-
 		// CertificateAutomation
 		defaults.RadixCertificateAutomationGatewayClusterIssuerVariable: "letsencrypt",
 		defaults.RadixCertificateAutomationDurationVariable:             "2160h",
@@ -48,11 +43,6 @@ func TestMustParse(t *testing.T) {
 	cfg := MustParse()
 
 	// Config top-level fields
-
-	// Gateway
-	assert.Equal(t, "radix-gateway", cfg.Gateway.Name)
-	assert.Equal(t, "radix-gateway-ns", cfg.Gateway.Namespace)
-	assert.Equal(t, "https", cfg.Gateway.SectionName)
 
 	// CertificateAutomation
 	assert.Equal(t, "letsencrypt", cfg.CertificateAutomation.GatewayClusterIssuer)

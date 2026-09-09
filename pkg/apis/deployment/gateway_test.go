@@ -76,11 +76,6 @@ func (s *GatewayTestSuite) setupTest() {
 	s.testUtils = &handlerTestUtils
 	s.cfg = &config.Config{
 		CertificateAutomation: testConfig.CertificateAutomation,
-		Gateway: config.GatewayConfig{
-			Name:        testGatewayName,
-			Namespace:   testGatewayNamespace,
-			SectionName: testGatewaySectionName,
-		},
 	}
 	s.cfg2 = config2.Config{
 		Common: config2.CommonConfig{
@@ -89,6 +84,11 @@ func (s *GatewayTestSuite) setupTest() {
 		},
 		Operator: config2.OperatorConfig{
 			AppAliasBaseURL: testAppAliasBaseURL,
+			Gateway: config2.GatewayConfig{
+				Name:        testGatewayName,
+				Namespace:   testGatewayNamespace,
+				SectionName: testGatewaySectionName,
+			},
 		},
 	}
 }

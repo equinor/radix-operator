@@ -144,14 +144,6 @@ const (
 	// RadixGithubWorkspaceEnvironmentVariable Path to a cloned GitHub repository
 	RadixGithubWorkspaceEnvironmentVariable = "RADIX_GITHUB_WORKSPACE"
 
-	// RadixIngressGatewayNameVariable The name of the gateway to use for ingress
-	RadixIngressGatewayNameVariable = "RADIXOPERATOR_INGRESS_GATEWAY_NAME"
-
-	// RadixIngressGatewayNamespaceVariable The namespace of the gateway to use for ingress
-	RadixIngressGatewayNamespaceVariable = "RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE"
-
-	RadixIngressGatewaySectionNameVariable = "RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME"
-
 	// RadixSafeToRestartBatchJobThresholdVariable Threshold in seconds for determining cluster-autoscaler safe-to-evict annotation on batch jobs
 	RadixSafeToRestartBatchJobThresholdVariable = "RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD"
 )

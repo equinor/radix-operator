@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -30,17 +29,15 @@ type syncer struct {
 	rd            *radixv1.RadixDeployment
 	component     *radixv1.RadixDeployComponent
 	initMutex     sync.Mutex
-	config        config.Config
-	config2       config2.Config
+	config        config2.Config
 }
 
 // NewSyncer is the constructor for RadixDNSAlias syncer
-func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, config2 config2.Config) Syncer {
+func NewSyncer(radixDNSAlias *radixv1.RadixDNSAlias, radixClient radixclient.Interface, dynamicClient client.Client, config config2.Config) Syncer {
 	return &syncer{
 		radixClient:   radixClient,
 		dynamicClient: dynamicClient,
 		config:        config,
-		config2:       config2,
 		radixDNSAlias: radixDNSAlias,
 	}
 }
@@ -100,7 +97,7 @@ func (s *syncer) buildComponentWithOAuthDefaults(component *radixv1.RadixDeployC
 	}
 	componentWithOAuthDefaults := component.DeepCopy()
 
-	oauth, err := defaults.MergeOAuth2(s.config2.Common.OAuth2Proxy.ProxyDefaults, *componentWithOAuthDefaults.Authentication.OAuth2)
+	oauth, err := defaults.MergeOAuth2(s.config.Common.OAuth2Proxy.ProxyDefaults, *componentWithOAuthDefaults.Authentication.OAuth2)
 	if err != nil {
 		return nil, err
 	}

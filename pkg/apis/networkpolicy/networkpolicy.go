@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	rx "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -23,13 +23,13 @@ const (
 type NetworkPolicy struct {
 	kubeClient kubernetes.Interface
 	kubeUtil   *kube.Kube
-	config     config.Config
+	config     config2.Config
 }
 
 func NewNetworkPolicy(
 	kubeClient kubernetes.Interface,
 	kubeUtil *kube.Kube,
-	config config.Config,
+	config config2.Config,
 ) NetworkPolicy {
 	return NetworkPolicy{
 		kubeClient: kubeClient,
@@ -55,7 +55,7 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(ctx context.Context, radixEgressRu
 	)
 
 	if allowRadix != nil && *allowRadix {
-		egressRules = append(egressRules, createAllowRadixEgressRule(nw.config.Gateway.Name))
+		egressRules = append(egressRules, createAllowRadixEgressRule(nw.config.Operator.Gateway.Name))
 	}
 
 	egressPolicy := nw.createEgressPolicy(appName, envName, egressRules, true)

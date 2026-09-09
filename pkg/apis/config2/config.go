@@ -79,6 +79,8 @@ type OperatorConfig struct {
 
 	KubernetesAPIPort      int32 `json:"kubernetesAPIPort" required:"true"`
 	DeploymentHistoryLimit int   `json:"deploymentHistoryLimit" required:"true" validate:"self >= 3"`
+
+	Gateway GatewayConfig `json:"gateway" required:"true"`
 }
 
 type BuilderConfig struct {

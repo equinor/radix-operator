@@ -181,8 +181,8 @@ func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Co
 			ParentRef: gatewayapiv1.ParentGatewayReference{
 				Group:     new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
 				Kind:      new(gatewayapiv1.Kind("Gateway")),
-				Name:      gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
-				Namespace: new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
+				Name:      gatewayapiv1.ObjectName(deploy.config2.Operator.Gateway.Name),
+				Namespace: new(gatewayapiv1.Namespace(deploy.config2.Operator.Gateway.Namespace)),
 			},
 			Listeners: []gatewayapiv1.ListenerEntry{{
 				Name:     gatewayapiv1.SectionName("https"),

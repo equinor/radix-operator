@@ -4200,20 +4200,6 @@ func getEnvVariableByNameOnDeployment(kubeclient kubernetes.Interface, name, dep
 	return getEnvVariableByName(name, container.Env, cm)
 }
 
-func radixDeploymentByNameExists(name string, deployments *radixv1.RadixDeploymentList) bool {
-	return getRadixDeploymentByName(name, deployments) != nil
-}
-
-func getRadixDeploymentByName(name string, deployments *radixv1.RadixDeploymentList) *radixv1.RadixDeployment {
-	for _, deployment := range deployments.Items {
-		if deployment.Name == name {
-			return &deployment
-		}
-	}
-
-	return nil
-}
-
 func deploymentByNameExists(name string, deployments []appsv1.Deployment) bool {
 	return getDeploymentByName(name, deployments) != nil
 }

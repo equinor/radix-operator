@@ -43,7 +43,7 @@ type ExternalDNSTestSuite struct {
 	certClient    *certfake.Clientset
 	testUtils     *test.Utils
 	cfg           *config.Config
-	cfg2          *config2.Config
+	cfg2          config2.Config
 }
 
 func TestExternalDNSTestSuite(t *testing.T) {
@@ -72,14 +72,14 @@ func (s *ExternalDNSTestSuite) setupTest() {
 	s.testUtils = &handlerTestUtils
 	s.cfg = &config.Config{
 		CertificateAutomation: testConfig.CertificateAutomation,
-		Gateway: config.GatewayConfig{
-			Name:      edTestGatewayName,
-			Namespace: edTestGatewayNamespace,
-		},
 	}
-	s.cfg2 = &config2.Config{
+	s.cfg2 = config2.Config{
 		Operator: config2.OperatorConfig{
 			AppAliasBaseURL: testAppAliasBaseURL,
+			Gateway: config2.GatewayConfig{
+				Name:      edTestGatewayName,
+				Namespace: edTestGatewayNamespace,
+			},
 		},
 	}
 }
@@ -95,7 +95,7 @@ func (s *ExternalDNSTestSuite) applyDeploymentWithSync(deploymentBuilder utils.D
 		return nil, err
 	}
 
-	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, s.cfg, config2.Config{})
+	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, s.cfg, s.cfg2)
 	if err := syncer.OnSync(context.Background()); err != nil {
 		return nil, err
 	}

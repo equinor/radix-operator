@@ -65,9 +65,9 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 		parentRefs := []gatewayapiv1.ParentReference{{
 			Group:       new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
 			Kind:        new(gatewayapiv1.Kind("Gateway")),
-			Name:        gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
-			Namespace:   new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
-			SectionName: new(gatewayapiv1.SectionName(deploy.config.Gateway.SectionName)),
+			Name:        gatewayapiv1.ObjectName(deploy.config2.Operator.Gateway.Name),
+			Namespace:   new(gatewayapiv1.Namespace(deploy.config2.Operator.Gateway.Namespace)),
+			SectionName: new(gatewayapiv1.SectionName(deploy.config2.Operator.Gateway.SectionName)),
 		}}
 
 		route.Labels = kubelabels.Merge(route.Labels, labels.ForComponentGatewayResources(deploy.registration.Name, component))

@@ -11,7 +11,6 @@ import (
 const (
 	minPipelineJobsHistoryLimit       = 3
 	minPipelineJobsHistoryPeriodLimit = time.Hour * 24
-	minDeploymentsHistoryLimit        = 3
 )
 
 // Config for pipeline josb

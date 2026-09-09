@@ -97,3 +97,7 @@ operator:
         level: "env-warn-level"
         version: "env-warn-version"
   deploymentHistoryLimit: 10
+  gateway:
+    name: "gateway"
+    namespace: "istio-system"
+    sectionName: "https"

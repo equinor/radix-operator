@@ -21,7 +21,7 @@ func (deploy *Deployment) setDefaultNetworkPolicies(ctx context.Context) error {
 	owner := []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
 
 	networkPolicies := []*v1.NetworkPolicy{
-		defaultIngressNetworkPolicy(appName, env, owner, deploy.config.Gateway.Name),
+		defaultIngressNetworkPolicy(appName, env, owner, deploy.config2.Operator.Gateway.Name),
 		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.config2.Operator.KubernetesAPIPort),
 		allowOauthAuxComponentEgressNetworkPolicy(appName, env, owner),
 	}

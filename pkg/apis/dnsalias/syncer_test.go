@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/gateway"
@@ -37,8 +36,7 @@ type syncerTestSuite struct {
 	testUtils     test.Utils
 	promClient    *prometheusfake.Clientset
 	ctrl          *gomock.Controller
-	config        config.Config
-	config2       config2.Config
+	config        config2.Config
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -59,16 +57,16 @@ func (s *syncerTestSuite) setupTest() {
 	s.dynamicClient = test.CreateClient()
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.testUtils = test.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)
-	s.config = config.Config{
-		Gateway: config.GatewayConfig{
-			Name:        "any-gateway",
-			Namespace:   "any-namespace",
-			SectionName: "any-section",
-		},
-	}
-	s.config2 = config2.Config{
+	s.config = config2.Config{
 		Common: config2.CommonConfig{
 			DNSZone: "dev.radix.equinor.com",
+		},
+		Operator: config2.OperatorConfig{
+			Gateway: config2.GatewayConfig{
+				Name:        "any-gateway",
+				Namespace:   "any-namespace",
+				SectionName: "any-section",
+			},
 		},
 	}
 	s.ctrl = gomock.NewController(s.T())
@@ -80,7 +78,6 @@ func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dns
 		s.radixClient,
 		s.dynamicClient,
 		s.config,
-		s.config2,
 	)
 }
 
@@ -94,7 +91,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{})
+	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config2.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -107,7 +104,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{})
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config2.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -124,7 +121,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, config2.Config{})
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config2.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -196,7 +193,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
 	s.True(*route.OwnerReferences[0].BlockOwnerDeletion)
 
 	// Verify hostname
-	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config2.Common.DNSZone)
+	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.Common.DNSZone)
 	s.Require().Len(route.Spec.Hostnames, 1)
 	s.Equal(gatewayapiv1.Hostname(expectedHostName), route.Spec.Hostnames[0])
 
@@ -205,9 +202,9 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
 	parentRef := route.Spec.ParentRefs[0]
 	s.Equal(gatewayapiv1.Group(gatewayapiv1.GroupName), *parentRef.Group)
 	s.Equal(gatewayapiv1.Kind("Gateway"), *parentRef.Kind)
-	s.Equal(gatewayapiv1.ObjectName(s.config.Gateway.Name), parentRef.Name)
-	s.Equal(gatewayapiv1.Namespace(s.config.Gateway.Namespace), *parentRef.Namespace)
-	s.Equal(gatewayapiv1.SectionName(s.config.Gateway.SectionName), *parentRef.SectionName)
+	s.Equal(gatewayapiv1.ObjectName(s.config.Operator.Gateway.Name), parentRef.Name)
+	s.Equal(gatewayapiv1.Namespace(s.config.Operator.Gateway.Namespace), *parentRef.Namespace)
+	s.Equal(gatewayapiv1.SectionName(s.config.Operator.Gateway.SectionName), *parentRef.SectionName)
 
 	// Verify backend ref points to the component service
 	expectedBackendRef, err := gateway.BuildBackendRefForComponent(&rd.Spec.Components[0])

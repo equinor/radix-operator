@@ -68,6 +68,8 @@ Create the name of the common configuration ConfigMap
 {{- $_ := required "config.operator.azureKeyVaultTenantID is required" .Values.config.operator.azureKeyVaultTenantID -}}
 {{- $_ := required "config.operator.clusterType is required" .Values.config.operator.clusterType -}}
 {{- $_ := required "config.operator.containerRegistry is required" .Values.config.operator.containerRegistry -}}
+{{- $_ := required "config.operator.gateway.name is required" .Values.config.operator.gateway.name -}}
+{{- $_ := required "config.operator.gateway.namespace is required" .Values.config.operator.gateway.namespace -}}
 radix-common-config
 {{- end -}}
 

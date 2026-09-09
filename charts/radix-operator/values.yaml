@@ -116,6 +116,11 @@ config:
       tag: "latest"
     deploymentHistoryLimit: 10
 
+    gateway:
+      name: ""
+      namespace: ""
+      sectionName: "https"
+
 dnsZone: dev.radix.equinor.com
 radixZone: xx
 
@@ -146,11 +151,6 @@ resources:
     memory: 1Gi
 
 ingress:
-  gateway:
-    name: ""
-    namespace: ""
-    sectionName: "https"
-
   certificate:
     automation:
       duration: "2160h"
