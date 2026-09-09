@@ -16,11 +16,6 @@ func TestMustParse(t *testing.T) {
 		"LOG_PRETTY":      "true",
 		defaults.RadixSafeToRestartBatchJobThresholdVariable: "259200",
 
-		// CertificateAutomation
-		defaults.RadixCertificateAutomationGatewayClusterIssuerVariable: "letsencrypt",
-		defaults.RadixCertificateAutomationDurationVariable:             "2160h",
-		defaults.RadixCertificateAutomationRenewBeforeVariable:          "720h",
-
 		// PipelineJobConfig
 		defaults.PipelineJobsHistoryLimitEnvironmentVariable:       "5",
 		defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable: "720h",
@@ -43,11 +38,6 @@ func TestMustParse(t *testing.T) {
 	cfg := MustParse()
 
 	// Config top-level fields
-
-	// CertificateAutomation
-	assert.Equal(t, "letsencrypt", cfg.CertificateAutomation.GatewayClusterIssuer)
-	assert.Equal(t, 2160*time.Hour, cfg.CertificateAutomation.Duration)
-	assert.Equal(t, 720*time.Hour, cfg.CertificateAutomation.RenewBefore)
 
 	// PipelineJobConfig
 	require.NotNil(t, cfg.PipelineJobConfig)

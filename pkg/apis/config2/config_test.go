@@ -4,6 +4,7 @@ import (
 	"encoding/json/v2"
 	"strings"
 	"testing"
+	"time"
 
 	_ "embed"
 
@@ -184,6 +185,11 @@ func TestParse_HappyPath(t *testing.T) {
 				Name:        "gateway",
 				Namespace:   "istio-system",
 				SectionName: "https",
+			},
+			CertificateAutomation: config2.CertificateAutomationConfig{
+				GatewayClusterIssuer: "any-cluster-issuer",
+				Duration:             8760 * time.Hour,
+				RenewBefore:          720 * time.Hour,
 			},
 		},
 	}

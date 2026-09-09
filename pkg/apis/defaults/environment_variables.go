@@ -121,14 +121,6 @@ const (
 	// LogLevel Log level: ERROR, WARN, INFO (default), DEBUG
 	LogLevel = "LOG_LEVEL"
 
-	RadixCertificateAutomationGatewayClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER"
-
-	// RadixCertificateAutomationDurationVariable Defines duration for certificates issued by cluster issuer
-	RadixCertificateAutomationDurationVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION"
-
-	// RadixCertificateAutomationRenewBeforeVariable Defines renew_before for certificates issued by cluster issuer
-	RadixCertificateAutomationRenewBeforeVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE"
-
 	// RadixPipelineImageEnvironmentVariable Radix pipeline image tag
 	RadixPipelineImageEnvironmentVariable = "RADIXOPERATOR_PIPELINE_IMAGE"
 

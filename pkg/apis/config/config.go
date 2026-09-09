@@ -9,7 +9,6 @@ import (
 type Config struct {
 	PipelineJobConfig     PipelineJobConfig
 	TaskConfig            TaskConfig
-	CertificateAutomation CertificateAutomationConfig
 }
 
 func MustParse() *Config {

@@ -81,6 +81,7 @@ type OperatorConfig struct {
 	DeploymentHistoryLimit int   `json:"deploymentHistoryLimit" required:"true" validate:"self >= 3"`
 
 	Gateway GatewayConfig `json:"gateway" required:"true"`
+	CertificateAutomation CertificateAutomationConfig `json:"certificateAutomation" required:"true"`
 }
 
 type BuilderConfig struct {

@@ -1314,7 +1314,7 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	s.Require().NoError(err)
 	rd, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, &config.Config{}, config2.Config{})
+	deploySyncer := deployment.NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, utils.NewRegistrationBuilder().WithName(appName).BuildRR(), rd, nil, config2.Config{})
 	s.Require().NoError(deploySyncer.OnSync(context.Background()))
 
 	sut := s.createSyncer(batch, nil, config2.Config{})

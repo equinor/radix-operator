@@ -70,6 +70,7 @@ Create the name of the common configuration ConfigMap
 {{- $_ := required "config.operator.containerRegistry is required" .Values.config.operator.containerRegistry -}}
 {{- $_ := required "config.operator.gateway.name is required" .Values.config.operator.gateway.name -}}
 {{- $_ := required "config.operator.gateway.namespace is required" .Values.config.operator.gateway.namespace -}}
+{{- $_ := required "config.operator.certificateAutomation.gatewayClusterIssuer is required" .Values.config.operator.certificateAutomation.gatewayClusterIssuer -}}
 radix-common-config
 {{- end -}}
 

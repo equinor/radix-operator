@@ -214,7 +214,8 @@ lint-helm: bootstrap
 		--set config.operator.appContainerRegistry=cache.example.com \
 		--set config.operator.azureKeyVaultTenantID=1234 \
 		--set config.operator.clusterType=dev \
-		--set config.operator.containerRegistry=build.example.com
+		--set config.operator.containerRegistry=build.example.com \
+		--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer
 helm-render:
 	helm template ./charts/radix-operator \
 		--set rbac.createApp.groups[0]=platform-users \
@@ -226,7 +227,8 @@ helm-render:
 		--set config.operator.appContainerRegistry=cache.example.com \
 		--set config.operator.azureKeyVaultTenantID=1234 \
 		--set config.operator.clusterType=dev \
-		--set config.operator.containerRegistry=build.example.com
+		--set config.operator.containerRegistry=build.example.com \
+		--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer
 
 .PHONY: generate
 generate: bootstrap code-gen helmresources mocks swagger

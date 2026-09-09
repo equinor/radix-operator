@@ -17,7 +17,6 @@ import (
 	v1 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/envvars"
@@ -58,15 +57,7 @@ const (
 	testClusterName = "AnyClusterName"
 )
 
-var testConfig = config.Config{
-	CertificateAutomation: config.CertificateAutomationConfig{
-		GatewayClusterIssuer: "test-gateway-cert-issuer",
-		Duration:             10000 * time.Hour,
-		RenewBefore:          5000 * time.Hour,
-	},
-}
-
-var testConfig2 = config2.Config{
+var testConfig = config2.Config{
 	Common: config2.CommonConfig{
 		DNSZone:     "dev.radix.equinor.com",
 		ClusterName: testClusterName,
@@ -89,6 +80,11 @@ var testConfig2 = config2.Config{
 		AzureKeyVaultTenantID:  "123456789",
 		KubernetesAPIPort:      543,
 		DeploymentHistoryLimit: 10,
+		CertificateAutomation: config2.CertificateAutomationConfig{
+			GatewayClusterIssuer: "test-gateway-cert-issuer",
+			Duration:             10000 * time.Hour,
+			RenewBefore:          5000 * time.Hour,
+		},
 	},
 }
 
@@ -255,8 +251,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 				assert.Equal(t, 12, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
-				assert.Equal(t, testConfig2.Operator.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, componentNameApp, deployments))
-				assert.Equal(t, testConfig2.Common.DNSZone, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentDNSZone, componentNameApp, deployments))
+				assert.Equal(t, testConfig.Operator.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, componentNameApp, deployments))
+				assert.Equal(t, testConfig.Common.DNSZone, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentDNSZone, componentNameApp, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentClusterName, componentNameApp, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(kubeclient, defaults.PublicEndpointEnvironmentVariable, componentNameApp, deployments))
@@ -633,8 +629,8 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				envVars := jobContainer.Env
 				assert.Equal(t, 12, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, "a_value", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", jobName, deployments))
-				assert.Equal(t, testConfig2.Operator.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, jobName, deployments))
-				assert.Equal(t, testConfig2.Common.DNSZone, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentDNSZone, jobName, deployments))
+				assert.Equal(t, testConfig.Operator.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, jobName, deployments))
+				assert.Equal(t, testConfig.Common.DNSZone, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentDNSZone, jobName, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentClusterName, jobName, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixAppEnvironmentVariable, jobName, deployments))
@@ -832,7 +828,7 @@ func TestObjectSynced_JobAux_DeploymentSpecIsSet(t *testing.T) {
 	require.Len(t, jobAuxDeployment.Spec.Template.Spec.Containers, 1)
 	container := jobAuxDeployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, jobAuxDeploymentName, container.Name)
-	assert.Equal(t, testConfig2.Operator.JobSchedulerAuxImage.String(), container.Image)
+	assert.Equal(t, testConfig.Operator.JobSchedulerAuxImage.String(), container.Image)
 	assert.Equal(t, corev1.PullIfNotPresent, container.ImagePullPolicy)
 	assert.Equal(t, []string{"sh"}, container.Command)
 	assert.Equal(t, []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}, container.Args)
@@ -880,7 +876,7 @@ func Test_ReconcileStatus(t *testing.T) {
 
 	// First sync sets status
 	expectedGen := rd.Generation
-	sut := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, &config.Config{}, config2.Config{})
+	sut := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config2.Config{})
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -893,7 +889,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	rd.Generation++
 	expectedGen = rd.Generation
-	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, &config.Config{}, config2.Config{})
+	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config2.Config{})
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -909,7 +905,7 @@ func Test_ReconcileStatus(t *testing.T) {
 		return true, nil, errors.New(errorMsg)
 	})
 	rr.Generation++
-	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, &config.Config{}, config2.Config{})
+	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config2.Config{})
 	err = sut.OnSync(context.Background())
 	assert.ErrorContains(t, err, errorMsg)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -1669,8 +1665,8 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		assert.True(t, envVariableByNameExist(defaults.RadixComponentEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
-		assert.Equal(t, testConfig2.Operator.ContainerRegistry, getEnvVariableByName(envvars.ComponentContainerRegistry, templateSpecEnv, nil))
-		assert.Equal(t, testConfig2.Common.DNSZone, getEnvVariableByName(envvars.ComponentDNSZone, templateSpecEnv, cm))
+		assert.Equal(t, testConfig.Operator.ContainerRegistry, getEnvVariableByName(envvars.ComponentContainerRegistry, templateSpecEnv, nil))
+		assert.Equal(t, testConfig.Common.DNSZone, getEnvVariableByName(envvars.ComponentDNSZone, templateSpecEnv, cm))
 		assert.Equal(t, testClusterName, getEnvVariableByName(envvars.ComponentClusterName, templateSpecEnv, cm))
 		assert.Equal(t, anyEnvironment, getEnvVariableByName(defaults.EnvironmentnameEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, "app", getEnvVariableByName(defaults.RadixAppEnvironmentVariable, templateSpecEnv, cm))
@@ -2116,7 +2112,7 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 						utils.NewDeployJobComponentBuilder().WithName("job1"),
 					), func(syncer DeploymentSyncer) {
 					if s, ok := syncer.(*Deployment); ok {
-						s.config2.Operator.DeploymentHistoryLimit = 2
+						s.config.Operator.DeploymentHistoryLimit = 2
 					}
 				})
 				require.NoError(t, err)
@@ -3314,7 +3310,7 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(nil)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, &config.Config{}, config2.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config2.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.NoError(t, err)
 }
@@ -3335,7 +3331,7 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(auxErr)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, &config.Config{}, config2.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config2.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
@@ -3356,7 +3352,7 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(auxErr)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(0)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, &config.Config{}, config2.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config2.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
@@ -3742,10 +3738,10 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 		assert.Empty(t, cert.OwnerReferences)
 		expectedCertSpec := cmv1.CertificateSpec{
 			DNSNames:    []string{fqdn},
-			Duration:    &metav1.Duration{Duration: testConfig.CertificateAutomation.Duration},
-			RenewBefore: &metav1.Duration{Duration: testConfig.CertificateAutomation.RenewBefore},
+			Duration:    &metav1.Duration{Duration: testConfig.Operator.CertificateAutomation.Duration},
+			RenewBefore: &metav1.Duration{Duration: testConfig.Operator.CertificateAutomation.RenewBefore},
 			IssuerRef: v1.ObjectReference{
-				Name:  testConfig.CertificateAutomation.GatewayClusterIssuer,
+				Name:  testConfig.Operator.CertificateAutomation.GatewayClusterIssuer,
 				Kind:  "ClusterIssuer",
 				Group: "cert-manager.io",
 			},
@@ -3920,45 +3916,53 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Duration and RenewBefore not below min values
-	cfg := &config.Config{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			GatewayClusterIssuer: "anyissuer",
-			Duration:             10000 * time.Hour,
-			RenewBefore:          1000 * time.Hour,
-		}}
-
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg, config2.Config{})
+	cfg := config2.Config{
+		Operator: config2.OperatorConfig{
+			CertificateAutomation: config2.CertificateAutomationConfig{
+				GatewayClusterIssuer: "anyissuer",
+				Duration:             10000 * time.Hour,
+				RenewBefore:          1000 * time.Hour,
+			},
+		},
+	}
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ := certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
-	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
-	assert.Equal(t, cfg.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
+	assert.Equal(t, cfg.Operator.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
+	assert.Equal(t, cfg.Operator.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
 
 	// Duration below min value
-	cfg = &config.Config{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			GatewayClusterIssuer: "anyissuer",
-			Duration:             2159 * time.Hour,
-			RenewBefore:          1000 * time.Hour,
-		}}
+	cfg = config2.Config{
+		Operator: config2.OperatorConfig{
+			CertificateAutomation: config2.CertificateAutomationConfig{
+				GatewayClusterIssuer: "anyissuer",
+				Duration:             2159 * time.Hour,
+				RenewBefore:          1000 * time.Hour,
+			},
+		},
+	}
 
-	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg, config2.Config{})
+	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, 2160*time.Hour, cert.Spec.Duration.Duration)
-	assert.Equal(t, cfg.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
+	assert.Equal(t, cfg.Operator.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
 
 	// RenewBefore below min value
-	cfg = &config.Config{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			GatewayClusterIssuer: "anyissuer",
-			Duration:             10000 * time.Hour,
-			RenewBefore:          359 * time.Hour,
-		}}
+	cfg = config2.Config{
+		Operator: config2.OperatorConfig{
+			CertificateAutomation: config2.CertificateAutomationConfig{
+				GatewayClusterIssuer: "anyissuer",
+				Duration:             10000 * time.Hour,
+				RenewBefore:          359 * time.Hour,
+			},
+		},
+	}
 
-	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg, config2.Config{})
+	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
-	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
+	assert.Equal(t, cfg.Operator.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
 	assert.Equal(t, 360*time.Hour, cert.Spec.RenewBefore.Duration)
 }
 
@@ -3976,13 +3980,16 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 	require.NoError(t, err)
 
 	// Duration and RenewBefore not below min values
-	cfg := &config.Config{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			Duration:    10000 * time.Hour,
-			RenewBefore: 1000 * time.Hour,
-		}}
+	cfg := config2.Config{
+		Operator: config2.OperatorConfig{
+			CertificateAutomation: config2.CertificateAutomationConfig{
+				Duration:    10000 * time.Hour,
+				RenewBefore: 1000 * time.Hour,
+			},
+		},
+	}
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg, config2.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	assert.ErrorContains(t, syncer.OnSync(context.Background()), "cluster issuer not set in certificate automation config")
 }
 
@@ -3993,11 +4000,13 @@ func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 
-	cfg := &config.Config{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			GatewayClusterIssuer: gatewayClusterIssuer,
-			Duration:             10000 * time.Hour,
-			RenewBefore:          1000 * time.Hour,
+	cfg := config2.Config{
+		Operator: config2.OperatorConfig{
+			CertificateAutomation: config2.CertificateAutomationConfig{
+				GatewayClusterIssuer: gatewayClusterIssuer,
+				Duration:             10000 * time.Hour,
+				RenewBefore:          1000 * time.Hour,
+			},
 		},
 	}
 
@@ -4012,7 +4021,7 @@ func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app2", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
 		require.NoError(t, err)
 
-		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg, config2.Config{})
+		syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 		require.NoError(t, syncer.OnSync(context.Background()))
 		cert, err := certClient.CertmanagerV1().Certificates(utils.GetEnvironmentNamespace("app2", envName)).Get(context.Background(), fqdn, metav1.GetOptions{})
 		require.NoError(t, err)
@@ -4116,7 +4125,7 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 
 			cfg2 := config2.Config{Operator: config2.OperatorConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
 
-			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, &config.Config{}, cfg2)
+			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, cfg2)
 			err = syncer.OnSync(context.Background())
 			require.NoError(t, err)
 			compDeployment, err := kubeclient.AppsV1().Deployments("app-dev").Get(context.Background(), "comp", metav1.GetOptions{})
@@ -4156,7 +4165,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 		return nil, err
 	}
 
-	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, &testConfig, testConfig2)
+	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, testConfig)
 	modifySyncer(deploymentSyncer)
 	err = deploymentSyncer.OnSync(context.Background())
 	if err != nil {
@@ -4179,7 +4188,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, &testConfig, testConfig2)
+	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, testConfig)
 	err = deployment.OnSync(context.Background())
 	if err != nil {
 		return err

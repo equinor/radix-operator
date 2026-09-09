@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/operator/common"
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -40,8 +39,7 @@ type handler struct {
 	events                  common.SyncEventRecorder
 	kubeutil                *kube.Kube
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
-	config                  *config.Config
-	config2                 config2.Config
+	config                  config2.Config
 }
 
 // NewHandler Constructor
@@ -52,8 +50,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	dynamicClient client.Client,
 	certClient certclient.Interface,
 	eventRecorder record.EventRecorder,
-	config *config.Config,
-	config2 config2.Config,
+	config config2.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	handler := &handler{
@@ -66,7 +63,6 @@ func NewHandler(kubeclient kubernetes.Interface,
 		deploymentSyncerFactory: deployment.DeploymentSyncerFactoryFunc(deployment.NewDeploymentSyncer),
 		events:                  common.NewSyncEventRecorder(eventRecorder),
 		config:                  config,
-		config2:                 config2,
 	}
 
 	for _, option := range options {
@@ -106,12 +102,12 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.config2),
-		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.config2),
+		deployment.NewOAuthProxyResourceManager(rd, radixRegistration, t.kubeutil, t.config),
+		deployment.NewOAuthRedisResourceManager(rd, radixRegistration, t.kubeutil, t.config),
 	}
 
 	syncRD := rd.DeepCopy()
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.dynamicClient, t.certClient, radixRegistration, syncRD, auxResourceManagers, t.config, t.config2)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.dynamicClient, t.certClient, radixRegistration, syncRD, auxResourceManagers, t.config)
 	err = deployment.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRD, err)

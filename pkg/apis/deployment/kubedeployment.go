@@ -80,8 +80,8 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(deployComponent.GetName())
 	var imagePullSecrets []corev1.LocalObjectReference
 
-	if deploy.config2.Operator.ExternalRegistryAuthSecret != "" {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config2.Operator.ExternalRegistryAuthSecret})
+	if deploy.config.Operator.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config.Operator.ExternalRegistryAuthSecret})
 	}
 
 	var env []corev1.EnvVar
@@ -127,7 +127,7 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 					Containers: []corev1.Container{
 						{
 							Name:            jobAuxKubeDeploymentName,
-							Image:           deploy.config2.Operator.JobSchedulerAuxImage.String(),
+							Image:           deploy.config.Operator.JobSchedulerAuxImage.String(),
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithReadOnlyRootFileSystem(new(true)),
@@ -256,8 +256,8 @@ func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCo
 
 func (deploy *Deployment) getDeploymentPodImagePullSecrets() []corev1.LocalObjectReference {
 	imagePullSecrets := deploy.radixDeployment.Spec.ImagePullSecrets
-	if deploy.config2.Operator.ExternalRegistryAuthSecret != "" {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config2.Operator.ExternalRegistryAuthSecret})
+	if deploy.config.Operator.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config.Operator.ExternalRegistryAuthSecret})
 	}
 	return imagePullSecrets
 }
@@ -295,7 +295,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
 	desiredDeployment.Spec.Replicas = new(getDeployComponentReplicas(deployComponent))
 	desiredDeployment.Spec.RevisionHistoryLimit = getRevisionHistoryLimit(deployComponent)
-	desiredDeployment.Spec.Strategy = getDeploymentStrategy(deploy.config2)
+	desiredDeployment.Spec.Strategy = getDeploymentStrategy(deploy.config)
 	desiredDeployment.Spec.Template.ObjectMeta.Labels = deploy.getDeploymentPodLabels(deployComponent)
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations = deploy.getDeploymentPodAnnotations(deployComponent)
 
@@ -332,7 +332,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = containerSecurityCtx
-	desiredDeployment.Spec.Template.Spec.Containers[0].Resources, err = utils.GetResourceRequirements(deploy.config2, deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources, err = utils.GetResourceRequirements(deploy.config, deployComponent)
 	if err != nil {
 		return err
 	}
@@ -350,13 +350,13 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = hc.LivenessProbe.MapToCoreProbe()
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = hc.StartupProbe.MapToCoreProbe()
 	} else {
-		readinessProbe := getDefaultReadinessProbeForComponent(deploy.config2, deployComponent)
+		readinessProbe := getDefaultReadinessProbeForComponent(deploy.config, deployComponent)
 		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = nil
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = nil
 	}
 
-	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, deploy.config2, appName, deploy.radixDeployment, deployComponent)
+	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, deploy.config, appName, deploy.radixDeployment, deployComponent)
 	if err != nil {
 		return err
 	}

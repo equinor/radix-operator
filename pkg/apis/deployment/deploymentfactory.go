@@ -2,7 +2,6 @@ package deployment
 
 import (
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -22,8 +21,7 @@ type DeploymentSyncerFactoryFunc func(
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
 	auxResourceManagers []AuxiliaryResourceManager,
-	config *config.Config,
-	config2 config2.Config,
+	config config2.Config,
 ) DeploymentSyncer
 
 func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
@@ -35,10 +33,9 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
 	auxResourceManagers []AuxiliaryResourceManager,
-	config *config.Config,
-	config2 config2.Config,
+	config config2.Config,
 ) DeploymentSyncer {
-	return f(kubeclient, kubeutil, radixclient, dynamicClient, certClient, registration, radixDeployment, auxResourceManagers, config, config2)
+	return f(kubeclient, kubeutil, radixclient, dynamicClient, certClient, registration, radixDeployment, auxResourceManagers, config)
 }
 
 // DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
@@ -52,7 +49,6 @@ type DeploymentSyncerFactory interface {
 		registration *v1.RadixRegistration,
 		radixDeployment *v1.RadixDeployment,
 		auxResourceManagers []AuxiliaryResourceManager,
-		config *config.Config,
-		config2 config2.Config,
+		config config2.Config,
 	) DeploymentSyncer
 }

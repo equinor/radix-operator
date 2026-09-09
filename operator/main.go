@@ -327,7 +327,6 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.dynamicClient,
 		a.certClient,
 		a.eventRecorder,
-		a.config,
 		a.config2,
 	)
 

@@ -121,6 +121,11 @@ config:
       namespace: ""
       sectionName: "https"
 
+    certificateAutomation:
+      duration: "2160h"
+      renewBefore: "720h"
+      gatewayClusterIssuer: ""
+
 dnsZone: dev.radix.equinor.com
 radixZone: xx
 
@@ -149,13 +154,6 @@ resources:
   requests:
     cpu: 100m
     memory: 1Gi
-
-ingress:
-  certificate:
-    automation:
-      duration: "2160h"
-      renewBefore: "720h"
-      gatewayClusterIssuer: ""
 
 task:
   orphanedEnvironmentsRetentionPeriod: 720h
