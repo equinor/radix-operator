@@ -135,7 +135,7 @@ func Parse(configYaml string) (*Config, error) {
 	}
 	configJson = expandEnvMacros(configJson)
 
-	if err := json.Unmarshal(configJson, &cfg, binaryUnmarshaler); err != nil {
+	if err := json.Unmarshal(configJson, &cfg, binaryUnmarshaler, durationUnmarshaler); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 
