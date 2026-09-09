@@ -7,8 +7,8 @@ import (
 
 // Config from environment variables
 type Config struct {
-	PipelineJobConfig     PipelineJobConfig
-	TaskConfig            TaskConfig
+	PipelineJobConfig PipelineJobConfig
+	TaskConfig        TaskConfig
 }
 
 func MustParse() *Config {
