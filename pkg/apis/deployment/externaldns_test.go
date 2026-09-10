@@ -61,7 +61,7 @@ func (s *ExternalDNSTestSuite) setupTest() {
 	radixClient := radixfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	s.radixClient = radixClient
 	kedaClient := kedafake.NewSimpleClientset()
-	s.dynamicClient = test.CreateClient() 
+	s.dynamicClient = test.CreateClient()
 	secretProviderClient := secretproviderfake.NewSimpleClientset()
 	s.certClient = certfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, radixClient, kedaClient, secretProviderClient)
