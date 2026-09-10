@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -204,4 +205,42 @@ func TestValidateTask(t *testing.T) {
 		})
 	}
 
+}
+
+func TestValidateTask_ReportsEverySecretReference(t *testing.T) {
+	task := pipelinev1.Task{
+		ObjectMeta: v1.ObjectMeta{Name: "Test Task"},
+		Spec: pipelinev1.TaskSpec{
+			Steps: []pipelinev1.Step{{
+				Name: "show-secrets",
+				Env: []corev1.EnvVar{
+					{
+						Name:      "FIRST",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "first-illegal-secret"}}},
+					},
+					{
+						Name:      "SECOND",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "second-illegal-secret"}}},
+					},
+					{
+						Name:      "ALLOWED",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: pipelineDefaults.SubstitutionRadixBuildSecretsTarget}}},
+					},
+				},
+				EnvFrom: []corev1.EnvFromSource{{
+					SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "third-illegal-secret"}},
+				}},
+			}},
+		},
+	}
+
+	err := validation.ValidateTask(&task)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, validation.ErrSecretReferenceNotAllowed)
+	assert.Contains(t, err.Error(), "first-illegal-secret")
+	assert.Contains(t, err.Error(), "second-illegal-secret")
+	assert.Contains(t, err.Error(), "third-illegal-secret")
+	assert.Contains(t, err.Error(), "show-secrets", "the offending step is named")
+	assert.NotContains(t, err.Error(), pipelineDefaults.SubstitutionRadixBuildSecretsTarget, "allowed secrets are not reported")
 }

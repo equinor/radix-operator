@@ -94,18 +94,10 @@ func validateTaskSecretRefDoesNotExist(task *pipelinev1.Task) []error {
 		errs = append(errs, ErrHostPathNotAllowed)
 	}
 	for _, step := range task.Spec.Steps {
-		if containerEnvFromSourceHasNonRadixSecretRef(step.EnvFrom) ||
-			containerEnvVarHasNonRadixSecretRef(step.Env) {
-
-			errs = append(errs, ErrSecretReferenceNotAllowed)
-		}
+		errs = append(errs, nonRadixSecretRefErrors(fmt.Sprintf("step %s", step.Name), containerNonRadixSecretRefs(step.EnvFrom, step.Env))...)
 	}
 	for _, sidecar := range task.Spec.Sidecars {
-		if containerEnvFromSourceHasNonRadixSecretRef(sidecar.EnvFrom) ||
-			containerEnvVarHasNonRadixSecretRef(sidecar.Env) {
-
-			errs = append(errs, ErrSecretReferenceNotAllowed)
-		}
+		errs = append(errs, nonRadixSecretRefErrors(fmt.Sprintf("sidecar %s", sidecar.Name), containerNonRadixSecretRefs(sidecar.EnvFrom, sidecar.Env))...)
 	}
 	for _, volume := range task.Spec.Volumes {
 		if volume.Secret != nil {
@@ -114,14 +106,19 @@ func validateTaskSecretRefDoesNotExist(task *pipelinev1.Task) []error {
 				continue
 			}
 
-			errs = append(errs, ErrSecretReferenceNotAllowed)
+			errs = append(errs, fmt.Errorf("volume %s references the secret %s: %w", volume.Name, volume.Secret.SecretName, ErrSecretReferenceNotAllowed))
 		}
 	}
-	if task.Spec.StepTemplate != nil &&
-		(containerEnvFromSourceHasNonRadixSecretRef(task.Spec.StepTemplate.EnvFrom) ||
-			containerEnvVarHasNonRadixSecretRef(task.Spec.StepTemplate.Env)) {
+	if task.Spec.StepTemplate != nil {
+		errs = append(errs, nonRadixSecretRefErrors("stepTemplate", containerNonRadixSecretRefs(task.Spec.StepTemplate.EnvFrom, task.Spec.StepTemplate.Env))...)
+	}
+	return errs
+}
 
-		errs = append(errs, ErrSecretReferenceNotAllowed)
+func nonRadixSecretRefErrors(source string, secretNames []string) []error {
+	var errs []error
+	for _, secretName := range secretNames {
+		errs = append(errs, fmt.Errorf("%s references the secret %s: %w", source, secretName, ErrSecretReferenceNotAllowed))
 	}
 	return errs
 }
@@ -139,22 +136,19 @@ func errorTaskContainsInvalidVolumeName(volume corev1.Volume) error {
 	return fmt.Errorf("volume %s has invalid name: %w", volume.Name, ErrRadixVolumeNameNotAllowed)
 }
 
-func containerEnvFromSourceHasNonRadixSecretRef(envFromSources []corev1.EnvFromSource) bool {
+func containerNonRadixSecretRefs(envFromSources []corev1.EnvFromSource, envVars []corev1.EnvVar) []string {
+	var secretNames []string
 	for _, source := range envFromSources {
-		if source.SecretRef != nil {
-			return !isRadixBuildSecret(source.SecretRef.Name)
+		if source.SecretRef != nil && !isRadixBuildSecret(source.SecretRef.Name) {
+			secretNames = append(secretNames, source.SecretRef.Name)
 		}
 	}
-	return false
-}
-
-func containerEnvVarHasNonRadixSecretRef(envVars []corev1.EnvVar) bool {
 	for _, envVar := range envVars {
-		if envVar.ValueFrom != nil && envVar.ValueFrom.SecretKeyRef != nil {
-			return !isRadixBuildSecret(envVar.ValueFrom.SecretKeyRef.Name)
+		if envVar.ValueFrom != nil && envVar.ValueFrom.SecretKeyRef != nil && !isRadixBuildSecret(envVar.ValueFrom.SecretKeyRef.Name) {
+			secretNames = append(secretNames, envVar.ValueFrom.SecretKeyRef.Name)
 		}
 	}
-	return false
+	return secretNames
 }
 
 func isRadixBuildSecret(secretName string) bool {
