@@ -2,6 +2,7 @@ package privateimagehubs_test
 
 import (
 	"context"
+	"encoding/base64"
 	"testing"
 
 	"github.com/equinor/radix-operator/api-server/api/privateimagehubs/internal"
@@ -62,7 +63,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
 	pendingSecrets, _ = internal.GetPendingPrivateImageHubSecrets(secret)
 
 	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"test-user\",\"password\":\"a-password\",\"email\":\"radix@equinor.com\",\"auth\":\"dGVzdC11c2VyOmEtcGFzc3dvcmQ=\"}}}", 
+		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"test-user\",\"password\":\"a-password\",\"email\":\"radix@equinor.com\",\"auth\":\""+base64.StdEncoding.EncodeToString([]byte("test-user:a-password"))+"\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
 	assert.Equal(t, 0, len(pendingSecrets))
 }
