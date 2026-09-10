@@ -1,6 +1,7 @@
 package config2
 
 import (
+	"cmp"
 	"encoding/json/v2"
 	"fmt"
 	"reflect"
@@ -105,11 +106,6 @@ func compareDuration(lhs, rhs ref.Val) ref.Val {
 	if err != nil {
 		return celtypes.NewErr("invalid duration %q: %v", rhs.Value(), err)
 	}
-	if left == right {
-		return celtypes.Int(0)
-	} else if left < right {
-		return celtypes.Int(-1)
-	} else {
-		return celtypes.Int(1)
-	}
+
+	return celtypes.Int(cmp.Compare(left, right))
 }
