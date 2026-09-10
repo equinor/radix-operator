@@ -17,4 +17,5 @@ const (
 	BuilderSeccompProfileLocalHostProfile = "builder-seccomp-profile-localhost-profile"
 
 	ExternalRegistryAuthSecret = "external-registry-auth-secret"
+	LogLevel                   = "log-level"
 )

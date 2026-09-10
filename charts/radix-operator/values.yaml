@@ -138,9 +138,6 @@ config:
       tag: "" # Fallback to .Chart.Version
     pipelineImagePullPolicy: "Always"
 
-dnsZone: dev.radix.equinor.com
-radixZone: xx
-
 replicaCount: 1
 
 image:
@@ -192,17 +189,9 @@ volumes: []
 # Additional volume mounts to add to the radix-cost-allocation container.
 volumeMounts: []
 
-clusterType: development
-
 rbac:
   createApp:
     groups: [] # List of groups with permission to create new RadixRegistation
-
-deploymentsPerEnvironmentHistoryLimit: 10
-logLevel: "INFO"
-logPretty: false
-safeToRestartBatchJobThreshold: 259200 # 3 days in seconds
-oauthProxyDefaultIssuerUrl: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
 
 seccompProfile:
   fileNameOnNode: allow-buildah.json
@@ -321,9 +310,6 @@ radixApiServer:
           sectionName: https
       hostnames:
         - api.radix.equinor.com
-        #  - "api.{{ .Values.dnsZone }}"
-        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.dnsZone }}"
-        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.config.common.clusterName }}.{{ .Values.dnsZone }}"
       backendPort: 3002
       filters:
         - responseHeaderModifier:

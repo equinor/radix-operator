@@ -1,9 +1,6 @@
 package defaults
 
 const (
-	// DeploymentsHistoryLimitEnvironmentVariable Controls the number of RDs we can have in a environment
-	DeploymentsHistoryLimitEnvironmentVariable = "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT"
-
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
 
@@ -55,12 +52,6 @@ const (
 	// RadixPipelineJobTriggeredFromWebhookEnvironmentVariable Indicates that the pipeline job was triggered from a webhook
 	RadixPipelineJobTriggeredFromWebhookEnvironmentVariable = "TRIGGERED_FROM_WEBHOOK"
 
-	// RadixPromoteSourceDeploymentCommitHashEnvironmentVariable Git commit hash of source deployment in promote jobs
-	RadixPromoteSourceDeploymentCommitHashEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_COMMIT_HASH"
-
-	// RadixPromoteSourceDeploymentBranchEnvironmentVariable Git branch of source deployment in promote jobs
-	RadixPromoteSourceDeploymentBranchEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_BRANCH"
-
 	// RadixImageTagNameEnvironmentVariable Image tag name for Radix application components
 	RadixImageTagNameEnvironmentVariable = "IMAGE_TAG_NAME"
 
@@ -92,32 +83,14 @@ const (
 	// RadixGitRefTypeEnvironmentVariable When the pipeline job should be built from branch, tag or any specified in GIT_REF: tag, branch or empty
 	RadixGitRefTypeEnvironmentVariable = "GIT_REF_TYPE"
 
-	// RadixConfigBranchEnvironmentVariable Branch of the Radix application config
-	RadixConfigBranchEnvironmentVariable = "RADIX_CONFIG_BRANCH"
-
 	// RadixCommitIdEnvironmentVariable Commit ID of the Radix application to process in a pipeline
 	RadixCommitIdEnvironmentVariable = "COMMIT_ID"
 
 	// RadixPipelineTypeEnvironmentVariable Pipeline type
 	RadixPipelineTypeEnvironmentVariable = "PIPELINE_TYPE"
 
-	// RadixPipelineTargetEnvironmentsVariable Pipeline target environments
-	RadixPipelineTargetEnvironmentsVariable = "TARGET_ENVIRONMENTS"
-
-	// RadixPipelineActionEnvironmentVariable Pipeline action: prepare, run
-	RadixPipelineActionEnvironmentVariable = "RADIX_PIPELINE_ACTION"
-
 	RadixPipelineApplyConfigDeployExternalDNSFlag = "APPLY_CONFIG_DEPLOY_EXTERNALDNS"
-
-	// KubernetesApiPortEnvironmentVariable Port which the K8s API server listens to for HTTPS
-	KubernetesApiPortEnvironmentVariable = "KUBERNETES_SERVICE_PORT"
-
-	// LogLevel Log level: ERROR, WARN, INFO (default), DEBUG
-	LogLevel = "LOG_LEVEL"
 
 	// RadixGithubWorkspaceEnvironmentVariable Path to a cloned GitHub repository
 	RadixGithubWorkspaceEnvironmentVariable = "RADIX_GITHUB_WORKSPACE"
-
-	// RadixSafeToRestartBatchJobThresholdVariable Threshold in seconds for determining cluster-autoscaler safe-to-evict annotation on batch jobs
-	RadixSafeToRestartBatchJobThresholdVariable = "RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD"
 )

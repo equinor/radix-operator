@@ -112,7 +112,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.AppContainerRegistry, flags.AppContainerRegistry, "", "App Container registry")
 	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, defaults.RadixConfigFileEnvironmentVariable, "", "Radix config file name. Example: radixconfig.yaml")
 	cmd.Flags().StringVar(&pipelineArgs.ImageTag, defaults.RadixImageTagEnvironmentVariable, "latest", "Docker image tag")
-	cmd.Flags().StringVar(&pipelineArgs.LogLevel, defaults.LogLevel, "INFO", "Log level: ERROR, WARN, INFO (default), DEBUG")
+	cmd.Flags().StringVar(&pipelineArgs.LogLevel, flags.LogLevel, "INFO", "Log level: ERROR, WARN, INFO (default), DEBUG")
 	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsMemory, flags.BuilderResourcesLimitsMemory, "2000M", "Image builder resource limit memory")
 	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsCPU, flags.BuilderResourcesLimitsCPU, "1000m", "Image builder resource limit CPU")
 	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsCPU, flags.BuilderResourcesRequestsCPU, "200m", "Image builder resource requests CPU")
