@@ -127,11 +127,7 @@ const (
 	// RadixGitCloneGitImageEnvironmentVariable The container image containing git, used in pipeline git clone init containers
 	RadixGitCloneGitImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE"
 
-	// RadixOrphanedEnvironmentsRetentionPeriodVariable The duration for which orphaned environments are retained
-	RadixOrphanedEnvironmentsRetentionPeriodVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD"
 
-	// RadixOrphanedEnvironmentsCleanupCronVariable The cron expression for cleaning up orphaned environments
-	RadixOrphanedEnvironmentsCleanupCronVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON"
 
 	// RadixGithubWorkspaceEnvironmentVariable Path to a cloned GitHub repository
 	RadixGithubWorkspaceEnvironmentVariable = "RADIX_GITHUB_WORKSPACE"

@@ -25,10 +25,6 @@ func TestMustParse(t *testing.T) {
 
 		// DeploymentSyncer
 		defaults.KubernetesApiPortEnvironmentVariable: "443",
-
-		// TaskConfig
-		defaults.RadixOrphanedEnvironmentsRetentionPeriodVariable: "720h",
-		defaults.RadixOrphanedEnvironmentsCleanupCronVariable:     "0 0 * * *",
 	}
 
 	for k, v := range envVars {
@@ -45,9 +41,4 @@ func TestMustParse(t *testing.T) {
 	assert.Equal(t, 720*time.Hour, cfg.PipelineJobConfig.PipelineJobsHistoryPeriodLimit)
 	assert.Equal(t, "docker.io/alpine/git:2.45.2", cfg.PipelineJobConfig.GitCloneImage)
 	assert.Equal(t, "radixdev.azurecr.io/radix-pipeline:latest", cfg.PipelineJobConfig.PipelineImage)
-
-	// TaskConfig
-	require.NotNil(t, cfg.TaskConfig)
-	assert.Equal(t, 720*time.Hour, cfg.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod)
-	assert.Equal(t, "0 0 * * *", cfg.TaskConfig.OrphanedEnvironmentsCleanupCron)
 }

@@ -184,12 +184,12 @@ func (a *App) createSchedulers(ctx context.Context) ([]scheduler.TaskScheduler, 
 	var errs []error
 	var taskSchedulers []scheduler.TaskScheduler
 	if envCleanupTask, err := scheduler.NewTaskScheduler(ctx,
-		tasks.NewRadixEnvironmentsCleanup(ctx, a.kubeUtil, a.config.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod),
-		a.config.TaskConfig.OrphanedEnvironmentsCleanupCron); err != nil {
+		tasks.NewRadixEnvironmentsCleanup(ctx, a.kubeUtil, a.config2.Operator.OrphanedRadixEnvironmentsRetentionPeriod),
+		a.config2.Operator.OrphanedEnvironmentsCleanupCron); err != nil {
 		errs = append(errs, fmt.Errorf("failed to create environment cleanup task: %w", err))
 	} else {
 		taskSchedulers = append(taskSchedulers, envCleanupTask)
-		log.Ctx(ctx).Info().Msgf("Created schedule %s for the task RadixEnvironments cleanup task", a.config.TaskConfig.OrphanedEnvironmentsCleanupCron)
+		log.Ctx(ctx).Info().Msgf("Created schedule %s for the task RadixEnvironments cleanup task", a.config2.Operator.OrphanedEnvironmentsCleanupCron)
 	}
 	return taskSchedulers, errors.Join(errs...)
 }

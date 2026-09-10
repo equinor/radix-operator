@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
@@ -77,11 +78,14 @@ type OperatorConfig struct {
 
 	JobSchedulerAuxImage ContainerImage `json:"jobSchedulerAuxImage" required:"true"`
 
-	KubernetesAPIPort      int32 `json:"kubernetesAPIPort" required:"true"`
-	DeploymentHistoryLimit int   `json:"deploymentHistoryLimit" required:"true" validate:"self >= 3"`
-
-	Gateway               GatewayConfig               `json:"gateway" required:"true"`
-	CertificateAutomation CertificateAutomationConfig `json:"certificateAutomation" required:"true"`
+	KubernetesAPIPort      int32                       `json:"kubernetesAPIPort" required:"true"`
+	DeploymentHistoryLimit int                         `json:"deploymentHistoryLimit" required:"true" validate:"self >= 3"`
+	Gateway                GatewayConfig               `json:"gateway" required:"true"`
+	CertificateAutomation  CertificateAutomationConfig `json:"certificateAutomation" required:"true"`
+	// OrphanedRadixEnvironmentsRetentionPeriod is the time period for how long orphaned RadixEnvironments should be retained
+	OrphanedRadixEnvironmentsRetentionPeriod time.Duration `json:"orphanedEnvironmentsRetentionPeriod" required:"true" validate:"compareDuration(self, '5m') >= 0"`
+	// OrphanedEnvironmentsCleanupCron is the cron expression for when to run the cleanup of orphaned RadixEnvironments
+	OrphanedEnvironmentsCleanupCron string `json:"orphanedEnvironmentsCleanupCron" required:"true"`
 }
 
 type BuilderConfig struct {

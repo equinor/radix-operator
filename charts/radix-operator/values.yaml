@@ -125,6 +125,8 @@ config:
       duration: "2160h"
       renewBefore: "720h"
       gatewayClusterIssuer: ""
+    orphanedEnvironmentsRetentionPeriod: 720h
+    orphanedEnvironmentsCleanupCron: "0 0 * * *"
 
 dnsZone: dev.radix.equinor.com
 radixZone: xx
@@ -155,9 +157,6 @@ resources:
     cpu: 100m
     memory: 1Gi
 
-task:
-  orphanedEnvironmentsRetentionPeriod: 720h
-  orphanedEnvironmentsCleanupCron: "0 0 * * *"
 nodeSelector: {}
 
 tolerations: []
