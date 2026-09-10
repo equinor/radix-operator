@@ -115,12 +115,6 @@ const (
 	// LogLevel Log level: ERROR, WARN, INFO (default), DEBUG
 	LogLevel = "LOG_LEVEL"
 
-	// RadixPipelineImageEnvironmentVariable Radix pipeline image tag
-	RadixPipelineImageEnvironmentVariable = "RADIXOPERATOR_PIPELINE_IMAGE"
-
-	// RadixGitCloneGitImageEnvironmentVariable The container image containing git, used in pipeline git clone init containers
-	RadixGitCloneGitImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE"
-
 	// RadixGithubWorkspaceEnvironmentVariable Path to a cloned GitHub repository
 	RadixGithubWorkspaceEnvironmentVariable = "RADIX_GITHUB_WORKSPACE"
 

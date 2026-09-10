@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/rs/zerolog/log"
@@ -87,8 +89,11 @@ type OperatorConfig struct {
 	// OrphanedEnvironmentsCleanupCron is the cron expression for when to run the cleanup of orphaned RadixEnvironments
 	OrphanedEnvironmentsCleanupCron string `json:"orphanedEnvironmentsCleanupCron" required:"true"`
 
-	PipelineJobsHistoryLimit       int           `json:"pipelineJobsHistoryLimit" required:"true" validate:"self >= 3"`
-	PipelineJobsHistoryPeriodLimit time.Duration `json:"pipelineJobsHistoryPeriodLimit" required:"true" validate:"compareDuration(self, '24h') >= 0"`
+	PipelineJobsHistoryLimit       int               `json:"pipelineJobsHistoryLimit" required:"true" validate:"self >= 3"`
+	PipelineJobsHistoryPeriodLimit time.Duration     `json:"pipelineJobsHistoryPeriodLimit" required:"true" validate:"compareDuration(self, '24h') >= 0"`
+	GitCloneImage                  ContainerImage    `json:"gitCloneImage" required:"true"`
+	PipelineImage                  ContainerImage    `json:"pipelineImage" required:"true"`
+	PipelineImagePullPolicy        corev1.PullPolicy `json:"pipelineImagePullPolicy" required:"true" validate:"self in ['Always','IfNotPresent','Never']"`
 }
 
 type BuilderConfig struct {

@@ -232,8 +232,6 @@ func TestMain(m *testing.M) {
 		"rbac.createApp.groups[0]":                                   "123",
 		"image.pullPolicy":                                           "IfNotPresent",
 		"radixPipelineRunner.image.pullPolicy":                       "IfNotPresent",
-		"ingress.gateway.name":                                       "test-gateway",
-		"ingress.gateway.namespace":                                  "test-gateway-namespace",
 		"radixApiServer.logLevel":                                    "debug",
 		"radixApiServer.logPretty":                                   "true",
 		"radixApiServer.oidcKubernetesIssuer":                        "https://kubernetes.default.svc",

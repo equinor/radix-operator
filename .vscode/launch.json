@@ -137,8 +137,6 @@
 				"RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www",
 				"LOG_LEVEL": "info",
 				"LOG_PRETTY": "true",
-				"RADIXOPERATOR_PIPELINE_IMAGE": "radixdev.azurecr.io/radix-pipeline:fix-commit-id-dev",
-				"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE": "docker.io/alpine/git:2.45.2"
 			},
 			"args": ["--useOutClusterClient=false"]
 		},

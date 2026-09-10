@@ -195,6 +195,15 @@ func TestParse_HappyPath(t *testing.T) {
 			OrphanedEnvironmentsCleanupCron:          "0 0 * * *",
 			PipelineJobsHistoryLimit:                 5,
 			PipelineJobsHistoryPeriodLimit:           720 * time.Hour,
+			GitCloneImage: config2.ContainerImage{
+				Repository: "ghcr.io/equinor/radix-git-clone",
+				Tag:        "v1.0.0",
+			},
+			PipelineImage: config2.ContainerImage{
+				Repository: "ghcr.io/equinor/radix-pipeline",
+				Tag:        "v1.0.0",
+			},
+			PipelineImagePullPolicy: corev1.PullAlways,
 		},
 	}
 
@@ -496,6 +505,58 @@ func TestEnvConfigMapReader(t *testing.T) {
 			require.NotNil(t, cfg)
 			assert.Equal(t, "test-cluster", cfg.Common.ClusterName)
 			assert.Equal(t, "info", cfg.Operator.LogLevel)
+		})
+	}
+}
+
+func TestPipelineJobConfigs(t *testing.T) {
+	tests := map[string]struct {
+		modifyConfig MutateConfigFunc
+		errorPath    string
+	}{
+		"Always is valid": {
+			modifyConfig: func(cfg *config2.Config) {
+				cfg.Operator.PipelineImagePullPolicy = corev1.PullAlways
+			},
+		},
+		"Never is valid": {
+			modifyConfig: func(cfg *config2.Config) {
+				cfg.Operator.PipelineImagePullPolicy = corev1.PullNever
+			},
+		},
+		"IfNotPresent is valid": {
+			modifyConfig: func(cfg *config2.Config) {
+				cfg.Operator.PipelineImagePullPolicy = corev1.PullIfNotPresent
+			},
+		},
+		"blank is not valid": {
+			modifyConfig: func(cfg *config2.Config) {
+				cfg.Operator.PipelineImagePullPolicy = ""
+			},
+			errorPath: "Operator.PipelineImagePullPolicy",
+		},
+		"x is not valid": {
+			modifyConfig: func(cfg *config2.Config) {
+				cfg.Operator.PipelineImagePullPolicy = "x"
+			},
+			errorPath: "Operator.PipelineImagePullPolicy",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := mutateConfig(t, test.modifyConfig)
+
+			cfg, err := config2.Parse(configYaml)
+			if test.errorPath == "" {
+				require.NoError(t, err)
+				assert.NotNil(t, cfg)
+				return
+			}
+
+			require.Error(t, err)
+			assert.Nil(t, cfg)
+			assert.ErrorContains(t, err, test.errorPath)
 		})
 	}
 }

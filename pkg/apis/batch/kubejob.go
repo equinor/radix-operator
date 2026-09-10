@@ -134,7 +134,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	if batchJob.SafeToRestart != nil {
 		safeToRestart = batchJob.SafeToRestart
 	}
-	podAnnotations := getSafeToRestartAnnotations(safeToRestart, timeLimitSeconds, s.config2.Operator.BatchSafeToRestartJobThreshold)
+	podAnnotations := getSafeToRestartAnnotations(safeToRestart, timeLimitSeconds, s.config.Operator.BatchSafeToRestartJobThreshold)
 
 	node := jobComponent.GetNode()
 	if batchJob.Node != nil { // nolint:staticcheck // SA1019: Ignore linting deprecated fields
@@ -198,13 +198,13 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 }
 
 func (s *syncer) getJobPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1.LocalObjectReference {
-	if s.config2.Operator.ExternalRegistryAuthSecret == "" {
+	if s.config.Operator.ExternalRegistryAuthSecret == "" {
 		return rd.Spec.ImagePullSecrets
 	}
 
 	return append(
 		rd.Spec.ImagePullSecrets,
-		corev1.LocalObjectReference{Name: s.config2.Operator.ExternalRegistryAuthSecret},
+		corev1.LocalObjectReference{Name: s.config.Operator.ExternalRegistryAuthSecret},
 	)
 }
 
@@ -306,7 +306,7 @@ func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv
 }
 
 func (s *syncer) getContainerEnvironmentVariables(ctx context.Context, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob, kubeJobName string) ([]corev1.EnvVar, error) {
-	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(ctx, s.kubeUtil, s.config2, rd.Spec.AppName, rd, jobComponent) //nolint:staticcheck
+	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(ctx, s.kubeUtil, s.config, rd.Spec.AppName, rd, jobComponent) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
@@ -337,10 +337,10 @@ func applyBatchJobEnvironmentVariables(batchJob *radixv1.RadixBatchJob, componen
 
 func (s *syncer) getContainerResources(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) (corev1.ResourceRequirements, error) {
 	if batchJob.Resources != nil {
-		return operatorUtils.BuildResourceRequirement(s.config2, batchJob.Resources)
+		return operatorUtils.BuildResourceRequirement(s.config, batchJob.Resources)
 	}
 
-	return operatorUtils.GetResourceRequirements(s.config2, jobComponent)
+	return operatorUtils.GetResourceRequirements(s.config, jobComponent)
 }
 
 func getContainerPorts(radixJobComponent *radixv1.RadixDeployJobComponent) []corev1.ContainerPort {

@@ -206,8 +206,6 @@ lint-golangci: bootstrap
 lint-helm: bootstrap
 	helm lint ./charts/radix-operator \
 		--set rbac.createApp.groups[0]=platform-users \
-		--set ingress.gateway.name=radix \
-		--set ingress.gateway.namespace=istio \
 		--set config.common.dnsZone=radix.example.com \
 		--set config.common.clusterName=mycluster \
 		--set config.operator.appAliasBaseURL=app.radix.example.com \
@@ -215,12 +213,13 @@ lint-helm: bootstrap
 		--set config.operator.azureKeyVaultTenantID=1234 \
 		--set config.operator.clusterType=dev \
 		--set config.operator.containerRegistry=build.example.com \
-		--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer
+		--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer \
+		--set config.operator.gateway.name=radix \
+		--set config.operator.gateway.namespace=istio 
+		
 helm-render:
 	helm template ./charts/radix-operator \
 		--set rbac.createApp.groups[0]=platform-users \
-		--set ingress.gateway.name=radix \
-		--set ingress.gateway.namespace=istio \
 		--set config.common.dnsZone=radix.example.com \
 		--set config.common.clusterName=mycluster \
 		--set config.operator.appAliasBaseURL=app.radix.example.com \
@@ -228,7 +227,9 @@ helm-render:
 		--set config.operator.azureKeyVaultTenantID=1234 \
 		--set config.operator.clusterType=dev \
 		--set config.operator.containerRegistry=build.example.com \
-		--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer
+		--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer \
+		--set config.operator.gateway.name=radix \
+		--set config.operator.gateway.namespace=istio 
 
 .PHONY: generate
 generate: bootstrap code-gen helmresources mocks swagger

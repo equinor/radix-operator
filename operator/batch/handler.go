@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-operator/operator/batch/internal"
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/batch"
-	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -35,8 +34,7 @@ type handler struct {
 	kubeutil      *kube.Kube
 	syncerFactory internal.SyncerFactory
 	events        common.SyncEventRecorder
-	config        config.Config
-	config2       config2.Config
+	config        config2.Config
 }
 
 func NewHandler(
@@ -44,8 +42,7 @@ func NewHandler(
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	eventRecorder record.EventRecorder,
-	config config.Config,
-	config2 config2.Config,
+	config config2.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	h := &handler{
@@ -55,7 +52,6 @@ func NewHandler(
 		syncerFactory: internal.SyncerFactoryFunc(batch.NewSyncer),
 		events:        common.NewSyncEventRecorder(eventRecorder),
 		config:        config,
-		config2:       config2,
 	}
 
 	for _, option := range options {
@@ -98,7 +94,7 @@ func (h *handler) Sync(ctx context.Context, namespace, name string) error {
 
 	ctx = log.Ctx(ctx).With().Str("app_name", radixBatch.Labels[kube.RadixAppLabel]).Logger().WithContext(ctx)
 	syncBatch := radixBatch.DeepCopy()
-	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, radixRegistration, syncBatch, h.config, h.config2)
+	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, radixRegistration, syncBatch, h.config)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		h.events.RecordSyncErrorEvent(syncBatch, err)

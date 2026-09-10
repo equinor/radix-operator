@@ -130,6 +130,13 @@ config:
 
     pipelineJobsHistoryLimit: 5
     pipelineJobsHistoryPeriodLimit: "720h"
+    gitCloneImage:
+      repository: docker.io/alpine/git
+      tag: "latest"
+    pipelineImage:
+      repository: "ghcr.io/equinor/radix/pipeline"
+      tag: "" # Fallback to .Chart.Version
+    pipelineImagePullPolicy: "Always"
 
 dnsZone: dev.radix.equinor.com
 radixZone: xx
@@ -213,20 +220,6 @@ seccompProfile:
       requests:
         cpu: 10m
         memory: 10Mi
-
-# Image containing git
-gitClone:
-  image:
-    repository: docker.io/alpine/git
-    tag: "2.45.2"
-
-radixPipelineRunner:
-  image:
-    repository: ghcr.io/equinor/radix/pipeline
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: ""
-    # Pull policy for the pipeline job image. Defaults to Always.
-    pullPolicy: Always
 
 radixApiServer:
   useProfiler: false

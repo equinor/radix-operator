@@ -11,7 +11,8 @@ const (
 	BuilderResourcesRequestsCPU    = "builder-resources-requests-cpu"
 	BuilderResourcesRequestsMemory = "builder-resources-requests-memory"
 
-	BuilderImage = "builder-image"
+	BuilderImage  = "builder-image"
+	GitCloneImage = "git-clone-image"
 
 	BuilderSeccompProfileLocalHostProfile = "builder-seccomp-profile-localhost-profile"
 

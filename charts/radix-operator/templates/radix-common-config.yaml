@@ -12,6 +12,9 @@ data:
         "jobSchedulerImage" (dict
           "tag" (.Values.config.operator.jobSchedulerImage.tag | default .Chart.Version)
         )
+        "pipelineImage" (dict
+          "tag" (.Values.config.operator.pipelineImage.tag | default .Chart.Version)
+        )
         "builder" (dict
           "seccompProfileLocalhostProfile" (.Values.config.operator.builder.seccompProfileLocalhostProfile | default .Values.seccompProfile.fileNameOnNode)
         )

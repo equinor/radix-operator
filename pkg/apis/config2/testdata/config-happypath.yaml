@@ -109,3 +109,10 @@ operator:
   orphanedEnvironmentsCleanupCron: "0 0 * * *"
   pipelineJobsHistoryLimit: 5
   pipelineJobsHistoryPeriodLimit: "720h"
+  gitCloneImage:
+    repository: ghcr.io/equinor/radix-git-clone
+    tag: v1.0.0
+  pipelineImage:
+    repository: ghcr.io/equinor/radix-pipeline
+    tag: v1.0.0
+  pipelineImagePullPolicy: "Always"
