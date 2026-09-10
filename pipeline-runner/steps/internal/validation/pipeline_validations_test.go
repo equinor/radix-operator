@@ -36,7 +36,7 @@ func TestValidatePipeline(t *testing.T) {
 		{
 			name:          "task with inline taskSpec is rejected",
 			tasks:         []pipelinev1.PipelineTask{taskSpecPipelineTask("task1")},
-			expectedError: "invalid task 'task1': each Task within a Pipeline must have a valid name and a taskRef",
+			expectedError: "invalid task #1 task1: each Task within a Pipeline must have a valid name and a taskRef",
 		},
 		{
 			name:    "finally with inline taskSpec is valid",
@@ -55,7 +55,7 @@ func TestValidatePipeline(t *testing.T) {
 		{
 			name:          "task with neither taskRef nor taskSpec",
 			tasks:         []pipelinev1.PipelineTask{{Name: "task1"}},
-			expectedError: "invalid task 'task1': each Task within a Pipeline must have a valid name and a taskRef",
+			expectedError: "invalid task #1 task1: each Task within a Pipeline must have a valid name and a taskRef",
 		},
 		{
 			name:          "task without a name",
@@ -66,7 +66,7 @@ func TestValidatePipeline(t *testing.T) {
 			name:          "finally with neither taskRef nor taskSpec",
 			tasks:         []pipelinev1.PipelineTask{taskRefPipelineTask("task1", "hello")},
 			finally:       []pipelinev1.PipelineTask{{Name: "finally1"}},
-			expectedError: "invalid finally task 'finally1'",
+			expectedError: "invalid finally task #1 'finally1'",
 		},
 		{
 			name: "task with both taskRef and taskSpec",
