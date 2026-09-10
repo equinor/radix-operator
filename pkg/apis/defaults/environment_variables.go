@@ -127,8 +127,6 @@ const (
 	// RadixGitCloneGitImageEnvironmentVariable The container image containing git, used in pipeline git clone init containers
 	RadixGitCloneGitImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE"
 
-
-
 	// RadixGithubWorkspaceEnvironmentVariable Path to a cloned GitHub repository
 	RadixGithubWorkspaceEnvironmentVariable = "RADIX_GITHUB_WORKSPACE"
 
