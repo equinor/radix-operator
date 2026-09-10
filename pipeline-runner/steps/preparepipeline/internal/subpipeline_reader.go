@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -14,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -75,12 +77,15 @@ func getPipelineTasks(pipelineFilePath string, pipeline *pipelinev1.Pipeline) ([
 	if err != nil {
 		return nil, fmt.Errorf("failed get tasks: %w", err)
 	}
+	if err := hoistEmbeddedTaskSpecs(pipeline, taskMap); err != nil {
+		return nil, err
+	}
 	if len(taskMap) == 0 {
-		return nil, fmt.Errorf("no tasks found: %w", err)
+		return nil, errors.New("no tasks found")
 	}
 	var tasks []pipelinev1.Task
 	var validateTaskErrors []error
-	for _, pipelineSpecTask := range pipeline.Spec.Tasks {
+	for _, pipelineSpecTask := range slices.Concat(pipeline.Spec.Tasks, pipeline.Spec.Finally) {
 		task, taskExists := taskMap[pipelineSpecTask.TaskRef.Name]
 		if !taskExists {
 			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing the pipeline task %s, referenced to the task %s", pipelineSpecTask.Name, pipelineSpecTask.TaskRef.Name))
@@ -90,6 +95,47 @@ func getPipelineTasks(pipelineFilePath string, pipeline *pipelinev1.Pipeline) ([
 		tasks = append(tasks, task)
 	}
 	return tasks, errors.Join(validateTaskErrors...)
+}
+
+// hoistEmbeddedTaskSpecs converts each inline taskSpec into a regular task and replaces it with a taskRef,
+// so embedded tasks get the same validation, substitution and hardening as tasks loaded from task files.
+func hoistEmbeddedTaskSpecs(pipeline *pipelinev1.Pipeline, taskMap map[string]pipelinev1.Task) error {
+	var errs []error
+	hoistedTaskNames := make(map[string]bool)
+	for _, pipelineSpecTasks := range [][]pipelinev1.PipelineTask{pipeline.Spec.Tasks, pipeline.Spec.Finally} {
+		for i := range pipelineSpecTasks {
+			pipelineSpecTask := &pipelineSpecTasks[i]
+			if pipelineSpecTask.TaskSpec == nil {
+				continue
+			}
+			if pipelineSpecTask.TaskSpec.IsCustomTask() {
+				errs = append(errs, fmt.Errorf("the pipeline task %s defines a custom task %s, which is not supported", pipelineSpecTask.Name, pipelineSpecTask.TaskSpec.Kind))
+				continue
+			}
+			if _, taskExists := taskMap[pipelineSpecTask.Name]; taskExists {
+				conflict := "a task file"
+				if hoistedTaskNames[pipelineSpecTask.Name] {
+					conflict = "another inline taskSpec"
+				}
+				errs = append(errs, fmt.Errorf("the pipeline task %s defines an inline taskSpec, but a task with this name is already defined in %s", pipelineSpecTask.Name, conflict))
+				continue
+			}
+			task := pipelinev1.Task{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        pipelineSpecTask.Name,
+					Labels:      pipelineSpecTask.TaskSpec.Metadata.Labels,
+					Annotations: pipelineSpecTask.TaskSpec.Metadata.Annotations,
+				},
+				Spec: pipelineSpecTask.TaskSpec.TaskSpec,
+			}
+			addGitDeployKeyVolume(&task)
+			taskMap[task.Name] = task
+			hoistedTaskNames[task.Name] = true
+			pipelineSpecTask.TaskSpec = nil
+			pipelineSpecTask.TaskRef = &pipelinev1.TaskRef{Name: task.Name}
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func getPipelineFilePath(pipelineInfo *model.PipelineInfo, pipelineFile string) (string, error) {
@@ -111,6 +157,7 @@ func getPipeline(pipelineFileName string) (*pipelinev1.Pipeline, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the pipeline file %s: %w", pipelineFileName, err)
 	}
+	pipelineData = substituteRadixSecretNames(pipelineData)
 	var pipeline pipelinev1.Pipeline
 	err = yaml.Unmarshal(pipelineData, &pipeline)
 	if err != nil {
@@ -138,12 +185,14 @@ func hotfixForPipelineDefaultParamsWithBrokenValue(pipeline *pipelinev1.Pipeline
 	}
 }
 func hotfixForPipelineTasksParamsWithBrokenValue(pipeline *pipelinev1.Pipeline) {
-	for it, task := range pipeline.Spec.Tasks {
-		for ip, p := range task.Params {
-			if p.Value.ObjectVal != nil && p.Value.ObjectVal["type"] == "string" && p.Value.ObjectVal["stringVal"] != "" {
-				pipeline.Spec.Tasks[it].Params[ip].Value = pipelinev1.ParamValue{
-					Type:      "string",
-					StringVal: p.Value.ObjectVal["stringVal"],
+	for _, pipelineSpecTasks := range [][]pipelinev1.PipelineTask{pipeline.Spec.Tasks, pipeline.Spec.Finally} {
+		for it, task := range pipelineSpecTasks {
+			for ip, p := range task.Params {
+				if p.Value.ObjectVal != nil && p.Value.ObjectVal["type"] == "string" && p.Value.ObjectVal["stringVal"] != "" {
+					pipelineSpecTasks[it].Params[ip].Value = pipelinev1.ParamValue{
+						Type:      "string",
+						StringVal: p.Value.ObjectVal["stringVal"],
+					}
 				}
 			}
 		}
@@ -169,8 +218,7 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read the file %s: %w", fileName, err)
 		}
-		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixBuildSecretsSource, defaults.SubstitutionRadixBuildSecretsTarget))
-		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixGitDeployKeySource, defaults.SubstitutionRadixGitDeployKeyTarget))
+		fileData = substituteRadixSecretNames(fileData)
 
 		task := pipelinev1.Task{}
 		err = yaml.Unmarshal(fileData, &task)
@@ -185,6 +233,11 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 		taskMap[task.Name] = task
 	}
 	return taskMap, nil
+}
+
+func substituteRadixSecretNames(fileData []byte) []byte {
+	fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixBuildSecretsSource, defaults.SubstitutionRadixBuildSecretsTarget))
+	return []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixGitDeployKeySource, defaults.SubstitutionRadixGitDeployKeyTarget))
 }
 
 func addGitDeployKeyVolume(task *pipelinev1.Task) {
