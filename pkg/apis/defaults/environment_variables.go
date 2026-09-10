@@ -4,12 +4,6 @@ const (
 	// DeploymentsHistoryLimitEnvironmentVariable Controls the number of RDs we can have in a environment
 	DeploymentsHistoryLimitEnvironmentVariable = "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT"
 
-	// PipelineJobsHistoryLimitEnvironmentVariable Controls the number of RJs should exist in an app namespace, per groups by environment and status
-	PipelineJobsHistoryLimitEnvironmentVariable = "RADIX_PIPELINE_JOBS_HISTORY_LIMIT"
-
-	// PipelineJobsHistoryPeriodLimitEnvironmentVariable Controls how long an RJ should exist in an app namespace, per groups by environment and status
-	PipelineJobsHistoryPeriodLimitEnvironmentVariable = "RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT"
-
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
 

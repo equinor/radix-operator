@@ -193,6 +193,8 @@ func TestParse_HappyPath(t *testing.T) {
 			},
 			OrphanedRadixEnvironmentsRetentionPeriod: 720 * time.Hour,
 			OrphanedEnvironmentsCleanupCron:          "0 0 * * *",
+			PipelineJobsHistoryLimit:                 5,
+			PipelineJobsHistoryPeriodLimit:           720 * time.Hour,
 		},
 	}
 

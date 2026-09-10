@@ -2,7 +2,6 @@ package config
 
 import (
 	"testing"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/stretchr/testify/assert"
@@ -17,11 +16,9 @@ func TestMustParse(t *testing.T) {
 		defaults.RadixSafeToRestartBatchJobThresholdVariable: "259200",
 
 		// PipelineJobConfig
-		defaults.PipelineJobsHistoryLimitEnvironmentVariable:       "5",
-		defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable: "720h",
-		defaults.DeploymentsHistoryLimitEnvironmentVariable:        "10",
-		defaults.RadixGitCloneGitImageEnvironmentVariable:          "docker.io/alpine/git:2.45.2",
-		defaults.RadixPipelineImageEnvironmentVariable:             "radixdev.azurecr.io/radix-pipeline:latest",
+		defaults.DeploymentsHistoryLimitEnvironmentVariable: "10",
+		defaults.RadixGitCloneGitImageEnvironmentVariable:   "docker.io/alpine/git:2.45.2",
+		defaults.RadixPipelineImageEnvironmentVariable:      "radixdev.azurecr.io/radix-pipeline:latest",
 
 		// DeploymentSyncer
 		defaults.KubernetesApiPortEnvironmentVariable: "443",
@@ -37,8 +34,6 @@ func TestMustParse(t *testing.T) {
 
 	// PipelineJobConfig
 	require.NotNil(t, cfg.PipelineJobConfig)
-	assert.Equal(t, 5, cfg.PipelineJobConfig.PipelineJobsHistoryLimit)
-	assert.Equal(t, 720*time.Hour, cfg.PipelineJobConfig.PipelineJobsHistoryPeriodLimit)
 	assert.Equal(t, "docker.io/alpine/git:2.45.2", cfg.PipelineJobConfig.GitCloneImage)
 	assert.Equal(t, "radixdev.azurecr.io/radix-pipeline:latest", cfg.PipelineJobConfig.PipelineImage)
 }

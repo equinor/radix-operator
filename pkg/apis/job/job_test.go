@@ -43,6 +43,14 @@ type RadixJobTestSuiteBase struct {
 	}
 }
 
+var config1 = &config.Config{
+	PipelineJobConfig: config.PipelineJobConfig{
+		PipelineImage:           "docker.io/anypipeline:tag",
+		PipelineImagePullPolicy: corev1.PullAlways,
+		GitCloneImage:           "docker.io/git:any",
+	},
+}
+
 func (s *RadixJobTestSuiteBase) SetupSuite() {
 	s.config = struct {
 		gitImage string
@@ -91,8 +99,10 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 				},
 				SeccompProfileLocalhostProfile: "anyseccomp",
 			},
-			ClusterType:                "anyclustertype",
-			ExternalRegistryAuthSecret: "an-external-registry-secret",
+			ClusterType:                    "anyclustertype",
+			ExternalRegistryAuthSecret:     "an-external-registry-secret",
+			PipelineJobsHistoryLimit:       3,
+			PipelineJobsHistoryPeriodLimit: 24 * time.Hour,
 		},
 	}
 
@@ -212,15 +222,13 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 }
 
 func (s *RadixJobTestSuite) Test_QueuedJob_ReconcileStatus() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
-
 	// Setup
 	_, err := s.testUtils.ApplyJob(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)))
 	s.Require().NoError(err)
 
 	// Sync job -> queued
 	expectedGen := int64(42)
-	secondJob, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithGeneration(expectedGen).WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config, s.config2)
+	secondJob, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithGeneration(expectedGen).WithJobName("SecondJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config1, s.config2)
 	s.Require().NoError(err)
 	s.Equal(radixv1.JobQueued, secondJob.Status.Condition)
 	s.Equal(radixv1.RadixJobReconcileSucceeded, secondJob.Status.ReconcileStatus)
@@ -232,7 +240,6 @@ func (s *RadixJobTestSuite) Test_QueuedJob_ReconcileStatus() {
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appID := ulid.Make()
 	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
-	config := getConfigWithPipelineJobsHistoryLimit(3)
 	rj, _, err := s.applyJobWithSync(
 		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID.String()).WithRadixConfigFullName("some-radixconfig.yaml"),
 		utils.NewJobBuilder().
@@ -246,7 +253,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 			WithImageTag(imageTag).
 			WithDeploymentName(deploymentName).
 			WithPipelineType(radixv1.BuildDeploy),
-		config, s.config2)
+		config1, s.config2)
 	s.Require().NoError(err)
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
@@ -501,7 +508,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
 					WithPipelineType(radixv1.BuildDeploy).
 					WithOverrideUseBuildCache(scenario.overrideUseBuildCache).
 					WithRefreshBuildCache(scenario.refreshBuildCache),
-				getConfigWithPipelineJobsHistoryLimit(3),
+				config1,
 				s.config2)
 			s.Require().NoError(err)
 			jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
@@ -531,7 +538,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_GitCloneArguments() {
 		appName = "anyapp"
 		jobName = "anyjobname"
 		gitArg  = fmt.Sprintf("--RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE=%s", s.config.gitImage)
-		config  = getConfigWithPipelineJobsHistoryLimit(3)
+		config  = config1
 	)
 	tests := map[string]struct {
 		unsetGit     bool
@@ -570,7 +577,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_GitCloneArguments() {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
+	config := config1
 	// Setup
 	firstJob, err := s.testUtils.ApplyJob(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)))
 	s.Require().NoError(err)
@@ -593,7 +600,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobRunning_SecondJobQueued() {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
+	config := config1
 	// Setup
 	firstJob, err := s.testUtils.ApplyJob(utils.ARadixBuildDeployJob().WithStatus(utils.NewJobStatusBuilder().WithCondition(radixv1.JobWaiting)).WithJobName("FirstJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)))
 	s.Require().NoError(err)
@@ -616,7 +623,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_FirstJobWaiting_SecondJobQueued() {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_StoppingWaitingJob_DeletesPipelineJob() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
+	config := config1
 
 	// Sync a build-deploy job. As the only job, it is reconciled to Waiting and its pipeline
 	// Kubernetes job is created.
@@ -647,7 +654,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StoppingWaitingJob_DeletesPipelineJ
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_OldestPendingJobRunsFirst() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
+	config := config1
 	baseTime := time.Now().Add(-3 * time.Hour)
 
 	oldestJob, err := s.testUtils.ApplyJob(
@@ -759,7 +766,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_OldestPendingJobRunsFirst() {
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplication() {
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName("some-app").BuildRR(), metav1.CreateOptions{})
 	s.Require().NoError(err)
-	config := getConfigWithPipelineJobsHistoryLimit(3)
+	config := config1
 	// Setup
 	firstJob, err := s.testUtils.ApplyJob(utils.AStartedBuildDeployJob().WithRadixApplication(nil).WithJobName("FirstJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)))
 	s.Require().NoError(err)
@@ -787,7 +794,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_MissingRadixApplicatio
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
+	config := config1
 	// Setup
 	_, err := s.testUtils.ApplyJob(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)))
 	s.Require().NoError(err)
@@ -800,7 +807,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJ
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_KubernetesJobStarted_RadixJobRunning() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
+	config := config1
 
 	// First sync creates the underlying Kubernetes pipeline job. With no active pods yet the
 	// RadixJob is Waiting.
@@ -859,8 +866,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 		existingRadixDeploymentJobs []radixDeploymentJob
 		// testingRadixDeploymentJob RadixDeployments and its RadixJobs under test
 		testingRadixDeploymentJob radixDeploymentJob
-		// jobsHistoryLimitPerBranchAndStatus Limit, defined in the env-var   RADIX_PIPELINE_JOBS_HISTORY_LIMIT
-		jobsHistoryLimit int
+		jobsHistoryLimit          int
 		// expectedJobNames Name of jobs, expected to exist on finishing test
 		expectedJobNames []string
 	}
@@ -1117,14 +1123,15 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 
 	for name, scenario := range scenarios {
 		s.Run(name, func() {
-			config := getConfigWithPipelineJobsHistoryLimit(scenario.jobsHistoryLimit)
+			config2 := s.config2
+			config2.Operator.PipelineJobsHistoryLimit = scenario.jobsHistoryLimit
 			testTime := time.Now().Add(time.Hour * -100)
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				_, err := s.testUtils.ApplyDeployment(context.Background(), utils.ARadixDeployment().
 					WithAppName(appName).WithDeploymentName(rdJob.rdName).WithEnvironment(rdJob.env).WithJobName(rdJob.jobName).
 					WithActiveFrom(testTime))
 				s.NoError(err)
-				err = s.applyJobWithSyncFor(rrBuilder, raBuilder, appName, rdJob, config)
+				err = s.applyJobWithSyncFor(rrBuilder, raBuilder, appName, rdJob, config1, config2)
 				s.Require().NoError(err)
 
 				testTime = testTime.Add(time.Hour)
@@ -1135,7 +1142,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 				WithEnvironment(scenario.testingRadixDeploymentJob.env).
 				WithActiveFrom(testTime))
 			s.NoError(err)
-			err = s.applyJobWithSyncFor(rrBuilder, raBuilder, appName, scenario.testingRadixDeploymentJob, config)
+			err = s.applyJobWithSyncFor(rrBuilder, raBuilder, appName, scenario.testingRadixDeploymentJob, config1, config2)
 			s.Require().NoError(err)
 
 			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})
@@ -1239,7 +1246,6 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 	for name, scenario := range scenarios {
 		s.Run(name, func() {
 			appId := ulid.Make().String()
-			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)
 			rrBuilder := utils.ARadixRegistration().WithName(appName)
 			rr, err := s.testUtils.ApplyRegistration(rrBuilder)
@@ -1268,7 +1274,7 @@ func (s *RadixJobTestSuite) Test_WildCardJobs() {
 
 			testingRadixJob, err := s.testUtils.ApplyJob(scenario.testingRadixJobBuilder.WithAppName(appName))
 			s.Require().NoError(err)
-			err = s.runSync(rr, testingRadixJob, config, s.config2)
+			err = s.runSync(rr, testingRadixJob, config1, s.config2)
 			s.NoError(err)
 
 			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})
@@ -1513,7 +1519,6 @@ func (s *RadixJobTestSuite) Test_MultipleJobsForSameEnv() {
 		s.Run(name, func() {
 			rr, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName(appName).BuildRR(), metav1.CreateOptions{})
 			s.Require().NoError(err)
-			config := getConfigWithPipelineJobsHistoryLimit(10)
 			testTime := time.Now().Add(time.Hour * -100)
 			if scenario.raBuilder != nil {
 				raBuilder := scenario.raBuilder.WithAppName(appName)
@@ -1542,7 +1547,7 @@ func (s *RadixJobTestSuite) Test_MultipleJobsForSameEnv() {
 
 			testingRadixJob, err := s.testUtils.ApplyJob(scenario.testingRadixJobBuilder.WithAppName(appName))
 			s.Require().NoError(err)
-			err = s.runSync(rr, testingRadixJob, config, s.config2)
+			err = s.runSync(rr, testingRadixJob, config1, s.config2)
 			s.NoError(err)
 
 			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})
@@ -1582,7 +1587,7 @@ func (s *RadixJobTestSuite) assertExistRadixJobsWithNames(radixJobList *radixv1.
 	}
 }
 
-func (s *RadixJobTestSuite) applyJobWithSyncFor(rrBuilder utils.RegistrationBuilder, raBuilder utils.ApplicationBuilder, appName string, rdJob radixDeploymentJob, config *config.Config) error {
+func (s *RadixJobTestSuite) applyJobWithSyncFor(rrBuilder utils.RegistrationBuilder, raBuilder utils.ApplicationBuilder, appName string, rdJob radixDeploymentJob, config *config.Config, config2 config2.Config) error {
 	_, _, err := s.applyJobWithSync(
 		rrBuilder,
 		utils.ARadixBuildDeployJob().
@@ -1593,12 +1598,12 @@ func (s *RadixJobTestSuite) applyJobWithSyncFor(rrBuilder utils.RegistrationBuil
 			WithBranch(rdJob.env).
 			WithStatus(utils.NewJobStatusBuilder().
 				WithCondition(rdJob.jobStatus)),
-		config, s.config2)
+		config, config2)
 	return err
 }
 
 func (s *RadixJobTestSuite) TestTargetEnvironmentIsSetWhenRadixApplicationExist() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
+	config := config1
 
 	expectedEnvs := []string{"test"}
 	job, _, err := s.applyJobWithSync(utils.ARadixRegistration(), utils.ARadixBuildDeployJob().WithJobName("test").WithGitRef("master").WithGitRefType(string(radixv1.GitRefBranch)), config, s.config2)
@@ -1609,7 +1614,7 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentIsSetWhenRadixApplicationExist(
 }
 
 func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissing() {
-	config := getConfigWithPipelineJobsHistoryLimit(3)
+	config := config1
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), utils.NewRegistrationBuilder().WithName("some-app").BuildRR(), metav1.CreateOptions{})
 	s.Require().NoError(err)
 
@@ -1690,15 +1695,4 @@ func getJobContainerArgument(container corev1.Container, variableName string) st
 		}
 	}
 	return ""
-}
-
-func getConfigWithPipelineJobsHistoryLimit(historyLimit int) *config.Config {
-	return &config.Config{
-		PipelineJobConfig: config.PipelineJobConfig{
-			PipelineJobsHistoryLimit: historyLimit,
-			PipelineImage:            "docker.io/anypipeline:tag",
-			PipelineImagePullPolicy:  corev1.PullAlways,
-			GitCloneImage:            "docker.io/git:any",
-		},
-	}
 }

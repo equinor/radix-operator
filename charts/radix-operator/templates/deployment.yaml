@@ -38,10 +38,6 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             # Maximum custom resources
-            - name: RADIX_PIPELINE_JOBS_HISTORY_LIMIT
-              value: {{ .Values.pipelineJobsHistoryLimit | quote }}
-            - name: RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT
-              value: {{ .Values.pipelineJobsHistoryPeriodLimit | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: LOG_PRETTY

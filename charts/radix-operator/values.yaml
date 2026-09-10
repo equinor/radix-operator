@@ -128,6 +128,9 @@ config:
     orphanedEnvironmentsRetentionPeriod: 720h
     orphanedEnvironmentsCleanupCron: "0 0 * * *"
 
+    pipelineJobsHistoryLimit: 5
+    pipelineJobsHistoryPeriodLimit: "720h"
+
 dnsZone: dev.radix.equinor.com
 radixZone: xx
 
@@ -189,8 +192,6 @@ rbac:
     groups: [] # List of groups with permission to create new RadixRegistation
 
 deploymentsPerEnvironmentHistoryLimit: 10
-pipelineJobsHistoryLimit: 5
-pipelineJobsHistoryPeriodLimit: "720h"
 logLevel: "INFO"
 logPretty: false
 safeToRestartBatchJobThreshold: 259200 # 3 days in seconds

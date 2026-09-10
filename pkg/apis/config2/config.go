@@ -86,6 +86,9 @@ type OperatorConfig struct {
 	OrphanedRadixEnvironmentsRetentionPeriod time.Duration `json:"orphanedEnvironmentsRetentionPeriod" required:"true" validate:"compareDuration(self, '5m') >= 0"`
 	// OrphanedEnvironmentsCleanupCron is the cron expression for when to run the cleanup of orphaned RadixEnvironments
 	OrphanedEnvironmentsCleanupCron string `json:"orphanedEnvironmentsCleanupCron" required:"true"`
+
+	PipelineJobsHistoryLimit       int           `json:"pipelineJobsHistoryLimit" required:"true" validate:"self >= 3"`
+	PipelineJobsHistoryPeriodLimit time.Duration `json:"pipelineJobsHistoryPeriodLimit" required:"true" validate:"compareDuration(self, '24h') >= 0"`
 }
 
 type BuilderConfig struct {
