@@ -87,9 +87,9 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 		assert.Equal(t, appName, resultEnvVarsMap[defaults.RadixAppEnvironmentVariable].Value)
 		assert.Equal(t, envName, resultEnvVarsMap[defaults.EnvironmentnameEnvironmentVariable].Value)
 		assert.Equal(t, testEnv.cfg.Common.ClusterName, resultEnvVarsMap[envvars.ComponentClusterName].Value)
-		assert.Equal(t, testEnv.cfg.Operator.ClusterType, resultEnvVarsMap[envvars.ComponentClusterType].Value)
+		assert.Equal(t, testEnv.cfg.Common.ClusterType, resultEnvVarsMap[envvars.ComponentClusterType].Value)
 		assert.Equal(t, componentName, resultEnvVarsMap[defaults.RadixComponentEnvironmentVariable].Value)
-		assert.Equal(t, testEnv.cfg.Operator.ContainerRegistry, resultEnvVarsMap[envvars.ComponentContainerRegistry].Value)
+		assert.Equal(t, testEnv.cfg.PipelineRunner.ContainerRegistry, resultEnvVarsMap[envvars.ComponentContainerRegistry].Value)
 		assert.Equal(t, testEnv.cfg.Common.DNSZone, resultEnvVarsMap[envvars.ComponentDNSZone].Value)
 	})
 
@@ -424,10 +424,10 @@ func setupTestEnv(t *testing.T) *testEnvProps {
 		Common: config.CommonConfig{
 			DNSZone:     "test.radix.equinor.com",
 			ClusterName: testClusterName,
+			ClusterType: "development",
 		},
-		Operator: config.OperatorConfig{
+		PipelineRunner: config.PipelineRunnerConfig{
 			ContainerRegistry: "testcr.azurecr.io",
-			ClusterType:       "development",
 		},
 	}
 	return &testEnv

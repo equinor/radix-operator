@@ -61,13 +61,16 @@ var testConfig = config.Config{
 	Common: config.CommonConfig{
 		DNSZone:     "dev.radix.equinor.com",
 		ClusterName: testClusterName,
+		ClusterType: "development",
+	},
+	PipelineRunner: config.PipelineRunnerConfig{
+		ContainerRegistry: "any.container.registry",
 	},
 	Operator: config.OperatorConfig{
 		ReadinessProbeInitialDelaySeconds:  25,
 		ReadinessProbePeriodSeconds:        15,
 		DefaultRollingUpdateMaxUnavailable: "25%",
 		DefaultRollingUpdateMaxSurge:       "35%",
-		ContainerRegistry:                  "any.container.registry",
 		JobSchedulerImage: config.ContainerImage{
 			Repository: "docker.io/radix-job-scheduler",
 			Tag:        "main-latest",
@@ -76,7 +79,6 @@ var testConfig = config.Config{
 			Repository: "docker.io/bash",
 			Tag:        "latest",
 		},
-		ClusterType:            "development",
 		AzureKeyVaultTenantID:  "123456789",
 		KubernetesAPIPort:      543,
 		DeploymentHistoryLimit: 10,
@@ -251,7 +253,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 				assert.Equal(t, 12, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
-				assert.Equal(t, testConfig.Operator.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, componentNameApp, deployments))
+				assert.Equal(t, testConfig.PipelineRunner.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, componentNameApp, deployments))
 				assert.Equal(t, testConfig.Common.DNSZone, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentDNSZone, componentNameApp, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentClusterName, componentNameApp, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, componentNameApp, deployments))
@@ -629,7 +631,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				envVars := jobContainer.Env
 				assert.Equal(t, 12, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, "a_value", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", jobName, deployments))
-				assert.Equal(t, testConfig.Operator.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, jobName, deployments))
+				assert.Equal(t, testConfig.PipelineRunner.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, jobName, deployments))
 				assert.Equal(t, testConfig.Common.DNSZone, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentDNSZone, jobName, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentClusterName, jobName, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, jobName, deployments))
@@ -1665,7 +1667,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		assert.True(t, envVariableByNameExist(defaults.RadixComponentEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
-		assert.Equal(t, testConfig.Operator.ContainerRegistry, getEnvVariableByName(envvars.ComponentContainerRegistry, templateSpecEnv, nil))
+		assert.Equal(t, testConfig.PipelineRunner.ContainerRegistry, getEnvVariableByName(envvars.ComponentContainerRegistry, templateSpecEnv, nil))
 		assert.Equal(t, testConfig.Common.DNSZone, getEnvVariableByName(envvars.ComponentDNSZone, templateSpecEnv, cm))
 		assert.Equal(t, testClusterName, getEnvVariableByName(envvars.ComponentClusterName, templateSpecEnv, cm))
 		assert.Equal(t, anyEnvironment, getEnvVariableByName(defaults.EnvironmentnameEnvironmentVariable, templateSpecEnv, cm))
@@ -4123,7 +4125,7 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 			_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 			require.NoError(t, err)
 
-			cfg2 := config.Config{Operator: config.OperatorConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
+			cfg2 := config.Config{Common: config.CommonConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
 
 			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, cfg2)
 			err = syncer.OnSync(context.Background())

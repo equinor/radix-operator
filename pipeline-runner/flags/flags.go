@@ -1,10 +1,10 @@
 package flags
 
 const (
-	ClusterName          = "cluster-name"
-	ClusterType          = "cluster-type"
-	ContainerRegistry    = "container-registry"
-	AppContainerRegistry = "app-container-registry"
+	ClusterName            = "cluster-name"
+	ClusterType            = "cluster-type"
+	ContainerRegistry      = "container-registry"
+	CacheContainerRegistry = "cache-container-registry"
 
 	BuilderResourcesLimitsCPU      = "builder-resources-limits-cpu"
 	BuilderResourcesLimitsMemory   = "builder-resources-limits-memory"

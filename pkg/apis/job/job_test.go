@@ -56,11 +56,13 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 
 	s.cfg = config.Config{
 		Common: config.CommonConfig{
-			ClusterName: "AnyClusterName",
+			ClusterName:                "AnyClusterName",
+			ClusterType:                "anyclustertype",
+			ExternalRegistryAuthSecret: "an-external-registry-secret",
 		},
-		Operator: config.OperatorConfig{
-			ContainerRegistry:    "anybuildregistry",
-			AppContainerRegistry: "anycacheregistry",
+		PipelineRunner: config.PipelineRunnerConfig{
+			ContainerRegistry:      "anybuildregistry",
+			CacheContainerRegistry: "anycacheregistry",
 			Builder: config.BuilderConfig{
 				Image: config.ContainerImage{
 					Repository: "docker.io/buildkit",
@@ -78,14 +80,15 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 				},
 				SeccompProfileLocalhostProfile: "anyseccomp",
 			},
-			ClusterType:                    "anyclustertype",
-			ExternalRegistryAuthSecret:     "an-external-registry-secret",
-			PipelineJobsHistoryLimit:       3,
-			PipelineJobsHistoryPeriodLimit: 24 * time.Hour,
 			GitCloneImage: config.ContainerImage{
 				Repository: "alpine/git",
 				Tag:        "latest",
 			},
+		},
+		Operator: config.OperatorConfig{
+			PipelineJobsHistoryLimit:       3,
+			PipelineJobsHistoryPeriodLimit: 24 * time.Hour,
+
 			PipelineImage: config.ContainerImage{
 				Repository: "docker.io/anypipeline",
 				Tag:        "tag",
@@ -275,21 +278,21 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_APP=%s", appName),
 				fmt.Sprintf("--JOB_NAME=%s", jobName),
 				fmt.Sprintf("--PIPELINE_TYPE=%s", radixv1.BuildDeploy),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, s.cfg.Operator.Builder.Resources.Requests.Memory.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, s.cfg.Operator.Builder.Resources.Requests.CPU.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.cfg.Operator.Builder.Resources.Limits.Memory.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.cfg.Operator.Builder.Resources.Limits.CPU.String()),
-				fmt.Sprintf("--%s=%s", flags.ExternalRegistryAuthSecret, s.cfg.Operator.ExternalRegistryAuthSecret),
-				fmt.Sprintf("--%s=%s", flags.BuilderImage, s.cfg.Operator.Builder.Image.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, s.cfg.Operator.Builder.SeccompProfileLocalhostProfile),
-				fmt.Sprintf("--%s=%s", flags.ClusterType, s.cfg.Operator.ClusterType),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, s.cfg.PipelineRunner.Builder.Resources.Requests.Memory.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, s.cfg.PipelineRunner.Builder.Resources.Requests.CPU.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.cfg.PipelineRunner.Builder.Resources.Limits.Memory.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.cfg.PipelineRunner.Builder.Resources.Limits.CPU.String()),
+				fmt.Sprintf("--%s=%s", flags.ExternalRegistryAuthSecret, s.cfg.Common.ExternalRegistryAuthSecret),
+				fmt.Sprintf("--%s=%s", flags.BuilderImage, s.cfg.PipelineRunner.Builder.Image.String()),
+				fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, s.cfg.PipelineRunner.Builder.SeccompProfileLocalhostProfile),
+				fmt.Sprintf("--%s=%s", flags.ClusterType, s.cfg.Common.ClusterType),
 				fmt.Sprintf("--%s=%s", flags.ClusterName, s.cfg.Common.ClusterName),
-				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.cfg.Operator.ContainerRegistry),
-				fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, s.cfg.Operator.AppContainerRegistry),
+				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.cfg.PipelineRunner.ContainerRegistry),
+				fmt.Sprintf("--%s=%s", flags.CacheContainerRegistry, s.cfg.PipelineRunner.CacheContainerRegistry),
 				"--RADIX_GITHUB_WORKSPACE=/workspace",
 				"--RADIX_FILE_NAME=some-radixconfig.yaml",
 				"--TRIGGERED_FROM_WEBHOOK=false",
-				fmt.Sprintf("--%s=%s", flags.GitCloneImage, s.cfg.Operator.GitCloneImage.String()),
+				fmt.Sprintf("--%s=%s", flags.GitCloneImage, s.cfg.PipelineRunner.GitCloneImage.String()),
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				"--BRANCH=",
 				fmt.Sprintf("--GIT_REF=%s", gitRef),
@@ -336,7 +339,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	expectedInitContainers := []corev1.Container{
 		{
 			Name:            "clone-config",
-			Image:           s.cfg.Operator.GitCloneImage.String(),
+			Image:           s.cfg.PipelineRunner.GitCloneImage.String(),
 			Command:         []string{"sh", "-c", `umask 002 && git config --global --add safe.directory "$RADIX_CLONE_DIR" && git clone -b "$RADIX_CLONE_BRANCH" --verbose --progress -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them") && chmod -R g+r "$RADIX_CLONE_DIR/.git"`},
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Env: []corev1.EnvVar{
@@ -1558,7 +1561,7 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 
 	testCfg := config.Config{
-		Operator: config.OperatorConfig{
+		PipelineRunner: config.PipelineRunnerConfig{
 			Builder: config.BuilderConfig{
 				Resources: config.Resources{
 					Requests: config.ResourceRequirements{
@@ -1608,10 +1611,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 
 			s.Len(jobList, 1)
 			job := jobList[0]
-			s.Equal(testCfg.Operator.Builder.Resources.Requests.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsCPU), "Invalid or missing AppBuilderResourcesRequestsCPU")
-			s.Equal(testCfg.Operator.Builder.Resources.Requests.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsMemory), "Invalid or missing AppBuilderResourcesRequestsMemory")
-			s.Equal(testCfg.Operator.Builder.Resources.Limits.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsMemory), "Invalid or missing AppBuilderResourcesLimitsMemory")
-			s.Equal(testCfg.Operator.Builder.Resources.Limits.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsCPU), "Invalid or missing AppBuilderResourcesLimitsCPU")
+			s.Equal(testCfg.PipelineRunner.Builder.Resources.Requests.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsCPU), "Invalid or missing AppBuilderResourcesRequestsCPU")
+			s.Equal(testCfg.PipelineRunner.Builder.Resources.Requests.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsMemory), "Invalid or missing AppBuilderResourcesRequestsMemory")
+			s.Equal(testCfg.PipelineRunner.Builder.Resources.Limits.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsMemory), "Invalid or missing AppBuilderResourcesLimitsMemory")
+			s.Equal(testCfg.PipelineRunner.Builder.Resources.Limits.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsCPU), "Invalid or missing AppBuilderResourcesLimitsCPU")
 		})
 
 	}

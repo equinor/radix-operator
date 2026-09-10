@@ -80,8 +80,8 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(deployComponent.GetName())
 	var imagePullSecrets []corev1.LocalObjectReference
 
-	if deploy.config.Operator.ExternalRegistryAuthSecret != "" {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config.Operator.ExternalRegistryAuthSecret})
+	if deploy.config.Common.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config.Common.ExternalRegistryAuthSecret})
 	}
 
 	var env []corev1.EnvVar
@@ -256,8 +256,8 @@ func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCo
 
 func (deploy *Deployment) getDeploymentPodImagePullSecrets() []corev1.LocalObjectReference {
 	imagePullSecrets := deploy.radixDeployment.Spec.ImagePullSecrets
-	if deploy.config.Operator.ExternalRegistryAuthSecret != "" {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config.Operator.ExternalRegistryAuthSecret})
+	if deploy.config.Common.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config.Common.ExternalRegistryAuthSecret})
 	}
 	return imagePullSecrets
 }

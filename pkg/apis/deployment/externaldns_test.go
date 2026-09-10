@@ -69,8 +69,10 @@ func (s *ExternalDNSTestSuite) setupTest() {
 	s.Require().NoError(handlerTestUtils.CreateClusterPrerequisites())
 	s.testUtils = &handlerTestUtils
 	s.cfg = config.Config{
-		Operator: config.OperatorConfig{
+		Common: config.CommonConfig{
 			AppAliasBaseURL: testAppAliasBaseURL,
+		},
+		Operator: config.OperatorConfig{
 			Gateway: config.GatewayConfig{
 				Name:      edTestGatewayName,
 				Namespace: edTestGatewayNamespace,

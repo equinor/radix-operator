@@ -60,8 +60,8 @@ func (s *handlerSuite) SetupTest() {
 					Tag:        "456",
 				},
 			},
+			ExternalRegistryAuthSecret: "anySecret",
 		},
-		Operator: config.OperatorConfig{ExternalRegistryAuthSecret: "anySecret"},
 	}
 	s.eventRecorder = &record.FakeRecorder{}
 }

@@ -221,10 +221,11 @@ func setupDeployment(commonTestUtils *commontest.Utils, kubeClient kubernetes.In
 		Common: config.CommonConfig{
 			ClusterName: clusterName,
 			DNSZone:     "dev.radix.equinor.com",
+			ClusterType: clusterType,
 		},
-		Operator: config.OperatorConfig{
+
+		PipelineRunner: config.PipelineRunnerConfig{
 			ContainerRegistry: "any.container.registry",
-			ClusterType:       clusterType,
 		},
 	})
 

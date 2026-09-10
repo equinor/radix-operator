@@ -8,6 +8,9 @@ config:
   common:
     dnsZone: ""
     clusterName: ""
+    clusterType: ""
+    appAliasBaseURL: ""
+    externalRegistryAuthSecret: ""
     oauth2Proxy:
       proxyImage:
         repository: quay.io/oauth2-proxy/oauth2-proxy
@@ -26,9 +29,27 @@ config:
           expire: "168h0m0s"
           refresh: "60m0s"
           sameSite: "lax"
-        # oidc:
-        #   issuerUrl: "https://issuer.com"
-        #   skipDiscovery: false
+        oidc:
+          issuerUrl: ""
+          skipDiscovery: false
+  pipelineRunner:
+    containerRegistry: ""
+    cacheContainerRegistry: ""
+    builder:
+      image:
+        repository: ghcr.io/equinor/radix/buildkit-builder
+        tag: "latest"
+      seccompProfileLocalhostProfile: ""
+      resources:
+        limits:
+          memory: 500M
+          cpu: 2000m
+        requests:
+          memory: 500M
+          cpu: 200m
+    gitCloneImage:
+      repository: docker.io/alpine/git
+      tag: "latest"
   operator:
     logLevel: info
     logPrettyPrint: false
@@ -42,21 +63,18 @@ config:
     kubeClientRateLimitQPS: 5
     readinessProbeInitialDelaySeconds: 5
     readinessProbePeriodSeconds: 10
-
     defaultRollingUpdateMaxUnavailable: 25%
     defaultRollingUpdateMaxSurge: 25%
-
-    clusterType: ""
-
-    containerRegistry: ""
-    appContainerRegistry: ""
-    appAliasBaseURL: app.dev.radix.equinor.com
-
     kubernetesAPIPort: "$__env(KUBERNETES_SERVICE_PORT)"
-
+    batchSafeToRestartJobThreshold: 259200
+    azureKeyVaultTenantID: ""
     defaultAppAdminGroups: []
+    deploymentHistoryLimit: 10
+    orphanedEnvironmentsRetentionPeriod: 720h
+    orphanedEnvironmentsCleanupCron: "0 0 * * *"
+    pipelineJobsHistoryLimit: 5
+    pipelineJobsHistoryPeriodLimit: "720h"
 
-    # Ref https://kubernetes.io/docs/concepts/security/pod-security-standards/ for docs and valid values for level and version
     podSecurityStandard:
       appNamespace:
         enforce:
@@ -89,32 +107,13 @@ config:
       defaultRequestMemory: 500M
       defaultRequestCPU: 100m
 
-    builder:
-      image:
-        repository: ghcr.io/equinor/radix/buildkit-builder
-        tag: "latest"
-      seccompProfileLocalhostProfile: ""
-      resources:
-        limits:
-          memory: 500M
-          cpu: 2000m
-        requests:
-          memory: 500M
-          cpu: 200m
-
     jobSchedulerImage:
       repository: ghcr.io/equinor/radix/job-scheduler
       tag: "" # Fallback to .Chart.Version
 
-    batchSafeToRestartJobThreshold: 259200
-
-    externalRegistryAuthSecret: "" # Name of the secret containing default container registry credentials for pulling images when building with buildah and pulling external images for components and jobs
-    azureKeyVaultTenantID: "" # Tenant ID for Azure Key Vault used for secrets in Radix applications
-
     jobSchedulerAuxImage:
       repository: docker.io/bash
       tag: "latest"
-    deploymentHistoryLimit: 10
 
     gateway:
       name: ""
@@ -125,14 +124,7 @@ config:
       duration: "2160h"
       renewBefore: "720h"
       gatewayClusterIssuer: ""
-    orphanedEnvironmentsRetentionPeriod: 720h
-    orphanedEnvironmentsCleanupCron: "0 0 * * *"
-
-    pipelineJobsHistoryLimit: 5
-    pipelineJobsHistoryPeriodLimit: "720h"
-    gitCloneImage:
-      repository: docker.io/alpine/git
-      tag: "latest"
+    
     pipelineImage:
       repository: "ghcr.io/equinor/radix/pipeline"
       tag: "" # Fallback to .Chart.Version

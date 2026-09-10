@@ -54,7 +54,8 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	s.appAliasDnsZone = "app.dev.radix.equinor.com"
 	s.config2 = config.Config{
 		Common: config.CommonConfig{
-			DNSZone: s.dnsZone,
+			DNSZone:         s.dnsZone,
+			AppAliasBaseURL: s.appAliasDnsZone,
 			OAuth2Proxy: config.OAuth2ProxyConfig{
 				RedisImage: config.ContainerImage{
 					Repository: "redis",
@@ -70,9 +71,6 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 					},
 				},
 			},
-		},
-		Operator: config.OperatorConfig{
-			AppAliasBaseURL: s.appAliasDnsZone,
 		},
 	}
 }

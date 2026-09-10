@@ -1,6 +1,9 @@
 common:
   dnsZone: dev.local.radix.equinor.com
   clusterName: test-cluster
+  clusterType: "development"
+  appAliasBaseURL: "app.dev.radix.equinor.com"
+  externalRegistryAuthSecret: anyExternalAuth
   oauth2Proxy:
     proxyImage:
       tag: v7.6.2
@@ -22,7 +25,24 @@ common:
       oidc:
         issuerUrl: "https://issuer.com"
         skipDiscovery: false
-
+pipelineRunner:
+  containerRegistry: "any.registry.com"
+  cacheContainerRegistry: "app.registry.com"
+  builder:
+    resources:
+      limits:
+        memory: 500M
+        cpu: 2000m
+      requests:
+        memory: 500M
+        cpu: 200m
+    image:
+      repository: ghcr.io/equinor/radix/buildkit-builder
+      tag: v3.4.5
+    seccompProfileLocalhostProfile: "anyseccomp.json"
+  gitCloneImage:
+    repository: ghcr.io/equinor/radix-git-clone
+    tag: v1.0.0
 operator:
   logLevel: info
   logPrettyPrint: true
@@ -38,10 +58,6 @@ operator:
   readinessProbePeriodSeconds: 10
   defaultRollingUpdateMaxUnavailable: 25%
   defaultRollingUpdateMaxSurge: 35%
-  containerRegistry: "any.registry.com"
-  appContainerRegistry: "app.registry.com"
-  appAliasBaseURL: "app.dev.radix.equinor.com"
-  clusterType: "development"
   defaultAppAdminGroups:
     - "default-app-admin-group1"
     - "default-app-admin-group2"
@@ -53,18 +69,6 @@ operator:
     defaultMemory: 555M
     defaultRequestMemory: 444M
     defaultRequestCPU: 111m
-  builder:
-    resources:
-      limits:
-        memory: 500M
-        cpu: 2000m
-      requests:
-        memory: 500M
-        cpu: 200m
-    image:
-      repository: ghcr.io/equinor/radix/buildkit-builder
-      tag: v3.4.5
-    seccompProfileLocalhostProfile: "anyseccomp.json"
   jobSchedulerImage:
     repository: ghcr.io/equinor/radix-job-scheduler
     tag: v1.2.3
@@ -72,7 +76,6 @@ operator:
     repository: docker.io/bash
     tag: "latest"
   batchSafeToRestartJobThreshold: 1234
-  externalRegistryAuthSecret: anyExternalAuth
   azureKeyVaultTenantID: any-tenant-id
   kubernetesAPIPort: 443
   podSecurityStandard:
@@ -109,9 +112,7 @@ operator:
   orphanedEnvironmentsCleanupCron: "0 0 * * *"
   pipelineJobsHistoryLimit: 5
   pipelineJobsHistoryPeriodLimit: "720h"
-  gitCloneImage:
-    repository: ghcr.io/equinor/radix-git-clone
-    tag: v1.0.0
+
   pipelineImage:
     repository: ghcr.io/equinor/radix-pipeline
     tag: v1.0.0

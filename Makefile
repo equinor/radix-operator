@@ -206,30 +206,30 @@ lint-golangci: bootstrap
 lint-helm: bootstrap
 	helm lint ./charts/radix-operator \
 		--set rbac.createApp.groups[0]=platform-users \
+ 		--set config.common.appAliasBaseURL=app.radix.example.com \
 		--set config.common.dnsZone=radix.example.com \
 		--set config.common.clusterName=mycluster \
-		--set config.operator.appAliasBaseURL=app.radix.example.com \
-		--set config.operator.appContainerRegistry=cache.example.com \
+		--set config.common.clusterType=dev \
 		--set config.operator.azureKeyVaultTenantID=1234 \
-		--set config.operator.clusterType=dev \
-		--set config.operator.containerRegistry=build.example.com \
 		--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer \
 		--set config.operator.gateway.name=radix \
-		--set config.operator.gateway.namespace=istio 
+		--set config.operator.gateway.namespace=istio \
+		--set config.pipelineRunner.cacheContainerRegistry=cache.example.com \
+		--set config.pipelineRunner.containerRegistry=build.example.com
 		
 helm-render:
 	helm template ./charts/radix-operator \
 		--set rbac.createApp.groups[0]=platform-users \
+		--set config.common.appAliasBaseURL=app.radix.example.com \
 		--set config.common.dnsZone=radix.example.com \
 		--set config.common.clusterName=mycluster \
-		--set config.operator.appAliasBaseURL=app.radix.example.com \
-		--set config.operator.appContainerRegistry=cache.example.com \
+		--set config.common.clusterType=dev \
 		--set config.operator.azureKeyVaultTenantID=1234 \
-		--set config.operator.clusterType=dev \
-		--set config.operator.containerRegistry=build.example.com \
 		--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer \
 		--set config.operator.gateway.name=radix \
-		--set config.operator.gateway.namespace=istio 
+		--set config.operator.gateway.namespace=istio \
+		--set config.pipelineRunner.cacheContainerRegistry=cache.example.com \
+		--set config.pipelineRunner.containerRegistry=build.example.com
 
 .PHONY: generate
 generate: bootstrap code-gen helmresources mocks swagger

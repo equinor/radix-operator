@@ -241,8 +241,8 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 	}
 
 	var imagePullSecrets []corev1.LocalObjectReference
-	if o.config2.Operator.ExternalRegistryAuthSecret != "" {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: o.config2.Operator.ExternalRegistryAuthSecret})
+	if o.config2.Common.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: o.config2.Common.ExternalRegistryAuthSecret})
 	}
 
 	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy

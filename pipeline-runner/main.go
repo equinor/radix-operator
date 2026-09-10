@@ -109,7 +109,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.Clustertype, flags.ClusterType, "", "Cluster type")
 	cmd.Flags().StringVar(&pipelineArgs.Clustername, flags.ClusterName, "", "Cluster name")
 	cmd.Flags().StringVar(&pipelineArgs.ContainerRegistry, flags.ContainerRegistry, "", "Container registry")
-	cmd.Flags().StringVar(&pipelineArgs.AppContainerRegistry, flags.AppContainerRegistry, "", "App Container registry")
+	cmd.Flags().StringVar(&pipelineArgs.CacheContainerRegistry, flags.CacheContainerRegistry, "", "App Container registry")
 	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, defaults.RadixConfigFileEnvironmentVariable, "", "Radix config file name. Example: radixconfig.yaml")
 	cmd.Flags().StringVar(&pipelineArgs.ImageTag, defaults.RadixImageTagEnvironmentVariable, "latest", "Docker image tag")
 	cmd.Flags().StringVar(&pipelineArgs.LogLevel, flags.LogLevel, "INFO", "Log level: ERROR, WARN, INFO (default), DEBUG")

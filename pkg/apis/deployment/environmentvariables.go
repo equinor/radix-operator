@@ -113,8 +113,8 @@ func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1
 func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg config.Config, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 
-	envVarSet.Add(envvars.ComponentClusterType, cfg.Operator.ClusterType)
-	envVarSet.Add(envvars.ComponentContainerRegistry, cfg.Operator.ContainerRegistry)
+	envVarSet.Add(envvars.ComponentClusterType, cfg.Common.ClusterType)
+	envVarSet.Add(envvars.ComponentContainerRegistry, cfg.PipelineRunner.ContainerRegistry)
 	envVarSet.Add(envvars.ComponentDNSZone, cfg.Common.DNSZone)
 	envVarSet.Add(envvars.ComponentClusterName, cfg.Common.ClusterName)
 	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)

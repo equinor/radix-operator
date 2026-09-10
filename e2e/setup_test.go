@@ -220,14 +220,15 @@ func TestMain(m *testing.M) {
 
 	// Install Helm chart with custom image tags
 	helmValues := map[string]string{
-		"config.operator.containerRegistry":                          "local-kind-repo",
-		"config.operator.appContainerRegistry":                       "local-kind-repo",
-		"config.operator.clusterType":                                "test",
+		"config.pipelineRunner.containerRegistry":                    "local-kind-repo",
+		"config.pipelineRunner.cacheContainerRegistry":               "local-kind-repo",
 		"config.operator.azureKeyVaultTenantID":                      "01234567-8901-2345-6789-012345678901",
 		"config.operator.gateway.name":                               "some-name",
 		"config.operator.gateway.namespace":                          "some-namespace",
 		"config.operator.certificateAutomation.gatewayClusterIssuer": "some-cluster-issuer",
+		"config.common.appAliasBaseURL":                              "app.example.com",
 		"config.common.clusterName":                                  "weekly-e2e",
+		"config.common.clusterType":                                  "test",
 		"config.common.dnsZone":                                      "radix.example.com",
 		"rbac.createApp.groups[0]":                                   "123",
 		"image.pullPolicy":                                           "IfNotPresent",

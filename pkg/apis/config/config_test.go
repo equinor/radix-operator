@@ -55,8 +55,11 @@ func TestParse_HappyPath(t *testing.T) {
 
 	expected := &config.Config{
 		Common: config.CommonConfig{
-			DNSZone:     "dev.local.radix.equinor.com",
-			ClusterName: "test-cluster",
+			DNSZone:                    "dev.local.radix.equinor.com",
+			ClusterName:                "test-cluster",
+			ClusterType:                "development",
+			AppAliasBaseURL:            "app.dev.radix.equinor.com",
+			ExternalRegistryAuthSecret: "anyExternalAuth",
 			OAuth2Proxy: config.OAuth2ProxyConfig{
 				ProxyImage: config.ContainerImage{
 					Repository: "quay.io/oauth2-proxy/oauth2-proxy",
@@ -85,43 +88,9 @@ func TestParse_HappyPath(t *testing.T) {
 				},
 			},
 		},
-		Operator: config.OperatorConfig{
-			LogLevel:                          "info",
-			LogPrettyPrint:                    true,
-			RegistrationControllerThreads:     1,
-			ApplicationControllerThreads:      2,
-			EnvironmentControllerThreads:      3,
-			DeploymentControllerThreads:       4,
-			JobControllerThreads:              5,
-			AlertControllerThreads:            6,
-			KubeClientRateLimitBurst:          100,
-			KubeClientRateLimitQPS:            50.5,
-			ReadinessProbeInitialDelaySeconds: 5,
-			ReadinessProbePeriodSeconds:       10,
-
-			AppAliasBaseURL:        "app.dev.radix.equinor.com",
-			DeploymentHistoryLimit: 10,
-
-			DefaultRollingUpdateMaxUnavailable: "25%",
-			DefaultRollingUpdateMaxSurge:       "35%",
-
-			ClusterType: "development",
-
-			ContainerRegistry:    "any.registry.com",
-			AppContainerRegistry: "app.registry.com",
-
-			DefaultAppAdminGroups: []string{"default-app-admin-group1", "default-app-admin-group2"},
-
-			AppNsLimitRange: config.LimitRangeConfig{
-				DefaultMemory:        new(resource.MustParse("500M")),
-				DefaultRequestMemory: new(resource.MustParse("450M")),
-				DefaultRequestCPU:    new(resource.MustParse("100m")),
-			},
-			EnvNsLimitRange: config.LimitRangeConfig{
-				DefaultMemory:        new(resource.MustParse("555M")),
-				DefaultRequestMemory: new(resource.MustParse("444M")),
-				DefaultRequestCPU:    new(resource.MustParse("111m")),
-			},
+		PipelineRunner: config.PipelineRunnerConfig{
+			ContainerRegistry:      "any.registry.com",
+			CacheContainerRegistry: "app.registry.com",
 			Builder: config.BuilderConfig{
 				Resources: config.Resources{
 					Limits: config.ResourceRequirements{
@@ -139,6 +108,43 @@ func TestParse_HappyPath(t *testing.T) {
 				},
 				SeccompProfileLocalhostProfile: "anyseccomp.json",
 			},
+			GitCloneImage: config.ContainerImage{
+				Repository: "ghcr.io/equinor/radix-git-clone",
+				Tag:        "v1.0.0",
+			},
+		},
+		Operator: config.OperatorConfig{
+			LogLevel:                          "info",
+			LogPrettyPrint:                    true,
+			RegistrationControllerThreads:     1,
+			ApplicationControllerThreads:      2,
+			EnvironmentControllerThreads:      3,
+			DeploymentControllerThreads:       4,
+			JobControllerThreads:              5,
+			AlertControllerThreads:            6,
+			KubeClientRateLimitBurst:          100,
+			KubeClientRateLimitQPS:            50.5,
+			ReadinessProbeInitialDelaySeconds: 5,
+			ReadinessProbePeriodSeconds:       10,
+
+			DeploymentHistoryLimit: 10,
+
+			DefaultRollingUpdateMaxUnavailable: "25%",
+			DefaultRollingUpdateMaxSurge:       "35%",
+
+			DefaultAppAdminGroups: []string{"default-app-admin-group1", "default-app-admin-group2"},
+
+			AppNsLimitRange: config.LimitRangeConfig{
+				DefaultMemory:        new(resource.MustParse("500M")),
+				DefaultRequestMemory: new(resource.MustParse("450M")),
+				DefaultRequestCPU:    new(resource.MustParse("100m")),
+			},
+			EnvNsLimitRange: config.LimitRangeConfig{
+				DefaultMemory:        new(resource.MustParse("555M")),
+				DefaultRequestMemory: new(resource.MustParse("444M")),
+				DefaultRequestCPU:    new(resource.MustParse("111m")),
+			},
+
 			JobSchedulerImage: config.ContainerImage{
 				Repository: "ghcr.io/equinor/radix-job-scheduler",
 				Tag:        "v1.2.3",
@@ -178,7 +184,6 @@ func TestParse_HappyPath(t *testing.T) {
 				},
 			},
 			BatchSafeToRestartJobThreshold: 1234,
-			ExternalRegistryAuthSecret:     "anyExternalAuth",
 			AzureKeyVaultTenantID:          "any-tenant-id",
 			KubernetesAPIPort:              443,
 			Gateway: config.GatewayConfig{
@@ -191,14 +196,11 @@ func TestParse_HappyPath(t *testing.T) {
 				Duration:             8760 * time.Hour,
 				RenewBefore:          720 * time.Hour,
 			},
-			OrphanedRadixEnvironmentsRetentionPeriod: 720 * time.Hour,
-			OrphanedEnvironmentsCleanupCron:          "0 0 * * *",
-			PipelineJobsHistoryLimit:                 5,
-			PipelineJobsHistoryPeriodLimit:           720 * time.Hour,
-			GitCloneImage: config.ContainerImage{
-				Repository: "ghcr.io/equinor/radix-git-clone",
-				Tag:        "v1.0.0",
-			},
+			OrphanedEnvironmentsRetentionPeriod: 720 * time.Hour,
+			OrphanedEnvironmentsCleanupCron:     "0 0 * * *",
+			PipelineJobsHistoryLimit:            5,
+			PipelineJobsHistoryPeriodLimit:      720 * time.Hour,
+
 			PipelineImage: config.ContainerImage{
 				Repository: "ghcr.io/equinor/radix-pipeline",
 				Tag:        "v1.0.0",
@@ -327,13 +329,13 @@ func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
 	}{
 		"below 5 minutes should fail": {
 			mutateConfig: func(cfg *config.Config) {
-				cfg.Operator.OrphanedRadixEnvironmentsRetentionPeriod = 4 * time.Minute
+				cfg.Operator.OrphanedEnvironmentsRetentionPeriod = 4 * time.Minute
 			},
-			expectedError: `failed to validate config: field "Operator.OrphanedRadixEnvironmentsRetentionPeriod" did not pass validation expression`,
+			expectedError: `failed to validate config: field "Operator.OrphanedEnvironmentsRetentionPeriod" did not pass validation expression`,
 		},
 		"equal to 5 minutes should pass": {
 			mutateConfig: func(cfg *config.Config) {
-				cfg.Operator.OrphanedRadixEnvironmentsRetentionPeriod = 5 * time.Minute
+				cfg.Operator.OrphanedEnvironmentsRetentionPeriod = 5 * time.Minute
 			},
 			expectedError: ``,
 		},
@@ -409,21 +411,21 @@ func TestParse_BuilderResourceLimits(t *testing.T) {
 	}{
 		"equivalent CPU quantities are valid": {
 			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.Builder.Resources.Limits.CPU = new(resource.MustParse("1"))
-				cfg.Operator.Builder.Resources.Requests.CPU = new(resource.MustParse("1000m"))
+				cfg.PipelineRunner.Builder.Resources.Limits.CPU = new(resource.MustParse("1"))
+				cfg.PipelineRunner.Builder.Resources.Requests.CPU = new(resource.MustParse("1000m"))
 			},
 		},
 		"CPU limit below request is invalid": {
 			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.Builder.Resources.Limits.CPU = new(resource.MustParse("100m"))
+				cfg.PipelineRunner.Builder.Resources.Limits.CPU = new(resource.MustParse("100m"))
 			},
-			errorPath: "Operator.Builder.Resources",
+			errorPath: "PipelineRunner.Builder.Resources",
 		},
 		"memory limit below request is invalid": {
 			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.Builder.Resources.Limits.Memory = new(resource.MustParse("499M"))
+				cfg.PipelineRunner.Builder.Resources.Limits.Memory = new(resource.MustParse("499M"))
 			},
-			errorPath: "Operator.Builder.Resources",
+			errorPath: "PipelineRunner.Builder.Resources",
 		},
 	}
 

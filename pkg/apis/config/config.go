@@ -26,15 +26,27 @@ type Validator interface {
 var envMacroJSONRegexp = regexp.MustCompile(`"\$__env\(([^)]+)\)"`)
 
 type Config struct {
-	Operator OperatorConfig `json:"operator"`
-	Common   CommonConfig   `json:"common"`
+	Operator       OperatorConfig       `json:"operator"`
+	PipelineRunner PipelineRunnerConfig `json:"pipelineRunner"`
+	Common         CommonConfig         `json:"common"`
 }
 
 type CommonConfig struct {
-	DNSZone     string            `json:"dnsZone" required:"true"`
-	ClusterName string            `json:"clusterName" required:"true"`
-	OAuth2Proxy OAuth2ProxyConfig `json:"oauth2Proxy"`
+	DNSZone                    string            `json:"dnsZone" required:"true"`
+	ClusterName                string            `json:"clusterName" required:"true"`
+	ClusterType                string            `json:"clusterType" required:"true"`
+	AppAliasBaseURL            string            `json:"appAliasBaseURL" required:"true"`
+	ExternalRegistryAuthSecret string            `json:"externalRegistryAuthSecret"`
+	OAuth2Proxy                OAuth2ProxyConfig `json:"oauth2Proxy"`
 }
+
+type PipelineRunnerConfig struct {
+	ContainerRegistry      string         `json:"containerRegistry" required:"true"`
+	CacheContainerRegistry string         `json:"cacheContainerRegistry" required:"true"`
+	Builder                BuilderConfig  `json:"builder" required:"true"`
+	GitCloneImage          ContainerImage `json:"gitCloneImage" required:"true"`
+}
+
 type OperatorConfig struct {
 	LogLevel       string `json:"logLevel"`
 	LogPrettyPrint bool   `json:"logPrettyPrint"`
@@ -48,12 +60,6 @@ type OperatorConfig struct {
 	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" required:"true"`
 	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
 
-	AppAliasBaseURL      string `json:"appAliasBaseURL" required:"true"`
-	ContainerRegistry    string `json:"containerRegistry" required:"true"`
-	AppContainerRegistry string `json:"appContainerRegistry" required:"true"`
-
-	ClusterType string `json:"clusterType" required:"true"`
-
 	DefaultAppAdminGroups []string `json:"defaultAppAdminGroups"`
 
 	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
@@ -65,33 +71,24 @@ type OperatorConfig struct {
 	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
 	EnvNsLimitRange LimitRangeConfig `json:"envNsLimitRange" required:"true"`
 
-	Builder BuilderConfig `json:"builder" required:"true"`
-
 	JobSchedulerImage   ContainerImage            `json:"jobSchedulerImage" required:"true"`
 	PodSecurityStandard PodSecurityStandardConfig `json:"podSecurityStandard"`
 
-	// BatchSafeToRestartJobThreshold is the threshold in seconds for determining the cluster-autoscaler safe-to-evict annotation on batch jobs.
-	// Jobs with timeLimitSeconds >= BatchSafeToRestartJobThreshold are marked as safe to evict.
 	BatchSafeToRestartJobThreshold int64 `json:"batchSafeToRestartJobThreshold" required:"true"`
 
-	// Name of the secret container docker authentication for external registries
-	ExternalRegistryAuthSecret string `json:"externalRegistryAuthSecret"`
-	AzureKeyVaultTenantID      string `json:"azureKeyVaultTenantID" required:"true"`
+	AzureKeyVaultTenantID string `json:"azureKeyVaultTenantID" required:"true"`
 
 	JobSchedulerAuxImage ContainerImage `json:"jobSchedulerAuxImage" required:"true"`
 
-	KubernetesAPIPort      int32                       `json:"kubernetesAPIPort" required:"true"`
-	DeploymentHistoryLimit int                         `json:"deploymentHistoryLimit" required:"true" validate:"self >= 3"`
-	Gateway                GatewayConfig               `json:"gateway" required:"true"`
-	CertificateAutomation  CertificateAutomationConfig `json:"certificateAutomation" required:"true"`
-	// OrphanedRadixEnvironmentsRetentionPeriod is the time period for how long orphaned RadixEnvironments should be retained
-	OrphanedRadixEnvironmentsRetentionPeriod time.Duration `json:"orphanedEnvironmentsRetentionPeriod" required:"true" validate:"compareDuration(self, '5m') >= 0"`
-	// OrphanedEnvironmentsCleanupCron is the cron expression for when to run the cleanup of orphaned RadixEnvironments
-	OrphanedEnvironmentsCleanupCron string `json:"orphanedEnvironmentsCleanupCron" required:"true"`
+	KubernetesAPIPort                   int32                       `json:"kubernetesAPIPort" required:"true"`
+	DeploymentHistoryLimit              int                         `json:"deploymentHistoryLimit" required:"true" validate:"self >= 3"`
+	Gateway                             GatewayConfig               `json:"gateway" required:"true"`
+	CertificateAutomation               CertificateAutomationConfig `json:"certificateAutomation" required:"true"`
+	OrphanedEnvironmentsRetentionPeriod time.Duration               `json:"orphanedEnvironmentsRetentionPeriod" required:"true" validate:"compareDuration(self, '5m') >= 0"`
+	OrphanedEnvironmentsCleanupCron     string                      `json:"orphanedEnvironmentsCleanupCron" required:"true"`
 
 	PipelineJobsHistoryLimit       int               `json:"pipelineJobsHistoryLimit" required:"true" validate:"self >= 3"`
 	PipelineJobsHistoryPeriodLimit time.Duration     `json:"pipelineJobsHistoryPeriodLimit" required:"true" validate:"compareDuration(self, '24h') >= 0"`
-	GitCloneImage                  ContainerImage    `json:"gitCloneImage" required:"true"`
 	PipelineImage                  ContainerImage    `json:"pipelineImage" required:"true"`
 	PipelineImagePullPolicy        corev1.PullPolicy `json:"pipelineImagePullPolicy" required:"true" validate:"self in ['Always','IfNotPresent','Never']"`
 }
@@ -114,7 +111,6 @@ type LimitRangeConfig struct {
 	DefaultRequestCPU    *resource.Quantity `json:"defaultRequestCPU" required:"true"`
 }
 
-// TODO: Probably convert to pod spec defaults instead of just resources, but for now we only need resources
 type Resources struct {
 	Requests ResourceRequirements `json:"requests" required:"true"`
 	Limits   ResourceRequirements `json:"limits" required:"true"`

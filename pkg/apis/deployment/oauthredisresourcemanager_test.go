@@ -48,12 +48,10 @@ func TestOAuthRedisResourceManagerTestSuite(t *testing.T) {
 func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
 	s.config2 = config.Config{
 		Common: config.CommonConfig{
+			AppAliasBaseURL: "app.dev.radix.equinor.com",
 			OAuth2Proxy: config.OAuth2ProxyConfig{
 				RedisImage: config.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
 			},
-		},
-		Operator: config.OperatorConfig{
-			AppAliasBaseURL:            "app.dev.radix.equinor.com",
 			ExternalRegistryAuthSecret: "someSecret",
 		},
 	}
@@ -376,7 +374,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisUninstall() {
 	s.NoError(err, "failed to list deployments after OAuth config change")
 	s.Len(actualDeploys.Items, 1)
 	s.Equal(utils.GetAuxiliaryComponentDeploymentName(component1Name, v1.OAuthRedisAuxiliaryComponentSuffix), actualDeploys.Items[0].Name)
-	s.Equal(s.config2.Operator.ExternalRegistryAuthSecret, actualDeploys.Items[0].Spec.Template.Spec.ImagePullSecrets[0].Name)
+	s.Equal(s.config2.Common.ExternalRegistryAuthSecret, actualDeploys.Items[0].Spec.Template.Spec.ImagePullSecrets[0].Name)
 	actualServices, err = s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
 	s.NoError(err, "failed to list services after OAuth config change")
 	s.Len(actualServices.Items, 1)
