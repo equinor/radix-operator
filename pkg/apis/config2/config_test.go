@@ -7,16 +7,12 @@ import (
 	_ "embed"
 
 	"github.com/equinor/radix-operator/pkg/apis/config2"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/yaml"
 )
 
 //go:embed testdata/config-happypath.yaml
@@ -25,142 +21,25 @@ var configHappyYaml string
 //go:embed testdata/config-missing-required.yaml
 var configMissingRequiredYaml string
 
-type MutateConfigFunc func(*config2.Config)
-
-func mutateConfig(t *testing.T, mutate func(*config2.Config)) string {
-	t.Helper()
-
-	var cfg config2.Config
-	require.NoError(t, yaml.Unmarshal([]byte(configHappyYaml), &cfg))
-	mutate(&cfg)
-	configYaml, err := yaml.Marshal(cfg)
-	require.NoError(t, err)
-	return string(configYaml)
-}
-
 func TestParse_HappyPath(t *testing.T) {
 	cfg, err := config2.Parse(configHappyYaml)
 	require.NoError(t, err)
 
 	expected := &config2.Config{
 		Common: config2.CommonConfig{
-			DNSZone:     "dev.local.radix.equinor.com",
 			ClusterName: "test-cluster",
-			OAuth2Proxy: config2.OAuth2ProxyConfig{
-				ProxyImage: config2.ContainerImage{
-					Repository: "quay.io/oauth2-proxy/oauth2-proxy",
-					Tag:        "v7.6.2",
-				},
-				RedisImage: config2.ContainerImage{
-					Repository: "docker.io/redis",
-					Tag:        "v8.6.0",
-				},
-				ProxyDefaults: v1.OAuth2{
-					Scope:                  "openid profile email",
-					ProxyPrefix:            "/oauth2",
-					SetXAuthRequestHeaders: new(false),
-					SetAuthorizationHeader: new(false),
-					SessionStoreType:       v1.SessionStoreCookie,
-					Cookie: &v1.OAuth2Cookie{
-						Name:     "_oauth2_proxy",
-						Expire:   "168h0m0s",
-						Refresh:  "60m0s",
-						SameSite: v1.SameSiteLax,
-					},
-					OIDC: &v1.OAuth2OIDC{
-						IssuerURL:     "https://issuer.com",
-						SkipDiscovery: new(false),
-					},
-				},
-			},
 		},
 		Operator: config2.OperatorConfig{
-			LogLevel:                          "info",
-			LogPrettyPrint:                    true,
-			RegistrationControllerThreads:     1,
-			ApplicationControllerThreads:      2,
-			EnvironmentControllerThreads:      3,
-			DeploymentControllerThreads:       4,
-			JobControllerThreads:              5,
-			AlertControllerThreads:            6,
-			KubeClientRateLimitBurst:          100,
-			KubeClientRateLimitQPS:            50.5,
-			ReadinessProbeInitialDelaySeconds: 5,
-			ReadinessProbePeriodSeconds:       10,
-
-			AppAliasBaseURL: "app.dev.radix.equinor.com",
-
-			DefaultRollingUpdateMaxUnavailable: "25%",
-			DefaultRollingUpdateMaxSurge:       "35%",
-
-			ClusterType: "development",
-
-			ContainerRegistry:    "any.registry.com",
-			AppContainerRegistry: "app.registry.com",
-
-			DefaultAppAdminGroups: []string{"default-app-admin-group1", "default-app-admin-group2"},
-
-			AppNsLimitRange: config2.LimitRangeConfig{
-				DefaultMemory:        new(resource.MustParse("500M")),
-				DefaultRequestMemory: new(resource.MustParse("450M")),
-				DefaultRequestCPU:    new(resource.MustParse("100m")),
-			},
-			EnvNsLimitRange: config2.LimitRangeConfig{
-				DefaultMemory:        new(resource.MustParse("555M")),
-				DefaultRequestMemory: new(resource.MustParse("444M")),
-				DefaultRequestCPU:    new(resource.MustParse("111m")),
-			},
-			Builder: config2.BuilderConfig{
-				Resources: config2.Resources{
-					Limits: config2.ResourceRequirements{
-						Memory: new(resource.MustParse("500M")),
-						CPU:    new(resource.MustParse("2000m")),
-					},
-					Requests: config2.ResourceRequirements{
-						Memory: new(resource.MustParse("500M")),
-						CPU:    new(resource.MustParse("200m")),
-					},
-				},
-				Image: config2.ContainerImage{
-					Repository: "ghcr.io/equinor/radix/buildkit-builder",
-					Tag:        "v3.4.5",
-				},
-				SeccompProfileLocalhostProfile: "anyseccomp.json",
-			},
-			JobSchedulerImage: config2.ContainerImage{
-				Repository: "ghcr.io/equinor/radix-job-scheduler",
-				Tag:        "v1.2.3",
-			},
-			PodSecurityStandard: config2.PodSecurityStandardConfig{
-				AppNamespace: config2.PodSecurityStandardPolicyConfig{
-					Enforce: config2.PodSecurityStandardModeConfig{
-						Level:   "app-enforce-level",
-						Version: "app-enforce-version",
-					},
-					Audit: config2.PodSecurityStandardModeConfig{
-						Level:   "app-audit-level",
-						Version: "app-audit-version",
-					},
-					Warn: config2.PodSecurityStandardModeConfig{
-						Level:   "app-warn-level",
-						Version: "app-warn-version",
-					},
-				},
-				EnvNamespace: config2.PodSecurityStandardPolicyConfig{
-					Enforce: config2.PodSecurityStandardModeConfig{
-						Level:   "env-enforce-level",
-						Version: "env-enforce-version",
-					},
-					Audit: config2.PodSecurityStandardModeConfig{
-						Level:   "env-audit-level",
-						Version: "env-audit-version",
-					},
-					Warn: config2.PodSecurityStandardModeConfig{
-						Level:   "env-warn-level",
-						Version: "env-warn-version",
-					},
-				},
-			},
+			LogLevel:                      "info",
+			LogPrettyPrint:                true,
+			RegistrationControllerThreads: 1,
+			ApplicationControllerThreads:  2,
+			EnvironmentControllerThreads:  3,
+			DeploymentControllerThreads:   4,
+			JobControllerThreads:          5,
+			AlertControllerThreads:        6,
+			KubeClientRateLimitBurst:      100,
+			KubeClientRateLimitQPS:        50.5,
 		},
 	}
 
@@ -168,7 +47,7 @@ func TestParse_HappyPath(t *testing.T) {
 }
 
 func TestParse_EnvOverride(t *testing.T) {
-	t.Setenv("RADIX_OPERATOR_LOGLEVEL", "debug")
+	t.Setenv("OPERATOR_LOG_LEVEL", "debug")
 
 	cfg, err := config2.Parse(configHappyYaml)
 
@@ -179,7 +58,7 @@ func TestParse_EnvOverride(t *testing.T) {
 
 // Only slice fields are comma separated, a scalar keeps the value as it is.
 func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
-	t.Setenv("RADIX_OPERATOR_LOGLEVEL", "debug,info")
+	t.Setenv("OPERATOR_LOG_LEVEL", "debug,info")
 
 	cfg, err := config2.Parse(configHappyYaml)
 
@@ -187,34 +66,12 @@ func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
 	require.NotNil(t, cfg)
 	assert.Equal(t, "debug,info", cfg.Operator.LogLevel)
 }
+
 func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
-	t.Setenv("RADIX_COMMON_CLUSTERNAME", "env-cluster")
-	configYamlStr := strings.ReplaceAll(configHappyYaml, "  clusterName: test-cluster\n", "")
+	t.Setenv("CLUSTER_NAME", "env-cluster")
+	configYamlStr := strings.ReplaceAll(configHappyYaml, "common:\n  clusterName: test-cluster\n", "common: {}\n")
 
 	cfg, err := config2.Parse(configYamlStr)
-
-	require.NoError(t, err)
-	require.NotNil(t, cfg)
-	assert.Equal(t, "env-cluster", cfg.Common.ClusterName)
-}
-
-// A field without an env tag is overridden by the uppercased field path, with dots replaced by underscores.
-func TestParse_EnvOverrideFromFieldPath(t *testing.T) {
-	t.Setenv("RADIX_COMMON_OAUTH2PROXY_PROXYIMAGE_REPOSITORY", "ghcr.io/equinor/oauth2-proxy")
-	t.Setenv("RADIX_COMMON_OAUTH2PROXY_PROXYIMAGE_TAG", "v1.2.3")
-
-	cfg, err := config2.Parse(configHappyYaml)
-
-	require.NoError(t, err)
-	require.NotNil(t, cfg)
-	expected := config2.ContainerImage{Repository: "ghcr.io/equinor/oauth2-proxy", Tag: "v1.2.3"}
-	assert.Equal(t, expected, cfg.Common.OAuth2Proxy.ProxyImage)
-}
-
-func TestParse_EnvTagTakesPrecedenceOverFieldPath(t *testing.T) {
-	t.Setenv("RADIX_COMMON_CLUSTERNAME", "env-cluster")
-
-	cfg, err := config2.Parse(configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -228,94 +85,8 @@ func TestParse_MissingRequiredField(t *testing.T) {
 	assert.Nil(t, cfg)
 }
 
-func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
-	configYaml := mutateConfig(t, func(cfg *config2.Config) {
-		cfg.Operator.JobSchedulerImage = config2.ContainerImage{}
-	})
-
-	cfg, err := config2.Parse(configYaml)
-
-	require.Error(t, err)
-	assert.Nil(t, cfg)
-	assert.ErrorContains(t, err, `field "Operator.JobSchedulerImage" is required but not set`)
-}
-
-func TestParse_FieldValidator(t *testing.T) {
-	tests := map[string]struct {
-		mutateConfig  MutateConfigFunc
-		expectedError string
-	}{
-		"repository is required": {
-			mutateConfig: func(cfg *config2.Config) {
-				cfg.Operator.JobSchedulerImage.Repository = ""
-			},
-			expectedError: `field "Operator.JobSchedulerImage" validation failed: repository is required`,
-		},
-		"tag is required": {
-			mutateConfig: func(cfg *config2.Config) {
-				cfg.Operator.JobSchedulerImage.Tag = ""
-			},
-			expectedError: `field "Operator.JobSchedulerImage" validation failed: tag is required`,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			configYaml := mutateConfig(t, test.mutateConfig)
-
-			cfg, err := config2.Parse(configYaml)
-
-			require.Error(t, err)
-			assert.Nil(t, cfg)
-			assert.ErrorContains(t, err, test.expectedError)
-		})
-	}
-}
-
-func TestParse_BuilderResourceLimits(t *testing.T) {
-	tests := map[string]struct {
-		modifyConfig MutateConfigFunc
-		errorPath    string
-	}{
-		"equivalent CPU quantities are valid": {
-			modifyConfig: func(cfg *config2.Config) {
-				cfg.Operator.Builder.Resources.Limits.CPU = new(resource.MustParse("1"))
-				cfg.Operator.Builder.Resources.Requests.CPU = new(resource.MustParse("1000m"))
-			},
-		},
-		"CPU limit below request is invalid": {
-			modifyConfig: func(cfg *config2.Config) {
-				cfg.Operator.Builder.Resources.Limits.CPU = new(resource.MustParse("100m"))
-			},
-			errorPath: "Operator.Builder.Resources",
-		},
-		"memory limit below request is invalid": {
-			modifyConfig: func(cfg *config2.Config) {
-				cfg.Operator.Builder.Resources.Limits.Memory = new(resource.MustParse("499M"))
-			},
-			errorPath: "Operator.Builder.Resources",
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			configYaml := mutateConfig(t, test.modifyConfig)
-
-			cfg, err := config2.Parse(configYaml)
-			if test.errorPath == "" {
-				require.NoError(t, err)
-				assert.NotNil(t, cfg)
-				return
-			}
-
-			require.Error(t, err)
-			assert.Nil(t, cfg)
-			assert.ErrorContains(t, err, test.errorPath)
-		})
-	}
-}
-
 func TestEnvConfigMapReader(t *testing.T) {
+	configYaml := configHappyYaml
 
 	tests := map[string]struct {
 		env       map[string]string
@@ -325,7 +96,7 @@ func TestEnvConfigMapReader(t *testing.T) {
 		"defaults are used when env vars are not set": {
 			configMap: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{Name: "radix-common-config", Namespace: "default"},
-				Data:       map[string]string{"configYaml": configHappyYaml},
+				Data:       map[string]string{"configYaml": string(configYaml)},
 			},
 		},
 		"env vars select namespace, name and key": {
@@ -336,20 +107,20 @@ func TestEnvConfigMapReader(t *testing.T) {
 			},
 			configMap: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{Name: "custom-config", Namespace: "radix-system"},
-				Data:       map[string]string{"customKey": configHappyYaml},
+				Data:       map[string]string{"customKey": string(configYaml)},
 			},
 		},
 		"configmap not found": {
 			configMap: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{Name: "other-config", Namespace: "default"},
-				Data:       map[string]string{"configYaml": configHappyYaml},
+				Data:       map[string]string{"configYaml": string(configYaml)},
 			},
 			expectErr: true,
 		},
 		"key not found in configmap": {
 			configMap: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{Name: "radix-common-config", Namespace: "default"},
-				Data:       map[string]string{"someOtherKey": configHappyYaml},
+				Data:       map[string]string{"someOtherKey": string(configYaml)},
 			},
 			expectErr: true,
 		},

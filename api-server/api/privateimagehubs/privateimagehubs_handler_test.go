@@ -6,7 +6,6 @@ import (
 
 	"github.com/equinor/radix-operator/api-server/api/privateimagehubs/internal"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -111,7 +110,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, config2.Config{})
+	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
 
 	err = applicationConfig.OnSync(context.Background())
 	if err != nil {

@@ -1,11 +1,10 @@
-package processfields_test
+package processfields
 
 import (
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -231,9 +230,9 @@ func TestWalkFieldsSetterForDroppedStructPointerDoesNotReachTheConfig(t *testing
 		Level string
 	}
 	cfg := &struct{ Nested *nested }{}
-	var captured processfields.SetValFunc
+	var captured SetValFunc
 
-	err := processfields.WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
+	err := WalkFields(cfg, func(_ string, _ reflect.StructField, _ reflect.Value, setter SetValFunc) error {
 		captured = setter
 		return nil
 	})
@@ -290,7 +289,7 @@ func TestSetErrorIdentifiesNestedFieldPath(t *testing.T) {
 		ApiServer apiServer
 	}
 
-	err := processfields.WalkFields(&config{}, func(_ string, field reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
+	err := WalkFields(&config{}, func(_ string, field reflect.StructField, _ reflect.Value, setter SetValFunc) error {
 		if field.Name != "LogLevel" {
 			return nil
 		}

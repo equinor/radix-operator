@@ -1,23 +1,16 @@
 package config2
 
 import (
-	"encoding/json/v2"
 	"fmt"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/rs/zerolog/log"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/yaml"
 )
-
-type Validator interface {
-	Validate() error
-}
 
 type Config struct {
 	Operator OperatorConfig `json:"operator"`
@@ -25,104 +18,31 @@ type Config struct {
 }
 
 type CommonConfig struct {
-	DNSZone     string            `json:"dnsZone" required:"true"`
-	ClusterName string            `json:"clusterName" required:"true"`
-	OAuth2Proxy OAuth2ProxyConfig `json:"oauth2Proxy"`
+	ClusterName string `json:"clusterName" env:"CLUSTER_NAME" required:"true"`
 }
 type OperatorConfig struct {
-	LogLevel       string `json:"logLevel"`
-	LogPrettyPrint bool   `json:"logPrettyPrint"`
+	LogLevel       string `json:"logLevel" env:"OPERATOR_LOG_LEVEL"`
+	LogPrettyPrint bool   `json:"logPrettyPrint" env:"OPERATOR_LOG_PRETTY_PRINT"`
 
-	RegistrationControllerThreads int     `json:"registrationControllerThreads" required:"true"`
-	ApplicationControllerThreads  int     `json:"applicationControllerThreads" required:"true"`
-	EnvironmentControllerThreads  int     `json:"environmentControllerThreads" required:"true"`
-	DeploymentControllerThreads   int     `json:"deploymentControllerThreads" required:"true"`
-	JobControllerThreads          int     `json:"jobControllerThreads" required:"true"`
-	AlertControllerThreads        int     `json:"alertControllerThreads" required:"true"`
-	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" required:"true"`
-	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" required:"true"`
-
-	AppAliasBaseURL      string `json:"appAliasBaseURL" required:"true"`
-	ContainerRegistry    string `json:"containerRegistry" required:"true"`
-	AppContainerRegistry string `json:"appContainerRegistry" required:"true"`
-
-	ClusterType string `json:"clusterType" required:"true"`
-
-	DefaultAppAdminGroups []string `json:"defaultAppAdminGroups"`
-
-	ReadinessProbeInitialDelaySeconds int32 `json:"readinessProbeInitialDelaySeconds" required:"true"`
-	ReadinessProbePeriodSeconds       int32 `json:"readinessProbePeriodSeconds" required:"true"`
-
-	DefaultRollingUpdateMaxUnavailable string `json:"defaultRollingUpdateMaxUnavailable" required:"true"`
-	DefaultRollingUpdateMaxSurge       string `json:"defaultRollingUpdateMaxSurge" required:"true"`
-
-	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
-	EnvNsLimitRange LimitRangeConfig `json:"envNsLimitRange" required:"true"`
-
-	Builder BuilderConfig `json:"builder" required:"true"`
-
-	JobSchedulerImage   ContainerImage            `json:"jobSchedulerImage" required:"true"`
-	PodSecurityStandard PodSecurityStandardConfig `json:"podSecurityStandard"`
-}
-
-type BuilderConfig struct {
-	Image                          ContainerImage `json:"image" required:"true"`
-	SeccompProfileLocalhostProfile string         `json:"seccompProfileLocalhostProfile" required:"true"`
-	Resources                      Resources      `json:"resources" required:"true" validate:"compareQuantity(self.limits.memory, self.requests.memory) >= 0 && compareQuantity(self.limits.cpu, self.requests.cpu) >= 0"`
-}
-
-type OAuth2ProxyConfig struct {
-	ProxyImage    ContainerImage `json:"proxyImage" required:"true"`
-	RedisImage    ContainerImage `json:"redisImage" required:"true"`
-	ProxyDefaults v1.OAuth2      `json:"proxyDefaults"`
-}
-
-type LimitRangeConfig struct {
-	DefaultMemory        *resource.Quantity `json:"defaultMemory" required:"true"`
-	DefaultRequestMemory *resource.Quantity `json:"defaultRequestMemory" required:"true"`
-	DefaultRequestCPU    *resource.Quantity `json:"defaultRequestCPU" required:"true"`
-}
-
-// TODO: Probably convert to pod spec defaults instead of just resources, but for now we only need resources
-type Resources struct {
-	Requests ResourceRequirements `json:"requests" required:"true"`
-	Limits   ResourceRequirements `json:"limits" required:"true"`
-}
-type ResourceRequirements struct {
-	Memory *resource.Quantity `json:"memory" required:"true"`
-	CPU    *resource.Quantity `json:"cpu" required:"true"`
-}
-
-type PodSecurityStandardConfig struct {
-	AppNamespace PodSecurityStandardPolicyConfig `json:"appNamespace"`
-	EnvNamespace PodSecurityStandardPolicyConfig `json:"envNamespace"`
-}
-
-type PodSecurityStandardPolicyConfig struct {
-	Enforce PodSecurityStandardModeConfig `json:"enforce"`
-	Audit   PodSecurityStandardModeConfig `json:"audit"`
-	Warn    PodSecurityStandardModeConfig `json:"warn"`
-}
-
-type PodSecurityStandardModeConfig struct {
-	Level   string `json:"level"`
-	Version string `json:"version"`
+	RegistrationControllerThreads int     `json:"registrationControllerThreads" env:"OPERATOR_REGISTRATION_CONTROLLER_THREADS" required:"true"`
+	ApplicationControllerThreads  int     `json:"applicationControllerThreads" env:"OPERATOR_APPLICATION_CONTROLLER_THREADS" required:"true"`
+	EnvironmentControllerThreads  int     `json:"environmentControllerThreads" env:"OPERATOR_ENVIRONMENT_CONTROLLER_THREADS" required:"true"`
+	DeploymentControllerThreads   int     `json:"deploymentControllerThreads" env:"OPERATOR_DEPLOYMENT_CONTROLLER_THREADS" required:"true"`
+	JobControllerThreads          int     `json:"jobControllerThreads" env:"OPERATOR_JOB_CONTROLLER_THREADS" required:"true"`
+	AlertControllerThreads        int     `json:"alertControllerThreads" env:"OPERATOR_ALERT_CONTROLLER_THREADS" required:"true"`
+	KubeClientRateLimitBurst      int     `json:"kubeClientRateLimitBurst" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_BURST" required:"true"`
+	KubeClientRateLimitQPS        float32 `json:"kubeClientRateLimitQPS" env:"OPERATOR_KUBE_CLIENT_RATE_LIMIT_QPS" required:"true"`
 }
 
 func Parse(configYaml string) (*Config, error) {
 	var cfg Config
 
-	configJson, err := yaml.YAMLToJSON([]byte(configYaml))
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert YAML to JSON: %w", err)
-	}
-
-	if err := json.Unmarshal(configJson, &cfg, binaryUnmarshaler); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+	if err := yaml.Unmarshal([]byte(configYaml), &cfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config YAML: %w", err)
 	}
 
 	// Parse env overrides
-	if err := processEnvOverrides(&cfg, "RADIX"); err != nil {
+	if err := processEnvOverrides(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to process env overrides: %w", err)
 	}
 
@@ -142,60 +62,27 @@ func MustParse(configYaml string) Config {
 }
 
 func validateConfig(cfg *Config) error {
-	validator, err := NewCelValidator()
-	if err != nil {
-		return fmt.Errorf("failed to create config validator: %w", err)
-	}
-
 	return processfields.WalkFields(cfg, func(path string, field reflect.StructField, value reflect.Value, _ processfields.SetValFunc) error {
 		requiredTag := field.Tag.Get("required")
 		required, _ := strconv.ParseBool(requiredTag)
 
-		if value.IsZero() {
-			if required {
-				return fmt.Errorf("field %q is required but not set", path)
-			}
-
-			return nil
+		if required && value.IsZero() {
+			return fmt.Errorf("field %q is required but not set", path)
 		}
-
-		if val, ok := value.Interface().(Validator); ok {
-			if err := val.Validate(); err != nil {
-				return fmt.Errorf("field %q validation failed: %w", path, err)
-			}
-		}
-
-		expression := field.Tag.Get("validate")
-		if expression != "" {
-			if valid, err := validator.ValidateField(expression, cfg, value); err != nil {
-				return fmt.Errorf("field %q validation failed expression: %w", path, err)
-			} else if !valid {
-				return fmt.Errorf("field %q did not pass validation expression", path)
-			}
-		}
-
 		return nil
 	})
 }
 
-func processEnvOverrides(cfg *Config, prefix string) error {
+func processEnvOverrides(cfg *Config) error {
 	return processfields.WalkFields(cfg, func(path string, field reflect.StructField, _ reflect.Value, setter processfields.SetValFunc) error {
-
-		env := strings.ReplaceAll(path, ".", "_")
-		env = strings.ReplaceAll(env, "[", "_")
-		env = strings.ReplaceAll(env, "]", "_")
-		env = strings.ToUpper(prefix + "_" + env)
-		env = strings.ReplaceAll(env, "__", "_")
-		env = strings.TrimSuffix(env, "_")
-		env = strings.TrimPrefix(env, "_")
-
-		envValue := os.Getenv(env)
-		if envValue == "" {
+		envTag := field.Tag.Get("env")
+		if envTag == "" {
 			return nil
 		}
 
-		if setter == nil {
-			return fmt.Errorf("it's not allowed to use env-overrides (%s) on a struct on path %s", env, path)
+		envValue := os.Getenv(envTag)
+		if envValue == "" {
+			return nil
 		}
 
 		values := []string{envValue}
@@ -204,7 +91,7 @@ func processEnvOverrides(cfg *Config, prefix string) error {
 		}
 
 		if err := setter(values...); err != nil {
-			return fmt.Errorf("failed to set field %q from env %q: %w", path, env, err)
+			return fmt.Errorf("failed to set field %q from env %q: %w", path, envTag, err)
 		}
 		return nil
 	})

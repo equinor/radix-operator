@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -19,7 +20,18 @@ import (
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
+func teardownSecretRefsTest() {
+	// Cleanup setup
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
+	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
+	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
+	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
+}
+
 func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
+	defer teardownSecretRefsTest()
 	appName, environment := "some-app", "dev"
 	scenarios := []struct {
 		componentName      string

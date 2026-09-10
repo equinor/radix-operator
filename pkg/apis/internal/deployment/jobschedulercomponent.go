@@ -1,21 +1,20 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"os"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 type JobSchedulerComponent struct {
-	cfg             config2.Config
 	radixJob        *radixv1.RadixDeployJobComponent
 	radixDeployment *radixv1.RadixDeployment
 }
 
 // NewJobSchedulerComponent Constructor
-func NewJobSchedulerComponent(cfg config2.Config, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) radixv1.RadixCommonDeployComponent {
+func NewJobSchedulerComponent(jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) radixv1.RadixCommonDeployComponent {
 	return &JobSchedulerComponent{
-		cfg,
 		jobComponent,
 		rd,
 	}
@@ -30,7 +29,7 @@ func (js *JobSchedulerComponent) GetType() radixv1.RadixComponentType {
 }
 
 func (js *JobSchedulerComponent) GetImage() string {
-	return js.cfg.Operator.JobSchedulerImage.String()
+	return os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 }
 
 func (js *JobSchedulerComponent) GetPorts() []radixv1.ComponentPort {
@@ -52,6 +51,7 @@ func (js *JobSchedulerComponent) GetEnvironmentVariables() radixv1.EnvVarsMap {
 		envVarsMap = radixv1.EnvVarsMap{}
 	}
 	envVarsMap[defaults.RadixDeploymentEnvironmentVariable] = js.radixDeployment.Name
+	envVarsMap[defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable] = os.Getenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable)
 	return envVarsMap
 }
 

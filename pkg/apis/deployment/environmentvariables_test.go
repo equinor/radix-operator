@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -33,7 +33,8 @@ type testEnvProps struct {
 	kubeUtil             *kube.Kube
 	testUtil             *test.Utils
 	kedaClient           kedav2.Interface
-	cfg                  config2.Config
+	cfg                  *config.Config
+	cfg2                 config2.Config
 }
 
 func Test_order_of_env_variables(t *testing.T) {
@@ -77,7 +78,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 			})
 		})
 
-		envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, testEnv.cfg, appName, rd, &rd.Spec.Components[0])
+		envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, testEnv.cfg, testEnv.cfg2, appName, rd, &rd.Spec.Components[0])
 		require.NoError(t, err)
 
 		resultEnvVarsMap := map[string]corev1.EnvVar{}
@@ -87,11 +88,11 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 
 		assert.Equal(t, appName, resultEnvVarsMap[defaults.RadixAppEnvironmentVariable].Value)
 		assert.Equal(t, envName, resultEnvVarsMap[defaults.EnvironmentnameEnvironmentVariable].Value)
-		assert.Equal(t, testEnv.cfg.Common.ClusterName, resultEnvVarsMap[envvars.ComponentClusterName].Value)
-		assert.Equal(t, testEnv.cfg.Operator.ClusterType, resultEnvVarsMap[envvars.ComponentClusterType].Value)
+		assert.Equal(t, testEnv.cfg2.Common.ClusterName, resultEnvVarsMap[defaults.ClusternameEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg.ClusterType, resultEnvVarsMap[defaults.RadixClusterTypeEnvironmentVariable].Value)
 		assert.Equal(t, componentName, resultEnvVarsMap[defaults.RadixComponentEnvironmentVariable].Value)
-		assert.Equal(t, testEnv.cfg.Operator.ContainerRegistry, resultEnvVarsMap[envvars.ComponentContainerRegistry].Value)
-		assert.Equal(t, testEnv.cfg.Common.DNSZone, resultEnvVarsMap[envvars.ComponentDNSZone].Value)
+		assert.Equal(t, testEnv.cfg.ContainerRegistryName, resultEnvVarsMap[defaults.ContainerRegistryEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg.DNSZone, resultEnvVarsMap[defaults.RadixDNSZoneEnvironmentVariable].Value)
 	})
 
 	t.Run("custom env vars from radix config", func(t *testing.T) {
@@ -106,7 +107,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 			})
 		})
 
-		envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, testEnv.cfg, appName, rd, &rd.Spec.Components[0])
+		envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, testEnv.cfg, testEnv.cfg2, appName, rd, &rd.Spec.Components[0])
 		require.NoError(t, err)
 
 		resultEnvVarsMap := map[string]corev1.EnvVar{}
@@ -133,7 +134,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 				WithSecrets([]string{"SECRET1", "SECRET2"})
 		})
 
-		envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, testEnv.cfg, appName, rd, &rd.Spec.Components[0])
+		envVars, err := GetEnvironmentVariablesForRadixOperator(context.Background(), testEnv.kubeUtil, testEnv.cfg, testEnv.cfg2, appName, rd, &rd.Spec.Components[0])
 		require.NoError(t, err)
 
 		resultEnvVarsMap := map[string]corev1.EnvVar{}
@@ -423,15 +424,11 @@ func (testEnv *testEnvProps) applyRdJobComponent(t *testing.T, appName string, e
 func setupTestEnv(t *testing.T) *testEnvProps {
 	testEnv := testEnvProps{}
 	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.secretproviderclient, testEnv.certClient = SetupTest(t)
-	testEnv.cfg = config2.Config{
-		Common: config2.CommonConfig{
-			DNSZone:     "test.radix.equinor.com",
-			ClusterName: testClusterName,
-		},
-		Operator: config2.OperatorConfig{
-			ContainerRegistry: "testcr.azurecr.io",
-			ClusterType:       "development",
-		},
+	testEnv.cfg = &config.Config{
+		ClusterType:           "development",
+		DNSZone:               "test.radix.equinor.com",
+		ContainerRegistryName: "testcr.azurecr.io",
 	}
+	testEnv.cfg2 = config2.Config{Common: config2.CommonConfig{ClusterName: testClusterName}}
 	return &testEnv
 }

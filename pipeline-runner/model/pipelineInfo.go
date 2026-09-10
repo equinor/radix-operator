@@ -78,9 +78,6 @@ type EnvironmentSubPipelineToRun struct {
 
 // Builder Holds info about the builder arguments
 type Builder struct {
-	// Image Points to the BuildKit compliant image builder
-	Image string
-
 	ResourcesLimitsMemory   string
 	ResourcesLimitsCPU      string
 	ResourcesRequestsCPU    string
@@ -126,6 +123,8 @@ type PipelineArguments struct {
 	TriggeredFromWebhook bool
 	RadixConfigFile      string
 
+	// BuildKitImageBuilder Points to the BuildKit compliant image builder (repository and tag only)
+	BuildKitImageBuilder string
 	// GitCloneGitImage defines image containing git cli.
 	// Must support running as user 65534.
 	// Used as option to the CloneInitContainers function.
@@ -134,6 +133,8 @@ type PipelineArguments struct {
 	SeccompProfileFileName string
 	// Used for tagging meta-information
 	Clustertype string
+	// RadixZone  The radix zone.
+	RadixZone string
 	// Clustername The name of the cluster
 	Clustername string
 	// ContainerRegistry The name of the container registry

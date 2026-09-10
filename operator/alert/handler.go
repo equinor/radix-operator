@@ -5,7 +5,6 @@ import (
 
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/alert"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,7 +31,6 @@ type handler struct {
 	kubeutil           *kube.Kube
 	alertSyncerFactory alert.AlertSyncerFactory
 	events             common.SyncEventRecorder
-	config2            config2.Config
 }
 
 // NewHandler Constructor
@@ -40,7 +38,6 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	dynamicClient client.Client,
 	eventRecorder record.EventRecorder,
-	config config2.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	handler := &handler{
@@ -49,7 +46,6 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeutil:           kubeutil,
 		alertSyncerFactory: alert.AlertSyncerFactoryFunc(alert.New),
 		events:             common.NewSyncEventRecorder(eventRecorder),
-		config2:            config,
 	}
 
 	for _, option := range options {
@@ -77,7 +73,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	syncRAL := alert.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync radix alert %s", syncRAL.Name)
 
-	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.config2, t.dynamicClient, syncRAL)
+	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.dynamicClient, syncRAL)
 	err = alertSyncer.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRAL, err)

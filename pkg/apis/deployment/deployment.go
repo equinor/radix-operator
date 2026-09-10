@@ -105,7 +105,7 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 	}
 
 	deploy.maintainHistoryLimit(ctx, deploy.config.DeploymentSyncer.DeploymentHistoryLimit)
-	return metrics.RequestedResources(deploy.config2, deploy.registration, deploy.radixDeployment)
+	return metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
 }
 
 func (deploy *Deployment) syncStatus(ctx context.Context, reconcileErr error) error {
@@ -194,7 +194,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 	}
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		ctx := log.Ctx(ctx).With().Str("jobComponent", jobComponent.Name).Logger().WithContext(ctx)
-		jobSchedulerComponent := internal.NewJobSchedulerComponent(deploy.config2, &jobComponent, deploy.radixDeployment)
+		jobSchedulerComponent := internal.NewJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
 		if err := deploy.syncDeploymentForRadixComponent(ctx, jobSchedulerComponent); err != nil {
 			errs = append(errs, fmt.Errorf("failed to sync job %s: %w", jobSchedulerComponent.GetName(), err))
 		}

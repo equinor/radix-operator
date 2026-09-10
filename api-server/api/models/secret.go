@@ -210,7 +210,12 @@ func getSecretsForComponentAuthentication(ctx context.Context, secretList []core
 func getSecretsForComponentAuthenticationOAuth2(ctx context.Context, secretList []corev1.Secret, component radixv1.RadixCommonDeployComponent) []secretModels.Secret {
 	var secrets []secretModels.Secret
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
+		oauth2, err := defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()).MergeWith(auth.OAuth2)
+		if err != nil {
+			panic(err)
+		}
 		useAzureIdentity := component.GetAuthentication().GetOAuth2().GetUseAzureIdentity()
+
 		clientSecretStatus := secretModels.Consistent.String()
 		cookieSecretStatus := secretModels.Consistent.String()
 		redisPasswordStatus := secretModels.Consistent.String()
@@ -257,7 +262,7 @@ func getSecretsForComponentAuthenticationOAuth2(ctx context.Context, secretList 
 			Updated:     metadata.GetUpdated(defaults.OAuthCookieSecretKeyName),
 		})
 
-		if auth.OAuth2.SessionStoreType == radixv1.SessionStoreRedis {
+		if oauth2.SessionStoreType == radixv1.SessionStoreRedis {
 			secrets = append(secrets, secretModels.Secret{
 				Name:        component.GetName() + suffix.OAuth2RedisPassword,
 				DisplayName: "Redis Password",

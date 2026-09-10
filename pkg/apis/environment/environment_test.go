@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
@@ -23,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -37,50 +35,15 @@ const (
 	egressRuleEnvConfigFileName = "./testdata/re_egress.yaml"
 	regConfigFileName           = "./testdata/rr.yaml"
 	namespaceName               = "testapp-testenv"
+
+	limitDefaultReqestCPU    = "234m" // 0.234
+	limitDefaultMemory       = "321M" // 321'000'000
+	limitDefaultReqestMemory = "123M" // 123'000'000
 )
 
 var testCfg config.Config = config.Config{
 	Gateway: config.GatewayConfig{
 		Name: "any-gateway-name",
-	},
-}
-var testCfg2 config2.Config = config2.Config{
-	Operator: config2.OperatorConfig{
-		EnvNsLimitRange: config2.LimitRangeConfig{
-			DefaultMemory:        new(resource.MustParse("321M")),
-			DefaultRequestCPU:    new(resource.MustParse("234m")),
-			DefaultRequestMemory: new(resource.MustParse("123M")),
-		},
-		PodSecurityStandard: config2.PodSecurityStandardConfig{
-			AppNamespace: config2.PodSecurityStandardPolicyConfig{
-				Enforce: config2.PodSecurityStandardModeConfig{
-					Level:   "app-enforce-level",
-					Version: "app-enforce-version",
-				},
-				Audit: config2.PodSecurityStandardModeConfig{
-					Level:   "app-audit-level",
-					Version: "app-audit-version",
-				},
-				Warn: config2.PodSecurityStandardModeConfig{
-					Level:   "app-warn-level",
-					Version: "app-warn-version",
-				},
-			},
-			EnvNamespace: config2.PodSecurityStandardPolicyConfig{
-				Enforce: config2.PodSecurityStandardModeConfig{
-					Level:   "env-enforce-level",
-					Version: "env-enforce-version",
-				},
-				Audit: config2.PodSecurityStandardModeConfig{
-					Level:   "env-audit-level",
-					Version: "env-audit-version",
-				},
-				Warn: config2.PodSecurityStandardModeConfig{
-					Level:   "env-warn-level",
-					Version: "env-warn-version",
-				},
-			},
-		},
 	},
 }
 
@@ -94,6 +57,9 @@ func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, *radix.Cl
 	err := handlerTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
+	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
 	return handlerTestUtils, fakekube, kubeUtil, fakeradix
 }
 
@@ -101,7 +67,7 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 	rr := test.Load[*radixv1.RadixRegistration](regConfigFileName)
 	re := test.Load[*radixv1.RadixEnvironment](radixEnvFileName)
 	nw := networkpolicy.NewNetworkPolicy(client, kubeUtil, testCfg)
-	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, testCfg2, &nw)
+	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
 	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{}); err != nil {
 		return nil, nil, env, err
@@ -124,7 +90,7 @@ func Test_ReconcileStatus(t *testing.T) {
 
 	// First sync sets status
 	expectedGen := re.Generation
-	sut := NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
+	sut := NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, &np)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -137,7 +103,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	re.Generation++
 	expectedGen = re.Generation
-	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
+	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, &np)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -154,7 +120,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	})
 	re.Generation++
 	expectedGen = re.Generation
-	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
+	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, &np)
 	err = sut.OnSync(context.Background())
 	require.ErrorContains(t, err, errorMsg)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -184,20 +150,21 @@ func Test_Create_Namespace(t *testing.T) {
 		"sync":                "cluster-wildcard-tls-cert",
 		"radix-wildcard-sync": "radix-wildcard-tls-cert",
 		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
-		kube.RadixAppLabel:                           env.config.Spec.AppName,
-		kube.RadixEnvLabel:                           env.config.Spec.EnvName,
-		"pod-security.kubernetes.io/enforce":         testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Level,
-		"pod-security.kubernetes.io/enforce-version": testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Version,
-		"pod-security.kubernetes.io/audit":           testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Level,
-		"pod-security.kubernetes.io/audit-version":   testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Version,
-		"pod-security.kubernetes.io/warn":            testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Level,
-		"pod-security.kubernetes.io/warn-version":    testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Version,
+		kube.RadixAppLabel: env.config.Spec.AppName,
+		kube.RadixEnvLabel: env.config.Spec.EnvName,
 	}
 	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
 }
 
 func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest(t)
+	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
+	os.Setenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable, "enforceVer")
+	os.Setenv(defaults.PodSecurityStandardAuditLevelEnvironmentVariable, "auditLvl")
+	os.Setenv(defaults.PodSecurityStandardAuditVersionEnvironmentVariable, "auditVer")
+	os.Setenv(defaults.PodSecurityStandardWarnLevelEnvironmentVariable, "warnLvl")
+	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "warnVer")
+	defer os.Clearenv()
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
@@ -216,12 +183,12 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
 		kube.RadixAppLabel:                           env.config.Spec.AppName,
 		kube.RadixEnvLabel:                           env.config.Spec.EnvName,
-		"pod-security.kubernetes.io/enforce":         testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Level,
-		"pod-security.kubernetes.io/enforce-version": testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Version,
-		"pod-security.kubernetes.io/audit":           testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Level,
-		"pod-security.kubernetes.io/audit-version":   testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Version,
-		"pod-security.kubernetes.io/warn":            testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Level,
-		"pod-security.kubernetes.io/warn-version":    testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Version,
+		"pod-security.kubernetes.io/enforce":         "enforceLvl",
+		"pod-security.kubernetes.io/enforce-version": "enforceVer",
+		"pod-security.kubernetes.io/audit":           "auditLvl",
+		"pod-security.kubernetes.io/audit-version":   "auditVer",
+		"pod-security.kubernetes.io/warn":            "warnLvl",
+		"pod-security.kubernetes.io/warn-version":    "warnVer",
 	}
 	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
 }
@@ -291,10 +258,9 @@ func Test_Create_LimitRange(t *testing.T) {
 	t.Run("Received correct limitrange values", func(t *testing.T) {
 		limits := limitranges.Items[0].Spec.Limits[0]
 		assert.True(t, limits.Default.Cpu().IsZero())
-
-		assert.Equal(t, testCfg2.Operator.EnvNsLimitRange.DefaultRequestCPU.String(), limits.DefaultRequest.Cpu().String())
-		assert.Equal(t, testCfg2.Operator.EnvNsLimitRange.DefaultMemory.String(), limits.Default.Memory().String())
-		assert.Equal(t, testCfg2.Operator.EnvNsLimitRange.DefaultRequestMemory.String(), limits.DefaultRequest.Memory().String())
+		assert.Equal(t, limitDefaultReqestCPU, limits.DefaultRequest.Cpu().String())
+		assert.Equal(t, limitDefaultMemory, limits.Default.Memory().String())
+		assert.Equal(t, limitDefaultReqestMemory, limits.DefaultRequest.Memory().String())
 	})
 }
 
@@ -339,17 +305,21 @@ func Test_Orphaned_Status(t *testing.T) {
 
 // commonAsserts runs a generic set of assertions about resource creation
 func commonAsserts(t *testing.T, env Environment, resources []metav1.Object, names ...string) {
-	t.Helper()
+	t.Run("It creates a single resource", func(t *testing.T) {
+		assert.Len(t, resources, len(names))
+	})
 
-	assert.Len(t, resources, len(names), "It creates a single resource")
+	t.Run("Resource has a correct name", func(t *testing.T) {
+		for _, resource := range resources {
+			assert.Contains(t, names, resource.GetName())
+		}
+	})
 
-	for _, resource := range resources {
-		assert.Contains(t, names, resource.GetName(), "Resource has a correct name")
-	}
-
-	for _, resource := range resources {
-		assert.Equal(t, env.AsOwnerReference(), resource.GetOwnerReferences(), "Resource has a correct owner")
-	}
+	t.Run("Resource has a correct owner", func(t *testing.T) {
+		for _, resource := range resources {
+			assert.Equal(t, env.AsOwnerReference(), resource.GetOwnerReferences())
+		}
+	})
 }
 
 // following code is necessary noise to account for the lack of covariance and overloading

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/prometheus/client_golang/prometheus"
@@ -70,26 +70,29 @@ func init() {
 }
 
 // RequestedResources adds metrics for requested resources
-func RequestedResources(cfg config2.Config, rr *v1.RadixRegistration, rd *v1.RadixDeployment) error {
+func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) error {
 	var errs []error
 
 	if rd == nil || rd.Status.Condition == v1.DeploymentInactive || rr == nil {
 		return nil
 	}
 
+	defaultCPU := defaults.GetDefaultCPURequest()
+	defaultMemory := defaults.GetDefaultMemoryRequest()
+
 	for _, comp := range rd.Spec.Components {
-		resources, err := utils.GetResourceRequirements(cfg, &comp)
+		resources, err := utils.GetResourceRequirements(&comp)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("component %s: error getting resource requirements: %w", comp.Name, err))
 		}
 		nrReplicas := float64(comp.GetNrOfReplicas())
 		var cpu, memory resource.Quantity
 
-		if cfg.Operator.EnvNsLimitRange.DefaultRequestCPU != nil {
-			cpu = *cfg.Operator.EnvNsLimitRange.DefaultRequestCPU
+		if defaultCPU != nil {
+			cpu = *defaultCPU
 		}
-		if cfg.Operator.EnvNsLimitRange.DefaultRequestMemory != nil {
-			memory = *cfg.Operator.EnvNsLimitRange.DefaultRequestMemory
+		if defaultMemory != nil {
+			memory = *defaultMemory
 		}
 
 		if componentCpu, ok := resources.Requests[corev1.ResourceCPU]; ok {

@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -19,7 +17,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubelabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -30,7 +28,6 @@ type Environment struct {
 	radixclient   radixclient.Interface
 	kubeutil      *kube.Kube
 	config        *v1.RadixEnvironment
-	config2       config2.Config
 	regConfig     *v1.RadixRegistration
 	appConfig     *v1.RadixApplication
 	logger        zerolog.Logger
@@ -45,7 +42,6 @@ func NewEnvironment(
 	config *v1.RadixEnvironment,
 	regConfig *v1.RadixRegistration,
 	appConfig *v1.RadixApplication,
-	config2 config2.Config,
 	networkPolicy *networkpolicy.NetworkPolicy) Environment {
 
 	return Environment{
@@ -55,7 +51,6 @@ func NewEnvironment(
 		config:        config,
 		regConfig:     regConfig,
 		appConfig:     appConfig,
-		config2:       config2,
 		networkPolicy: networkPolicy,
 		logger:        log.Logger.With().Str("resource_kind", v1.KindRadixEnvironment).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
 	}
@@ -138,14 +133,14 @@ func (env *Environment) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 
 	desired.ObjectMeta.OwnerReferences = env.AsOwnerReference()
 	imagehubKey := fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName)
-	desired.ObjectMeta.Labels = kubelabels.Merge(desired.ObjectMeta.Labels, map[string]string{
+	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, map[string]string{
 		"sync":                "cluster-wildcard-tls-cert",
 		"radix-wildcard-sync": "radix-wildcard-tls-cert",
 		imagehubKey:           env.config.Spec.AppName,
 		kube.RadixAppLabel:    env.config.Spec.AppName,
 		kube.RadixEnvLabel:    env.config.Spec.EnvName,
 	})
-	desired.ObjectMeta.Labels = kubelabels.Merge(desired.ObjectMeta.Labels, labels.PodSecurityStandardFromConfig(env.config2.Operator.PodSecurityStandard.EnvNamespace))
+	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, kube.NewEnvNamespacePodSecurityStandardFromEnv().Labels())
 
 	// We don't use these anymore, remove line if no more namespaces contains this label
 	delete(desired.Labels, "cluster-wildcard-sync")
@@ -158,7 +153,7 @@ func (env *Environment) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 // applyAdGroupRoleBinding grants access to environment namespace
 func (env *Environment) applyAdGroupRoleBinding(ctx context.Context) error {
 	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
-	adminSubjects := utils.GetAppAdminRbacSubjects(env.config2, env.regConfig)
+	adminSubjects := utils.GetAppAdminRbacSubjects(env.regConfig)
 	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, adminSubjects)
 	adminRoleBinding.SetOwnerReferences(env.AsOwnerReference())
 
@@ -210,9 +205,9 @@ const limitRangeName = "mem-cpu-limit-range-env"
 // applyLimitRange sets resource usage limits to provided namespace
 func (env *Environment) applyLimitRange(ctx context.Context) error {
 	namespace := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
-	defaultMemoryLimit := env.config2.Operator.EnvNsLimitRange.DefaultMemory
-	defaultCPURequest := env.config2.Operator.EnvNsLimitRange.DefaultRequestCPU
-	defaultMemoryRequest := env.config2.Operator.EnvNsLimitRange.DefaultRequestMemory
+	defaultMemoryLimit := defaults.GetDefaultMemoryLimit()
+	defaultCPURequest := defaults.GetDefaultCPURequest()
+	defaultMemoryRequest := defaults.GetDefaultMemoryRequest()
 
 	// if not all limits are defined, then don't put any limits on namespace
 	if defaultMemoryLimit == nil ||

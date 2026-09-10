@@ -1,4 +1,4 @@
-package processfields_test
+package processfields
 
 import (
 	"reflect"
