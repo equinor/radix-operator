@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -42,7 +42,7 @@ type OAuthProxyResourceManagerTestSuite struct {
 	ctrl                 *gomock.Controller
 	dnsZone              string
 	appAliasDnsZone      string
-	config2              config2.Config
+	config2              config.Config
 }
 
 func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
@@ -52,15 +52,15 @@ func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
 func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	s.dnsZone = "dev.radix.equinor.com"
 	s.appAliasDnsZone = "app.dev.radix.equinor.com"
-	s.config2 = config2.Config{
-		Common: config2.CommonConfig{
+	s.config2 = config.Config{
+		Common: config.CommonConfig{
 			DNSZone: s.dnsZone,
-			OAuth2Proxy: config2.OAuth2ProxyConfig{
-				RedisImage: config2.ContainerImage{
+			OAuth2Proxy: config.OAuth2ProxyConfig{
+				RedisImage: config.ContainerImage{
 					Repository: "redis",
 					Tag:        "123",
 				},
-				ProxyImage: config2.ContainerImage{
+				ProxyImage: config.ContainerImage{
 					Repository: "oauth2-proxy",
 					Tag:        "456",
 				},
@@ -71,7 +71,7 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 				},
 			},
 		},
-		Operator: config2.OperatorConfig{
+		Operator: config.OperatorConfig{
 			AppAliasBaseURL: s.appAliasDnsZone,
 		},
 	}

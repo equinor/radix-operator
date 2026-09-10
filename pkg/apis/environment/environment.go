@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -30,7 +30,7 @@ type Environment struct {
 	radixclient   radixclient.Interface
 	kubeutil      *kube.Kube
 	config        *v1.RadixEnvironment
-	config2       config2.Config
+	config2       config.Config
 	regConfig     *v1.RadixRegistration
 	appConfig     *v1.RadixApplication
 	logger        zerolog.Logger
@@ -45,7 +45,7 @@ func NewEnvironment(
 	config *v1.RadixEnvironment,
 	regConfig *v1.RadixRegistration,
 	appConfig *v1.RadixApplication,
-	config2 config2.Config,
+	config2 config.Config,
 	networkPolicy *networkpolicy.NetworkPolicy) Environment {
 
 	return Environment{

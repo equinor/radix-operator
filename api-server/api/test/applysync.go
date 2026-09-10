@@ -6,7 +6,7 @@ import (
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -26,7 +26,7 @@ func ApplyRegistrationWithSync(client kubernetes.Interface, radixclient radixcli
 		return err
 	}
 
-	registration := application.NewApplication(client, kubeUtils, radixclient, registrationBuilder.BuildRR(), config2.Config{})
+	registration := application.NewApplication(client, kubeUtils, radixclient, registrationBuilder.BuildRR(), config.Config{})
 	return registration.OnSync(context.Background())
 }
 
@@ -46,7 +46,7 @@ func ApplyApplicationWithSync(client kubernetes.Interface, radixclient radixclie
 		return err
 	}
 
-	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtils, radixclient, registrationBuilder.BuildRR(), applicationBuilder.BuildRA(), config2.Config{})
+	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtils, radixclient, registrationBuilder.BuildRR(), applicationBuilder.BuildRA(), config.Config{})
 	return applicationConfig.OnSync(context.Background())
 }
 
@@ -62,6 +62,6 @@ func ApplyDeploymentWithSync(client kubernetes.Interface, radixclient radixclien
 
 	kubeUtils, _ := kube.New(client, radixclient, kedaClient, secretproviderclient)
 	rd, _ := commonTestUtils.ApplyDeployment(context.Background(), deploymentBuilder)
-	deploymentSyncer := deployment.NewDeploymentSyncer(client, kubeUtils, radixclient, dynamicClient, certClient, registrationBuilder.BuildRR(), rd, []deployment.AuxiliaryResourceManager{}, config2.Config{})
+	deploymentSyncer := deployment.NewDeploymentSyncer(client, kubeUtils, radixclient, dynamicClient, certClient, registrationBuilder.BuildRR(), rd, []deployment.AuxiliaryResourceManager{}, config.Config{})
 	return deploymentSyncer.OnSync(context.Background())
 }

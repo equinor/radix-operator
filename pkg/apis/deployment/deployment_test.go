@@ -17,7 +17,7 @@ import (
 	v1 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -57,22 +57,22 @@ const (
 	testClusterName = "AnyClusterName"
 )
 
-var testConfig = config2.Config{
-	Common: config2.CommonConfig{
+var testConfig = config.Config{
+	Common: config.CommonConfig{
 		DNSZone:     "dev.radix.equinor.com",
 		ClusterName: testClusterName,
 	},
-	Operator: config2.OperatorConfig{
+	Operator: config.OperatorConfig{
 		ReadinessProbeInitialDelaySeconds:  25,
 		ReadinessProbePeriodSeconds:        15,
 		DefaultRollingUpdateMaxUnavailable: "25%",
 		DefaultRollingUpdateMaxSurge:       "35%",
 		ContainerRegistry:                  "any.container.registry",
-		JobSchedulerImage: config2.ContainerImage{
+		JobSchedulerImage: config.ContainerImage{
 			Repository: "docker.io/radix-job-scheduler",
 			Tag:        "main-latest",
 		},
-		JobSchedulerAuxImage: config2.ContainerImage{
+		JobSchedulerAuxImage: config.ContainerImage{
 			Repository: "docker.io/bash",
 			Tag:        "latest",
 		},
@@ -80,7 +80,7 @@ var testConfig = config2.Config{
 		AzureKeyVaultTenantID:  "123456789",
 		KubernetesAPIPort:      543,
 		DeploymentHistoryLimit: 10,
-		CertificateAutomation: config2.CertificateAutomationConfig{
+		CertificateAutomation: config.CertificateAutomationConfig{
 			GatewayClusterIssuer: "test-gateway-cert-issuer",
 			Duration:             10000 * time.Hour,
 			RenewBefore:          5000 * time.Hour,
@@ -876,7 +876,7 @@ func Test_ReconcileStatus(t *testing.T) {
 
 	// First sync sets status
 	expectedGen := rd.Generation
-	sut := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config2.Config{})
+	sut := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config.Config{})
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -889,7 +889,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	rd.Generation++
 	expectedGen = rd.Generation
-	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config2.Config{})
+	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config.Config{})
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -905,7 +905,7 @@ func Test_ReconcileStatus(t *testing.T) {
 		return true, nil, errors.New(errorMsg)
 	})
 	rr.Generation++
-	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config2.Config{})
+	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config.Config{})
 	err = sut.OnSync(context.Background())
 	assert.ErrorContains(t, err, errorMsg)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -3310,7 +3310,7 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(nil)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config2.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.NoError(t, err)
 }
@@ -3331,7 +3331,7 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(auxErr)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config2.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
@@ -3352,7 +3352,7 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(auxErr)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(0)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config2.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
@@ -3916,9 +3916,9 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Duration and RenewBefore not below min values
-	cfg := config2.Config{
-		Operator: config2.OperatorConfig{
-			CertificateAutomation: config2.CertificateAutomationConfig{
+	cfg := config.Config{
+		Operator: config.OperatorConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
 				GatewayClusterIssuer: "anyissuer",
 				Duration:             10000 * time.Hour,
 				RenewBefore:          1000 * time.Hour,
@@ -3932,9 +3932,9 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	assert.Equal(t, cfg.Operator.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
 
 	// Duration below min value
-	cfg = config2.Config{
-		Operator: config2.OperatorConfig{
-			CertificateAutomation: config2.CertificateAutomationConfig{
+	cfg = config.Config{
+		Operator: config.OperatorConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
 				GatewayClusterIssuer: "anyissuer",
 				Duration:             2159 * time.Hour,
 				RenewBefore:          1000 * time.Hour,
@@ -3949,9 +3949,9 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	assert.Equal(t, cfg.Operator.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
 
 	// RenewBefore below min value
-	cfg = config2.Config{
-		Operator: config2.OperatorConfig{
-			CertificateAutomation: config2.CertificateAutomationConfig{
+	cfg = config.Config{
+		Operator: config.OperatorConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
 				GatewayClusterIssuer: "anyissuer",
 				Duration:             10000 * time.Hour,
 				RenewBefore:          359 * time.Hour,
@@ -3980,9 +3980,9 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 	require.NoError(t, err)
 
 	// Duration and RenewBefore not below min values
-	cfg := config2.Config{
-		Operator: config2.OperatorConfig{
-			CertificateAutomation: config2.CertificateAutomationConfig{
+	cfg := config.Config{
+		Operator: config.OperatorConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
 				Duration:    10000 * time.Hour,
 				RenewBefore: 1000 * time.Hour,
 			},
@@ -4000,9 +4000,9 @@ func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 
-	cfg := config2.Config{
-		Operator: config2.OperatorConfig{
-			CertificateAutomation: config2.CertificateAutomationConfig{
+	cfg := config.Config{
+		Operator: config.OperatorConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
 				GatewayClusterIssuer: gatewayClusterIssuer,
 				Duration:             10000 * time.Hour,
 				RenewBefore:          1000 * time.Hour,
@@ -4123,7 +4123,7 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 			_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 			require.NoError(t, err)
 
-			cfg2 := config2.Config{Operator: config2.OperatorConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
+			cfg2 := config.Config{Operator: config.OperatorConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
 
 			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, cfg2)
 			err = syncer.OnSync(context.Background())

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -30,7 +30,7 @@ const (
 )
 
 // NewOAuthRedisResourceManager creates a new RedisResourceManager
-func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, cfg config2.Config) AuxiliaryResourceManager {
+func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, cfg config.Config) AuxiliaryResourceManager {
 	return &oauthRedisResourceManager{
 		rd:                    rd,
 		rr:                    rr,
@@ -47,7 +47,7 @@ type oauthRedisResourceManager struct {
 	kubeutil              *kube.Kube
 	oauthRedisDockerImage string
 	logger                zerolog.Logger
-	config2               config2.Config
+	config2               config.Config
 }
 
 func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {

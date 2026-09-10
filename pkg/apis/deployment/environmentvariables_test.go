@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -33,7 +33,7 @@ type testEnvProps struct {
 	kubeUtil             *kube.Kube
 	testUtil             *test.Utils
 	kedaClient           kedav2.Interface
-	cfg                  config2.Config
+	cfg                  config.Config
 }
 
 func Test_order_of_env_variables(t *testing.T) {
@@ -420,12 +420,12 @@ func (testEnv *testEnvProps) applyRdJobComponent(t *testing.T, appName string, e
 func setupTestEnv(t *testing.T) *testEnvProps {
 	testEnv := testEnvProps{}
 	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.secretproviderclient, testEnv.certClient = SetupTest(t)
-	testEnv.cfg = config2.Config{
-		Common: config2.CommonConfig{
+	testEnv.cfg = config.Config{
+		Common: config.CommonConfig{
 			DNSZone:     "test.radix.equinor.com",
 			ClusterName: testClusterName,
 		},
-		Operator: config2.OperatorConfig{
+		Operator: config.OperatorConfig{
 			ContainerRegistry: "testcr.azurecr.io",
 			ClusterType:       "development",
 		},

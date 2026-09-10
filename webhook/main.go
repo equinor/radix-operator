@@ -14,7 +14,7 @@ import (
 	"github.com/rs/zerolog"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	internalconfig "github.com/equinor/radix-operator/webhook/internal/config"
 	"github.com/equinor/radix-operator/webhook/validation"
@@ -67,16 +67,16 @@ func main() {
 	logger.Info().Msg("shutting down")
 }
 
-func loadConfig(ctx context.Context) config2.Config {
+func loadConfig(ctx context.Context) config.Config {
 	cfgClient, err := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create config reader client")
 	}
-	cfgYaml := config2.MustEnvConfigMapReader(ctx, cfgClient)
-	return config2.MustParse(cfgYaml)
+	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
+	return config.MustParse(cfgYaml)
 }
 
-func setupWebhook(mgr manager.Manager, c internalconfig.Config, cfg2 config2.Config, certSetupFinished <-chan struct{}) {
+func setupWebhook(mgr manager.Manager, c internalconfig.Config, cfg2 config.Config, certSetupFinished <-chan struct{}) {
 	<-certSetupFinished
 	log.Debug().Msg("Configuring webhook...")
 	validation.SetupWebhook(mgr, c, cfg2)

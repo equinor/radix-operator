@@ -1,7 +1,7 @@
 package validation
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	internalconfig "github.com/equinor/radix-operator/webhook/internal/config"
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/equinor/radix-operator/webhook/validation/httproute"
@@ -19,7 +19,7 @@ const HttpRouteValidatorWebhookPath = "/gateway/v1/httproute/validation"
 //+kubebuilder:webhook:name=radixapplication.validate.radix.equinor.com,path=/radix/v1/radixapplication/validation,mutating=false,failurePolicy=fail,sideEffects=None,groups=radix.equinor.com,resources=radixapplications,verbs=create;update,versions=v1,admissionReviewVersions={v1}
 //+kubebuilder:webhook:name=httproute.validate.gateway.networking.k8s.io,path=/gateway/v1/httproute/validation,mutating=false,failurePolicy=fail,sideEffects=None,groups=gateway.networking.k8s.io,resources=httproutes,verbs=create;update,versions=v1,admissionReviewVersions={v1}
 
-func SetupWebhook(mgr manager.Manager, c internalconfig.Config, cfg2 config2.Config) {
+func SetupWebhook(mgr manager.Manager, c internalconfig.Config, cfg2 config.Config) {
 	rrValidator := radixregistration.CreateOnlineValidator(mgr.GetClient(), c.RequireAdGroups, c.RequireConfigurationItem)
 	genericvalidator.
 		NewGenericAdmissionValidator(rrValidator, rrValidator, nil).

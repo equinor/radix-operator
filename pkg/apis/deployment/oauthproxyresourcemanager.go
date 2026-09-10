@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -40,7 +40,7 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, cfg config2.Config) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *radixv1.RadixDeployment, rr *radixv1.RadixRegistration, kubeutil *kube.Kube, cfg config.Config) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:       rd,
 		rr:       rr,
@@ -54,7 +54,7 @@ type oauthProxyResourceManager struct {
 	rd       *radixv1.RadixDeployment
 	rr       *radixv1.RadixRegistration
 	kubeutil *kube.Kube
-	config   config2.Config
+	config   config.Config
 	logger   zerolog.Logger
 }
 

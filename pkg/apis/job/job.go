@@ -12,7 +12,7 @@ import (
 
 	commonslice "github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -36,13 +36,13 @@ type Job struct {
 	kubeutil     *kube.Kube
 	radixJob     *v1.RadixJob
 	registration *v1.RadixRegistration
-	cfg          config2.Config
+	cfg          config.Config
 }
 
 const jobNameLabel = "job-name"
 
 // NewJob Constructor
-func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *v1.RadixRegistration, radixJob *v1.RadixJob, cfg config2.Config) *Job {
+func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *v1.RadixRegistration, radixJob *v1.RadixJob, cfg config.Config) *Job {
 	return &Job{
 		kubeclient:   kubeClient,
 		radixclient:  radixClient,

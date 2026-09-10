@@ -1,13 +1,13 @@
 package utils
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 // GetAppAdminRbacSubjects Get Role bindings for application admins
-func GetAppAdminRbacSubjects(cfg config2.Config, rr *radixv1.RadixRegistration) []rbacv1.Subject {
+func GetAppAdminRbacSubjects(cfg config.Config, rr *radixv1.RadixRegistration) []rbacv1.Subject {
 	adGroups := getAdAdminGroupsWithDefault(cfg, rr)
 
 	return getRoleBindingSubjects(adGroups, rr.Spec.AdUsers)
@@ -18,7 +18,7 @@ func GetAppReaderRbacSubjects(rr *radixv1.RadixRegistration) []rbacv1.Subject {
 	return getRoleBindingSubjects(rr.Spec.ReaderAdGroups, rr.Spec.ReaderAdUsers)
 }
 
-func getAdAdminGroupsWithDefault(cfg config2.Config, registration *radixv1.RadixRegistration) []string {
+func getAdAdminGroupsWithDefault(cfg config.Config, registration *radixv1.RadixRegistration) []string {
 	if len(registration.Spec.AdGroups) > 0 {
 		return registration.Spec.AdGroups
 	}

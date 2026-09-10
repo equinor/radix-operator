@@ -13,7 +13,7 @@ import (
 	reflect "reflect"
 
 	batch "github.com/equinor/radix-operator/pkg/apis/batch"
-	config2 "github.com/equinor/radix-operator/pkg/apis/config2"
+	config2 "github.com/equinor/radix-operator/pkg/apis/config"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"

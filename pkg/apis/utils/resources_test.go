@@ -3,16 +3,16 @@ package utils_test
 import (
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-var testCfg = config2.Config{
-	Operator: config2.OperatorConfig{
-		EnvNsLimitRange: config2.LimitRangeConfig{
+var testCfg = config.Config{
+	Operator: config.OperatorConfig{
+		EnvNsLimitRange: config.LimitRangeConfig{
 			DefaultMemory:        new(resource.MustParse("500M")),
 			DefaultRequestCPU:    new(resource.MustParse("100m")),
 			DefaultRequestMemory: new(resource.MustParse("32Mi")),

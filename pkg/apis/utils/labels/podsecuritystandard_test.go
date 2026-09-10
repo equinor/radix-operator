@@ -3,7 +3,7 @@ package labels_test
 import (
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/stretchr/testify/assert"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
@@ -11,14 +11,14 @@ import (
 
 func Test_PodSecurityStandardFromConfig(t *testing.T) {
 	tests := map[string]struct {
-		cfg      config2.PodSecurityStandardPolicyConfig
+		cfg      config.PodSecurityStandardPolicyConfig
 		expected kubelabels.Set
 	}{
 		"all modes": {
-			cfg: config2.PodSecurityStandardPolicyConfig{
-				Enforce: config2.PodSecurityStandardModeConfig{Level: "enforcelevel", Version: "enforceversion"},
-				Audit:   config2.PodSecurityStandardModeConfig{Level: "auditlevel", Version: "auditversion"},
-				Warn:    config2.PodSecurityStandardModeConfig{Level: "warnlevel", Version: "warnversion"},
+			cfg: config.PodSecurityStandardPolicyConfig{
+				Enforce: config.PodSecurityStandardModeConfig{Level: "enforcelevel", Version: "enforceversion"},
+				Audit:   config.PodSecurityStandardModeConfig{Level: "auditlevel", Version: "auditversion"},
+				Warn:    config.PodSecurityStandardModeConfig{Level: "warnlevel", Version: "warnversion"},
 			},
 			expected: map[string]string{
 				"pod-security.kubernetes.io/enforce":         "enforcelevel",
@@ -30,10 +30,10 @@ func Test_PodSecurityStandardFromConfig(t *testing.T) {
 			},
 		},
 		"incomplete modes are omitted": {
-			cfg: config2.PodSecurityStandardPolicyConfig{
-				Enforce: config2.PodSecurityStandardModeConfig{Level: "enforcelevel"},
-				Audit:   config2.PodSecurityStandardModeConfig{Version: "auditversion"},
-				Warn:    config2.PodSecurityStandardModeConfig{Level: "warnlevel", Version: "warnversion"},
+			cfg: config.PodSecurityStandardPolicyConfig{
+				Enforce: config.PodSecurityStandardModeConfig{Level: "enforcelevel"},
+				Audit:   config.PodSecurityStandardModeConfig{Version: "auditversion"},
+				Warn:    config.PodSecurityStandardModeConfig{Level: "warnlevel", Version: "warnversion"},
 			},
 			expected: map[string]string{
 				"pod-security.kubernetes.io/warn":         "warnlevel",

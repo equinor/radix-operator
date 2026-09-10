@@ -6,7 +6,7 @@ import (
 	"github.com/equinor/radix-operator/operator/batch/internal"
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/batch"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
@@ -34,7 +34,7 @@ type handler struct {
 	kubeutil      *kube.Kube
 	syncerFactory internal.SyncerFactory
 	events        common.SyncEventRecorder
-	config        config2.Config
+	config        config.Config
 }
 
 func NewHandler(
@@ -42,7 +42,7 @@ func NewHandler(
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	eventRecorder record.EventRecorder,
-	config config2.Config,
+	config config.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	h := &handler{

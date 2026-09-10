@@ -8,7 +8,7 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/suite"
@@ -37,7 +37,7 @@ func (s *handlerTestSuite) TearDownTest() {
 }
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
-	handler := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, config2.Config{}, dnsalias.WithSyncerFactory(s.syncerFactory))
+	handler := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, config.Config{}, dnsalias.WithSyncerFactory(s.syncerFactory))
 
 	s.syncerFactory.EXPECT().CreateSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
@@ -58,10 +58,10 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 	expectedDnsAlias, err := s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), expectedDnsAlias, v1.CreateOptions{})
 	expectedError := fmt.Errorf("some error")
 	s.Require().NoError(err)
-	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.RadixClient, s.DynamicClient, config2.Config{}).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.RadixClient, s.DynamicClient, config.Config{}).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
 
-	sut := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, config2.Config{}, dnsalias.WithSyncerFactory(s.syncerFactory))
+	sut := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, config.Config{}, dnsalias.WithSyncerFactory(s.syncerFactory))
 	actualError := sut.Sync(context.Background(), "", expectedDnsAlias.Name)
 	s.Equal(expectedError, actualError)
 }
@@ -77,9 +77,9 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 	}
 	expectedDnsAlias, err := s.RadixClient.RadixV1().RadixDNSAliases().Create(context.Background(), expectedDnsAlias, v1.CreateOptions{})
 	s.Require().NoError(err)
-	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.RadixClient, s.DynamicClient, config2.Config{Common: config2.CommonConfig{DNSZone: "any.zone.com"}}).Return(s.syncer).Times(1)
+	s.syncerFactory.EXPECT().CreateSyncer(expectedDnsAlias, s.RadixClient, s.DynamicClient, config.Config{Common: config.CommonConfig{DNSZone: "any.zone.com"}}).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
 
-	sut := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, config2.Config{Common: config2.CommonConfig{DNSZone: "any.zone.com"}}, dnsalias.WithSyncerFactory(s.syncerFactory))
+	sut := dnsalias.NewHandler(s.KubeClient, s.RadixClient, s.DynamicClient, s.EventRecorder, config.Config{Common: config.CommonConfig{DNSZone: "any.zone.com"}}, dnsalias.WithSyncerFactory(s.syncerFactory))
 	s.NoError(sut.Sync(context.Background(), "", expectedDnsAlias.Name))
 }

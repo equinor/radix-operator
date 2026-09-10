@@ -1,4 +1,4 @@
-package config2
+package config
 
 type GatewayConfig struct {
 	Name        string `json:"name" required:"true"`

@@ -26,7 +26,7 @@ import (
 	"github.com/equinor/radix-operator/operator/registration"
 	"github.com/equinor/radix-operator/operator/scheduler"
 	"github.com/equinor/radix-operator/operator/scheduler/tasks"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
@@ -60,7 +60,7 @@ const (
 )
 
 type App struct {
-	cfg                  config2.Config
+	cfg                  config.Config
 	eventRecorder        record.EventRecorder
 	kubeInformerFactory  kubeinformers.SharedInformerFactory
 	radixInformerFactory radixinformers.SharedInformerFactory
@@ -108,8 +108,8 @@ func initializeApp(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create config reader client: %w", err)
 	}
-	cfgYaml := config2.MustEnvConfigMapReader(ctx, cfgClient)
-	app.cfg = config2.MustParse(cfgYaml)
+	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
+	app.cfg = config.MustParse(cfgYaml)
 
 	initLogger(app.cfg)
 	log.Ctx(ctx).Info().Interface("config", app.cfg).Msg("config parsed")
@@ -222,7 +222,7 @@ func (a *App) Run(ctx context.Context) error {
 	return g.Wait()
 }
 
-func initLogger(cfg config2.Config) {
+func initLogger(cfg config.Config) {
 	logLevelStr := cfg.Operator.LogLevel
 	if len(logLevelStr) == 0 {
 		logLevelStr = zerolog.LevelInfoValue

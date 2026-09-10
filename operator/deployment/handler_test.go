@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,7 +33,7 @@ type handlerSuite struct {
 	kubeUtil             *kube.Kube
 	eventRecorder        *record.FakeRecorder
 	kedaClient           *kedafake.Clientset
-	config               config2.Config
+	config               config.Config
 }
 
 func Test_HandlerSuite(t *testing.T) {
@@ -48,20 +48,20 @@ func (s *handlerSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
-	s.config = config2.Config{
-		Common: config2.CommonConfig{
-			OAuth2Proxy: config2.OAuth2ProxyConfig{
-				RedisImage: config2.ContainerImage{
+	s.config = config.Config{
+		Common: config.CommonConfig{
+			OAuth2Proxy: config.OAuth2ProxyConfig{
+				RedisImage: config.ContainerImage{
 					Repository: "redis",
 					Tag:        "123",
 				},
-				ProxyImage: config2.ContainerImage{
+				ProxyImage: config.ContainerImage{
 					Repository: "oauth2-proxy",
 					Tag:        "456",
 				},
 			},
 		},
-		Operator: config2.OperatorConfig{ExternalRegistryAuthSecret: "anySecret"},
+		Operator: config.OperatorConfig{ExternalRegistryAuthSecret: "anySecret"},
 	}
 	s.eventRecorder = &record.FakeRecorder{}
 }
@@ -79,7 +79,7 @@ func (s *handlerSuite) Test_NewHandler_DefaultValues() {
 func (s *handlerSuite) Test_NewHandler_ConfigOptionsCalled() {
 	var called bool
 	configFunc := func(h *handler) { called = true }
-	NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, config2.Config{}, configFunc)
+	NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, config.Config{}, configFunc)
 	s.True(called)
 }
 

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/flags"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -35,7 +35,7 @@ type RadixJobTestSuiteBase struct {
 	kubeClient  *kubernetes.Clientset
 	kubeUtils   *kube.Kube
 	radixClient *radix.Clientset
-	cfg         config2.Config
+	cfg         config.Config
 }
 
 func (s *RadixJobTestSuiteBase) SetupTest() {
@@ -54,24 +54,24 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	s.Require().NoError(err)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient
 
-	s.cfg = config2.Config{
-		Common: config2.CommonConfig{
+	s.cfg = config.Config{
+		Common: config.CommonConfig{
 			ClusterName: "AnyClusterName",
 		},
-		Operator: config2.OperatorConfig{
+		Operator: config.OperatorConfig{
 			ContainerRegistry:    "anybuildregistry",
 			AppContainerRegistry: "anycacheregistry",
-			Builder: config2.BuilderConfig{
-				Image: config2.ContainerImage{
+			Builder: config.BuilderConfig{
+				Image: config.ContainerImage{
 					Repository: "docker.io/buildkit",
 					Tag:        "any",
 				},
-				Resources: config2.Resources{
-					Requests: config2.ResourceRequirements{
+				Resources: config.Resources{
+					Requests: config.ResourceRequirements{
 						CPU:    new(resource.MustParse("100m")),
 						Memory: new(resource.MustParse("1000Mi")),
 					},
-					Limits: config2.ResourceRequirements{
+					Limits: config.ResourceRequirements{
 						CPU:    new(resource.MustParse("200m")),
 						Memory: new(resource.MustParse("2000Mi")),
 					},
@@ -82,11 +82,11 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 			ExternalRegistryAuthSecret:     "an-external-registry-secret",
 			PipelineJobsHistoryLimit:       3,
 			PipelineJobsHistoryPeriodLimit: 24 * time.Hour,
-			GitCloneImage: config2.ContainerImage{
+			GitCloneImage: config.ContainerImage{
 				Repository: "alpine/git",
 				Tag:        "latest",
 			},
-			PipelineImage: config2.ContainerImage{
+			PipelineImage: config.ContainerImage{
 				Repository: "docker.io/anypipeline",
 				Tag:        "tag",
 			},
@@ -95,7 +95,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	}
 }
 
-func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBuilder, jobBuilder utils.JobBuilder, config2 config2.Config) (*radixv1.RadixJob, *radixv1.RadixRegistration, error) {
+func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBuilder, jobBuilder utils.JobBuilder, config2 config.Config) (*radixv1.RadixJob, *radixv1.RadixRegistration, error) {
 	rj, err := s.testUtils.ApplyJob(jobBuilder)
 	if err != nil {
 		return nil, nil, err
@@ -124,7 +124,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBu
 	return newRj, newRr, nil
 }
 
-func (s *RadixJobTestSuiteBase) runSync(rr *radixv1.RadixRegistration, rj *radixv1.RadixJob, config config2.Config) error {
+func (s *RadixJobTestSuiteBase) runSync(rr *radixv1.RadixRegistration, rj *radixv1.RadixJob, config config.Config) error {
 	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, config)
 	return job.OnSync(context.Background())
 }
@@ -1520,7 +1520,7 @@ func (s *RadixJobTestSuite) assertExistRadixJobsWithNames(radixJobList *radixv1.
 	}
 }
 
-func (s *RadixJobTestSuite) applyJobWithSyncFor(rrBuilder utils.RegistrationBuilder, raBuilder utils.ApplicationBuilder, appName string, rdJob radixDeploymentJob, config config2.Config) error {
+func (s *RadixJobTestSuite) applyJobWithSyncFor(rrBuilder utils.RegistrationBuilder, raBuilder utils.ApplicationBuilder, appName string, rdJob radixDeploymentJob, config config.Config) error {
 	_, _, err := s.applyJobWithSync(
 		rrBuilder,
 		utils.ARadixBuildDeployJob().
@@ -1557,15 +1557,15 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 
 func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
 
-	testCfg := config2.Config{
-		Operator: config2.OperatorConfig{
-			Builder: config2.BuilderConfig{
-				Resources: config2.Resources{
-					Requests: config2.ResourceRequirements{
+	testCfg := config.Config{
+		Operator: config.OperatorConfig{
+			Builder: config.BuilderConfig{
+				Resources: config.Resources{
+					Requests: config.ResourceRequirements{
 						CPU:    new(resource.MustParse("123m")),
 						Memory: new(resource.MustParse("1234Mi")),
 					},
-					Limits: config2.ResourceRequirements{
+					Limits: config.ResourceRequirements{
 						CPU:    new(resource.MustParse("456m")),
 						Memory: new(resource.MustParse("2345Mi")),
 					},

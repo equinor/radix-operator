@@ -12,7 +12,7 @@ package alert
 import (
 	reflect "reflect"
 
-	config2 "github.com/equinor/radix-operator/pkg/apis/config2"
+	config2 "github.com/equinor/radix-operator/pkg/apis/config"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "go.uber.org/mock/gomock"
 	client "sigs.k8s.io/controller-runtime/pkg/client"

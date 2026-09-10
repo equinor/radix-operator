@@ -1,4 +1,4 @@
-package config2_test
+package config_test
 
 import (
 	"encoding/json/v2"
@@ -8,7 +8,7 @@ import (
 
 	_ "embed"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/stretchr/testify/assert"
@@ -27,21 +27,21 @@ var configHappyYaml string
 //go:embed testdata/config-missing-required.yaml
 var configMissingRequiredYaml string
 
-type MutateConfigFunc func(*config2.Config)
+type MutateConfigFunc func(*config.Config)
 
-func mutateConfig(t *testing.T, mutate func(*config2.Config)) string {
+func mutateConfig(t *testing.T, mutate func(*config.Config)) string {
 	t.Helper()
 
-	var cfg config2.Config
+	var cfg config.Config
 
 	configJson, err := yaml.YAMLToJSON([]byte(configHappyYaml))
 	require.NoError(t, err)
 
-	require.NoError(t, json.Unmarshal(configJson, &cfg, config2.BinaryUnmarshaler, config2.DurationUnmarshaler))
+	require.NoError(t, json.Unmarshal(configJson, &cfg, config.BinaryUnmarshaler, config.DurationUnmarshaler))
 
 	mutate(&cfg)
 
-	cfgJson, err := json.Marshal(cfg, config2.DurationMarshaller)
+	cfgJson, err := json.Marshal(cfg, config.DurationMarshaller)
 	require.NoError(t, err)
 
 	configYaml, err := yaml.JSONToYAML(cfgJson)
@@ -50,19 +50,19 @@ func mutateConfig(t *testing.T, mutate func(*config2.Config)) string {
 }
 
 func TestParse_HappyPath(t *testing.T) {
-	cfg, err := config2.Parse(configHappyYaml)
+	cfg, err := config.Parse(configHappyYaml)
 	require.NoError(t, err)
 
-	expected := &config2.Config{
-		Common: config2.CommonConfig{
+	expected := &config.Config{
+		Common: config.CommonConfig{
 			DNSZone:     "dev.local.radix.equinor.com",
 			ClusterName: "test-cluster",
-			OAuth2Proxy: config2.OAuth2ProxyConfig{
-				ProxyImage: config2.ContainerImage{
+			OAuth2Proxy: config.OAuth2ProxyConfig{
+				ProxyImage: config.ContainerImage{
 					Repository: "quay.io/oauth2-proxy/oauth2-proxy",
 					Tag:        "v7.6.2",
 				},
-				RedisImage: config2.ContainerImage{
+				RedisImage: config.ContainerImage{
 					Repository: "docker.io/redis",
 					Tag:        "v8.6.0",
 				},
@@ -85,7 +85,7 @@ func TestParse_HappyPath(t *testing.T) {
 				},
 			},
 		},
-		Operator: config2.OperatorConfig{
+		Operator: config.OperatorConfig{
 			LogLevel:                          "info",
 			LogPrettyPrint:                    true,
 			RegistrationControllerThreads:     1,
@@ -112,66 +112,66 @@ func TestParse_HappyPath(t *testing.T) {
 
 			DefaultAppAdminGroups: []string{"default-app-admin-group1", "default-app-admin-group2"},
 
-			AppNsLimitRange: config2.LimitRangeConfig{
+			AppNsLimitRange: config.LimitRangeConfig{
 				DefaultMemory:        new(resource.MustParse("500M")),
 				DefaultRequestMemory: new(resource.MustParse("450M")),
 				DefaultRequestCPU:    new(resource.MustParse("100m")),
 			},
-			EnvNsLimitRange: config2.LimitRangeConfig{
+			EnvNsLimitRange: config.LimitRangeConfig{
 				DefaultMemory:        new(resource.MustParse("555M")),
 				DefaultRequestMemory: new(resource.MustParse("444M")),
 				DefaultRequestCPU:    new(resource.MustParse("111m")),
 			},
-			Builder: config2.BuilderConfig{
-				Resources: config2.Resources{
-					Limits: config2.ResourceRequirements{
+			Builder: config.BuilderConfig{
+				Resources: config.Resources{
+					Limits: config.ResourceRequirements{
 						Memory: new(resource.MustParse("500M")),
 						CPU:    new(resource.MustParse("2000m")),
 					},
-					Requests: config2.ResourceRequirements{
+					Requests: config.ResourceRequirements{
 						Memory: new(resource.MustParse("500M")),
 						CPU:    new(resource.MustParse("200m")),
 					},
 				},
-				Image: config2.ContainerImage{
+				Image: config.ContainerImage{
 					Repository: "ghcr.io/equinor/radix/buildkit-builder",
 					Tag:        "v3.4.5",
 				},
 				SeccompProfileLocalhostProfile: "anyseccomp.json",
 			},
-			JobSchedulerImage: config2.ContainerImage{
+			JobSchedulerImage: config.ContainerImage{
 				Repository: "ghcr.io/equinor/radix-job-scheduler",
 				Tag:        "v1.2.3",
 			},
-			JobSchedulerAuxImage: config2.ContainerImage{
+			JobSchedulerAuxImage: config.ContainerImage{
 				Repository: "docker.io/bash",
 				Tag:        "latest",
 			},
-			PodSecurityStandard: config2.PodSecurityStandardConfig{
-				AppNamespace: config2.PodSecurityStandardPolicyConfig{
-					Enforce: config2.PodSecurityStandardModeConfig{
+			PodSecurityStandard: config.PodSecurityStandardConfig{
+				AppNamespace: config.PodSecurityStandardPolicyConfig{
+					Enforce: config.PodSecurityStandardModeConfig{
 						Level:   "app-enforce-level",
 						Version: "app-enforce-version",
 					},
-					Audit: config2.PodSecurityStandardModeConfig{
+					Audit: config.PodSecurityStandardModeConfig{
 						Level:   "app-audit-level",
 						Version: "app-audit-version",
 					},
-					Warn: config2.PodSecurityStandardModeConfig{
+					Warn: config.PodSecurityStandardModeConfig{
 						Level:   "app-warn-level",
 						Version: "app-warn-version",
 					},
 				},
-				EnvNamespace: config2.PodSecurityStandardPolicyConfig{
-					Enforce: config2.PodSecurityStandardModeConfig{
+				EnvNamespace: config.PodSecurityStandardPolicyConfig{
+					Enforce: config.PodSecurityStandardModeConfig{
 						Level:   "env-enforce-level",
 						Version: "env-enforce-version",
 					},
-					Audit: config2.PodSecurityStandardModeConfig{
+					Audit: config.PodSecurityStandardModeConfig{
 						Level:   "env-audit-level",
 						Version: "env-audit-version",
 					},
-					Warn: config2.PodSecurityStandardModeConfig{
+					Warn: config.PodSecurityStandardModeConfig{
 						Level:   "env-warn-level",
 						Version: "env-warn-version",
 					},
@@ -181,12 +181,12 @@ func TestParse_HappyPath(t *testing.T) {
 			ExternalRegistryAuthSecret:     "anyExternalAuth",
 			AzureKeyVaultTenantID:          "any-tenant-id",
 			KubernetesAPIPort:              443,
-			Gateway: config2.GatewayConfig{
+			Gateway: config.GatewayConfig{
 				Name:        "gateway",
 				Namespace:   "istio-system",
 				SectionName: "https",
 			},
-			CertificateAutomation: config2.CertificateAutomationConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
 				GatewayClusterIssuer: "any-cluster-issuer",
 				Duration:             8760 * time.Hour,
 				RenewBefore:          720 * time.Hour,
@@ -195,11 +195,11 @@ func TestParse_HappyPath(t *testing.T) {
 			OrphanedEnvironmentsCleanupCron:          "0 0 * * *",
 			PipelineJobsHistoryLimit:                 5,
 			PipelineJobsHistoryPeriodLimit:           720 * time.Hour,
-			GitCloneImage: config2.ContainerImage{
+			GitCloneImage: config.ContainerImage{
 				Repository: "ghcr.io/equinor/radix-git-clone",
 				Tag:        "v1.0.0",
 			},
-			PipelineImage: config2.ContainerImage{
+			PipelineImage: config.ContainerImage{
 				Repository: "ghcr.io/equinor/radix-pipeline",
 				Tag:        "v1.0.0",
 			},
@@ -213,7 +213,7 @@ func TestParse_HappyPath(t *testing.T) {
 func TestParse_EnvOverride(t *testing.T) {
 	t.Setenv("RADIX_OPERATOR_LOGLEVEL", "debug")
 
-	cfg, err := config2.Parse(configHappyYaml)
+	cfg, err := config.Parse(configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -225,7 +225,7 @@ func TestParse_EnvMacro(t *testing.T) {
 
 	configYaml := strings.ReplaceAll(configHappyYaml, "kubernetesAPIPort: 443", `kubernetesAPIPort: "$__env(TEST_KUBERNETES_API_PORT)"`)
 
-	cfg, err := config2.Parse(configYaml)
+	cfg, err := config.Parse(configYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -236,7 +236,7 @@ func TestParse_EnvMacro(t *testing.T) {
 func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
 	t.Setenv("RADIX_OPERATOR_LOGLEVEL", "debug,info")
 
-	cfg, err := config2.Parse(configHappyYaml)
+	cfg, err := config.Parse(configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -246,7 +246,7 @@ func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
 	t.Setenv("RADIX_COMMON_CLUSTERNAME", "env-cluster")
 	configYamlStr := strings.ReplaceAll(configHappyYaml, "  clusterName: test-cluster\n", "")
 
-	cfg, err := config2.Parse(configYamlStr)
+	cfg, err := config.Parse(configYamlStr)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -258,18 +258,18 @@ func TestParse_EnvOverrideFromFieldPath(t *testing.T) {
 	t.Setenv("RADIX_COMMON_OAUTH2PROXY_PROXYIMAGE_REPOSITORY", "ghcr.io/equinor/oauth2-proxy")
 	t.Setenv("RADIX_COMMON_OAUTH2PROXY_PROXYIMAGE_TAG", "v1.2.3")
 
-	cfg, err := config2.Parse(configHappyYaml)
+	cfg, err := config.Parse(configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	expected := config2.ContainerImage{Repository: "ghcr.io/equinor/oauth2-proxy", Tag: "v1.2.3"}
+	expected := config.ContainerImage{Repository: "ghcr.io/equinor/oauth2-proxy", Tag: "v1.2.3"}
 	assert.Equal(t, expected, cfg.Common.OAuth2Proxy.ProxyImage)
 }
 
 func TestParse_EnvTagTakesPrecedenceOverFieldPath(t *testing.T) {
 	t.Setenv("RADIX_COMMON_CLUSTERNAME", "env-cluster")
 
-	cfg, err := config2.Parse(configHappyYaml)
+	cfg, err := config.Parse(configHappyYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -277,7 +277,7 @@ func TestParse_EnvTagTakesPrecedenceOverFieldPath(t *testing.T) {
 }
 
 func TestParse_MissingRequiredField(t *testing.T) {
-	cfg, err := config2.Parse(configMissingRequiredYaml)
+	cfg, err := config.Parse(configMissingRequiredYaml)
 
 	require.Error(t, err)
 	assert.Nil(t, cfg)
@@ -289,13 +289,13 @@ func TestParse_DeploymentHistoryLimitValidation(t *testing.T) {
 		expectedError string
 	}{
 		"below 3 should fail": {
-			mutateConfig: func(cfg *config2.Config) {
+			mutateConfig: func(cfg *config.Config) {
 				cfg.Operator.DeploymentHistoryLimit = 2
 			},
 			expectedError: `failed to validate config: field "Operator.DeploymentHistoryLimit" did not pass validation expression`,
 		},
 		"equal to 3 should pass": {
-			mutateConfig: func(cfg *config2.Config) {
+			mutateConfig: func(cfg *config.Config) {
 				cfg.Operator.DeploymentHistoryLimit = 3
 			},
 			expectedError: ``,
@@ -306,7 +306,7 @@ func TestParse_DeploymentHistoryLimitValidation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			configYaml := mutateConfig(t, test.mutateConfig)
 
-			cfg, err := config2.Parse(configYaml)
+			cfg, err := config.Parse(configYaml)
 
 			if test.expectedError == "" {
 				require.NoError(t, err)
@@ -326,13 +326,13 @@ func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
 		expectedError string
 	}{
 		"below 5 minutes should fail": {
-			mutateConfig: func(cfg *config2.Config) {
+			mutateConfig: func(cfg *config.Config) {
 				cfg.Operator.OrphanedRadixEnvironmentsRetentionPeriod = 4 * time.Minute
 			},
 			expectedError: `failed to validate config: field "Operator.OrphanedRadixEnvironmentsRetentionPeriod" did not pass validation expression`,
 		},
 		"equal to 5 minutes should pass": {
-			mutateConfig: func(cfg *config2.Config) {
+			mutateConfig: func(cfg *config.Config) {
 				cfg.Operator.OrphanedRadixEnvironmentsRetentionPeriod = 5 * time.Minute
 			},
 			expectedError: ``,
@@ -343,7 +343,7 @@ func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			configYaml := mutateConfig(t, test.mutateConfig)
 
-			cfg, err := config2.Parse(configYaml)
+			cfg, err := config.Parse(configYaml)
 
 			if test.expectedError == "" {
 				require.NoError(t, err)
@@ -359,11 +359,11 @@ func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
 }
 
 func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
-	configYaml := mutateConfig(t, func(cfg *config2.Config) {
-		cfg.Operator.JobSchedulerImage = config2.ContainerImage{}
+	configYaml := mutateConfig(t, func(cfg *config.Config) {
+		cfg.Operator.JobSchedulerImage = config.ContainerImage{}
 	})
 
-	cfg, err := config2.Parse(configYaml)
+	cfg, err := config.Parse(configYaml)
 
 	require.Error(t, err)
 	assert.Nil(t, cfg)
@@ -376,13 +376,13 @@ func TestParse_FieldValidator(t *testing.T) {
 		expectedError string
 	}{
 		"repository is required": {
-			mutateConfig: func(cfg *config2.Config) {
+			mutateConfig: func(cfg *config.Config) {
 				cfg.Operator.JobSchedulerImage.Repository = ""
 			},
 			expectedError: `field "Operator.JobSchedulerImage" validation failed: repository is required`,
 		},
 		"tag is required": {
-			mutateConfig: func(cfg *config2.Config) {
+			mutateConfig: func(cfg *config.Config) {
 				cfg.Operator.JobSchedulerImage.Tag = ""
 			},
 			expectedError: `field "Operator.JobSchedulerImage" validation failed: tag is required`,
@@ -393,7 +393,7 @@ func TestParse_FieldValidator(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			configYaml := mutateConfig(t, test.mutateConfig)
 
-			cfg, err := config2.Parse(configYaml)
+			cfg, err := config.Parse(configYaml)
 
 			require.Error(t, err)
 			assert.Nil(t, cfg)
@@ -408,19 +408,19 @@ func TestParse_BuilderResourceLimits(t *testing.T) {
 		errorPath    string
 	}{
 		"equivalent CPU quantities are valid": {
-			modifyConfig: func(cfg *config2.Config) {
+			modifyConfig: func(cfg *config.Config) {
 				cfg.Operator.Builder.Resources.Limits.CPU = new(resource.MustParse("1"))
 				cfg.Operator.Builder.Resources.Requests.CPU = new(resource.MustParse("1000m"))
 			},
 		},
 		"CPU limit below request is invalid": {
-			modifyConfig: func(cfg *config2.Config) {
+			modifyConfig: func(cfg *config.Config) {
 				cfg.Operator.Builder.Resources.Limits.CPU = new(resource.MustParse("100m"))
 			},
 			errorPath: "Operator.Builder.Resources",
 		},
 		"memory limit below request is invalid": {
-			modifyConfig: func(cfg *config2.Config) {
+			modifyConfig: func(cfg *config.Config) {
 				cfg.Operator.Builder.Resources.Limits.Memory = new(resource.MustParse("499M"))
 			},
 			errorPath: "Operator.Builder.Resources",
@@ -431,7 +431,7 @@ func TestParse_BuilderResourceLimits(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			configYaml := mutateConfig(t, test.modifyConfig)
 
-			cfg, err := config2.Parse(configYaml)
+			cfg, err := config.Parse(configYaml)
 			if test.errorPath == "" {
 				require.NoError(t, err)
 				assert.NotNil(t, cfg)
@@ -492,7 +492,7 @@ func TestEnvConfigMapReader(t *testing.T) {
 			}
 			client := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(test.configMap).Build()
 
-			reader, err := config2.EnvConfigMapReader(t.Context(), client)
+			reader, err := config.EnvConfigMapReader(t.Context(), client)
 			if test.expectErr {
 				require.Error(t, err)
 				assert.Empty(t, reader)
@@ -500,7 +500,7 @@ func TestEnvConfigMapReader(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			cfg, err := config2.Parse(reader)
+			cfg, err := config.Parse(reader)
 			require.NoError(t, err)
 			require.NotNil(t, cfg)
 			assert.Equal(t, "test-cluster", cfg.Common.ClusterName)
@@ -515,28 +515,28 @@ func TestPipelineJobConfigs(t *testing.T) {
 		errorPath    string
 	}{
 		"Always is valid": {
-			modifyConfig: func(cfg *config2.Config) {
+			modifyConfig: func(cfg *config.Config) {
 				cfg.Operator.PipelineImagePullPolicy = corev1.PullAlways
 			},
 		},
 		"Never is valid": {
-			modifyConfig: func(cfg *config2.Config) {
+			modifyConfig: func(cfg *config.Config) {
 				cfg.Operator.PipelineImagePullPolicy = corev1.PullNever
 			},
 		},
 		"IfNotPresent is valid": {
-			modifyConfig: func(cfg *config2.Config) {
+			modifyConfig: func(cfg *config.Config) {
 				cfg.Operator.PipelineImagePullPolicy = corev1.PullIfNotPresent
 			},
 		},
 		"blank is not valid": {
-			modifyConfig: func(cfg *config2.Config) {
+			modifyConfig: func(cfg *config.Config) {
 				cfg.Operator.PipelineImagePullPolicy = ""
 			},
 			errorPath: "Operator.PipelineImagePullPolicy",
 		},
 		"x is not valid": {
-			modifyConfig: func(cfg *config2.Config) {
+			modifyConfig: func(cfg *config.Config) {
 				cfg.Operator.PipelineImagePullPolicy = "x"
 			},
 			errorPath: "Operator.PipelineImagePullPolicy",
@@ -547,7 +547,7 @@ func TestPipelineJobConfigs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			configYaml := mutateConfig(t, test.modifyConfig)
 
-			cfg, err := config2.Parse(configYaml)
+			cfg, err := config.Parse(configYaml)
 			if test.errorPath == "" {
 				require.NoError(t, err)
 				assert.NotNil(t, cfg)

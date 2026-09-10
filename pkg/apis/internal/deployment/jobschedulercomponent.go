@@ -1,19 +1,19 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 type JobSchedulerComponent struct {
-	cfg             config2.Config
+	cfg             config.Config
 	radixJob        *radixv1.RadixDeployJobComponent
 	radixDeployment *radixv1.RadixDeployment
 }
 
 // NewJobSchedulerComponent Constructor
-func NewJobSchedulerComponent(cfg config2.Config, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) radixv1.RadixCommonDeployComponent {
+func NewJobSchedulerComponent(cfg config.Config, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) radixv1.RadixCommonDeployComponent {
 	return &JobSchedulerComponent{
 		cfg,
 		jobComponent,

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/gateway"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -36,7 +36,7 @@ type syncerTestSuite struct {
 	testUtils     test.Utils
 	promClient    *prometheusfake.Clientset
 	ctrl          *gomock.Controller
-	config        config2.Config
+	config        config.Config
 }
 
 func TestSyncerTestSuite(t *testing.T) {
@@ -57,12 +57,12 @@ func (s *syncerTestSuite) setupTest() {
 	s.dynamicClient = test.CreateClient()
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.testUtils = test.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)
-	s.config = config2.Config{
-		Common: config2.CommonConfig{
+	s.config = config.Config{
+		Common: config.CommonConfig{
 			DNSZone: "dev.radix.equinor.com",
 		},
-		Operator: config2.OperatorConfig{
-			Gateway: config2.GatewayConfig{
+		Operator: config.OperatorConfig{
+			Gateway: config.GatewayConfig{
 				Name:        "any-gateway",
 				Namespace:   "any-namespace",
 				SectionName: "any-section",
@@ -91,7 +91,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config2.Config{})
+	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -104,7 +104,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config2.Config{})
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -121,7 +121,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config2.Config{})
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})

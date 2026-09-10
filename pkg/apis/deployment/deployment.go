@@ -10,7 +10,7 @@ import (
 
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -38,14 +38,14 @@ type Deployment struct {
 	registration        *v1.RadixRegistration
 	radixDeployment     *v1.RadixDeployment
 	auxResourceManagers []AuxiliaryResourceManager
-	config              config2.Config
+	config              config.Config
 }
 
 // Test if NewDeploymentSyncer implements DeploymentSyncerFactory
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
 // NewDeploymentSyncer Constructor
-func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, dynamicClient client.Client, certClient certclient.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, auxResourceManagers []AuxiliaryResourceManager, config config2.Config) DeploymentSyncer {
+func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, dynamicClient client.Client, certClient certclient.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, auxResourceManagers []AuxiliaryResourceManager, config config.Config) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:          kubeclient,
 		radixclient:         radixclient,

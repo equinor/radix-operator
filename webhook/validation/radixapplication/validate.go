@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -68,7 +68,7 @@ type Validator struct {
 
 var _ genericvalidator.Validator[*radixv1.RadixApplication] = &Validator{}
 
-func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, reservedDNSAppAliases map[string]string, cfg config2.Config) *Validator {
+func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, reservedDNSAppAliases map[string]string, cfg config.Config) *Validator {
 	onlineValidators := []validatorFunc{
 		createRRExistValidator(client),
 		createDNSAliasAvailableValidator(client, reservedDNSAliases, reservedDNSAppAliases),

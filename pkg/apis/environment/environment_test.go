@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
@@ -38,44 +38,44 @@ const (
 	namespaceName               = "testapp-testenv"
 )
 
-var testCfg2 config2.Config = config2.Config{
-	Operator: config2.OperatorConfig{
-		EnvNsLimitRange: config2.LimitRangeConfig{
+var testCfg2 config.Config = config.Config{
+	Operator: config.OperatorConfig{
+		EnvNsLimitRange: config.LimitRangeConfig{
 			DefaultMemory:        new(resource.MustParse("321M")),
 			DefaultRequestCPU:    new(resource.MustParse("234m")),
 			DefaultRequestMemory: new(resource.MustParse("123M")),
 		},
-		PodSecurityStandard: config2.PodSecurityStandardConfig{
-			AppNamespace: config2.PodSecurityStandardPolicyConfig{
-				Enforce: config2.PodSecurityStandardModeConfig{
+		PodSecurityStandard: config.PodSecurityStandardConfig{
+			AppNamespace: config.PodSecurityStandardPolicyConfig{
+				Enforce: config.PodSecurityStandardModeConfig{
 					Level:   "app-enforce-level",
 					Version: "app-enforce-version",
 				},
-				Audit: config2.PodSecurityStandardModeConfig{
+				Audit: config.PodSecurityStandardModeConfig{
 					Level:   "app-audit-level",
 					Version: "app-audit-version",
 				},
-				Warn: config2.PodSecurityStandardModeConfig{
+				Warn: config.PodSecurityStandardModeConfig{
 					Level:   "app-warn-level",
 					Version: "app-warn-version",
 				},
 			},
-			EnvNamespace: config2.PodSecurityStandardPolicyConfig{
-				Enforce: config2.PodSecurityStandardModeConfig{
+			EnvNamespace: config.PodSecurityStandardPolicyConfig{
+				Enforce: config.PodSecurityStandardModeConfig{
 					Level:   "env-enforce-level",
 					Version: "env-enforce-version",
 				},
-				Audit: config2.PodSecurityStandardModeConfig{
+				Audit: config.PodSecurityStandardModeConfig{
 					Level:   "env-audit-level",
 					Version: "env-audit-version",
 				},
-				Warn: config2.PodSecurityStandardModeConfig{
+				Warn: config.PodSecurityStandardModeConfig{
 					Level:   "env-warn-level",
 					Version: "env-warn-version",
 				},
 			},
 		},
-		Gateway: config2.GatewayConfig{
+		Gateway: config.GatewayConfig{
 			Name: "any-gateway-name",
 		},
 	},
@@ -115,13 +115,13 @@ func Test_ReconcileStatus(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42},
 		Spec:       radixv1.RadixEnvironmentSpec{AppName: "any-app", EnvName: "any-env"},
 	}
-	np := networkpolicy.NewNetworkPolicy(client, kubeUtil, config2.Config{})
+	np := networkpolicy.NewNetworkPolicy(client, kubeUtil, config.Config{})
 	re, err := radixClient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	// First sync sets status
 	expectedGen := re.Generation
-	sut := NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
+	sut := NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -134,7 +134,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	re.Generation++
 	expectedGen = re.Generation
-	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
+	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -151,7 +151,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	})
 	re.Generation++
 	expectedGen = re.Generation
-	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
+	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.ErrorContains(t, err, errorMsg)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})

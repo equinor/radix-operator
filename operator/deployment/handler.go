@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/operator/common"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -39,7 +39,7 @@ type handler struct {
 	events                  common.SyncEventRecorder
 	kubeutil                *kube.Kube
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
-	config                  config2.Config
+	config                  config.Config
 }
 
 // NewHandler Constructor
@@ -50,7 +50,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	dynamicClient client.Client,
 	certClient certclient.Interface,
 	eventRecorder record.EventRecorder,
-	config config2.Config,
+	config config.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	handler := &handler{

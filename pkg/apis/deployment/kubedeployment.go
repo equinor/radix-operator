@@ -4,7 +4,7 @@ import (
 	"context"
 	"maps"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -423,7 +423,7 @@ func getRevisionHistoryLimit(deployComponent v1.RadixCommonDeployComponent) *int
 	return new(int32(10))
 }
 
-func getDeploymentStrategy(cfg config2.Config) appsv1.DeploymentStrategy {
+func getDeploymentStrategy(cfg config.Config) appsv1.DeploymentStrategy {
 	return appsv1.DeploymentStrategy{
 		Type: appsv1.RollingUpdateDeploymentStrategyType,
 		RollingUpdate: &appsv1.RollingUpdateDeployment{
@@ -483,7 +483,7 @@ func (deploy *Deployment) isEligibleForGarbageCollectComponent(componentName Rad
 	return componentType != commonComponent.GetType()
 }
 
-func getDefaultReadinessProbeForComponent(cfg config2.Config, component v1.RadixCommonDeployComponent) *corev1.Probe {
+func getDefaultReadinessProbeForComponent(cfg config.Config, component v1.RadixCommonDeployComponent) *corev1.Probe {
 	if len(component.GetPorts()) == 0 {
 		return nil
 	}
@@ -491,7 +491,7 @@ func getDefaultReadinessProbeForComponent(cfg config2.Config, component v1.Radix
 	return getReadinessProbeWithDefaultsFromEnv(cfg, component.GetPorts()[0].Port)
 }
 
-func getReadinessProbeWithDefaultsFromEnv(cfg config2.Config, componentPort int32) *corev1.Probe {
+func getReadinessProbeWithDefaultsFromEnv(cfg config.Config, componentPort int32) *corev1.Probe {
 	return &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -36,7 +36,7 @@ func testAlertSyncerWithAlertConfigs(configs AlertConfigs) testAlertSyncerConfig
 type alertTestSuite struct {
 	suite.Suite
 	dynamicClient client.Client
-	config2       config2.Config
+	config2       config.Config
 }
 
 func TestAlertTestSuite(t *testing.T) {
@@ -53,7 +53,7 @@ func (s *alertTestSuite) createAlertSyncer(alert *radixv1.RadixAlert, options ..
 		radixAlert:           alert,
 		slackMessageTemplate: slackMessageTemplate{},
 		alertConfigs:         AlertConfigs{},
-		config2:              config2.Config{},
+		config2:              config.Config{},
 	}
 
 	for _, f := range options {

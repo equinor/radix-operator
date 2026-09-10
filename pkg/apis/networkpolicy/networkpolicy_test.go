@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	rx "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -28,9 +28,9 @@ const (
 	gatewayName = "test-gateway"
 )
 
-var testConfig = config2.Config{
-	Operator: config2.OperatorConfig{
-		Gateway: config2.GatewayConfig{
+var testConfig = config.Config{
+	Operator: config.OperatorConfig{
+		Gateway: config.GatewayConfig{
 			Name: gatewayName,
 		},
 	},

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -27,9 +27,9 @@ import (
 
 var (
 	scheme = runtime.NewScheme()
-	cfg2   = config2.Config{
-		Common: config2.CommonConfig{
-			OAuth2Proxy: config2.OAuth2ProxyConfig{
+	cfg2   = config.Config{
+		Common: config.CommonConfig{
+			OAuth2Proxy: config.OAuth2ProxyConfig{
 				ProxyDefaults: radixv1.OAuth2{
 					Scope:                  "openid profile email",
 					ProxyPrefix:            "/oauth2",

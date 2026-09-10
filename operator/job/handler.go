@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/operator/common"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -28,7 +28,7 @@ type handler struct {
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 	events      common.SyncEventRecorder
-	config      config2.Config
+	config      config.Config
 	jobHistory  job.History
 }
 
@@ -39,7 +39,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
 	eventRecorder record.EventRecorder,
-	config config2.Config,
+	config config.Config,
 	opts ...handlerOpts) Handler {
 
 	handler := &handler{

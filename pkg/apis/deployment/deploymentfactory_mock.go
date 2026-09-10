@@ -13,7 +13,7 @@ import (
 	reflect "reflect"
 
 	versioned "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
-	config2 "github.com/equinor/radix-operator/pkg/apis/config2"
+	config2 "github.com/equinor/radix-operator/pkg/apis/config"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned0 "github.com/equinor/radix-operator/pkg/client/clientset/versioned"

@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/clock"
@@ -39,7 +39,7 @@ func WithClock(clock clock.Clock) SyncerOption {
 }
 
 // NewSyncer Constructor os RadixBatches Syncer
-func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *radixv1.RadixRegistration, radixBatch *radixv1.RadixBatch, config config2.Config, options ...SyncerOption) Syncer {
+func NewSyncer(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *radixv1.RadixRegistration, radixBatch *radixv1.RadixBatch, config config.Config, options ...SyncerOption) Syncer {
 	syncer := &syncer{
 		kubeClient:    kubeclient,
 		kubeUtil:      kubeUtil,
@@ -64,7 +64,7 @@ type syncer struct {
 	radixClient   radixclient.Interface
 	radixBatch    *radixv1.RadixBatch
 	registration  *radixv1.RadixRegistration
-	config        config2.Config
+	config        config.Config
 	restartedJobs map[string]radixv1.RadixBatchJob
 	clock         clock.Clock
 }

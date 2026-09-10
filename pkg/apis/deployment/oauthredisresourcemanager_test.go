@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -38,7 +38,7 @@ type OAuthRedisResourceManagerTestSuite struct {
 	secretProviderClient secretProviderClient.Interface
 	kubeUtil             *kube.Kube
 	ctrl                 *gomock.Controller
-	config2              config2.Config
+	config2              config.Config
 }
 
 func TestOAuthRedisResourceManagerTestSuite(t *testing.T) {
@@ -46,13 +46,13 @@ func TestOAuthRedisResourceManagerTestSuite(t *testing.T) {
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
-	s.config2 = config2.Config{
-		Common: config2.CommonConfig{
-			OAuth2Proxy: config2.OAuth2ProxyConfig{
-				RedisImage: config2.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
+	s.config2 = config.Config{
+		Common: config.CommonConfig{
+			OAuth2Proxy: config.OAuth2ProxyConfig{
+				RedisImage: config.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
 			},
 		},
-		Operator: config2.OperatorConfig{
+		Operator: config.OperatorConfig{
 			AppAliasBaseURL:            "app.dev.radix.equinor.com",
 			ExternalRegistryAuthSecret: "someSecret",
 		},
