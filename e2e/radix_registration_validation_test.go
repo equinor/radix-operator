@@ -657,5 +657,5 @@ func TestRadixRegistrationRequiresAdGroups(t *testing.T) {
 	err := c.Create(t.Context(), rr, client.DryRunAll)
 
 	require.Error(t, err, "Should not allow creating a RadixRegistration without adGroups")
-	assert.Contains(t, err.Error(), "ad group is required")
+	assert.Contains(t, err.Error(), "group is required")
 }

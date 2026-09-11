@@ -28,7 +28,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e: generate
-	cd e2e && go test -v -p 1 -timeout 30m ./...
+	cd e2e && go test -count=1 -v -p 1 -timeout 30m ./...
 	# Note: -p 1 is used to run tests sequentially to allow printing logs sequentially
 
 .PHONY: mocks

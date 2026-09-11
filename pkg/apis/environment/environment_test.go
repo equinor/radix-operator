@@ -259,13 +259,13 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-app-admin-envs", "radix-pipeline-env", "radix-app-reader-envs")
 
-	// It contains the correct AD groups
+	// It contains the correct groups
 	subjects := rolebindings.Items[0].Subjects
 	require.Len(t, subjects, 2)
 	assert.Equal(t, rr.Spec.AdGroups[0], subjects[0].Name)
 	assert.Equal(t, rr.Spec.AdUsers[0], subjects[1].Name)
 
-	// It contains the correct reader AD groups
+	// It contains the correct reader groups
 	subjects = rolebindings.Items[1].Subjects
 	require.Len(t, subjects, 2)
 	assert.Equal(t, rr.Spec.ReaderAdGroups[0], subjects[0].Name)

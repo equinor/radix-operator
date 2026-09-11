@@ -73,7 +73,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			expectedError:            radixregistration.ErrConfigurationItemIsRequired,
 		},
 		{
-			name:                     "optional ad groups is empty returns warning",
+			name:                     "optional groups is empty returns warning",
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.AdGroups = nil },
 			requireAdGroups:          false,
 			requireConfigurationItem: false,
@@ -81,7 +81,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			expectedError:            nil,
 		},
 		{
-			name:                     "required ad groups is empty fails",
+			name:                     "required groups is empty fails",
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.AdGroups = nil },
 			requireAdGroups:          true,
 			requireConfigurationItem: false,
@@ -92,7 +92,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			client := test.CreateClient("testdata/radixregistration.yaml")
+			client := test.CreateClient()
 			c := cfg
 			c.Webhook.RequireGroups = testcase.requireAdGroups
 			c.Webhook.RequireConfigurationItem = testcase.requireConfigurationItem
@@ -114,7 +114,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 
 func Test_RegistrationNameLengthLimit(t *testing.T) {
 	t.Run("name length 40 is valid", func(t *testing.T) {
-		client := test.CreateClient("testdata/radixregistration.yaml")
+		client := test.CreateClient()
 		validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 		validRR.Name = strings.Repeat("a", 40)
 
@@ -126,7 +126,7 @@ func Test_RegistrationNameLengthLimit(t *testing.T) {
 	})
 
 	t.Run("name length 41 is invalid", func(t *testing.T) {
-		client := test.CreateClient("testdata/radixregistration.yaml")
+		client := test.CreateClient()
 		validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 		validRR.Name = strings.Repeat("a", 41)
 

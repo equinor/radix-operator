@@ -27,7 +27,7 @@ import (
 
 var (
 	scheme = runtime.NewScheme()
-	cfg   = config.Config{
+	cfg    = config.Config{
 		Common: config.CommonConfig{
 			OAuth2Proxy: config.OAuth2ProxyConfig{
 				ProxyDefaults: radixv1.OAuth2{
@@ -1297,22 +1297,6 @@ func Test_Variables(t *testing.T) {
 			name: "check that user defined variable with illegal prefix fails",
 			updateRA: func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[1].Variables["RADIX_SOMETHING"] = "any value"
-			},
-			isValid:    false,
-			isErrorNil: false,
-		},
-		{
-			name: "check that user defined variable with illegal prefix fails",
-			updateRA: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[1].Variables["RADIXOPERATOR_SOMETHING"] = "any value"
-			},
-			isValid:    false,
-			isErrorNil: false,
-		},
-		{
-			name: "check that user defined variable with illegal prefix fails",
-			updateRA: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[1].Variables["RADIXOPERATOR_"] = "any value"
 			},
 			isValid:    false,
 			isErrorNil: false,

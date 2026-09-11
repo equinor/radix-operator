@@ -101,7 +101,7 @@ func Parse(configYaml string) (*Config, error) {
 	}
 
 	// Parse env overrides
-	if err := processEnvOverrides(&cfg, "RADIX"); err != nil {
+	if err := processEnvOverrides(&cfg, "RADIXCONFIG"); err != nil {
 		return nil, fmt.Errorf("failed to process env overrides: %w", err)
 	}
 

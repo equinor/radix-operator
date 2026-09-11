@@ -8,14 +8,9 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/webhook/main.go",
 			"env": {
-				"LOG_LEVEL": "info",
-				"LOG_PRETTY": "true",
-				"CERTS_DIR": "${workspaceFolder}/local/certs",
-
-				"REQUIRE_AD_GROUPS": "true",
-				"REQUIRE_CONFIGURATION_ITEM": "true",
-				"RADIX_RESERVED_APP_DNS_ALIASES": "canary:radix-canary-golang,console:radix-web-console,cost-api:radix-cost-allocation-api,webhook:radix-github-webhook",
-				"RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www,app,playground,dev,api"
+				"RADIXCONFIG_WEBHOOK_LOGLEVEL": "info",
+				"RADIXCONFIG_WEBHOOK_LOGPRETTYPRINT": "true",
+				"RADIXCONFIG_WEBHOOK_CERTSDIR": "${workspaceFolder}/local/certs",
 			}
 		},
 		{
@@ -122,21 +117,9 @@
 			"program": "${workspaceFolder}/operator/main.go",
 			"env": {
 				"USE_PROFILER": "true",
-				"RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
-				"RADIX_APP_CONTAINER_REGISTRY": "radixdevapp.azurecr.io",
-				"RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.15.2",
 				"KUBERNETES_SERVICE_PORT": "443",
-				"REGISTRATION_CONTROLLER_THREADS": "10",
-				"APPLICATION_CONTROLLER_THREADS": "10",
-				"ENVIRONMENT_CONTROLLER_THREADS": "10",
-				"DEPLOYMENT_CONTROLLER_THREADS": "10",
-				"JOB_CONTROLLER_THREADS": "10",
-				"ALERT_CONTROLLER_THREADS": "10",
-				"KUBE_CLIENT_RATE_LIMIT_QPS": "500",
-				"KUBE_CLIENT_RATE_LIMIT_BURST": "5",
-				"RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www",
-				"LOG_LEVEL": "info",
-				"LOG_PRETTY": "true",
+				"RADIXCONFIG_OPERATOR_LOGLEVEL": "info",
+				"RADIXCONFIG_OPERATOR_LOGPRETTYPRINT": "true",
 			},
 			"args": ["--useOutClusterClient=false"]
 		},

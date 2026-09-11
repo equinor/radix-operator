@@ -15,7 +15,6 @@ type UpdateSlackConfigSecrets struct {
 	// WebhookURL the Slack webhook URL where alerts are sent
 	// Secret key for webhook URL is updated if a non-nil value is present, and deleted if omitted or set to null
 	//
-	// required:
 	// Extensions:
 	// x-nullable: true
 	WebhookURL *string `json:"webhookUrl,omitempty"`

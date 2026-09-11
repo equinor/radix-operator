@@ -213,7 +213,7 @@ func TestParse_HappyPath(t *testing.T) {
 			Port:                     9443,
 			MetricsPort:              9000,
 			HealthPort:               9440,
-			RequireGroups:          true,
+			RequireGroups:            true,
 			RequireConfigurationItem: true,
 			ReservedDNSAppAliases: map[string]string{
 				"canary":   "radix-canary-golang",
@@ -238,7 +238,7 @@ func TestParse_HappyPath(t *testing.T) {
 }
 
 func TestParse_EnvOverride(t *testing.T) {
-	t.Setenv("RADIX_OPERATOR_LOGLEVEL", "debug")
+	t.Setenv("RADIXCONFIG_OPERATOR_LOGLEVEL", "debug")
 
 	cfg, err := config.Parse(configHappyYaml)
 
@@ -261,7 +261,7 @@ func TestParse_EnvMacro(t *testing.T) {
 
 // Only slice fields are comma separated, a scalar keeps the value as it is.
 func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
-	t.Setenv("RADIX_OPERATOR_LOGLEVEL", "debug,info")
+	t.Setenv("RADIXCONFIG_OPERATOR_LOGLEVEL", "debug,info")
 
 	cfg, err := config.Parse(configHappyYaml)
 
@@ -270,7 +270,7 @@ func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
 	assert.Equal(t, "debug,info", cfg.Operator.LogLevel)
 }
 func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
-	t.Setenv("RADIX_COMMON_CLUSTERNAME", "env-cluster")
+	t.Setenv("RADIXCONFIG_COMMON_CLUSTERNAME", "env-cluster")
 	configYamlStr := strings.ReplaceAll(configHappyYaml, "  clusterName: test-cluster\n", "")
 
 	cfg, err := config.Parse(configYamlStr)
@@ -282,8 +282,8 @@ func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
 
 // A field without an env tag is overridden by the uppercased field path, with dots replaced by underscores.
 func TestParse_EnvOverrideFromFieldPath(t *testing.T) {
-	t.Setenv("RADIX_COMMON_OAUTH2PROXY_PROXYIMAGE_REPOSITORY", "ghcr.io/equinor/oauth2-proxy")
-	t.Setenv("RADIX_COMMON_OAUTH2PROXY_PROXYIMAGE_TAG", "v1.2.3")
+	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYIMAGE_REPOSITORY", "ghcr.io/equinor/oauth2-proxy")
+	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYIMAGE_TAG", "v1.2.3")
 
 	cfg, err := config.Parse(configHappyYaml)
 
@@ -294,7 +294,7 @@ func TestParse_EnvOverrideFromFieldPath(t *testing.T) {
 }
 
 func TestParse_EnvTagTakesPrecedenceOverFieldPath(t *testing.T) {
-	t.Setenv("RADIX_COMMON_CLUSTERNAME", "env-cluster")
+	t.Setenv("RADIXCONFIG_COMMON_CLUSTERNAME", "env-cluster")
 
 	cfg, err := config.Parse(configHappyYaml)
 
