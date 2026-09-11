@@ -9,8 +9,18 @@ import (
 	"time"
 )
 
+var Unmarshalers = json.WithUnmarshalers(json.JoinUnmarshalers(
+	BinaryUnmarshaler,
+	DurationUnmarshaler,
+))
+
+var Marshalers = json.WithMarshalers(json.JoinMarshalers(
+	BinaryMarshaler,
+	DurationMarshaler,
+))
+
 // encoding/json/v2 ignores encoding.BinaryUnmarshaler, so types like url.URL need it wired up manually.
-var BinaryUnmarshaler = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
+var BinaryUnmarshaler = json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
 	unmarshaler, ok := v.(encoding.BinaryUnmarshaler)
 	if !ok {
 		return errors.ErrUnsupported // fall back to the default decoding
@@ -20,9 +30,9 @@ var BinaryUnmarshaler = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec *j
 		return err
 	}
 	return unmarshaler.UnmarshalBinary([]byte(raw))
-}))
+})
 
-var DurationUnmarshaler = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
+var DurationUnmarshaler = json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
 	val, ok := v.(*time.Duration)
 	if !ok {
 		return errors.ErrUnsupported // fall back to the default decoding
@@ -54,10 +64,20 @@ var DurationUnmarshaler = json.WithUnmarshalers(json.UnmarshalFromFunc(func(dec 
 	default:
 		return fmt.Errorf("cannot unmarshal JSON kind %c into time.Duration", tok.Kind())
 	}
-}))
+})
 
-var DurationMarshaller = json.WithMarshalers(
-	json.MarshalToFunc(func(enc *jsontext.Encoder, val time.Duration) error {
-		return json.MarshalEncode(enc, val.String())
-	}),
-)
+var DurationMarshaler = json.MarshalToFunc(func(enc *jsontext.Encoder, val time.Duration) error {
+	return json.MarshalEncode(enc, val.String())
+})
+
+var BinaryMarshaler = json.MarshalToFunc(func(enc *jsontext.Encoder, v any) error {
+	marshaler, ok := v.(encoding.BinaryMarshaler)
+	if !ok {
+		return errors.ErrUnsupported // fall back to the default encoding
+	}
+	raw, err := marshaler.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	return json.MarshalEncode(enc, string(raw))
+})

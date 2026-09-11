@@ -33,26 +33,31 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation"
 	token "github.com/equinor/radix-operator/api-server/api/utils/token"
 	_ "github.com/equinor/radix-operator/api-server/docs"
-	"github.com/equinor/radix-operator/api-server/internal/config"
 	"github.com/equinor/radix-operator/api-server/internal/controller"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/event"
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 func main() {
-	c := config.MustParse()
-	setupLogger(c.LogLevel, c.LogPrettyPrint)
-	log.Info().Any("config", c).Msg("Starting radix api-server")
+	c := loadConfig(context.Background())
+
+	setupLogger(c.ApiServer.LogLevel, c.ApiServer.LogPrettyPrint)
+
+	log.Info().Any("config", c).Any("config", c).Msg("Starting radix api-server")
 
 	servers := []*http.Server{
 		initializeServer(c),
 		initializeMetricsServer(c),
 	}
 
-	if c.UseProfiler {
-		log.Info().Msgf("Initializing profile server on port %d", c.ProfilePort)
-		servers = append(servers, &http.Server{Addr: fmt.Sprintf("localhost:%d", c.ProfilePort)})
+	if c.ApiServer.UseProfiler {
+		log.Info().Msgf("Initializing profile server on port %d", c.ApiServer.ProfilerPort)
+		servers = append(servers, &http.Server{Addr: fmt.Sprintf("localhost:%d", c.ApiServer.ProfilerPort)})
 	}
 
 	startServers(servers...)
@@ -69,20 +74,29 @@ func initializeServer(c config.Config) *http.Server {
 
 	handler := router.NewAPIHandler(jwtValidator, kubeUtil, controllers...)
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", c.Port),
+		Addr:    fmt.Sprintf(":%d", c.ApiServer.Port),
 		Handler: handler,
 	}
 
 	return srv
 }
 
+func loadConfig(ctx context.Context) config.Config {
+	cfgClient, err := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create config reader client")
+	}
+	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
+	return config.MustParse(cfgYaml)
+}
+
 func initializeTokenValidator(c config.Config) token.ValidatorInterface {
-	azureValidator, err := token.NewValidator(c.AzureOidc.Issuer, c.AzureOidc.Audience)
+	azureValidator, err := token.NewValidator(c.ApiServer.AzureOidc.Issuer, c.ApiServer.AzureOidc.Audience)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error creating JWT Azure OIDC validator")
 	}
 
-	kubernetesValidator, err := token.NewValidator(c.KubernetesOidc.Issuer, c.KubernetesOidc.Audience)
+	kubernetesValidator, err := token.NewValidator(c.ApiServer.KubernetesOidc.Issuer, c.ApiServer.KubernetesOidc.Audience)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error creating JWT Kubernetes OIDC validator")
 	}
@@ -92,9 +106,9 @@ func initializeTokenValidator(c config.Config) token.ValidatorInterface {
 }
 
 func initializeMetricsServer(c config.Config) *http.Server {
-	log.Info().Msgf("Initializing metrics server on port %d", c.MetricsPort)
+	log.Info().Msgf("Initializing metrics server on port %d", c.ApiServer.MetricsPort)
 	return &http.Server{
-		Addr:    fmt.Sprintf(":%d", c.MetricsPort),
+		Addr:    fmt.Sprintf(":%d", c.ApiServer.MetricsPort),
 		Handler: router.NewMetricsHandler(),
 	}
 }
@@ -157,7 +171,7 @@ func setupLogger(logLevelStr string, prettyPrint bool) {
 func getControllers(config config.Config, kubeUtil utils.KubeUtil) ([]controller.Controller, error) {
 	buildStatus := buildModels.NewPipelineBadge()
 	applicationFactory := applications.NewApplicationHandlerFactory(config)
-	prometheusClient, err := prometheus.NewPrometheusClient(config.PrometheusUrl)
+	prometheusClient, err := prometheus.NewPrometheusClient(config.ApiServer.PrometheusUrl.String())
 	if err != nil {
 		return nil, err
 	}

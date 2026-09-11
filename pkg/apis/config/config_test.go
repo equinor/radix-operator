@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"encoding/json/v2"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -37,11 +39,11 @@ func mutateConfig(t *testing.T, mutate func(*config.Config)) string {
 	configJson, err := yaml.YAMLToJSON([]byte(configHappyYaml))
 	require.NoError(t, err)
 
-	require.NoError(t, json.Unmarshal(configJson, &cfg, config.BinaryUnmarshaler, config.DurationUnmarshaler))
+	require.NoError(t, json.Unmarshal(configJson, &cfg, config.Unmarshalers))
 
 	mutate(&cfg)
 
-	cfgJson, err := json.Marshal(cfg, config.DurationMarshaller)
+	cfgJson, err := json.Marshal(cfg, config.Marshalers)
 	require.NoError(t, err)
 
 	configYaml, err := yaml.JSONToYAML(cfgJson)
@@ -231,6 +233,26 @@ func TestParse_HappyPath(t *testing.T) {
 			CertsDir:                           "/run/certs",
 			ExtraDNSNames:                      []string{"helloworld.example.svc"},
 			ValidatingWebhookConfigurationName: "radix-webhook-configuration",
+		},
+		ApiServer: config.ApiServerConfig{
+			Port:               3002,
+			MetricsPort:        9090,
+			ProfilerPort:       7070,
+			UseProfiler:        true,
+			LogLevel:           "info",
+			LogPrettyPrint:     true,
+			ClusterEgressIps:   []string{"IP1", "IP2", "IP3"},
+			ClusterOidcIssuers: []string{"Issuer1", "Issuer2", "Issuer3"},
+			AzureOidc: config.OidcConfig{
+				Issuer:   MustParseUrl("https://fakeissuer.com"),
+				Audience: "fakeAudience",
+			},
+			KubernetesOidc: config.OidcConfig{
+				Issuer:   MustParseUrl("https://fakeissuer.com"),
+				Audience: "fakeAudience",
+			},
+			PrometheusUrl: MustParseUrl("https://prometheus.example.com"),
+			PodNamespace:  "fakePodNamespace",
 		},
 	}
 
@@ -586,4 +608,12 @@ func TestPipelineJobConfigs(t *testing.T) {
 			assert.ErrorContains(t, err, test.errorPath)
 		})
 	}
+}
+
+func MustParseUrl(u string) url.URL {
+	x, err := url.Parse(u)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to parse url")
+	}
+	return *x
 }

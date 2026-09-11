@@ -30,7 +30,7 @@ spec:
     {{- end }}
     - backendRefs:
         - name: radix-api-server
-          port: {{ $route.backendPort | default 3002 }}
+          port: {{ $route.backendPort | default $.Values.config.apiServer.port }}
           group: ''
           kind: Service
           weight: 1

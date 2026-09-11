@@ -150,3 +150,27 @@ webhook:
   certsDir: "/run/certs"
   extraDnsNames: ["helloworld.example.svc"]
   validatingWebhookConfigurationName: radix-webhook-configuration
+
+apiServer:
+  port: 3002
+  metricsPort: 9090
+  profilerPort: 7070
+  useProfiler: true
+  logLevel: info
+  logPrettyPrint: true
+  clusterEgressIPs:
+    - IP1
+    - IP2
+    - IP3
+  clusterOidcIssuers:
+    - Issuer1
+    - Issuer2
+    - Issuer3
+  azureOidc:
+    issuer: "https://fakeissuer.com"
+    audience: "fakeAudience"
+  kubernetesOidc:
+    issuer: "https://fakeissuer.com"
+    audience: "fakeAudience"
+  prometheusUrl: "https://prometheus.example.com"
+  podNamespace: "fakePodNamespace"

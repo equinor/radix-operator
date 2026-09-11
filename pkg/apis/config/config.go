@@ -27,6 +27,7 @@ type Config struct {
 	PipelineRunner PipelineRunnerConfig `json:"pipelineRunner"`
 	Common         CommonConfig         `json:"common"`
 	Webhook        WebhookConfig        `json:"webhook"`
+	ApiServer      ApiServerConfig      `json:"apiServer"`
 }
 
 type CommonConfig struct {
@@ -96,7 +97,7 @@ func Parse(configYaml string) (*Config, error) {
 	}
 	configJson = expandEnvMacros(configJson)
 
-	if err := json.Unmarshal(configJson, &cfg, BinaryUnmarshaler, DurationUnmarshaler); err != nil {
+	if err := json.Unmarshal(configJson, &cfg, Unmarshalers); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 

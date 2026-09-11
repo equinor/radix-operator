@@ -151,6 +151,24 @@ config:
     extraDnsNames: []
     validatingWebhookConfigurationName: radix-webhook-configuration
 
+  apiServer:
+    port: 3002
+    metricsPort: 9090
+    profilerPort: 7070
+    useProfiler: false
+    logLevel: info
+    logPrettyPrint: false
+    clusterEgressIPs: []
+    clusterOidcIssuers: []
+    azureOidc:
+      issuer: ""
+      audience: ""
+    kubernetesOidc:
+      issuer: ""
+      audience: ""
+    prometheusUrl: ""
+    podNamespace: "$__env(POD_NAMESPACE)"
+
 replicaCount: 1
 
 image:
@@ -224,16 +242,7 @@ seccompProfile:
         memory: 10Mi
 
 radixApiServer:
-  useProfiler: false
-  logLevel: info
-  logPretty: false
-  prometheusUrl: ""
-  oidcAzureAudience: ""
-  oidcAzureIssuer: ""
-  oidcKubernetesIssuer: ""
-  oidcKubernetesAudience: ""
-  clusterOidcIssuers: ""
-  clusterEgressIps: ""
+
 
   image:
     repository: ghcr.io/equinor/radix/api-server
