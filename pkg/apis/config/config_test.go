@@ -207,6 +207,31 @@ func TestParse_HappyPath(t *testing.T) {
 			},
 			PipelineImagePullPolicy: corev1.PullAlways,
 		},
+		Webhook: config.WebhookConfig{
+			LogLevel:                 "info",
+			LogPrettyPrint:           false,
+			Port:                     9443,
+			MetricsPort:              9000,
+			HealthPort:               9440,
+			RequireGroups:          true,
+			RequireConfigurationItem: true,
+			ReservedDNSAppAliases: map[string]string{
+				"canary":   "radix-canary-golang",
+				"console":  "radix-web-console",
+				"cost-api": "radix-cost-allocation-api",
+				"www":      "radix-public-site",
+			},
+			ReservedDNSAliases:                 []string{"grafana", "prometheus", "app", "playground", "dev", "api", "webhook"},
+			SecretName:                         "radix-webhook-certs",
+			SecretNamespace:                    "default",
+			DisableCertRotation:                false,
+			DNSName:                            "radix-webhook.example.svc",
+			CAName:                             "radix-webhook-ca",
+			CAOrganization:                     "Radix Webhook CA",
+			CertsDir:                           "/run/certs",
+			ExtraDNSNames:                      []string{"helloworld.example.svc"},
+			ValidatingWebhookConfigurationName: "radix-webhook-configuration",
+		},
 	}
 
 	assert.Equal(t, expected, cfg)

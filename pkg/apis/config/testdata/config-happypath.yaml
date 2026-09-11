@@ -117,3 +117,36 @@ operator:
     repository: ghcr.io/equinor/radix-pipeline
     tag: v1.0.0
   pipelineImagePullPolicy: "Always"
+
+webhook:
+  logLevel: info
+  logPrettyPrint: false
+  port: 9443
+  metricsPort: 9000
+  healthPort: 9440
+
+  requireGroups: true
+  requireConfigurationItem: true
+
+  reservedAppDNSAliases:
+    canary: radix-canary-golang
+    console: radix-web-console
+    cost-api: radix-cost-allocation-api
+    www: radix-public-site
+  reservedDNSAliases:
+    - grafana
+    - prometheus
+    - app
+    - playground
+    - dev
+    - api
+    - webhook
+  secretName: radix-webhook-certs
+  secretNamespace: "default" # Default to release namespace
+  disableCertRotation: false
+  dnsName: "radix-webhook.example.svc"
+  caName: radix-webhook-ca
+  caOrganization: "Radix Webhook CA"
+  certsDir: "/run/certs"
+  extraDnsNames: ["helloworld.example.svc"]
+  validatingWebhookConfigurationName: radix-webhook-configuration

@@ -68,10 +68,10 @@ type Validator struct {
 
 var _ genericvalidator.Validator[*radixv1.RadixApplication] = &Validator{}
 
-func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, reservedDNSAppAliases map[string]string, cfg config.Config) *Validator {
+func CreateOnlineValidator(client client.Client, cfg config.Config) *Validator {
 	onlineValidators := []validatorFunc{
 		createRRExistValidator(client),
-		createDNSAliasAvailableValidator(client, reservedDNSAliases, reservedDNSAppAliases),
+		createDNSAliasAvailableValidator(client, cfg.Webhook.ReservedDNSAliases, cfg.Webhook.ReservedDNSAppAliases),
 		createNamespaceUsableValidator(client),
 		createComponentAuthenticationValidator(cfg),
 	}

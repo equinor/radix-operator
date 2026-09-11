@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -25,24 +26,14 @@ type Validator struct {
 
 var _ genericvalidator.Validator[*radixv1.RadixRegistration] = &Validator{}
 
-func CreateOnlineValidator(client client.Client, requireAdGroups, requireConfigurationItem bool) *Validator {
+func CreateOnlineValidator(client client.Client, cfg config.Config) *Validator {
 	return &Validator{
 		validators: []validatorFunc{
 			createAppNameLengthValidator(),
 			createRequireUniqueAppIdValidator(client),
-			createRequireAdGroupsValidator(requireAdGroups),
-			CreateRequireConfigurationItemValidator(requireConfigurationItem),
+			createRequireGroupsValidator(cfg.Webhook.RequireGroups),
+			CreateRequireConfigurationItemValidator(cfg.Webhook.RequireConfigurationItem),
 			createNamespaceUsableValidator(client),
-		},
-	}
-}
-
-func CreateOfflineValidator(requireAdGroups, requireConfigurationItem bool) Validator {
-	return Validator{
-		validators: []validatorFunc{
-			createAppNameLengthValidator(),
-			createRequireAdGroupsValidator(requireAdGroups),
-			CreateRequireConfigurationItemValidator(requireConfigurationItem),
 		},
 	}
 }
@@ -75,14 +66,14 @@ func createAppNameLengthValidator() validatorFunc {
 }
 
 // RequireAdGroups validates that AdGroups contains minimum one item
-func createRequireAdGroupsValidator(required bool) validatorFunc {
+func createRequireGroupsValidator(required bool) validatorFunc {
 	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
 		if len(rr.Spec.AdGroups) == 0 && required {
-			return "", ErrAdGroupIsRequired
+			return "", ErrGroupIsRequired
 		}
 
 		if len(rr.Spec.AdGroups) == 0 && !required {
-			return WarningAdGroupsShouldHaveAtleastOneItem, nil
+			return WarningGroupsShouldHaveAtleastOneItem, nil
 		}
 
 		return "", nil

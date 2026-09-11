@@ -31,5 +31,9 @@ data:
           "tag" (.Values.config.operator.pipelineImage.tag | default .Chart.Version)
         )
       )
+      "webhook" (dict
+        "secretNamespace" .Release.Namespace
+        "dnsName" ( printf "radix-webhook.%s.svc" .Release.Namespace )
+      )
     -}}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}

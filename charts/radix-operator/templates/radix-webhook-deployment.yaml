@@ -43,7 +43,7 @@ spec:
       volumes:
         - name: certs
           secret:
-            secretName: radix-webhook-certs
+            secretName: {{ .Values.config.webhook.secretName }}
             
       containers:
         - name: radix-webhook
@@ -80,29 +80,11 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: LOG_LEVEL
-              value: {{ .Values.radixWebhook.logLevel | quote }}
-            - name: LOG_PRETTY
-              value: {{ .Values.radixWebhook.logPretty | quote }}
-            - name: SECRET_NAMESPACE
-              value: {{ .Release.Namespace }}
-            - name: SECRET_NAME
-              value: "radix-webhook-certs"
-            - name: WEBHOOK_CONFIGURATION_NAME
-              value: "radix-webhook-configuration"
-            - name: CERTS_DIR
-              value: "/run/certs"
-            - name: REQUIRE_AD_GROUPS
-              value: {{ .Values.radixWebhook.requireAdGroups | quote }}
-            - name: REQUIRE_CONFIGURATION_ITEM
-              value: {{ .Values.radixWebhook.requireConfigurationItem | quote }}
-            - name: DNS_NAME
-              value: radix-webhook.{{ .Release.Namespace }}.svc
-            - name: RADIX_RESERVED_APP_DNS_ALIASES
-              value: {{ include "helm-toolkit.utils.joinMapWithComma" .Values.radixWebhook.reservedAppDNSAliases | quote }}
-            - name: RADIX_RESERVED_DNS_ALIASES
-              value: {{ include "helm-toolkit.utils.joinListWithComma" .Values.radixWebhook.reservedDNSAliases | quote }}
+            - name: RADIX_COMMON_CONFIG_NAME
+              value: {{ include "radix-common-config.name" . }}
+            - name: RADIX_COMMON_CONFIG_KEY
+              value: "configYaml"
           volumeMounts:
             - name: certs
-              mountPath: /run/certs
+              mountPath: {{ .Values.config.webhook.certsDir}}
               readOnly: true

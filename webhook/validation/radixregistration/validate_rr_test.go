@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -18,11 +19,18 @@ import (
 
 // Test unique appId validation
 
+var cfg = config.Config{
+	Webhook: config.WebhookConfig{
+		RequireGroups:            true,
+		RequireConfigurationItem: true,
+	},
+}
+
 func Test_valid_rr_returns_true(t *testing.T) {
 	client := test.CreateClient()
 	validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 
-	validator := radixregistration.CreateOnlineValidator(client, true, true)
+	validator := radixregistration.CreateOnlineValidator(client, cfg)
 	warnings, err := validator.Validate(t.Context(), validRR)
 
 	assert.Empty(t, warnings)
@@ -69,7 +77,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.AdGroups = nil },
 			requireAdGroups:          false,
 			requireConfigurationItem: false,
-			expectedWarnings:         admission.Warnings{radixregistration.WarningAdGroupsShouldHaveAtleastOneItem},
+			expectedWarnings:         admission.Warnings{radixregistration.WarningGroupsShouldHaveAtleastOneItem},
 			expectedError:            nil,
 		},
 		{
@@ -78,13 +86,18 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			requireAdGroups:          true,
 			requireConfigurationItem: false,
 			expectedWarnings:         nil,
-			expectedError:            radixregistration.ErrAdGroupIsRequired,
+			expectedError:            radixregistration.ErrGroupIsRequired,
 		},
 	}
 
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validator := radixregistration.CreateOfflineValidator(testcase.requireAdGroups, testcase.requireConfigurationItem)
+			client := test.CreateClient("testdata/radixregistration.yaml")
+			c := cfg
+			c.Webhook.RequireGroups = testcase.requireAdGroups
+			c.Webhook.RequireConfigurationItem = testcase.requireConfigurationItem
+
+			validator := radixregistration.CreateOnlineValidator(client, c)
 			validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 			testcase.updateRR(validRR)
 			warnings, err := validator.Validate(t.Context(), validRR)
@@ -101,10 +114,11 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 
 func Test_RegistrationNameLengthLimit(t *testing.T) {
 	t.Run("name length 40 is valid", func(t *testing.T) {
+		client := test.CreateClient("testdata/radixregistration.yaml")
 		validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 		validRR.Name = strings.Repeat("a", 40)
 
-		validator := radixregistration.CreateOfflineValidator(false, false)
+		validator := radixregistration.CreateOnlineValidator(client, cfg)
 		warnings, err := validator.Validate(t.Context(), validRR)
 
 		assert.NoError(t, err)
@@ -112,10 +126,11 @@ func Test_RegistrationNameLengthLimit(t *testing.T) {
 	})
 
 	t.Run("name length 41 is invalid", func(t *testing.T) {
+		client := test.CreateClient("testdata/radixregistration.yaml")
 		validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 		validRR.Name = strings.Repeat("a", 41)
 
-		validator := radixregistration.CreateOfflineValidator(false, false)
+		validator := radixregistration.CreateOnlineValidator(client, cfg)
 		_, err := validator.Validate(t.Context(), validRR)
 
 		assert.ErrorIs(t, err, radixregistration.ErrAppNameTooLong)
@@ -126,7 +141,7 @@ func TestDuplicateAppIDMustFail(t *testing.T) {
 	validRR2 := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 	client := test.CreateClient("testdata/radixregistration.yaml")
 	validRR2.Name = "duplicate-app-id"
-	validator := radixregistration.CreateOnlineValidator(client, false, false)
+	validator := radixregistration.CreateOnlineValidator(client, cfg)
 
 	_, err := validator.Validate(t.Context(), validRR2)
 
@@ -200,7 +215,7 @@ func TestNamespaceUsableValidator(t *testing.T) {
 				require.NoError(t, client.Create(t.Context(), ns))
 			}
 			validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
-			validator := radixregistration.CreateOnlineValidator(client, false, false)
+			validator := radixregistration.CreateOnlineValidator(client, cfg)
 
 			warnings, err := validator.Validate(t.Context(), validRR)
 
