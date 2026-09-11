@@ -61,7 +61,7 @@ func (deploy *Deployment) getAzureKeyVaultCredsSecret(ctx context.Context, names
 
 func (deploy *Deployment) CreateAzureKeyVaultSecretProviderClassForRadixDeployment(ctx context.Context, namespace string, appName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
 	radixDeploymentName := deploy.radixDeployment.GetName()
-	tenantId := deploy.config.DeploymentSyncer.TenantID
+	tenantId := deploy.config.Operator.AzureKeyVaultTenantID
 	identity := deploy.getIdentityFromRadixCommonDeployComponent(radixDeployComponentName)
 	secretProviderClass, err := kube.BuildAzureKeyVaultSecretProviderClass(tenantId, appName, radixDeploymentName, radixDeployComponentName, azureKeyVault, identity)
 	if err != nil {

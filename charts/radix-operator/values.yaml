@@ -8,6 +8,9 @@ config:
   common:
     dnsZone: ""
     clusterName: ""
+    clusterType: ""
+    appAliasBaseURL: ""
+    externalRegistryAuthSecret: ""
     oauth2Proxy:
       proxyImage:
         repository: quay.io/oauth2-proxy/oauth2-proxy
@@ -26,9 +29,27 @@ config:
           expire: "168h0m0s"
           refresh: "60m0s"
           sameSite: "lax"
-        # oidc:
-        #   issuerUrl: "https://issuer.com"
-        #   skipDiscovery: false
+        oidc:
+          issuerUrl: ""
+          skipDiscovery: false
+  pipelineRunner:
+    containerRegistry: ""
+    cacheContainerRegistry: ""
+    builder:
+      image:
+        repository: ghcr.io/equinor/radix/buildkit-builder
+        tag: "latest"
+      seccompProfileLocalhostProfile: ""
+      resources:
+        limits:
+          memory: 500M
+          cpu: 2000m
+        requests:
+          memory: 500M
+          cpu: 200m
+    gitCloneImage:
+      repository: docker.io/alpine/git
+      tag: "latest"
   operator:
     logLevel: info
     logPrettyPrint: false
@@ -42,17 +63,18 @@ config:
     kubeClientRateLimitQPS: 5
     readinessProbeInitialDelaySeconds: 5
     readinessProbePeriodSeconds: 10
-
     defaultRollingUpdateMaxUnavailable: 25%
     defaultRollingUpdateMaxSurge: 25%
-
-    containerRegistry: ""
-    appContainerRegistry: ""
-    appAliasBaseURL: app.dev.radix.equinor.com
-
+    kubernetesAPIPort: "$__env(KUBERNETES_SERVICE_PORT)"
+    batchSafeToRestartJobThreshold: 259200
+    azureKeyVaultTenantID: ""
     defaultAppAdminGroups: []
+    deploymentHistoryLimit: 10
+    orphanedEnvironmentsRetentionPeriod: 720h
+    orphanedEnvironmentsCleanupCron: "0 0 * * *"
+    pipelineJobsHistoryLimit: 5
+    pipelineJobsHistoryPeriodLimit: "720h"
 
-    # Ref https://kubernetes.io/docs/concepts/security/pod-security-standards/ for docs and valid values for level and version
     podSecurityStandard:
       appNamespace:
         enforce:
@@ -85,26 +107,67 @@ config:
       defaultRequestMemory: 500M
       defaultRequestCPU: 100m
 
-    builder:
-      image:
-        repository: ghcr.io/equinor/radix/buildkit-builder
-        tag: "latest"
-      seccompProfileLocalhostProfile: ""
-      resources:
-        limits:
-          memory: 500M
-          cpu: 2000m
-        requests:
-          memory: 500M
-          cpu: 200m
-
     jobSchedulerImage:
       repository: ghcr.io/equinor/radix/job-scheduler
       tag: "" # Fallback to .Chart.Version
 
-dnsZone: dev.radix.equinor.com
-radixZone: xx
-tenantId: xx
+    jobSchedulerAuxImage:
+      repository: docker.io/bash
+      tag: "latest"
+
+    gateway:
+      name: ""
+      namespace: ""
+      sectionName: "https"
+
+    certificateAutomation:
+      duration: "2160h"
+      renewBefore: "720h"
+      gatewayClusterIssuer: ""
+
+    pipelineImage:
+      repository: "ghcr.io/equinor/radix/pipeline"
+      tag: "" # Fallback to .Chart.Version
+    pipelineImagePullPolicy: "Always"
+
+  webhook:
+    logLevel: info
+    logPrettyPrint: false
+    port: 9443
+    metricsPort: 9000
+    healthPort: 9440
+
+    requireGroups: true
+    requireConfigurationItem: true
+
+    reservedAppDNSAliases: {}
+    reservedDNSAliases: []
+    secretName: radix-webhook-certs
+    secretNamespace: "" # Default to release namespace
+    disableCertRotation: false
+    caName: radix-webhook-ca
+    caOrganization: "Radix Webhook CA"
+    certsDir: "/run/certs"
+    extraDnsNames: []
+    validatingWebhookConfigurationName: radix-webhook-configuration
+
+  apiServer:
+    port: 3002
+    metricsPort: 9090
+    profilerPort: 7070
+    useProfiler: false
+    logLevel: info
+    logPrettyPrint: false
+    clusterEgressIPs: []
+    clusterOidcIssuers: []
+    azureOidc:
+      issuer: ""
+      audience: ""
+    kubernetesOidc:
+      issuer: ""
+      audience: ""
+    prometheusUrl: ""
+    podNamespace: "$__env(POD_NAMESPACE)"
 
 replicaCount: 1
 
@@ -132,21 +195,6 @@ resources:
     cpu: 100m
     memory: 1Gi
 
-ingress:
-  gateway:
-    name: ""
-    namespace: ""
-    sectionName: "https"
-
-  certificate:
-    automation:
-      duration: "2160h"
-      renewBefore: "720h"
-      gatewayClusterIssuer: ""
-
-task:
-  orphanedEnvironmentsRetentionPeriod: 720h
-  orphanedEnvironmentsCleanupCron: "0 0 * * *"
 nodeSelector: {}
 
 tolerations: []
@@ -172,20 +220,9 @@ volumes: []
 # Additional volume mounts to add to the radix-cost-allocation container.
 volumeMounts: []
 
-clusterType: development
-
 rbac:
   createApp:
     groups: [] # List of groups with permission to create new RadixRegistation
-
-deploymentsPerEnvironmentHistoryLimit: 10
-pipelineJobsHistoryLimit: 5
-pipelineJobsHistoryPeriodLimit: "720h"
-logLevel: "INFO"
-logPretty: false
-safeToRestartBatchJobThreshold: 259200 # 3 days in seconds
-oauthProxyDefaultIssuerUrl: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
-externalRegistryDefaultAuthSecret: "" # Name of the secret containing default container registry credentials for pulling images when building with buildah and pulling external images for components and jobs
 
 seccompProfile:
   fileNameOnNode: allow-buildah.json
@@ -204,36 +241,8 @@ seccompProfile:
         cpu: 10m
         memory: 10Mi
 
-# Image containing git
-gitClone:
-  image:
-    repository: docker.io/alpine/git
-    tag: "2.45.2"
-
-jobAux:
-  image:
-    repository: docker.io/bash
-    tag: "latest"
-
-radixPipelineRunner:
-  image:
-    repository: ghcr.io/equinor/radix/pipeline
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: ""
-    # Pull policy for the pipeline job image. Defaults to Always.
-    pullPolicy: Always
-
 radixApiServer:
-  useProfiler: false
-  logLevel: info
-  logPretty: false
-  prometheusUrl: ""
-  oidcAzureAudience: ""
-  oidcAzureIssuer: ""
-  oidcKubernetesIssuer: ""
-  oidcKubernetesAudience: ""
-  clusterOidcIssuers: ""
-  clusterEgressIps: ""
+
 
   image:
     repository: ghcr.io/equinor/radix/api-server
@@ -323,9 +332,6 @@ radixApiServer:
           sectionName: https
       hostnames:
         - api.radix.equinor.com
-        #  - "api.{{ .Values.dnsZone }}"
-        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.dnsZone }}"
-        #  - "server-radix-api-{{ .Values.radixApiServer.environment }}.{{ .Values.config.common.clusterName }}.{{ .Values.dnsZone }}"
       backendPort: 3002
       filters:
         - responseHeaderModifier:
@@ -339,25 +345,6 @@ radixApiServer:
             value: /
 
 radixWebhook:
-  logLevel: info
-  logPretty: false
-  requireAdGroups: true
-  requireConfigurationItem: true
-
-  reservedAppDNSAliases:
-    api: radix-api
-    canary: radix-canary-golang
-    console: radix-web-console
-    cost-api: radix-cost-allocation-api
-
-  reservedDNSAliases:
-    - grafana
-    - prometheus
-    - www
-    - app
-    - playground
-    - dev
-
   image:
     repository: ghcr.io/equinor/radix/webhook
     # Overrides the image tag whose default is the chart appVersion.

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
@@ -39,47 +38,45 @@ const (
 	namespaceName               = "testapp-testenv"
 )
 
-var testCfg config.Config = config.Config{
-	Gateway: config.GatewayConfig{
-		Name: "any-gateway-name",
-	},
-}
-var testCfg2 config2.Config = config2.Config{
-	Operator: config2.OperatorConfig{
-		EnvNsLimitRange: config2.LimitRangeConfig{
+var testCfg2 config.Config = config.Config{
+	Operator: config.OperatorConfig{
+		EnvNsLimitRange: config.LimitRangeConfig{
 			DefaultMemory:        new(resource.MustParse("321M")),
 			DefaultRequestCPU:    new(resource.MustParse("234m")),
 			DefaultRequestMemory: new(resource.MustParse("123M")),
 		},
-		PodSecurityStandard: config2.PodSecurityStandardConfig{
-			AppNamespace: config2.PodSecurityStandardPolicyConfig{
-				Enforce: config2.PodSecurityStandardModeConfig{
+		PodSecurityStandard: config.PodSecurityStandardConfig{
+			AppNamespace: config.PodSecurityStandardPolicyConfig{
+				Enforce: config.PodSecurityStandardModeConfig{
 					Level:   "app-enforce-level",
 					Version: "app-enforce-version",
 				},
-				Audit: config2.PodSecurityStandardModeConfig{
+				Audit: config.PodSecurityStandardModeConfig{
 					Level:   "app-audit-level",
 					Version: "app-audit-version",
 				},
-				Warn: config2.PodSecurityStandardModeConfig{
+				Warn: config.PodSecurityStandardModeConfig{
 					Level:   "app-warn-level",
 					Version: "app-warn-version",
 				},
 			},
-			EnvNamespace: config2.PodSecurityStandardPolicyConfig{
-				Enforce: config2.PodSecurityStandardModeConfig{
+			EnvNamespace: config.PodSecurityStandardPolicyConfig{
+				Enforce: config.PodSecurityStandardModeConfig{
 					Level:   "env-enforce-level",
 					Version: "env-enforce-version",
 				},
-				Audit: config2.PodSecurityStandardModeConfig{
+				Audit: config.PodSecurityStandardModeConfig{
 					Level:   "env-audit-level",
 					Version: "env-audit-version",
 				},
-				Warn: config2.PodSecurityStandardModeConfig{
+				Warn: config.PodSecurityStandardModeConfig{
 					Level:   "env-warn-level",
 					Version: "env-warn-version",
 				},
 			},
+		},
+		Gateway: config.GatewayConfig{
+			Name: "any-gateway-name",
 		},
 	},
 }
@@ -100,7 +97,7 @@ func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, *radix.Cl
 func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, radixEnvFileName string) (*radixv1.RadixRegistration, *radixv1.RadixEnvironment, Environment, error) {
 	rr := test.Load[*radixv1.RadixRegistration](regConfigFileName)
 	re := test.Load[*radixv1.RadixEnvironment](radixEnvFileName)
-	nw := networkpolicy.NewNetworkPolicy(client, kubeUtil, testCfg)
+	nw := networkpolicy.NewNetworkPolicy(client, kubeUtil, testCfg2)
 	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, testCfg2, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
 	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{}); err != nil {
@@ -124,7 +121,7 @@ func Test_ReconcileStatus(t *testing.T) {
 
 	// First sync sets status
 	expectedGen := re.Generation
-	sut := NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
+	sut := NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -137,7 +134,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	re.Generation++
 	expectedGen = re.Generation
-	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
+	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -154,7 +151,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	})
 	re.Generation++
 	expectedGen = re.Generation
-	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config2.Config{}, &np)
+	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.ErrorContains(t, err, errorMsg)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -262,13 +259,13 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-app-admin-envs", "radix-pipeline-env", "radix-app-reader-envs")
 
-	// It contains the correct AD groups
+	// It contains the correct groups
 	subjects := rolebindings.Items[0].Subjects
 	require.Len(t, subjects, 2)
 	assert.Equal(t, rr.Spec.AdGroups[0], subjects[0].Name)
 	assert.Equal(t, rr.Spec.AdUsers[0], subjects[1].Name)
 
-	// It contains the correct reader AD groups
+	// It contains the correct reader groups
 	subjects = rolebindings.Items[1].Subjects
 	require.Len(t, subjects, 2)
 	assert.Equal(t, rr.Spec.ReaderAdGroups[0], subjects[0].Name)

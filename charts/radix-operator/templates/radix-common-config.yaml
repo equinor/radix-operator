@@ -1,3 +1,13 @@
+{{- $_ := required "config.common.appAliasBaseURL is required" .Values.config.common.appAliasBaseURL -}}
+{{- $_ := required "config.common.dnsZone is required" .Values.config.common.dnsZone -}}
+{{- $_ := required "config.common.clusterName is required" .Values.config.common.clusterName -}}
+{{- $_ := required "config.common.clusterType is required" .Values.config.common.clusterType -}}
+{{- $_ := required "config.operator.azureKeyVaultTenantID is required" .Values.config.operator.azureKeyVaultTenantID -}}
+{{- $_ := required "config.operator.gateway.name is required" .Values.config.operator.gateway.name -}}
+{{- $_ := required "config.operator.gateway.namespace is required" .Values.config.operator.gateway.namespace -}}
+{{- $_ := required "config.operator.certificateAutomation.gatewayClusterIssuer is required" .Values.config.operator.certificateAutomation.gatewayClusterIssuer -}}
+{{- $_ := required "config.pipelineRunner.cacheContainerRegistry is required" .Values.config.pipelineRunner.cacheContainerRegistry -}}
+{{- $_ := required "config.pipelineRunner.containerRegistry is required" .Values.config.pipelineRunner.containerRegistry -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,13 +18,22 @@ metadata:
 data:
   configYaml: |
     {{- $chartValues := dict
+      "pipelineRunner" (dict
+        "builder" (dict
+          "seccompProfileLocalhostProfile" (.Values.config.pipelineRunner.builder.seccompProfileLocalhostProfile | default .Values.seccompProfile.fileNameOnNode)
+        )
+      )
       "operator" (dict
         "jobSchedulerImage" (dict
           "tag" (.Values.config.operator.jobSchedulerImage.tag | default .Chart.Version)
         )
-        "builder" (dict
-          "seccompProfileLocalhostProfile" (.Values.config.operator.builder.seccompProfileLocalhostProfile | default .Values.seccompProfile.fileNameOnNode)
+        "pipelineImage" (dict
+          "tag" (.Values.config.operator.pipelineImage.tag | default .Chart.Version)
         )
+      )
+      "webhook" (dict
+        "secretNamespace" .Release.Namespace
+        "dnsName" ( printf "radix-webhook.%s.svc" .Release.Namespace )
       )
     -}}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}

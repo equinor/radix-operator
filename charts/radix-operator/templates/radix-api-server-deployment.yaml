@@ -56,40 +56,16 @@ spec:
           {{- end }}
 
           ports:
-            - containerPort: 3002
+            - containerPort: {{ .Values.config.apiServer.port }}
               name: http
-            - containerPort: 9090
+            - containerPort: {{ .Values.config.apiServer.metricsPort }}
               name: metrics
           env:
-            - name: PORT
-              value: "3002"
-            - name: METRICS_PORT
-              value: "9090"
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: RADIX_COMMON_DNSZONE
-              value: {{ .Values.config.common.dnsZone | quote }}
-            - name: RADIX_COMMON_CLUSTERNAME
-              value: {{ .Values.config.common.clusterName | quote }}
-            - name: USE_PROFILER
-              value: {{ .Values.radixApiServer.useProfiler | quote }}
-            - name: LOG_LEVEL
-              value: {{ .Values.radixApiServer.logLevel | quote }}
-            - name: LOG_PRETTY
-              value: {{ .Values.radixApiServer.logPretty | quote }}
-            - name: PROMETHEUS_URL
-              value: {{ .Values.radixApiServer.prometheusUrl | quote }}
-            - name: OIDC_AZURE_AUDIENCE
-              value: {{ .Values.radixApiServer.oidcAzureAudience | quote }}
-            - name: OIDC_AZURE_ISSUER
-              value: {{ .Values.radixApiServer.oidcAzureIssuer | quote }}
-            - name: OIDC_KUBERNETES_ISSUER
-              value: {{ .Values.radixApiServer.oidcKubernetesIssuer | quote }}
-            - name: OIDC_KUBERNETES_AUDIENCE
-              value: {{ .Values.radixApiServer.oidcKubernetesAudience | quote }}
-            - name: CLUSTER_OIDC_ISSUERS
-              value: {{ .Values.radixApiServer.clusterOidcIssuers | quote }}
-            - name: CLUSTER_EGRESS_IPS
-              value: {{ .Values.radixApiServer.clusterEgressIps | quote }}
+            - name: RADIX_COMMON_CONFIG_NAME
+              value: {{ include "radix-common-config.name" . }}
+            - name: RADIX_COMMON_CONFIG_KEY
+              value: "configYaml"

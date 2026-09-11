@@ -6,7 +6,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
@@ -16,17 +15,15 @@ import (
 )
 
 func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
-	probe := getDefaultReadinessProbeForComponent(testConfig2, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
+	probe := getDefaultReadinessProbeForComponent(testConfig, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
 	assert.NotNil(t, probe)
 }
 
 func TestGetReadinessProbe_Custom(t *testing.T) {
-	test.SetRequiredEnvironmentVariables()
+	probe := getDefaultReadinessProbeForComponent(testConfig, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
 
-	probe := getDefaultReadinessProbeForComponent(testConfig2, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
-
-	assert.Equal(t, testConfig2.Operator.ReadinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
-	assert.Equal(t, testConfig2.Operator.ReadinessProbePeriodSeconds, probe.PeriodSeconds)
+	assert.Equal(t, testConfig.Operator.ReadinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
+	assert.Equal(t, testConfig.Operator.ReadinessProbePeriodSeconds, probe.PeriodSeconds)
 	assert.Equal(t, int32(5000), probe.ProbeHandler.TCPSocket.Port.IntVal)
 }
 
@@ -46,8 +43,8 @@ func TestDeploymentReadinessProbeUsesConfig(t *testing.T) {
 
 	probe := deployment.Spec.Template.Spec.Containers[0].ReadinessProbe
 	require.NotNil(t, probe, "readiness probe should be set")
-	assert.Equal(t, testConfig2.Operator.ReadinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
-	assert.Equal(t, testConfig2.Operator.ReadinessProbePeriodSeconds, probe.PeriodSeconds)
+	assert.Equal(t, testConfig.Operator.ReadinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
+	assert.Equal(t, testConfig.Operator.ReadinessProbePeriodSeconds, probe.PeriodSeconds)
 	require.NotNil(t, probe.TCPSocket, "readiness probe should be tcp")
 	assert.Equal(t, int32(8000), probe.TCPSocket.Port.IntVal)
 }
@@ -128,7 +125,7 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe, "default readiness probe should be set")
 	assert.Nil(t, deployment.Spec.Template.Spec.Containers[0].LivenessProbe, "liveness probe should not be set")
 	assert.Nil(t, deployment.Spec.Template.Spec.Containers[0].StartupProbe, "startup probe should not be set")
-	assert.Equal(t, testConfig2.Operator.ReadinessProbeInitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid default readiness probe initial delay")
+	assert.Equal(t, testConfig.Operator.ReadinessProbeInitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid default readiness probe initial delay")
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.TCPSocket, "default readiness probe should be tcp")
 	assert.Equal(t, int32(8000), deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.TCPSocket.Port.IntVal, "invalid default readiness probe port")
 }
@@ -452,5 +449,5 @@ func applyDeploymentWithSyncWithComponentResources(t *testing.T, origRequests, o
 				WithResource(origRequests, origLimits)).
 			WithAppName("any-app").
 			WithEnvironment("test"))
-	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR(), config: &testConfig}
+	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR(), config: testConfig}
 }

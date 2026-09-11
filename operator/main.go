@@ -26,8 +26,7 @@ import (
 	"github.com/equinor/radix-operator/operator/registration"
 	"github.com/equinor/radix-operator/operator/scheduler"
 	"github.com/equinor/radix-operator/operator/scheduler/tasks"
-	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
@@ -61,7 +60,7 @@ const (
 )
 
 type App struct {
-	config2              config2.Config
+	cfg                  config.Config
 	eventRecorder        record.EventRecorder
 	kubeInformerFactory  kubeinformers.SharedInformerFactory
 	radixInformerFactory radixinformers.SharedInformerFactory
@@ -72,7 +71,6 @@ type App struct {
 	secretProviderClient secretProviderClient.Interface
 	certClient           certclient.Interface
 	kubeUtil             *kube.Kube
-	config               *apiconfig.Config
 	kedaClient           kedav2.Interface
 }
 
@@ -110,15 +108,13 @@ func initializeApp(ctx context.Context) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create config reader client: %w", err)
 	}
-	cfgYaml := config2.MustEnvConfigMapReader(ctx, cfgClient)
-	app.config2 = config2.MustParse(cfgYaml)
+	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
+	app.cfg = config.MustParse(cfgYaml)
 
-	app.config = apiconfig.MustParse()
-	initLogger(app.config2)
-	log.Ctx(ctx).Info().Interface("config", app.config).Msg("config parsed")
-	log.Ctx(ctx).Info().Interface("config", app.config2).Msg("config2 parsed")
+	initLogger(app.cfg)
+	log.Ctx(ctx).Info().Interface("config", app.cfg).Msg("config parsed")
 
-	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.config2.Operator.KubeClientRateLimitQPS, app.config2.Operator.KubeClientRateLimitBurst))
+	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.cfg.Operator.KubeClientRateLimitQPS, app.cfg.Operator.KubeClientRateLimitBurst))
 	warningHandler := utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
 	app.dynamicCache, app.dynamicClient = initializeClient(ctx, rateLimitConfig, warningHandler)
 	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(rateLimitConfig, warningHandler)
@@ -184,12 +180,12 @@ func (a *App) createSchedulers(ctx context.Context) ([]scheduler.TaskScheduler, 
 	var errs []error
 	var taskSchedulers []scheduler.TaskScheduler
 	if envCleanupTask, err := scheduler.NewTaskScheduler(ctx,
-		tasks.NewRadixEnvironmentsCleanup(ctx, a.kubeUtil, a.config.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod),
-		a.config.TaskConfig.OrphanedEnvironmentsCleanupCron); err != nil {
+		tasks.NewRadixEnvironmentsCleanup(ctx, a.kubeUtil, a.cfg.Operator.OrphanedEnvironmentsRetentionPeriod),
+		a.cfg.Operator.OrphanedEnvironmentsCleanupCron); err != nil {
 		errs = append(errs, fmt.Errorf("failed to create environment cleanup task: %w", err))
 	} else {
 		taskSchedulers = append(taskSchedulers, envCleanupTask)
-		log.Ctx(ctx).Info().Msgf("Created schedule %s for the task RadixEnvironments cleanup task", a.config.TaskConfig.OrphanedEnvironmentsCleanupCron)
+		log.Ctx(ctx).Info().Msgf("Created schedule %s for the task RadixEnvironments cleanup task", a.cfg.Operator.OrphanedEnvironmentsCleanupCron)
 	}
 	return taskSchedulers, errors.Join(errs...)
 }
@@ -208,14 +204,14 @@ func (a *App) Run(ctx context.Context) error {
 	dnsAliasesController := a.createDNSAliasesController(ctx)
 
 	g.Go(func() error { return startMetricsServer(ctx) })
-	g.Go(func() error { return registrationController.Run(ctx, a.config2.Operator.RegistrationControllerThreads) })
-	g.Go(func() error { return applicationController.Run(ctx, a.config2.Operator.ApplicationControllerThreads) })
-	g.Go(func() error { return environmentController.Run(ctx, a.config2.Operator.EnvironmentControllerThreads) })
-	g.Go(func() error { return deploymentController.Run(ctx, a.config2.Operator.DeploymentControllerThreads) })
-	g.Go(func() error { return jobController.Run(ctx, a.config2.Operator.JobControllerThreads) })
-	g.Go(func() error { return alertController.Run(ctx, a.config2.Operator.AlertControllerThreads) })
+	g.Go(func() error { return registrationController.Run(ctx, a.cfg.Operator.RegistrationControllerThreads) })
+	g.Go(func() error { return applicationController.Run(ctx, a.cfg.Operator.ApplicationControllerThreads) })
+	g.Go(func() error { return environmentController.Run(ctx, a.cfg.Operator.EnvironmentControllerThreads) })
+	g.Go(func() error { return deploymentController.Run(ctx, a.cfg.Operator.DeploymentControllerThreads) })
+	g.Go(func() error { return jobController.Run(ctx, a.cfg.Operator.JobControllerThreads) })
+	g.Go(func() error { return alertController.Run(ctx, a.cfg.Operator.AlertControllerThreads) })
 	g.Go(func() error { return batchController.Run(ctx, 1) })
-	g.Go(func() error { return dnsAliasesController.Run(ctx, a.config2.Operator.EnvironmentControllerThreads) })
+	g.Go(func() error { return dnsAliasesController.Run(ctx, a.cfg.Operator.EnvironmentControllerThreads) })
 	g.Go(func() error { return a.runSchedulers(ctx) })
 
 	// Informers must be started after all controllers are initialized
@@ -226,7 +222,7 @@ func (a *App) Run(ctx context.Context) error {
 	return g.Wait()
 }
 
-func initLogger(cfg config2.Config) {
+func initLogger(cfg config.Config) {
 	logLevelStr := cfg.Operator.LogLevel
 	if len(logLevelStr) == 0 {
 		logLevelStr = zerolog.LevelInfoValue
@@ -255,7 +251,7 @@ func (a *App) createRegistrationController(ctx context.Context) *common.Controll
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config2,
+		a.cfg,
 	)
 
 	return registration.NewController(ctx,
@@ -271,7 +267,7 @@ func (a *App) createApplicationController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		a.config2,
+		a.cfg,
 		a.eventRecorder,
 	)
 
@@ -288,8 +284,7 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		*a.config,
-		a.config2,
+		a.cfg,
 		a.eventRecorder,
 	)
 
@@ -307,8 +302,7 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.kubeUtil.RadixClient(),
 		a.dynamicClient,
 		a.eventRecorder,
-		*a.config,
-		a.config2,
+		a.cfg,
 	)
 
 	return dnsalias.NewController(
@@ -329,8 +323,7 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.dynamicClient,
 		a.certClient,
 		a.eventRecorder,
-		a.config,
-		a.config2,
+		a.cfg,
 	)
 
 	return deployment.NewController(ctx,
@@ -347,8 +340,7 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config,
-		a.config2)
+		a.cfg)
 
 	return job.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory)
 }
@@ -359,7 +351,7 @@ func (a *App) createAlertController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.dynamicClient,
 		a.eventRecorder,
-		a.config2,
+		a.cfg,
 	)
 
 	return alert.NewController(ctx, a.kubeUtil.KubeClient(), a.radixClient, handler, a.kubeInformerFactory, a.radixInformerFactory)
@@ -371,8 +363,7 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		*a.config,
-		a.config2,
+		a.cfg,
 	)
 
 	return batch.NewController(ctx,

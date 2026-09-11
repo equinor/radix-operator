@@ -13,7 +13,7 @@ import (
 
 func TestHorizontalScaleChangePDB(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
@@ -87,7 +87,7 @@ func TestHorizontalScaleChangePDB(t *testing.T) {
 
 func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
@@ -160,7 +160,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 
 func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
@@ -305,7 +305,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 
 func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
@@ -369,7 +369,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 
 func TestObjectSynced_UpdatePdb_HandlesChange(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"

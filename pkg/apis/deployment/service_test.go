@@ -168,9 +168,7 @@ func Test_garbageCollectServicesNoLongerInSpec(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tu, kubeclient, kubeUtil, _, _, _, _, _ := SetupTest(t)
-			defer TeardownTest()
-			_ = tu
+			_, kubeclient, kubeUtil, _, _, _, _, _ := SetupTest(t)
 
 			namespace := tt.rd.GetNamespace()
 			for _, svc := range tt.services {

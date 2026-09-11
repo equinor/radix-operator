@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
@@ -21,7 +21,7 @@ import (
 
 // GetEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
 // It requires service account having access to config map in default namespace.
-func GetEnvironmentVariablesForRadixOperator(ctx context.Context, kubeutil *kube.Kube, cfg config2.Config, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
+func GetEnvironmentVariablesForRadixOperator(ctx context.Context, kubeutil *kube.Kube, cfg config.Config, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
 	envVarsConfigMap, _, err := kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, radixDeployment.GetNamespace(), appName, deployComponent.GetName())
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func GetEnvironmentVariablesForRadixOperator(ctx context.Context, kubeutil *kube
 	return getEnvironmentVariables(appName, cfg, radixDeployment, deployComponent, envVarsConfigMap), nil
 }
 
-func getEnvironmentVariables(appName string, cfg config2.Config, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, cfg config.Config, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
 	var (
 		namespace          = radixDeployment.Namespace
 		currentEnvironment = radixDeployment.Spec.Environment
@@ -110,11 +110,11 @@ func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1
 	}
 }
 
-func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg config2.Config, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
+func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg config.Config, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 
-	envVarSet.Add(envvars.ComponentClusterType, cfg.Operator.ClusterType)
-	envVarSet.Add(envvars.ComponentContainerRegistry, cfg.Operator.ContainerRegistry)
+	envVarSet.Add(envvars.ComponentClusterType, cfg.Common.ClusterType)
+	envVarSet.Add(envvars.ComponentContainerRegistry, cfg.PipelineRunner.ContainerRegistry)
 	envVarSet.Add(envvars.ComponentDNSZone, cfg.Common.DNSZone)
 	envVarSet.Add(envvars.ComponentClusterName, cfg.Common.ClusterName)
 	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)

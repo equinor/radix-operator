@@ -28,7 +28,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e: generate
-	cd e2e && go test -v -p 1 -timeout 30m ./...
+	cd e2e && go test -count=1 -v -p 1 -timeout 30m ./...
 	# Note: -p 1 is used to run tests sequentially to allow printing logs sequentially
 
 .PHONY: mocks
@@ -206,14 +206,30 @@ lint-golangci: bootstrap
 lint-helm: bootstrap
 	helm lint ./charts/radix-operator \
 		--set rbac.createApp.groups[0]=platform-users \
-		--set ingress.gateway.name=radix \
-		--set ingress.gateway.namespace=istio
+ 		--set config.common.appAliasBaseURL=app.radix.example.com \
+		--set config.common.dnsZone=radix.example.com \
+		--set config.common.clusterName=mycluster \
+		--set config.common.clusterType=dev \
+		--set config.operator.azureKeyVaultTenantID=1234 \
+		--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer \
+		--set config.operator.gateway.name=radix \
+		--set config.operator.gateway.namespace=istio \
+		--set config.pipelineRunner.cacheContainerRegistry=cache.example.com \
+		--set config.pipelineRunner.containerRegistry=build.example.com
+		
 helm-render:
 	helm template ./charts/radix-operator \
 		--set rbac.createApp.groups[0]=platform-users \
-		--set ingress.gateway.name=radix \
-		--set ingress.gateway.namespace=istio
-
+		--set config.common.appAliasBaseURL=app.radix.example.com \
+		--set config.common.dnsZone=radix.example.com \
+		--set config.common.clusterName=mycluster \
+		--set config.common.clusterType=dev \
+		--set config.operator.azureKeyVaultTenantID=1234 \
+		--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer \
+		--set config.operator.gateway.name=radix \
+		--set config.operator.gateway.namespace=istio \
+		--set config.pipelineRunner.cacheContainerRegistry=cache.example.com \
+		--set config.pipelineRunner.containerRegistry=build.example.com
 
 .PHONY: generate
 generate: bootstrap code-gen helmresources mocks swagger

@@ -37,49 +37,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            # Maximum custom resources
-            - name: RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT
-              value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
-            - name: RADIX_PIPELINE_JOBS_HISTORY_LIMIT
-              value: {{ .Values.pipelineJobsHistoryLimit | quote }}
-            - name: RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT
-              value: {{ .Values.pipelineJobsHistoryPeriodLimit | quote }}
-            - name: LOG_LEVEL
-              value: {{ .Values.logLevel }}
-            - name: LOG_PRETTY
-              value: {{ .Values.logPretty | quote }}
-            - name: RADIXOPERATOR_TENANT_ID
-              value: {{ .Values.tenantId }}
-            - name: RADIXOPERATOR_JOB_AUX_IMAGE
-              value: {{ .Values.jobAux.image.repository }}:{{ .Values.jobAux.image.tag }}
-            - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE
-              value: {{ .Values.gitClone.image.repository }}:{{ .Values.gitClone.image.tag | default "latest" }}
-            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER
-              value: {{ .Values.ingress.certificate.automation.gatewayClusterIssuer }}
-            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION
-              value: {{ .Values.ingress.certificate.automation.duration }}
-            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE
-              value: {{ .Values.ingress.certificate.automation.renewBefore }}
-            - name: RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET
-              value: {{ .Values.externalRegistryDefaultAuthSecret }}
-            - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD
-              value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
-            - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
-              value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
-            - name: RADIXOPERATOR_PIPELINE_IMAGE
-              value: {{ .Values.radixPipelineRunner.image.repository }}:{{ .Values.radixPipelineRunner.image.tag | default .Chart.AppVersion }}
-            - name: RADIXOPERATOR_PIPELINE_IMAGE_PULL_POLICY
-              value: {{ .Values.radixPipelineRunner.image.pullPolicy | default "Always" }}
-
-            - name: RADIXOPERATOR_INGRESS_GATEWAY_NAME
-              value: {{ required "ingress.gateway.name is required to operate" .Values.ingress.gateway.name }}
-            - name: RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE
-              value: {{ required "ingress.gateway.namespace is required to operate" .Values.ingress.gateway.namespace }}
-            - name: RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME
-              value: {{ .Values.ingress.gateway.sectionName }}
-            - name: RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD
-              value: {{ .Values.safeToRestartBatchJobThreshold | quote }}
-
+            - name: RADIX_COMMON_CONFIG_NAME
+              value: {{ include "radix-common-config.name" . }}
+            - name: RADIX_COMMON_CONFIG_KEY
+              value: "configYaml"
           livenessProbe:
             httpGet:
               path: /healthz

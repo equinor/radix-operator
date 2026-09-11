@@ -11,7 +11,6 @@ import (
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -39,15 +38,14 @@ type Deployment struct {
 	registration        *v1.RadixRegistration
 	radixDeployment     *v1.RadixDeployment
 	auxResourceManagers []AuxiliaryResourceManager
-	config              *config.Config
-	config2             config2.Config
+	config              config.Config
 }
 
 // Test if NewDeploymentSyncer implements DeploymentSyncerFactory
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeploymentSyncer)
 
 // NewDeploymentSyncer Constructor
-func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, dynamicClient client.Client, certClient certclient.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, auxResourceManagers []AuxiliaryResourceManager, config *config.Config, config2 config2.Config) DeploymentSyncer {
+func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, dynamicClient client.Client, certClient certclient.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, auxResourceManagers []AuxiliaryResourceManager, config config.Config) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:          kubeclient,
 		radixclient:         radixclient,
@@ -58,7 +56,6 @@ func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, r
 		radixDeployment:     radixDeployment,
 		auxResourceManagers: auxResourceManagers,
 		config:              config,
-		config2:             config2,
 	}
 }
 
@@ -104,8 +101,8 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 		return fmt.Errorf("failed to sync deployment %s for application %s: %w", deploy.radixDeployment.Name, deploy.radixDeployment.Spec.AppName, err) //nolint:staticcheck
 	}
 
-	deploy.maintainHistoryLimit(ctx, deploy.config.DeploymentSyncer.DeploymentHistoryLimit)
-	return metrics.RequestedResources(deploy.config2, deploy.registration, deploy.radixDeployment)
+	deploy.maintainHistoryLimit(ctx, deploy.config.Operator.DeploymentHistoryLimit)
+	return metrics.RequestedResources(deploy.config, deploy.registration, deploy.radixDeployment)
 }
 
 func (deploy *Deployment) syncStatus(ctx context.Context, reconcileErr error) error {
@@ -194,7 +191,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 	}
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		ctx := log.Ctx(ctx).With().Str("jobComponent", jobComponent.Name).Logger().WithContext(ctx)
-		jobSchedulerComponent := internal.NewJobSchedulerComponent(deploy.config2, &jobComponent, deploy.radixDeployment)
+		jobSchedulerComponent := internal.NewJobSchedulerComponent(deploy.config, &jobComponent, deploy.radixDeployment)
 		if err := deploy.syncDeploymentForRadixComponent(ctx, jobSchedulerComponent); err != nil {
 			errs = append(errs, fmt.Errorf("failed to sync job %s: %w", jobSchedulerComponent.GetName(), err))
 		}

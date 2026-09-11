@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/operator/common"
-	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -29,8 +28,7 @@ type handler struct {
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 	events      common.SyncEventRecorder
-	config      *apiconfig.Config
-	config2     config2.Config
+	config      config.Config
 	jobHistory  job.History
 }
 
@@ -41,8 +39,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
 	eventRecorder record.EventRecorder,
-	config *apiconfig.Config,
-	config2 config2.Config,
+	config config.Config,
 	opts ...handlerOpts) Handler {
 
 	handler := &handler{
@@ -51,8 +48,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeutil:    kubeUtil,
 		events:      common.NewSyncEventRecorder(eventRecorder),
 		config:      config,
-		config2:     config2,
-		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.PipelineJobConfig.PipelineJobsHistoryLimit, config.PipelineJobConfig.PipelineJobsHistoryPeriodLimit),
+		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.Operator.PipelineJobsHistoryLimit, config.Operator.PipelineJobsHistoryPeriodLimit),
 	}
 	for _, opt := range opts {
 		opt(handler)
@@ -91,7 +87,7 @@ func (t *handler) Sync(ctx context.Context, namespace, jobName string) error {
 	logger.Debug().Msgf("Sync job %s", syncJob.Name)
 	ctx = logger.WithContext(ctx)
 
-	syncer := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, syncJob, t.config, t.config2)
+	syncer := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, syncJob, t.config)
 	if err = syncer.OnSync(ctx); err != nil {
 		t.events.RecordSyncErrorEvent(syncJob, err)
 		return err

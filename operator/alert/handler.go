@@ -5,7 +5,7 @@ import (
 
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/pkg/apis/alert"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,7 +32,7 @@ type handler struct {
 	kubeutil           *kube.Kube
 	alertSyncerFactory alert.AlertSyncerFactory
 	events             common.SyncEventRecorder
-	config2            config2.Config
+	config2            config.Config
 }
 
 // NewHandler Constructor
@@ -40,7 +40,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	dynamicClient client.Client,
 	eventRecorder record.EventRecorder,
-	config config2.Config,
+	config config.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	handler := &handler{

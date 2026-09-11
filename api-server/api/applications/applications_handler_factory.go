@@ -5,7 +5,7 @@ import (
 
 	"github.com/equinor/radix-operator/api-server/api/utils/access"
 	"github.com/equinor/radix-operator/api-server/internal/accounts"
-	"github.com/equinor/radix-operator/api-server/internal/config"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	authorizationapi "k8s.io/api/authorization/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -16,19 +16,19 @@ type ApplicationHandlerFactory interface {
 }
 
 type applicationHandlerFactory struct {
-	config config.Config
+	cfg config.Config
 }
 
 // NewApplicationHandlerFactory creates a new ApplicationHandlerFactory
 func NewApplicationHandlerFactory(config config.Config) ApplicationHandlerFactory {
 	return &applicationHandlerFactory{
-		config: config,
+		cfg: config,
 	}
 }
 
 // Create creates a new ApplicationHandler
 func (f *applicationHandlerFactory) Create(accounts accounts.Accounts) ApplicationHandler {
-	return NewApplicationHandler(accounts, f.config, hasAccessToGetConfigMap)
+	return NewApplicationHandler(accounts, f.cfg, hasAccessToGetConfigMap)
 }
 
 func hasAccessToGetConfigMap(ctx context.Context, kubeClient kubernetes.Interface, namespace, configMapName string) (bool, error) {

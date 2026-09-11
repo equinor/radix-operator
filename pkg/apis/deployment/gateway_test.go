@@ -7,7 +7,6 @@ import (
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -46,8 +45,7 @@ type GatewayTestSuite struct {
 	dynamicClient client.Client
 	certClient    *certfake.Clientset
 	testUtils     *test.Utils
-	cfg           *config.Config
-	cfg2          config2.Config
+	cfg           config.Config
 }
 
 func TestGatewayTestSuite(t *testing.T) {
@@ -74,22 +72,19 @@ func (s *GatewayTestSuite) setupTest() {
 	handlerTestUtils := test.NewTestUtils(s.kubeClient, radixClient, kedaClient, secretProviderClient)
 	s.Require().NoError(handlerTestUtils.CreateClusterPrerequisites())
 	s.testUtils = &handlerTestUtils
-	s.cfg = &config.Config{
-		DeploymentSyncer:      testConfig.DeploymentSyncer,
-		CertificateAutomation: testConfig.CertificateAutomation,
-		Gateway: config.GatewayConfig{
-			Name:        testGatewayName,
-			Namespace:   testGatewayNamespace,
-			SectionName: testGatewaySectionName,
-		},
-	}
-	s.cfg2 = config2.Config{
-		Common: config2.CommonConfig{
-			DNSZone:     testDNSZone,
-			ClusterName: testClusterName,
-		},
-		Operator: config2.OperatorConfig{
+	s.cfg = config.Config{
+		Common: config.CommonConfig{
+			DNSZone:         testDNSZone,
+			ClusterName:     testClusterName,
 			AppAliasBaseURL: testAppAliasBaseURL,
+		},
+		Operator: config.OperatorConfig{
+			Gateway: config.GatewayConfig{
+				Name:        testGatewayName,
+				Namespace:   testGatewayNamespace,
+				SectionName: testGatewaySectionName,
+			},
+			CertificateAutomation: testConfig.Operator.CertificateAutomation,
 		},
 	}
 }
@@ -105,7 +100,7 @@ func (s *GatewayTestSuite) applyDeploymentWithSync(deploymentBuilder utils.Deplo
 		return nil, err
 	}
 
-	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, s.cfg, s.cfg2)
+	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, s.cfg)
 	if err := syncer.OnSync(context.Background()); err != nil {
 		return nil, err
 	}

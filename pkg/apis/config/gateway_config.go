@@ -1,7 +1,7 @@
 package config
 
 type GatewayConfig struct {
-	Name        string `envconfig:"RADIXOPERATOR_INGRESS_GATEWAY_NAME" required:"true"`
-	Namespace   string `envconfig:"RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE" required:"true"`
-	SectionName string `envconfig:"RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME" required:"true"`
+	Name        string `json:"name" required:"true"`
+	Namespace   string `json:"namespace" required:"true"`
+	SectionName string `json:"sectionName" required:"true"`
 }

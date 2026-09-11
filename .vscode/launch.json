@@ -8,14 +8,9 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/webhook/main.go",
 			"env": {
-				"LOG_LEVEL": "info",
-				"LOG_PRETTY": "true",
-				"CERTS_DIR": "${workspaceFolder}/local/certs",
-
-				"REQUIRE_AD_GROUPS": "true",
-				"REQUIRE_CONFIGURATION_ITEM": "true",
-				"RADIX_RESERVED_APP_DNS_ALIASES": "canary:radix-canary-golang,console:radix-web-console,cost-api:radix-cost-allocation-api,webhook:radix-github-webhook",
-				"RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www,app,playground,dev,api"
+				"RADIXCONFIG_WEBHOOK_LOGLEVEL": "info",
+				"RADIXCONFIG_WEBHOOK_LOGPRETTYPRINT": "true",
+				"RADIXCONFIG_WEBHOOK_CERTSDIR": "${workspaceFolder}/local/certs",
 			}
 		},
 		{
@@ -46,7 +41,7 @@
 				// "--TO_ENVIRONMENT=dev",
 				// "--IMAGE_TAG_NAME=server=1.23-alpine-slim",
 				// "--IMAGE_TAG_NAME=server2=1.22.1-alpine-perl",
-				"--RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET=radix-external-registry-default-auth",
+				"--external-registry-auth-secret=radix-external-registry-default-auth",
 				"--RADIX_GITHUB_WORKSPACE=/workspace"
 			]
 		},
@@ -122,37 +117,9 @@
 			"program": "${workspaceFolder}/operator/main.go",
 			"env": {
 				"USE_PROFILER": "true",
-				"RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
-				"RADIX_APP_CONTAINER_REGISTRY": "radixdevapp.azurecr.io",
-				"RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.15.2",
-				"RADIXOPERATOR_JOB_AUX_IMAGE": "docker.io/bash:latest",
-				"RADIXOPERATOR_TENANT_ID": "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",
 				"KUBERNETES_SERVICE_PORT": "443",
-				"REGISTRATION_CONTROLLER_THREADS": "10",
-				"APPLICATION_CONTROLLER_THREADS": "10",
-				"ENVIRONMENT_CONTROLLER_THREADS": "10",
-				"DEPLOYMENT_CONTROLLER_THREADS": "10",
-				"JOB_CONTROLLER_THREADS": "10",
-				"ALERT_CONTROLLER_THREADS": "10",
-				"KUBE_CLIENT_RATE_LIMIT_QPS": "500",
-				"KUBE_CLIENT_RATE_LIMIT_BURST": "5",
-				"RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT": "10",
-				"RADIX_PIPELINE_JOBS_HISTORY_LIMIT": "5",
-				"RADIX_RESERVED_DNS_ALIASES": "grafana,prometheus,www",
-				"RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER": "letsencrypt-http01-gateway",
-				"RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION": "2160h",
-				"RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE": "720h",
-				"RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET": "radix-external-registry-default-auth",
-				"RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD": "30h",
-				"RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT": "24h",
-				"RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON": "0 0 * * *",
-				"LOG_LEVEL": "info",
-				"LOG_PRETTY": "true",
-				"RADIXOPERATOR_PIPELINE_IMAGE": "radixdev.azurecr.io/radix-pipeline:fix-commit-id-dev",
-				"RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE": "docker.io/alpine/git:2.45.2",
-				"RADIXOPERATOR_INGRESS_GATEWAY_NAME": "gateway",
-				"RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE": "istio-system",
-				"RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME": "https"
+				"RADIXCONFIG_OPERATOR_LOGLEVEL": "info",
+				"RADIXCONFIG_OPERATOR_LOGPRETTYPRINT": "true",
 			},
 			"args": ["--useOutClusterClient=false"]
 		},

@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-operator/operator/common"
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
@@ -25,7 +24,6 @@ type handler struct {
 	syncerFactory internal.SyncerFactory
 	events        common.SyncEventRecorder
 	config        config.Config
-	config2       config2.Config
 }
 
 // NewHandler creates a handler for managing RadixDNSAlias resources
@@ -35,7 +33,6 @@ func NewHandler(
 	dynamicClient client.Client,
 	eventRecorder record.EventRecorder,
 	config config.Config,
-	config2 config2.Config,
 	options ...HandlerConfigOption) common.Handler {
 
 	h := &handler{
@@ -45,7 +42,6 @@ func NewHandler(
 		syncerFactory: internal.SyncerFactoryFunc(dnsalias.NewSyncer),
 		events:        common.NewSyncEventRecorder(eventRecorder),
 		config:        config,
-		config2:       config2,
 	}
 
 	for _, option := range options {
@@ -78,7 +74,7 @@ func (h *handler) Sync(ctx context.Context, _, name string) error {
 
 	syncingAlias := radixDNSAlias.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)
-	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.radixClient, h.dynamicClient, h.config, h.config2)
+	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.radixClient, h.dynamicClient, h.config)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		h.events.RecordSyncErrorEvent(syncingAlias, err)

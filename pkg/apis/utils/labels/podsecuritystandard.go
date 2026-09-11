@@ -1,12 +1,12 @@
 package labels
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 )
 
 // PodSecurityStandardFromConfig builds pod security standard labels for a namespace.
-func PodSecurityStandardFromConfig(cfg config2.PodSecurityStandardPolicyConfig) kubelabels.Set {
+func PodSecurityStandardFromConfig(cfg config.PodSecurityStandardPolicyConfig) kubelabels.Set {
 	labels := make(kubelabels.Set)
 	if cfg.Enforce.Level != "" && cfg.Enforce.Version != "" {
 		labels["pod-security.kubernetes.io/enforce"] = cfg.Enforce.Level

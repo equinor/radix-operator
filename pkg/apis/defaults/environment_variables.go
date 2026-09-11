@@ -1,15 +1,6 @@
 package defaults
 
 const (
-	// DeploymentsHistoryLimitEnvironmentVariable Controls the number of RDs we can have in a environment
-	DeploymentsHistoryLimitEnvironmentVariable = "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT"
-
-	// PipelineJobsHistoryLimitEnvironmentVariable Controls the number of RJs should exist in an app namespace, per groups by environment and status
-	PipelineJobsHistoryLimitEnvironmentVariable = "RADIX_PIPELINE_JOBS_HISTORY_LIMIT"
-
-	// PipelineJobsHistoryPeriodLimitEnvironmentVariable Controls how long an RJ should exist in an app namespace, per groups by environment and status
-	PipelineJobsHistoryPeriodLimitEnvironmentVariable = "RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT"
-
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
 
@@ -61,17 +52,8 @@ const (
 	// RadixPipelineJobTriggeredFromWebhookEnvironmentVariable Indicates that the pipeline job was triggered from a webhook
 	RadixPipelineJobTriggeredFromWebhookEnvironmentVariable = "TRIGGERED_FROM_WEBHOOK"
 
-	// RadixPromoteSourceDeploymentCommitHashEnvironmentVariable Git commit hash of source deployment in promote jobs
-	RadixPromoteSourceDeploymentCommitHashEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_COMMIT_HASH"
-
-	// RadixPromoteSourceDeploymentBranchEnvironmentVariable Git branch of source deployment in promote jobs
-	RadixPromoteSourceDeploymentBranchEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_BRANCH"
-
 	// RadixImageTagNameEnvironmentVariable Image tag name for Radix application components
 	RadixImageTagNameEnvironmentVariable = "IMAGE_TAG_NAME"
-
-	// RadixJobAuxImageEnvironmentVariable specifies the name and tag of the job aux image
-	RadixJobAuxImageEnvironmentVariable = "RADIXOPERATOR_JOB_AUX_IMAGE"
 
 	// RadixConfigFileEnvironmentVariable Path to a radixconfig.yaml
 	// to be loaded from Radix application config branch
@@ -101,67 +83,14 @@ const (
 	// RadixGitRefTypeEnvironmentVariable When the pipeline job should be built from branch, tag or any specified in GIT_REF: tag, branch or empty
 	RadixGitRefTypeEnvironmentVariable = "GIT_REF_TYPE"
 
-	// RadixConfigBranchEnvironmentVariable Branch of the Radix application config
-	RadixConfigBranchEnvironmentVariable = "RADIX_CONFIG_BRANCH"
-
 	// RadixCommitIdEnvironmentVariable Commit ID of the Radix application to process in a pipeline
 	RadixCommitIdEnvironmentVariable = "COMMIT_ID"
 
 	// RadixPipelineTypeEnvironmentVariable Pipeline type
 	RadixPipelineTypeEnvironmentVariable = "PIPELINE_TYPE"
 
-	// RadixPipelineTargetEnvironmentsVariable Pipeline target environments
-	RadixPipelineTargetEnvironmentsVariable = "TARGET_ENVIRONMENTS"
-
-	// RadixPipelineActionEnvironmentVariable Pipeline action: prepare, run
-	RadixPipelineActionEnvironmentVariable = "RADIX_PIPELINE_ACTION"
-
 	RadixPipelineApplyConfigDeployExternalDNSFlag = "APPLY_CONFIG_DEPLOY_EXTERNALDNS"
-
-	// OperatorTenantIdEnvironmentVariable Tenant-id of the subscription
-	OperatorTenantIdEnvironmentVariable = "RADIXOPERATOR_TENANT_ID"
-
-	// KubernetesApiPortEnvironmentVariable Port which the K8s API server listens to for HTTPS
-	KubernetesApiPortEnvironmentVariable = "KUBERNETES_SERVICE_PORT"
-
-	// LogLevel Log level: ERROR, WARN, INFO (default), DEBUG
-	LogLevel = "LOG_LEVEL"
-
-	RadixCertificateAutomationGatewayClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER"
-
-	// RadixCertificateAutomationDurationVariable Defines duration for certificates issued by cluster issuer
-	RadixCertificateAutomationDurationVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION"
-
-	// RadixCertificateAutomationRenewBeforeVariable Defines renew_before for certificates issued by cluster issuer
-	RadixCertificateAutomationRenewBeforeVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE"
-
-	// RadixPipelineImageEnvironmentVariable Radix pipeline image tag
-	RadixPipelineImageEnvironmentVariable = "RADIXOPERATOR_PIPELINE_IMAGE"
-
-	// RadixGitCloneGitImageEnvironmentVariable The container image containing git, used in pipeline git clone init containers
-	RadixGitCloneGitImageEnvironmentVariable = "RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE"
-
-	// RadixExternalRegistryDefaultAuthEnvironmentVariable Name of the secret containing default credentials for external container registries.
-	// Used when pulling images for components and jobs and for pulling images in Dockerfiles when building with buildah.
-	RadixExternalRegistryDefaultAuthEnvironmentVariable = "RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET"
-
-	// RadixOrphanedEnvironmentsRetentionPeriodVariable The duration for which orphaned environments are retained
-	RadixOrphanedEnvironmentsRetentionPeriodVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD"
-
-	// RadixOrphanedEnvironmentsCleanupCronVariable The cron expression for cleaning up orphaned environments
-	RadixOrphanedEnvironmentsCleanupCronVariable = "RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON"
 
 	// RadixGithubWorkspaceEnvironmentVariable Path to a cloned GitHub repository
 	RadixGithubWorkspaceEnvironmentVariable = "RADIX_GITHUB_WORKSPACE"
-
-	// RadixIngressGatewayNameVariable The name of the gateway to use for ingress
-	RadixIngressGatewayNameVariable = "RADIXOPERATOR_INGRESS_GATEWAY_NAME"
-
-	// RadixIngressGatewayNamespaceVariable The namespace of the gateway to use for ingress
-	RadixIngressGatewayNamespaceVariable = "RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE"
-
-	RadixIngressGatewaySectionNameVariable = "RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME"
-
-	// RadixSafeToRestartBatchJobThresholdVariable Threshold in seconds for determining cluster-autoscaler safe-to-evict annotation on batch jobs
-	RadixSafeToRestartBatchJobThresholdVariable = "RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD"
 )

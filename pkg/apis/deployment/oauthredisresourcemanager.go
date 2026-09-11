@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -30,26 +30,24 @@ const (
 )
 
 // NewOAuthRedisResourceManager creates a new RedisResourceManager
-func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, cfg config2.Config, externalRegistryAuthSecret string) AuxiliaryResourceManager {
+func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, cfg config.Config) AuxiliaryResourceManager {
 	return &oauthRedisResourceManager{
-		rd:                         rd,
-		rr:                         rr,
-		kubeutil:                   kubeutil,
-		oauthRedisDockerImage:      cfg.Common.OAuth2Proxy.RedisImage.String(),
-		externalRegistryAuthSecret: externalRegistryAuthSecret,
-		logger:                     log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth-redis").Logger(),
-		config2:                    cfg,
+		rd:                    rd,
+		rr:                    rr,
+		kubeutil:              kubeutil,
+		oauthRedisDockerImage: cfg.Common.OAuth2Proxy.RedisImage.String(),
+		logger:                log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth-redis").Logger(),
+		config2:               cfg,
 	}
 }
 
 type oauthRedisResourceManager struct {
-	rd                         *v1.RadixDeployment
-	rr                         *v1.RadixRegistration
-	kubeutil                   *kube.Kube
-	oauthRedisDockerImage      string
-	externalRegistryAuthSecret string
-	logger                     zerolog.Logger
-	config2                    config2.Config
+	rd                    *v1.RadixDeployment
+	rr                    *v1.RadixRegistration
+	kubeutil              *kube.Kube
+	oauthRedisDockerImage string
+	logger                zerolog.Logger
+	config2               config.Config
 }
 
 func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
@@ -243,8 +241,8 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 	}
 
 	var imagePullSecrets []corev1.LocalObjectReference
-	if o.externalRegistryAuthSecret != "" {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: o.externalRegistryAuthSecret})
+	if o.config2.Common.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: o.config2.Common.ExternalRegistryAuthSecret})
 	}
 
 	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy

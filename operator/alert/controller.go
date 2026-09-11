@@ -90,7 +90,7 @@ func NewController(ctx context.Context,
 			newRr := newObj.(*radixv1.RadixRegistration)
 			oldRr := oldObj.(*radixv1.RadixRegistration)
 
-			// If neither admin nor reader AD groups change, this
+			// If neither admin nor reader groups change, this
 			// does not affect the alert
 			if slice.ElementsMatch(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
 				slice.ElementsMatch(newRr.Spec.AdUsers, oldRr.Spec.AdUsers) &&

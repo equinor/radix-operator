@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -22,7 +22,7 @@ type Application struct {
 	radixclient  radixclient.Interface
 	kubeutil     *kube.Kube
 	registration *v1.RadixRegistration
-	config2      config2.Config
+	config2      config.Config
 }
 
 // NewApplication Constructor
@@ -31,7 +31,7 @@ func NewApplication(
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	registration *v1.RadixRegistration,
-	config2 config2.Config) Application {
+	config2 config.Config) Application {
 
 	return Application{
 		kubeclient:   kubeclient,

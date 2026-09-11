@@ -44,7 +44,7 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 	if component.IsPublic() {
 		// HTTPRoute for external dns is reconciled in externaldns.go, so filter out those
 		hosts = slice.FindAll(
-			getComponentDNSInfo(component, *deploy.radixDeployment, deploy.config2.Common.ClusterName, deploy.config2.Common.DNSZone, deploy.config2.Operator.AppAliasBaseURL),
+			getComponentDNSInfo(component, *deploy.radixDeployment, deploy.config.Common.ClusterName, deploy.config.Common.DNSZone, deploy.config.Common.AppAliasBaseURL),
 			func(host dnsInfo) bool { return host.dnsType != dnsTypeExternal })
 	}
 
@@ -65,9 +65,9 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 		parentRefs := []gatewayapiv1.ParentReference{{
 			Group:       new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
 			Kind:        new(gatewayapiv1.Kind("Gateway")),
-			Name:        gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
-			Namespace:   new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
-			SectionName: new(gatewayapiv1.SectionName(deploy.config.Gateway.SectionName)),
+			Name:        gatewayapiv1.ObjectName(deploy.config.Operator.Gateway.Name),
+			Namespace:   new(gatewayapiv1.Namespace(deploy.config.Operator.Gateway.Namespace)),
+			SectionName: new(gatewayapiv1.SectionName(deploy.config.Operator.Gateway.SectionName)),
 		}}
 
 		route.Labels = kubelabels.Merge(route.Labels, labels.ForComponentGatewayResources(deploy.registration.Name, component))

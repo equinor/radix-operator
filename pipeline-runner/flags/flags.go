@@ -1,17 +1,21 @@
 package flags
 
 const (
-	ClusterName          = "cluster-name"
-	ClusterType          = "cluster-type"
-	ContainerRegistry    = "container-registry"
-	AppContainerRegistry = "app-container-registry"
+	ClusterName            = "cluster-name"
+	ClusterType            = "cluster-type"
+	ContainerRegistry      = "container-registry"
+	CacheContainerRegistry = "cache-container-registry"
 
 	BuilderResourcesLimitsCPU      = "builder-resources-limits-cpu"
 	BuilderResourcesLimitsMemory   = "builder-resources-limits-memory"
 	BuilderResourcesRequestsCPU    = "builder-resources-requests-cpu"
 	BuilderResourcesRequestsMemory = "builder-resources-requests-memory"
 
-	BuilderImage = "builder-image"
+	BuilderImage  = "builder-image"
+	GitCloneImage = "git-clone-image"
 
 	BuilderSeccompProfileLocalHostProfile = "builder-seccomp-profile-localhost-profile"
+
+	ExternalRegistryAuthSecret = "external-registry-auth-secret"
+	LogLevel                   = "log-level"
 )

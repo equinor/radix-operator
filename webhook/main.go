@@ -14,9 +14,8 @@ import (
 	"github.com/rs/zerolog"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
-	internalconfig "github.com/equinor/radix-operator/webhook/internal/config"
 	"github.com/equinor/radix-operator/webhook/validation"
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
 	"github.com/rs/zerolog/log"
@@ -31,24 +30,23 @@ import (
 
 func main() {
 	ctx := signals.SetupSignalHandler()
-	c := internalconfig.MustParseConfig()
-	cfg2 := loadConfig(ctx)
-	logger := initLogger(c)
-	logger.Info().Str("version", internalconfig.Version).Msg("Starting Radix Webhook")
-	logger.Info().Interface("config", c).Msg("Configuration")
+	cfg := loadConfig(ctx)
+	logger := initLogger(cfg)
+	logger.Info().Str("version", Version).Msg("Starting Radix Webhook")
+	logger.Info().Interface("config", cfg).Msg("Configuration")
 
 	logger.Info().Msg("setting up manager")
 	mgr, err := manager.New(k8sconfig.GetConfigOrDie(), manager.Options{
 		Scheme:                 scheme.NewScheme(),
 		Logger:                 initLogr(logger),
 		LeaderElection:         false,
-		HealthProbeBindAddress: fmt.Sprintf(":%d", c.HealthPort),
+		HealthProbeBindAddress: fmt.Sprintf(":%d", cfg.Webhook.HealthPort),
 		WebhookServer: webhook.NewServer(webhook.Options{
-			Port:    c.Port,
-			CertDir: c.CertsDir,
+			Port:    cfg.Webhook.Port,
+			CertDir: cfg.Webhook.CertsDir,
 		}),
 		Metrics: server.Options{
-			BindAddress: fmt.Sprintf(":%d", c.MetricsPort),
+			BindAddress: fmt.Sprintf(":%d", cfg.Webhook.MetricsPort),
 		},
 	})
 
@@ -56,9 +54,9 @@ func main() {
 		logger.Fatal().Err(err).Msg("unable to set up overall controller manager")
 	}
 
-	certSetupFinished := addCertRotator(mgr, c)
+	certSetupFinished := addCertRotator(mgr, cfg)
 	addProbeEndpoints(mgr, certSetupFinished)
-	go setupWebhook(mgr, c, cfg2, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
+	go setupWebhook(mgr, cfg, certSetupFinished) // blocks until cert rotation is finished (requires manager to start)
 
 	logger.Info().Msg("starting manager")
 	if err := mgr.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -67,44 +65,44 @@ func main() {
 	logger.Info().Msg("shutting down")
 }
 
-func loadConfig(ctx context.Context) config2.Config {
+func loadConfig(ctx context.Context) config.Config {
 	cfgClient, err := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create config reader client")
 	}
-	cfgYaml := config2.MustEnvConfigMapReader(ctx, cfgClient)
-	return config2.MustParse(cfgYaml)
+	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
+	return config.MustParse(cfgYaml)
 }
 
-func setupWebhook(mgr manager.Manager, c internalconfig.Config, cfg2 config2.Config, certSetupFinished <-chan struct{}) {
+func setupWebhook(mgr manager.Manager, cfg config.Config, certSetupFinished <-chan struct{}) {
 	<-certSetupFinished
 	log.Debug().Msg("Configuring webhook...")
-	validation.SetupWebhook(mgr, c, cfg2)
+	validation.SetupWebhook(mgr, cfg)
 	log.Info().Msg("webhook setup complete")
 }
 
-func addCertRotator(mgr manager.Manager, c internalconfig.Config) <-chan struct{} {
+func addCertRotator(mgr manager.Manager, cfg config.Config) <-chan struct{} {
 	log.Info().Msg("setting up cert rotation")
 	setupFinished := make(chan struct{})
 
-	if !c.DisableCertRotation {
+	if !cfg.Webhook.DisableCertRotation {
 		err := rotator.AddRotator(mgr, &rotator.CertRotator{
 			SecretKey: types.NamespacedName{
-				Namespace: c.SecretNamespace,
-				Name:      c.SecretName,
+				Namespace: cfg.Webhook.SecretNamespace,
+				Name:      cfg.Webhook.SecretName,
 			},
-			CAName:                 c.CaName,
-			CAOrganization:         c.CaOrganization,
-			CertDir:                c.CertsDir,
+			CAName:                 cfg.Webhook.CAName,
+			CAOrganization:         cfg.Webhook.CAOrganization,
+			CertDir:                cfg.Webhook.CertsDir,
 			RestartOnSecretRefresh: true,
-			DNSName:                c.DnsName,
-			ExtraDNSNames:          c.ExtraDnsNames,
+			DNSName:                cfg.Webhook.DNSName,
+			ExtraDNSNames:          cfg.Webhook.ExtraDNSNames,
 			IsReady:                setupFinished,
 			RequireLeaderElection:  false,
 			EnableReadinessCheck:   true,
 			Webhooks: []rotator.WebhookInfo{
 				{
-					Name: c.WebhookConfigurationName,
+					Name: cfg.Webhook.ValidatingWebhookConfigurationName,
 					Type: rotator.Validating,
 				},
 			},
@@ -153,9 +151,9 @@ func addProbeEndpoints(mgr manager.Manager, certSetupFinished <-chan struct{}) {
 	mgr.GetLogger().Info("added healthz and readyz check")
 }
 
-func initLogger(cfg internalconfig.Config) zerolog.Logger {
+func initLogger(cfg config.Config) zerolog.Logger {
 	zerolog.TimeFieldFormat = time.RFC3339
-	logLevelStr := cfg.LogLevel
+	logLevelStr := cfg.Webhook.LogLevel
 	if len(logLevelStr) == 0 {
 		logLevelStr = zerolog.LevelInfoValue
 	}
@@ -167,7 +165,7 @@ func initLogger(cfg internalconfig.Config) zerolog.Logger {
 	}
 
 	var logWriter io.Writer = os.Stderr
-	if cfg.LogPrettyPrint {
+	if cfg.Webhook.LogPrettyPrint {
 		logWriter = &zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
 	}
 

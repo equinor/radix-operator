@@ -1,0 +1,176 @@
+common:
+  dnsZone: dev.local.radix.equinor.com
+  clusterName: test-cluster
+  clusterType: "development"
+  appAliasBaseURL: "app.dev.radix.equinor.com"
+  externalRegistryAuthSecret: anyExternalAuth
+  oauth2Proxy:
+    proxyImage:
+      tag: v7.6.2
+      repository: quay.io/oauth2-proxy/oauth2-proxy
+    redisImage:
+      tag: v8.6.0
+      repository: docker.io/redis
+    proxyDefaults:
+      scope: "openid profile email"
+      proxyPrefix: "/oauth2"
+      setXAuthRequestHeaders: false
+      setAuthorizationHeader: false
+      sessionStoreType: cookie
+      cookie:
+        name: "_oauth2_proxy"
+        expire: "168h0m0s"
+        refresh: "60m0s"
+        sameSite: "lax"
+      oidc:
+        issuerUrl: "https://issuer.com"
+        skipDiscovery: false
+pipelineRunner:
+  containerRegistry: "any.registry.com"
+  cacheContainerRegistry: "app.registry.com"
+  builder:
+    resources:
+      limits:
+        memory: 500M
+        cpu: 2000m
+      requests:
+        memory: 500M
+        cpu: 200m
+    image:
+      repository: ghcr.io/equinor/radix/buildkit-builder
+      tag: v3.4.5
+    seccompProfileLocalhostProfile: "anyseccomp.json"
+  gitCloneImage:
+    repository: ghcr.io/equinor/radix-git-clone
+    tag: v1.0.0
+operator:
+  logLevel: info
+  logPrettyPrint: true
+  registrationControllerThreads: 1
+  applicationControllerThreads: 2
+  environmentControllerThreads: 3
+  deploymentControllerThreads: 4
+  jobControllerThreads: 5
+  alertControllerThreads: 6
+  kubeClientRateLimitBurst: 100
+  kubeClientRateLimitQPS: 50.5
+  readinessProbeInitialDelaySeconds: 5
+  readinessProbePeriodSeconds: 10
+  defaultRollingUpdateMaxUnavailable: 25%
+  defaultRollingUpdateMaxSurge: 35%
+  defaultAppAdminGroups:
+    - "default-app-admin-group1"
+    - "default-app-admin-group2"
+  appNsLimitRange:
+    defaultMemory: 500M
+    defaultRequestMemory: 450M
+    defaultRequestCPU: 100m
+  envNsLimitRange:
+    defaultMemory: 555M
+    defaultRequestMemory: 444M
+    defaultRequestCPU: 111m
+  jobSchedulerImage:
+    repository: ghcr.io/equinor/radix-job-scheduler
+    tag: v1.2.3
+  jobSchedulerAuxImage:
+    repository: docker.io/bash
+    tag: "latest"
+  batchSafeToRestartJobThreshold: 1234
+  azureKeyVaultTenantID: any-tenant-id
+  kubernetesAPIPort: 443
+  podSecurityStandard:
+    appNamespace:
+      enforce:
+        level: "app-enforce-level"
+        version: "app-enforce-version"
+      audit:
+        level: "app-audit-level"
+        version: "app-audit-version"
+      warn:
+        level: "app-warn-level"
+        version: "app-warn-version"
+    envNamespace:
+      enforce:
+        level: "env-enforce-level"
+        version: "env-enforce-version"
+      audit:
+        level: "env-audit-level"
+        version: "env-audit-version"
+      warn:
+        level: "env-warn-level"
+        version: "env-warn-version"
+  deploymentHistoryLimit: 10
+  certificateAutomation:
+    gatewayClusterIssuer: "any-cluster-issuer"
+    duration: 8760h
+    renewBefore: 720h
+  gateway:
+    name: "gateway"
+    namespace: "istio-system"
+    sectionName: "https"
+  orphanedEnvironmentsRetentionPeriod: 720h
+  orphanedEnvironmentsCleanupCron: "0 0 * * *"
+  pipelineJobsHistoryLimit: 5
+  pipelineJobsHistoryPeriodLimit: "720h"
+
+  pipelineImage:
+    repository: ghcr.io/equinor/radix-pipeline
+    tag: v1.0.0
+  pipelineImagePullPolicy: "Always"
+
+webhook:
+  logLevel: info
+  logPrettyPrint: false
+  port: 9443
+  metricsPort: 9000
+  healthPort: 9440
+
+  requireGroups: true
+  requireConfigurationItem: true
+
+  reservedAppDNSAliases:
+    canary: radix-canary-golang
+    console: radix-web-console
+    cost-api: radix-cost-allocation-api
+    www: radix-public-site
+  reservedDNSAliases:
+    - grafana
+    - prometheus
+    - app
+    - playground
+    - dev
+    - api
+    - webhook
+  secretName: radix-webhook-certs
+  secretNamespace: "default" # Default to release namespace
+  disableCertRotation: false
+  dnsName: "radix-webhook.example.svc"
+  caName: radix-webhook-ca
+  caOrganization: "Radix Webhook CA"
+  certsDir: "/run/certs"
+  extraDnsNames: ["helloworld.example.svc"]
+  validatingWebhookConfigurationName: radix-webhook-configuration
+
+apiServer:
+  port: 3002
+  metricsPort: 9090
+  profilerPort: 7070
+  useProfiler: true
+  logLevel: info
+  logPrettyPrint: true
+  clusterEgressIPs:
+    - IP1
+    - IP2
+    - IP3
+  clusterOidcIssuers:
+    - Issuer1
+    - Issuer2
+    - Issuer3
+  azureOidc:
+    issuer: "https://fakeissuer.com"
+    audience: "fakeAudience"
+  kubernetesOidc:
+    issuer: "https://fakeissuer.com"
+    audience: "fakeAudience"
+  prometheusUrl: "https://prometheus.example.com"
+  podNamespace: "fakePodNamespace"
