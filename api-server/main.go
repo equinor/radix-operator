@@ -91,17 +91,17 @@ func loadConfig(ctx context.Context) config.Config {
 }
 
 func initializeTokenValidator(c config.Config) token.ValidatorInterface {
-	azureValidator, err := token.NewValidator(c.ApiServer.AzureOidc.Issuer, c.ApiServer.AzureOidc.Audience)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error creating JWT Azure OIDC validator")
+	var validators []token.ValidatorInterface
+
+	for k, a := range c.ApiServer.Authenticators {
+		v, err := token.NewValidator(a.Issuer, a.Audience)
+		if err != nil {
+			log.Fatal().Err(err).Str("authenticator", k).Msg("Error creating JWT OIDC validator")
+		}
+		validators = append(validators, v)
 	}
 
-	kubernetesValidator, err := token.NewValidator(c.ApiServer.KubernetesOidc.Issuer, c.ApiServer.KubernetesOidc.Audience)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error creating JWT Kubernetes OIDC validator")
-	}
-
-	chainedValidator := token.NewChainedValidator(azureValidator, kubernetesValidator)
+	chainedValidator := token.NewChainedValidator(validators...)
 	return chainedValidator
 }
 

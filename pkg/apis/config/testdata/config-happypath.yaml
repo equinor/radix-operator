@@ -166,11 +166,12 @@ apiServer:
     - Issuer1
     - Issuer2
     - Issuer3
-  azureOidc:
-    issuer: "https://fakeissuer.com"
-    audience: "fakeAudience"
-  kubernetesOidc:
-    issuer: "https://fakeissuer.com"
-    audience: "fakeAudience"
+  authenticators:
+    azure:
+      issuer: "https://fakeissuer.com"
+      audience: "fakeAudience"
+    kubernetes:
+      issuer: "https://fakeissuer.com"
+      audience: "fakeAudience"
   prometheusUrl: "https://prometheus.example.com"
   podNamespace: "fakePodNamespace"

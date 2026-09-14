@@ -172,9 +172,9 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/api-server/main.go",
 			"env": {
-				"POD_NAMESPACE": "radix-system",
+				"POD_NAMESPACE": "default",
 				"KUBERNETES_SERVICE_PORT": "443",
-				"RADIXCONFIG_APISERVER_LOGLEVEL": "info",
+				"RADIXCONFIG_APISERVER_LOGLEVEL": "debug",
 				"RADIXCONFIG_APISERVER_LOGPRETTYPRINT": "true",
 				"RADIXCONFIG_APISERVER_PROMETHEUSURL": "http://localhost:9091"
 			}

@@ -243,13 +243,15 @@ func TestParse_HappyPath(t *testing.T) {
 			LogPrettyPrint:     true,
 			ClusterEgressIps:   []string{"IP1", "IP2", "IP3"},
 			ClusterOidcIssuers: []string{"Issuer1", "Issuer2", "Issuer3"},
-			AzureOidc: config.OidcConfig{
-				Issuer:   MustParseUrl("https://fakeissuer.com"),
-				Audience: "fakeAudience",
-			},
-			KubernetesOidc: config.OidcConfig{
-				Issuer:   MustParseUrl("https://fakeissuer.com"),
-				Audience: "fakeAudience",
+			Authenticators: map[string]config.OidcAuthenticatorConfig{
+				"azure": {
+					Issuer:   MustParseUrl("https://fakeissuer.com"),
+					Audience: "fakeAudience",
+				},
+				"kubernetes": {
+					Issuer:   MustParseUrl("https://fakeissuer.com"),
+					Audience: "fakeAudience",
+				},
 			},
 			PrometheusUrl: MustParseUrl("https://prometheus.example.com"),
 			PodNamespace:  "fakePodNamespace",
@@ -272,7 +274,7 @@ func TestParse_EnvOverride(t *testing.T) {
 func TestParse_EnvMacro(t *testing.T) {
 	t.Setenv("TEST_KUBERNETES_API_PORT", "6443")
 
-	configYaml := strings.ReplaceAll(configHappyYaml, "kubernetesAPIPort: 443", `kubernetesAPIPort: "$__env(TEST_KUBERNETES_API_PORT)"`)
+	configYaml := strings.ReplaceAll(configHappyYaml, "kubernetesAPIPort: 443", `kubernetesAPIPort: $__env(TEST_KUBERNETES_API_PORT)`)
 
 	cfg, err := config.Parse(configYaml)
 
