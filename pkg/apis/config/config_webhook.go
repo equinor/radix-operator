@@ -17,7 +17,7 @@ type WebhookConfig struct {
 	CAName                             string   `json:"caName" required:"true"`
 	CAOrganization                     string   `json:"caOrganization" required:"true"`
 	DNSName                            string   `json:"dnsName" required:"true"`
-	ExtraDNSNames                      []string `json:"extraDnsNames" required:"true"`
+	ExtraDNSNames                      []string `json:"extraDnsNames"`
 	ValidatingWebhookConfigurationName string   `json:"validatingWebhookConfigurationName" required:"true"`
 
 	ReservedDNSAliases    []string          `json:"reservedDNSAliases"`
