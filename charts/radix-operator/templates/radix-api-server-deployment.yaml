@@ -12,6 +12,8 @@ spec:
       {{- include "radix-api-server.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/radix-common-config: {{ include (print $.Template.BasePath "/radix-common-config.yaml") . | sha256sum }}
       labels:
         {{- include "radix-api-server.selectorLabels" . | nindent 8 }}
     spec:
