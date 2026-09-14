@@ -48,7 +48,7 @@ func main() {
 
 	setupLogger(c.ApiServer.LogLevel, c.ApiServer.LogPrettyPrint)
 
-	log.Info().Any("config", c).Any("config", c).Msg("Starting radix api-server")
+	log.Info().Any("config", c).Msg("Starting radix api-server")
 
 	servers := []*http.Server{
 		initializeServer(c),
