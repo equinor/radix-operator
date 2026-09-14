@@ -243,13 +243,15 @@ func TestParse_HappyPath(t *testing.T) {
 			LogPrettyPrint:     true,
 			ClusterEgressIps:   []string{"IP1", "IP2", "IP3"},
 			ClusterOidcIssuers: []string{"Issuer1", "Issuer2", "Issuer3"},
-			AzureOidc: config.OidcConfig{
-				Issuer:   MustParseUrl("https://fakeissuer.com"),
-				Audience: "fakeAudience",
-			},
-			KubernetesOidc: config.OidcConfig{
-				Issuer:   MustParseUrl("https://fakeissuer.com"),
-				Audience: "fakeAudience",
+			Authenticators: map[string]config.OidcAuthenticatorConfig{
+				"azure": {
+					Issuer:   MustParseUrl("https://fakeissuer.com"),
+					Audience: "fakeAudience",
+				},
+				"kubernetes": {
+					Issuer:   MustParseUrl("https://fakeissuer.com"),
+					Audience: "fakeAudience",
+				},
 			},
 			PrometheusUrl: MustParseUrl("https://prometheus.example.com"),
 			PodNamespace:  "fakePodNamespace",
@@ -272,13 +274,54 @@ func TestParse_EnvOverride(t *testing.T) {
 func TestParse_EnvMacro(t *testing.T) {
 	t.Setenv("TEST_KUBERNETES_API_PORT", "6443")
 
-	configYaml := strings.ReplaceAll(configHappyYaml, "kubernetesAPIPort: 443", `kubernetesAPIPort: "$__env(TEST_KUBERNETES_API_PORT)"`)
+	configYaml := strings.ReplaceAll(configHappyYaml, "kubernetesAPIPort: 443", `kubernetesAPIPort: $__env(TEST_KUBERNETES_API_PORT)`)
 
 	cfg, err := config.Parse(configYaml)
 
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	assert.Equal(t, int32(6443), cfg.Operator.KubernetesAPIPort)
+}
+
+func TestParse_AuthenticatorsValidation(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"one entry should pass": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{
+					"azure": {
+						Issuer:   MustParseUrl("https://fakeissuer.com"),
+						Audience: "fakeAudience",
+					},
+				}
+			},
+		},
+		"zero entries should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{}
+			},
+			expectedError: `field "ApiServer.Authenticators" did not pass validation expression`,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := mutateConfig(t, test.mutateConfig)
+
+			cfg, err := config.Parse(configYaml)
+			if test.expectedError == "" {
+				require.NoError(t, err)
+				assert.NotNil(t, cfg)
+				return
+			}
+
+			require.Error(t, err)
+			assert.Nil(t, cfg)
+			assert.ErrorContains(t, err, test.expectedError)
+		})
+	}
 }
 
 // Only slice fields are comma separated, a scalar keeps the value as it is.

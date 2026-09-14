@@ -8,6 +8,9 @@
 {{- $_ := required "config.operator.certificateAutomation.gatewayClusterIssuer is required" .Values.config.operator.certificateAutomation.gatewayClusterIssuer -}}
 {{- $_ := required "config.pipelineRunner.cacheContainerRegistry is required" .Values.config.pipelineRunner.cacheContainerRegistry -}}
 {{- $_ := required "config.pipelineRunner.containerRegistry is required" .Values.config.pipelineRunner.containerRegistry -}}
+{{- if le (len (.Values.config.apiServer.authenticators | default dict)) 0 }}
+{{- fail "apiServer.authenticators must have at least one entry" }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

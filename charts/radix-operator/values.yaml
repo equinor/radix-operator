@@ -160,12 +160,11 @@ config:
     logPrettyPrint: false
     clusterEgressIps: []
     clusterOidcIssuers: []
-    azureOidc:
-      issuer: ""
-      audience: ""
-    kubernetesOidc:
-      issuer: ""
-      audience: ""
+
+    authenticators:
+    #  azure:
+    #    issuer: ""
+    #    audience: ""
     prometheusUrl: ""
     podNamespace: "$__env(POD_NAMESPACE)"
 
@@ -242,8 +241,6 @@ seccompProfile:
         memory: 10Mi
 
 radixApiServer:
-
-
   image:
     repository: ghcr.io/equinor/radix/api-server
     # Overrides the image tag whose default is the chart appVersion.

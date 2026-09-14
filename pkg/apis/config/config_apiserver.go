@@ -13,13 +13,12 @@ type ApiServerConfig struct {
 	ClusterEgressIps   []string `json:"clusterEgressIps" required:"true"`
 	ClusterOidcIssuers []string `json:"clusterOidcIssuers" required:"true"`
 
-	AzureOidc      OidcConfig `json:"azureOidc" required:"true"`
-	KubernetesOidc OidcConfig `json:"kubernetesOidc" required:"true"`
-	PrometheusUrl  url.URL    `json:"prometheusUrl" required:"true"`
-	PodNamespace   string     `json:"podNamespace" required:"true"`
+	Authenticators map[string]OidcAuthenticatorConfig `json:"authenticators" required:"true" validate:"size(self) > 0"`
+	PrometheusUrl  url.URL                            `json:"prometheusUrl" required:"true"`
+	PodNamespace   string                             `json:"podNamespace" required:"true"`
 }
 
-type OidcConfig struct {
+type OidcAuthenticatorConfig struct {
 	Issuer   url.URL `json:"issuer" required:"true"`
 	Audience string  `json:"audience" required:"true"`
 }
