@@ -47,15 +47,15 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 	)
 
 	args := model.PipelineArguments{
-		AppName:                "anyappname",
-		PipelineType:           "anypipelinetype",
-		JobName:                "anyjobname",
-		GitRef:                 gitRefName,
-		GitRefType:             "tag",
-		CommitID:               "anycommitid",
-		ImageTag:               "anyimagetag",
-		PushImage:              pushImage,
-		BuildKitImageBuilder:   "docker.io/anyimagebuilder",
+		AppName:      "anyappname",
+		PipelineType: "anypipelinetype",
+		JobName:      "anyjobname",
+		GitRef:       gitRefName,
+		GitRefType:   "tag",
+		CommitID:     "anycommitid",
+		ImageTag:     "anyimagetag",
+		PushImage:    pushImage,
+
 		GitCloneGitImage:       "anygitcloneimage",
 		Clustertype:            "anyclustertype",
 		Clustername:            "anyclustername",
@@ -63,7 +63,13 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 		AppContainerRegistry:   "anyappcontainerregistry",
 		SeccompProfileFileName: "anyseccompprofilefile",
 		ExternalContainerRegistryDefaultAuthSecret: externalRegistrySecret,
-		Builder:      model.Builder{ResourcesLimitsMemory: "100M", ResourcesRequestsCPU: "50m", ResourcesRequestsMemory: "50M", ResourcesLimitsCPU: "50m"},
+		Builder: model.Builder{
+			Image:                   "docker.io/anyimagebuilder",
+			ResourcesLimitsMemory:   "100M",
+			ResourcesRequestsCPU:    "50m",
+			ResourcesRequestsMemory: "50M",
+			ResourcesLimitsCPU:      "50m",
+		},
 		GitWorkspace: gitWorkspace,
 	}
 	require.Equal(t, pushImage, args.PushImage)
@@ -182,7 +188,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			require.Len(t, job.Spec.Template.Spec.Containers, 1)
 			c := job.Spec.Template.Spec.Containers[0]
 			assert.Equal(t, ci.ContainerName, c.Name)
-			assert.Equal(t, args.BuildKitImageBuilder, c.Image)
+			assert.Equal(t, args.Builder.Image, c.Image)
 			assert.Equal(t, corev1.PullAlways, c.ImagePullPolicy)
 			expectedResources := corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{

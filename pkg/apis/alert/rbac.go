@@ -83,7 +83,7 @@ func (syncer *alertSyncer) reconcileAdminAccessToAlertConfigSecret(ctx context.C
 	// create rolebinding
 	rb := &rbacv1.RoleBinding{ObjectMeta: v1.ObjectMeta{Name: roleName, Namespace: namespace}}
 	op, err = controllerutil.CreateOrUpdate(ctx, syncer.dynamicClient, rb, func() error {
-		subjects := utils.GetAppAdminRbacSubjects(rr)
+		subjects := utils.GetAppAdminRbacSubjects(syncer.config2, rr)
 		rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, r.Labels)
 		rb.RoleRef = rolebinding.RoleRef
 		rb.Subjects = rolebinding.Subjects

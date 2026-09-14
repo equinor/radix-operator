@@ -1,15 +1,6 @@
 package defaults
 
 const (
-	// OperatorDNSZoneEnvironmentVariable The DNS zone used fro creating ingress of the cluster
-	OperatorDNSZoneEnvironmentVariable = "DNS_ZONE"
-
-	// OperatorAppAliasBaseURLEnvironmentVariable The base url for any app alias of the cluster
-	OperatorAppAliasBaseURLEnvironmentVariable = "APP_ALIAS_BASE_URL"
-
-	// OperatorClusterTypeEnvironmentVariable The type of cluster dev|playground|prod
-	OperatorClusterTypeEnvironmentVariable = "RADIXOPERATOR_CLUSTER_TYPE"
-
 	// DeploymentsHistoryLimitEnvironmentVariable Controls the number of RDs we can have in a environment
 	DeploymentsHistoryLimitEnvironmentVariable = "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT"
 
@@ -18,15 +9,6 @@ const (
 
 	// PipelineJobsHistoryPeriodLimitEnvironmentVariable Controls how long an RJ should exist in an app namespace, per groups by environment and status
 	PipelineJobsHistoryPeriodLimitEnvironmentVariable = "RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT"
-
-	// ClusternameEnvironmentVariable The name of the cluster
-	ClusternameEnvironmentVariable = "RADIX_CLUSTERNAME"
-
-	// ContainerRegistryEnvironmentVariable The name of the container registry
-	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
-
-	// AppContainerRegistryEnvironmentVariable The name of the app container registry
-	AppContainerRegistryEnvironmentVariable = "RADIX_APP_CONTAINER_REGISTRY"
 
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
@@ -49,15 +31,6 @@ const (
 	// RadixPortNamesEnvironmentVariable The environment variable holding the available port names of the component
 	RadixPortNamesEnvironmentVariable = "RADIX_PORT_NAMES"
 
-	// RadixDNSZoneEnvironmentVariable The environment variable on a radix app giving the dns zone. Will be equal to OperatorDNSZoneEnvironmentVariable
-	RadixDNSZoneEnvironmentVariable = "RADIX_DNS_ZONE"
-
-	// RadixZoneEnvironmentVariable The environment variable on a radix app giving the radix zone.
-	RadixZoneEnvironmentVariable = "RADIX_ZONE"
-
-	// RadixClusterTypeEnvironmentVariable The type of cluster dev|playground|prod. Will be equal to OperatorClusterTypeEnvironmentVariable
-	RadixClusterTypeEnvironmentVariable = "RADIX_CLUSTER_TYPE"
-
 	// RadixCommitHashEnvironmentVariable Contains the commit id of the build
 	RadixCommitHashEnvironmentVariable = "RADIX_GIT_COMMIT_HASH"
 
@@ -69,9 +42,6 @@ const (
 
 	// RadixRestartEnvironmentVariable Environment variable to indicate that a restart was triggered
 	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
-
-	// OperatorRadixJobSchedulerEnvironmentVariable Points to the image used to deploy job scheduler REST API for RD jobs
-	OperatorRadixJobSchedulerEnvironmentVariable = "RADIXOPERATOR_JOB_SCHEDULER_IMAGE"
 
 	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
 	RadixDeploymentEnvironmentVariable = "RADIX_DEPLOYMENT"
@@ -99,15 +69,6 @@ const (
 
 	// RadixImageTagNameEnvironmentVariable Image tag name for Radix application components
 	RadixImageTagNameEnvironmentVariable = "IMAGE_TAG_NAME"
-
-	// RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable Default OIDC issuer URL for OAuth Proxy
-	RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable = "RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL"
-
-	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
-	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
-
-	// RadixOAuthRedisImageEnvironmentVariable specifies the name and tag of the OAuth Redis image
-	RadixOAuthRedisImageEnvironmentVariable = "RADIX_OAUTH_REDIS_IMAGE"
 
 	// RadixJobAuxImageEnvironmentVariable specifies the name and tag of the job aux image
 	RadixJobAuxImageEnvironmentVariable = "RADIXOPERATOR_JOB_AUX_IMAGE"
@@ -165,33 +126,6 @@ const (
 
 	// LogLevel Log level: ERROR, WARN, INFO (default), DEBUG
 	LogLevel = "LOG_LEVEL"
-
-	// PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable Pod Security Standard enforce level for app namespaces
-	PodSecurityStandardAppNamespaceEnforceLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_APP_NAMESPACE_ENFORCE_LEVEL"
-
-	// PodSecurityStandardEnforceLevelEnvironmentVariable Pod Security Standard enforce level for environment namespaces
-	PodSecurityStandardEnforceLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL"
-
-	// PodSecurityStandardEnforceVersionEnvironmentVariable Pod Security Standard enforce version for app and environment namespaces
-	PodSecurityStandardEnforceVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_VERSION"
-
-	// PodSecurityStandardAuditLevelEnvironmentVariable Pod Security Standard audit level for app and environment namespaces
-	PodSecurityStandardAuditLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_LEVEL"
-
-	// PodSecurityStandardAuditVersionEnvironmentVariable Pod Security Standard audit version for app and environment namespaces
-	PodSecurityStandardAuditVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_VERSION"
-
-	// PodSecurityStandardWarnLevelEnvironmentVariable Pod Security Standard warn level for app and environment namespaces
-	PodSecurityStandardWarnLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_LEVEL"
-
-	// PodSecurityStandardWarnVersionEnvironmentVariable Pod Security Standard warn version for app and environment namespaces
-	PodSecurityStandardWarnVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION"
-
-	// SeccompProfileFileNameEnvironmentVariable Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory
-	SeccompProfileFileNameEnvironmentVariable = "SECCOMP_PROFILE_FILENAME"
-
-	// RadixBuildKitImageBuilderEnvironmentVariable Repository and tag for the buildkit image builder
-	RadixBuildKitImageBuilderEnvironmentVariable = "RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE"
 
 	RadixCertificateAutomationGatewayClusterIssuerVariable = "RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER"
 

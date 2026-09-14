@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -68,11 +68,12 @@ type Validator struct {
 
 var _ genericvalidator.Validator[*radixv1.RadixApplication] = &Validator{}
 
-func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, reservedDNSAppAliases map[string]string) *Validator {
+func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, reservedDNSAppAliases map[string]string, cfg config2.Config) *Validator {
 	onlineValidators := []validatorFunc{
 		createRRExistValidator(client),
 		createDNSAliasAvailableValidator(client, reservedDNSAliases, reservedDNSAppAliases),
 		createNamespaceUsableValidator(client),
+		createComponentAuthenticationValidator(cfg),
 	}
 
 	return &Validator{
@@ -322,8 +323,6 @@ func componentValidator(ctx context.Context, app *radixv1.RadixApplication) ([]s
 			errs = append(errs, err)
 		}
 
-		errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
-
 		if err := validateRuntime(component.GetRuntime()); err != nil {
 			errs = append(errs, err)
 		}
@@ -559,36 +558,6 @@ func validateMonitoring(component radixv1.RadixCommonComponent) error {
 	}
 
 	return fmt.Errorf("component %s: %w", component.GetName(), ErrMonitoringNamedPortNotFound)
-}
-
-func validateAuthentication(component *radixv1.RadixComponent, environments []radixv1.Environment) []error {
-	componentAuth := component.Authentication
-	envAuthConfigGetter := func(name string) *radixv1.Authentication {
-		for _, envConfig := range component.EnvironmentConfig {
-			if envConfig.Environment == name {
-				return envConfig.Authentication
-			}
-		}
-		return nil
-	}
-
-	var errs []error
-	for _, environment := range environments {
-		environmentAuth := envAuthConfigGetter(environment.Name)
-		if componentAuth == nil && environmentAuth == nil {
-			continue
-		}
-		combinedAuth, err := deployment.GetAuthenticationForComponent(componentAuth, environmentAuth)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if combinedAuth == nil {
-			continue
-		}
-
-		errs = append(errs, validateOAuth(combinedAuth.OAuth2, component, environment.Name)...)
-	}
-	return errs
 }
 
 func componentHasPublicPort(component *radixv1.RadixComponent) bool {

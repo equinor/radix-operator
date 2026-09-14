@@ -187,16 +187,12 @@ func (b *componentBuilder) WithComponent(component radixv1.RadixCommonDeployComp
 	}
 
 	if auth := component.GetAuthentication(); auth != nil && auth.OAuth2 != nil && component.IsPublic() {
-		oauth2, err := defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()).MergeWith(auth.OAuth2)
-		if err != nil {
-			b.errors = append(b.errors, err)
-		}
 		if !auth.OAuth2.GetUseAzureIdentity() {
 			b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2ClientSecret)
 		}
 		b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2CookieSecret)
 
-		if oauth2.SessionStoreType == radixv1.SessionStoreRedis {
+		if auth.OAuth2.SessionStoreType == radixv1.SessionStoreRedis {
 			b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2RedisPassword)
 		}
 	}

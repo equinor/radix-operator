@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/operator/dnsalias/internal"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/config2"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
@@ -20,14 +19,13 @@ import (
 
 // Handler Handler for radix dns aliases
 type handler struct {
-	kubeClient          kubernetes.Interface
-	radixClient         radixclient.Interface
-	dynamicClient       client.Client
-	syncerFactory       internal.SyncerFactory
-	events              common.SyncEventRecorder
-	config              config.Config
-	config2             config2.Config
-	oauth2DefaultConfig defaults.OAuth2Config
+	kubeClient    kubernetes.Interface
+	radixClient   radixclient.Interface
+	dynamicClient client.Client
+	syncerFactory internal.SyncerFactory
+	events        common.SyncEventRecorder
+	config        config.Config
+	config2       config2.Config
 }
 
 // NewHandler creates a handler for managing RadixDNSAlias resources
@@ -66,13 +64,6 @@ func WithSyncerFactory(factory internal.SyncerFactory) HandlerConfigOption {
 	}
 }
 
-// WithOAuth2DefaultConfig configures default OAuth2 settings
-func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOption {
-	return func(h *handler) {
-		h.oauth2DefaultConfig = oauth2Config
-	}
-}
-
 // Sync is called by kubernetes after the Controller Enqueues a work-item
 func (h *handler) Sync(ctx context.Context, _, name string) error {
 	radixDNSAlias, err := h.radixClient.RadixV1().RadixDNSAliases().Get(ctx, name, v1.GetOptions{})
@@ -87,7 +78,7 @@ func (h *handler) Sync(ctx context.Context, _, name string) error {
 
 	syncingAlias := radixDNSAlias.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync RadixDNSAlias %s", name)
-	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.radixClient, h.dynamicClient, h.config, h.config2, h.oauth2DefaultConfig)
+	syncer := h.syncerFactory.CreateSyncer(syncingAlias, h.radixClient, h.dynamicClient, h.config, h.config2)
 	err = syncer.OnSync(ctx)
 	if err != nil {
 		h.events.RecordSyncErrorEvent(syncingAlias, err)

@@ -640,3 +640,22 @@ func TestRadixRegistrationEmptyAppIDNotUnique(t *testing.T) {
 	require.NoError(t, err)
 	t.Log("Successfully created multiple RadixRegistrations without AppID")
 }
+
+// TestRadixRegistrationRequiresAdGroups tests that a RadixRegistration cannot be created without admin groups
+func TestRadixRegistrationRequiresAdGroups(t *testing.T) {
+	c := getClient(t)
+
+	rr := &v1.RadixRegistration{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-require-adgroups"},
+		Spec: v1.RadixRegistrationSpec{
+			CloneURL:          "git@github.com:equinor/test-require-adgroups.git",
+			ConfigBranch:      "main",
+			ConfigurationItem: "test-item",
+		},
+	}
+
+	err := c.Create(t.Context(), rr, client.DryRunAll)
+
+	require.Error(t, err, "Should not allow creating a RadixRegistration without adGroups")
+	assert.Contains(t, err.Error(), "ad group is required")
+}

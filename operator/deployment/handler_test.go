@@ -12,7 +12,6 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -52,7 +51,20 @@ func (s *handlerSuite) SetupTest() {
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
 	s.config = &config.Config{ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: "anysecret"}} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
-	s.config2 = config2.Config{}
+	s.config2 = config2.Config{
+		Common: config2.CommonConfig{
+			OAuth2Proxy: config2.OAuth2ProxyConfig{
+				RedisImage: config2.ContainerImage{
+					Repository: "redis",
+					Tag:        "123",
+				},
+				ProxyImage: config2.ContainerImage{
+					Repository: "oauth2-proxy",
+					Tag:        "456",
+				},
+			},
+		},
+	}
 	s.eventRecorder = &record.FakeRecorder{}
 }
 
@@ -146,11 +158,6 @@ func (s *handlerSuite) Test_Sync() {
 		s.NoError(err)
 	})
 	s.Run("active RD with existing RR calls factory with expected args", func() {
-		const (
-			oauthProxyImage = "oauth:123"
-			oauthRedisImage = "redis:123"
-		)
-		oauthConfig := defaults.NewOAuth2Config()
 
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
@@ -159,15 +166,15 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, oauthProxyImage, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, oauthRedisImage, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, s.config2, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, s.config2, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
 		}
 		factory.
 			EXPECT().
 			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, activeRd, gomock.Eq(expectedAuxResources), s.config, gomock.Any()).
 			Return(syncer).
 			Times(1)
-		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, s.config2, WithDeploymentSyncerFactory(factory), WithOAuth2ProxyDockerImage(oauthProxyImage), WithOAuth2RedisDockerImage(oauthRedisImage), WithOAuth2DefaultConfig(oauthConfig))
+		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, s.config2, WithDeploymentSyncerFactory(factory))
 		err := h.Sync(context.Background(), namespace, activeRdName)
 		s.NoError(err)
 	})

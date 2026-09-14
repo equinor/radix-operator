@@ -33,7 +33,6 @@ test-e2e: generate
 
 .PHONY: mocks
 mocks: bootstrap
-	mockgen -source ./pkg/apis/defaults/oauth2.go -destination ./pkg/apis/defaults/oauth2_mock.go -package defaults
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/deployment_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/auxiliaryresourcemanager.go -destination ./pkg/apis/deployment/auxiliaryresourcemanager_mock.go -package deployment
@@ -209,6 +208,12 @@ lint-helm: bootstrap
 		--set rbac.createApp.groups[0]=platform-users \
 		--set ingress.gateway.name=radix \
 		--set ingress.gateway.namespace=istio
+helm-render:
+	helm template ./charts/radix-operator \
+		--set rbac.createApp.groups[0]=platform-users \
+		--set ingress.gateway.name=radix \
+		--set ingress.gateway.namespace=istio
+
 
 .PHONY: generate
 generate: bootstrap code-gen helmresources mocks swagger

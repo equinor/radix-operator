@@ -66,7 +66,7 @@ func (app *ApplicationConfig) deleteDNSAliasesClusterRoleAndBinding(ctx context.
 func (app *ApplicationConfig) grantAppAdminAccessToDNSAliases(ctx context.Context) error {
 	roleName := app.getAppAdminAccessToDNSAliasClusterRoleName()
 	verbs := []string{"get", "list", "watch"}
-	subjects := utils.GetAppAdminRbacSubjects(app.registration)
+	subjects := utils.GetAppAdminRbacSubjects(app.config2, app.registration)
 
 	if err := app.createOrUpdateDNSAliasClusterRoleAndBinding(ctx, roleName, verbs, subjects); err != nil {
 		return fmt.Errorf("failed to grant app admin access to DNSAlias: %w", err)
@@ -246,7 +246,7 @@ func (app *ApplicationConfig) grantAppAdminAccessToBuildSecrets(ctx context.Cont
 		return err
 	}
 
-	rolebinding := rolebindingAppAdminToBuildSecrets(app.GetRadixRegistration(), role)
+	rolebinding := rolebindingAppAdminToBuildSecrets(app.config2, app.GetRadixRegistration(), role)
 	return app.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 

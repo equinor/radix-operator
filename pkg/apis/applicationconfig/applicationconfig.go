@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
@@ -26,17 +27,19 @@ type ApplicationConfig struct {
 	kubeutil     *kube.Kube
 	registration *radixv1.RadixRegistration
 	config       *radixv1.RadixApplication
+	config2      config2.Config
 	logger       zerolog.Logger
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication) *ApplicationConfig {
+func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, config2 config2.Config) *ApplicationConfig {
 	return &ApplicationConfig{
 		kubeclient:   kubeclient,
 		radixclient:  radixclient,
 		kubeutil:     kubeutil,
 		registration: registration,
 		config:       config,
+		config2:      config2,
 		logger:       log.Logger.With().Str("resource_kind", radixv1.KindRadixApplication).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
 	}
 }

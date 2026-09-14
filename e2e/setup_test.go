@@ -220,7 +220,11 @@ func TestMain(m *testing.M) {
 
 	// Install Helm chart with custom image tags
 	helmValues := map[string]string{
-		"clusterName":                           "weekly-e2e",
+		"config.operator.containerRegistry":     "local-kind-repo",
+		"config.operator.appContainerRegistry":  "local-kind-repo",
+		"config.operator.clusterType":           "test",
+		"config.common.clusterName":             "weekly-e2e",
+		"config.common.dnsZone":                 "radix.example.com",
 		"rbac.createApp.groups[0]":              "123",
 		"image.pullPolicy":                      "IfNotPresent",
 		"radixPipelineRunner.image.pullPolicy":  "IfNotPresent",

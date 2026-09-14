@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -29,14 +30,15 @@ const (
 )
 
 // NewOAuthRedisResourceManager creates a new RedisResourceManager
-func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2RedisDockerImage, externalRegistryAuthSecret string) AuxiliaryResourceManager {
+func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, cfg config2.Config, externalRegistryAuthSecret string) AuxiliaryResourceManager {
 	return &oauthRedisResourceManager{
 		rd:                         rd,
 		rr:                         rr,
 		kubeutil:                   kubeutil,
-		oauthRedisDockerImage:      oauth2RedisDockerImage,
+		oauthRedisDockerImage:      cfg.Common.OAuth2Proxy.RedisImage.String(),
 		externalRegistryAuthSecret: externalRegistryAuthSecret,
 		logger:                     log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth-redis").Logger(),
+		config2:                    cfg,
 	}
 }
 
@@ -47,6 +49,7 @@ type oauthRedisResourceManager struct {
 	oauthRedisDockerImage      string
 	externalRegistryAuthSecret string
 	logger                     zerolog.Logger
+	config2                    config2.Config
 }
 
 func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
@@ -224,21 +227,15 @@ func (o *oauthRedisResourceManager) getCurrentAndDesiredDeployment(ctx context.C
 	if err != nil && !kubeerrors.IsNotFound(err) {
 		return nil, nil, err
 	}
-	desiredDeployment, err := o.getDesiredDeployment(component)
-	if err != nil {
-		return nil, nil, err
-	}
+	desiredDeployment := o.getDesiredDeployment(component)
 
 	return currentDeployment, desiredDeployment, nil
 }
 
-func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
+func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) *appsv1.Deployment {
 	componentName := component.GetName()
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
-	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(v1.OAuthRedisPortNumber)
-	if err != nil {
-		return nil, err
-	}
+	readinessProbe := getReadinessProbeWithDefaultsFromEnv(o.config2, v1.OAuthRedisPortNumber)
 
 	var replicas int32 = 1
 	if isComponentStopped(component) || component.HasZeroReplicas() {
@@ -319,7 +316,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 		},
 	}
 	oauthutil.MergeAuxOAuthRedisComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component) //nolint:staticcheck
-	return desiredDeployment, nil
+	return desiredDeployment
 }
 
 func (o *oauthRedisResourceManager) getEmptyDirVolume(name string) corev1.Volume {
