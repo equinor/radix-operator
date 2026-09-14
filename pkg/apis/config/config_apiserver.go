@@ -10,7 +10,7 @@ type ApiServerConfig struct {
 	LogLevel       string `json:"logLevel" required:"true"`
 	LogPrettyPrint bool   `json:"logPrettyPrint"`
 
-	ClusterEgressIps   []string `json:"clusterEgressIPs" required:"true"`
+	ClusterEgressIps   []string `json:"clusterEgressIps" required:"true"`
 	ClusterOidcIssuers []string `json:"clusterOidcIssuers" required:"true"`
 
 	AzureOidc      OidcConfig `json:"azureOidc" required:"true"`

@@ -158,7 +158,7 @@ apiServer:
   useProfiler: true
   logLevel: info
   logPrettyPrint: true
-  clusterEgressIPs:
+  clusterEgressIps:
     - IP1
     - IP2
     - IP3
