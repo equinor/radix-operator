@@ -65,7 +65,6 @@ func createAppNameLengthValidator() validatorFunc {
 	}
 }
 
-// RequireAdGroups validates that AdGroups contains minimum one item
 func createRequireGroupsValidator(required bool) validatorFunc {
 	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
 		if len(rr.Spec.AdGroups) == 0 && required {
