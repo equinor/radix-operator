@@ -174,22 +174,21 @@ func validateAzureKeyVaultAzureIdentity(component radixv1.RadixCommonComponent, 
 	return nil
 }
 
-// azureKeyVaultsUsingAzureIdentityForEnvironment returns the names of Azure Key Vaults with an effective
-// useAzureIdentity enabled for the environment, applying environment overrides over the common config.
+// azureKeyVaultsUsingAzureIdentityForEnvironment returns the names of Azure Key Vaults with resolved useAzureIdentity enabled for the environment, applying environment overrides over the common config.
 func azureKeyVaultsUsingAzureIdentityForEnvironment(component radixv1.RadixCommonComponent, envConfig radixv1.RadixCommonEnvironmentConfig) []string {
-	effectiveUseAzureIdentity := make(map[string]*bool)
+	resolvedUseAzureIdentity := make(map[string]*bool)
 	for _, azureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
-		effectiveUseAzureIdentity[azureKeyVault.Name] = azureKeyVault.UseAzureIdentity
+		resolvedUseAzureIdentity[azureKeyVault.Name] = azureKeyVault.UseAzureIdentity
 	}
 	if envConfig != radixv1.RadixCommonEnvironmentConfig(nil) {
 		for _, azureKeyVault := range envConfig.GetSecretRefs().AzureKeyVaults {
-			if _, exists := effectiveUseAzureIdentity[azureKeyVault.Name]; !exists || azureKeyVault.UseAzureIdentity != nil {
-				effectiveUseAzureIdentity[azureKeyVault.Name] = azureKeyVault.UseAzureIdentity
+			if _, exists := resolvedUseAzureIdentity[azureKeyVault.Name]; !exists || azureKeyVault.UseAzureIdentity != nil {
+				resolvedUseAzureIdentity[azureKeyVault.Name] = azureKeyVault.UseAzureIdentity
 			}
 		}
 	}
 	var names []string
-	for name, useAzureIdentity := range effectiveUseAzureIdentity {
+	for name, useAzureIdentity := range resolvedUseAzureIdentity {
 		if useAzureIdentity != nil && *useAzureIdentity {
 			names = append(names, name)
 		}
