@@ -13,9 +13,9 @@ const (
 
 func (app *Application) createLimitRangeOnAppNamespace(ctx context.Context) error {
 	namespace := utils.GetAppNamespace(app.registration.Name)
-	defaultMemoryLimit := app.config2.Operator.AppNsLimitRange.DefaultMemory
-	defaultCPURequest := app.config2.Operator.AppNsLimitRange.DefaultRequestCPU
-	defaultMemoryRequest := app.config2.Operator.AppNsLimitRange.DefaultRequestMemory
+	defaultMemoryLimit := app.cfg.Operator.AppNsLimitRange.DefaultMemory
+	defaultCPURequest := app.cfg.Operator.AppNsLimitRange.DefaultRequestCPU
+	defaultMemoryRequest := app.cfg.Operator.AppNsLimitRange.DefaultRequestMemory
 
 	// If not all limits are defined, then don't put any limits on namespace
 	if defaultMemoryLimit == nil || defaultCPURequest == nil || defaultMemoryRequest == nil {

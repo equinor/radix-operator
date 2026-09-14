@@ -98,7 +98,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	}
 }
 
-func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBuilder, jobBuilder utils.JobBuilder, config2 config.Config) (*radixv1.RadixJob, *radixv1.RadixRegistration, error) {
+func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBuilder, jobBuilder utils.JobBuilder, cfg config.Config) (*radixv1.RadixJob, *radixv1.RadixRegistration, error) {
 	rj, err := s.testUtils.ApplyJob(jobBuilder)
 	if err != nil {
 		return nil, nil, err
@@ -109,7 +109,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBu
 		return nil, nil, err
 	}
 
-	err = s.runSync(rr, rj, config2)
+	err = s.runSync(rr, rj, cfg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1059,15 +1059,15 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 
 	for name, scenario := range scenarios {
 		s.Run(name, func() {
-			config2 := s.cfg
-			config2.Operator.PipelineJobsHistoryLimit = scenario.jobsHistoryLimit
+			cfg := s.cfg
+			cfg.Operator.PipelineJobsHistoryLimit = scenario.jobsHistoryLimit
 			testTime := time.Now().Add(time.Hour * -100)
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				_, err := s.testUtils.ApplyDeployment(context.Background(), utils.ARadixDeployment().
 					WithAppName(appName).WithDeploymentName(rdJob.rdName).WithEnvironment(rdJob.env).WithJobName(rdJob.jobName).
 					WithActiveFrom(testTime))
 				s.NoError(err)
-				err = s.applyJobWithSyncFor(rrBuilder, raBuilder, appName, rdJob, config2)
+				err = s.applyJobWithSyncFor(rrBuilder, raBuilder, appName, rdJob, cfg)
 				s.Require().NoError(err)
 
 				testTime = testTime.Add(time.Hour)
@@ -1078,7 +1078,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 				WithEnvironment(scenario.testingRadixDeploymentJob.env).
 				WithActiveFrom(testTime))
 			s.NoError(err)
-			err = s.applyJobWithSyncFor(rrBuilder, raBuilder, appName, scenario.testingRadixDeploymentJob, config2)
+			err = s.applyJobWithSyncFor(rrBuilder, raBuilder, appName, scenario.testingRadixDeploymentJob, cfg)
 			s.Require().NoError(err)
 
 			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})

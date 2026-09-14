@@ -11,7 +11,7 @@ import (
 func (app *ApplicationConfig) syncStatus(ctx context.Context, reconcileErr error) error {
 	err := app.updateStatus(ctx, func(currStatus *radixv1.RadixApplicationStatus) {
 		currStatus.Reconciled = metav1.Now()
-		currStatus.ObservedGeneration = app.config.Generation
+		currStatus.ObservedGeneration = app.application.Generation
 
 		if reconcileErr != nil {
 			currStatus.ReconcileStatus = radixv1.RadixApplicationReconcileFailed
@@ -29,12 +29,12 @@ func (app *ApplicationConfig) syncStatus(ctx context.Context, reconcileErr error
 }
 
 func (app *ApplicationConfig) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixApplicationStatus)) error {
-	updateObj := app.config.DeepCopy()
+	updateObj := app.application.DeepCopy()
 	changeStatusFunc(&updateObj.Status)
 	updateObj, err := app.radixclient.RadixV1().RadixApplications(updateObj.GetNamespace()).UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	app.config = updateObj
+	app.application = updateObj
 	return nil
 }

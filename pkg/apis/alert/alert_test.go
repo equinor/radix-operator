@@ -36,7 +36,7 @@ func testAlertSyncerWithAlertConfigs(configs AlertConfigs) testAlertSyncerConfig
 type alertTestSuite struct {
 	suite.Suite
 	dynamicClient client.Client
-	config2       config.Config
+	cfg           config.Config
 }
 
 func TestAlertTestSuite(t *testing.T) {
@@ -53,7 +53,7 @@ func (s *alertTestSuite) createAlertSyncer(alert *radixv1.RadixAlert, options ..
 		radixAlert:           alert,
 		slackMessageTemplate: slackMessageTemplate{},
 		alertConfigs:         AlertConfigs{},
-		config2:              config.Config{},
+		cfg:                  config.Config{},
 	}
 
 	for _, f := range options {
@@ -69,7 +69,7 @@ func (s *alertTestSuite) getRadixAlertAsOwnerReference(radixAlert *radixv1.Radix
 
 func (s *alertTestSuite) Test_New() {
 	ral := &radixv1.RadixAlert{}
-	syncer := New(s.config2, s.dynamicClient, ral)
+	syncer := New(s.cfg, s.dynamicClient, ral)
 	sut := syncer.(*alertSyncer)
 	s.NotNil(sut)
 	s.Equal(s.dynamicClient, sut.dynamicClient)

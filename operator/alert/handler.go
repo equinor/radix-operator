@@ -32,7 +32,7 @@ type handler struct {
 	kubeutil           *kube.Kube
 	alertSyncerFactory alert.AlertSyncerFactory
 	events             common.SyncEventRecorder
-	config2            config.Config
+	cfg                config.Config
 }
 
 // NewHandler Constructor
@@ -49,7 +49,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeutil:           kubeutil,
 		alertSyncerFactory: alert.AlertSyncerFactoryFunc(alert.New),
 		events:             common.NewSyncEventRecorder(eventRecorder),
-		config2:            config,
+		cfg:                config,
 	}
 
 	for _, option := range options {
@@ -77,7 +77,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 	syncRAL := alert.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync radix alert %s", syncRAL.Name)
 
-	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.config2, t.dynamicClient, syncRAL)
+	alertSyncer := t.alertSyncerFactory.CreateAlertSyncer(t.cfg, t.dynamicClient, syncRAL)
 	err = alertSyncer.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRAL, err)

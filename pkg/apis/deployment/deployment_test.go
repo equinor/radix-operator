@@ -4125,9 +4125,9 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 			_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 			require.NoError(t, err)
 
-			cfg2 := config.Config{Common: config.CommonConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
+			cfg := config.Config{Common: config.CommonConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
 
-			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, cfg2)
+			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, cfg)
 			err = syncer.OnSync(context.Background())
 			require.NoError(t, err)
 			compDeployment, err := kubeclient.AppsV1().Deployments("app-dev").Get(context.Background(), "comp", metav1.GetOptions{})

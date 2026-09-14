@@ -389,7 +389,7 @@ func Test_DNSAlias_ClusterRolesAndBinding_Spec(t *testing.T) {
 		adminUsers            = []string{"adminuser1", "adminuser2"}
 		readerGroups          = []string{"readergroup1", "readergroup2"}
 		readerUsers           = []string{"readeruser1", "readeruser2"}
-		cfg2                  = config.Config{
+		cfg                   = config.Config{
 			Operator: config.OperatorConfig{DefaultAppAdminGroups: adminGroups},
 		}
 	)
@@ -472,7 +472,7 @@ func Test_DNSAlias_ClusterRolesAndBinding_Spec(t *testing.T) {
 	assert.ElementsMatch(t, expectedClusterRoleBindingOwners, adminClusterRoleBinding.OwnerReferences)
 	assert.ElementsMatch(t, expectedClusterRoleBindingOwners, readerClusterRoleBinding.OwnerReferences)
 
-	assert.ElementsMatch(t, utils.GetAppAdminRbacSubjects(cfg2, rr), adminClusterRoleBinding.Subjects)
+	assert.ElementsMatch(t, utils.GetAppAdminRbacSubjects(cfg, rr), adminClusterRoleBinding.Subjects)
 	assert.ElementsMatch(t, utils.GetAppReaderRbacSubjects(rr), readerClusterRoleBinding.Subjects)
 
 	expectedAdminClusterRoleBindingRef := rbacv1.RoleRef{

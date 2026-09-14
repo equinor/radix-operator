@@ -37,7 +37,7 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) er
 		return fmt.Errorf("failed to grant reader access to private image hub secret: %w", err)
 	}
 
-	err = utils.GrantAppAdminAccessToSecret(ctx, app.config2, app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
+	err = utils.GrantAppAdminAccessToSecret(ctx, app.cfg, app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to private image hub secret: %w", err)
 	}
@@ -46,7 +46,7 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) er
 }
 
 func (app *ApplicationConfig) getCurrentAndDesiredImageHubSecret(ctx context.Context) (current, desired *corev1.Secret, err error) {
-	ns := utils.GetAppNamespace(app.config.Name)
+	ns := utils.GetAppNamespace(app.application.Name)
 	currentInternal, err := app.kubeutil.GetSecret(ctx, ns, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		if !kubeerrors.IsNotFound(err) {
@@ -65,16 +65,16 @@ func (app *ApplicationConfig) getCurrentAndDesiredImageHubSecret(ctx context.Con
 	}
 
 	desired.Labels = map[string]string{
-		kube.RadixAppLabel: app.config.Name,
+		kube.RadixAppLabel: app.application.Name,
 	}
 	if desired.Annotations == nil {
 		desired.Annotations = map[string]string{}
 	}
 
 	// Set annotation for Kubernetes Replicator
-	desired.Annotations["replicator.v1.mittwald.de/replicate-to-matching"] = fmt.Sprintf("%s-sync=%s", defaults.PrivateImageHubSecretName, app.config.Name)
+	desired.Annotations["replicator.v1.mittwald.de/replicate-to-matching"] = fmt.Sprintf("%s-sync=%s", defaults.PrivateImageHubSecretName, app.application.Name)
 
-	if err := setPrivateImageHubSecretData(desired, app.config.Spec.PrivateImageHubs); err != nil {
+	if err := setPrivateImageHubSecretData(desired, app.application.Spec.PrivateImageHubs); err != nil {
 		return nil, nil, fmt.Errorf("failed to set private image hub data: %w", err)
 	}
 

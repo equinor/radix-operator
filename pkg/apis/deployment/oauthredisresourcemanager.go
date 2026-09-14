@@ -37,7 +37,7 @@ func NewOAuthRedisResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistrati
 		kubeutil:              kubeutil,
 		oauthRedisDockerImage: cfg.Common.OAuth2Proxy.RedisImage.String(),
 		logger:                log.Logger.With().Str("resource_kind", v1.KindRadixDeployment).Str("resource_name", cache.MetaObjectToName(&rd.ObjectMeta).String()).Str("aux", "oauth-redis").Logger(),
-		config2:               cfg,
+		cfg:                   cfg,
 	}
 }
 
@@ -47,7 +47,7 @@ type oauthRedisResourceManager struct {
 	kubeutil              *kube.Kube
 	oauthRedisDockerImage string
 	logger                zerolog.Logger
-	config2               config.Config
+	cfg                   config.Config
 }
 
 func (o *oauthRedisResourceManager) Sync(ctx context.Context) error {
@@ -233,7 +233,7 @@ func (o *oauthRedisResourceManager) getCurrentAndDesiredDeployment(ctx context.C
 func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) *appsv1.Deployment {
 	componentName := component.GetName()
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
-	readinessProbe := getReadinessProbeWithDefaultsFromEnv(o.config2, v1.OAuthRedisPortNumber)
+	readinessProbe := getReadinessProbeWithDefaultsFromEnv(o.cfg, v1.OAuthRedisPortNumber)
 
 	var replicas int32 = 1
 	if isComponentStopped(component) || component.HasZeroReplicas() {
@@ -241,8 +241,8 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 	}
 
 	var imagePullSecrets []corev1.LocalObjectReference
-	if o.config2.Common.ExternalRegistryAuthSecret != "" {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: o.config2.Common.ExternalRegistryAuthSecret})
+	if o.cfg.Common.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: o.cfg.Common.ExternalRegistryAuthSecret})
 	}
 
 	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy

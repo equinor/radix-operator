@@ -26,20 +26,20 @@ type ApplicationConfig struct {
 	radixclient  radixclient.Interface
 	kubeutil     *kube.Kube
 	registration *radixv1.RadixRegistration
-	config       *radixv1.RadixApplication
-	config2      config.Config
+	application  *radixv1.RadixApplication
+	cfg          config.Config
 	logger       zerolog.Logger
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, config2 config.Config) *ApplicationConfig {
+func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, cfg config.Config) *ApplicationConfig {
 	return &ApplicationConfig{
 		kubeclient:   kubeclient,
 		radixclient:  radixclient,
 		kubeutil:     kubeutil,
 		registration: registration,
-		config:       config,
-		config2:      config2,
+		application:  config,
+		cfg:          cfg,
 		logger:       log.Logger.With().Str("resource_kind", radixv1.KindRadixApplication).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
 	}
 }
@@ -101,7 +101,7 @@ func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 
 func (app *ApplicationConfig) reconcile(ctx context.Context) error {
 	if err := app.syncEnvironments(ctx); err != nil {
-		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
+		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.application.Name, err)
 	}
 	if err := app.syncPrivateImageHubSecrets(ctx); err != nil {
 		return fmt.Errorf("failed to create private image hub secrets: %w", err)

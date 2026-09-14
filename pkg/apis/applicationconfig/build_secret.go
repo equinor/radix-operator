@@ -14,7 +14,7 @@ import (
 )
 
 func (app *ApplicationConfig) syncBuildSecrets(ctx context.Context) error {
-	if app.config.Spec.Build == nil || len(app.config.Spec.Build.Secrets) == 0 {
+	if app.application.Spec.Build == nil || len(app.application.Spec.Build.Secrets) == 0 {
 		if err := app.garbageCollectBuildSecrets(ctx); err != nil {
 			return fmt.Errorf("failed to garbage collect build secret: %w", err)
 		}
@@ -47,7 +47,7 @@ func (app *ApplicationConfig) syncBuildSecrets(ctx context.Context) error {
 }
 
 func (app *ApplicationConfig) getCurrentAndDesiredBuildSecret(ctx context.Context) (current, desired *corev1.Secret, err error) {
-	ns := utils.GetAppNamespace(app.config.Name)
+	ns := utils.GetAppNamespace(app.application.Name)
 	currentInternal, err := app.kubeutil.GetSecret(ctx, ns, defaults.BuildSecretsName)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
@@ -66,16 +66,16 @@ func (app *ApplicationConfig) getCurrentAndDesiredBuildSecret(ctx context.Contex
 	}
 
 	desired.Labels = map[string]string{
-		kube.RadixAppLabel: app.config.Name,
+		kube.RadixAppLabel: app.application.Name,
 	}
 
-	setBuildSecretData(desired, app.config.Spec.Build.Secrets)
+	setBuildSecretData(desired, app.application.Spec.Build.Secrets)
 
 	return current, desired, nil
 }
 
 func (app *ApplicationConfig) garbageCollectBuildSecrets(ctx context.Context) error {
-	secret, err := app.kubeutil.GetSecret(ctx, utils.GetAppNamespace(app.config.Name), defaults.BuildSecretsName)
+	secret, err := app.kubeutil.GetSecret(ctx, utils.GetAppNamespace(app.application.Name), defaults.BuildSecretsName)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return nil

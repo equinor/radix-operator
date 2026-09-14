@@ -180,9 +180,9 @@ func Test_Create_Namespace(t *testing.T) {
 	expected := map[string]string{
 		"sync":                "cluster-wildcard-tls-cert",
 		"radix-wildcard-sync": "radix-wildcard-tls-cert",
-		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
-		kube.RadixAppLabel:                           env.config.Spec.AppName,
-		kube.RadixEnvLabel:                           env.config.Spec.EnvName,
+		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.environment.Spec.AppName,
+		kube.RadixAppLabel:                           env.environment.Spec.AppName,
+		kube.RadixEnvLabel:                           env.environment.Spec.EnvName,
 		"pod-security.kubernetes.io/enforce":         testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Level,
 		"pod-security.kubernetes.io/enforce-version": testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Version,
 		"pod-security.kubernetes.io/audit":           testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Level,
@@ -210,9 +210,9 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	expected := map[string]string{
 		"sync":                "cluster-wildcard-tls-cert",
 		"radix-wildcard-sync": "radix-wildcard-tls-cert",
-		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
-		kube.RadixAppLabel:                           env.config.Spec.AppName,
-		kube.RadixEnvLabel:                           env.config.Spec.EnvName,
+		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.environment.Spec.AppName,
+		kube.RadixAppLabel:                           env.environment.Spec.AppName,
+		kube.RadixEnvLabel:                           env.environment.Spec.EnvName,
 		"pod-security.kubernetes.io/enforce":         testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Level,
 		"pod-security.kubernetes.io/enforce-version": testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Version,
 		"pod-security.kubernetes.io/audit":           testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Level,
@@ -237,7 +237,7 @@ func Test_Create_EgressRules(t *testing.T) {
 	})
 
 	t.Run("Egress rules are correct", func(t *testing.T) {
-		egressRules := env.config.Spec.Egress.Rules
+		egressRules := env.environment.Spec.Egress.Rules
 		assert.Len(t, egressRules, 1)
 		assert.Equal(t, string(egressRules[0].Destinations[0]), "195.88.55.16/32")
 		assert.Len(t, egressRules[0].Ports, 2)
@@ -306,8 +306,8 @@ func Test_Orphaned_Status(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Orphaned is true when app config nil", func(t *testing.T) {
-		assert.True(t, env.config.Status.Orphaned)
-		assert.NotNil(t, env.config.Status.OrphanedTimestamp)
+		assert.True(t, env.environment.Status.Orphaned)
+		assert.NotNil(t, env.environment.Status.OrphanedTimestamp)
 	})
 
 	env.appConfig = utils.NewRadixApplicationBuilder().
@@ -318,8 +318,8 @@ func Test_Orphaned_Status(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Orphaned is false when app config contains environment name", func(t *testing.T) {
-		assert.False(t, env.config.Status.Orphaned)
-		assert.Nil(t, env.config.Status.OrphanedTimestamp)
+		assert.False(t, env.environment.Status.Orphaned)
+		assert.Nil(t, env.environment.Status.OrphanedTimestamp)
 	})
 
 	env.appConfig = utils.NewRadixApplicationBuilder().
@@ -329,8 +329,8 @@ func Test_Orphaned_Status(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Orphaned is true when app config is cleared", func(t *testing.T) {
-		assert.True(t, env.config.Status.Orphaned)
-		assert.NotNil(t, env.config.Status.OrphanedTimestamp)
+		assert.True(t, env.environment.Status.Orphaned)
+		assert.NotNil(t, env.environment.Status.OrphanedTimestamp)
 	})
 }
 

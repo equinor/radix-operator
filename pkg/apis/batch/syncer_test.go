@@ -2838,8 +2838,8 @@ func (s *syncerTestSuite) Test_SafeToRestartAnnotation() {
 			s.Require().NoError(err)
 			s.applyRadixDeploymentEnvVarsConfigMaps(s.kubeUtil, rd)
 
-			cfg2 := config.Config{Operator: config.OperatorConfig{BatchSafeToRestartJobThreshold: tt.threshold}}
-			sut := s.createSyncer(batch, cfg2)
+			cfg := config.Config{Operator: config.OperatorConfig{BatchSafeToRestartJobThreshold: tt.threshold}}
+			sut := s.createSyncer(batch, cfg)
 			s.Require().NoError(sut.OnSync(context.Background()))
 
 			allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})

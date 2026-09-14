@@ -48,7 +48,7 @@ func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
 		}
 	}
 
-	if len(app.config.Spec.DNSAlias) == 0 {
+	if len(app.application.Spec.DNSAlias) == 0 {
 		if err := app.garbageCollectAccessToDNSAliases(ctx); err != nil {
 			return err
 		}
@@ -77,7 +77,7 @@ func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*ra
 	processedAliases := make(map[string]any)
 	appName := app.registration.Name
 	var errs []error
-	for _, dnsAlias := range app.config.Spec.DNSAlias {
+	for _, dnsAlias := range app.application.Spec.DNSAlias {
 		if existingAlias, exists := existingAliases[dnsAlias.Alias]; exists {
 			if existingAlias.Spec.AppName != appName {
 				errs = append(errs, fmt.Errorf("failed to process dns alias %s: %w", dnsAlias.Alias, ErrDNSAliasUsedByOtherApplication))

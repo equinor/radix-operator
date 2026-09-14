@@ -21,7 +21,7 @@ type alertSyncer struct {
 	radixAlert           *radixv1.RadixAlert
 	slackMessageTemplate slackMessageTemplate
 	alertConfigs         AlertConfigs
-	config2              config.Config
+	cfg                  config.Config
 }
 
 // New creates a new alert syncer
@@ -32,7 +32,7 @@ func New(cfg config.Config, dynamicClient client.Client, radixAlert *radixv1.Rad
 		radixAlert:           radixAlert,
 		slackMessageTemplate: defaultSlackMessageTemplate,
 		alertConfigs:         defaultAlertConfigs,
-		config2:              cfg,
+		cfg:                  cfg,
 	}
 }
 
