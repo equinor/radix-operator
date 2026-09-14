@@ -10,7 +10,7 @@
 			"env": {
 				"RADIXCONFIG_WEBHOOK_LOGLEVEL": "info",
 				"RADIXCONFIG_WEBHOOK_LOGPRETTYPRINT": "true",
-				"RADIXCONFIG_WEBHOOK_CERTSDIR": "${workspaceFolder}/local/certs",
+				"RADIXCONFIG_WEBHOOK_CERTSDIR": "${workspaceFolder}/local/certs"
 			}
 		},
 		{
@@ -119,7 +119,7 @@
 				"USE_PROFILER": "true",
 				"KUBERNETES_SERVICE_PORT": "443",
 				"RADIXCONFIG_OPERATOR_LOGLEVEL": "info",
-				"RADIXCONFIG_OPERATOR_LOGPRETTYPRINT": "true",
+				"RADIXCONFIG_OPERATOR_LOGPRETTYPRINT": "true"
 			},
 			"args": ["--useOutClusterClient=false"]
 		},
@@ -172,19 +172,11 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/api-server/main.go",
 			"env": {
-				"POD_NAMESPACE": "default",
-				"RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
-				"RADIX_COMMON_DNSZONE": "dev.radix.equinor.com", // TODO: Read from cm
-				"PROMETHEUS_URL": "http://localhost:9091",
-				"LOG_LEVEL": "info",
-				"LOG_PRETTY": "true",
-				"OIDC_AZURE_ISSUER": "https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/",
-				"OIDC_AZURE_AUDIENCE": "6dae42f8-4368-4678-94ff-3960e28e3630",
-				"OIDC_KUBERNETES_ISSUER": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d9638477-2a54-40df-bb15-32f73505f631/",
-				"OIDC_KUBERNETES_AUDIENCE": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d9638477-2a54-40df-bb15-32f73505f631/",
-				"RADIX_COMMON_CLUSTERNAME": "weekly-29",
-				"CLUSTER_OIDC_ISSUERS": "https://northeurope.oic.prod-aks.azure.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/d9638477-2a54-40df-bb15-32f73505f631/,https://test-issuer.internal.radix.equinor.com",
-				"CLUSTER_EGRESS_IPS": "0.0.0.0"
+				"POD_NAMESPACE": "radix-system",
+				"KUBERNETES_SERVICE_PORT": "443",
+				"RADIXCONFIG_APISERVER_LOGLEVEL": "info",
+				"RADIXCONFIG_APISERVER_LOGPRETTYPRINT": "true",
+				"RADIXCONFIG_APISERVER_PROMETHEUSURL": "http://localhost:9091"
 			}
 		}
 	]

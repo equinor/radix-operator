@@ -20,7 +20,7 @@ type Validator interface {
 	Validate() error
 }
 
-var envMacroJSONRegexp = regexp.MustCompile(`"\$__env\(([^)]+)\)"`)
+var envMacroJSONRegexp = regexp.MustCompile(`\$__env\(([^)]+)\)`)
 
 type Config struct {
 	Operator       OperatorConfig       `json:"operator"`
@@ -90,12 +90,12 @@ type PodSecurityStandardModeConfig struct {
 }
 
 func Parse(configYaml string) (*Config, error) {
+	expandedConfigYaml := expandEnvMacros([]byte(configYaml))
 	var cfg Config
-	configJson, err := yaml.YAMLToJSON([]byte(configYaml))
+	configJson, err := yaml.YAMLToJSON(expandedConfigYaml)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert YAML to JSON: %w", err)
 	}
-	configJson = expandEnvMacros(configJson)
 
 	if err := json.Unmarshal(configJson, &cfg, Unmarshalers); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
@@ -123,7 +123,7 @@ func MustParse(configYaml string) Config {
 
 func expandEnvMacros(configJson []byte) []byte {
 	return envMacroJSONRegexp.ReplaceAllFunc(configJson, func(macro []byte) []byte {
-		envName := string(macro[len(`"$__env(`) : len(macro)-2])
+		envName := string(macro[len(`$__env(`) : len(macro)-1])
 		envValue := os.Getenv(envName)
 		if envValue == "" {
 			return macro
