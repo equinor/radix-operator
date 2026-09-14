@@ -283,6 +283,47 @@ func TestParse_EnvMacro(t *testing.T) {
 	assert.Equal(t, int32(6443), cfg.Operator.KubernetesAPIPort)
 }
 
+func TestParse_AuthenticatorsValidation(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"one entry should pass": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{
+					"azure": {
+						Issuer:   MustParseUrl("https://fakeissuer.com"),
+						Audience: "fakeAudience",
+					},
+				}
+			},
+		},
+		"zero entries should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{}
+			},
+			expectedError: `field "ApiServer.Authenticators" did not pass validation expression`,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := mutateConfig(t, test.mutateConfig)
+
+			cfg, err := config.Parse(configYaml)
+			if test.expectedError == "" {
+				require.NoError(t, err)
+				assert.NotNil(t, cfg)
+				return
+			}
+
+			require.Error(t, err)
+			assert.Nil(t, cfg)
+			assert.ErrorContains(t, err, test.expectedError)
+		})
+	}
+}
+
 // Only slice fields are comma separated, a scalar keeps the value as it is.
 func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
 	t.Setenv("RADIXCONFIG_OPERATOR_LOGLEVEL", "debug,info")

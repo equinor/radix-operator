@@ -236,8 +236,6 @@ func TestMain(m *testing.M) {
 		"config.apiServer.logLevel":                                  "debug",
 		"config.apiServer.logPretty":                                 "true",
 		"config.apiServer.prometheusUrl":                             "http://prometheus.svc",
-		"config.apiServer.authenticators.kubernetes.issuer":          "https://kubernetes.default.svc",
-		"config.apiServer.authenticators.kubernetes.audience":        "unknown",
 		"config.apiServer.authenticators.azure.issuer":               "https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/",
 		"config.apiServer.authenticators.azure.audience":             "6dae42f8-4368-4678-94ff-3960e28e3630",
 	}
