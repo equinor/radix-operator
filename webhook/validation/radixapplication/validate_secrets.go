@@ -154,9 +154,7 @@ func getEnvVarNameMap(componentEnvVarsMap radixv1.EnvVarsMap, envsEnvVarsMap rad
 	return envVarsMap
 }
 
-// validateAzureKeyVaultAzureIdentity verifies that, for every environment where the component is enabled
-// and has an Azure Key Vault with useAzureIdentity enabled, an identity.azure.clientId is configured in
-// either the common component config or the environment config.
+// validateAzureKeyVaultAzureIdentity verifies that each enabled environment using an Azure Key Vault with useAzureIdentity enabled has an Azure identity clientId configured commonly or for that environment.
 func validateAzureKeyVaultAzureIdentity(component radixv1.RadixCommonComponent, environments []radixv1.Environment) error {
 	commonIdentitySet := azureIdentityClientIdIsSet(component.GetIdentity())
 	for _, env := range environments {
