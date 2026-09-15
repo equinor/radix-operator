@@ -102,11 +102,8 @@ func (w *walker) walkStruct(val reflect.Value, path string) error {
 			continue
 		}
 
-		var setter SetValFunc
-		if fieldValue.CanSet() {
-			setter = func(values ...string) error {
-				return setFieldValue(fieldValue, values, fieldPath)
-			}
+		setter := func(values ...string) error {
+			return setFieldValue(fieldValue, values, fieldPath)
 		}
 		if err := w.fn(fieldPath, fieldType, fieldValue, setter); err != nil {
 			return err
