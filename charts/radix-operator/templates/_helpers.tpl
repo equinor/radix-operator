@@ -65,6 +65,44 @@ radix-common-config
 {{- end -}}
 
 {{/*
+Create the name of the webhook configuration
+*/}}
+{{- define "radix-webhook-configuration.name" -}}
+radix-webhook-configuration
+{{- end -}}
+
+{{/*
+Create the name of the webhook certificate Secret
+*/}}
+{{- define "radix-webhook-certs.name" -}}
+radix-webhook-certs
+{{- end -}}
+
+{{- define "radix-webhook.port" -}}
+9443
+{{- end -}}
+
+{{- define "radix-webhook.metricsPort" -}}
+9000
+{{- end -}}
+
+{{- define "radix-webhook.healthPort" -}}
+9440
+{{- end -}}
+
+{{- define "radix-api-server.port" -}}
+3002
+{{- end -}}
+
+{{- define "radix-api-server.metricsPort" -}}
+9090
+{{- end -}}
+
+{{- define "radix-operator.metricsPort" -}}
+9000
+{{- end -}}
+
+{{/*
 Utility function to take list to comma separated dictionary
 */}}
 {{- define "helm-toolkit.utils.joinMapWithComma" -}}

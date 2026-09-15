@@ -66,7 +66,7 @@ func (app *ApplicationConfig) deleteDNSAliasesClusterRoleAndBinding(ctx context.
 func (app *ApplicationConfig) grantAppAdminAccessToDNSAliases(ctx context.Context) error {
 	roleName := app.getAppAdminAccessToDNSAliasClusterRoleName()
 	verbs := []string{"get", "list", "watch"}
-	subjects := utils.GetAppAdminRbacSubjects(app.config2, app.registration)
+	subjects := utils.GetAppAdminRbacSubjects(app.cfg, app.registration)
 
 	if err := app.createOrUpdateDNSAliasClusterRoleAndBinding(ctx, roleName, verbs, subjects); err != nil {
 		return fmt.Errorf("failed to grant app admin access to DNSAlias: %w", err)
@@ -136,7 +136,7 @@ func (app *ApplicationConfig) createOrUpdateDNSAliasClusterRole(ctx context.Cont
 			Verbs:         verbs,
 			APIGroups:     []string{radixv1.SchemeGroupVersion.Group},
 			Resources:     []string{radixv1.ResourceRadixDNSAliases},
-			ResourceNames: slice.Map(app.config.Spec.DNSAlias, func(a radixv1.DNSAlias) string { return a.Alias }),
+			ResourceNames: slice.Map(app.application.Spec.DNSAlias, func(a radixv1.DNSAlias) string { return a.Alias }),
 		},
 	}
 
@@ -208,7 +208,7 @@ func (app *ApplicationConfig) createOrUpdateClusterRoleBinding(ctx context.Conte
 }
 
 func (app *ApplicationConfig) grantAccessToBuildSecrets(ctx context.Context) error {
-	namespace := utils.GetAppNamespace(app.config.Name)
+	namespace := utils.GetAppNamespace(app.application.Name)
 	err := app.grantPipelineAccessToSecret(ctx, namespace, defaults.BuildSecretsName)
 	if err != nil {
 		return err
@@ -246,7 +246,7 @@ func (app *ApplicationConfig) grantAppAdminAccessToBuildSecrets(ctx context.Cont
 		return err
 	}
 
-	rolebinding := rolebindingAppAdminToBuildSecrets(app.config2, app.GetRadixRegistration(), role)
+	rolebinding := rolebindingAppAdminToBuildSecrets(app.cfg, app.GetRadixRegistration(), role)
 	return app.kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }
 
@@ -290,7 +290,7 @@ func (app *ApplicationConfig) garbageCollectAccessToBuildSecretsForRole(ctx cont
 }
 
 func (app *ApplicationConfig) garbageCollectAccessToBuildSecrets(ctx context.Context) error {
-	appNamespace := utils.GetAppNamespace(app.config.Name)
+	appNamespace := utils.GetAppNamespace(app.application.Name)
 	for _, roleName := range []string{
 		getPipelineRoleNameToSecret(defaults.BuildSecretsName),
 		getAppReaderRoleNameToBuildSecrets(defaults.BuildSecretsName),

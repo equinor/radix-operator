@@ -181,8 +181,8 @@ func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Co
 			ParentRef: gatewayapiv1.ParentGatewayReference{
 				Group:     new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
 				Kind:      new(gatewayapiv1.Kind("Gateway")),
-				Name:      gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
-				Namespace: new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
+				Name:      gatewayapiv1.ObjectName(deploy.config.Operator.Gateway.Name),
+				Namespace: new(gatewayapiv1.Namespace(deploy.config.Operator.Gateway.Namespace)),
 			},
 			Listeners: []gatewayapiv1.ListenerEntry{{
 				Name:     gatewayapiv1.SectionName("https"),
@@ -325,12 +325,12 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificate(ctx context.Conte
 }
 
 func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
-	if len(deploy.config.CertificateAutomation.GatewayClusterIssuer) == 0 {
+	if len(deploy.config.Operator.CertificateAutomation.GatewayClusterIssuer) == 0 {
 		return errors.New("gateway cluster issuer not set in certificate automation config")
 	}
 
-	duration := max(deploy.config.CertificateAutomation.Duration, minCertDuration)
-	renewBefore := max(deploy.config.CertificateAutomation.RenewBefore, minCertRenewBefore)
+	duration := max(deploy.config.Operator.CertificateAutomation.Duration, minCertDuration)
+	renewBefore := max(deploy.config.Operator.CertificateAutomation.RenewBefore, minCertRenewBefore)
 
 	certificate := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -343,7 +343,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 			IssuerRef: cmmeta.ObjectReference{
 				Group: cm.GroupName,
 				Kind:  cmv1.ClusterIssuerKind,
-				Name:  deploy.config.CertificateAutomation.GatewayClusterIssuer,
+				Name:  deploy.config.Operator.CertificateAutomation.GatewayClusterIssuer,
 			},
 			Duration:    &metav1.Duration{Duration: duration},
 			RenewBefore: &metav1.Duration{Duration: renewBefore},

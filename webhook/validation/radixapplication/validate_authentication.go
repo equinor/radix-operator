@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -20,7 +20,7 @@ var (
 	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
 )
 
-func createComponentAuthenticationValidator(cfg config2.Config) validatorFunc {
+func createComponentAuthenticationValidator(cfg config.Config) validatorFunc {
 	return func(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 		var wrns []string
 		var errs []error
@@ -33,7 +33,7 @@ func createComponentAuthenticationValidator(cfg config2.Config) validatorFunc {
 	}
 }
 
-func validateComponentAuthentication(component *radixv1.RadixComponent, environments []radixv1.Environment, cfg config2.Config) []error {
+func validateComponentAuthentication(component *radixv1.RadixComponent, environments []radixv1.Environment, cfg config.Config) []error {
 	componentAuth := component.Authentication
 	envAuthConfigGetter := func(name string) *radixv1.Authentication {
 		for _, envConfig := range component.EnvironmentConfig {

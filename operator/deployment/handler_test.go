@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,8 +33,7 @@ type handlerSuite struct {
 	kubeUtil             *kube.Kube
 	eventRecorder        *record.FakeRecorder
 	kedaClient           *kedafake.Clientset
-	config               *config.Config
-	config2              config2.Config
+	config               config.Config
 }
 
 func Test_HandlerSuite(t *testing.T) {
@@ -50,39 +48,38 @@ func (s *handlerSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
-	s.config = &config.Config{ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: "anysecret"}} // Add a non-default value since gomock uses DeepEqual for equality compare instead of pointer equality
-	s.config2 = config2.Config{
-		Common: config2.CommonConfig{
-			OAuth2Proxy: config2.OAuth2ProxyConfig{
-				RedisImage: config2.ContainerImage{
+	s.config = config.Config{
+		Common: config.CommonConfig{
+			OAuth2Proxy: config.OAuth2ProxyConfig{
+				RedisImage: config.ContainerImage{
 					Repository: "redis",
 					Tag:        "123",
 				},
-				ProxyImage: config2.ContainerImage{
+				ProxyImage: config.ContainerImage{
 					Repository: "oauth2-proxy",
 					Tag:        "456",
 				},
 			},
+			ExternalRegistryAuthSecret: "anySecret",
 		},
 	}
 	s.eventRecorder = &record.FakeRecorder{}
 }
 
 func (s *handlerSuite) Test_NewHandler_DefaultValues() {
-	h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, s.config2).(*handler)
+	h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config).(*handler)
 	s.Same(s.kubeClient, h.kubeclient)
 	s.Same(s.kubeUtil, h.kubeutil)
 	s.Same(s.radixClient, h.radixclient)
 	s.Same(s.dynamicClient, h.dynamicClient)
 	s.Same(s.certClient, h.certClient)
-	s.Same(s.config, h.config)
-	s.Equal(s.config2, h.config2)
+	s.Equal(s.config, h.config)
 }
 
 func (s *handlerSuite) Test_NewHandler_ConfigOptionsCalled() {
 	var called bool
 	configFunc := func(h *handler) { called = true }
-	NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, &config.Config{}, config2.Config{}, configFunc)
+	NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, config.Config{}, configFunc)
 	s.True(called)
 }
 
@@ -127,9 +124,9 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
-		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, s.config2)
+		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config)
 		err := h.Sync(context.Background(), namespace, nonExistingRdName)
 		s.NoError(err)
 	})
@@ -139,9 +136,9 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
-		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, s.config2)
+		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config)
 		err := h.Sync(context.Background(), namespace, inactiveRdName)
 		s.NoError(err)
 	})
@@ -151,9 +148,9 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Times(0)
-		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, s.config2)
+		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config)
 		err := h.Sync(context.Background(), namespace, activeRdMissingRrName)
 		s.NoError(err)
 	})
@@ -166,15 +163,15 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, s.config2, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
-			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, s.config2, s.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, s.config),
+			deployment.NewOAuthRedisResourceManager(activeRd, rr, s.kubeUtil, s.config),
 		}
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, activeRd, gomock.Eq(expectedAuxResources), s.config, gomock.Any()).
+			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, activeRd, gomock.Eq(expectedAuxResources), s.config).
 			Return(syncer).
 			Times(1)
-		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, s.config2, WithDeploymentSyncerFactory(factory))
+		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, WithDeploymentSyncerFactory(factory))
 		err := h.Sync(context.Background(), namespace, activeRdName)
 		s.NoError(err)
 	})
@@ -186,10 +183,10 @@ func (s *handlerSuite) Test_Sync() {
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
-			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(syncer).
 			Times(1)
-		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, s.config2, WithDeploymentSyncerFactory(factory))
+		h := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.kedaClient, s.dynamicClient, s.certClient, s.eventRecorder, s.config, WithDeploymentSyncerFactory(factory))
 		err := h.Sync(context.Background(), namespace, activeRdName)
 		s.NoError(err)
 	})

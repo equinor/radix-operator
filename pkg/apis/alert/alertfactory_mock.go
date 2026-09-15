@@ -12,7 +12,7 @@ package alert
 import (
 	reflect "reflect"
 
-	config2 "github.com/equinor/radix-operator/pkg/apis/config2"
+	config "github.com/equinor/radix-operator/pkg/apis/config"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "go.uber.org/mock/gomock"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,7 +43,7 @@ func (m *MockAlertSyncerFactory) EXPECT() *MockAlertSyncerFactoryMockRecorder {
 }
 
 // CreateAlertSyncer mocks base method.
-func (m *MockAlertSyncerFactory) CreateAlertSyncer(cfg config2.Config, dynamicClient client.Client, radixAlert *v1.RadixAlert) AlertSyncer {
+func (m *MockAlertSyncerFactory) CreateAlertSyncer(cfg config.Config, dynamicClient client.Client, radixAlert *v1.RadixAlert) AlertSyncer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateAlertSyncer", cfg, dynamicClient, radixAlert)
 	ret0, _ := ret[0].(AlertSyncer)

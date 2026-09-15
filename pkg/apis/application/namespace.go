@@ -66,7 +66,7 @@ func (app *Application) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 		kube.RadixAppLabel: registration.Name,
 		kube.RadixEnvLabel: utils.AppNamespaceEnvName,
 	})
-	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, labels.PodSecurityStandardFromConfig(app.config2.Operator.PodSecurityStandard.AppNamespace))
+	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, labels.PodSecurityStandardFromConfig(app.cfg.Operator.PodSecurityStandard.AppNamespace))
 
 	// We don't use snyk anymore, remove line if no more namespaces contains this label
 	delete(desired.Labels, "snyk-service-account-sync")

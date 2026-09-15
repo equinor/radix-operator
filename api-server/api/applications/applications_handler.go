@@ -20,9 +20,9 @@ import (
 	apimodels "github.com/equinor/radix-operator/api-server/api/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/warningcollector"
 	"github.com/equinor/radix-operator/api-server/internal/accounts"
-	"github.com/equinor/radix-operator/api-server/internal/config"
 	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/api-server/internal/pipelineservice"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -50,7 +50,7 @@ type ApplicationHandlerOption func(ah *ApplicationHandler)
 type ApplicationHandler struct {
 	environmentHandler              environments.EnvironmentHandler
 	accounts                        accounts.Accounts
-	config                          config.Config
+	cfg                             config.Config
 	hasAccessToGetConfigMap         hasAccessToGetConfigMapFunc
 	getWarningCollectionFromContext CollectContextWarningsFunc
 	pipelineSvc                     *pipelineservice.PipelineService
@@ -61,7 +61,7 @@ func NewApplicationHandler(accounts accounts.Accounts, config config.Config, has
 	ah := ApplicationHandler{
 		environmentHandler:              environments.Init(environments.WithAccounts(accounts)),
 		accounts:                        accounts,
-		config:                          config,
+		cfg:                             config,
 		hasAccessToGetConfigMap:         hasAccessToGetConfigMap,
 		getWarningCollectionFromContext: warningcollector.GetWarningCollectionFromContext,
 		pipelineSvc:                     &pipelineservice.PipelineService{RadixClient: accounts.UserAccount.RadixClient},
@@ -112,7 +112,7 @@ func (ah *ApplicationHandler) GetApplication(ctx context.Context, appName string
 	}
 
 	dnsAliases := kubequery.GetDNSAliases(ctx, ah.accounts.UserAccount.RadixClient, ra)
-	application := apimodels.BuildApplication(rr, ra, reList, rdList, rjList, userIsAdmin, dnsAliases, ah.config.DNSZone)
+	application := apimodels.BuildApplication(rr, ra, reList, rdList, rjList, userIsAdmin, dnsAliases, ah.cfg.Common.DNSZone)
 	return application, nil
 }
 
@@ -508,33 +508,33 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 	name := fmt.Sprintf("access-validation-%s", appName)
 	labels := map[string]string{"radix-access-validation": "true"}
 	configMapName := fmt.Sprintf("%s-%s", name, strings.ToLower(random.RandString(6)))
-	role, err := createRoleToGetConfigMap(ctx, ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, name, labels, configMapName)
+	role, err := createRoleToGetConfigMap(ctx, ah.accounts.ServiceAccount.Client, ah.cfg.ApiServer.PodNamespace, name, labels, configMapName)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = deleteRole(context.Background(), ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, role.GetName())
+		err = deleteRole(context.Background(), ah.accounts.ServiceAccount.Client, ah.cfg.ApiServer.PodNamespace, role.GetName())
 		if err != nil {
 			log.Ctx(ctx).Warn().Msgf("Failed to delete role %s: %v", role.GetName(), err)
 		}
 	}()
-	roleBinding, err := createRoleBindingForRole(ctx, ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, role, name, adGroups, labels)
+	roleBinding, err := createRoleBindingForRole(ctx, ah.accounts.ServiceAccount.Client, ah.cfg.ApiServer.PodNamespace, role, name, adGroups, labels)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = deleteRoleBinding(context.Background(), ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, roleBinding.GetName())
+		err = deleteRoleBinding(context.Background(), ah.accounts.ServiceAccount.Client, ah.cfg.ApiServer.PodNamespace, roleBinding.GetName())
 		if err != nil {
 			log.Ctx(ctx).Warn().Msgf("Failed to delete role binding %s: %v", roleBinding.GetName(), err)
 		}
 	}()
 
-	valid, err := ah.hasAccessToGetConfigMap(ctx, ah.accounts.UserAccount.Client, ah.config.PodNamespace, configMapName)
+	valid, err := ah.hasAccessToGetConfigMap(ctx, ah.accounts.UserAccount.Client, ah.cfg.ApiServer.PodNamespace, configMapName)
 	if err != nil {
 		return err
 	}
 	if !valid {
-		return radixhttp.ValidationError("Radix Registration", "User should be a member of at least one admin AD group or their sub-members")
+		return radixhttp.ValidationError("Radix Registration", "User should be a member of at least one admin group or their sub-members")
 	}
 	return nil
 }

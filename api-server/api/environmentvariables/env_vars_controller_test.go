@@ -10,8 +10,7 @@ import (
 	envvarsmodels "github.com/equinor/radix-operator/api-server/api/environmentvariables/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
-	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	config "github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -218,14 +217,15 @@ func setupDeployment(commonTestUtils *commontest.Utils, kubeClient kubernetes.In
 		return err
 	}
 
-	deploymentSyncer := deployment.NewDeploymentSyncer(kubeClient, commonTestUtils.GetKubeUtil(), radixClient, dynamicClient, certClient, radixRegistration, rd, nil, &config.Config{}, config2.Config{
-		Common: config2.CommonConfig{
+	deploymentSyncer := deployment.NewDeploymentSyncer(kubeClient, commonTestUtils.GetKubeUtil(), radixClient, dynamicClient, certClient, radixRegistration, rd, nil, config.Config{
+		Common: config.CommonConfig{
 			ClusterName: clusterName,
 			DNSZone:     "dev.radix.equinor.com",
+			ClusterType: clusterType,
 		},
-		Operator: config2.OperatorConfig{
+
+		PipelineRunner: config.PipelineRunnerConfig{
 			ContainerRegistry: "any.container.registry",
-			ClusterType:       clusterType,
 		},
 	})
 

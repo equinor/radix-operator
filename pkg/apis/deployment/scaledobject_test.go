@@ -89,7 +89,7 @@ func TestScaler_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 
 func TestHorizontalAutoscalingConfig(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := deployment.SetupTest(t)
-	defer deployment.TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"

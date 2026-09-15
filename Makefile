@@ -28,7 +28,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e: generate
-	cd e2e && go test -v -p 1 -timeout 30m ./...
+	cd e2e && go test -count=1 -v -p 1 -timeout 30m ./...
 	# Note: -p 1 is used to run tests sequentially to allow printing logs sequentially
 
 .PHONY: mocks
@@ -203,17 +203,27 @@ lint-fmt: bootstrap
 lint-golangci: bootstrap
 	golangci-lint run
 
-lint-helm: bootstrap
-	helm lint ./charts/radix-operator \
-		--set rbac.createApp.groups[0]=platform-users \
-		--set ingress.gateway.name=radix \
-		--set ingress.gateway.namespace=istio
-helm-render:
-	helm template ./charts/radix-operator \
-		--set rbac.createApp.groups[0]=platform-users \
-		--set ingress.gateway.name=radix \
-		--set ingress.gateway.namespace=istio
+HELM-ARGS:= \
+	--set rbac.createApp.groups[0]=platform-users \
+	--set config.common.appAliasBaseURL=app.radix.example.com \
+	--set config.common.dnsZone=radix.example.com \
+	--set config.common.clusterName=mycluster \
+	--set config.common.clusterType=dev \
+	--set-string config.operator.azureKeyVaultTenantID=1234 \
+	--set config.operator.certificateAutomation.gatewayClusterIssuer=any-cluster-issuer \
+	--set config.operator.gateway.name=radix \
+	--set config.operator.gateway.namespace=istio \
+	--set config.pipelineRunner.cacheContainerRegistry=cache.example.com \
+	--set config.pipelineRunner.containerRegistry=build.example.com \
+	--set config.apiServer.prometheusUrl=http://prometheus.svc \
+	--set config.apiServer.authenticators.azure.issuer=https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/ \
+	--set config.apiServer.authenticators.azure.audience=6dae42f8-4368-4678-94ff-3960e28e3630
 
+lint-helm: bootstrap
+	helm lint ./charts/radix-operator $(HELM-ARGS)
+		
+helm-render:
+	helm template ./charts/radix-operator $(HELM-ARGS)
 
 .PHONY: generate
 generate: bootstrap code-gen helmresources mocks swagger

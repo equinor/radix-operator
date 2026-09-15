@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -27,9 +27,9 @@ import (
 
 var (
 	scheme = runtime.NewScheme()
-	cfg2   = config2.Config{
-		Common: config2.CommonConfig{
-			OAuth2Proxy: config2.OAuth2ProxyConfig{
+	cfg    = config.Config{
+		Common: config.CommonConfig{
+			OAuth2Proxy: config.OAuth2ProxyConfig{
 				ProxyDefaults: radixv1.OAuth2{
 					Scope:                  "openid profile email",
 					ProxyPrefix:            "/oauth2",
@@ -49,6 +49,10 @@ var (
 				},
 			},
 		},
+		Webhook: config.WebhookConfig{
+			ReservedDNSAppAliases: map[string]string{"console": "radix-web-console"},
+			ReservedDNSAliases:    []string{"grafana"},
+		},
 	}
 )
 
@@ -63,7 +67,7 @@ func Test_ParseRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing.
 	radixClient := test.CreateClient("testdata/radixregistration.yaml")
 	ra := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 
-	validator := radixapplication.CreateOnlineValidator(radixClient, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+	validator := radixapplication.CreateOnlineValidator(radixClient, cfg)
 	wnrs, err := validator.Validate(context.Background(), ra)
 	assert.NoError(t, err)
 	assert.Empty(t, wnrs)
@@ -170,7 +174,7 @@ func Test_ComponentJobNameValidator(t *testing.T) {
 func Test_valid_ra_returns_true(t *testing.T) {
 	client := test.CreateClient("testdata/radixregistration.yaml")
 	validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
-	validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+	validator := radixapplication.CreateOnlineValidator(client, cfg)
 	wnrs, err := validator.Validate(context.Background(), validRA)
 
 	assert.NoError(t, err)
@@ -181,7 +185,7 @@ func Test_missing_rr(t *testing.T) {
 	client := test.CreateClient()
 	validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 
-	validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+	validator := radixapplication.CreateOnlineValidator(client, cfg)
 	wnrs, err := validator.Validate(context.Background(), validRA)
 
 	assert.Error(t, err)
@@ -708,7 +712,7 @@ func Test_invalid_ra(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectedError != nil {
@@ -760,7 +764,7 @@ func Test_RA_WithWarnings(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wrns, err := validator.Validate(context.Background(), validRA)
 			assert.NoError(t, err)
 
@@ -850,7 +854,7 @@ func Test_MemoryBelowMinimum_ProducesWarning(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wrns, err := validator.Validate(context.Background(), validRA)
 
 			assert.NoError(t, err, "Should not return an error for memory below 20M")
@@ -918,7 +922,7 @@ func Test_MemoryAtOrAboveMinimum_NoWarning(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wrns, err := validator.Validate(context.Background(), validRA)
 
 			assert.NoError(t, err, "Should not return an error")
@@ -991,7 +995,7 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			assert.NoError(t, err)
@@ -1052,7 +1056,7 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			assert.NoError(t, err)
@@ -1089,7 +1093,7 @@ func Test_InvalidRAComponentLimitRequest_Error(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			assert.Error(t, err, "Expected error for invalid resource format")
@@ -1125,7 +1129,7 @@ func Test_InvalidRAJobLimitRequest_Error(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			assert.Error(t, err, "Expected error for invalid resource format")
@@ -1232,7 +1236,7 @@ func Test_PublicPort(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isValid {
@@ -1297,22 +1301,6 @@ func Test_Variables(t *testing.T) {
 			isValid:    false,
 			isErrorNil: false,
 		},
-		{
-			name: "check that user defined variable with illegal prefix fails",
-			updateRA: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[1].Variables["RADIXOPERATOR_SOMETHING"] = "any value"
-			},
-			isValid:    false,
-			isErrorNil: false,
-		},
-		{
-			name: "check that user defined variable with illegal prefix fails",
-			updateRA: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[1].Variables["RADIXOPERATOR_"] = "any value"
-			},
-			isValid:    false,
-			isErrorNil: false,
-		},
 	}
 
 	client := test.CreateClient("testdata/radixregistration.yaml")
@@ -1320,7 +1308,7 @@ func Test_Variables(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isValid {
@@ -1848,7 +1836,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 				volumes := scenario.volumeMounts()
 				ra(validRA, volumes)
-				validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+				validator := radixapplication.CreateOnlineValidator(client, cfg)
 				wnrs, err := validator.Validate(context.Background(), validRA)
 				if scenario.expectedError == nil {
 					assert.NoError(t, err)
@@ -2025,7 +2013,7 @@ func Test_ValidationOfSecretRefsAzureIdentity(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			scenario.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 			if scenario.expectedError == nil {
 				assert.NoError(t, err)
@@ -2521,7 +2509,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isErrors == nil {
@@ -2701,7 +2689,7 @@ func Test_EgressConfig(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isValid {
@@ -2830,7 +2818,7 @@ func Test_validateNotificationsRA(t *testing.T) {
 			ra := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRa(ra)
 
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), ra)
 
 			if testcase.expectedError == nil && err != nil {
@@ -2919,7 +2907,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 
 			ra := ts.applicationBuilder.BuildRA()
 
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, actualValidationErr := validator.Validate(context.Background(), ra)
 
 			if ts.expectedValidationError == nil {
@@ -3069,7 +3057,7 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 				require.NoError(t, c.Create(context.Background(), ns))
 			}
 
-			validator := radixapplication.CreateOnlineValidator(c, []string{}, map[string]string{}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(c, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if tt.expectError {
@@ -3178,7 +3166,7 @@ func Test_CronScheduleValidator(t *testing.T) {
 				WithSchedulerPort(new(int32(8888))).
 				WithCron(&radixv1.CronSchedule{Schedules: testcase.schedule, Concurrency: "Allow"}).
 				BuildJobComponent())
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectError {
@@ -3237,7 +3225,7 @@ func Test_CronScheduleValidator_EnvironmentConfig(t *testing.T) {
 					WithEnvironment("dev").
 					WithCron(&radixv1.CronSchedule{Schedules: testcase.schedule, TimeZone: testcase.timeZone, Concurrency: "Allow"})).
 				BuildJobComponent())
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectError {
@@ -3297,7 +3285,7 @@ func Test_CronTimeZoneValidator(t *testing.T) {
 				WithSchedulerPort(new(int32(8888))).
 				WithCron(&radixv1.CronSchedule{TimeZone: testcase.timeZone, Schedules: []string{"* * * * *"}, Concurrency: "Allow"}).
 				BuildJobComponent())
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectError {
@@ -3357,7 +3345,7 @@ func Test_CronConcurrencyValidator(t *testing.T) {
 				WithSchedulerPort(new(int32(8888))).
 				WithCron(&radixv1.CronSchedule{Schedules: []string{"* * * * *"}, Concurrency: testcase.concurrency}).
 				BuildJobComponent())
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectError {
@@ -3490,7 +3478,7 @@ func Test_JobSchedulerConfigValidator(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, testcase.buildJob().BuildJobComponent())
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectError {

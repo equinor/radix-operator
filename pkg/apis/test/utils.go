@@ -287,15 +287,8 @@ func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder utils.EnvironmentBuil
 	return re, nil
 }
 
-// SetRequiredEnvironmentVariables  Sets the required environment
-// variables needed for the operator to run properly
-func SetRequiredEnvironmentVariables() {
-	os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
-}
-
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
 func (tu *Utils) CreateClusterPrerequisites() error {
-	SetRequiredEnvironmentVariables()
 
 	var errs []error
 	_, err := tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(

@@ -55,7 +55,7 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(ctx context.Context, radixEgressRu
 	)
 
 	if allowRadix != nil && *allowRadix {
-		egressRules = append(egressRules, createAllowRadixEgressRule(nw.config.Gateway.Name))
+		egressRules = append(egressRules, createAllowRadixEgressRule(nw.config.Operator.Gateway.Name))
 	}
 
 	egressPolicy := nw.createEgressPolicy(appName, envName, egressRules, true)

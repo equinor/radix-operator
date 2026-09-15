@@ -2,7 +2,6 @@ package internal
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	dnsaliasapi "github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -11,7 +10,7 @@ import (
 
 // SyncerFactory defines a factory to create a DNS alias Syncer
 type SyncerFactory interface {
-	CreateSyncer(radixDNSAlias *radixv1.RadixDNSAlias, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, config2 config2.Config) dnsaliasapi.Syncer
+	CreateSyncer(radixDNSAlias *radixv1.RadixDNSAlias, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config) dnsaliasapi.Syncer
 }
 
 // SyncerFactoryFunc is an adapter that can be used to convert
@@ -21,10 +20,9 @@ type SyncerFactoryFunc func(
 	radixClient radixclient.Interface,
 	dynamicClient client.Client,
 	config config.Config,
-	config2 config2.Config,
 ) dnsaliasapi.Syncer
 
 // CreateSyncer Create a DNS alias Syncer
-func (f SyncerFactoryFunc) CreateSyncer(radixDNSAlias *radixv1.RadixDNSAlias, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config, config2 config2.Config) dnsaliasapi.Syncer {
-	return f(radixDNSAlias, radixClient, dynamicClient, config, config2)
+func (f SyncerFactoryFunc) CreateSyncer(radixDNSAlias *radixv1.RadixDNSAlias, radixClient radixclient.Interface, dynamicClient client.Client, config config.Config) dnsaliasapi.Syncer {
+	return f(radixDNSAlias, radixClient, dynamicClient, config)
 }

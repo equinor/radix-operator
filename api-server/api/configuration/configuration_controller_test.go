@@ -7,7 +7,7 @@ import (
 	configurationModels "github.com/equinor/radix-operator/api-server/api/configuration/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
-	"github.com/equinor/radix-operator/api-server/internal/config"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -16,10 +16,14 @@ import (
 func TestGetSettings_Authenticated(t *testing.T) {
 
 	cfg := config.Config{
-		DNSZone:            "example.com",
-		ClusterName:        "test-cluster",
-		ClusterEgressIps:   []string{"1.2.3.4"},
-		ClusterOidcIssuers: []string{"https://issuer.example.com"},
+		Common: config.CommonConfig{
+			DNSZone:     "example.com",
+			ClusterName: "test-cluster",
+		},
+		ApiServer: config.ApiServerConfig{
+			ClusterEgressIps:   []string{"1.2.3.4"},
+			ClusterOidcIssuers: []string{"https://issuer.example.com"},
+		},
 	}
 
 	// Setup
@@ -31,10 +35,10 @@ func TestGetSettings_Authenticated(t *testing.T) {
 	err := controllertest.GetResponseBody(response, &settings)
 	require.NoError(t, err)
 
-	assert.Equal(t, cfg.DNSZone, settings.DNSZone)
-	assert.Equal(t, cfg.ClusterName, settings.ClusterName)
-	assert.Equal(t, cfg.ClusterEgressIps, settings.ClusterEgressIps)
-	assert.Equal(t, cfg.ClusterOidcIssuers, settings.ClusterOidcIssuers)
+	assert.Equal(t, cfg.Common.DNSZone, settings.DNSZone)
+	assert.Equal(t, cfg.Common.ClusterName, settings.ClusterName)
+	assert.Equal(t, cfg.ApiServer.ClusterEgressIps, settings.ClusterEgressIps)
+	assert.Equal(t, cfg.ApiServer.ClusterOidcIssuers, settings.ClusterOidcIssuers)
 }
 
 func TestGetSettings_NotAuthenticated(t *testing.T) {
