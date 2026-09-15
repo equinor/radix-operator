@@ -45,7 +45,7 @@ spec:
       volumes:
         - name: certs
           secret:
-            secretName: {{ .Values.config.webhook.secretName }}
+            secretName: {{ include "radix-webhook-certs.name" . }}
             
       containers:
         - name: radix-webhook

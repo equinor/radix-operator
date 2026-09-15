@@ -37,8 +37,9 @@ data:
       )
       "webhook" (dict
         "secretNamespace" .Release.Namespace
+        "secretName" (include "radix-webhook-certs.name" .)
         "dnsName" ( printf "radix-webhook.%s.svc" .Release.Namespace )
-        "validatingWebhookConfigurationName" (include "radix-webhook-configuration" .)
+        "validatingWebhookConfigurationName" (include "radix-webhook-configuration.name" .)
       )
     -}}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}

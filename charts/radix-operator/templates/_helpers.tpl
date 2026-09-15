@@ -67,8 +67,15 @@ radix-common-config
 {{/*
 Create the name of the webhook configuration
 */}}
-{{- define "radix-webhook-configuration" -}}
+{{- define "radix-webhook-configuration.name" -}}
 radix-webhook-configuration
+{{- end -}}
+
+{{/*
+Create the name of the webhook certificate Secret
+*/}}
+{{- define "radix-webhook-certs.name" -}}
+radix-webhook-certs
 {{- end -}}
 
 {{/*

@@ -142,8 +142,6 @@ config:
 
     reservedAppDNSAliases: {}
     reservedDNSAliases: []
-    secretName: radix-webhook-certs
-    secretNamespace: "" # Default to release namespace
     disableCertRotation: false
     caName: radix-webhook-ca
     caOrganization: "Radix Webhook CA"
