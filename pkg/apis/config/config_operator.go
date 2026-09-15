@@ -9,6 +9,8 @@ import (
 type OperatorConfig struct {
 	LogLevel       string `json:"logLevel"`
 	LogPrettyPrint bool   `json:"logPrettyPrint"`
+	UseProfiler    bool   `json:"useProfiler"`
+	MetricsPort    int    `json:"metricsPort" required:"true"`
 
 	RegistrationControllerThreads int     `json:"registrationControllerThreads" required:"true"`
 	ApplicationControllerThreads  int     `json:"applicationControllerThreads" required:"true"`

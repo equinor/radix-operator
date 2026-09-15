@@ -7,11 +7,11 @@ metadata:
     {{- include "radix-api-server.labels" . | nindent 4 }}
 spec:
   ports:
-    - port: {{ .Values.config.apiServer.port }}
+    - port: {{ include "radix-api-server.port" . }}
       targetPort: http
       protocol: TCP
       name: http
-    - port: {{ .Values.config.apiServer.metricsPort }}
+    - port: {{ include "radix-api-server.metricsPort" . }}
       targetPort: metrics
       protocol: TCP
       name: metrics

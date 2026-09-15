@@ -5,7 +5,6 @@ import "net/url"
 type ApiServerConfig struct {
 	Port           int    `json:"port" required:"true"`
 	MetricsPort    int    `json:"metricsPort" required:"true"`
-	ProfilerPort   int    `json:"profilerPort" required:"true"`
 	UseProfiler    bool   `json:"useProfiler"`
 	LogLevel       string `json:"logLevel" required:"true"`
 	LogPrettyPrint bool   `json:"logPrettyPrint"`

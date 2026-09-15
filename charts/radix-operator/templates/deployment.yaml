@@ -30,7 +30,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: metrics
-              containerPort: {{ .Values.service.internalPort }}
+              containerPort: {{ include "radix-operator.metricsPort" . }}
               protocol: TCP
           env:
             - name: POD_NAMESPACE

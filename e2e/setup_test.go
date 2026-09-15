@@ -230,14 +230,14 @@ func TestMain(m *testing.M) {
 		"config.common.clusterName":                                  "weekly-e2e",
 		"config.common.clusterType":                                  "test",
 		"config.common.dnsZone":                                      "radix.example.com",
-		"rbac.createApp.groups[0]":                                   "123",
-		"image.pullPolicy":                                           "IfNotPresent",
-		"radixPipelineRunner.image.pullPolicy":                       "IfNotPresent",
 		"config.apiServer.logLevel":                                  "debug",
 		"config.apiServer.logPrettyPrint":                            "true",
 		"config.apiServer.prometheusUrl":                             "http://prometheus.svc",
 		"config.apiServer.authenticators.azure.issuer":               "https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/",
 		"config.apiServer.authenticators.azure.audience":             "6dae42f8-4368-4678-94ff-3960e28e3630",
+		"rbac.createApp.groups[0]":                                   "123",
+		"image.pullPolicy":                                           "IfNotPresent",
+		"radixPipelineRunner.image.pullPolicy":                       "IfNotPresent",
 	}
 	for _, spec := range componentSpecs {
 		helmValues[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName

@@ -56,8 +56,9 @@ func main() {
 	}
 
 	if c.ApiServer.UseProfiler {
-		log.Info().Msgf("Initializing profile server on port %d", c.ApiServer.ProfilerPort)
-		servers = append(servers, &http.Server{Addr: fmt.Sprintf("localhost:%d", c.ApiServer.ProfilerPort)})
+		const profilerAddr = "localhost:7070"
+		log.Info().Msgf("Initializing profile server on address %s", profilerAddr)
+		servers = append(servers, &http.Server{Addr: profilerAddr})
 	}
 
 	startServers(servers...)

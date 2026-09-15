@@ -46,6 +46,8 @@ pipelineRunner:
 operator:
   logLevel: info
   logPrettyPrint: true
+  useProfiler: false
+  metricsPort: 9000
   registrationControllerThreads: 1
   applicationControllerThreads: 2
   environmentControllerThreads: 3
@@ -154,7 +156,6 @@ webhook:
 apiServer:
   port: 3002
   metricsPort: 9090
-  profilerPort: 7070
   useProfiler: true
   logLevel: info
   logPrettyPrint: true

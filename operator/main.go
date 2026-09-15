@@ -40,7 +40,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -78,41 +77,47 @@ func main() {
 	backgroundCtx := context.Background()
 	ctx, _ := signal.NotifyContext(backgroundCtx, syscall.SIGTERM, syscall.SIGINT)
 
-	app, err := initializeApp(backgroundCtx)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize app")
-	}
+	cfg := loadConfig(backgroundCtx)
 
-	if profiler := viper.GetBool("USE_PROFILER"); profiler {
+	setupLogger(cfg.Operator.LogLevel, cfg.Operator.LogPrettyPrint)
+
+	log.Ctx(ctx).Info().Interface("config", cfg).Msg("config parsed")
+
+	if cfg.Operator.UseProfiler {
 		go func() {
-			log.Ctx(ctx).Info().Msg("Starting pprof server on :7070")
-			if err := http.ListenAndServe(":7070", nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			const profilerAddr = "localhost:7070"
+			log.Ctx(ctx).Info().Msgf("Starting profiler server on %s", profilerAddr)
+			if err := http.ListenAndServe(profilerAddr, nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Ctx(ctx).Fatal().Err(err).Msg("Failed to start pprof server")
 			}
 		}()
 	}
 
-	err = app.Run(ctx)
+	app, err := initializeApp(backgroundCtx, cfg)
 	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize app")
+	}
+
+	if err := app.Run(ctx); err != nil {
 		log.Fatal().Msg(err.Error())
 	}
 
 	log.Ctx(ctx).Info().Msg("Finished.")
 }
 
-func initializeApp(ctx context.Context) (*App, error) {
-	var app App
-	var err error
-
+func loadConfig(ctx context.Context) config.Config {
 	cfgClient, err := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create config reader client: %w", err)
+		log.Fatal().Err(err).Msg("Failed to create config reader client")
 	}
-	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
-	app.cfg = config.MustParse(cfgYaml)
 
-	initLogger(app.cfg)
-	log.Ctx(ctx).Info().Interface("config", app.cfg).Msg("config parsed")
+	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
+	return config.MustParse(cfgYaml)
+}
+
+func initializeApp(ctx context.Context, cfg config.Config) (*App, error) {
+	var err error
+	app := App{cfg: cfg}
 
 	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.cfg.Operator.KubeClientRateLimitQPS, app.cfg.Operator.KubeClientRateLimitBurst))
 	warningHandler := utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
@@ -203,7 +208,7 @@ func (a *App) Run(ctx context.Context) error {
 	batchController := a.createBatchController(ctx)
 	dnsAliasesController := a.createDNSAliasesController(ctx)
 
-	g.Go(func() error { return startMetricsServer(ctx) })
+	g.Go(func() error { return startMetricsServer(ctx, a.cfg.Operator.MetricsPort) })
 	g.Go(func() error { return registrationController.Run(ctx, a.cfg.Operator.RegistrationControllerThreads) })
 	g.Go(func() error { return applicationController.Run(ctx, a.cfg.Operator.ApplicationControllerThreads) })
 	g.Go(func() error { return environmentController.Run(ctx, a.cfg.Operator.EnvironmentControllerThreads) })
@@ -222,8 +227,7 @@ func (a *App) Run(ctx context.Context) error {
 	return g.Wait()
 }
 
-func initLogger(cfg config.Config) {
-	logLevelStr := cfg.Operator.LogLevel
+func setupLogger(logLevelStr string, prettyPrintLog bool) {
 	if len(logLevelStr) == 0 {
 		logLevelStr = zerolog.LevelInfoValue
 	}
@@ -235,7 +239,7 @@ func initLogger(cfg config.Config) {
 	}
 
 	var logWriter io.Writer = os.Stderr
-	if cfg.Operator.LogPrettyPrint {
+	if prettyPrintLog {
 		logWriter = &zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
 	}
 
@@ -373,8 +377,8 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.radixInformerFactory)
 }
 
-func startMetricsServer(ctx context.Context) error {
-	srv := &http.Server{Addr: ":9000"}
+func startMetricsServer(ctx context.Context, port int) error {
+	srv := &http.Server{Addr: fmt.Sprintf(":%d", port)}
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/healthz", http.HandlerFunc(Healthz))
 	go func() {

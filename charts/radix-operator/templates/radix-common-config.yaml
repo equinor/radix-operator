@@ -28,6 +28,7 @@ data:
         )
       )
       "operator" (dict
+        "metricsPort" (include "radix-operator.metricsPort" . | int)
         "jobSchedulerImage" (dict
           "tag" (.Values.config.operator.jobSchedulerImage.tag | default .Chart.Version)
         )
@@ -36,8 +37,17 @@ data:
         )
       )
       "webhook" (dict
+        "port" (include "radix-webhook.port" . | int)
+        "metricsPort" (include "radix-webhook.metricsPort" . | int)
+        "healthPort" (include "radix-webhook.healthPort" . | int)
         "secretNamespace" .Release.Namespace
+        "secretName" (include "radix-webhook-certs.name" .)
         "dnsName" ( printf "radix-webhook.%s.svc" .Release.Namespace )
+        "validatingWebhookConfigurationName" (include "radix-webhook-configuration.name" .)
+      )
+      "apiServer" (dict
+        "port" (include "radix-api-server.port" . | int)
+        "metricsPort" (include "radix-api-server.metricsPort" . | int)
       )
     -}}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}

@@ -116,8 +116,10 @@ func TestParse_HappyPath(t *testing.T) {
 			},
 		},
 		Operator: config.OperatorConfig{
+			MetricsPort:                       9000,
 			LogLevel:                          "info",
 			LogPrettyPrint:                    true,
+			UseProfiler:                       false,
 			RegistrationControllerThreads:     1,
 			ApplicationControllerThreads:      2,
 			EnvironmentControllerThreads:      3,
@@ -237,7 +239,6 @@ func TestParse_HappyPath(t *testing.T) {
 		ApiServer: config.ApiServerConfig{
 			Port:               3002,
 			MetricsPort:        9090,
-			ProfilerPort:       7070,
 			UseProfiler:        true,
 			LogLevel:           "info",
 			LogPrettyPrint:     true,
