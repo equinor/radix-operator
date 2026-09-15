@@ -151,9 +151,12 @@ func (w *walker) walkMap(values reflect.Value, path string) error {
 	})
 	for _, key := range keys {
 		valuePath := fmt.Sprintf("%s[%v]", path, key.Interface())
-		if err := w.walkNested(values.MapIndex(key), valuePath); err != nil {
+		value := reflect.New(values.Type().Elem()).Elem()
+		value.Set(values.MapIndex(key))
+		if err := w.walkNested(value, valuePath); err != nil {
 			return err
 		}
+		values.SetMapIndex(key, value)
 	}
 	return nil
 }

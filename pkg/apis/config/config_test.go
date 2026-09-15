@@ -272,6 +272,16 @@ func TestParse_EnvOverride(t *testing.T) {
 	assert.Equal(t, "debug", cfg.Operator.LogLevel)
 }
 
+func TestParse_EnvOverrideAuthenticatorByKey(t *testing.T) {
+	t.Setenv("RADIXCONFIG_APISERVER_AUTHENTICATORS_AZURE_AUDIENCE", "overriddenAudience")
+
+	cfg, err := config.Parse(configHappyYaml)
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Equal(t, "overriddenAudience", cfg.ApiServer.Authenticators["azure"].Audience)
+}
+
 func TestParse_EnvMacro(t *testing.T) {
 	t.Setenv("TEST_KUBERNETES_API_PORT", "6443")
 
