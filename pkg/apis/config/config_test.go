@@ -299,6 +299,12 @@ func TestParse_AuthenticatorsValidation(t *testing.T) {
 				}
 			},
 		},
+		"nil entry should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = nil
+			},
+			expectedError: `field "ApiServer.Authenticators" did not pass validation expression`,
+		},
 		"zero entries should fail": {
 			mutateConfig: func(cfg *config.Config) {
 				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{}
