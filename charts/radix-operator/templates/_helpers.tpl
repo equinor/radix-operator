@@ -65,6 +65,13 @@ radix-common-config
 {{- end -}}
 
 {{/*
+Create the name of the webhook configuration
+*/}}
+{{- define "radix-webhook-configuration" -}}
+radix-webhook-configuration
+{{- end -}}
+
+{{/*
 Utility function to take list to comma separated dictionary
 */}}
 {{- define "helm-toolkit.utils.joinMapWithComma" -}}

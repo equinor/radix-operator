@@ -149,7 +149,6 @@ config:
     caOrganization: "Radix Webhook CA"
     certsDir: "/run/certs"
     extraDnsNames: []
-    validatingWebhookConfigurationName: radix-webhook-configuration
 
   apiServer:
     port: 3002
