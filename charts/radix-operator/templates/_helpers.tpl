@@ -78,6 +78,30 @@ Create the name of the webhook certificate Secret
 radix-webhook-certs
 {{- end -}}
 
+{{- define "radix-webhook.port" -}}
+9443
+{{- end -}}
+
+{{- define "radix-webhook.metricsPort" -}}
+9000
+{{- end -}}
+
+{{- define "radix-webhook.healthPort" -}}
+9440
+{{- end -}}
+
+{{- define "radix-api-server.port" -}}
+3002
+{{- end -}}
+
+{{- define "radix-api-server.metricsPort" -}}
+9090
+{{- end -}}
+
+{{- define "radix-api-server.profilerPort" -}}
+7070
+{{- end -}}
+
 {{/*
 Utility function to take list to comma separated dictionary
 */}}

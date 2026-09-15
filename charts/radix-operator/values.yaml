@@ -133,9 +133,6 @@ config:
   webhook:
     logLevel: info
     logPrettyPrint: false
-    port: 9443
-    metricsPort: 9000
-    healthPort: 9440
 
     requireGroups: true
     requireConfigurationItem: true
@@ -149,9 +146,6 @@ config:
     extraDnsNames: []
 
   apiServer:
-    port: 3002
-    metricsPort: 9090
-    profilerPort: 7070
     useProfiler: false
     logLevel: info
     logPrettyPrint: false

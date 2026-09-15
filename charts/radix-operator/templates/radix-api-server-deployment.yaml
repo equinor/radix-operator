@@ -58,10 +58,14 @@ spec:
           {{- end }}
 
           ports:
-            - containerPort: {{ .Values.config.apiServer.port }}
+            - containerPort: {{ include "radix-api-server.port" . }}
               name: http
-            - containerPort: {{ .Values.config.apiServer.metricsPort }}
+            - containerPort: {{ include "radix-api-server.metricsPort" . }}
               name: metrics
+            {{- if .Values.config.apiServer.useProfiler }}
+            - containerPort: {{ include "radix-api-server.profilerPort" . }}
+              name: profiler
+            {{- end }}
           env:
             - name: POD_NAMESPACE
               valueFrom:

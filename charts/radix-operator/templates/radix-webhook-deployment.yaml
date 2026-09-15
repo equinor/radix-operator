@@ -63,11 +63,11 @@ spec:
           {{- end }}
           
           ports:
-            - containerPort: 9443
+            - containerPort: {{ include "radix-webhook.port" . }}
               name: webhook
-            - containerPort: 9440
+            - containerPort: {{ include "radix-webhook.healthPort" . }}
               name: healthz
-            - containerPort: 9000
+            - containerPort: {{ include "radix-webhook.metricsPort" . }}
               name: metrics
           readinessProbe:
             httpGet:

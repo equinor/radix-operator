@@ -36,10 +36,18 @@ data:
         )
       )
       "webhook" (dict
+        "port" (include "radix-webhook.port" . | int)
+        "metricsPort" (include "radix-webhook.metricsPort" . | int)
+        "healthPort" (include "radix-webhook.healthPort" . | int)
         "secretNamespace" .Release.Namespace
         "secretName" (include "radix-webhook-certs.name" .)
         "dnsName" ( printf "radix-webhook.%s.svc" .Release.Namespace )
         "validatingWebhookConfigurationName" (include "radix-webhook-configuration.name" .)
+      )
+      "apiServer" (dict
+        "port" (include "radix-api-server.port" . | int)
+        "metricsPort" (include "radix-api-server.metricsPort" . | int)
+        "profilerPort" (include "radix-api-server.profilerPort" . | int)
       )
     -}}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}
