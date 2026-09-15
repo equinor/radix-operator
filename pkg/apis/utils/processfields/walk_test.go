@@ -341,6 +341,29 @@ func TestWalkFieldsTraversesListOfStructs(t *testing.T) {
 	}, cfg.Sections)
 }
 
+func TestWalkFieldsTraversesMapOfStructs(t *testing.T) {
+	t.Parallel()
+
+	type section struct {
+		Level string
+	}
+	type config struct {
+		Sections map[string]section
+	}
+
+	var paths []string
+	err := processfields.WalkFields(&config{Sections: map[string]section{
+		"beta":  {},
+		"alpha": {},
+	}}, func(path string, _ reflect.StructField, _ reflect.Value, _ processfields.SetValFunc) error {
+		paths = append(paths, path)
+		return nil
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Sections", "Sections[alpha].Level", "Sections[beta].Level"}, paths)
+}
+
 func TestWalkFieldsTraversesListOfStructPointers(t *testing.T) {
 	t.Parallel()
 

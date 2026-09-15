@@ -305,6 +305,22 @@ func TestParse_AuthenticatorsValidation(t *testing.T) {
 			},
 			expectedError: `field "ApiServer.Authenticators" did not pass validation expression`,
 		},
+		"authenticator without issuer should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{
+					"azure": {Audience: "fakeAudience"},
+				}
+			},
+			expectedError: `field "ApiServer.Authenticators[azure].Issuer" is required but not set`,
+		},
+		"authenticator without audience should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{
+					"azure": {Issuer: MustParseUrl("https://fakeissuer.com")},
+				}
+			},
+			expectedError: `field "ApiServer.Authenticators[azure].Audience" is required but not set`,
+		},
 	}
 
 	for name, test := range tests {
