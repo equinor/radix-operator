@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -86,6 +87,16 @@ func (w *walker) walkStruct(val reflect.Value, path string) error {
 			continue
 		}
 
+		if fieldType.IsExported() && isNestedStructMap(fieldType.Type) {
+			if err := w.fn(fieldPath, fieldType, fieldValue, nil); err != nil {
+				return err
+			}
+			if err := w.walkMap(fieldValue, fieldPath); err != nil {
+				return err
+			}
+			continue
+		}
+
 		// Embedded unexported non-struct fields cannot be set through reflection.
 		if !fieldType.IsExported() {
 			continue
@@ -129,6 +140,23 @@ func (w *walker) walkList(list reflect.Value, path string) error {
 		if err := w.walkNested(list.Index(i), fmt.Sprintf("%s[%d]", path, i)); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (w *walker) walkMap(values reflect.Value, path string) error {
+	keys := values.MapKeys()
+	slices.SortFunc(keys, func(left, right reflect.Value) int {
+		return strings.Compare(fmt.Sprint(left.Interface()), fmt.Sprint(right.Interface()))
+	})
+	for _, key := range keys {
+		valuePath := fmt.Sprintf("%s[%v]", path, key.Interface())
+		value := reflect.New(values.Type().Elem()).Elem()
+		value.Set(values.MapIndex(key))
+		if err := w.walkNested(value, valuePath); err != nil {
+			return err
+		}
+		values.SetMapIndex(key, value)
 	}
 	return nil
 }
@@ -276,6 +304,10 @@ func isNestedStructList(typ reflect.Type) bool {
 		return false
 	}
 	return !implementsUnmarshaler(typ) && isNestedStruct(typ.Elem())
+}
+
+func isNestedStructMap(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Map && !implementsUnmarshaler(typ) && isNestedStruct(typ.Elem())
 }
 
 func implementsUnmarshaler(typ reflect.Type) bool {

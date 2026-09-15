@@ -272,6 +272,16 @@ func TestParse_EnvOverride(t *testing.T) {
 	assert.Equal(t, "debug", cfg.Operator.LogLevel)
 }
 
+func TestParse_EnvOverrideAuthenticatorByKey(t *testing.T) {
+	t.Setenv("RADIXCONFIG_APISERVER_AUTHENTICATORS_AZURE_AUDIENCE", "overriddenAudience")
+
+	cfg, err := config.Parse(configHappyYaml)
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Equal(t, "overriddenAudience", cfg.ApiServer.Authenticators["azure"].Audience)
+}
+
 func TestParse_EnvMacro(t *testing.T) {
 	t.Setenv("TEST_KUBERNETES_API_PORT", "6443")
 
@@ -310,6 +320,22 @@ func TestParse_AuthenticatorsValidation(t *testing.T) {
 				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{}
 			},
 			expectedError: `field "ApiServer.Authenticators" did not pass validation expression`,
+		},
+		"authenticator without issuer should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{
+					"azure": {Audience: "fakeAudience"},
+				}
+			},
+			expectedError: `field "ApiServer.Authenticators[azure].Issuer" is required but not set`,
+		},
+		"authenticator without audience should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{
+					"azure": {Issuer: MustParseUrl("https://fakeissuer.com")},
+				}
+			},
+			expectedError: `field "ApiServer.Authenticators[azure].Audience" is required but not set`,
 		},
 	}
 
