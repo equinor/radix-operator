@@ -62,10 +62,6 @@ spec:
               name: http
             - containerPort: {{ include "radix-api-server.metricsPort" . }}
               name: metrics
-            {{- if .Values.config.apiServer.useProfiler }}
-            - containerPort: {{ include "radix-api-server.profilerPort" . }}
-              name: profiler
-            {{- end }}
           env:
             - name: POD_NAMESPACE
               valueFrom:

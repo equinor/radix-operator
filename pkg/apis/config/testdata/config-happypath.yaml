@@ -155,7 +155,6 @@ webhook:
 apiServer:
   port: 3002
   metricsPort: 9090
-  profilerPort: 7070
   useProfiler: true
   logLevel: info
   logPrettyPrint: true

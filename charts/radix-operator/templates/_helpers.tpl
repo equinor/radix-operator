@@ -98,10 +98,6 @@ radix-webhook-certs
 9090
 {{- end -}}
 
-{{- define "radix-api-server.profilerPort" -}}
-7070
-{{- end -}}
-
 {{- define "radix-operator.metricsPort" -}}
 9000
 {{- end -}}

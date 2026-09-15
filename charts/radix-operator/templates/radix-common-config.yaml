@@ -48,7 +48,6 @@ data:
       "apiServer" (dict
         "port" (include "radix-api-server.port" . | int)
         "metricsPort" (include "radix-api-server.metricsPort" . | int)
-        "profilerPort" (include "radix-api-server.profilerPort" . | int)
       )
     -}}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}

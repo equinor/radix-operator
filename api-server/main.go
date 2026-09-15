@@ -44,6 +44,8 @@ import (
 )
 
 func main() {
+	const profilerPort = 7070
+
 	c := loadConfig(context.Background())
 
 	setupLogger(c.ApiServer.LogLevel, c.ApiServer.LogPrettyPrint)
@@ -56,8 +58,8 @@ func main() {
 	}
 
 	if c.ApiServer.UseProfiler {
-		log.Info().Msgf("Initializing profile server on port %d", c.ApiServer.ProfilerPort)
-		servers = append(servers, &http.Server{Addr: fmt.Sprintf("localhost:%d", c.ApiServer.ProfilerPort)})
+		log.Info().Msgf("Initializing profile server on port %d", profilerPort)
+		servers = append(servers, &http.Server{Addr: fmt.Sprintf("localhost:%d", profilerPort)})
 	}
 
 	startServers(servers...)

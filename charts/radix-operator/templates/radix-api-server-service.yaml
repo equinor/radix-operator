@@ -15,11 +15,5 @@ spec:
       targetPort: metrics
       protocol: TCP
       name: metrics
-    {{- if .Values.config.apiServer.useProfiler }}
-    - port: {{ include "radix-api-server.profilerPort" . }}
-      targetPort: profiler
-      protocol: TCP
-      name: profiler
-    {{- end }}
   selector:
     {{- include "radix-api-server.selectorLabels" . | nindent 4 }}
