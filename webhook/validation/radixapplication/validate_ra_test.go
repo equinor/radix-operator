@@ -1961,6 +1961,15 @@ func Test_ValidationOfSecretRefsAzureIdentity(t *testing.T) {
 			},
 			expectedError: nil,
 		},
+		"environment useAzureIdentity with empty Azure clientId fails": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				envConfig := getEnvConfig(component, "dev")
+				envConfig.SecretRefs = azureKeyVaults(boolPtr(true))
+				envConfig.Identity = &radixv1.Identity{Azure: &radixv1.AzureIdentity{}}
+			},
+			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
+		},
 		"environment useAzureIdentity with identity in another environment fails": {
 			updateRA: func(ra *radixv1.RadixApplication) {
 				component := getComponent(ra, "redis")
@@ -1969,7 +1978,38 @@ func Test_ValidationOfSecretRefsAzureIdentity(t *testing.T) {
 			},
 			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
 		},
-		"environment useAzureIdentity overriding common useAzureIdentity to false succeeds": {
+		"job environment useAzureIdentity with identity in another environment fails": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				ra.Spec.Jobs = append(ra.Spec.Jobs, utils.AnApplicationJobComponent().
+					WithName("azure-identity-job").
+					WithSchedulerPort(new(int32(8888))).
+					WithEnvironmentConfigs(
+						utils.AJobComponentEnvironmentConfig().
+							WithEnvironment("dev").
+							WithSecretRefs(azureKeyVaults(boolPtr(true))),
+						utils.AJobComponentEnvironmentConfig().
+							WithEnvironment("prod").
+							WithIdentity(azureIdentity),
+					).
+					BuildJobComponent())
+			},
+			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
+		},
+		"job environment useAzureIdentity with identity in the same environment succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				ra.Spec.Jobs = append(ra.Spec.Jobs, utils.AnApplicationJobComponent().
+					WithName("azure-identity-job").
+					WithSchedulerPort(new(int32(8888))).
+					WithEnvironmentConfig(
+						utils.AJobComponentEnvironmentConfig().
+							WithEnvironment("prod").
+							WithSecretRefs(azureKeyVaults(boolPtr(true))).
+							WithIdentity(azureIdentity)).
+					BuildJobComponent())
+			},
+			expectedError: nil,
+		},
+		"environment useAzureIdentity overriding common useAzureIdentity to false, succeeds": {
 			updateRA: func(ra *radixv1.RadixApplication) {
 				component := getComponent(ra, "redis")
 				component.SecretRefs = azureKeyVaults(boolPtr(true))
