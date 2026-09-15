@@ -46,6 +46,7 @@ pipelineRunner:
 operator:
   logLevel: info
   logPrettyPrint: true
+  useProfiler: false
   metricsPort: 9000
   registrationControllerThreads: 1
   applicationControllerThreads: 2

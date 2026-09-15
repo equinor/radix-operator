@@ -53,6 +53,7 @@ config:
   operator:
     logLevel: info
     logPrettyPrint: false
+    useProfiler: false
     registrationControllerThreads: 1
     applicationControllerThreads: 1
     environmentControllerThreads: 1

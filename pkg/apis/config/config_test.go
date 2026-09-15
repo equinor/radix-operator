@@ -119,6 +119,7 @@ func TestParse_HappyPath(t *testing.T) {
 			MetricsPort:                       9000,
 			LogLevel:                          "info",
 			LogPrettyPrint:                    true,
+			UseProfiler:                       false,
 			RegistrationControllerThreads:     1,
 			ApplicationControllerThreads:      2,
 			EnvironmentControllerThreads:      3,
