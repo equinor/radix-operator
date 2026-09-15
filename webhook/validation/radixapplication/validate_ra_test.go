@@ -2013,7 +2013,7 @@ func Test_ValidationOfSecretRefsAzureIdentity(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			scenario.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"}, cfg2)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 			if scenario.expectedError == nil {
 				assert.NoError(t, err)
