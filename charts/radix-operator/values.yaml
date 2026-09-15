@@ -110,7 +110,7 @@ config:
 
     jobSchedulerImage:
       repository: ghcr.io/equinor/radix/job-scheduler
-      tag: "" # Fallback to .Chart.Version
+      tag: "" # Fallback to .Chart.AppVersion
 
     jobSchedulerAuxImage:
       repository: docker.io/bash
@@ -128,7 +128,7 @@ config:
 
     pipelineImage:
       repository: "ghcr.io/equinor/radix/pipeline"
-      tag: "" # Fallback to .Chart.Version
+      tag: "" # Fallback to .Chart.AppVersion
     pipelineImagePullPolicy: "Always"
 
   webhook:
