@@ -116,6 +116,7 @@ func TestParse_HappyPath(t *testing.T) {
 			},
 		},
 		Operator: config.OperatorConfig{
+			MetricsPort:                       9000,
 			LogLevel:                          "info",
 			LogPrettyPrint:                    true,
 			RegistrationControllerThreads:     1,

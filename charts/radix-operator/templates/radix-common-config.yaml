@@ -28,6 +28,7 @@ data:
         )
       )
       "operator" (dict
+        "metricsPort" (include "radix-operator.metricsPort" . | int)
         "jobSchedulerImage" (dict
           "tag" (.Values.config.operator.jobSchedulerImage.tag | default .Chart.Version)
         )

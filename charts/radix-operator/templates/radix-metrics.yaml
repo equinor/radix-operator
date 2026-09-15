@@ -19,10 +19,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-{{- if .Values.service.annotations}}
-  annotations:
-{{ toYaml .Values.service.annotations | indent 4 }}
-{{- end }}
   labels:
     {{- include "radix-operator.selectorLabels" . | nindent 4 }}
   name: {{ template "radix-operator.fullname" . }}
@@ -30,7 +26,7 @@ metadata:
 spec:
   ports:
   - name: metrics
-    port: 9000
+    port: {{ include "radix-operator.metricsPort" . }}
     protocol: TCP
     targetPort: metrics
   selector:

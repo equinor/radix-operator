@@ -203,7 +203,7 @@ func (a *App) Run(ctx context.Context) error {
 	batchController := a.createBatchController(ctx)
 	dnsAliasesController := a.createDNSAliasesController(ctx)
 
-	g.Go(func() error { return startMetricsServer(ctx) })
+	g.Go(func() error { return startMetricsServer(ctx, a.cfg.Operator.MetricsPort) })
 	g.Go(func() error { return registrationController.Run(ctx, a.cfg.Operator.RegistrationControllerThreads) })
 	g.Go(func() error { return applicationController.Run(ctx, a.cfg.Operator.ApplicationControllerThreads) })
 	g.Go(func() error { return environmentController.Run(ctx, a.cfg.Operator.EnvironmentControllerThreads) })
@@ -373,8 +373,8 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.radixInformerFactory)
 }
 
-func startMetricsServer(ctx context.Context) error {
-	srv := &http.Server{Addr: ":9000"}
+func startMetricsServer(ctx context.Context, port int) error {
+	srv := &http.Server{Addr: fmt.Sprintf(":%d", port)}
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/healthz", http.HandlerFunc(Healthz))
 	go func() {

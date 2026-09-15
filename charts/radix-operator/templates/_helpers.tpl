@@ -102,6 +102,10 @@ radix-webhook-certs
 7070
 {{- end -}}
 
+{{- define "radix-operator.metricsPort" -}}
+9000
+{{- end -}}
+
 {{/*
 Utility function to take list to comma separated dictionary
 */}}
