@@ -17,7 +17,7 @@ import (
 )
 
 func (app *ApplicationConfig) syncEnvironments(ctx context.Context) error {
-	for _, env := range app.config.Spec.Environments {
+	for _, env := range app.application.Spec.Environments {
 		re, err := app.buildRadixEnvironment(env)
 		if err != nil {
 			return err
@@ -34,11 +34,11 @@ func (app *ApplicationConfig) syncEnvironments(ctx context.Context) error {
 func (app *ApplicationConfig) buildRadixEnvironment(env radixv1.Environment) (*radixv1.RadixEnvironment, error) {
 	re := &radixv1.RadixEnvironment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   utils.GetEnvironmentNamespace(app.config.Name, env.Name),
-			Labels: labels.ForApplicationName(app.config.Name),
+			Name:   utils.GetEnvironmentNamespace(app.application.Name, env.Name),
+			Labels: labels.ForApplicationName(app.application.Name),
 		},
 		Spec: radixv1.RadixEnvironmentSpec{
-			AppName: app.config.Name,
+			AppName: app.application.Name,
 			EnvName: env.Name,
 			Egress:  env.Egress,
 		},
@@ -62,7 +62,7 @@ func (app *ApplicationConfig) syncEnvironment(ctx context.Context, radixEnvironm
 		return fmt.Errorf("failed to get RadixEnvironment: %w", err)
 	}
 
-	if appLabel := existingRE.Labels[kube.RadixAppLabel]; appLabel != app.config.Name {
+	if appLabel := existingRE.Labels[kube.RadixAppLabel]; appLabel != app.application.Name {
 		return fmt.Errorf("RadixEnvironment %s is labeled with a different app name: %s", existingRE.GetName(), appLabel)
 	}
 	return app.updateRadixEnvironment(ctx, existingRE, radixEnvironment)

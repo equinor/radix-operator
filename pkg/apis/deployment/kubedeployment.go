@@ -4,7 +4,7 @@ import (
 	"context"
 	"maps"
 
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -78,6 +78,11 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 
 func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(deployComponent.GetName())
+	var imagePullSecrets []corev1.LocalObjectReference
+
+	if deploy.config.Common.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config.Common.ExternalRegistryAuthSecret})
+	}
 
 	var env []corev1.EnvVar
 	if restartComponentValue, ok := deployComponent.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
@@ -115,14 +120,14 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 				Spec: corev1.PodSpec{
 					AutomountServiceAccountToken: new(false),
 					SecurityContext:              securitycontext.Pod(),
-					ImagePullSecrets:             deploy.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth(),
+					ImagePullSecrets:             imagePullSecrets,
 					ServiceAccountName:           (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName(),
 					Affinity:                     utils.GetAffinityForJobAPIAuxComponent(),
 					Volumes:                      volumes,
 					Containers: []corev1.Container{
 						{
 							Name:            jobAuxKubeDeploymentName,
-							Image:           deploy.config.DeploymentSyncer.JobAuxImage,
+							Image:           deploy.config.Operator.JobSchedulerAuxImage.String(),
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithReadOnlyRootFileSystem(new(true)),
@@ -251,8 +256,8 @@ func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCo
 
 func (deploy *Deployment) getDeploymentPodImagePullSecrets() []corev1.LocalObjectReference {
 	imagePullSecrets := deploy.radixDeployment.Spec.ImagePullSecrets
-	if deploy.config != nil {
-		imagePullSecrets = append(imagePullSecrets, deploy.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...)
+	if deploy.config.Common.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: deploy.config.Common.ExternalRegistryAuthSecret})
 	}
 	return imagePullSecrets
 }
@@ -290,7 +295,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
 	desiredDeployment.Spec.Replicas = new(getDeployComponentReplicas(deployComponent))
 	desiredDeployment.Spec.RevisionHistoryLimit = getRevisionHistoryLimit(deployComponent)
-	desiredDeployment.Spec.Strategy = getDeploymentStrategy(deploy.config2)
+	desiredDeployment.Spec.Strategy = getDeploymentStrategy(deploy.config)
 	desiredDeployment.Spec.Template.ObjectMeta.Labels = deploy.getDeploymentPodLabels(deployComponent)
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations = deploy.getDeploymentPodAnnotations(deployComponent)
 
@@ -327,7 +332,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = containerSecurityCtx
-	desiredDeployment.Spec.Template.Spec.Containers[0].Resources, err = utils.GetResourceRequirements(deploy.config2, deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources, err = utils.GetResourceRequirements(deploy.config, deployComponent)
 	if err != nil {
 		return err
 	}
@@ -345,13 +350,13 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = hc.LivenessProbe.MapToCoreProbe()
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = hc.StartupProbe.MapToCoreProbe()
 	} else {
-		readinessProbe := getDefaultReadinessProbeForComponent(deploy.config2, deployComponent)
+		readinessProbe := getDefaultReadinessProbeForComponent(deploy.config, deployComponent)
 		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 		desiredDeployment.Spec.Template.Spec.Containers[0].LivenessProbe = nil
 		desiredDeployment.Spec.Template.Spec.Containers[0].StartupProbe = nil
 	}
 
-	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, deploy.config2, appName, deploy.radixDeployment, deployComponent)
+	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(ctx, deploy.kubeutil, deploy.config, appName, deploy.radixDeployment, deployComponent)
 	if err != nil {
 		return err
 	}
@@ -418,7 +423,7 @@ func getRevisionHistoryLimit(deployComponent v1.RadixCommonDeployComponent) *int
 	return new(int32(10))
 }
 
-func getDeploymentStrategy(cfg config2.Config) appsv1.DeploymentStrategy {
+func getDeploymentStrategy(cfg config.Config) appsv1.DeploymentStrategy {
 	return appsv1.DeploymentStrategy{
 		Type: appsv1.RollingUpdateDeploymentStrategyType,
 		RollingUpdate: &appsv1.RollingUpdateDeployment{
@@ -478,7 +483,7 @@ func (deploy *Deployment) isEligibleForGarbageCollectComponent(componentName Rad
 	return componentType != commonComponent.GetType()
 }
 
-func getDefaultReadinessProbeForComponent(cfg config2.Config, component v1.RadixCommonDeployComponent) *corev1.Probe {
+func getDefaultReadinessProbeForComponent(cfg config.Config, component v1.RadixCommonDeployComponent) *corev1.Probe {
 	if len(component.GetPorts()) == 0 {
 		return nil
 	}
@@ -486,7 +491,7 @@ func getDefaultReadinessProbeForComponent(cfg config2.Config, component v1.Radix
 	return getReadinessProbeWithDefaultsFromEnv(cfg, component.GetPorts()[0].Port)
 }
 
-func getReadinessProbeWithDefaultsFromEnv(cfg config2.Config, componentPort int32) *corev1.Probe {
+func getReadinessProbeWithDefaultsFromEnv(cfg config.Config, componentPort int32) *corev1.Probe {
 	return &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{

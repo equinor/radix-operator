@@ -88,7 +88,7 @@ func NewController(ctx context.Context,
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
 
-			// If neither admin or reader AD groups change, this
+			// If neither admin or reader groups change, this
 			// does not affect the deployment
 			if slice.ElementsMatch(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
 				slice.ElementsMatch(newRr.Spec.AdUsers, oldRr.Spec.AdUsers) &&
@@ -101,7 +101,7 @@ func NewController(ctx context.Context,
 				logger.Error().Err(err).Msgf("Cannot get Radix Application object by name %s", newRr.Name)
 				return
 			}
-			logger.Debug().Msg("update Radix Application due to changed admin or reader AD groups")
+			logger.Debug().Msg("update Radix Application due to changed admin or reader groups")
 			if err := controller.Enqueue(ra); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixRegistration informer UpdateFunc")
 			}

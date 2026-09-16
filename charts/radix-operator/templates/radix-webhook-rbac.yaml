@@ -80,7 +80,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
-    resourceNames: ["radix-webhook-certs"]
+    resourceNames: [{{ include "radix-webhook-certs.name" . | quote }}]
     verbs: ["get", "create", "update"]
   - apiGroups: [""]
     resources: ["secrets"]

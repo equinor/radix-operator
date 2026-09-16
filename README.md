@@ -33,6 +33,38 @@ The `radix-operator` project follows a **trunk-based development** approach.
 
 - Run `make test` and `make test-e2e` to test the operator
 
+### Configuration
+
+The operator, API server, and webhook load their YAML configuration from a Kubernetes ConfigMap. The ConfigMap location is controlled by these environment variables:
+
+| Environment variable       | Default               | Description                           |
+| -------------------------- | --------------------- | ------------------------------------- |
+| `POD_NAMESPACE`            | `default`             | Namespace containing the ConfigMap    |
+| `RADIX_COMMON_CONFIG_NAME` | `radix-common-config` | ConfigMap name                        |
+| `RADIX_COMMON_CONFIG_KEY`  | `configYaml`          | Key containing the YAML configuration |
+
+Configuration supports two forms of environment-variable substitution:
+
+1. **Inline macros** are expanded before the YAML is parsed. Use `$__env(NAME)` anywhere in the YAML, for example:
+
+  ```yaml
+  operator:
+    kubernetesAPIPort: $__env(KUBERNETES_API_PORT)
+  ```
+
+2. **Field overrides** are applied after parsing. Prefix the uppercased field path with `RADIXCONFIG_` and replace path separators with underscores:
+
+  ```text
+  operator.logLevel                         -> RADIXCONFIG_OPERATOR_LOGLEVEL
+  common.oauth2Proxy.proxyImage.repository  -> RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYIMAGE_REPOSITORY
+  apiServer.authenticators[azure].audience  -> RADIXCONFIG_APISERVER_AUTHENTICATORS_AZURE_AUDIENCE
+  sections[1].key                           -> RADIXCONFIG_SECTIONS_1_KEY
+  ```
+
+Override values are converted to the field's type, including booleans, integers, floats, durations, URLs, Kubernetes resource quantities, and other supported unmarshaler types. Slice fields use comma-separated values; commas in scalar strings are preserved. Indexed slice entries and map keys must already exist in the YAML configuration.
+
+Environment variables with an empty value are ignored, so they cannot clear a field. An unset or empty inline macro is left unchanged. Invalid YAML, type conversion failures, missing required values, and failed field validation cause configuration parsing to fail during startup. Overrides are applied before required-field and expression validation, so an override can supply a required value omitted from the YAML.
+
 ### 🔁 Workflow
 
 - **External contributors** should:

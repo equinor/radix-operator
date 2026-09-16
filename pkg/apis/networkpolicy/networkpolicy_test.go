@@ -29,8 +29,10 @@ const (
 )
 
 var testConfig = config.Config{
-	Gateway: config.GatewayConfig{
-		Name: gatewayName,
+	Operator: config.OperatorConfig{
+		Gateway: config.GatewayConfig{
+			Name: gatewayName,
+		},
 	},
 }
 
@@ -598,13 +600,7 @@ func TestUpdateEnvEgressRules_ProtocolCaseConversion(t *testing.T) {
 
 func TestUpdateEnvEgressRules_GatewayNameFromConfig(t *testing.T) {
 	kubeClient, kubeUtil := setupTest(t)
-	customGateway := "custom-gw"
-	cfg := config.Config{
-		Gateway: config.GatewayConfig{
-			Name: customGateway,
-		},
-	}
-	nw := NewNetworkPolicy(kubeClient, kubeUtil, cfg)
+	nw := NewNetworkPolicy(kubeClient, kubeUtil, testConfig)
 
 	rules := []rx.EgressRule{
 		{
@@ -623,7 +619,7 @@ func TestUpdateEnvEgressRules_GatewayNameFromConfig(t *testing.T) {
 	egressRules := policies[0].Spec.Egress
 	radixRule := egressRules[len(egressRules)-1]
 	require.Len(t, radixRule.To, 1)
-	assert.Equal(t, map[string]string{"gateway.networking.k8s.io/gateway-name": customGateway}, radixRule.To[0].PodSelector.MatchLabels)
+	assert.Equal(t, map[string]string{"gateway.networking.k8s.io/gateway-name": gatewayName}, radixRule.To[0].PodSelector.MatchLabels)
 }
 
 func TestUpdateEnvEgressRules_PolicyTypeIsEgress(t *testing.T) {

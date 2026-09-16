@@ -138,8 +138,8 @@ type PipelineArguments struct {
 	Clustername string
 	// ContainerRegistry The name of the container registry
 	ContainerRegistry string
-	// AppContainerRegistry the name of the app container registry
-	AppContainerRegistry string
+	// CacheContainerRegistry the name of the app container registry
+	CacheContainerRegistry string
 	// Used to indicate debugging session
 	Debug bool
 	// Image tag names for components: component-name:image-tag

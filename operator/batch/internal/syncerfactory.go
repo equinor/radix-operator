@@ -3,7 +3,6 @@ package internal
 import (
 	"github.com/equinor/radix-operator/pkg/apis/batch"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -19,7 +18,6 @@ type SyncerFactory interface {
 		registration *radixv1.RadixRegistration,
 		radixBatch *radixv1.RadixBatch,
 		config config.Config,
-		config2 config2.Config,
 		options ...batch.SyncerOption,
 	) batch.Syncer
 }
@@ -33,7 +31,6 @@ type SyncerFactoryFunc func(
 	registration *radixv1.RadixRegistration,
 	radixBatch *radixv1.RadixBatch,
 	config config.Config,
-	config2 config2.Config,
 	options ...batch.SyncerOption,
 ) batch.Syncer
 
@@ -44,8 +41,7 @@ func (f SyncerFactoryFunc) CreateSyncer(
 	registration *radixv1.RadixRegistration,
 	radixBatch *radixv1.RadixBatch,
 	config config.Config,
-	config2 config2.Config,
 	options ...batch.SyncerOption,
 ) batch.Syncer {
-	return f(kubeclient, kubeutil, radixclient, registration, radixBatch, config, config2, options...)
+	return f(kubeclient, kubeutil, radixclient, registration, radixBatch, config, options...)
 }

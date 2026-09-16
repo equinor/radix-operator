@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -21,7 +21,7 @@ type handler struct {
 	kubeutil    *kube.Kube
 	radixclient radixclient.Interface
 	events      common.SyncEventRecorder
-	config2     config2.Config
+	cfg         config.Config
 }
 
 // NewHandler creates a handler which deals with RadixRegistration resources
@@ -29,14 +29,14 @@ func NewHandler(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	eventRecorder record.EventRecorder, config2 config2.Config) common.Handler {
+	eventRecorder record.EventRecorder, cfg config.Config) common.Handler {
 
 	handler := &handler{
 		kubeclient:  kubeclient,
 		kubeutil:    kubeutil,
 		radixclient: radixclient,
 		events:      common.NewSyncEventRecorder(eventRecorder),
-		config2:     config2,
+		cfg:         cfg,
 	}
 
 	return handler
@@ -59,7 +59,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 
 	syncRegistration := registration.DeepCopy()
 	log.Ctx(ctx).Debug().Msgf("Sync registration %s", syncRegistration.Name)
-	application := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration, t.config2)
+	application := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration, t.cfg)
 	err = application.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncRegistration, err)

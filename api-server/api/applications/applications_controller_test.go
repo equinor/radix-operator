@@ -23,8 +23,8 @@ import (
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
 	"github.com/equinor/radix-operator/api-server/internal/accounts"
-	"github.com/equinor/radix-operator/api-server/internal/config"
 	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -54,7 +54,7 @@ const (
 
 func setupTest(t *testing.T, options ...ApplicationHandlerOption) (*commontest.Utils, *controllertest.TestUtils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
 	return setupTestWithFactory(t, newTestApplicationHandlerFactory(
-		config.Config{DNSZone: dnsZone},
+		config.Config{Common: config.CommonConfig{DNSZone: dnsZone}},
 		func(ctx context.Context, kubeClient kubernetes.Interface, namespace string, configMapName string) (bool, error) {
 			return true, nil
 		},
@@ -1558,14 +1558,14 @@ func buildApplicationRegistrationRequest(applicationRegistration applicationMode
 }
 
 type testApplicationHandlerFactory struct {
-	config                  config.Config
+	cfg                     config.Config
 	hasAccessToGetConfigMap hasAccessToGetConfigMapFunc
 	options                 []ApplicationHandlerOption
 }
 
 func newTestApplicationHandlerFactory(config config.Config, hasAccessToGetConfigMap hasAccessToGetConfigMapFunc, options ...ApplicationHandlerOption) *testApplicationHandlerFactory {
 	return &testApplicationHandlerFactory{
-		config:                  config,
+		cfg:                     config,
 		hasAccessToGetConfigMap: hasAccessToGetConfigMap,
 		options:                 options,
 	}
@@ -1573,7 +1573,7 @@ func newTestApplicationHandlerFactory(config config.Config, hasAccessToGetConfig
 
 // Create creates a new ApplicationHandler
 func (f *testApplicationHandlerFactory) Create(accounts accounts.Accounts) ApplicationHandler {
-	return NewApplicationHandler(accounts, f.config, f.hasAccessToGetConfigMap, f.options...)
+	return NewApplicationHandler(accounts, f.cfg, f.hasAccessToGetConfigMap, f.options...)
 }
 
 func createTime(timestamp string) *time.Time {

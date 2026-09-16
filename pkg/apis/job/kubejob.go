@@ -42,7 +42,13 @@ func (job *Job) createPipelineJob(ctx context.Context) error {
 
 func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) {
 	radixConfigFullName := getRadixConfigFullName(job.registration)
-	log.Ctx(ctx).Info().Msgf("Using image: %s", job.config.PipelineJobConfig.PipelineImage)
+	log.Ctx(ctx).Info().Msgf("Using image: %s", job.cfg.Operator.PipelineImage.String())
+
+	var imagePullSecrets []corev1.LocalObjectReference
+
+	if job.cfg.Common.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: job.cfg.Common.ExternalRegistryAuthSecret})
+	}
 
 	appName := job.radixJob.Spec.AppName
 	jobName := job.radixJob.Name
@@ -76,7 +82,7 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
 				},
 				Spec: corev1.PodSpec{
-					ImagePullSecrets:             job.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth(),
+					ImagePullSecrets:             imagePullSecrets,
 					ServiceAccountName:           defaults.PipelineServiceAccountName,
 					AutomountServiceAccountToken: new(true),
 					SecurityContext: securitycontext.Pod(
@@ -86,8 +92,8 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 					Containers: []corev1.Container{
 						{
 							Name:            defaults.RadixPipelineJobPipelineContainerName,
-							Image:           job.config.PipelineJobConfig.PipelineImage,
-							ImagePullPolicy: job.config.PipelineJobConfig.PipelineImagePullPolicy,
+							Image:           job.cfg.Operator.PipelineImage.String(),
+							ImagePullPolicy: job.cfg.Operator.PipelineImagePullPolicy,
 							VolumeMounts:    git.GetJobContainerVolumeMounts(workspace),
 							Args:            containerArguments,
 							SecurityContext: securitycontext.Container(
@@ -134,7 +140,7 @@ func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) string
 
 func (job *Job) getInitContainersForRadixConfig(workspace string) []corev1.Container {
 	rr := job.registration
-	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, job.config.PipelineJobConfig.GitCloneImage)
+	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, job.cfg.PipelineRunner.GitCloneImage.String())
 }
 
 func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
@@ -144,28 +150,28 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, job.config2.Operator.Builder.Resources.Requests.Memory.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, job.config2.Operator.Builder.Resources.Requests.CPU.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, job.config2.Operator.Builder.Resources.Limits.Memory.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, job.config2.Operator.Builder.Resources.Limits.CPU.String()),
-		fmt.Sprintf("--%s=%s", defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable, job.config.ContainerRegistryConfig.ExternalRegistryAuthSecret),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, job.cfg.PipelineRunner.Builder.Resources.Requests.Memory.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, job.cfg.PipelineRunner.Builder.Resources.Requests.CPU.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, job.cfg.PipelineRunner.Builder.Resources.Limits.Memory.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, job.cfg.PipelineRunner.Builder.Resources.Limits.CPU.String()),
+		fmt.Sprintf("--%s=%s", flags.ExternalRegistryAuthSecret, job.cfg.Common.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images
-		fmt.Sprintf("--%s=%s", flags.BuilderImage, job.config2.Operator.Builder.Image.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, job.config2.Operator.Builder.SeccompProfileLocalhostProfile),
+		fmt.Sprintf("--%s=%s", flags.BuilderImage, job.cfg.PipelineRunner.Builder.Image.String()),
+		fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, job.cfg.PipelineRunner.Builder.SeccompProfileLocalhostProfile),
 
 		// Used for tagging source of image
-		fmt.Sprintf("--%s=%s", flags.ClusterType, job.config2.Operator.ClusterType),
-		fmt.Sprintf("--%s=%s", flags.ClusterName, job.config2.Common.ClusterName),
-		fmt.Sprintf("--%s=%s", flags.ContainerRegistry, job.config2.Operator.ContainerRegistry),
-		fmt.Sprintf("--%s=%s", flags.AppContainerRegistry, job.config2.Operator.AppContainerRegistry),
+		fmt.Sprintf("--%s=%s", flags.ClusterType, job.cfg.Common.ClusterType),
+		fmt.Sprintf("--%s=%s", flags.ClusterName, job.cfg.Common.ClusterName),
+		fmt.Sprintf("--%s=%s", flags.ContainerRegistry, job.cfg.PipelineRunner.ContainerRegistry),
+		fmt.Sprintf("--%s=%s", flags.CacheContainerRegistry, job.cfg.PipelineRunner.CacheContainerRegistry),
 		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
 		fmt.Sprintf("--%s=%v", defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, job.radixJob.Spec.TriggeredFromWebhook),
 	}
 
 	// Pass git clone init container images
-	args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitCloneGitImageEnvironmentVariable, job.config.PipelineJobConfig.GitCloneImage))
+	args = append(args, fmt.Sprintf("--%s=%s", flags.GitCloneImage, job.cfg.PipelineRunner.GitCloneImage.String()))
 
 	switch pipeline.Type {
 	case radixv1.BuildDeploy, radixv1.Build:

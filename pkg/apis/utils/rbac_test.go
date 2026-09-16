@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
@@ -52,8 +52,8 @@ func Test_GetAppAdminRbacSubjects(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			cfg := config2.Config{
-				Operator: config2.OperatorConfig{
+			cfg := config.Config{
+				Operator: config.OperatorConfig{
 					DefaultAppAdminGroups: test.defaultGroupsEnvValue,
 				},
 			}

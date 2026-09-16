@@ -35,7 +35,7 @@ func (app *ApplicationConfig) syncSubPipelineServiceAccounts(ctx context.Context
 func (app *ApplicationConfig) applySubPipelineServiceAccounts(ctx context.Context) error {
 	appNs := utils.GetAppNamespace(app.registration.Name)
 
-	for _, env := range app.config.Spec.Environments {
+	for _, env := range app.application.Spec.Environments {
 		saName := utils.GetSubPipelineServiceAccountName(env.Name)
 
 		sa := &corev1.ServiceAccount{
@@ -68,7 +68,7 @@ func (app *ApplicationConfig) gcSubPipelineServiceAccounts(ctx context.Context) 
 	for _, sa := range accounts {
 		targetEnv := sa.Labels[kube.RadixEnvLabel]
 
-		envExists := slices.ContainsFunc(app.config.Spec.Environments, func(e radixv1.Environment) bool {
+		envExists := slices.ContainsFunc(app.application.Spec.Environments, func(e radixv1.Environment) bool {
 			return e.Name == targetEnv
 		})
 		if envExists {

@@ -109,7 +109,7 @@ func (rb *RegistrationBuilderStruct) WithCloneURL(cloneURL string) RegistrationB
 	return rb
 }
 
-// WithAdGroups Sets ad group
+// WithAdGroups Sets group
 func (rb *RegistrationBuilderStruct) WithAdGroups(adGroups []string) RegistrationBuilder {
 	rb.adGroups = adGroups
 	return rb
@@ -121,7 +121,7 @@ func (rb *RegistrationBuilderStruct) WithAdUsers(adUsers []string) RegistrationB
 	return rb
 }
 
-// WithReaderAdGroups Sets reader ad group
+// WithReaderAdGroups Sets reader group
 func (rb *RegistrationBuilderStruct) WithReaderAdGroups(readerAdGroups []string) RegistrationBuilder {
 	rb.readerAdGroups = readerAdGroups
 	return rb

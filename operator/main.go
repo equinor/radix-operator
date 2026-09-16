@@ -26,8 +26,7 @@ import (
 	"github.com/equinor/radix-operator/operator/registration"
 	"github.com/equinor/radix-operator/operator/scheduler"
 	"github.com/equinor/radix-operator/operator/scheduler/tasks"
-	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
@@ -41,7 +40,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -61,7 +59,7 @@ const (
 )
 
 type App struct {
-	config2              config2.Config
+	cfg                  config.Config
 	eventRecorder        record.EventRecorder
 	kubeInformerFactory  kubeinformers.SharedInformerFactory
 	radixInformerFactory radixinformers.SharedInformerFactory
@@ -72,7 +70,6 @@ type App struct {
 	secretProviderClient secretProviderClient.Interface
 	certClient           certclient.Interface
 	kubeUtil             *kube.Kube
-	config               *apiconfig.Config
 	kedaClient           kedav2.Interface
 }
 
@@ -80,45 +77,49 @@ func main() {
 	backgroundCtx := context.Background()
 	ctx, _ := signal.NotifyContext(backgroundCtx, syscall.SIGTERM, syscall.SIGINT)
 
-	app, err := initializeApp(backgroundCtx)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize app")
-	}
+	cfg := loadConfig(backgroundCtx)
 
-	if profiler := viper.GetBool("USE_PROFILER"); profiler {
+	setupLogger(cfg.Operator.LogLevel, cfg.Operator.LogPrettyPrint)
+
+	log.Ctx(ctx).Info().Interface("config", cfg).Msg("config parsed")
+
+	if cfg.Operator.UseProfiler {
 		go func() {
-			log.Ctx(ctx).Info().Msg("Starting pprof server on :7070")
-			if err := http.ListenAndServe(":7070", nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			const profilerAddr = "localhost:7070"
+			log.Ctx(ctx).Info().Msgf("Starting profiler server on %s", profilerAddr)
+			if err := http.ListenAndServe(profilerAddr, nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Ctx(ctx).Fatal().Err(err).Msg("Failed to start pprof server")
 			}
 		}()
 	}
 
-	err = app.Run(ctx)
+	app, err := initializeApp(backgroundCtx, cfg)
 	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize app")
+	}
+
+	if err := app.Run(ctx); err != nil {
 		log.Fatal().Msg(err.Error())
 	}
 
 	log.Ctx(ctx).Info().Msg("Finished.")
 }
 
-func initializeApp(ctx context.Context) (*App, error) {
-	var app App
-	var err error
-
+func loadConfig(ctx context.Context) config.Config {
 	cfgClient, err := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create config reader client: %w", err)
+		log.Fatal().Err(err).Msg("Failed to create config reader client")
 	}
-	cfgYaml := config2.MustEnvConfigMapReader(ctx, cfgClient)
-	app.config2 = config2.MustParse(cfgYaml)
 
-	app.config = apiconfig.MustParse()
-	initLogger(app.config2)
-	log.Ctx(ctx).Info().Interface("config", app.config).Msg("config parsed")
-	log.Ctx(ctx).Info().Interface("config", app.config2).Msg("config2 parsed")
+	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
+	return config.MustParse(cfgYaml)
+}
 
-	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.config2.Operator.KubeClientRateLimitQPS, app.config2.Operator.KubeClientRateLimitBurst))
+func initializeApp(ctx context.Context, cfg config.Config) (*App, error) {
+	var err error
+	app := App{cfg: cfg}
+
+	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(app.cfg.Operator.KubeClientRateLimitQPS, app.cfg.Operator.KubeClientRateLimitBurst))
 	warningHandler := utils.WithKubernetesWarningHandler(utils.ZerologWarningHandlerAdapter(log.Warn))
 	app.dynamicCache, app.dynamicClient = initializeClient(ctx, rateLimitConfig, warningHandler)
 	app.client, app.radixClient, app.kedaClient, app.secretProviderClient, app.certClient, _ = utils.GetKubernetesClient(rateLimitConfig, warningHandler)
@@ -184,12 +185,12 @@ func (a *App) createSchedulers(ctx context.Context) ([]scheduler.TaskScheduler, 
 	var errs []error
 	var taskSchedulers []scheduler.TaskScheduler
 	if envCleanupTask, err := scheduler.NewTaskScheduler(ctx,
-		tasks.NewRadixEnvironmentsCleanup(ctx, a.kubeUtil, a.config.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod),
-		a.config.TaskConfig.OrphanedEnvironmentsCleanupCron); err != nil {
+		tasks.NewRadixEnvironmentsCleanup(ctx, a.kubeUtil, a.cfg.Operator.OrphanedEnvironmentsRetentionPeriod),
+		a.cfg.Operator.OrphanedEnvironmentsCleanupCron); err != nil {
 		errs = append(errs, fmt.Errorf("failed to create environment cleanup task: %w", err))
 	} else {
 		taskSchedulers = append(taskSchedulers, envCleanupTask)
-		log.Ctx(ctx).Info().Msgf("Created schedule %s for the task RadixEnvironments cleanup task", a.config.TaskConfig.OrphanedEnvironmentsCleanupCron)
+		log.Ctx(ctx).Info().Msgf("Created schedule %s for the task RadixEnvironments cleanup task", a.cfg.Operator.OrphanedEnvironmentsCleanupCron)
 	}
 	return taskSchedulers, errors.Join(errs...)
 }
@@ -207,15 +208,15 @@ func (a *App) Run(ctx context.Context) error {
 	batchController := a.createBatchController(ctx)
 	dnsAliasesController := a.createDNSAliasesController(ctx)
 
-	g.Go(func() error { return startMetricsServer(ctx) })
-	g.Go(func() error { return registrationController.Run(ctx, a.config2.Operator.RegistrationControllerThreads) })
-	g.Go(func() error { return applicationController.Run(ctx, a.config2.Operator.ApplicationControllerThreads) })
-	g.Go(func() error { return environmentController.Run(ctx, a.config2.Operator.EnvironmentControllerThreads) })
-	g.Go(func() error { return deploymentController.Run(ctx, a.config2.Operator.DeploymentControllerThreads) })
-	g.Go(func() error { return jobController.Run(ctx, a.config2.Operator.JobControllerThreads) })
-	g.Go(func() error { return alertController.Run(ctx, a.config2.Operator.AlertControllerThreads) })
+	g.Go(func() error { return startMetricsServer(ctx, a.cfg.Operator.MetricsPort) })
+	g.Go(func() error { return registrationController.Run(ctx, a.cfg.Operator.RegistrationControllerThreads) })
+	g.Go(func() error { return applicationController.Run(ctx, a.cfg.Operator.ApplicationControllerThreads) })
+	g.Go(func() error { return environmentController.Run(ctx, a.cfg.Operator.EnvironmentControllerThreads) })
+	g.Go(func() error { return deploymentController.Run(ctx, a.cfg.Operator.DeploymentControllerThreads) })
+	g.Go(func() error { return jobController.Run(ctx, a.cfg.Operator.JobControllerThreads) })
+	g.Go(func() error { return alertController.Run(ctx, a.cfg.Operator.AlertControllerThreads) })
 	g.Go(func() error { return batchController.Run(ctx, 1) })
-	g.Go(func() error { return dnsAliasesController.Run(ctx, a.config2.Operator.EnvironmentControllerThreads) })
+	g.Go(func() error { return dnsAliasesController.Run(ctx, a.cfg.Operator.EnvironmentControllerThreads) })
 	g.Go(func() error { return a.runSchedulers(ctx) })
 
 	// Informers must be started after all controllers are initialized
@@ -226,8 +227,7 @@ func (a *App) Run(ctx context.Context) error {
 	return g.Wait()
 }
 
-func initLogger(cfg config2.Config) {
-	logLevelStr := cfg.Operator.LogLevel
+func setupLogger(logLevelStr string, prettyPrintLog bool) {
 	if len(logLevelStr) == 0 {
 		logLevelStr = zerolog.LevelInfoValue
 	}
@@ -239,7 +239,7 @@ func initLogger(cfg config2.Config) {
 	}
 
 	var logWriter io.Writer = os.Stderr
-	if cfg.Operator.LogPrettyPrint {
+	if prettyPrintLog {
 		logWriter = &zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
 	}
 
@@ -255,7 +255,7 @@ func (a *App) createRegistrationController(ctx context.Context) *common.Controll
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config2,
+		a.cfg,
 	)
 
 	return registration.NewController(ctx,
@@ -271,7 +271,7 @@ func (a *App) createApplicationController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		a.config2,
+		a.cfg,
 		a.eventRecorder,
 	)
 
@@ -288,8 +288,7 @@ func (a *App) createEnvironmentController(ctx context.Context) *common.Controlle
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
-		*a.config,
-		a.config2,
+		a.cfg,
 		a.eventRecorder,
 	)
 
@@ -307,8 +306,7 @@ func (a *App) createDNSAliasesController(ctx context.Context) *common.Controller
 		a.kubeUtil.RadixClient(),
 		a.dynamicClient,
 		a.eventRecorder,
-		*a.config,
-		a.config2,
+		a.cfg,
 	)
 
 	return dnsalias.NewController(
@@ -329,8 +327,7 @@ func (a *App) createDeploymentController(ctx context.Context) *common.Controller
 		a.dynamicClient,
 		a.certClient,
 		a.eventRecorder,
-		a.config,
-		a.config2,
+		a.cfg,
 	)
 
 	return deployment.NewController(ctx,
@@ -347,8 +344,7 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		a.config,
-		a.config2)
+		a.cfg)
 
 	return job.NewController(ctx, a.kubeUtil.KubeClient(), a.kubeUtil.RadixClient(), handler, a.kubeInformerFactory, a.radixInformerFactory)
 }
@@ -359,7 +355,7 @@ func (a *App) createAlertController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.dynamicClient,
 		a.eventRecorder,
-		a.config2,
+		a.cfg,
 	)
 
 	return alert.NewController(ctx, a.kubeUtil.KubeClient(), a.radixClient, handler, a.kubeInformerFactory, a.radixInformerFactory)
@@ -371,8 +367,7 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
 		a.eventRecorder,
-		*a.config,
-		a.config2,
+		a.cfg,
 	)
 
 	return batch.NewController(ctx,
@@ -382,8 +377,8 @@ func (a *App) createBatchController(ctx context.Context) *common.Controller {
 		a.radixInformerFactory)
 }
 
-func startMetricsServer(ctx context.Context) error {
-	srv := &http.Server{Addr: ":9000"}
+func startMetricsServer(ctx context.Context, port int) error {
+	srv := &http.Server{Addr: fmt.Sprintf(":%d", port)}
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/healthz", http.HandlerFunc(Healthz))
 	go func() {

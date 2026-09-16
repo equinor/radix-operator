@@ -81,7 +81,7 @@ A slice type that implements an unmarshaler itself, such as a `[]byte` with
 - Embedded structs are flattened — their fields appear as if declared on the outer struct,
   and contribute nothing to the error path. This includes embedded *unexported* struct
   types, whose exported fields are settable through reflection.
-- Slices and arrays of nested structs (or of nested struct pointers) are walked element by element.
+- Slices, arrays, and maps of nested structs (or of nested struct pointers) are walked element by element.
 - Unexported fields are skipped.
 - A `nil` pointer to a struct is allocated so its fields can be visited, and dropped again
   if it stayed empty. See [Optional sections](#optional-sections) below.
@@ -136,8 +136,6 @@ Give a section its own `UnmarshalText` if you want it treated as a leaf instead.
 
 ## Not supported
 
-- **Maps** — `map[string]string` is visited, but the setter fails with
-  `unsupported field type: map`.
 - **Interface, channel, function and complex fields.**
 - **Recursive types** — a struct that reaches itself is rejected with
   `recursive type ... is not supported` rather than looped over.

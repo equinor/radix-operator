@@ -6,7 +6,6 @@ import (
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -42,8 +41,7 @@ type ExternalDNSTestSuite struct {
 	dynamicClient client.Client
 	certClient    *certfake.Clientset
 	testUtils     *test.Utils
-	cfg           *config.Config
-	cfg2          *config2.Config
+	cfg           config.Config
 }
 
 func TestExternalDNSTestSuite(t *testing.T) {
@@ -70,17 +68,16 @@ func (s *ExternalDNSTestSuite) setupTest() {
 	handlerTestUtils := test.NewTestUtils(s.kubeClient, radixClient, kedaClient, secretProviderClient)
 	s.Require().NoError(handlerTestUtils.CreateClusterPrerequisites())
 	s.testUtils = &handlerTestUtils
-	s.cfg = &config.Config{
-		DeploymentSyncer:      testConfig.DeploymentSyncer,
-		CertificateAutomation: testConfig.CertificateAutomation,
-		Gateway: config.GatewayConfig{
-			Name:      edTestGatewayName,
-			Namespace: edTestGatewayNamespace,
-		},
-	}
-	s.cfg2 = &config2.Config{
-		Operator: config2.OperatorConfig{
+	s.cfg = config.Config{
+		Common: config.CommonConfig{
 			AppAliasBaseURL: testAppAliasBaseURL,
+		},
+		Operator: config.OperatorConfig{
+			Gateway: config.GatewayConfig{
+				Name:      edTestGatewayName,
+				Namespace: edTestGatewayNamespace,
+			},
+			CertificateAutomation: testConfig.Operator.CertificateAutomation,
 		},
 	}
 }
@@ -96,7 +93,7 @@ func (s *ExternalDNSTestSuite) applyDeploymentWithSync(deploymentBuilder utils.D
 		return nil, err
 	}
 
-	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, s.cfg, config2.Config{})
+	syncer := NewDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.dynamicClient, s.certClient, rr, rd, nil, s.cfg)
 	if err := syncer.OnSync(context.Background()); err != nil {
 		return nil, err
 	}

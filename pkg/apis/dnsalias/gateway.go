@@ -40,9 +40,9 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 		parentRefs := []gatewayapiv1.ParentReference{{
 			Group:       new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
 			Kind:        new(gatewayapiv1.Kind("Gateway")),
-			Name:        gatewayapiv1.ObjectName(s.config.Gateway.Name),
-			Namespace:   new(gatewayapiv1.Namespace(s.config.Gateway.Namespace)),
-			SectionName: new(gatewayapiv1.SectionName(s.config.Gateway.SectionName)),
+			Name:        gatewayapiv1.ObjectName(s.config.Operator.Gateway.Name),
+			Namespace:   new(gatewayapiv1.Namespace(s.config.Operator.Gateway.Namespace)),
+			SectionName: new(gatewayapiv1.SectionName(s.config.Operator.Gateway.SectionName)),
 		}}
 
 		route.Labels = kubelabels.Merge(route.Labels, labels.ForDNSAliasComponentGatewayResource(s.radixDNSAlias))
@@ -98,5 +98,5 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 }
 
 func (s *syncer) getHostName() string {
-	return fmt.Sprintf("%s.%s", s.radixDNSAlias.Name, s.config2.Common.DNSZone)
+	return fmt.Sprintf("%s.%s", s.radixDNSAlias.Name, s.config.Common.DNSZone)
 }

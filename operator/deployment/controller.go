@@ -125,7 +125,7 @@ func NewController(ctx context.Context,
 			newRr := cur.(*v1.RadixRegistration)
 			oldRr := old.(*v1.RadixRegistration)
 
-			// If neither admin or reader AD groups change, this
+			// If neither admin or reader groups change, this
 			// does not affect the deployment
 			if slice.ElementsMatch(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
 				slice.ElementsMatch(newRr.Spec.AdUsers, oldRr.Spec.AdUsers) &&

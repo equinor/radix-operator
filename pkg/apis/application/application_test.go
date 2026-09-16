@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config2"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -30,39 +30,39 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-var testConfig2 = config2.Config{
-	Operator: config2.OperatorConfig{
+var testConfig2 = config.Config{
+	Operator: config.OperatorConfig{
 		DefaultAppAdminGroups: []string{"group1", "group2"},
-		AppNsLimitRange: config2.LimitRangeConfig{
+		AppNsLimitRange: config.LimitRangeConfig{
 			DefaultMemory:        new(resource.MustParse("250M")),
 			DefaultRequestMemory: new(resource.MustParse("200M")),
 			DefaultRequestCPU:    new(resource.MustParse("100m")),
 		},
-		PodSecurityStandard: config2.PodSecurityStandardConfig{
-			AppNamespace: config2.PodSecurityStandardPolicyConfig{
-				Enforce: config2.PodSecurityStandardModeConfig{
+		PodSecurityStandard: config.PodSecurityStandardConfig{
+			AppNamespace: config.PodSecurityStandardPolicyConfig{
+				Enforce: config.PodSecurityStandardModeConfig{
 					Level:   "app-enforce-level",
 					Version: "app-enforce-version",
 				},
-				Audit: config2.PodSecurityStandardModeConfig{
+				Audit: config.PodSecurityStandardModeConfig{
 					Level:   "app-audit-level",
 					Version: "app-audit-version",
 				},
-				Warn: config2.PodSecurityStandardModeConfig{
+				Warn: config.PodSecurityStandardModeConfig{
 					Level:   "app-warn-level",
 					Version: "app-warn-version",
 				},
 			},
-			EnvNamespace: config2.PodSecurityStandardPolicyConfig{
-				Enforce: config2.PodSecurityStandardModeConfig{
+			EnvNamespace: config.PodSecurityStandardPolicyConfig{
+				Enforce: config.PodSecurityStandardModeConfig{
 					Level:   "env-enforce-level",
 					Version: "env-enforce-version",
 				},
-				Audit: config2.PodSecurityStandardModeConfig{
+				Audit: config.PodSecurityStandardModeConfig{
 					Level:   "env-audit-level",
 					Version: "env-audit-version",
 				},
-				Warn: config2.PodSecurityStandardModeConfig{
+				Warn: config.PodSecurityStandardModeConfig{
 					Level:   "env-warn-level",
 					Version: "env-warn-version",
 				},
@@ -330,7 +330,7 @@ func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 
 	// Test
 	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName("any-app"), config2.Config{})
+		WithName("any-app"), config.Config{})
 	require.NoError(t, err)
 
 	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(context.Background(), metav1.ListOptions{})
@@ -338,7 +338,7 @@ func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 }
 
 func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, registrationBuilder utils.RegistrationBuilder, cfg config2.Config) (*v1.RadixRegistration, error) {
+	radixclient radixclient.Interface, registrationBuilder utils.RegistrationBuilder, cfg config.Config) (*v1.RadixRegistration, error) {
 	rr, err := tu.ApplyRegistration(registrationBuilder)
 	if err != nil {
 		return nil, err
