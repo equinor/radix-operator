@@ -241,7 +241,7 @@ func TestMain(m *testing.M) {
 		"config.apiServer.authenticators.azure.audience":             "6dae42f8-4368-4678-94ff-3960e28e3630",
 		"rbac.createApp.groups[0]":                                   "123",
 		"image.pullPolicy":                                           "IfNotPresent",
-		"config.operator.pipelineImagePullPolicy":                       "IfNotPresent",
+		"config.operator.pipelineImagePullPolicy":                    "IfNotPresent",
 	}
 	for _, spec := range componentSpecs {
 		helmValues[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName
