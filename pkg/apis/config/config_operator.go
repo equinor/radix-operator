@@ -4,6 +4,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type OperatorConfig struct {
@@ -52,4 +53,26 @@ type OperatorConfig struct {
 	PipelineJobsHistoryPeriodLimit time.Duration     `json:"pipelineJobsHistoryPeriodLimit" required:"true" validate:"compareDuration(self, '24h') >= 0"`
 	PipelineImage                  ContainerImage    `json:"pipelineImage" required:"true"`
 	PipelineImagePullPolicy        corev1.PullPolicy `json:"pipelineImagePullPolicy" required:"true" validate:"self in ['Always','IfNotPresent','Never']"`
+}
+
+type PodSecurityStandardConfig struct {
+	AppNamespace PodSecurityStandardPolicyConfig `json:"appNamespace"`
+	EnvNamespace PodSecurityStandardPolicyConfig `json:"envNamespace"`
+}
+
+type PodSecurityStandardPolicyConfig struct {
+	Enforce PodSecurityStandardModeConfig `json:"enforce"`
+	Audit   PodSecurityStandardModeConfig `json:"audit"`
+	Warn    PodSecurityStandardModeConfig `json:"warn"`
+}
+
+type PodSecurityStandardModeConfig struct {
+	Level   string `json:"level"`
+	Version string `json:"version"`
+}
+
+type LimitRangeConfig struct {
+	DefaultMemory        *resource.Quantity `json:"defaultMemory" required:"true"`
+	DefaultRequestMemory *resource.Quantity `json:"defaultRequestMemory" required:"true"`
+	DefaultRequestCPU    *resource.Quantity `json:"defaultRequestCPU" required:"true"`
 }

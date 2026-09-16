@@ -9,10 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
 	"github.com/rs/zerolog/log"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/yaml"
 )
 
@@ -28,65 +26,6 @@ type Config struct {
 	Common         CommonConfig         `json:"common"`
 	Webhook        WebhookConfig        `json:"webhook"`
 	ApiServer      ApiServerConfig      `json:"apiServer"`
-}
-
-type CommonConfig struct {
-	DNSZone                    string            `json:"dnsZone" required:"true"`
-	ClusterName                string            `json:"clusterName" required:"true"`
-	ClusterType                string            `json:"clusterType" required:"true"`
-	AppAliasBaseURL            string            `json:"appAliasBaseURL" required:"true"`
-	ExternalRegistryAuthSecret string            `json:"externalRegistryAuthSecret"`
-	OAuth2Proxy                OAuth2ProxyConfig `json:"oauth2Proxy"`
-}
-
-type PipelineRunnerConfig struct {
-	ContainerRegistry      string         `json:"containerRegistry" required:"true"`
-	CacheContainerRegistry string         `json:"cacheContainerRegistry" required:"true"`
-	Builder                BuilderConfig  `json:"builder" required:"true"`
-	GitCloneImage          ContainerImage `json:"gitCloneImage" required:"true"`
-}
-
-type BuilderConfig struct {
-	Image                          ContainerImage `json:"image" required:"true"`
-	SeccompProfileLocalhostProfile string         `json:"seccompProfileLocalhostProfile" required:"true"`
-	Resources                      Resources      `json:"resources" required:"true" validate:"compareQuantity(self.limits.memory, self.requests.memory) >= 0 && compareQuantity(self.limits.cpu, self.requests.cpu) >= 0"`
-}
-
-type OAuth2ProxyConfig struct {
-	ProxyImage    ContainerImage `json:"proxyImage" required:"true"`
-	RedisImage    ContainerImage `json:"redisImage" required:"true"`
-	ProxyDefaults v1.OAuth2      `json:"proxyDefaults"`
-}
-
-type LimitRangeConfig struct {
-	DefaultMemory        *resource.Quantity `json:"defaultMemory" required:"true"`
-	DefaultRequestMemory *resource.Quantity `json:"defaultRequestMemory" required:"true"`
-	DefaultRequestCPU    *resource.Quantity `json:"defaultRequestCPU" required:"true"`
-}
-
-type Resources struct {
-	Requests ResourceRequirements `json:"requests" required:"true"`
-	Limits   ResourceRequirements `json:"limits" required:"true"`
-}
-type ResourceRequirements struct {
-	Memory *resource.Quantity `json:"memory" required:"true"`
-	CPU    *resource.Quantity `json:"cpu" required:"true"`
-}
-
-type PodSecurityStandardConfig struct {
-	AppNamespace PodSecurityStandardPolicyConfig `json:"appNamespace"`
-	EnvNamespace PodSecurityStandardPolicyConfig `json:"envNamespace"`
-}
-
-type PodSecurityStandardPolicyConfig struct {
-	Enforce PodSecurityStandardModeConfig `json:"enforce"`
-	Audit   PodSecurityStandardModeConfig `json:"audit"`
-	Warn    PodSecurityStandardModeConfig `json:"warn"`
-}
-
-type PodSecurityStandardModeConfig struct {
-	Level   string `json:"level"`
-	Version string `json:"version"`
 }
 
 func Parse(configYaml string) (*Config, error) {
