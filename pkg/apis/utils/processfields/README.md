@@ -136,9 +136,6 @@ Give a section its own `UnmarshalText` if you want it treated as a leaf instead.
 
 ## Not supported
 
-- **Maps of leaf values** — `map[string]string` is visited, but the setter fails with
-	`unsupported field type: map`. Map values that are nested structs are walked, but
-	struct values cannot be set because map elements are not addressable.
 - **Interface, channel, function and complex fields.**
 - **Recursive types** — a struct that reaches itself is rejected with
   `recursive type ... is not supported` rather than looped over.
