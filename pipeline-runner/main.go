@@ -69,7 +69,7 @@ func main() {
 
 // runs os.Exit(1) if error
 func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (*runner.PipelineRunner, error) {
-	kubeclient, radixClient, kedaClient, secretProviderClient, _, tektonClient := utils.GetKubernetesClient()
+	kubeclient, radixClient, _, _, _, tektonClient := utils.GetKubernetesClient()
 
 	cfg := k8sconfig.GetConfigOrDie()
 	cfg.WarningHandler = utils.ZerologWarningHandlerAdapter(log.Warn)
@@ -83,7 +83,7 @@ func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (
 		return nil, err
 	}
 
-	pipelineRunner := runner.NewRunner(kubeclient, radixClient, kedaClient, dynamicClient, secretProviderClient, tektonClient, pipelineDefinition, pipelineArgs.AppName)
+	pipelineRunner := runner.NewRunner(kubeclient, radixClient, dynamicClient, tektonClient, pipelineDefinition, pipelineArgs.AppName)
 
 	err = pipelineRunner.PrepareRun(ctx, pipelineArgs)
 	if err != nil {
