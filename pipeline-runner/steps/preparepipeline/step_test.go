@@ -1022,6 +1022,53 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 			},
 			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {},
 		},
+		"finally task gets a generated taskRef, reserved params and a hardened security context": {
+			args: args{
+				envName: envName,
+				pipeline: getTestPipeline(func(p *pipelinev1.Pipeline) {
+					p.ObjectMeta.Name = "pipeline1"
+					p.Spec.Tasks = []pipelinev1.PipelineTask{{Name: "task1", TaskRef: &pipelinev1.TaskRef{Name: "task1"}}}
+					p.Spec.Finally = []pipelinev1.PipelineTask{{Name: "finally1", TaskRef: &pipelinev1.TaskRef{Name: "finallytask1"}}}
+				}),
+				tasks: []pipelinev1.Task{
+					*getTestTask(nil),
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "finallytask1"},
+						Spec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{{
+							Name:            "cleanup",
+							SecurityContext: &corev1.SecurityContext{RunAsUser: new(int64(0)), Privileged: new(true)},
+						}}},
+					},
+				},
+				timestamp: "2020-01-01T00:00:00Z",
+			},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
+				tknPipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, tknPipeline.Spec.Finally, 1)
+
+				finallyTaskRefName := tknPipeline.Spec.Finally[0].TaskRef.Name
+				assert.NotEqual(t, "finallytask1", finallyTaskRefName, "the finally taskRef is rewritten to the generated task name")
+
+				// the reserved params must be forwarded to the finally task, otherwise Tekton rejects the PipelineRun
+				requireParamByName(t, tknPipeline.Spec.Finally[0].Params, "radix")
+
+				task, err := step.GetTektonClient().TektonV1().Tasks(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), finallyTaskRefName, metav1.GetOptions{})
+				require.NoError(t, err)
+				requireParamSpecByName(t, task.Spec.Params, "radix")
+
+				securityContext := task.Spec.Steps[0].SecurityContext
+				require.NotNil(t, securityContext)
+				assert.True(t, *securityContext.RunAsNonRoot)
+				assert.False(t, *securityContext.Privileged)
+				assert.False(t, *securityContext.AllowPrivilegeEscalation)
+				assert.Nil(t, securityContext.RunAsUser, "root user is cleared")
+				assert.Equal(t, []corev1.Capability{"ALL"}, securityContext.Capabilities.Drop)
+			},
+		},
 		"radix-image param spec added to pipeline, task params and task reference when components exist": {
 			fields: fields{
 				radixApplicationBuilder: utils.NewRadixApplicationBuilder().
