@@ -1,4 +1,4 @@
-package config
+package configcodec
 
 import (
 	"encoding"
@@ -9,18 +9,13 @@ import (
 	"time"
 )
 
-var Unmarshalers = json.WithUnmarshalers(json.JoinUnmarshalers(
-	BinaryUnmarshaler,
-	DurationUnmarshaler,
+var unmarshalers = json.WithUnmarshalers(json.JoinUnmarshalers(
+	binaryUnmarshaler,
+	durationUnmarshaler,
 ))
 
-var Marshalers = json.WithMarshalers(json.JoinMarshalers(
-	BinaryMarshaler,
-	DurationMarshaler,
-))
-
-// encoding/json/v2 ignores encoding.BinaryUnmarshaler, so types like url.URL need it wired up manually.
-var BinaryUnmarshaler = json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
+// encoding/json/v2 ignores encoding.binaryUnmarshaler, so types like url.URL need it wired up manually.
+var binaryUnmarshaler = json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
 	unmarshaler, ok := v.(encoding.BinaryUnmarshaler)
 	if !ok {
 		return errors.ErrUnsupported // fall back to the default decoding
@@ -32,7 +27,7 @@ var BinaryUnmarshaler = json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any
 	return unmarshaler.UnmarshalBinary([]byte(raw))
 })
 
-var DurationUnmarshaler = json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
+var durationUnmarshaler = json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
 	val, ok := v.(*time.Duration)
 	if !ok {
 		return errors.ErrUnsupported // fall back to the default decoding
@@ -64,20 +59,4 @@ var DurationUnmarshaler = json.UnmarshalFromFunc(func(dec *jsontext.Decoder, v a
 	default:
 		return fmt.Errorf("cannot unmarshal JSON kind %c into time.Duration", tok.Kind())
 	}
-})
-
-var DurationMarshaler = json.MarshalToFunc(func(enc *jsontext.Encoder, val time.Duration) error {
-	return json.MarshalEncode(enc, val.String())
-})
-
-var BinaryMarshaler = json.MarshalToFunc(func(enc *jsontext.Encoder, v any) error {
-	marshaler, ok := v.(encoding.BinaryMarshaler)
-	if !ok {
-		return errors.ErrUnsupported // fall back to the default encoding
-	}
-	raw, err := marshaler.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	return json.MarshalEncode(enc, string(raw))
 })

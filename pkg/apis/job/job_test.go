@@ -16,6 +16,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/oklog/ulid/v2"
@@ -26,16 +27,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 type RadixJobTestSuiteBase struct {
 	suite.Suite
-	testUtils   *test.Utils
-	kubeClient  *kubernetes.Clientset
-	kubeUtils   *kube.Kube
-	radixClient *radix.Clientset
-	cfg         config.Config
+	testUtils     *test.Utils
+	kubeClient    *kubernetes.Clientset
+	kubeUtils     *kube.Kube
+	radixClient   *radix.Clientset
+	dynamicClient client.Client
+	cfg           config.Config
 }
 
 func (s *RadixJobTestSuiteBase) SetupTest() {
@@ -47,6 +50,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	kubeClient := kubernetes.NewSimpleClientset()
 	radixClient := radix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	kedaClient := kedafake.NewSimpleClientset()
+	s.dynamicClient = test.CreateClient()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
@@ -128,7 +132,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBu
 }
 
 func (s *RadixJobTestSuiteBase) runSync(rr *radixv1.RadixRegistration, rj *radixv1.RadixJob, config config.Config) error {
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, config)
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, rr, rj, config)
 	return job.OnSync(context.Background())
 }
 
@@ -152,7 +156,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rj.Generation
-	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, s.cfg)
+	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, rr, rj, s.cfg)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -165,7 +169,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	// Second sync with updated generation
 	rj.Generation++
 	expectedGen = rj.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, s.cfg)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, rr, rj, s.cfg)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -180,7 +184,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	rjStop, err = s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rjStop, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	expectedGen = rjStop.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjStop, s.cfg)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, rr, rjStop, s.cfg)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rjStop, err = s.radixClient.RadixV1().RadixJobs(rjStop.Namespace).Get(context.Background(), rjStop.Name, metav1.GetOptions{})
@@ -199,7 +203,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 		return true, nil, errors.New(errorMsg)
 	})
 	expectedGen = rjErr.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjErr, s.cfg)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, rr, rjErr, s.cfg)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rjErr, err = s.radixClient.RadixV1().RadixJobs(rjErr.Namespace).Get(context.Background(), rjErr.Name, metav1.GetOptions{})
@@ -421,6 +425,40 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 		s.Equal(expectedInitContainers[i], actualInitContainers[i], "init container %s not equal", expectedInitContainers[i].Name)
 	}
 
+}
+
+func (s *RadixJobTestSuite) TestObjectSynced_PipelineConfigMapCreatedAndUpdatedWhenJobIsRecreated() {
+	ctx := context.Background()
+	appName, jobName := "anyapp", "anyjobname"
+	rj, rr, err := s.applyJobWithSync(
+		utils.NewRegistrationBuilder().WithName(appName),
+		utils.NewJobBuilder().
+			WithJobName(jobName).
+			WithAppName(appName).
+			WithPipelineType(radixv1.BuildDeploy),
+		s.cfg)
+	s.Require().NoError(err)
+
+	configMapKey := client.ObjectKey{Name: jobName, Namespace: utils.GetAppNamespace(appName)}
+	configMap := &corev1.ConfigMap{}
+	s.Require().NoError(s.dynamicClient.Get(ctx, configMapKey, configMap))
+	expectedConfigYaml, err := configcodec.Encode(s.cfg)
+	s.Require().NoError(err)
+	s.Equal(map[string]string{"configYaml": string(expectedConfigYaml)}, configMap.Data)
+
+	updatedConfig := s.cfg
+	updatedConfig.Common.ClusterName = "updated-cluster-name"
+	s.Require().NoError(s.kubeClient.BatchV1().Jobs(rj.Namespace).Delete(ctx, rj.Name, metav1.DeleteOptions{}))
+	s.Require().NoError(s.runSync(rr, rj, updatedConfig))
+
+	_, err = s.kubeClient.BatchV1().Jobs(rj.Namespace).Get(ctx, rj.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	updatedConfigMap := &corev1.ConfigMap{}
+	s.Require().NoError(s.dynamicClient.Get(ctx, configMapKey, updatedConfigMap))
+	expectedUpdatedConfigYaml, err := configcodec.Encode(updatedConfig)
+	s.Require().NoError(err)
+	s.NotEqual(configMap.Data, updatedConfigMap.Data)
+	s.Equal(map[string]string{"configYaml": string(expectedUpdatedConfigYaml)}, updatedConfigMap.Data)
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {

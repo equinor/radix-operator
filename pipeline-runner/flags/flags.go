@@ -18,4 +18,6 @@ const (
 
 	ExternalRegistryAuthSecret = "external-registry-auth-secret"
 	LogLevel                   = "log-level"
+	ConfigMapName              = "config-map-name"
+	ConfigMapNamespace         = "config-map-namespace"
 )

@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
@@ -14,26 +15,25 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	secretsstoreclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 // PipelineRunner Instance variables
 type PipelineRunner struct {
 	definition    *pipeline.Definition
 	kubeClient    kubernetes.Interface
-	kubeUtil      *kube.Kube
 	radixClient   radixclient.Interface
 	tektonClient  tektonclient.Interface
 	dynamicClient client.Client
@@ -42,12 +42,10 @@ type PipelineRunner struct {
 }
 
 // NewRunner constructor
-func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.Client, secretsStoreClient secretsstoreclient.Interface, tektonClient tektonclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
-	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretsStoreClient)
+func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interface, dynamicClient client.Client, tektonClient tektonclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 	handler := PipelineRunner{
 		definition:    definition,
 		kubeClient:    kubeClient,
-		kubeUtil:      kubeUtil,
 		radixClient:   radixClient,
 		tektonClient:  tektonClient,
 		dynamicClient: dynamicClient,
@@ -60,12 +58,26 @@ func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interfac
 func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.PipelineArguments) error {
 	radixRegistration, err := cli.radixClient.RadixV1().RadixRegistrations().Get(ctx, cli.appName, metav1.GetOptions{})
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msgf("Failed to get RR for app %s. Error: %v", cli.appName, err)
-		return err
+		return fmt.Errorf("failed to get RadixRegistration for app: %w", err)
+	}
+
+	configCm := &corev1.ConfigMap{Name: pipelineArgs.ConfigMapName, Namespace: pipelineArgs.ConfigMapNamespace}
+	if err := cli.dynamicClient.Get(ctx, client.ObjectKeyFromObject(configCm), configCm); err != nil {
+		return fmt.Errorf("failed to read configmap %s/%s: %w", pipelineArgs.ConfigMapNamespace, pipelineArgs.ConfigMapName, err)
+	}
+
+	configYaml, ok := configCm.Data["configYaml"]
+	if !ok {
+		return fmt.Errorf("configmap %s/%s does not contain key 'configYaml'", pipelineArgs.ConfigMapNamespace, pipelineArgs.ConfigMapName)
+	}
+
+	var cfg config.Config
+	if err := configcodec.Decode([]byte(configYaml), &cfg); err != nil {
+		return fmt.Errorf("failed to decode configYaml from configmap %s/%s: %w", pipelineArgs.ConfigMapNamespace, pipelineArgs.ConfigMapName, err)
 	}
 
 	stepImplementations := cli.initStepImplementations(ctx, radixRegistration)
-	cli.pipelineInfo, err = model.InitPipeline(cli.definition, pipelineArgs, stepImplementations...)
+	cli.pipelineInfo, err = model.InitPipeline(cli.definition, pipelineArgs, cfg, stepImplementations...)
 	if err != nil {
 		return err
 	}

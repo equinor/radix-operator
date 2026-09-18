@@ -8,32 +8,15 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	kubernetes "k8s.io/client-go/kubernetes/fake"
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupTest(t *testing.T) (*kubernetes.Clientset, *radix.Clientset, *kedafake.Clientset, *secretproviderfake.Clientset, commonTest.Utils) {
-	// Setup
-	kubeclient := kubernetes.NewSimpleClientset()
-	radixclient := radix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
-	kedaClient := kedafake.NewSimpleClientset()
-	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := testUtils.CreateClusterPrerequisites()
-	require.NoError(t, err)
-	return kubeclient, radixclient, kedaClient, secretproviderclient, testUtils
-}
-
 func TestPrepare_NoRegistration_NotValid(t *testing.T) {
-	kubeclient, radixclient, kedaClient, secretproviderclient, _ := setupTest(t)
+	radixclient := radix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	cli := runner.NewRunner(kubeclient, radixclient, kedaClient, nil, secretproviderclient, nil, pipelineDefinition, "any-app")
+	cli := runner.NewRunner(nil, radixclient, nil, nil, pipelineDefinition, "any-app")
 
 	err := cli.PrepareRun(context.Background(), &model.PipelineArguments{})
 	assert.Error(t, err)
