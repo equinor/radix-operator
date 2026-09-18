@@ -233,14 +233,37 @@ func TestSearchApplicationsGet(t *testing.T) {
 	// Setup
 	commonTestUtils, _, kubeclient, radixclient, kedaClient, _, secretproviderclient, certClient, _ := setupTest(t)
 	appNames := []string{"app-1", "app-2"}
+	appID := "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+	cloneURL := "git@github.com:Equinor/app-1.git"
+	adGroups := []string{"admin-group"}
+	adUsers := []string{"admin-user"}
+	readerAdGroups := []string{"reader-group"}
+	readerAdUsers := []string{"reader-user"}
+	creator := "creator@example.com"
+	owner := "owner@example.com"
+	configBranch := "config-branch"
+	radixConfigFullName := "config/radixconfig.yaml"
+	configurationItem := "configuration-item"
 
-	for _, appName := range appNames {
-		_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().WithName(appName))
-		require.NoError(t, err)
-	}
+	_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().
+		WithName(appNames[0]).
+		WithAppID(appID).
+		WithCloneURL(cloneURL).
+		WithAdGroups(adGroups).
+		WithAdUsers(adUsers).
+		WithReaderAdGroups(readerAdGroups).
+		WithReaderAdUsers(readerAdUsers).
+		WithCreator(creator).
+		WithOwner(owner).
+		WithConfigBranch(configBranch).
+		WithRadixConfigFullName(radixConfigFullName).
+		WithConfigurationItem(configurationItem))
+	require.NoError(t, err)
+	_, err = commonTestUtils.ApplyRegistration(builders.ARadixRegistration().WithName(appNames[1]))
+	require.NoError(t, err)
 
 	app2Job1Started, _ := time.Parse(time.RFC3339, "2018-11-12T12:30:14Z")
-	err := createRadixJob(commonTestUtils, appNames[1], "app-2-job-1", app2Job1Started)
+	err = createRadixJob(commonTestUtils, appNames[1], "app-2-job-1", app2Job1Started)
 	require.NoError(t, err)
 	_, err = commonTestUtils.ApplyDeployment(
 		context.Background(),
@@ -276,6 +299,17 @@ func TestSearchApplicationsGet(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, len(applications))
 		assert.Equal(t, appNames[0], applications[0].Name)
+		assert.Equal(t, appID, applications[0].AppID.String())
+		assert.Equal(t, cloneURL, applications[0].CloneURL)
+		assert.Equal(t, adGroups, applications[0].AdGroups)
+		assert.Equal(t, adUsers, applications[0].AdUsers)
+		assert.Equal(t, readerAdGroups, applications[0].ReaderAdGroups)
+		assert.Equal(t, readerAdUsers, applications[0].ReaderAdUsers)
+		assert.Equal(t, creator, applications[0].Creator)
+		assert.Equal(t, owner, applications[0].Owner)
+		assert.Equal(t, configBranch, applications[0].ConfigBranch)
+		assert.Equal(t, radixConfigFullName, applications[0].RadixConfigFullName)
+		assert.Equal(t, configurationItem, applications[0].ConfigurationItem)
 	})
 
 	t.Run("search for both apps", func(t *testing.T) {

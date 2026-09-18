@@ -166,11 +166,6 @@ func (ac *applicationController) ShowApplications(accounts accounts.Accounts, w 
 	// ---
 	// summary: Lists the applications. NOTE - doesn't get applicationSummary.latestJob.Environments
 	// parameters:
-	// - name: sshRepo
-	//   in: query
-	//   description: ssh repo to identify Radix application if exists
-	//   type: string
-	//   required: false
 	// - name: Impersonate-User
 	//   in: header
 	//   description: Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)
@@ -199,14 +194,8 @@ func (ac *applicationController) ShowApplications(accounts accounts.Accounts, w 
 	//   "500":
 	//     description: "Internal server error"
 
-	matcher := applicationModels.MatchAll
-	sshRepo := strings.TrimSpace(r.FormValue("sshRepo"))
-	if len(sshRepo) > 0 {
-		matcher = applicationModels.MatchBySSHRepoFunc(sshRepo)
-	}
-
 	handler := ac.applicationHandlerFactory.Create(accounts)
-	appRegistrations, err := handler.GetApplications(r.Context(), matcher, ac.hasAccessToRR, GetApplicationsOptions{})
+	appRegistrations, err := handler.GetApplications(r.Context(), applicationModels.MatchAll, ac.hasAccessToRR, GetApplicationsOptions{})
 
 	if err != nil {
 		ac.ErrorResponse(w, r, err)

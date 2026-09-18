@@ -30,12 +30,6 @@
         "parameters": [
           {
             "type": "string",
-            "description": "ssh repo to identify Radix application if exists",
-            "name": "sshRepo",
-            "in": "query"
-          },
-          {
-            "type": "string",
             "description": "Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)",
             "name": "Impersonate-User",
             "in": "header"
@@ -6267,6 +6261,43 @@
         "name"
       ],
       "properties": {
+        "adGroups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "AdGroups"
+        },
+        "adUsers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "AdUsers"
+        },
+        "appID": {
+          "description": "AppID is the unique identifier for the Radix application. Not to be confused by Configuration Item.",
+          "x-go-name": "AppID"
+        },
+        "cloneURL": {
+          "description": "CloneURL is the URL of the GitHub repository where the Radix configuration file is located.",
+          "type": "string",
+          "x-go-name": "CloneURL"
+        },
+        "configBranch": {
+          "description": "ConfigBranch is the branch in the git repository where the Radix configuration file is located.\nSee https://git-scm.com/docs/git-check-ref-format#_description for more details.",
+          "type": "string",
+          "x-go-name": "ConfigBranch"
+        },
+        "configurationItem": {
+          "description": "ConfigurationItem is and identifier for an entity in a configuration management solution such as a CMDB.\nITIL defines a CI as any component that needs to be managed in order to deliver an IT Service\nRef: https://en.wikipedia.org/wiki/Configuration_item",
+          "type": "string",
+          "x-go-name": "ConfigurationItem"
+        },
+        "creator": {
+          "type": "string",
+          "x-go-name": "Creator"
+        },
         "environments": {
           "description": "Environments List of environments for this application",
           "type": "array",
@@ -6283,6 +6314,29 @@
           "type": "string",
           "x-go-name": "Name",
           "example": "radix-canary-golang"
+        },
+        "owner": {
+          "type": "string",
+          "x-go-name": "Owner"
+        },
+        "radixConfigFullName": {
+          "description": "RadixConfigFullName is the full name of the Radix configuration file in the git repository.",
+          "type": "string",
+          "x-go-name": "RadixConfigFullName"
+        },
+        "readerAdGroups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "ReaderAdGroups"
+        },
+        "readerAdUsers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "ReaderAdUsers"
         }
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/applications/models"
