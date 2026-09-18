@@ -22,7 +22,7 @@ type Validator interface {
 
 // Decode decodes the given YAML or JSON data into the provided output structure, expanding environment macros and processing environment overrides. It also validates the resulting configuration.
 func Decode(data []byte, out any) error {
-	if reflect.TypeOf(out).Kind() != reflect.Pointer {
+	if out == nil || reflect.TypeOf(out).Kind() != reflect.Pointer || reflect.ValueOf(out).IsNil() {
 		return fmt.Errorf("out must be a pointer to a value of type T")
 	}
 
