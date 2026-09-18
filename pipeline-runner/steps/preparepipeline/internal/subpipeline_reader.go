@@ -58,6 +58,12 @@ func (s *subPipelineReader) ReadPipelineAndTasks(pipelineInfo *model.PipelineInf
 	if err != nil {
 		return false, "", nil, nil, err
 	}
+
+	err = validation.ValidatePipeline(pipeline)
+	if err != nil {
+		return false, "", nil, nil, err
+	}
+
 	log.Debug().Msg("all pipeline tasks found")
 	return true, pipelineFilePath, pipeline, tasks, nil
 }
@@ -86,6 +92,9 @@ func getPipelineTasks(pipelineFilePath string, pipeline *pipelinev1.Pipeline) ([
 	var tasks []pipelinev1.Task
 	var validateTaskErrors []error
 	for _, pipelineSpecTask := range slices.Concat(pipeline.Spec.Tasks, pipeline.Spec.Finally) {
+		if pipelineSpecTask.TaskRef == nil {
+			continue
+		}
 		task, taskExists := taskMap[pipelineSpecTask.TaskRef.Name]
 		if !taskExists {
 			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing the pipeline task %s, referenced to the task %s", pipelineSpecTask.Name, pipelineSpecTask.TaskRef.Name))
@@ -167,10 +176,7 @@ func getPipeline(pipelineFileName string) (*pipelinev1.Pipeline, error) {
 	hotfixForPipelineTasksParamsWithBrokenValue(&pipeline)
 
 	log.Debug().Msgf("loaded pipeline %s", pipelineFileName)
-	err = validation.ValidatePipeline(&pipeline)
-	if err != nil {
-		return nil, err
-	}
+
 	return &pipeline, nil
 }
 

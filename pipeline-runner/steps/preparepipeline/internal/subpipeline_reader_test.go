@@ -260,7 +260,7 @@ spec:
 	assert.Contains(t, err.Error(), "another inline taskSpec")
 }
 
-func Test_ReadPipelineAndTasks_RejectsInlineTaskSpecInTasks(t *testing.T) {
+func Test_ReadPipelineAndTasks_HoistsInlineTaskSpecInTasks(t *testing.T) {
 	pipelineYaml := `
 apiVersion: tekton.dev/v1
 kind: Pipeline
@@ -277,9 +277,38 @@ spec:
 `
 	pipelineInfo := writeSubPipeline(t, pipelineYaml, nil)
 
+	_, _, pipeline, tasks, err := internal.NewSubPipelineReader().ReadPipelineAndTasks(pipelineInfo, "dev")
+
+	require.NoError(t, err, "an inline taskSpec is supported in the tasks block")
+	hoisted, found := findTask(tasks, "inline-task")
+	require.True(t, found, "the inline taskSpec is returned as a task")
+	require.Len(t, hoisted.Spec.Steps, 1)
+	assert.Equal(t, "show", hoisted.Spec.Steps[0].Name)
+
+	require.Len(t, pipeline.Spec.Tasks, 1)
+	assert.Nil(t, pipeline.Spec.Tasks[0].TaskSpec, "the inline taskSpec is replaced")
+	require.NotNil(t, pipeline.Spec.Tasks[0].TaskRef)
+	assert.Equal(t, "inline-task", pipeline.Spec.Tasks[0].TaskRef.Name)
+}
+
+func Test_ReadPipelineAndTasks_RejectsPipelineTaskWithoutTaskRefAndTaskSpec(t *testing.T) {
+	pipelineYaml := `
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: pipeline-with-empty-task
+spec:
+  tasks:
+    - name: use-hello
+      taskRef:
+        name: hello
+    - name: empty-task
+`
+	pipelineInfo := writeSubPipeline(t, pipelineYaml, map[string]string{"hello.yaml": helloTaskFile})
+
 	_, _, _, _, err := internal.NewSubPipelineReader().ReadPipelineAndTasks(pipelineInfo, "dev")
 
-	require.Error(t, err, "an inline taskSpec is only supported in the finally block")
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "must have a valid name and a taskRef")
 }
 

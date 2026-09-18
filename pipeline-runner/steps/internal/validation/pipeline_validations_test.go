@@ -34,7 +34,7 @@ func TestValidatePipeline(t *testing.T) {
 			tasks: []pipelinev1.PipelineTask{taskRefPipelineTask("task1", "hello")},
 		},
 		{
-			name:          "task with inline taskSpec is rejected",
+			name:          "task with a non-hoisted inline taskSpec is rejected",
 			tasks:         []pipelinev1.PipelineTask{taskSpecPipelineTask("task1")},
 			expectedError: "invalid task #1 task1: each Task within a Pipeline must have a valid name and a taskRef",
 		},
