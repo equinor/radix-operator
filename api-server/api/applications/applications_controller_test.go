@@ -259,7 +259,7 @@ func TestSearchApplicationsGet(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, len(applications))
 		assert.Equal(t, appNames[0], applications[0].Name)
-		assert.Equal(t, appID, applications[0].AppID.String())
+		assert.Equal(t, appID, applications[0].AppID)
 		assert.Equal(t, cloneURL, applications[0].CloneURL)
 		assert.Equal(t, adGroups, applications[0].AdGroups)
 		assert.Equal(t, adUsers, applications[0].AdUsers)

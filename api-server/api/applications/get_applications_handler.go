@@ -70,7 +70,7 @@ func (ah *ApplicationHandler) GetApplications(ctx context.Context, matcher appli
 			applications,
 			&applicationModels.ApplicationSummary{
 				Name:                appName,
-				AppID:               rr.Spec.AppID,
+				AppID:               rr.Spec.AppID.String(),
 				CloneURL:            rr.Spec.CloneURL,
 				AdGroups:            rr.Spec.AdGroups,
 				AdUsers:             rr.Spec.AdUsers,

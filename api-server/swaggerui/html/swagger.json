@@ -6258,7 +6258,10 @@
       "description": "ApplicationSummary describe an application",
       "type": "object",
       "required": [
-        "name"
+        "name",
+        "cloneURL",
+        "configBranch",
+        "radixConfigFullName"
       ],
       "properties": {
         "adGroups": {
@@ -6277,6 +6280,7 @@
         },
         "appID": {
           "description": "AppID is the unique identifier for the Radix application. Not to be confused by Configuration Item.",
+          "type": "string",
           "x-go-name": "AppID"
         },
         "cloneURL": {
@@ -6290,7 +6294,7 @@
           "x-go-name": "ConfigBranch"
         },
         "configurationItem": {
-          "description": "ConfigurationItem is and identifier for an entity in a configuration management solution such as a CMDB.\nITIL defines a CI as any component that needs to be managed in order to deliver an IT Service\nRef: https://en.wikipedia.org/wiki/Configuration_item",
+          "description": "ConfigurationItem is an identifier for an entity in a configuration management solution such as a CMDB.\nITIL defines a CI as any component that needs to be managed in order to deliver an IT Service\nRef: https://en.wikipedia.org/wiki/Configuration_item",
           "type": "string",
           "x-go-name": "ConfigurationItem"
         },
