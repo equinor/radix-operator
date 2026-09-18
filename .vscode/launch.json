@@ -19,7 +19,9 @@
 			"request": "launch",
 			"mode": "auto",
 			"program": "${workspaceFolder}/pipeline-runner/main.go",
-			"env": {},
+			"env": {
+				"KUBERNETES_SERVICE_PORT": "443"
+			},
 			"args": [
 				"--RADIX_APP=oauth-demo",
 				"--BRANCH=main",
@@ -30,17 +32,16 @@
 				"--DEBUG=true",
 				"--builder-image=ghcr.io/equinor/radix/buildkit-builder:latest",
 				"--builder-seccomp-profile-localhost-profile=allow-buildah.json",
-				"--RADIX_CLUSTER_TYPE=development",
+				"--cluster-type=development",
 				"--cluster-name=weekly-28",
 				"--container-registry=radixdev.azurecr.io",
 				"--cache-container-registry=radixdevapp.azurecr.io",
 				"--PUSH_IMAGE=true",
 				"--RADIX_FILE_NAME=radixconfig.yaml",
-				// "--TO_ENVIRONMENT=dev",
-				// "--IMAGE_TAG_NAME=server=1.23-alpine-slim",
-				// "--IMAGE_TAG_NAME=server2=1.22.1-alpine-perl",
 				"--external-registry-auth-secret=radix-external-registry-default-auth",
-				"--RADIX_GITHUB_WORKSPACE=/workspace"
+				"--RADIX_GITHUB_WORKSPACE=/workspace",
+				"--config-map-name=radix-common-config",
+				"--config-map-namespace=default"
 			]
 		},
 		{
@@ -49,7 +50,9 @@
 			"request": "launch",
 			"mode": "auto",
 			"program": "${workspaceFolder}/pipeline-runner/main.go",
-			"env": {},
+			"env": {
+				"KUBERNETES_SERVICE_PORT": "443"
+			},
 			"args": [
 				"--RADIX_APP=oauth-demo",
 				"--IMAGE_TAG=abcdef",
@@ -61,7 +64,9 @@
 				"--RADIX_FILE_NAME=radixconfig.yaml",
 				"--DEBUG=true",
 				"--container-registry=radixdev.azurecr.io",
-				"--RADIX_GITHUB_WORKSPACE=/workspace"
+				"--RADIX_GITHUB_WORKSPACE=/workspace",
+				"--config-map-name=radix-common-config",
+				"--config-map-namespace=default"
 			]
 		},
 		{
@@ -70,7 +75,9 @@
 			"request": "launch",
 			"mode": "auto",
 			"program": "${workspaceFolder}/pipeline-runner/main.go",
-			"env": {},
+			"env": {
+				"KUBERNETES_SERVICE_PORT": "443"
+			},
 			"args": [
 				"--RADIX_APP=radix-job-demo",
 				"--JOB_NAME=radix-pipeline-20231030091802-mfzoz",
@@ -78,10 +85,12 @@
 				"--TO_ENVIRONMENT=prod",
 				"--DEBUG=true",
 				"--RADIX_FILE_NAME=radixconfig.yaml",
-				"--RADIX_CLUSTER_TYPE=development",
+				"--cluster-type=development",
 				"--cluster-name=weekly-28",
 				"--container-registry=radixdev.azurecr.io",
-				"--RADIX_GITHUB_WORKSPACE=/workspace"
+				"--RADIX_GITHUB_WORKSPACE=/workspace",
+				"--config-map-name=radix-common-config",
+				"--config-map-namespace=default"
 			]
 		},
 		{
@@ -90,18 +99,22 @@
 			"request": "launch",
 			"mode": "auto",
 			"program": "${workspaceFolder}/pipeline-runner/main.go",
-			"env": {},
+			"env": {
+				"KUBERNETES_SERVICE_PORT": "443"
+			},
 			"args": [
 				"--RADIX_APP=oauth-demo",
 				"--JOB_NAME=radix-pipeline-20231030091802-mfzoz",
 				"--PIPELINE_TYPE=apply-config",
 				"--DEBUG=true",
 				"--RADIX_FILE_NAME=radixconfig.yaml",
-				"--RADIX_CLUSTER_TYPE=development",
+				"--cluster-type=development",
 				"--cluster-name=weekly-28",
 				"--container-registry=radixdev.azurecr.io",
 				"--APPLY_CONFIG_DEPLOY_EXTERNALDNS=true",
-				"--RADIX_GITHUB_WORKSPACE=/workspace"
+				"--RADIX_GITHUB_WORKSPACE=/workspace",
+				"--config-map-name=radix-common-config",
+				"--config-map-namespace=default"
 			]
 		},
 		{

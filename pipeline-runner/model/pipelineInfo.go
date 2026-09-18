@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -19,6 +20,7 @@ type PipelineInfo struct {
 	BuildSecret       *corev1.Secret
 	PipelineArguments PipelineArguments
 	Steps             []Step
+	Cfg               config.Config
 
 	// TargetEnvironments holds information about which environments to build and deploy.
 	// It is populated by the prepare-pipeline step by inspecting PipelineArguments
@@ -95,6 +97,10 @@ type ApplyConfigOptions struct {
 type PipelineArguments struct {
 	PipelineType string
 	JobName      string
+
+	ConfigMapName      string
+	ConfigMapNamespace string
+
 	// Deprecated: use GitRef instead
 	Branch string
 	// GitRef Branch or tag to build from
@@ -158,7 +164,7 @@ type PipelineArguments struct {
 }
 
 // InitPipeline Initialize pipeline with step implementations
-func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments *PipelineArguments, stepImplementations ...Step) (*PipelineInfo, error) {
+func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments *PipelineArguments, cfg config.Config, stepImplementations ...Step) (*PipelineInfo, error) {
 	stepImplementationsForType, err := getStepStepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
 		return nil, err
@@ -167,6 +173,7 @@ func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments *Pipeline
 	return &PipelineInfo{
 		Definition:        pipelineType,
 		PipelineArguments: *pipelineArguments,
+		Cfg:               cfg,
 		Steps:             stepImplementationsForType,
 	}, nil
 }

@@ -347,6 +347,7 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.dynamicClient,
 		a.eventRecorder,
 		a.cfg)
 

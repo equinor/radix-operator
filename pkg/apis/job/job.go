@@ -19,6 +19,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
@@ -27,29 +28,33 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // Job Instance variables
 type Job struct {
-	kubeclient   kubernetes.Interface
-	radixclient  radixclient.Interface
-	kubeutil     *kube.Kube
-	radixJob     *v1.RadixJob
-	registration *v1.RadixRegistration
-	cfg          config.Config
+	kubeclient    kubernetes.Interface
+	radixclient   radixclient.Interface
+	dynamicClient client.Client
+	kubeutil      *kube.Kube
+	radixJob      *v1.RadixJob
+	registration  *v1.RadixRegistration
+	cfg           config.Config
 }
 
 const jobNameLabel = "job-name"
 
 // NewJob Constructor
-func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *v1.RadixRegistration, radixJob *v1.RadixJob, cfg config.Config) *Job {
+func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, registration *v1.RadixRegistration, radixJob *v1.RadixJob, cfg config.Config) *Job {
 	return &Job{
-		kubeclient:   kubeClient,
-		radixclient:  radixClient,
-		kubeutil:     kubeUtil,
-		registration: registration,
-		radixJob:     radixJob,
-		cfg:          cfg,
+		kubeclient:    kubeClient,
+		radixclient:   radixClient,
+		dynamicClient: dynamicClient,
+		kubeutil:      kubeUtil,
+		registration:  registration,
+		radixJob:      radixJob,
+		cfg:           cfg,
 	}
 }
 
@@ -130,10 +135,41 @@ func (job *Job) reconcile(ctx context.Context) error {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Ctx(ctx).Info().Msg("Create pipeline job")
-			return job.createPipelineJob(ctx)
+
+			if err := job.reconcilerPipelineConfigMap(ctx); err != nil {
+				return fmt.Errorf("failed to reconcile pipeline config: %w", err)
+			}
+			if err := job.createPipelineJob(ctx); err != nil {
+				return fmt.Errorf("failed to create pipeline job: %w", err)
+			}
+
+			return nil
 		}
 
-		return fmt.Errorf("failed to create pipeline job: %w", err)
+		return fmt.Errorf("failed to check existence of pipeline job: %w", err)
+	}
+
+	return nil
+}
+
+func (job *Job) reconcilerPipelineConfigMap(ctx context.Context) error {
+	configCm := &corev1.ConfigMap{Name: job.radixJob.Name, Namespace: job.radixJob.Namespace}
+	op, err := controllerutil.CreateOrUpdate(ctx, job.dynamicClient, configCm, func() error {
+		if configCm.Data == nil {
+			configCm.Data = make(map[string]string)
+		}
+		configYaml, err := configcodec.Encode(job.cfg)
+		if err != nil {
+			return fmt.Errorf("failed to encode pipeline config: %w", err)
+		}
+		configCm.Data["configYaml"] = string(configYaml)
+		return controllerutil.SetControllerReference(job.radixJob, configCm, job.dynamicClient.Scheme())
+	})
+	if err != nil {
+		return fmt.Errorf("failed to reconcile pipeline config map: %w", err)
+	}
+	if op != controllerutil.OperationResultNone {
+		log.Ctx(ctx).Info().Str("op", string(op)).Msg("reconcile pipeline config map")
 	}
 
 	return nil

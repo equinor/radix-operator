@@ -46,8 +46,6 @@ rules:
   - ""
   resources:
   - configmaps
-  resourceNames:
-  - pipeline-runner-config
   verbs:
   - get
 - apiGroups:

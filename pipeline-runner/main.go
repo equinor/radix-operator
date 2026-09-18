@@ -131,6 +131,8 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().BoolVar(&pipelineArgs.ApplyConfigOptions.DeployExternalDNS, defaults.RadixPipelineApplyConfigDeployExternalDNSFlag, false, "Deploy changes to External DNS configuration with the 'apply-config' pipeline")
 	cmd.Flags().StringVar(&pipelineArgs.GitWorkspace, defaults.RadixGithubWorkspaceEnvironmentVariable, git.Workspace, fmt.Sprintf("(Optional) Workspace path to the cloned GitHub repository. Default %s", git.Workspace))
 	cmd.Flags().BoolVar(&pipelineArgs.TriggeredFromWebhook, defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, false, "Indicates if the pipeline was triggered from a webhook")
+	cmd.Flags().StringVar(&pipelineArgs.ConfigMapName, flags.ConfigMapName, "", "Config map name containing the pipeline configuration")
+	cmd.Flags().StringVar(&pipelineArgs.ConfigMapNamespace, flags.ConfigMapNamespace, "", "Config map namespace containing the pipeline configuration")
 
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
