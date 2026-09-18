@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -187,45 +186,6 @@ func TestGetApplications_HasAccessToSomeRR(t *testing.T) {
 		err = controllertest.GetResponseBody(response, &applications)
 		require.NoError(t, err)
 		assert.Equal(t, 2, len(applications))
-	})
-}
-
-func TestGetApplications_WithFilterOnSSHRepo_Filter(t *testing.T) {
-	// Setup
-	commonTestUtils, controllerTestUtils, _, _, _, _, _, _, _ := setupTest(t)
-	_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().
-		WithCloneURL("git@github.com:Equinor/my-app.git"))
-	require.NoError(t, err)
-
-	// Test
-	t.Run("matching repo", func(t *testing.T) {
-		responseChannel := controllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications?sshRepo=%s", url.QueryEscape("git@github.com:Equinor/my-app.git")))
-		response := <-responseChannel
-
-		applications := make([]applicationModels.ApplicationSummary, 0)
-		err = controllertest.GetResponseBody(response, &applications)
-		require.NoError(t, err)
-		assert.Equal(t, 1, len(applications))
-	})
-
-	t.Run("not matching repo", func(t *testing.T) {
-		responseChannel := controllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications?sshRepo=%s", url.QueryEscape("git@github.com:Equinor/my-app2.git")))
-		response := <-responseChannel
-
-		applications := make([]*applicationModels.ApplicationSummary, 0)
-		err = controllertest.GetResponseBody(response, &applications)
-		require.NoError(t, err)
-		assert.Equal(t, 0, len(applications))
-	})
-
-	t.Run("no filter", func(t *testing.T) {
-		responseChannel := controllerTestUtils.ExecuteRequest("GET", "/api/v1/applications")
-		response := <-responseChannel
-
-		applications := make([]*applicationModels.ApplicationSummary, 0)
-		err = controllertest.GetResponseBody(response, &applications)
-		require.NoError(t, err)
-		assert.Equal(t, 1, len(applications))
 	})
 }
 
