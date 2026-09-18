@@ -16,6 +16,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	"github.com/equinor/radix-operator/webhook/validation"
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
 	"github.com/rs/zerolog/log"
@@ -71,7 +72,9 @@ func loadConfig(ctx context.Context) config.Config {
 		log.Fatal().Err(err).Msg("Failed to create config reader client")
 	}
 	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
-	return config.MustParse(cfgYaml)
+	var cfg config.Config
+	configcodec.MustDecode([]byte(cfgYaml), &cfg)
+	return cfg
 }
 
 func setupWebhook(mgr manager.Manager, cfg config.Config, certSetupFinished <-chan struct{}) {
