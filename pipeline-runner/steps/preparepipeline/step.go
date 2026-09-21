@@ -592,23 +592,26 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 		return fmt.Errorf("failed to get sub-pipeline param references for environment %s: %w", envName, err)
 	}
 
-	for taskIndex, pipelineSpecTask := range pipeline.Spec.Tasks {
-		task, ok := taskMap[pipelineSpecTask.TaskRef.Name]
-		if !ok {
-			errs = append(errs, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
-			continue
-		}
-
-		pipeline.Spec.Tasks[taskIndex].TaskRef = &v1.TaskRef{Name: task.Name}
-		if azureClientIdPipelineParamExist {
-			ensureAzureClientIdParamExistInTaskParams(pipeline, taskIndex, task)
-		}
-		for _, paramRef := range paramRefs {
-			if slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(p v1.Param) bool { return p.Name == paramRef.Name }) {
-				return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", paramRef.Name, pipelineSpecTask.Name)
+	for _, pipelineSpecTasks := range [][]v1.PipelineTask{pipeline.Spec.Tasks, pipeline.Spec.Finally} {
+		for taskIndex := range pipelineSpecTasks {
+			pipelineSpecTask := &pipelineSpecTasks[taskIndex]
+			task, ok := taskMap[pipelineSpecTask.TaskRef.Name]
+			if !ok {
+				errs = append(errs, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
+				continue
 			}
+
+			pipelineSpecTask.TaskRef = &v1.TaskRef{Name: task.Name}
+			if azureClientIdPipelineParamExist {
+				ensureAzureClientIdParamExistInTaskParams(pipelineSpecTask, task)
+			}
+			for _, paramRef := range paramRefs {
+				if slice.Any(pipelineSpecTask.Params, func(p v1.Param) bool { return p.Name == paramRef.Name }) {
+					return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", paramRef.Name, pipelineSpecTask.Name)
+				}
+			}
+			pipelineSpecTask.Params = append(pipelineSpecTask.Params, paramRefs...)
 		}
-		pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, paramRefs...)
 	}
 
 	if len(errs) > 0 {
@@ -661,9 +664,9 @@ func ensureAzureClientIdParamExistInPipelineParams(pipeline *v1.Pipeline) {
 	}
 }
 
-func ensureAzureClientIdParamExistInTaskParams(pipeline *v1.Pipeline, pipelineTaskIndex int, task v1.Task) {
-	if taskHasAzureIdentityClientIdParam(task) && !pipelineTaskHasAzureIdentityClientIdParam(pipeline, pipelineTaskIndex) {
-		addAzureIdentityClientIdParamToPipelineTask(pipeline, pipelineTaskIndex)
+func ensureAzureClientIdParamExistInTaskParams(pipelineSpecTask *v1.PipelineTask, task v1.Task) {
+	if taskHasAzureIdentityClientIdParam(task) && !pipelineTaskHasAzureIdentityClientIdParam(pipelineSpecTask) {
+		addAzureIdentityClientIdParamToPipelineTask(pipelineSpecTask)
 	}
 }
 
@@ -677,8 +680,8 @@ func pipelineHasAzureIdentityClientIdParam(pipeline *v1.Pipeline) bool {
 	})
 }
 
-func addAzureIdentityClientIdParamToPipelineTask(pipeline *v1.Pipeline, taskIndex int) {
-	pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params,
+func addAzureIdentityClientIdParamToPipelineTask(pipelineSpecTask *v1.PipelineTask) {
+	pipelineSpecTask.Params = append(pipelineSpecTask.Params,
 		v1.Param{
 			Name:  pipelineDefaults.AzureClientIdEnvironmentVariable,
 			Value: v1.ParamValue{Type: v1.ParamTypeString, StringVal: fmt.Sprintf("$(params.%s)", pipelineDefaults.AzureClientIdEnvironmentVariable)},
@@ -691,8 +694,8 @@ func taskHasAzureIdentityClientIdParam(task v1.Task) bool {
 	})
 }
 
-func pipelineTaskHasAzureIdentityClientIdParam(pipeline *v1.Pipeline, taskIndex int) bool {
-	return slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(param v1.Param) bool {
+func pipelineTaskHasAzureIdentityClientIdParam(pipelineSpecTask *v1.PipelineTask) bool {
+	return slice.Any(pipelineSpecTask.Params, func(param v1.Param) bool {
 		return param.Name == pipelineDefaults.AzureClientIdEnvironmentVariable
 	})
 }
