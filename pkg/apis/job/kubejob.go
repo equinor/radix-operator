@@ -168,6 +168,10 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
 		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
 		fmt.Sprintf("--%s=%v", defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, job.radixJob.Spec.TriggeredFromWebhook),
+
+		// Pipeline config flags
+		fmt.Sprintf("--%s=%s", flags.ConfigMapName, job.getPipelineConfigMapName()),
+		fmt.Sprintf("--%s=%s", flags.ConfigMapNamespace, job.radixJob.Namespace),
 	}
 
 	// Pass git clone init container images

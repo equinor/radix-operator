@@ -136,7 +136,7 @@ func (job *Job) reconcile(ctx context.Context) error {
 		if errors.IsNotFound(err) {
 			log.Ctx(ctx).Info().Msg("Create pipeline job")
 
-			if err := job.reconcilerPipelineConfigMap(ctx); err != nil {
+			if err := job.reconcilePipelineConfigMap(ctx); err != nil {
 				return fmt.Errorf("failed to reconcile pipeline config: %w", err)
 			}
 			if err := job.createPipelineJob(ctx); err != nil {
@@ -152,8 +152,8 @@ func (job *Job) reconcile(ctx context.Context) error {
 	return nil
 }
 
-func (job *Job) reconcilerPipelineConfigMap(ctx context.Context) error {
-	configCm := &corev1.ConfigMap{Name: job.radixJob.Name, Namespace: job.radixJob.Namespace}
+func (job *Job) reconcilePipelineConfigMap(ctx context.Context) error {
+	configCm := &corev1.ConfigMap{Name: job.getPipelineConfigMapName(), Namespace: job.radixJob.Namespace}
 	op, err := controllerutil.CreateOrUpdate(ctx, job.dynamicClient, configCm, func() error {
 		if configCm.Data == nil {
 			configCm.Data = make(map[string]string)
@@ -173,6 +173,10 @@ func (job *Job) reconcilerPipelineConfigMap(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (job *Job) getPipelineConfigMapName() string {
+	return job.radixJob.Name
 }
 
 // handleJobQueueing checks if another job is running on the same branch or environment and queues this job if necessary.
