@@ -20,7 +20,8 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/pipeline-runner/main.go",
 			"env": {
-				"KUBERNETES_SERVICE_PORT": "443"
+				"KUBERNETES_SERVICE_PORT": "443",
+				// "CONFIG_OVERRIDE_FILENAME": "${workspaceFolder}/pipelineconfig.override.yaml"
 			},
 			"args": [
 				"--RADIX_APP=oauth-demo",
@@ -51,7 +52,8 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/pipeline-runner/main.go",
 			"env": {
-				"KUBERNETES_SERVICE_PORT": "443"
+				"KUBERNETES_SERVICE_PORT": "443",
+				// "CONFIG_OVERRIDE_FILENAME": "${workspaceFolder}/pipelineconfig.override.yaml"
 			},
 			"args": [
 				"--RADIX_APP=oauth-demo",
@@ -76,7 +78,8 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/pipeline-runner/main.go",
 			"env": {
-				"KUBERNETES_SERVICE_PORT": "443"
+				"KUBERNETES_SERVICE_PORT": "443",
+				// "CONFIG_OVERRIDE_FILENAME": "${workspaceFolder}/pipelineconfig.override.yaml"
 			},
 			"args": [
 				"--RADIX_APP=radix-job-demo",
@@ -100,7 +103,8 @@
 			"mode": "auto",
 			"program": "${workspaceFolder}/pipeline-runner/main.go",
 			"env": {
-				"KUBERNETES_SERVICE_PORT": "443"
+				"KUBERNETES_SERVICE_PORT": "443",
+				// "CONFIG_OVERRIDE_FILENAME": "${workspaceFolder}/pipelineconfig.override.yaml"
 			},
 			"args": [
 				"--RADIX_APP=oauth-demo",

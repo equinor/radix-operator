@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
@@ -61,19 +62,9 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 		return fmt.Errorf("failed to get RadixRegistration for app: %w", err)
 	}
 
-	configCm := &corev1.ConfigMap{Name: pipelineArgs.ConfigMapName, Namespace: pipelineArgs.ConfigMapNamespace}
-	if err := cli.dynamicClient.Get(ctx, client.ObjectKeyFromObject(configCm), configCm); err != nil {
-		return fmt.Errorf("failed to read configmap %s/%s: %w", pipelineArgs.ConfigMapNamespace, pipelineArgs.ConfigMapName, err)
-	}
-
-	configYaml, ok := configCm.Data["configYaml"]
-	if !ok {
-		return fmt.Errorf("configmap %s/%s does not contain key 'configYaml'", pipelineArgs.ConfigMapNamespace, pipelineArgs.ConfigMapName)
-	}
-
-	var cfg config.Config
-	if err := configcodec.Decode([]byte(configYaml), &cfg); err != nil {
-		return fmt.Errorf("failed to decode configYaml from configmap %s/%s: %w", pipelineArgs.ConfigMapNamespace, pipelineArgs.ConfigMapName, err)
+	cfg, err := cli.loadConfig(ctx, pipelineArgs)
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	stepImplementations := cli.initStepImplementations(ctx, radixRegistration)
@@ -83,6 +74,30 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 	}
 
 	return err
+}
+
+func (cli *PipelineRunner) loadConfig(ctx context.Context, pipelineArgs *model.PipelineArguments) (config.Config, error) {
+	configDataReader := func() ([]byte, error) {
+		return loadConfigDataFromConfigMap(ctx, cli.dynamicClient, pipelineArgs.ConfigMapName, pipelineArgs.ConfigMapNamespace)
+	}
+
+	configFile := os.Getenv("CONFIG_OVERRIDE_FILENAME")
+	if configFile != "" {
+		configDataReader = func() ([]byte, error) {
+			return loadConfigDataFromFile(configFile)
+		}
+	}
+
+	configYaml, err := configDataReader()
+	if err != nil {
+		return config.Config{}, fmt.Errorf("failed to read config data: %w", err)
+	}
+
+	var cfg config.Config
+	if err := configcodec.Decode([]byte(configYaml), &cfg); err != nil {
+		return config.Config{}, fmt.Errorf("failed to decode config data: %w", err)
+	}
+	return cfg, nil
 }
 
 // Run runs through the steps in the defined pipeline
@@ -184,4 +199,25 @@ func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJ
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("Failed to update status of pipeline job %s", cli.pipelineInfo.PipelineArguments.JobName)
 	}
+}
+
+func loadConfigDataFromConfigMap(ctx context.Context, dynamicClient client.Client, configMapName, configMapNamespace string) ([]byte, error) {
+	configCm := &corev1.ConfigMap{Name: configMapName, Namespace: configMapNamespace}
+	if err := dynamicClient.Get(ctx, client.ObjectKeyFromObject(configCm), configCm); err != nil {
+		return nil, fmt.Errorf("failed to read configmap %s/%s: %w", configMapNamespace, configMapName, err)
+	}
+
+	configYaml, ok := configCm.Data["configYaml"]
+	if !ok {
+		return nil, fmt.Errorf("configmap %s/%s does not contain key 'configYaml'", configMapNamespace, configMapName)
+	}
+	return []byte(configYaml), nil
+}
+
+func loadConfigDataFromFile(file string) ([]byte, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", file, err)
+	}
+	return data, nil
 }
