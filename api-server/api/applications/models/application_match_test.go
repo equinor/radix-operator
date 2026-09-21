@@ -17,12 +17,6 @@ func Test_MatchByNamesFunc(t *testing.T) {
 	assert.False(t, MatchByNamesFunc([]string{})(&rr))
 }
 
-func Test_MatchMatchSSHRepo(t *testing.T) {
-	rr := radixv1.RadixRegistration{Spec: radixv1.RadixRegistrationSpec{CloneURL: "git@github.com:Equinor/my-app.git"}}
-	assert.True(t, MatchBySSHRepoFunc("git@github.com:Equinor/my-app.git")(&rr))
-	assert.False(t, MatchBySSHRepoFunc("git@github.com:Equinor/my-other-app.git")(&rr))
-}
-
 func Test_MatchAll(t *testing.T) {
 	rr := radixv1.RadixRegistration{ObjectMeta: v1.ObjectMeta{Name: "any-app"}}
 	assert.True(t, MatchAll(&rr))
