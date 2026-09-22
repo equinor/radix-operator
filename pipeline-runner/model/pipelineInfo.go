@@ -121,10 +121,6 @@ type PipelineArguments struct {
 	TriggeredFromWebhook bool
 	RadixConfigFile      string
 
-	// GitCloneGitImage defines image containing git cli.
-	// Must support running as user 65534.
-	// Used as option to the CloneInitContainers function.
-	GitCloneGitImage string
 	// SeccompProfileFileName Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node
 	SeccompProfileFileName string
 	// Used for tagging meta-information

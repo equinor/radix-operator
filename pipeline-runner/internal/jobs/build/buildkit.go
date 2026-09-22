@@ -208,7 +208,7 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 }
 
 func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
-	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GetGitRefOrDefault(), c.gitCommitHash, c.pipelineArgs.GitWorkspace, c.pipelineArgs.GitCloneGitImage)
+	return getCommonPodInitContainers(c.cloneURL, c.pipelineArgs.GetGitRefOrDefault(), c.gitCommitHash, c.pipelineArgs.GitWorkspace, c.cfg.PipelineRunner.GitCloneImage.String())
 }
 
 func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {

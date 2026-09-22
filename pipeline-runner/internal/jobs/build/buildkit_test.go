@@ -57,7 +57,6 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 		ImageTag:     "anyimagetag",
 		PushImage:    pushImage,
 
-		GitCloneGitImage:       "anygitcloneimage",
 		Clustertype:            "anyclustertype",
 		Clustername:            "anyclustername",
 		ContainerRegistry:      "anycontainerregistry",
@@ -70,6 +69,10 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			ExternalRegistryAuthSecret: externalRegistrySecret,
 		},
 		PipelineRunner: config.PipelineRunnerConfig{
+			GitCloneImage: config.ContainerImage{
+				Repository: "docker.io/git",
+				Tag:        "latest",
+			},
 			Builder: config.BuilderConfig{
 				Image: config.ContainerImage{Repository: "docker.io/anyimagebuilder", Tag: "latest"},
 				Resources: config.Resources{
@@ -189,7 +192,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			// Check init containers
 			assert.ElementsMatch(t, []string{"clone"}, slice.Map(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) string { return c.Name }))
 			cloneContainer, _ := slice.FindFirst(job.Spec.Template.Spec.InitContainers, func(c corev1.Container) bool { return c.Name == "clone" })
-			assert.Equal(t, args.GitCloneGitImage, cloneContainer.Image)
+			assert.Equal(t, cfg.PipelineRunner.GitCloneImage.String(), cloneContainer.Image)
 			expectedCommand := `umask 002 && git config --global --add safe.directory "$RADIX_CLONE_DIR" && git clone -b "$RADIX_CLONE_BRANCH" --verbose --progress --filter=blob:none -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them") && cd "$RADIX_CLONE_DIR" && echo "Checking out commit $RADIX_CLONE_COMMIT" && git merge-base --is-ancestor "$RADIX_CLONE_COMMIT" HEAD && git checkout -q "$RADIX_CLONE_COMMIT" && cd - && cd "$RADIX_CLONE_DIR" && if [ -n "$(git lfs ls-files 2>/dev/null)" ]; then git lfs install && echo 'Pulling large files...' && git lfs pull && echo 'Done'; fi && cd - && chmod -R g+r "$RADIX_CLONE_DIR/.git"`
 			assert.Equal(t, []string{"sh", "-c", expectedCommand}, cloneContainer.Command)
 			assert.Empty(t, cloneContainer.Args)

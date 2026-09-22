@@ -6,8 +6,6 @@ const (
 	ContainerRegistry      = "container-registry"
 	CacheContainerRegistry = "cache-container-registry"
 
-	GitCloneImage = "git-clone-image"
-
 	BuilderSeccompProfileLocalHostProfile = "builder-seccomp-profile-localhost-profile"
 
 	LogLevel           = "log-level"

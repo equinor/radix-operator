@@ -291,7 +291,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				"--TRIGGERED_FROM_WEBHOOK=false",
 				fmt.Sprintf("--%s=%s", flags.ConfigMapName, jobName),
 				fmt.Sprintf("--%s=%s", flags.ConfigMapNamespace, utils.GetAppNamespace(appName)),
-				fmt.Sprintf("--%s=%s", flags.GitCloneImage, s.cfg.PipelineRunner.GitCloneImage.String()),
 				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
 				"--BRANCH=",
 				fmt.Sprintf("--GIT_REF=%s", gitRef),
