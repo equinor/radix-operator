@@ -121,10 +121,6 @@ type PipelineArguments struct {
 	TriggeredFromWebhook bool
 	RadixConfigFile      string
 
-	// Used for tagging meta-information
-	Clustertype string
-	// Clustername The name of the cluster
-	Clustername string
 	// ContainerRegistry The name of the container registry
 	ContainerRegistry string
 	// CacheContainerRegistry the name of the app container registry

@@ -356,8 +356,8 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
 			imageTag := pipelineInfo.PipelineArguments.ImageTag
 			imagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, imageTag)
-			clusterTypeImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.PipelineArguments.Clustertype, imageTag))
-			clusterNameImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.PipelineArguments.Clustername, imageTag))
+			clusterTypeImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.Cfg.Common.ClusterType, imageTag))
+			clusterNameImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.Cfg.Common.ClusterName, imageTag))
 			buildComponentImages = append(buildComponentImages, pipeline.BuildComponentImage{
 				ComponentName:        componentName,
 				EnvName:              envName,
