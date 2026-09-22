@@ -231,9 +231,9 @@ func (s *RadixJobTestSuite) Test_QueuedJob_ReconcileStatus() {
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appID := ulid.Make()
-	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
+	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag, configFileName := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag", "some-radixconfig.yaml"
 	rj, _, err := s.applyJobWithSync(
-		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID.String()).WithRadixConfigFullName("some-radixconfig.yaml"),
+		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID.String()).WithRadixConfigFullName(configFileName),
 		utils.NewJobBuilder().
 			WithJobName(jobName).
 			WithAppName(appName).
@@ -278,21 +278,21 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 			Image:           pipelineTag,
 			ImagePullPolicy: corev1.PullAlways,
 			Args: []string{
-				fmt.Sprintf("--RADIX_APP=%s", appName),
-				fmt.Sprintf("--JOB_NAME=%s", jobName),
-				fmt.Sprintf("--PIPELINE_TYPE=%s", radixv1.BuildDeploy),
-				"--RADIX_GITHUB_WORKSPACE=/workspace",
-				"--RADIX_FILE_NAME=some-radixconfig.yaml",
-				"--TRIGGERED_FROM_WEBHOOK=false",
+				fmt.Sprintf("--%s=%s", flags.AppName, appName),
+				fmt.Sprintf("--%s=%s", flags.JobName, jobName),
+				fmt.Sprintf("--%s=%s", flags.PipelineType, radixv1.BuildDeploy),
+				fmt.Sprintf("--%s=%s", flags.GithubWorkspace, "/workspace"),
+				fmt.Sprintf("--%s=%s", flags.RadixConfigFileName, configFileName),
+				fmt.Sprintf("--%s=%v", flags.TriggeredFromWebhook, false),
 				fmt.Sprintf("--%s=%s", flags.ConfigMapName, jobName),
 				fmt.Sprintf("--%s=%s", flags.ConfigMapNamespace, utils.GetAppNamespace(appName)),
-				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
-				"--BRANCH=",
-				fmt.Sprintf("--GIT_REF=%s", gitRef),
-				fmt.Sprintf("--GIT_REF_TYPE=%s", gitRefType),
-				fmt.Sprintf("--TO_ENVIRONMENT=%s", envName),
-				fmt.Sprintf("--COMMIT_ID=%s", commitID),
-				"--PUSH_IMAGE=1",
+				fmt.Sprintf("--%s=%s", flags.ImageTag, imageTag),
+				fmt.Sprintf("--%s=%s", flags.Branch, ""),
+				fmt.Sprintf("--%s=%s", flags.GitRef, gitRef),
+				fmt.Sprintf("--%s=%s", flags.GitRefType, gitRefType),
+				fmt.Sprintf("--%s=%s", flags.ToEnvironment, envName),
+				fmt.Sprintf("--%s=%s", flags.CommitID, commitID),
+				fmt.Sprintf("--%s=%s", flags.PushImage, "1"),
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
@@ -452,10 +452,10 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineConfigMapCreatedAndUpdatedW
 
 func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
 	const appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag = "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
-	argUseBuildCacheTrue := fmt.Sprintf("--%s=true", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
-	argUseBuildCacheFalse := fmt.Sprintf("--%s=false", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
-	argRefreshBuildCacheTrue := fmt.Sprintf("--%s=true", defaults.RadixRefreshBuildCacheEnvironmentVariable)
-	argRefreshBuildCacheFalse := fmt.Sprintf("--%s=false", defaults.RadixRefreshBuildCacheEnvironmentVariable)
+	argUseBuildCacheTrue := fmt.Sprintf("--%s=true", flags.OverrideUseBuildCache)
+	argUseBuildCacheFalse := fmt.Sprintf("--%s=false", flags.OverrideUseBuildCache)
+	argRefreshBuildCacheTrue := fmt.Sprintf("--%s=true", flags.RefreshBuildCache)
+	argRefreshBuildCacheFalse := fmt.Sprintf("--%s=false", flags.RefreshBuildCache)
 
 	scenarios := map[string]struct {
 		overrideUseBuildCache            *bool
@@ -533,14 +533,14 @@ func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
 			if len(scenario.expectedArgOverrideUseBuildCache) > 0 {
 				s.Contains(job.Spec.Template.Spec.Containers[0].Args, scenario.expectedArgOverrideUseBuildCache, "expected argument for UseBuildCache %s not found in job args", scenario.expectedArgOverrideUseBuildCache)
 			} else {
-				arg := fmt.Sprintf("--%s=", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
+				arg := fmt.Sprintf("--%s=", flags.OverrideUseBuildCache)
 				s.NotContains(job.Spec.Template.Spec.Containers[0].Args, arg, "unexpected expected argument for UseBuildCache %s not found in job args", arg)
 			}
 
 			if len(scenario.expectedArgRefreshBuildCache) > 0 {
 				s.Contains(job.Spec.Template.Spec.Containers[0].Args, scenario.expectedArgRefreshBuildCache, "expected argument for RefreshBuildCache %s not found in job args", scenario.expectedArgRefreshBuildCache)
 			} else {
-				arg := fmt.Sprintf("--%s=", defaults.RadixRefreshBuildCacheEnvironmentVariable)
+				arg := fmt.Sprintf("--%s=", flags.RefreshBuildCache)
 				s.NotContains(job.Spec.Template.Spec.Containers[0].Args, arg, "unexpected expected argument for RefreshBuildCache %s not found in job args", arg)
 			}
 
