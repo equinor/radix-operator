@@ -228,13 +228,13 @@ func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {
 
 func (c *buildKitKubeJobProps) getPodContainerArgs() []string {
 	args := []string{
-		"--registry", c.pipelineArgs.ContainerRegistry,
+		"--registry", c.cfg.PipelineRunner.ContainerRegistry,
 		"--registry-username", "$(BUILDAH_USERNAME)",
 		"--registry-password", "$(BUILDAH_PASSWORD)",
-		"--cache-registry", c.pipelineArgs.CacheContainerRegistry,
+		"--cache-registry", c.cfg.PipelineRunner.CacheContainerRegistry,
 		"--cache-registry-username", "$(BUILDAH_CACHE_USERNAME)",
 		"--cache-registry-password", "$(BUILDAH_CACHE_PASSWORD)",
-		"--cache-repository", utils.GetImageCachePath(c.pipelineArgs.CacheContainerRegistry, c.pipelineArgs.AppName),
+		"--cache-repository", utils.GetImageCachePath(c.cfg.PipelineRunner.CacheContainerRegistry, c.pipelineArgs.AppName),
 		"--tag", c.componentImage.ImagePath,
 		"--cluster-type-tag", c.componentImage.ClusterTypeImagePath,
 		"--cluster-name-tag", c.componentImage.ClusterNameImagePath,

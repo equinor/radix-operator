@@ -353,7 +353,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			imageName := fmt.Sprintf("%s-%s", envNameForName, componentName)
 			containerName := fmt.Sprintf("build-%s-%s", componentName, envNameForName)
 			appName := pipelineInfo.RadixApplication.GetName()
-			containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
+			containerRegistry := pipelineInfo.Cfg.PipelineRunner.ContainerRegistry
 			imageTag := pipelineInfo.PipelineArguments.ImageTag
 			imagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, imageTag)
 			clusterTypeImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.Cfg.Common.ClusterType, imageTag))

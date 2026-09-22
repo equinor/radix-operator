@@ -281,8 +281,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_APP=%s", appName),
 				fmt.Sprintf("--JOB_NAME=%s", jobName),
 				fmt.Sprintf("--PIPELINE_TYPE=%s", radixv1.BuildDeploy),
-				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.cfg.PipelineRunner.ContainerRegistry),
-				fmt.Sprintf("--%s=%s", flags.CacheContainerRegistry, s.cfg.PipelineRunner.CacheContainerRegistry),
 				"--RADIX_GITHUB_WORKSPACE=/workspace",
 				"--RADIX_FILE_NAME=some-radixconfig.yaml",
 				"--TRIGGERED_FROM_WEBHOOK=false",

@@ -48,24 +48,23 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 	)
 
 	args := model.PipelineArguments{
-		AppName:                "anyappname",
-		PipelineType:           "anypipelinetype",
-		JobName:                "anyjobname",
-		GitRef:                 gitRefName,
-		GitRefType:             "tag",
-		CommitID:               "anycommitid",
-		ImageTag:               "anyimagetag",
-		PushImage:              pushImage,
-		ContainerRegistry:      "anycontainerregistry",
-		CacheContainerRegistry: "anyappcontainerregistry",
-		GitWorkspace:           gitWorkspace,
+		AppName:      "anyappname",
+		PipelineType: "anypipelinetype",
+		JobName:      "anyjobname",
+		GitRef:       gitRefName,
+		GitRefType:   "tag",
+		CommitID:     "anycommitid",
+		ImageTag:     "anyimagetag",
+		PushImage:    pushImage,
+		GitWorkspace: gitWorkspace,
 	}
 	cfg := config.Config{
 		Common: config.CommonConfig{
 			ExternalRegistryAuthSecret: externalRegistrySecret,
 		},
 		PipelineRunner: config.PipelineRunnerConfig{
-
+			ContainerRegistry:      "anycontainerregistry",
+			CacheContainerRegistry: "anyappcontainerregistry",
 			GitCloneImage: config.ContainerImage{
 				Repository: "docker.io/git",
 				Tag:        "latest",
@@ -292,13 +291,13 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			}
 			assert.ElementsMatch(t, expectedVolumeMounts, c.VolumeMounts)
 			expectedArgs := []string{
-				"--registry", args.ContainerRegistry,
+				"--registry", cfg.PipelineRunner.ContainerRegistry,
 				"--registry-username", "$(BUILDAH_USERNAME)",
 				"--registry-password", "$(BUILDAH_PASSWORD)",
-				"--cache-registry", args.CacheContainerRegistry,
+				"--cache-registry", cfg.PipelineRunner.CacheContainerRegistry,
 				"--cache-registry-username", "$(BUILDAH_CACHE_USERNAME)",
 				"--cache-registry-password", "$(BUILDAH_CACHE_PASSWORD)",
-				"--cache-repository", utils.GetImageCachePath(args.CacheContainerRegistry, args.AppName),
+				"--cache-repository", utils.GetImageCachePath(cfg.PipelineRunner.CacheContainerRegistry, args.AppName),
 				"--tag", ci.ImagePath,
 				"--cluster-type-tag", ci.ClusterTypeImagePath,
 				"--cluster-name-tag", ci.ClusterNameImagePath,
