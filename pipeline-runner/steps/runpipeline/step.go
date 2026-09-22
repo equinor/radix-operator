@@ -208,8 +208,8 @@ func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipeline
 	if ra != nil && len(ra.Spec.PrivateImageHubs) > 0 {
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: operatorDefaults.PrivateImageHubSecretName})
 	}
-	if pipelineInfo.PipelineArguments.ExternalContainerRegistryDefaultAuthSecret != "" {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: pipelineInfo.PipelineArguments.ExternalContainerRegistryDefaultAuthSecret})
+	if pipelineInfo.Cfg.Common.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: pipelineInfo.Cfg.Common.ExternalRegistryAuthSecret})
 	}
 
 	return &pod.Template{

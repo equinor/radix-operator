@@ -150,14 +150,8 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, job.cfg.PipelineRunner.Builder.Resources.Requests.Memory.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, job.cfg.PipelineRunner.Builder.Resources.Requests.CPU.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, job.cfg.PipelineRunner.Builder.Resources.Limits.Memory.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, job.cfg.PipelineRunner.Builder.Resources.Limits.CPU.String()),
-		fmt.Sprintf("--%s=%s", flags.ExternalRegistryAuthSecret, job.cfg.Common.ExternalRegistryAuthSecret),
 
 		// Pass tekton and builder images
-		fmt.Sprintf("--%s=%s", flags.BuilderImage, job.cfg.PipelineRunner.Builder.Image.String()),
 		fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, job.cfg.PipelineRunner.Builder.SeccompProfileLocalhostProfile),
 
 		// Used for tagging source of image

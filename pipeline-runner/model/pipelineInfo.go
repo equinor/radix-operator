@@ -78,17 +78,6 @@ type EnvironmentSubPipelineToRun struct {
 	PipelineFile string
 }
 
-// Builder Holds info about the builder arguments
-type Builder struct {
-	// Image Points to the BuildKit compliant image builder
-	Image string
-
-	ResourcesLimitsMemory   string
-	ResourcesLimitsCPU      string
-	ResourcesRequestsCPU    string
-	ResourcesRequestsMemory string
-}
-
 type ApplyConfigOptions struct {
 	DeployExternalDNS bool
 }
@@ -152,11 +141,7 @@ type PipelineArguments struct {
 	ImageTagNames map[string]string
 	LogLevel      string
 	AppName       string
-	Builder       Builder
 
-	// Name of secret with .dockerconfigjson key containing docker auths. Optional.
-	// Used to authenticate external container registries when using buildkit to build dockerfiles.
-	ExternalContainerRegistryDefaultAuthSecret string
 	// ApplyConfigOptions holds options for applying radixconfig
 	ApplyConfigOptions ApplyConfigOptions
 	// GitWorkspace is the path to the git workspace
@@ -164,7 +149,7 @@ type PipelineArguments struct {
 }
 
 // InitPipeline Initialize pipeline with step implementations
-func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments *PipelineArguments, cfg config.Config, stepImplementations ...Step) (*PipelineInfo, error) {
+func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments PipelineArguments, cfg config.Config, stepImplementations ...Step) (*PipelineInfo, error) {
 	stepImplementationsForType, err := getStepStepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
 		return nil, err
@@ -172,7 +157,7 @@ func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments *Pipeline
 
 	return &PipelineInfo{
 		Definition:        pipelineType,
-		PipelineArguments: *pipelineArguments,
+		PipelineArguments: pipelineArguments,
 		Cfg:               cfg,
 		Steps:             stepImplementationsForType,
 	}, nil

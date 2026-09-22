@@ -89,12 +89,12 @@ func TestParse_HappyPath(t *testing.T) {
 			Builder: config.BuilderConfig{
 				Resources: config.Resources{
 					Limits: config.ResourceRequirements{
-						Memory: new(resource.MustParse("500M")),
-						CPU:    new(resource.MustParse("2000m")),
+						Memory: resource.MustParse("500M"),
+						CPU:    resource.MustParse("2000m"),
 					},
 					Requests: config.ResourceRequirements{
-						Memory: new(resource.MustParse("500M")),
-						CPU:    new(resource.MustParse("200m")),
+						Memory: resource.MustParse("500M"),
+						CPU:    resource.MustParse("200m"),
 					},
 				},
 				Image: config.ContainerImage{
@@ -530,19 +530,19 @@ func TestParse_BuilderResourceLimits(t *testing.T) {
 	}{
 		"equivalent CPU quantities are valid": {
 			modifyConfig: func(cfg *config.Config) {
-				cfg.PipelineRunner.Builder.Resources.Limits.CPU = new(resource.MustParse("1"))
-				cfg.PipelineRunner.Builder.Resources.Requests.CPU = new(resource.MustParse("1000m"))
+				cfg.PipelineRunner.Builder.Resources.Limits.CPU = resource.MustParse("1")
+				cfg.PipelineRunner.Builder.Resources.Requests.CPU = resource.MustParse("1000m")
 			},
 		},
 		"CPU limit below request is invalid": {
 			modifyConfig: func(cfg *config.Config) {
-				cfg.PipelineRunner.Builder.Resources.Limits.CPU = new(resource.MustParse("100m"))
+				cfg.PipelineRunner.Builder.Resources.Limits.CPU = resource.MustParse("100m")
 			},
 			errorPath: "PipelineRunner.Builder.Resources",
 		},
 		"memory limit below request is invalid": {
 			modifyConfig: func(cfg *config.Config) {
-				cfg.PipelineRunner.Builder.Resources.Limits.Memory = new(resource.MustParse("499M"))
+				cfg.PipelineRunner.Builder.Resources.Limits.Memory = resource.MustParse("499M")
 			},
 			errorPath: "PipelineRunner.Builder.Resources",
 		},

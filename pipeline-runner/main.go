@@ -34,7 +34,7 @@ var overrideUseBuildCache, refreshBuildCache model.BoolPtr
 // - a secret radix-snyk-service-account with access token to SNYK service account
 
 func main() {
-	pipelineArgs := &model.PipelineArguments{}
+	pipelineArgs := model.PipelineArguments{}
 	logger.InitLogger(pipelineArgs.LogLevel)
 
 	cmd := &cobra.Command{
@@ -58,7 +58,7 @@ func main() {
 		},
 	}
 
-	err := setPipelineArgsFromArguments(cmd, pipelineArgs, os.Args[1:])
+	err := setPipelineArgsFromArguments(cmd, &pipelineArgs, os.Args[1:])
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to parse args")
 		os.Exit(1)
@@ -68,7 +68,7 @@ func main() {
 }
 
 // runs os.Exit(1) if error
-func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (*runner.PipelineRunner, error) {
+func prepareRunner(ctx context.Context, pipelineArgs model.PipelineArguments) (*runner.PipelineRunner, error) {
 	kubeclient, radixClient, _, _, _, tektonClient := utils.GetKubernetesClient()
 
 	cfg := k8sconfig.GetConfigOrDie()
@@ -104,7 +104,6 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.DeploymentName, defaults.RadixPromoteDeploymentEnvironmentVariable, "", "Radix deployment name to promote")
 	cmd.Flags().StringVar(&pipelineArgs.FromEnvironment, defaults.RadixPromoteFromEnvironmentEnvironmentVariable, "", "Radix application environment name to promote from")
 	cmd.Flags().StringVar(&pipelineArgs.ToEnvironment, defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, "", "Radix application environment name to build-deploy or promote to")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.Image, flags.BuilderImage, "", "Radix Build Kit Image Builder container image")
 	cmd.Flags().StringVar(&pipelineArgs.SeccompProfileFileName, flags.BuilderSeccompProfileLocalHostProfile, "", "Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node")
 	cmd.Flags().StringVar(&pipelineArgs.Clustertype, flags.ClusterType, "", "Cluster type")
 	cmd.Flags().StringVar(&pipelineArgs.Clustername, flags.ClusterName, "", "Cluster name")
@@ -113,11 +112,6 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, defaults.RadixConfigFileEnvironmentVariable, "", "Radix config file name. Example: radixconfig.yaml")
 	cmd.Flags().StringVar(&pipelineArgs.ImageTag, defaults.RadixImageTagEnvironmentVariable, "latest", "Docker image tag")
 	cmd.Flags().StringVar(&pipelineArgs.LogLevel, flags.LogLevel, "INFO", "Log level: ERROR, WARN, INFO (default), DEBUG")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsMemory, flags.BuilderResourcesLimitsMemory, "2000M", "Image builder resource limit memory")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsCPU, flags.BuilderResourcesLimitsCPU, "1000m", "Image builder resource limit CPU")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsCPU, flags.BuilderResourcesRequestsCPU, "200m", "Image builder resource requests CPU")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsMemory, flags.BuilderResourcesRequestsMemory, "500M", "Image builder resource requests memory")
-	cmd.Flags().StringVar(&pipelineArgs.ExternalContainerRegistryDefaultAuthSecret, flags.ExternalRegistryAuthSecret, "", "Name of secret of type `kubernetes.io/dockerconfigjson` containign default credentials for external container registries")
 	cmd.Flags().Var(&overrideUseBuildCache, defaults.RadixOverrideUseBuildCacheEnvironmentVariable, "Optional. Overrides configured or default useBuildCache option. It is applicable when the useBuildKit option is set as true.")
 	cmd.Flags().Var(&refreshBuildCache, defaults.RadixRefreshBuildCacheEnvironmentVariable, "Optional. Forces to rebuild cache when useBuildKit and useBuildCache or overrideUseBuildCache are true.")
 	var pushImage string

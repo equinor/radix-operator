@@ -8,6 +8,7 @@ import (
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -32,40 +33,40 @@ const (
 )
 
 // NewBuildKit returns a JobBuilder implementation for building components and jobs using radix-buildkit-builder (https://github.com/equinor/radix-buildkit-builder)
-func NewBuildKit() JobsBuilder {
-	return &buildKit{}
+func NewBuildKit(cfg config.Config, args model.PipelineArguments, rr radixv1.RadixRegistration) JobsBuilder {
+	return &buildKit{cfg: cfg, args: args, rr: rr}
 }
 
-type buildKit struct{}
+type buildKit struct {
+	cfg  config.Config
+	args model.PipelineArguments
+	rr   radixv1.RadixRegistration
+}
 
-func (c *buildKit) BuildJobs(useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string, appID radixv1.ULID, imagePullSecret string) []batchv1.Job {
+func (c *buildKit) BuildJobs(useBuildCache, refreshBuildCache bool, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
 	var jobs []batchv1.Job
 
-	var pullSecrets []corev1.LocalObjectReference
-	if imagePullSecret != "" {
-		pullSecrets = append(pullSecrets, corev1.LocalObjectReference{Name: imagePullSecret})
-	}
-
 	for _, componentImage := range componentImages {
-		job := c.buildJob(componentImage, useBuildCache, refreshBuildCache, pipelineArgs, cloneURL, gitCommitHash, gitTags, buildSecrets, appID, pullSecrets)
+		job := c.buildJob(componentImage, useBuildCache, refreshBuildCache, gitCommitHash, gitTags, buildSecrets)
 		jobs = append(jobs, job)
 	}
 
 	return jobs
 }
 
-func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache, refreshBuildCache bool, pipelineArgs model.PipelineArguments, cloneURL, gitCommitHash, gitTags string, buildSecrets []string, appID radixv1.ULID, imagePullSecrets []corev1.LocalObjectReference) batchv1.Job {
+func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache, refreshBuildCache bool, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
+
 	props := &buildKitKubeJobProps{
-		pipelineArgs:      pipelineArgs,
+		cfg:               c.cfg,
+		pipelineArgs:      c.args,
 		componentImage:    componentImage,
-		cloneURL:          cloneURL,
+		cloneURL:          c.rr.Spec.CloneURL,
 		gitCommitHash:     gitCommitHash,
 		gitTags:           gitTags,
 		buildSecrets:      buildSecrets,
 		useBuildCache:     useBuildCache,
 		refreshBuildCache: refreshBuildCache,
-		appID:             appID,
-		imagePullSecrets:  imagePullSecrets,
+		appID:             c.rr.Spec.AppID,
 	}
 
 	return internal.BuildKubeJob(props)
@@ -74,6 +75,7 @@ func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuil
 var _ internal.KubeJobProps = &buildKitKubeJobProps{}
 
 type buildKitKubeJobProps struct {
+	cfg               config.Config
 	pipelineArgs      model.PipelineArguments
 	componentImage    pipeline.BuildComponentImage
 	cloneURL          string
@@ -83,7 +85,6 @@ type buildKitKubeJobProps struct {
 	useBuildCache     bool
 	refreshBuildCache bool
 	appID             radixv1.ULID
-	imagePullSecrets  []corev1.LocalObjectReference
 }
 
 func (c *buildKitKubeJobProps) JobName() string {
@@ -131,7 +132,12 @@ func (*buildKitKubeJobProps) PodSecurityContext() *corev1.PodSecurityContext {
 }
 
 func (c *buildKitKubeJobProps) PodImagePullSecrets() []corev1.LocalObjectReference {
-	return c.imagePullSecrets
+	var pullSecrets []corev1.LocalObjectReference
+	if c.cfg.Common.ExternalRegistryAuthSecret != "" {
+		pullSecrets = append(pullSecrets, corev1.LocalObjectReference{Name: c.cfg.Common.ExternalRegistryAuthSecret})
+	}
+
+	return pullSecrets
 }
 
 func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
@@ -172,13 +178,13 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 		},
 	)
 
-	if len(c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret) > 0 {
+	if len(c.cfg.Common.ExternalRegistryAuthSecret) > 0 {
 		volumes = append(volumes,
 			corev1.Volume{
-				Name: c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret,
+				Name: c.cfg.Common.ExternalRegistryAuthSecret,
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret,
+						SecretName: c.cfg.Common.ExternalRegistryAuthSecret,
 					},
 				},
 			},
@@ -208,7 +214,7 @@ func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
 func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {
 	container := corev1.Container{
 		Name:            c.componentImage.ContainerName,
-		Image:           c.pipelineArgs.Builder.Image,
+		Image:           c.cfg.PipelineRunner.Builder.Image.String(),
 		ImagePullPolicy: corev1.PullAlways,
 		Args:            c.getPodContainerArgs(),
 		Env:             c.getPodContainerEnvVars(),
@@ -260,7 +266,7 @@ func (c *buildKitKubeJobProps) getPodContainerArgs() []string {
 	// The order of auth-files matters when multiple are defined:
 	// When multiple files contains credentials for the same registry (e.g. docker.io), credentials from the last file is used
 	var authFiles []string
-	if len(c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret) > 0 {
+	if len(c.cfg.Common.ExternalRegistryAuthSecret) > 0 {
 		authFiles = append(authFiles, path.Join(defaultExternalRegistryAuthPath, corev1.DockerConfigJsonKey))
 	}
 	authFiles = append(authFiles, path.Join(privateImageHubDockerAuthPath, corev1.DockerConfigJsonKey))
@@ -274,12 +280,12 @@ func (c *buildKitKubeJobProps) getPodContainerArgs() []string {
 func (c *buildKitKubeJobProps) getPodContainerResources() corev1.ResourceRequirements {
 	return corev1.ResourceRequirements{
 		Requests: map[corev1.ResourceName]resource.Quantity{
-			corev1.ResourceCPU:    resource.MustParse(c.pipelineArgs.Builder.ResourcesRequestsCPU),
-			corev1.ResourceMemory: resource.MustParse(c.pipelineArgs.Builder.ResourcesRequestsMemory),
+			corev1.ResourceCPU:    c.cfg.PipelineRunner.Builder.Resources.Requests.CPU,
+			corev1.ResourceMemory: c.cfg.PipelineRunner.Builder.Resources.Requests.Memory,
 		},
 		Limits: map[corev1.ResourceName]resource.Quantity{
-			corev1.ResourceCPU:    resource.MustParse(c.pipelineArgs.Builder.ResourcesLimitsCPU),
-			corev1.ResourceMemory: resource.MustParse(c.pipelineArgs.Builder.ResourcesLimitsMemory),
+			corev1.ResourceCPU:    c.cfg.PipelineRunner.Builder.Resources.Limits.CPU,
+			corev1.ResourceMemory: c.cfg.PipelineRunner.Builder.Resources.Limits.Memory,
 		},
 	}
 }
@@ -366,10 +372,10 @@ func (c *buildKitKubeJobProps) getPodContainerVolumeMounts() []corev1.VolumeMoun
 		},
 	)
 
-	if len(c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret) > 0 {
+	if len(c.cfg.Common.ExternalRegistryAuthSecret) > 0 {
 		volumeMounts = append(volumeMounts,
 			corev1.VolumeMount{
-				Name:      c.pipelineArgs.ExternalContainerRegistryDefaultAuthSecret,
+				Name:      c.cfg.Common.ExternalRegistryAuthSecret,
 				MountPath: defaultExternalRegistryAuthPath,
 				ReadOnly:  true,
 			},

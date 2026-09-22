@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	internalbuild "github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
@@ -56,7 +57,7 @@ func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interfac
 }
 
 // PrepareRun Runs preparations before build
-func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.PipelineArguments) error {
+func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs model.PipelineArguments) error {
 	radixRegistration, err := cli.radixClient.RadixV1().RadixRegistrations().Get(ctx, cli.appName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get RadixRegistration for app: %w", err)
@@ -67,7 +68,7 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	stepImplementations := cli.initStepImplementations(ctx, radixRegistration)
+	stepImplementations := cli.initStepImplementations(ctx, cfg, pipelineArgs, radixRegistration)
 	cli.pipelineInfo, err = model.InitPipeline(cli.definition, pipelineArgs, cfg, stepImplementations...)
 	if err != nil {
 		return err
@@ -76,7 +77,7 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.P
 	return err
 }
 
-func (cli *PipelineRunner) loadConfig(ctx context.Context, pipelineArgs *model.PipelineArguments) (config.Config, error) {
+func (cli *PipelineRunner) loadConfig(ctx context.Context, pipelineArgs model.PipelineArguments) (config.Config, error) {
 	configDataReader := func() ([]byte, error) {
 		return loadConfigDataFromConfigMap(ctx, cli.dynamicClient, pipelineArgs.ConfigMapName, pipelineArgs.ConfigMapNamespace)
 	}
@@ -133,11 +134,11 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 	return nil
 }
 
-func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registration *v1.RadixRegistration) []model.Step {
+func (cli *PipelineRunner) initStepImplementations(ctx context.Context, cfg config.Config, args model.PipelineArguments, registration *v1.RadixRegistration) []model.Step {
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, preparepipeline.NewPreparePipelinesStep())
 	stepImplementations = append(stepImplementations, applyconfig.NewApplyConfigStep())
-	stepImplementations = append(stepImplementations, build.NewBuildStep(nil))
+	stepImplementations = append(stepImplementations, build.NewBuildStep(nil, internalbuild.NewBuildKit(cfg, args, *registration)))
 	stepImplementations = append(stepImplementations, runpipeline.NewRunPipelinesStep())
 	stepImplementations = append(stepImplementations, deploy.NewDeployStep(watcher.NewNamespaceWatcherImpl(cli.kubeClient), watcher.NewRadixDeploymentWatcher(cli.radixClient, time.Minute*5)))
 	stepImplementations = append(stepImplementations, deployconfig.NewDeployConfigStep(watcher.NewRadixDeploymentWatcher(cli.radixClient, time.Minute*5)))

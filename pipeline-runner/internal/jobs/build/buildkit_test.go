@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -62,26 +63,42 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 		ContainerRegistry:      "anycontainerregistry",
 		CacheContainerRegistry: "anyappcontainerregistry",
 		SeccompProfileFileName: "anyseccompprofilefile",
-		ExternalContainerRegistryDefaultAuthSecret: externalRegistrySecret,
-		Builder: model.Builder{
-			Image:                   "docker.io/anyimagebuilder",
-			ResourcesLimitsMemory:   "100M",
-			ResourcesRequestsCPU:    "50m",
-			ResourcesRequestsMemory: "50M",
-			ResourcesLimitsCPU:      "50m",
+		GitWorkspace:           gitWorkspace,
+	}
+	cfg := config.Config{
+		Common: config.CommonConfig{
+			ExternalRegistryAuthSecret: externalRegistrySecret,
 		},
-		GitWorkspace: gitWorkspace,
+		PipelineRunner: config.PipelineRunnerConfig{
+			Builder: config.BuilderConfig{
+				Image: config.ContainerImage{Repository: "docker.io/anyimagebuilder", Tag: "latest"},
+				Resources: config.Resources{
+					Requests: config.ResourceRequirements{
+						CPU:    resource.MustParse("50m"),
+						Memory: resource.MustParse("50M"),
+					},
+					Limits: config.ResourceRequirements{
+						CPU:    resource.MustParse("50m"),
+						Memory: resource.MustParse("100M"),
+					},
+				},
+			},
+		},
 	}
 	require.Equal(t, pushImage, args.PushImage)
-	require.Equal(t, externalRegistrySecret, args.ExternalContainerRegistryDefaultAuthSecret)
+	require.Equal(t, externalRegistrySecret, cfg.Common.ExternalRegistryAuthSecret)
 	componentImages := []pipeline.BuildComponentImage{
 		{ComponentName: "c1", EnvName: "c1env", ContainerName: "c1container", Context: "c1ctx", Dockerfile: "c1dockerfile", ImageName: "c1imagename", ImagePath: "c1image", ClusterTypeImagePath: "c1clustertypeimage", ClusterNameImagePath: "c1clusternameimage"},
 		{ComponentName: "c2", EnvName: "c2env", ContainerName: "c2container", Context: "c2ctx", Dockerfile: "c2dockerfile", ImageName: "c2imagename", ImagePath: "c2image", ClusterTypeImagePath: "c2clustertypeimage", ClusterNameImagePath: "c2clusternameimage", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
 		{ComponentName: "c3", EnvName: "c3env", ContainerName: "c3container", Context: "c3ctx", Dockerfile: "c3dockerfile", ImageName: "c2imagename", ImagePath: "c2image", ClusterTypeImagePath: "c3clustertypeimage", ClusterNameImagePath: "c3clusternameimage", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
 	}
+	rr := radixv1.RadixRegistration{Spec: radixv1.RadixRegistrationSpec{
+		CloneURL: cloneURL,
+		AppID:    radixv1.ULID{ULID: ulid.MustParse(appID)},
+	}}
 
-	sut := build.NewBuildKit()
-	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, args, cloneURL, gitCommitHash, gitTags, componentImages, buildSecrets, radixv1.ULID{ULID: ulid.MustParse(appID)}, "anysecret")
+	sut := build.NewBuildKit(cfg, args, rr)
+	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, gitCommitHash, gitTags, componentImages, buildSecrets)
 	require.Len(t, jobs, len(componentImages))
 
 	for _, ci := range componentImages {
@@ -124,6 +141,11 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			expectedPodAnnotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", ci.ContainerName)] = "unconfined"
 			assert.Equal(t, expectedPodAnnotations, job.Spec.Template.Annotations)
 			assert.Equal(t, corev1.RestartPolicyNever, job.Spec.Template.Spec.RestartPolicy)
+			expectedImagePullSecrets := []corev1.LocalObjectReference{}
+			if externalRegistrySecret != "" {
+				expectedImagePullSecrets = append(expectedImagePullSecrets, corev1.LocalObjectReference{Name: externalRegistrySecret})
+			}
+			assert.ElementsMatch(t, expectedImagePullSecrets, job.Spec.Template.Spec.ImagePullSecrets)
 			arch := radixv1.RuntimeArchitectureAmd64
 			if ci.Runtime != nil {
 				arch = ci.Runtime.Architecture
@@ -151,11 +173,12 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 				{Name: "build-kit-root", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
 				{Name: git.CloneRepoHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
 			}
-			if len(args.ExternalContainerRegistryDefaultAuthSecret) > 0 {
+			if len(cfg.Common.ExternalRegistryAuthSecret) > 0 {
 				expectedVolumes = append(expectedVolumes, corev1.Volume{
-					Name: args.ExternalContainerRegistryDefaultAuthSecret, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: args.ExternalContainerRegistryDefaultAuthSecret}},
+					Name: cfg.Common.ExternalRegistryAuthSecret, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: cfg.Common.ExternalRegistryAuthSecret}},
 				})
 			}
+
 			if len(buildSecrets) > 0 {
 				expectedVolumes = append(expectedVolumes, corev1.Volume{
 					Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}},
@@ -188,16 +211,16 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			require.Len(t, job.Spec.Template.Spec.Containers, 1)
 			c := job.Spec.Template.Spec.Containers[0]
 			assert.Equal(t, ci.ContainerName, c.Name)
-			assert.Equal(t, args.Builder.Image, c.Image)
+			assert.Equal(t, cfg.PipelineRunner.Builder.Image.String(), c.Image)
 			assert.Equal(t, corev1.PullAlways, c.ImagePullPolicy)
 			expectedResources := corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceCPU:    resource.MustParse(args.Builder.ResourcesRequestsCPU),
-					corev1.ResourceMemory: resource.MustParse(args.Builder.ResourcesRequestsMemory),
+					corev1.ResourceCPU:    cfg.PipelineRunner.Builder.Resources.Requests.CPU,
+					corev1.ResourceMemory: cfg.PipelineRunner.Builder.Resources.Requests.Memory,
 				},
 				Limits: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceMemory: resource.MustParse(args.Builder.ResourcesLimitsMemory),
-					corev1.ResourceCPU:    resource.MustParse(args.Builder.ResourcesLimitsCPU),
+					corev1.ResourceCPU:    cfg.PipelineRunner.Builder.Resources.Limits.CPU,
+					corev1.ResourceMemory: cfg.PipelineRunner.Builder.Resources.Limits.Memory,
 				},
 			}
 			assert.Equal(t, expectedResources, c.Resources)
@@ -260,8 +283,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 				{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},
 				{Name: "radix-image-builder-home", MountPath: "/home/build", ReadOnly: false},
 			}
-			if len(args.ExternalContainerRegistryDefaultAuthSecret) > 0 {
-				expectedVolumeMounts = append(expectedVolumeMounts, corev1.VolumeMount{Name: args.ExternalContainerRegistryDefaultAuthSecret, MountPath: "/radix-default-external-registry-auth", ReadOnly: true})
+			if len(cfg.Common.ExternalRegistryAuthSecret) > 0 {
+				expectedVolumeMounts = append(expectedVolumeMounts, corev1.VolumeMount{Name: cfg.Common.ExternalRegistryAuthSecret, MountPath: "/radix-default-external-registry-auth", ReadOnly: true})
 			}
 			if len(buildSecrets) > 0 {
 				expectedVolumeMounts = append(expectedVolumeMounts, corev1.VolumeMount{Name: defaults.BuildSecretsName, MountPath: "/build-secrets", ReadOnly: true})
@@ -298,7 +321,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			for _, secret := range buildSecrets {
 				expectedArgs = append(expectedArgs, "--secret", secret)
 			}
-			if len(args.ExternalContainerRegistryDefaultAuthSecret) > 0 {
+			if len(cfg.Common.ExternalRegistryAuthSecret) > 0 {
 				expectedArgs = append(expectedArgs, "--auth-file", path.Join("/radix-default-external-registry-auth", corev1.DockerConfigJsonKey))
 			}
 			expectedArgs = append(expectedArgs, "--auth-file", path.Join("/radix-private-image-hubs", corev1.DockerConfigJsonKey))

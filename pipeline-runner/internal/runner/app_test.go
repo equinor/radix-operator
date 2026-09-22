@@ -39,7 +39,7 @@ func TestPrepareRun_NoRegistration_ReturnsError(t *testing.T) {
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
 	cli := NewRunner(nil, radixclient, nil, nil, pipelineDefinition, "any-app")
 
-	err := cli.PrepareRun(context.Background(), &model.PipelineArguments{})
+	err := cli.PrepareRun(context.Background(), model.PipelineArguments{})
 	assert.ErrorContains(t, err, "failed to get RadixRegistration for app")
 }
 
@@ -60,7 +60,7 @@ func TestPrepareRun_LoadsConfigFromConfigMap(t *testing.T) {
 	require.NoError(t, err)
 	cli := NewRunner(nil, radixClient, dynamicClient, nil, pipelineDefinition, appName)
 
-	err = cli.PrepareRun(context.Background(), &model.PipelineArguments{
+	err = cli.PrepareRun(context.Background(), model.PipelineArguments{
 		ConfigMapName:      configMapName,
 		ConfigMapNamespace: configMapNamespace,
 	})
@@ -105,7 +105,7 @@ func TestPrepareRun_ConfigMapErrors(t *testing.T) {
 			require.NoError(t, err)
 			cli := NewRunner(nil, radixClient, dynamicClient, nil, pipelineDefinition, appName)
 
-			err = cli.PrepareRun(context.Background(), &model.PipelineArguments{
+			err = cli.PrepareRun(context.Background(), model.PipelineArguments{
 				ConfigMapName:      configMapName,
 				ConfigMapNamespace: configMapNamespace,
 			})
@@ -131,7 +131,7 @@ func TestPrepareRun_ConfigOverrideFileTakesPrecedence(t *testing.T) {
 	require.NoError(t, err)
 	cli := NewRunner(nil, radixClient, commonTest.CreateClient(), nil, pipelineDefinition, appName)
 
-	err = cli.PrepareRun(context.Background(), &model.PipelineArguments{
+	err = cli.PrepareRun(context.Background(), model.PipelineArguments{
 		ConfigMapName:      "missing-config-map",
 		ConfigMapNamespace: "missing-namespace",
 	})

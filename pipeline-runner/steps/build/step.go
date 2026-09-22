@@ -27,39 +27,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type BuildJobFactory func() internalbuild.JobsBuilder
-
 // BuildStepImplementation Step to build docker image
 type BuildStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
-	jobWaiter       internalwait.JobCompletionWaiter
-	buildJobFactory BuildJobFactory
-}
-
-type Option func(step *BuildStepImplementation)
-
-func WithBuildJobFactory(factory BuildJobFactory) Option {
-	return func(step *BuildStepImplementation) {
-		step.buildJobFactory = factory
-	}
-}
-
-func defaultBuildJobFactory() internalbuild.JobsBuilder {
-	return internalbuild.NewBuildKit()
+	jobWaiter   internalwait.JobCompletionWaiter
+	jobsBuilder internalbuild.JobsBuilder
 }
 
 // NewBuildStep Constructor.
 // jobWaiter is optional and will be set by Init(...) function if nil.
-func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter, options ...Option) model.Step {
+func NewBuildStep(jobWaiter internalwait.JobCompletionWaiter, jobsBuilder internalbuild.JobsBuilder) model.Step {
 	step := &BuildStepImplementation{
-		stepType:        pipeline.BuildStep,
-		jobWaiter:       jobWaiter,
-		buildJobFactory: defaultBuildJobFactory,
-	}
-
-	for _, o := range options {
-		o(step)
+		stepType:    pipeline.BuildStep,
+		jobWaiter:   jobWaiter,
+		jobsBuilder: jobsBuilder,
 	}
 
 	return step
@@ -111,25 +93,19 @@ func (step *BuildStepImplementation) Run(ctx context.Context, pipelineInfo *mode
 }
 
 func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineInfo) []batchv1.Job {
-	rr := step.GetRegistration()
 	var secrets []string
 	if pipelineInfo.RadixApplication.Spec.Build != nil {
 		secrets = pipelineInfo.RadixApplication.Spec.Build.Secrets
 	}
 	imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
-	return step.buildJobFactory().
-		BuildJobs(
-			pipelineInfo.IsUsingBuildCache(),
-			pipelineInfo.IsRefreshingBuildCache(),
-			pipelineInfo.PipelineArguments,
-			rr.Spec.CloneURL,
-			pipelineInfo.GitCommitHash,
-			pipelineInfo.GitTags,
-			imagesToBuild,
-			secrets,
-			rr.Spec.AppID,
-			pipelineInfo.PipelineArguments.ExternalContainerRegistryDefaultAuthSecret,
-		)
+	return step.jobsBuilder.BuildJobs(
+		pipelineInfo.IsUsingBuildCache(),
+		pipelineInfo.IsRefreshingBuildCache(),
+		pipelineInfo.GitCommitHash,
+		pipelineInfo.GitTags,
+		imagesToBuild,
+		secrets,
+	)
 }
 
 func (step *BuildStepImplementation) applyBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []batchv1.Job, namespace string) error {

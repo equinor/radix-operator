@@ -131,7 +131,9 @@
 				"USE_PROFILER": "true",
 				"KUBERNETES_SERVICE_PORT": "443",
 				"RADIXCONFIG_OPERATOR_LOGLEVEL": "info",
-				"RADIXCONFIG_OPERATOR_LOGPRETTYPRINT": "true"
+				"RADIXCONFIG_OPERATOR_LOGPRETTYPRINT": "true",
+				// "RADIXCONFIG_OPERATOR_PIPELINEIMAGE_REPOSITORY": "radixdev.azurecr.io/radix-pipeline",
+				// "RADIXCONFIG_OPERATOR_PIPELINEIMAGE_TAG": "dev"
 			},
 			"args": ["--useOutClusterClient=false"]
 		},

@@ -6,18 +6,11 @@ const (
 	ContainerRegistry      = "container-registry"
 	CacheContainerRegistry = "cache-container-registry"
 
-	BuilderResourcesLimitsCPU      = "builder-resources-limits-cpu"
-	BuilderResourcesLimitsMemory   = "builder-resources-limits-memory"
-	BuilderResourcesRequestsCPU    = "builder-resources-requests-cpu"
-	BuilderResourcesRequestsMemory = "builder-resources-requests-memory"
-
-	BuilderImage  = "builder-image"
 	GitCloneImage = "git-clone-image"
 
 	BuilderSeccompProfileLocalHostProfile = "builder-seccomp-profile-localhost-profile"
 
-	ExternalRegistryAuthSecret = "external-registry-auth-secret"
-	LogLevel                   = "log-level"
-	ConfigMapName              = "config-map-name"
-	ConfigMapNamespace         = "config-map-namespace"
+	LogLevel           = "log-level"
+	ConfigMapName      = "config-map-name"
+	ConfigMapNamespace = "config-map-namespace"
 )

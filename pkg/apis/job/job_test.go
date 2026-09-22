@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -74,12 +73,12 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 				},
 				Resources: config.Resources{
 					Requests: config.ResourceRequirements{
-						CPU:    new(resource.MustParse("100m")),
-						Memory: new(resource.MustParse("1000Mi")),
+						CPU:    resource.MustParse("100m"),
+						Memory: resource.MustParse("1000Mi"),
 					},
 					Limits: config.ResourceRequirements{
-						CPU:    new(resource.MustParse("200m")),
-						Memory: new(resource.MustParse("2000Mi")),
+						CPU:    resource.MustParse("200m"),
+						Memory: resource.MustParse("2000Mi"),
 					},
 				},
 				SeccompProfileLocalhostProfile: "anyseccomp",
@@ -282,12 +281,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_APP=%s", appName),
 				fmt.Sprintf("--JOB_NAME=%s", jobName),
 				fmt.Sprintf("--PIPELINE_TYPE=%s", radixv1.BuildDeploy),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, s.cfg.PipelineRunner.Builder.Resources.Requests.Memory.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, s.cfg.PipelineRunner.Builder.Resources.Requests.CPU.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.cfg.PipelineRunner.Builder.Resources.Limits.Memory.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.cfg.PipelineRunner.Builder.Resources.Limits.CPU.String()),
-				fmt.Sprintf("--%s=%s", flags.ExternalRegistryAuthSecret, s.cfg.Common.ExternalRegistryAuthSecret),
-				fmt.Sprintf("--%s=%s", flags.BuilderImage, s.cfg.PipelineRunner.Builder.Image.String()),
 				fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, s.cfg.PipelineRunner.Builder.SeccompProfileLocalhostProfile),
 				fmt.Sprintf("--%s=%s", flags.ClusterType, s.cfg.Common.ClusterType),
 				fmt.Sprintf("--%s=%s", flags.ClusterName, s.cfg.Common.ClusterName),
@@ -1596,76 +1589,4 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 	// Master maps to Test env
 	s.Equal(job.Spec.Build.GetGitRefOrDefault(), "master")
 	s.Empty(job.Status.TargetEnvs)
-}
-
-func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
-
-	testCfg := config.Config{
-		PipelineRunner: config.PipelineRunnerConfig{
-			Builder: config.BuilderConfig{
-				Resources: config.Resources{
-					Requests: config.ResourceRequirements{
-						CPU:    new(resource.MustParse("123m")),
-						Memory: new(resource.MustParse("1234Mi")),
-					},
-					Limits: config.ResourceRequirements{
-						CPU:    new(resource.MustParse("456m")),
-						Memory: new(resource.MustParse("2345Mi")),
-					},
-				},
-			},
-		},
-	}
-
-	scenarios := map[string]struct {
-		expectedError string
-	}{
-		"Configured AppBuilderResources": {
-			expectedError: "",
-		},
-	}
-	for name, scenario := range scenarios {
-		s.Run(name, func() {
-			_, _, err := s.applyJobWithSync(
-				utils.ARadixRegistration(),
-				utils.ARadixBuildDeployJobWithAppBuilder(func(builder utils.ApplicationBuilder) {}).
-					WithJobName("job1").
-					WithGitRef("master").
-					WithGitRefType(string(radixv1.GitRefBranch)),
-				testCfg)
-			switch {
-			case len(scenario.expectedError) > 0 && err == nil:
-				s.Fail(fmt.Sprintf("Missing expected error '%s'", scenario.expectedError))
-				return
-			case len(scenario.expectedError) == 0 && err != nil:
-				s.Fail(fmt.Sprintf("Unexpected error %v", err))
-				return
-			case len(scenario.expectedError) > 0 && err != nil:
-				s.Equal(scenario.expectedError, err.Error(), fmt.Sprintf("Expected error '%s' but got '%s'", scenario.expectedError, err.Error()))
-				return
-			}
-			s.Require().NoError(err)
-
-			jobList, err := s.testUtils.GetKubeUtil().ListJobs(context.Background(), utils.GetAppNamespace("some-app"))
-			s.Require().NoError(err)
-
-			s.Len(jobList, 1)
-			job := jobList[0]
-			s.Equal(testCfg.PipelineRunner.Builder.Resources.Requests.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsCPU), "Invalid or missing AppBuilderResourcesRequestsCPU")
-			s.Equal(testCfg.PipelineRunner.Builder.Resources.Requests.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsMemory), "Invalid or missing AppBuilderResourcesRequestsMemory")
-			s.Equal(testCfg.PipelineRunner.Builder.Resources.Limits.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsMemory), "Invalid or missing AppBuilderResourcesLimitsMemory")
-			s.Equal(testCfg.PipelineRunner.Builder.Resources.Limits.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsCPU), "Invalid or missing AppBuilderResourcesLimitsCPU")
-		})
-
-	}
-}
-
-func getJobContainerArgument(container corev1.Container, variableName string) string {
-	for _, arg := range container.Args {
-		argPrefix := fmt.Sprintf("--%s=", variableName)
-		if strings.HasPrefix(arg, argPrefix) {
-			return arg[len(argPrefix):]
-		}
-	}
-	return ""
 }
