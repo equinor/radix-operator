@@ -151,9 +151,6 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
 		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
 
-		// Pass tekton and builder images
-		fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, job.cfg.PipelineRunner.Builder.SeccompProfileLocalhostProfile),
-
 		// Used for tagging source of image
 		fmt.Sprintf("--%s=%s", flags.ClusterType, job.cfg.Common.ClusterType),
 		fmt.Sprintf("--%s=%s", flags.ClusterName, job.cfg.Common.ClusterName),

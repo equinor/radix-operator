@@ -121,8 +121,6 @@ type PipelineArguments struct {
 	TriggeredFromWebhook bool
 	RadixConfigFile      string
 
-	// SeccompProfileFileName Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node
-	SeccompProfileFileName string
 	// Used for tagging meta-information
 	Clustertype string
 	// Clustername The name of the cluster

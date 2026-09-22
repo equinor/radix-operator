@@ -281,7 +281,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--RADIX_APP=%s", appName),
 				fmt.Sprintf("--JOB_NAME=%s", jobName),
 				fmt.Sprintf("--PIPELINE_TYPE=%s", radixv1.BuildDeploy),
-				fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, s.cfg.PipelineRunner.Builder.SeccompProfileLocalhostProfile),
 				fmt.Sprintf("--%s=%s", flags.ClusterType, s.cfg.Common.ClusterType),
 				fmt.Sprintf("--%s=%s", flags.ClusterName, s.cfg.Common.ClusterName),
 				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.cfg.PipelineRunner.ContainerRegistry),

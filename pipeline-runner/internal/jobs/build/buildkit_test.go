@@ -48,20 +48,16 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 	)
 
 	args := model.PipelineArguments{
-		AppName:      "anyappname",
-		PipelineType: "anypipelinetype",
-		JobName:      "anyjobname",
-		GitRef:       gitRefName,
-		GitRefType:   "tag",
-		CommitID:     "anycommitid",
-		ImageTag:     "anyimagetag",
-		PushImage:    pushImage,
-
-		Clustertype:            "anyclustertype",
-		Clustername:            "anyclustername",
+		AppName:                "anyappname",
+		PipelineType:           "anypipelinetype",
+		JobName:                "anyjobname",
+		GitRef:                 gitRefName,
+		GitRefType:             "tag",
+		CommitID:               "anycommitid",
+		ImageTag:               "anyimagetag",
+		PushImage:              pushImage,
 		ContainerRegistry:      "anycontainerregistry",
 		CacheContainerRegistry: "anyappcontainerregistry",
-		SeccompProfileFileName: "anyseccompprofilefile",
 		GitWorkspace:           gitWorkspace,
 	}
 	cfg := config.Config{
@@ -69,6 +65,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			ExternalRegistryAuthSecret: externalRegistrySecret,
 		},
 		PipelineRunner: config.PipelineRunnerConfig{
+
 			GitCloneImage: config.ContainerImage{
 				Repository: "docker.io/git",
 				Tag:        "latest",
@@ -85,6 +82,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 						Memory: resource.MustParse("100M"),
 					},
 				},
+				SeccompProfileLocalhostProfile: "anyseccompprofilefile",
 			},
 		},
 	}
@@ -232,7 +230,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 				securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
 				securitycontext.WithContainerSeccompProfile(corev1.SeccompProfile{
 					Type:             corev1.SeccompProfileTypeLocalhost,
-					LocalhostProfile: new(args.SeccompProfileFileName),
+					LocalhostProfile: new(cfg.PipelineRunner.Builder.SeccompProfileLocalhostProfile),
 				}),
 				securitycontext.WithContainerRunAsNonRoot(new(false)),
 				securitycontext.WithReadOnlyRootFileSystem(new(true)),

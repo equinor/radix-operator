@@ -296,7 +296,7 @@ func (c *buildKitKubeJobProps) getPodContainerSecurityContext() *corev1.Security
 		securitycontext.WithContainerCapabilities([]corev1.Capability{"SETUID", "SETGID", "SETFCAP"}),
 		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: new(c.pipelineArgs.SeccompProfileFileName),
+			LocalhostProfile: new(c.cfg.PipelineRunner.Builder.SeccompProfileLocalhostProfile),
 		}),
 		securitycontext.WithContainerRunAsNonRoot(new(false)),
 		securitycontext.WithReadOnlyRootFileSystem(new(true)),
