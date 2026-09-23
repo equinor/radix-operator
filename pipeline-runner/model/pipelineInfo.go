@@ -112,14 +112,14 @@ type PipelineArguments struct {
 	// OverrideUseBuildCache override default or configured build cache option
 	OverrideUseBuildCache *bool
 	// RefreshBuildCache forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
-	RefreshBuildCache    *bool
-	PushImage            bool
-	DeploymentName       string
-	FromEnvironment      string
-	ToEnvironment        string
-	ComponentsToDeploy   []string
-	TriggeredFromWebhook bool
-	RadixConfigFile      string
+	RefreshBuildCache      *bool
+	PushImage              bool
+	PromoteDeploymentName  string
+	PromoteFromEnvironment string
+	ToEnvironment          string
+	ComponentsToDeploy     []string
+	TriggeredFromWebhook   bool
+	RadixConfigFile        string
 
 	// Used to indicate debugging session
 	Debug bool
@@ -258,12 +258,12 @@ func (p *PipelineInfo) GetRadixDeployToEnvironment() string {
 
 // GetRadixPromoteDeployment Get radix promote deployment
 func (p *PipelineInfo) GetRadixPromoteDeployment() string {
-	return p.PipelineArguments.DeploymentName
+	return p.PipelineArguments.PromoteDeploymentName
 }
 
 // GetRadixPromoteFromEnvironment Get radix promote from environment
 func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
-	return p.PipelineArguments.FromEnvironment
+	return p.PipelineArguments.PromoteFromEnvironment
 }
 
 // GetGitRefType Get git event ref type

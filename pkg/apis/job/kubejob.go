@@ -152,8 +152,8 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		fmt.Sprintf("--%s=%s", flags.PipelineType, pipeline.Type),
 
 		// Used for tagging source of image
-		fmt.Sprintf("--%s=%s", flags.GithubWorkspace, workspace),
-		fmt.Sprintf("--%s=%s", flags.RadixConfigFileName, radixConfigFullName),
+		fmt.Sprintf("--%s=%s", flags.GitWorkspace, workspace),
+		fmt.Sprintf("--%s=%s", flags.RadixConfigFile, radixConfigFullName),
 		fmt.Sprintf("--%s=%v", flags.TriggeredFromWebhook, job.radixJob.Spec.TriggeredFromWebhook),
 
 		// Pipeline config flags

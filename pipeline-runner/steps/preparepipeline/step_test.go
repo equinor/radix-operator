@@ -1303,11 +1303,11 @@ func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_Pr
 	pipelineInfo := &model.PipelineInfo{
 		Definition: &pipeline.Definition{},
 		PipelineArguments: model.PipelineArguments{
-			AppName:         appName,
-			PipelineType:    string(radixv1.Promote),
-			FromEnvironment: fromEnvironment,
-			ToEnvironment:   toEnvironment,
-			DeploymentName:  deploymentName,
+			AppName:                appName,
+			PipelineType:           string(radixv1.Promote),
+			PromoteFromEnvironment: fromEnvironment,
+			ToEnvironment:          toEnvironment,
+			PromoteDeploymentName:  deploymentName,
 		},
 	}
 
@@ -1372,11 +1372,11 @@ func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_Pr
 	pipelineInfo := &model.PipelineInfo{
 		Definition: &pipeline.Definition{},
 		PipelineArguments: model.PipelineArguments{
-			AppName:         appName,
-			PipelineType:    string(radixv1.Promote),
-			FromEnvironment: fromEnvironment,
-			ToEnvironment:   toEnvironment,
-			DeploymentName:  deploymentName,
+			AppName:                appName,
+			PipelineType:           string(radixv1.Promote),
+			PromoteFromEnvironment: fromEnvironment,
+			ToEnvironment:          toEnvironment,
+			PromoteDeploymentName:  deploymentName,
 		},
 	}
 

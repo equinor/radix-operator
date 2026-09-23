@@ -1636,9 +1636,9 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 				pipeline.PipelineArguments.GitRef = "main"
 				pipeline.PipelineArguments.GitRefType = "tag"
 			case radixv1.Promote:
-				pipeline.PipelineArguments.FromEnvironment = "dev"
+				pipeline.PipelineArguments.PromoteFromEnvironment = "dev"
 				pipeline.PipelineArguments.ToEnvironment = "dev"
-				pipeline.PipelineArguments.DeploymentName = "depl"
+				pipeline.PipelineArguments.PromoteDeploymentName = "depl"
 			}
 
 			applyStep := applyconfig.NewApplyConfigStep()
@@ -1742,11 +1742,11 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImagesSetFromSourceDeployment(
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			AppName:         appName,
-			PipelineType:    string(radixv1.Promote),
-			FromEnvironment: fromEnv,
-			ToEnvironment:   toEnv,
-			DeploymentName:  deploymentName,
+			AppName:                appName,
+			PipelineType:           string(radixv1.Promote),
+			PromoteFromEnvironment: fromEnv,
+			ToEnvironment:          toEnv,
+			PromoteDeploymentName:  deploymentName,
 		},
 		RadixApplication: ra,
 	}
@@ -1790,11 +1790,11 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImages_MissingFromEnvironmentO
 		s.Run(ts.name, func() {
 			pipelineInfo := model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					AppName:         appName,
-					PipelineType:    string(radixv1.Promote),
-					FromEnvironment: ts.fromEnvironment,
-					ToEnvironment:   "prod",
-					DeploymentName:  ts.deploymentName,
+					AppName:                appName,
+					PipelineType:           string(radixv1.Promote),
+					PromoteFromEnvironment: ts.fromEnvironment,
+					ToEnvironment:          "prod",
+					PromoteDeploymentName:  ts.deploymentName,
 				},
 				RadixApplication: ra,
 			}
@@ -1820,11 +1820,11 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImages_SourceDeploymentNotFoun
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			AppName:         appName,
-			PipelineType:    string(radixv1.Promote),
-			FromEnvironment: fromEnv,
-			ToEnvironment:   toEnv,
-			DeploymentName:  "nonexistent-deployment",
+			AppName:                appName,
+			PipelineType:           string(radixv1.Promote),
+			PromoteFromEnvironment: fromEnv,
+			ToEnvironment:          toEnv,
+			PromoteDeploymentName:  "nonexistent-deployment",
 		},
 		RadixApplication: ra,
 	}

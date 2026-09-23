@@ -152,12 +152,12 @@ func (step *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.C
 }
 
 func (step *ApplyConfigStepImplementation) setPromoteDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	if pipelineInfo.PipelineArguments.FromEnvironment == "" || pipelineInfo.PipelineArguments.DeploymentName == "" {
+	if pipelineInfo.PipelineArguments.PromoteFromEnvironment == "" || pipelineInfo.PipelineArguments.PromoteDeploymentName == "" {
 		return nil
 	}
 
-	fromNs := operatorutils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
-	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(fromNs).Get(ctx, pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
+	fromNs := operatorutils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.PromoteFromEnvironment)
+	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(fromNs).Get(ctx, pipelineInfo.PipelineArguments.PromoteDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		if kubeerrors.IsNotFound(err) {
 			return nil
