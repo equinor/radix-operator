@@ -44,7 +44,7 @@ func TestPrepareRun_NoRegistration_ReturnsError(t *testing.T) {
 }
 
 func TestPrepareRun_LoadsConfigFromConfigMap(t *testing.T) {
-	const appName, configMapName, configMapNamespace = "any-app", "pipeline-config", "pipeline-namespace"
+	const appName, configMapName, configMapNamespace, configMapKey = "any-app", "pipeline-config", "pipeline-namespace", "configYaml"
 	expectedConfig := getValidConfig(t)
 	expectedConfig.Common.ClusterName = "config-map-cluster"
 	configYaml, err := configcodec.Encode(expectedConfig)
@@ -53,8 +53,9 @@ func TestPrepareRun_LoadsConfigFromConfigMap(t *testing.T) {
 
 	radixClient := radix.NewSimpleClientset(&v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}) // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	dynamicClient := commonTest.CreateClient(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: configMapName, Namespace: configMapNamespace},
-		Data:       map[string]string{"configYaml": string(configYaml)},
+		Name:      configMapName,
+		Namespace: configMapNamespace,
+		Data:      map[string]string{configMapKey: string(configYaml)},
 	})
 	pipelineDefinition, err := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
 	require.NoError(t, err)
@@ -63,6 +64,7 @@ func TestPrepareRun_LoadsConfigFromConfigMap(t *testing.T) {
 	err = cli.PrepareRun(context.Background(), model.PipelineArguments{
 		ConfigMapName:      configMapName,
 		ConfigMapNamespace: configMapNamespace,
+		ConfigMapKey:       configMapKey,
 	})
 
 	require.NoError(t, err)
@@ -71,7 +73,7 @@ func TestPrepareRun_LoadsConfigFromConfigMap(t *testing.T) {
 }
 
 func TestPrepareRun_ConfigMapErrors(t *testing.T) {
-	const appName, configMapName, configMapNamespace = "any-app", "pipeline-config", "pipeline-namespace"
+	const appName, configMapName, configMapNamespace, configMapKey = "any-app", "pipeline-config", "pipeline-namespace", "configYaml"
 	tests := map[string]struct {
 		configMap     *corev1.ConfigMap
 		expectedError string
@@ -81,14 +83,19 @@ func TestPrepareRun_ConfigMapErrors(t *testing.T) {
 		},
 		"config map does not contain configYaml": {
 			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{Name: configMapName, Namespace: configMapNamespace},
+				Name:      configMapName,
+				Namespace: configMapNamespace,
+				Data: map[string]string{
+					"incorrectKey": "{}",
+				},
 			},
 			expectedError: "does not contain key 'configYaml'",
 		},
 		"config is invalid": {
 			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{Name: configMapName, Namespace: configMapNamespace},
-				Data:       map[string]string{"configYaml": "{"},
+				Name:      configMapName,
+				Namespace: configMapNamespace,
+				Data:      map[string]string{"configYaml": "{"},
 			},
 			expectedError: "failed to decode config data",
 		},
@@ -96,7 +103,7 @@ func TestPrepareRun_ConfigMapErrors(t *testing.T) {
 
 	for name, testCase := range tests {
 		t.Run(name, func(t *testing.T) {
-			radixClient := radix.NewSimpleClientset(&v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}) // nolint:staticcheck // SA1019: Ignore linting deprecated fields
+			radixClient := radix.NewSimpleClientset(&v1.RadixRegistration{Name: appName}) // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 			dynamicClient := commonTest.CreateClient()
 			if testCase.configMap != nil {
 				dynamicClient = commonTest.CreateClient(testCase.configMap)
@@ -108,6 +115,7 @@ func TestPrepareRun_ConfigMapErrors(t *testing.T) {
 			err = cli.PrepareRun(context.Background(), model.PipelineArguments{
 				ConfigMapName:      configMapName,
 				ConfigMapNamespace: configMapNamespace,
+				ConfigMapKey:       configMapKey,
 			})
 
 			assert.ErrorContains(t, err, testCase.expectedError)

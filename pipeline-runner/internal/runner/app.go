@@ -79,7 +79,7 @@ func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs model.Pi
 
 func (cli *PipelineRunner) loadConfig(ctx context.Context, pipelineArgs model.PipelineArguments) (config.Config, error) {
 	configDataReader := func() ([]byte, error) {
-		return loadConfigDataFromConfigMap(ctx, cli.dynamicClient, pipelineArgs.ConfigMapName, pipelineArgs.ConfigMapNamespace)
+		return loadConfigDataFromConfigMap(ctx, cli.dynamicClient, pipelineArgs.ConfigMapName, pipelineArgs.ConfigMapNamespace, pipelineArgs.ConfigMapKey)
 	}
 
 	configFile := os.Getenv("CONFIG_OVERRIDE_FILENAME")
@@ -202,15 +202,15 @@ func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJ
 	}
 }
 
-func loadConfigDataFromConfigMap(ctx context.Context, dynamicClient client.Client, configMapName, configMapNamespace string) ([]byte, error) {
+func loadConfigDataFromConfigMap(ctx context.Context, dynamicClient client.Client, configMapName, configMapNamespace, configMapKey string) ([]byte, error) {
 	configCm := &corev1.ConfigMap{Name: configMapName, Namespace: configMapNamespace}
 	if err := dynamicClient.Get(ctx, client.ObjectKeyFromObject(configCm), configCm); err != nil {
 		return nil, fmt.Errorf("failed to read configmap %s/%s: %w", configMapNamespace, configMapName, err)
 	}
 
-	configYaml, ok := configCm.Data["configYaml"]
+	configYaml, ok := configCm.Data[configMapKey]
 	if !ok {
-		return nil, fmt.Errorf("configmap %s/%s does not contain key 'configYaml'", configMapNamespace, configMapName)
+		return nil, fmt.Errorf("configmap %s/%s does not contain key '%s'", configMapNamespace, configMapName, configMapKey)
 	}
 	return []byte(configYaml), nil
 }

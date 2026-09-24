@@ -32,10 +32,11 @@
 				"--pipeline-type=build-deploy",
 				"--debug=true",
 				"--push-image=true",
-				"--radix-config-file-name=radixconfig.yaml",
-				"--github-workspace=/workspace",
+				"--radix-config-file=radixconfig.yaml",
+				"--git-workspace=/workspace",
 				"--config-map-name=radix-common-config",
-				"--config-map-namespace=default"
+				"--config-map-namespace=default",
+				"--config-map-key=configYaml"
 			]
 		},
 		{
@@ -56,11 +57,12 @@
 				"--promote-from-environment=dev",
 				"--to-environment=prod",
 				"--promote-deployment-name=dev-hyxzv-j9pg34k2",
-				"--radix-config-file-name=radixconfig.yaml",
+				"--radix-config-file=radixconfig.yaml",
 				"--debug=true",
-				"--github-workspace=/workspace",
+				"--git-workspace=/workspace",
 				"--config-map-name=radix-common-config",
-				"--config-map-namespace=default"
+				"--config-map-namespace=default",
+				"--config-map-key=configYaml"
 			]
 		},
 		{
@@ -79,10 +81,11 @@
 				"--pipeline-type=deploy",
 				"--to-environment=prod",
 				"--debug=true",
-				"--radix-config-file-name=radixconfig.yaml",
-				"--github-workspace=/workspace",
+				"--radix-config-file=radixconfig.yaml",
+				"--git-workspace=/workspace",
 				"--config-map-name=radix-common-config",
-				"--config-map-namespace=default"
+				"--config-map-namespace=default",
+				"--config-map-key=configYaml"
 			]
 		},
 		{
@@ -100,11 +103,12 @@
 				"--job-name=radix-pipeline-20231030091802-mfzoz",
 				"--pipeline-type=apply-config",
 				"--debug=true",
-				"--radix-config-file-name=radixconfig.yaml",
+				"--radix-config-file=radixconfig.yaml",
 				"--apply-config-deploy-external-dns=true",
-				"--github-workspace=/workspace",
+				"--git-workspace=/workspace",
 				"--config-map-name=radix-common-config",
-				"--config-map-namespace=default"
+				"--config-map-namespace=default",
+				"--config-map-key=configYaml"
 			]
 		},
 		{

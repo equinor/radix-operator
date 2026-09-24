@@ -89,6 +89,7 @@ type PipelineArguments struct {
 
 	ConfigMapName      string
 	ConfigMapNamespace string
+	ConfigMapKey       string
 
 	// Deprecated: use GitRef instead
 	Branch string

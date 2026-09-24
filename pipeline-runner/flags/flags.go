@@ -3,6 +3,7 @@ package flags
 const (
 	LogLevel                     = "log-level"
 	ConfigMapName                = "config-map-name"
+	ConfigMapKey                 = "config-map-key"
 	ConfigMapNamespace           = "config-map-namespace"
 	AppName                      = "app-name"
 	JobName                      = "job-name"

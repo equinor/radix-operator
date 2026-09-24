@@ -286,6 +286,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				fmt.Sprintf("--%s=%v", flags.TriggeredFromWebhook, false),
 				fmt.Sprintf("--%s=%s", flags.ConfigMapName, jobName),
 				fmt.Sprintf("--%s=%s", flags.ConfigMapNamespace, utils.GetAppNamespace(appName)),
+				fmt.Sprintf("--%s=%s", flags.ConfigMapKey, configMapKeyLabel),
 				fmt.Sprintf("--%s=%s", flags.ImageTag, imageTag),
 				fmt.Sprintf("--%s=%s", flags.Branch, ""),
 				fmt.Sprintf("--%s=%s", flags.GitRef, gitRef),
@@ -433,7 +434,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineConfigMapCreatedAndUpdatedW
 	s.Require().NoError(s.dynamicClient.Get(ctx, configMapKey, configMap))
 	expectedConfigYaml, err := configcodec.Encode(s.cfg)
 	s.Require().NoError(err)
-	s.Equal(map[string]string{"configYaml": string(expectedConfigYaml)}, configMap.Data)
+	s.Equal(map[string]string{configMapKeyLabel: string(expectedConfigYaml)}, configMap.Data)
 
 	updatedConfig := s.cfg
 	updatedConfig.Common.ClusterName = "updated-cluster-name"
@@ -447,7 +448,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineConfigMapCreatedAndUpdatedW
 	expectedUpdatedConfigYaml, err := configcodec.Encode(updatedConfig)
 	s.Require().NoError(err)
 	s.NotEqual(configMap.Data, updatedConfigMap.Data)
-	s.Equal(map[string]string{"configYaml": string(expectedUpdatedConfigYaml)}, updatedConfigMap.Data)
+	s.Equal(map[string]string{configMapKeyLabel: string(expectedUpdatedConfigYaml)}, updatedConfigMap.Data)
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {

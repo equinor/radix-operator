@@ -73,7 +73,7 @@ func loadConfig(ctx context.Context) config.Config {
 	}
 	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
 	var cfg config.Config
-	configcodec.MustDecode([]byte(cfgYaml), &cfg)
+	configcodec.MustDecode(cfgYaml, &cfg)
 	return cfg
 }
 

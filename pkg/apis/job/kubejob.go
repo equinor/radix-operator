@@ -159,6 +159,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 		// Pipeline config flags
 		fmt.Sprintf("--%s=%s", flags.ConfigMapName, job.getPipelineConfigMapName()),
 		fmt.Sprintf("--%s=%s", flags.ConfigMapNamespace, job.radixJob.Namespace),
+		fmt.Sprintf("--%s=%s", flags.ConfigMapKey, configMapKeyLabel),
 	}
 
 	switch pipeline.Type {

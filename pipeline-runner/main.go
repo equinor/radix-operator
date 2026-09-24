@@ -111,6 +111,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().BoolVar(&pipelineArgs.TriggeredFromWebhook, flags.TriggeredFromWebhook, false, "Indicates if the pipeline was triggered from a webhook")
 	cmd.Flags().StringVar(&pipelineArgs.ConfigMapName, flags.ConfigMapName, "", "Config map name containing the pipeline configuration")
 	cmd.Flags().StringVar(&pipelineArgs.ConfigMapNamespace, flags.ConfigMapNamespace, "", "Config map namespace containing the pipeline configuration")
+	cmd.Flags().StringVar(&pipelineArgs.ConfigMapKey, flags.ConfigMapKey, "", "Config map key containing the pipeline configuration")
 
 	var pushImage string
 	cmd.Flags().StringVar(&pushImage, flags.PushImage, "0", "Push docker image to a repository")

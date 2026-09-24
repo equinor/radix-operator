@@ -43,7 +43,10 @@ type Job struct {
 	cfg           config.Config
 }
 
-const jobNameLabel = "job-name"
+const (
+	jobNameLabel      = "job-name"
+	configMapKeyLabel = "configYaml"
+)
 
 // NewJob Constructor
 func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, registration *v1.RadixRegistration, radixJob *v1.RadixJob, cfg config.Config) *Job {
@@ -162,7 +165,7 @@ func (job *Job) reconcilePipelineConfigMap(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to encode pipeline config: %w", err)
 		}
-		configCm.Data["configYaml"] = string(configYaml)
+		configCm.Data[configMapKeyLabel] = string(configYaml)
 		return controllerutil.SetControllerReference(job.radixJob, configCm, job.dynamicClient.Scheme())
 	})
 	if err != nil {
