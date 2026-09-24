@@ -98,7 +98,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 	}}
 
 	sut := build.NewBuildKit(cfg, args, rr)
-	jobs := sut.BuildJobs(useBuildCache, refreshBuildCache, gitCommitHash, gitTags, componentImages, buildSecrets)
+	jobs := sut.BuildJobs(componentImages, buildSecrets, gitCommitHash, gitTags, useBuildCache, refreshBuildCache)
 	require.Len(t, jobs, len(componentImages))
 
 	for _, ci := range componentImages {

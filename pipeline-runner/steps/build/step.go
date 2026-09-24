@@ -99,12 +99,12 @@ func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineIn
 	}
 	imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
 	return step.jobsBuilder.BuildJobs(
-		pipelineInfo.IsUsingBuildCache(),
-		pipelineInfo.IsRefreshingBuildCache(),
-		pipelineInfo.GitCommitHash,
-		pipelineInfo.GitTags,
 		imagesToBuild,
 		secrets,
+		pipelineInfo.GitCommitHash,
+		pipelineInfo.GitTags,
+		pipelineInfo.IsUsingBuildCache(),
+		pipelineInfo.IsRefreshingBuildCache(),
 	)
 }
 

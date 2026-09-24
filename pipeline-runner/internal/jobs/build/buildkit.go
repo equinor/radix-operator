@@ -43,7 +43,7 @@ type buildKit struct {
 	rr   radixv1.RadixRegistration
 }
 
-func (c *buildKit) BuildJobs(useBuildCache, refreshBuildCache bool, gitCommitHash, gitTags string, componentImages []pipeline.BuildComponentImage, buildSecrets []string) []batchv1.Job {
+func (c *buildKit) BuildJobs(componentImages []pipeline.BuildComponentImage, buildSecrets []string, gitCommitHash, gitTags string, useBuildCache, refreshBuildCache bool) []batchv1.Job {
 	var jobs []batchv1.Job
 
 	for _, componentImage := range componentImages {

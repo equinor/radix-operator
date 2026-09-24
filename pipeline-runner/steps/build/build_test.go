@@ -213,12 +213,12 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 		{ObjectMeta: metav1.ObjectMeta{Name: "job2", Namespace: utils.GetAppNamespace(appName)}},
 	}
 	jobsBuilder.EXPECT().BuildJobs(
-		gomock.Any(),
-		gomock.Any(),
-		pipelineInfo.GitCommitHash,
-		pipelineInfo.GitTags,
 		gomock.InAnyOrder(slices.Concat(env1Components, env2Components)),
 		gomock.InAnyOrder(buildSecrets),
+		pipelineInfo.GitCommitHash,
+		pipelineInfo.GitTags,
+		gomock.Any(),
+		gomock.Any(),
 	).Return(jobsToReturn).Times(1)
 
 	err := cli.Run(s.T().Context(), pipelineInfo)
