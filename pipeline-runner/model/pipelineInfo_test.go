@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -26,7 +27,7 @@ var (
 
 func Test_DefaultPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName("")
-	p, _ := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, model.PipelineArguments{}, config.Config{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 5, len(p.Steps))
@@ -39,7 +40,7 @@ func Test_DefaultPipeType(t *testing.T) {
 
 func Test_BuildDeployPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	p, _ := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, model.PipelineArguments{}, config.Config{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 5, len(p.Steps))
@@ -53,7 +54,7 @@ func Test_BuildDeployPipeType(t *testing.T) {
 func Test_BuildAndDefaultNoPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
-	p, _ := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, model.PipelineArguments{}, config.Config{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 4, len(p.Steps))
@@ -67,7 +68,7 @@ func Test_ApplyConfigPipeline(t *testing.T) {
 	pipelineType, err := pipeline.GetPipelineFromName(string(v1.ApplyConfig))
 	require.NoError(t, err, "Failed to get pipeline type. Error %v", err)
 
-	p, err := model.InitPipeline(pipelineType, &model.PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, deployConfigStep)
+	p, err := model.InitPipeline(pipelineType, model.PipelineArguments{}, config.Config{}, prepareTektonPipelineStep, applyConfigStep, deployConfigStep)
 	require.NoError(t, err, "Failed to create pipeline. Error %v", err)
 	assert.Equal(t, v1.ApplyConfig, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
@@ -110,7 +111,7 @@ func Test_GetImageTagNamesFromArgs(t *testing.T) {
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
 
-			p, _ := model.InitPipeline(pipelineType, &ts.pipelineArguments, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+			p, _ := model.InitPipeline(pipelineType, ts.pipelineArguments, config.Config{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 			assert.Equal(t, v1.Deploy, p.Definition.Type)
 			assert.Equal(t, ts.expectedToEnvironment, p.PipelineArguments.ToEnvironment)
 			assert.Equal(t, ts.expectedImageTagNames, p.PipelineArguments.ImageTagNames)
@@ -121,11 +122,11 @@ func Test_GetImageTagNamesFromArgs(t *testing.T) {
 func Test_BuildOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
-	pipelineArgs := &model.PipelineArguments{
+	pipelineArgs := model.PipelineArguments{
 		PushImage: false,
 	}
 
-	p, _ := model.InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, pipelineArgs, config.Config{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 4, len(p.Steps))
@@ -138,11 +139,11 @@ func Test_BuildOnlyPipeline(t *testing.T) {
 func Test_BuildAndPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
-	pipelineArgs := &model.PipelineArguments{
+	pipelineArgs := model.PipelineArguments{
 		PushImage: true,
 	}
 
-	p, _ := model.InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, pipelineArgs, config.Config{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.True(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 4, len(p.Steps))
@@ -178,7 +179,7 @@ func Test_DeployOnlyPipeline(t *testing.T) {
 
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			p, _ := model.InitPipeline(pipelineType, &ts.pipelineArguments, prepareTektonPipelineStep, applyConfigStep, runTektonPipelineStep, deployStep)
+			p, _ := model.InitPipeline(pipelineType, ts.pipelineArguments, config.Config{}, prepareTektonPipelineStep, applyConfigStep, runTektonPipelineStep, deployStep)
 			assert.Equal(t, v1.Deploy, p.Definition.Type)
 			assert.Equal(t, ts.expectedToEnvironment, p.PipelineArguments.ToEnvironment)
 			assert.Equal(t, ts.expectedImageTagNames, p.PipelineArguments.ImageTagNames)

@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Handler Common handler interface
@@ -24,12 +25,13 @@ type Handler interface {
 }
 
 type handler struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	kubeutil    *kube.Kube
-	events      common.SyncEventRecorder
-	config      config.Config
-	jobHistory  job.History
+	kubeclient    kubernetes.Interface
+	radixclient   radixclient.Interface
+	dynamicClient client.Client
+	kubeutil      *kube.Kube
+	events        common.SyncEventRecorder
+	config        config.Config
+	jobHistory    job.History
 }
 
 type handlerOpts func(*handler)
@@ -38,17 +40,19 @@ type handlerOpts func(*handler)
 func NewHandler(kubeclient kubernetes.Interface,
 	kubeUtil *kube.Kube,
 	radixClient radixclient.Interface,
+	dynamicClient client.Client,
 	eventRecorder record.EventRecorder,
 	config config.Config,
 	opts ...handlerOpts) Handler {
 
 	handler := &handler{
-		kubeclient:  kubeclient,
-		radixclient: radixClient,
-		kubeutil:    kubeUtil,
-		events:      common.NewSyncEventRecorder(eventRecorder),
-		config:      config,
-		jobHistory:  job.NewHistory(radixClient, kubeUtil, config.Operator.PipelineJobsHistoryLimit, config.Operator.PipelineJobsHistoryPeriodLimit),
+		kubeclient:    kubeclient,
+		radixclient:   radixClient,
+		dynamicClient: dynamicClient,
+		kubeutil:      kubeUtil,
+		events:        common.NewSyncEventRecorder(eventRecorder),
+		config:        config,
+		jobHistory:    job.NewHistory(radixClient, kubeUtil, config.Operator.PipelineJobsHistoryLimit, config.Operator.PipelineJobsHistoryPeriodLimit),
 	}
 	for _, opt := range opts {
 		opt(handler)
@@ -87,7 +91,7 @@ func (t *handler) Sync(ctx context.Context, namespace, jobName string) error {
 	logger.Debug().Msgf("Sync job %s", syncJob.Name)
 	ctx = logger.WithContext(ctx)
 
-	syncer := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, syncJob, t.config)
+	syncer := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, t.dynamicClient, radixRegistration, syncJob, t.config)
 	if err = syncer.OnSync(ctx); err != nil {
 		t.events.RecordSyncErrorEvent(syncJob, err)
 		return err

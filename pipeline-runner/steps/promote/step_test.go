@@ -150,12 +150,12 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					FromEnvironment: scenario.fromEnvironment,
-					ToEnvironment:   scenario.toEnvironment,
-					DeploymentName:  scenario.deploymentName,
-					JobName:         scenario.jobName,
-					ImageTag:        scenario.imageTag,
-					CommitID:        anyCommitID,
+					PromoteFromEnvironment: scenario.fromEnvironment,
+					ToEnvironment:          scenario.toEnvironment,
+					PromoteDeploymentName:  scenario.deploymentName,
+					JobName:                scenario.jobName,
+					ImageTag:               scenario.imageTag,
+					CommitID:               anyCommitID,
 				},
 			}
 
@@ -309,12 +309,12 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyProdEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: anyDevEnvironment,
+			ToEnvironment:          anyProdEnvironment,
+			PromoteDeploymentName:  anyDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -430,12 +430,12 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyProdEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: anyDevEnvironment,
+			ToEnvironment:          anyProdEnvironment,
+			PromoteDeploymentName:  anyDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -520,12 +520,12 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyProdEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: anyDevEnvironment,
+			ToEnvironment:          anyProdEnvironment,
+			PromoteDeploymentName:  anyDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -633,12 +633,12 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyProdEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: anyDevEnvironment,
+			ToEnvironment:          anyProdEnvironment,
+			PromoteDeploymentName:  anyDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -690,12 +690,12 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyDevEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: anyDevEnvironment,
+			ToEnvironment:          anyDevEnvironment,
+			PromoteDeploymentName:  anyDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -805,12 +805,12 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					FromEnvironment: anyDevEnvironment,
-					ToEnvironment:   anyProdEnvironment,
-					DeploymentName:  anyDeploymentName,
-					JobName:         anyPromoteJobName,
-					ImageTag:        anyImageTag,
-					CommitID:        anyCommitID,
+					PromoteFromEnvironment: anyDevEnvironment,
+					ToEnvironment:          anyProdEnvironment,
+					PromoteDeploymentName:  anyDeploymentName,
+					JobName:                anyPromoteJobName,
+					ImageTag:               anyImageTag,
+					CommitID:               anyCommitID,
 				},
 			}
 
@@ -866,12 +866,12 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: srcEnv,
-			ToEnvironment:   dstEnv,
-			DeploymentName:  srcDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: srcEnv,
+			ToEnvironment:          dstEnv,
+			PromoteDeploymentName:  srcDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -939,11 +939,11 @@ func TestPromote_Runtime_KeepFromSourceRD(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			DeploymentName:  rdSource,
-			FromEnvironment: envDev,
-			ToEnvironment:   envProd,
-			JobName:         "ajob",
-			ImageTag:        "atag",
+			PromoteDeploymentName:  rdSource,
+			PromoteFromEnvironment: envDev,
+			ToEnvironment:          envProd,
+			JobName:                "ajob",
+			ImageTag:               "atag",
 		},
 	}
 

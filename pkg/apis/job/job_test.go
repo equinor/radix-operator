@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/oklog/ulid/v2"
@@ -26,16 +26,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 type RadixJobTestSuiteBase struct {
 	suite.Suite
-	testUtils   *test.Utils
-	kubeClient  *kubernetes.Clientset
-	kubeUtils   *kube.Kube
-	radixClient *radix.Clientset
-	cfg         config.Config
+	testUtils     *test.Utils
+	kubeClient    *kubernetes.Clientset
+	kubeUtils     *kube.Kube
+	radixClient   *radix.Clientset
+	dynamicClient client.Client
+	cfg           config.Config
 }
 
 func (s *RadixJobTestSuiteBase) SetupTest() {
@@ -47,6 +49,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	kubeClient := kubernetes.NewSimpleClientset()
 	radixClient := radix.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	kedaClient := kedafake.NewSimpleClientset()
+	s.dynamicClient = test.CreateClient()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
@@ -70,12 +73,12 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 				},
 				Resources: config.Resources{
 					Requests: config.ResourceRequirements{
-						CPU:    new(resource.MustParse("100m")),
-						Memory: new(resource.MustParse("1000Mi")),
+						CPU:    resource.MustParse("100m"),
+						Memory: resource.MustParse("1000Mi"),
 					},
 					Limits: config.ResourceRequirements{
-						CPU:    new(resource.MustParse("200m")),
-						Memory: new(resource.MustParse("2000Mi")),
+						CPU:    resource.MustParse("200m"),
+						Memory: resource.MustParse("2000Mi"),
 					},
 				},
 				SeccompProfileLocalhostProfile: "anyseccomp",
@@ -128,7 +131,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(regBuilder utils.RegistrationBu
 }
 
 func (s *RadixJobTestSuiteBase) runSync(rr *radixv1.RadixRegistration, rj *radixv1.RadixJob, config config.Config) error {
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, config)
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, rr, rj, config)
 	return job.OnSync(context.Background())
 }
 
@@ -152,7 +155,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 
 	// First sync sets status
 	expectedGen := rj.Generation
-	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, s.cfg)
+	sut := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, rr, rj, s.cfg)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -165,7 +168,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	// Second sync with updated generation
 	rj.Generation++
 	expectedGen = rj.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rj, s.cfg)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, rr, rj, s.cfg)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rj, err = s.radixClient.RadixV1().RadixJobs(rj.Namespace).Get(context.Background(), rj.Name, metav1.GetOptions{})
@@ -180,7 +183,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	rjStop, err = s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rjStop, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	expectedGen = rjStop.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjStop, s.cfg)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, rr, rjStop, s.cfg)
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rjStop, err = s.radixClient.RadixV1().RadixJobs(rjStop.Namespace).Get(context.Background(), rjStop.Name, metav1.GetOptions{})
@@ -199,7 +202,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 		return true, nil, errors.New(errorMsg)
 	})
 	expectedGen = rjErr.Generation
-	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rr, rjErr, s.cfg)
+	sut = NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, rr, rjErr, s.cfg)
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rjErr, err = s.radixClient.RadixV1().RadixJobs(rjErr.Namespace).Get(context.Background(), rjErr.Name, metav1.GetOptions{})
@@ -228,9 +231,9 @@ func (s *RadixJobTestSuite) Test_QueuedJob_ReconcileStatus() {
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appID := ulid.Make()
-	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
+	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag, configFileName := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag", "some-radixconfig.yaml"
 	rj, _, err := s.applyJobWithSync(
-		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID.String()).WithRadixConfigFullName("some-radixconfig.yaml"),
+		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID.String()).WithRadixConfigFullName(configFileName),
 		utils.NewJobBuilder().
 			WithJobName(jobName).
 			WithAppName(appName).
@@ -275,31 +278,22 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 			Image:           pipelineTag,
 			ImagePullPolicy: corev1.PullAlways,
 			Args: []string{
-				fmt.Sprintf("--RADIX_APP=%s", appName),
-				fmt.Sprintf("--JOB_NAME=%s", jobName),
-				fmt.Sprintf("--PIPELINE_TYPE=%s", radixv1.BuildDeploy),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, s.cfg.PipelineRunner.Builder.Resources.Requests.Memory.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, s.cfg.PipelineRunner.Builder.Resources.Requests.CPU.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, s.cfg.PipelineRunner.Builder.Resources.Limits.Memory.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, s.cfg.PipelineRunner.Builder.Resources.Limits.CPU.String()),
-				fmt.Sprintf("--%s=%s", flags.ExternalRegistryAuthSecret, s.cfg.Common.ExternalRegistryAuthSecret),
-				fmt.Sprintf("--%s=%s", flags.BuilderImage, s.cfg.PipelineRunner.Builder.Image.String()),
-				fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, s.cfg.PipelineRunner.Builder.SeccompProfileLocalhostProfile),
-				fmt.Sprintf("--%s=%s", flags.ClusterType, s.cfg.Common.ClusterType),
-				fmt.Sprintf("--%s=%s", flags.ClusterName, s.cfg.Common.ClusterName),
-				fmt.Sprintf("--%s=%s", flags.ContainerRegistry, s.cfg.PipelineRunner.ContainerRegistry),
-				fmt.Sprintf("--%s=%s", flags.CacheContainerRegistry, s.cfg.PipelineRunner.CacheContainerRegistry),
-				"--RADIX_GITHUB_WORKSPACE=/workspace",
-				"--RADIX_FILE_NAME=some-radixconfig.yaml",
-				"--TRIGGERED_FROM_WEBHOOK=false",
-				fmt.Sprintf("--%s=%s", flags.GitCloneImage, s.cfg.PipelineRunner.GitCloneImage.String()),
-				fmt.Sprintf("--IMAGE_TAG=%s", imageTag),
-				"--BRANCH=",
-				fmt.Sprintf("--GIT_REF=%s", gitRef),
-				fmt.Sprintf("--GIT_REF_TYPE=%s", gitRefType),
-				fmt.Sprintf("--TO_ENVIRONMENT=%s", envName),
-				fmt.Sprintf("--COMMIT_ID=%s", commitID),
-				"--PUSH_IMAGE=1",
+				fmt.Sprintf("--%s=%s", flags.AppName, appName),
+				fmt.Sprintf("--%s=%s", flags.JobName, jobName),
+				fmt.Sprintf("--%s=%s", flags.PipelineType, radixv1.BuildDeploy),
+				fmt.Sprintf("--%s=%s", flags.GitWorkspace, "/workspace"),
+				fmt.Sprintf("--%s=%s", flags.RadixConfigFile, configFileName),
+				fmt.Sprintf("--%s=%v", flags.TriggeredFromWebhook, false),
+				fmt.Sprintf("--%s=%s", flags.ConfigMapName, jobName),
+				fmt.Sprintf("--%s=%s", flags.ConfigMapNamespace, utils.GetAppNamespace(appName)),
+				fmt.Sprintf("--%s=%s", flags.ConfigMapKey, configMapKeyLabel),
+				fmt.Sprintf("--%s=%s", flags.ImageTag, imageTag),
+				fmt.Sprintf("--%s=%s", flags.Branch, ""),
+				fmt.Sprintf("--%s=%s", flags.GitRef, gitRef),
+				fmt.Sprintf("--%s=%s", flags.GitRefType, gitRefType),
+				fmt.Sprintf("--%s=%s", flags.ToEnvironment, envName),
+				fmt.Sprintf("--%s=%s", flags.CommitID, commitID),
+				fmt.Sprintf("--%s=%s", flags.PushImage, "1"),
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
@@ -423,12 +417,46 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 
 }
 
+func (s *RadixJobTestSuite) TestObjectSynced_PipelineConfigMapCreatedAndUpdatedWhenJobIsRecreated() {
+	ctx := context.Background()
+	appName, jobName := "anyapp", "anyjobname"
+	rj, rr, err := s.applyJobWithSync(
+		utils.NewRegistrationBuilder().WithName(appName),
+		utils.NewJobBuilder().
+			WithJobName(jobName).
+			WithAppName(appName).
+			WithPipelineType(radixv1.BuildDeploy),
+		s.cfg)
+	s.Require().NoError(err)
+
+	configMapKey := client.ObjectKey{Name: jobName, Namespace: utils.GetAppNamespace(appName)}
+	configMap := &corev1.ConfigMap{}
+	s.Require().NoError(s.dynamicClient.Get(ctx, configMapKey, configMap))
+	expectedConfigYaml, err := configcodec.Encode(s.cfg)
+	s.Require().NoError(err)
+	s.Equal(map[string]string{configMapKeyLabel: string(expectedConfigYaml)}, configMap.Data)
+
+	updatedConfig := s.cfg
+	updatedConfig.Common.ClusterName = "updated-cluster-name"
+	s.Require().NoError(s.kubeClient.BatchV1().Jobs(rj.Namespace).Delete(ctx, rj.Name, metav1.DeleteOptions{}))
+	s.Require().NoError(s.runSync(rr, rj, updatedConfig))
+
+	_, err = s.kubeClient.BatchV1().Jobs(rj.Namespace).Get(ctx, rj.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	updatedConfigMap := &corev1.ConfigMap{}
+	s.Require().NoError(s.dynamicClient.Get(ctx, configMapKey, updatedConfigMap))
+	expectedUpdatedConfigYaml, err := configcodec.Encode(updatedConfig)
+	s.Require().NoError(err)
+	s.NotEqual(configMap.Data, updatedConfigMap.Data)
+	s.Equal(map[string]string{configMapKeyLabel: string(expectedUpdatedConfigYaml)}, updatedConfigMap.Data)
+}
+
 func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
 	const appName, jobName, branch, envName, deploymentName, commitID, imageTag, pipelineTag = "anyapp", "anyjobname", "anybranch", "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag"
-	argUseBuildCacheTrue := fmt.Sprintf("--%s=true", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
-	argUseBuildCacheFalse := fmt.Sprintf("--%s=false", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
-	argRefreshBuildCacheTrue := fmt.Sprintf("--%s=true", defaults.RadixRefreshBuildCacheEnvironmentVariable)
-	argRefreshBuildCacheFalse := fmt.Sprintf("--%s=false", defaults.RadixRefreshBuildCacheEnvironmentVariable)
+	argUseBuildCacheTrue := fmt.Sprintf("--%s=true", flags.OverrideUseBuildCache)
+	argUseBuildCacheFalse := fmt.Sprintf("--%s=false", flags.OverrideUseBuildCache)
+	argRefreshBuildCacheTrue := fmt.Sprintf("--%s=true", flags.RefreshBuildCache)
+	argRefreshBuildCacheFalse := fmt.Sprintf("--%s=false", flags.RefreshBuildCache)
 
 	scenarios := map[string]struct {
 		overrideUseBuildCache            *bool
@@ -506,14 +534,14 @@ func (s *RadixJobTestSuite) TestObjectSynced_BuildKit() {
 			if len(scenario.expectedArgOverrideUseBuildCache) > 0 {
 				s.Contains(job.Spec.Template.Spec.Containers[0].Args, scenario.expectedArgOverrideUseBuildCache, "expected argument for UseBuildCache %s not found in job args", scenario.expectedArgOverrideUseBuildCache)
 			} else {
-				arg := fmt.Sprintf("--%s=", defaults.RadixOverrideUseBuildCacheEnvironmentVariable)
+				arg := fmt.Sprintf("--%s=", flags.OverrideUseBuildCache)
 				s.NotContains(job.Spec.Template.Spec.Containers[0].Args, arg, "unexpected expected argument for UseBuildCache %s not found in job args", arg)
 			}
 
 			if len(scenario.expectedArgRefreshBuildCache) > 0 {
 				s.Contains(job.Spec.Template.Spec.Containers[0].Args, scenario.expectedArgRefreshBuildCache, "expected argument for RefreshBuildCache %s not found in job args", scenario.expectedArgRefreshBuildCache)
 			} else {
-				arg := fmt.Sprintf("--%s=", defaults.RadixRefreshBuildCacheEnvironmentVariable)
+				arg := fmt.Sprintf("--%s=", flags.RefreshBuildCache)
 				s.NotContains(job.Spec.Template.Spec.Containers[0].Args, arg, "unexpected expected argument for RefreshBuildCache %s not found in job args", arg)
 			}
 
@@ -1556,76 +1584,4 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentEmptyWhenRadixApplicationMissin
 	// Master maps to Test env
 	s.Equal(job.Spec.Build.GetGitRefOrDefault(), "master")
 	s.Empty(job.Status.TargetEnvs)
-}
-
-func (s *RadixJobTestSuite) TestObjectSynced_UseBuildKid_HasResourcesArgs() {
-
-	testCfg := config.Config{
-		PipelineRunner: config.PipelineRunnerConfig{
-			Builder: config.BuilderConfig{
-				Resources: config.Resources{
-					Requests: config.ResourceRequirements{
-						CPU:    new(resource.MustParse("123m")),
-						Memory: new(resource.MustParse("1234Mi")),
-					},
-					Limits: config.ResourceRequirements{
-						CPU:    new(resource.MustParse("456m")),
-						Memory: new(resource.MustParse("2345Mi")),
-					},
-				},
-			},
-		},
-	}
-
-	scenarios := map[string]struct {
-		expectedError string
-	}{
-		"Configured AppBuilderResources": {
-			expectedError: "",
-		},
-	}
-	for name, scenario := range scenarios {
-		s.Run(name, func() {
-			_, _, err := s.applyJobWithSync(
-				utils.ARadixRegistration(),
-				utils.ARadixBuildDeployJobWithAppBuilder(func(builder utils.ApplicationBuilder) {}).
-					WithJobName("job1").
-					WithGitRef("master").
-					WithGitRefType(string(radixv1.GitRefBranch)),
-				testCfg)
-			switch {
-			case len(scenario.expectedError) > 0 && err == nil:
-				s.Fail(fmt.Sprintf("Missing expected error '%s'", scenario.expectedError))
-				return
-			case len(scenario.expectedError) == 0 && err != nil:
-				s.Fail(fmt.Sprintf("Unexpected error %v", err))
-				return
-			case len(scenario.expectedError) > 0 && err != nil:
-				s.Equal(scenario.expectedError, err.Error(), fmt.Sprintf("Expected error '%s' but got '%s'", scenario.expectedError, err.Error()))
-				return
-			}
-			s.Require().NoError(err)
-
-			jobList, err := s.testUtils.GetKubeUtil().ListJobs(context.Background(), utils.GetAppNamespace("some-app"))
-			s.Require().NoError(err)
-
-			s.Len(jobList, 1)
-			job := jobList[0]
-			s.Equal(testCfg.PipelineRunner.Builder.Resources.Requests.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsCPU), "Invalid or missing AppBuilderResourcesRequestsCPU")
-			s.Equal(testCfg.PipelineRunner.Builder.Resources.Requests.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesRequestsMemory), "Invalid or missing AppBuilderResourcesRequestsMemory")
-			s.Equal(testCfg.PipelineRunner.Builder.Resources.Limits.Memory.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsMemory), "Invalid or missing AppBuilderResourcesLimitsMemory")
-			s.Equal(testCfg.PipelineRunner.Builder.Resources.Limits.CPU.String(), getJobContainerArgument(job.Spec.Template.Spec.Containers[0], flags.BuilderResourcesLimitsCPU), "Invalid or missing AppBuilderResourcesLimitsCPU")
-		})
-
-	}
-}
-
-func getJobContainerArgument(container corev1.Container, variableName string) string {
-	for _, arg := range container.Args {
-		argPrefix := fmt.Sprintf("--%s=", variableName)
-		if strings.HasPrefix(arg, argPrefix) {
-			return arg[len(argPrefix):]
-		}
-	}
-	return ""
 }

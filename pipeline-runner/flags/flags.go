@@ -1,21 +1,29 @@
 package flags
 
 const (
-	ClusterName            = "cluster-name"
-	ClusterType            = "cluster-type"
-	ContainerRegistry      = "container-registry"
-	CacheContainerRegistry = "cache-container-registry"
-
-	BuilderResourcesLimitsCPU      = "builder-resources-limits-cpu"
-	BuilderResourcesLimitsMemory   = "builder-resources-limits-memory"
-	BuilderResourcesRequestsCPU    = "builder-resources-requests-cpu"
-	BuilderResourcesRequestsMemory = "builder-resources-requests-memory"
-
-	BuilderImage  = "builder-image"
-	GitCloneImage = "git-clone-image"
-
-	BuilderSeccompProfileLocalHostProfile = "builder-seccomp-profile-localhost-profile"
-
-	ExternalRegistryAuthSecret = "external-registry-auth-secret"
-	LogLevel                   = "log-level"
+	LogLevel                     = "log-level"
+	ConfigMapName                = "config-map-name"
+	ConfigMapKey                 = "config-map-key"
+	ConfigMapNamespace           = "config-map-namespace"
+	AppName                      = "app-name"
+	JobName                      = "job-name"
+	PipelineType                 = "pipeline-type"
+	Branch                       = "branch"
+	GitRef                       = "git-ref"
+	GitRefType                   = "git-ref-type"
+	GitWorkspace                 = "git-workspace"
+	CommitID                     = "commit-id"
+	PromoteDeploymentName        = "promote-deployment-name"
+	PromoteFromEnvironment       = "promote-from-environment"
+	ToEnvironment                = "to-environment"
+	RadixConfigFile              = "radix-config-file"
+	ImageTag                     = "image-tag"
+	OverrideUseBuildCache        = "override-use-build-cache"
+	RefreshBuildCache            = "refresh-build-cache"
+	PushImage                    = "push-image"
+	Debug                        = "debug"
+	ComponentsImageTagName       = "components-image-tag-name"
+	ComponentsToDeploy           = "components-to-deploy"
+	ApplyConfigDeployExternalDNS = "apply-config-deploy-external-dns"
+	TriggeredFromWebhook         = "triggered-from-webhook"
 )
