@@ -64,7 +64,6 @@ func main() {
 	cmd.Run(nil, nil)
 }
 
-// runs os.Exit(1) if error
 func prepareRunner(ctx context.Context, pipelineArgs model.PipelineArguments) (*runner.PipelineRunner, error) {
 	kubeclient, radixClient, _, _, _, tektonClient := utils.GetKubernetesClient()
 
