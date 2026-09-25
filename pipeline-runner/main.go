@@ -32,7 +32,6 @@ import (
 
 func main() {
 	pipelineArgs := model.PipelineArguments{}
-	logger.InitLogger(pipelineArgs.LogLevel)
 
 	cmd := &cobra.Command{
 		Use: "run",
@@ -60,6 +59,8 @@ func main() {
 		log.Error().Err(err).Msg("Failed to parse args")
 		os.Exit(1)
 	}
+
+	logger.InitLogger(pipelineArgs.LogLevel)
 
 	cmd.Run(nil, nil)
 }
@@ -135,11 +136,5 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	pipelineArgs.RefreshBuildCache = refreshBuildCache.Get()
 	pipelineArgs.Debug, _ = strconv.ParseBool(debug)
 
-	if len(pipelineArgs.ImageTagNames) > 0 {
-		log.Info().Msg("Image tag names provided:")
-		for componentName, imageTagName := range pipelineArgs.ImageTagNames {
-			log.Info().Msgf("- %s:%s", componentName, imageTagName)
-		}
-	}
 	return nil
 }

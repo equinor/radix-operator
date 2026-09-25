@@ -388,6 +388,13 @@ func getLengthLimitedName(name string) string {
 
 // Set information about components and image to use for each environment when creating RadixDeployments
 func setPipelineDeployEnvironmentComponentImages(pipelineInfo *model.PipelineInfo, environmentImageSourceMap environmentComponentImageSourceMap) {
+	if len(pipelineInfo.PipelineArguments.ImageTagNames) > 0 {
+		log.Info().Msg("Image tag names provided:")
+		for componentName, imageTagName := range pipelineInfo.PipelineArguments.ImageTagNames {
+			log.Info().Msgf("- %s:%s", componentName, imageTagName)
+		}
+	}
+
 	pipelineInfo.DeployEnvironmentComponentImages = make(pipeline.DeployEnvironmentComponentImages)
 	for envName, imageSources := range environmentImageSourceMap {
 		pipelineInfo.DeployEnvironmentComponentImages[envName] = slice.Reduce(imageSources, make(pipeline.DeployComponentImages), func(acc pipeline.DeployComponentImages, cis componentImageSource) pipeline.DeployComponentImages {
