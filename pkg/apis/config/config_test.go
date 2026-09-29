@@ -1,7 +1,6 @@
 package config_test
 
 import (
-	"encoding/json/v2"
 	"net/url"
 	"strings"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/yaml"
 )
 
 //go:embed testdata/config-happypath.yaml
@@ -33,26 +32,20 @@ type MutateConfigFunc func(*config.Config)
 
 func mutateConfig(t *testing.T, mutate func(*config.Config)) string {
 	t.Helper()
-
 	var cfg config.Config
-
-	configJson, err := yaml.YAMLToJSON([]byte(configHappyYaml))
-	require.NoError(t, err)
-
-	require.NoError(t, json.Unmarshal(configJson, &cfg, config.Unmarshalers))
+	require.NoError(t, configcodec.Decode([]byte(configHappyYaml), &cfg))
 
 	mutate(&cfg)
 
-	cfgJson, err := json.Marshal(cfg, config.Marshalers)
+	configYaml, err := configcodec.Encode(&cfg)
 	require.NoError(t, err)
 
-	configYaml, err := yaml.JSONToYAML(cfgJson)
-	require.NoError(t, err)
 	return string(configYaml)
 }
 
 func TestParse_HappyPath(t *testing.T) {
-	cfg, err := config.Parse(configHappyYaml)
+	var cfg = &config.Config{}
+	err := configcodec.Decode([]byte(configHappyYaml), cfg)
 	require.NoError(t, err)
 
 	expected := &config.Config{
@@ -96,12 +89,12 @@ func TestParse_HappyPath(t *testing.T) {
 			Builder: config.BuilderConfig{
 				Resources: config.Resources{
 					Limits: config.ResourceRequirements{
-						Memory: new(resource.MustParse("500M")),
-						CPU:    new(resource.MustParse("2000m")),
+						Memory: resource.MustParse("500M"),
+						CPU:    resource.MustParse("2000m"),
 					},
 					Requests: config.ResourceRequirements{
-						Memory: new(resource.MustParse("500M")),
-						CPU:    new(resource.MustParse("200m")),
+						Memory: resource.MustParse("500M"),
+						CPU:    resource.MustParse("200m"),
 					},
 				},
 				Image: config.ContainerImage{
@@ -264,33 +257,32 @@ func TestParse_HappyPath(t *testing.T) {
 
 func TestParse_EnvOverride(t *testing.T) {
 	t.Setenv("RADIXCONFIG_OPERATOR_LOGLEVEL", "debug")
-
-	cfg, err := config.Parse(configHappyYaml)
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
 
 	require.NoError(t, err)
-	require.NotNil(t, cfg)
 	assert.Equal(t, "debug", cfg.Operator.LogLevel)
 }
 
 func TestParse_EnvOverrideAuthenticatorByKey(t *testing.T) {
 	t.Setenv("RADIXCONFIG_APISERVER_AUTHENTICATORS_AZURE_AUDIENCE", "overriddenAudience")
 
-	cfg, err := config.Parse(configHappyYaml)
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
 
 	require.NoError(t, err)
-	require.NotNil(t, cfg)
 	assert.Equal(t, "overriddenAudience", cfg.ApiServer.Authenticators["azure"].Audience)
 }
 
 func TestParse_EnvMacro(t *testing.T) {
 	t.Setenv("TEST_KUBERNETES_API_PORT", "6443")
 
-	configYaml := strings.ReplaceAll(configHappyYaml, "kubernetesAPIPort: 443", `kubernetesAPIPort: $__env(TEST_KUBERNETES_API_PORT)`)
+	configYaml := []byte(strings.ReplaceAll(configHappyYaml, "kubernetesAPIPort: 443", `kubernetesAPIPort: $__env(TEST_KUBERNETES_API_PORT)`))
 
-	cfg, err := config.Parse(configYaml)
+	var cfg config.Config
+	err := configcodec.Decode(configYaml, &cfg)
 
 	require.NoError(t, err)
-	require.NotNil(t, cfg)
 	assert.Equal(t, int32(6443), cfg.Operator.KubernetesAPIPort)
 }
 
@@ -341,18 +333,18 @@ func TestParse_AuthenticatorsValidation(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			configYaml := mutateConfig(t, test.mutateConfig)
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
 
-			cfg, err := config.Parse(configYaml)
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
 			if test.expectedError == "" {
 				require.NoError(t, err)
-				assert.NotNil(t, cfg)
 				return
 			}
 
 			require.Error(t, err)
-			assert.Nil(t, cfg)
 			assert.ErrorContains(t, err, test.expectedError)
+			assert.Empty(t, cfg)
 		})
 	}
 }
@@ -361,20 +353,20 @@ func TestParse_AuthenticatorsValidation(t *testing.T) {
 func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
 	t.Setenv("RADIXCONFIG_OPERATOR_LOGLEVEL", "debug,info")
 
-	cfg, err := config.Parse(configHappyYaml)
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
 
 	require.NoError(t, err)
-	require.NotNil(t, cfg)
 	assert.Equal(t, "debug,info", cfg.Operator.LogLevel)
 }
 func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
 	t.Setenv("RADIXCONFIG_COMMON_CLUSTERNAME", "env-cluster")
-	configYamlStr := strings.ReplaceAll(configHappyYaml, "  clusterName: test-cluster\n", "")
+	configYamlStr := []byte(strings.ReplaceAll(configHappyYaml, "  clusterName: test-cluster\n", ""))
 
-	cfg, err := config.Parse(configYamlStr)
+	var cfg config.Config
+	err := configcodec.Decode(configYamlStr, &cfg)
 
 	require.NoError(t, err)
-	require.NotNil(t, cfg)
 	assert.Equal(t, "env-cluster", cfg.Common.ClusterName)
 }
 
@@ -383,10 +375,10 @@ func TestParse_EnvOverrideFromFieldPath(t *testing.T) {
 	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYIMAGE_REPOSITORY", "ghcr.io/equinor/oauth2-proxy")
 	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYIMAGE_TAG", "v1.2.3")
 
-	cfg, err := config.Parse(configHappyYaml)
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
 
 	require.NoError(t, err)
-	require.NotNil(t, cfg)
 	expected := config.ContainerImage{Repository: "ghcr.io/equinor/oauth2-proxy", Tag: "v1.2.3"}
 	assert.Equal(t, expected, cfg.Common.OAuth2Proxy.ProxyImage)
 }
@@ -394,18 +386,19 @@ func TestParse_EnvOverrideFromFieldPath(t *testing.T) {
 func TestParse_EnvTagTakesPrecedenceOverFieldPath(t *testing.T) {
 	t.Setenv("RADIXCONFIG_COMMON_CLUSTERNAME", "env-cluster")
 
-	cfg, err := config.Parse(configHappyYaml)
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
 
 	require.NoError(t, err)
-	require.NotNil(t, cfg)
 	assert.Equal(t, "env-cluster", cfg.Common.ClusterName)
 }
 
 func TestParse_MissingRequiredField(t *testing.T) {
-	cfg, err := config.Parse(configMissingRequiredYaml)
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configMissingRequiredYaml), &cfg)
 
 	require.Error(t, err)
-	assert.Nil(t, cfg)
+	assert.Empty(t, cfg)
 }
 
 func TestParse_DeploymentHistoryLimitValidation(t *testing.T) {
@@ -429,16 +422,17 @@ func TestParse_DeploymentHistoryLimitValidation(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			configYaml := mutateConfig(t, test.mutateConfig)
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
 
-			cfg, err := config.Parse(configYaml)
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
 
 			if test.expectedError == "" {
 				require.NoError(t, err)
 				return
 			} else {
 				require.Error(t, err)
-				assert.Nil(t, cfg)
+				assert.Empty(t, cfg)
 				assert.ErrorContains(t, err, test.expectedError)
 			}
 		})
@@ -466,16 +460,17 @@ func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			configYaml := mutateConfig(t, test.mutateConfig)
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
 
-			cfg, err := config.Parse(configYaml)
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
 
 			if test.expectedError == "" {
 				require.NoError(t, err)
 				return
 			} else {
 				require.Error(t, err)
-				assert.Nil(t, cfg)
+				assert.Empty(t, cfg)
 				assert.ErrorContains(t, err, test.expectedError)
 			}
 		})
@@ -484,14 +479,14 @@ func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
 }
 
 func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
-	configYaml := mutateConfig(t, func(cfg *config.Config) {
+	configYaml := []byte(mutateConfig(t, func(cfg *config.Config) {
 		cfg.Operator.JobSchedulerImage = config.ContainerImage{}
-	})
+	}))
 
-	cfg, err := config.Parse(configYaml)
+	var cfg config.Config
+	err := configcodec.Decode(configYaml, &cfg)
 
 	require.Error(t, err)
-	assert.Nil(t, cfg)
 	assert.ErrorContains(t, err, `field "Operator.JobSchedulerImage" is required but not set`)
 }
 
@@ -516,12 +511,13 @@ func TestParse_FieldValidator(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			configYaml := mutateConfig(t, test.mutateConfig)
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
 
-			cfg, err := config.Parse(configYaml)
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
 
 			require.Error(t, err)
-			assert.Nil(t, cfg)
+			assert.Empty(t, cfg)
 			assert.ErrorContains(t, err, test.expectedError)
 		})
 	}
@@ -534,19 +530,19 @@ func TestParse_BuilderResourceLimits(t *testing.T) {
 	}{
 		"equivalent CPU quantities are valid": {
 			modifyConfig: func(cfg *config.Config) {
-				cfg.PipelineRunner.Builder.Resources.Limits.CPU = new(resource.MustParse("1"))
-				cfg.PipelineRunner.Builder.Resources.Requests.CPU = new(resource.MustParse("1000m"))
+				cfg.PipelineRunner.Builder.Resources.Limits.CPU = resource.MustParse("1")
+				cfg.PipelineRunner.Builder.Resources.Requests.CPU = resource.MustParse("1000m")
 			},
 		},
 		"CPU limit below request is invalid": {
 			modifyConfig: func(cfg *config.Config) {
-				cfg.PipelineRunner.Builder.Resources.Limits.CPU = new(resource.MustParse("100m"))
+				cfg.PipelineRunner.Builder.Resources.Limits.CPU = resource.MustParse("100m")
 			},
 			errorPath: "PipelineRunner.Builder.Resources",
 		},
 		"memory limit below request is invalid": {
 			modifyConfig: func(cfg *config.Config) {
-				cfg.PipelineRunner.Builder.Resources.Limits.Memory = new(resource.MustParse("499M"))
+				cfg.PipelineRunner.Builder.Resources.Limits.Memory = resource.MustParse("499M")
 			},
 			errorPath: "PipelineRunner.Builder.Resources",
 		},
@@ -554,17 +550,17 @@ func TestParse_BuilderResourceLimits(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			configYaml := mutateConfig(t, test.modifyConfig)
+			configYaml := []byte(mutateConfig(t, test.modifyConfig))
 
-			cfg, err := config.Parse(configYaml)
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
 			if test.errorPath == "" {
 				require.NoError(t, err)
-				assert.NotNil(t, cfg)
 				return
 			}
 
 			require.Error(t, err)
-			assert.Nil(t, cfg)
+			assert.Empty(t, cfg)
 			assert.ErrorContains(t, err, test.errorPath)
 		})
 	}
@@ -625,9 +621,9 @@ func TestEnvConfigMapReader(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			cfg, err := config.Parse(reader)
+			var cfg config.Config
+			err = configcodec.Decode([]byte(reader), &cfg)
 			require.NoError(t, err)
-			require.NotNil(t, cfg)
 			assert.Equal(t, "test-cluster", cfg.Common.ClusterName)
 			assert.Equal(t, "info", cfg.Operator.LogLevel)
 		})
@@ -670,17 +666,16 @@ func TestPipelineJobConfigs(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			configYaml := mutateConfig(t, test.modifyConfig)
+			configYaml := []byte(mutateConfig(t, test.modifyConfig))
 
-			cfg, err := config.Parse(configYaml)
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
 			if test.errorPath == "" {
 				require.NoError(t, err)
-				assert.NotNil(t, cfg)
 				return
 			}
 
 			require.Error(t, err)
-			assert.Nil(t, cfg)
 			assert.ErrorContains(t, err, test.errorPath)
 		})
 	}

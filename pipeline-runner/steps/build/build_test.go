@@ -1,13 +1,11 @@
 package build_test
 
 import (
-	"context"
 	"fmt"
 	"slices"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
-	internalbuild "github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
 	buildjobmock "github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build/mock"
 	internalwait "github.com/equinor/radix-operator/pipeline-runner/internal/wait"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -20,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 	batchv1 "k8s.io/api/batch/v1"
@@ -29,16 +26,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-const (
-	buildJobFactoryMockMethodName = "BuildJobFactory"
-)
-
-func createbuildJobFactoryMock(m *mock.Mock) build.BuildJobFactory {
-	return func() internalbuild.JobsBuilder {
-		return m.MethodCalled(buildJobFactoryMockMethodName).Get(0).(internalbuild.JobsBuilder)
-	}
-}
 
 func Test_RunBuildTestSuite(t *testing.T) {
 	suite.Run(t, new(buildTestSuite))
@@ -80,9 +67,9 @@ func (s *buildTestSuite) Test_TargetEnvironmentsEmpty_ShouldSkip() {
 	rr := utils.ARadixRegistration().WithName("any").BuildRR()
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(0)
-	var m mock.Mock
-	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+	jobsBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
+	cli := build.NewBuildStep(jobWaiter, jobsBuilder)
+	cli.Init(s.T().Context(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments:    model.PipelineArguments{},
@@ -90,18 +77,17 @@ func (s *buildTestSuite) Test_TargetEnvironmentsEmpty_ShouldSkip() {
 		BuildComponentImages: pipeline.EnvironmentBuildComponentImages{"anyenv": {{ComponentName: "anycomp"}}},
 	}
 
-	err := cli.Run(context.Background(), pipelineInfo)
+	err := cli.Run(s.T().Context(), pipelineInfo)
 	s.Require().NoError(err)
-	m.AssertNotCalled(s.T(), buildJobFactoryMockMethodName, mock.Anything)
 }
 
 func (s *buildTestSuite) Test_BuildComponentImagesEmpty_ShouldSkip() {
 	rr := utils.ARadixRegistration().WithName("any").BuildRR()
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).Times(0)
-	var m mock.Mock
-	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+	jobsBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
+	cli := build.NewBuildStep(jobWaiter, jobsBuilder)
+	cli.Init(s.T().Context(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments:    model.PipelineArguments{},
@@ -109,9 +95,8 @@ func (s *buildTestSuite) Test_BuildComponentImagesEmpty_ShouldSkip() {
 		BuildComponentImages: pipeline.EnvironmentBuildComponentImages{},
 	}
 
-	err := cli.Run(context.Background(), pipelineInfo)
+	err := cli.Run(s.T().Context(), pipelineInfo)
 	s.Require().NoError(err)
-	m.AssertNotCalled(s.T(), buildJobFactoryMockMethodName, mock.Anything)
 }
 
 func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
@@ -123,12 +108,12 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
 	ra := utils.ARadixApplication().WithBuildSecrets(secretName).BuildRA()
 	rj := utils.ARadixBuildDeployJob().WithJobName(jobName).WithAppName(appName).BuildRJ()
-	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(s.T().Context(), rj, metav1.CreateOptions{})
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
-	var m mock.Mock
-	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+	jobsBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
+	cli := build.NewBuildStep(jobWaiter, jobsBuilder)
+	cli.Init(s.T().Context(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -139,30 +124,24 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 		RadixApplication:     ra,
 	}
 
-	err := cli.Run(context.Background(), pipelineInfo)
+	err := cli.Run(s.T().Context(), pipelineInfo)
 	s.ErrorContains(err, "build secrets has not been set")
-	m.AssertNotCalled(s.T(), buildJobFactoryMockMethodName, mock.Anything)
 
 	// secret key missing
 	pipelineInfo.BuildSecret = &corev1.Secret{Data: map[string][]byte{}}
-	err = cli.Run(context.Background(), pipelineInfo)
+	err = cli.Run(s.T().Context(), pipelineInfo)
 	s.ErrorContains(err, fmt.Sprintf("build secret %s has not been set", secretName))
-	m.AssertNotCalled(s.T(), buildJobFactoryMockMethodName, mock.Anything)
 
 	// secret set to default value
 	pipelineInfo.BuildSecret = &corev1.Secret{Data: map[string][]byte{secretName: []byte(defaults.BuildSecretDefaultData)}}
-	err = cli.Run(context.Background(), pipelineInfo)
+	err = cli.Run(s.T().Context(), pipelineInfo)
 	s.ErrorContains(err, fmt.Sprintf("build secret %s has not been set", secretName))
-	m.AssertNotCalled(s.T(), buildJobFactoryMockMethodName, mock.Anything)
 
 	// secret correctly set
-	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
-	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
-	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
+	jobsBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	pipelineInfo.BuildSecret = &corev1.Secret{Data: map[string][]byte{secretName: []byte("anyvalue")}}
-	err = cli.Run(context.Background(), pipelineInfo)
+	err = cli.Run(s.T().Context(), pipelineInfo)
 	s.NoError(err)
-	m.AssertExpectations(s.T())
 }
 
 func (s *buildTestSuite) Test_AppWithoutBuildSecrets_Validation() {
@@ -173,12 +152,13 @@ func (s *buildTestSuite) Test_AppWithoutBuildSecrets_Validation() {
 	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
 	ra := utils.ARadixApplication().WithBuildSecrets().BuildRA()
 	rj := utils.ARadixBuildDeployJob().WithJobName(jobName).WithAppName(appName).BuildRJ()
-	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(s.T().Context(), rj, metav1.CreateOptions{})
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
-	var m mock.Mock
-	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+	jobsBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
+	jobsBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	cli := build.NewBuildStep(jobWaiter, jobsBuilder)
+	cli.Init(s.T().Context(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -189,34 +169,29 @@ func (s *buildTestSuite) Test_AppWithoutBuildSecrets_Validation() {
 		RadixApplication:     ra,
 	}
 
-	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
-	jobBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
-	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
-	err := cli.Run(context.Background(), pipelineInfo)
+	err := cli.Run(s.T().Context(), pipelineInfo)
 	s.NoError(err)
-	m.AssertExpectations(s.T())
 }
 
 func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 	const (
-		appName  = "anyapp"
-		jobName  = "anyjob"
-		cloneUrl = "anycloneurl"
+		appName = "anyapp"
+		jobName = "anyjob"
 	)
 	var (
 		buildSecrets   []string                       = []string{"secret1", "secret2"}
 		env1Components []pipeline.BuildComponentImage = []pipeline.BuildComponentImage{{ComponentName: "env1comp1"}, {ComponentName: "env1comp2"}}
 		env2Components []pipeline.BuildComponentImage = []pipeline.BuildComponentImage{{ComponentName: "env2comp1"}, {ComponentName: "env2comp2"}}
 	)
-	rr := utils.ARadixRegistration().WithName(appName).WithCloneURL(cloneUrl).BuildRR()
+	rr := utils.ARadixRegistration().WithName(appName).BuildRR()
 	ra := utils.ARadixApplication().WithBuildSecrets(buildSecrets...).BuildRA()
 	rj := utils.ARadixBuildDeployJob().WithJobName(jobName).WithAppName(appName).BuildRJ()
-	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(context.Background(), rj, metav1.CreateOptions{})
+	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(s.T().Context(), rj, metav1.CreateOptions{})
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
 	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
-	var m mock.Mock
-	cli := build.NewBuildStep(jobWaiter, build.WithBuildJobFactory(createbuildJobFactoryMock(&m)))
-	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+	jobsBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
+	cli := build.NewBuildStep(jobWaiter, jobsBuilder)
+	cli.Init(s.T().Context(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -233,33 +208,27 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 		}},
 	}
 
-	jobBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
 	jobsToReturn := []batchv1.Job{
 		{ObjectMeta: metav1.ObjectMeta{Name: "job1", Namespace: utils.GetAppNamespace(appName)}},
 		{ObjectMeta: metav1.ObjectMeta{Name: "job2", Namespace: utils.GetAppNamespace(appName)}},
 	}
-	jobBuilder.EXPECT().BuildJobs(
-		gomock.Any(),
-		gomock.Any(),
-		pipelineInfo.PipelineArguments,
-		cloneUrl,
-		pipelineInfo.GitCommitHash,
-		pipelineInfo.GitTags,
+	jobsBuilder.EXPECT().BuildJobs(
 		gomock.InAnyOrder(slices.Concat(env1Components, env2Components)),
 		gomock.InAnyOrder(buildSecrets),
-		rr.Spec.AppID,
+		pipelineInfo.GitCommitHash,
+		pipelineInfo.GitTags,
+		gomock.Any(),
 		gomock.Any(),
 	).Return(jobsToReturn).Times(1)
-	m.On(buildJobFactoryMockMethodName, mock.Anything).Return(jobBuilder)
-	err := cli.Run(context.Background(), pipelineInfo)
+
+	err := cli.Run(s.T().Context(), pipelineInfo)
 	s.NoError(err)
-	m.AssertExpectations(s.T())
-	expectedOwnerRef, _ := jobutil.GetOwnerReferenceOfJob(context.Background(), s.radixClient, utils.GetAppNamespace(appName), pipelineInfo.PipelineArguments.JobName)
+	expectedOwnerRef, _ := jobutil.GetOwnerReferenceOfJob(s.T().Context(), s.radixClient, utils.GetAppNamespace(appName), pipelineInfo.PipelineArguments.JobName)
 	expectedJobs := slice.Map(jobsToReturn, func(j batchv1.Job) batchv1.Job {
 		newjob := j.DeepCopy()
 		newjob.OwnerReferences = expectedOwnerRef
 		return *newjob
 	})
-	actualJobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
+	actualJobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(s.T().Context(), metav1.ListOptions{})
 	s.ElementsMatch(expectedJobs, actualJobs.Items)
 }

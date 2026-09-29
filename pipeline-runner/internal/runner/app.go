@@ -3,8 +3,11 @@ package runner
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"time"
 
+	internalbuild "github.com/equinor/radix-operator/pipeline-runner/internal/jobs/build"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
@@ -14,26 +17,25 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/runpipeline"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	secretsstoreclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 // PipelineRunner Instance variables
 type PipelineRunner struct {
 	definition    *pipeline.Definition
 	kubeClient    kubernetes.Interface
-	kubeUtil      *kube.Kube
 	radixClient   radixclient.Interface
 	tektonClient  tektonclient.Interface
 	dynamicClient client.Client
@@ -42,12 +44,10 @@ type PipelineRunner struct {
 }
 
 // NewRunner constructor
-func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interface, kedaClient kedav2.Interface, dynamicClient client.Client, secretsStoreClient secretsstoreclient.Interface, tektonClient tektonclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
-	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretsStoreClient)
+func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interface, dynamicClient client.Client, tektonClient tektonclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 	handler := PipelineRunner{
 		definition:    definition,
 		kubeClient:    kubeClient,
-		kubeUtil:      kubeUtil,
 		radixClient:   radixClient,
 		tektonClient:  tektonClient,
 		dynamicClient: dynamicClient,
@@ -57,20 +57,48 @@ func NewRunner(kubeClient kubernetes.Interface, radixClient radixclient.Interfac
 }
 
 // PrepareRun Runs preparations before build
-func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs *model.PipelineArguments) error {
+func (cli *PipelineRunner) PrepareRun(ctx context.Context, pipelineArgs model.PipelineArguments) error {
 	radixRegistration, err := cli.radixClient.RadixV1().RadixRegistrations().Get(ctx, cli.appName, metav1.GetOptions{})
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msgf("Failed to get RR for app %s. Error: %v", cli.appName, err)
-		return err
+		return fmt.Errorf("failed to get RadixRegistration for app: %w", err)
 	}
 
-	stepImplementations := cli.initStepImplementations(ctx, radixRegistration)
-	cli.pipelineInfo, err = model.InitPipeline(cli.definition, pipelineArgs, stepImplementations...)
+	cfg, err := cli.loadConfig(ctx, pipelineArgs)
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	stepImplementations := cli.initStepImplementations(ctx, cfg, pipelineArgs, radixRegistration)
+	cli.pipelineInfo, err = model.InitPipeline(cli.definition, pipelineArgs, cfg, stepImplementations...)
 	if err != nil {
 		return err
 	}
 
 	return err
+}
+
+func (cli *PipelineRunner) loadConfig(ctx context.Context, pipelineArgs model.PipelineArguments) (config.Config, error) {
+	configDataReader := func() ([]byte, error) {
+		return loadConfigDataFromConfigMap(ctx, cli.dynamicClient, pipelineArgs.ConfigMapName, pipelineArgs.ConfigMapNamespace, pipelineArgs.ConfigMapKey)
+	}
+
+	configFile := os.Getenv("CONFIG_OVERRIDE_FILENAME")
+	if configFile != "" {
+		configDataReader = func() ([]byte, error) {
+			return loadConfigDataFromFile(configFile)
+		}
+	}
+
+	configYaml, err := configDataReader()
+	if err != nil {
+		return config.Config{}, fmt.Errorf("failed to read config data: %w", err)
+	}
+
+	var cfg config.Config
+	if err := configcodec.Decode([]byte(configYaml), &cfg); err != nil {
+		return config.Config{}, fmt.Errorf("failed to decode config data: %w", err)
+	}
+	return cfg, nil
 }
 
 // Run runs through the steps in the defined pipeline
@@ -106,11 +134,11 @@ func (cli *PipelineRunner) Run(ctx context.Context) error {
 	return nil
 }
 
-func (cli *PipelineRunner) initStepImplementations(ctx context.Context, registration *v1.RadixRegistration) []model.Step {
+func (cli *PipelineRunner) initStepImplementations(ctx context.Context, cfg config.Config, args model.PipelineArguments, registration *v1.RadixRegistration) []model.Step {
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, preparepipeline.NewPreparePipelinesStep())
 	stepImplementations = append(stepImplementations, applyconfig.NewApplyConfigStep())
-	stepImplementations = append(stepImplementations, build.NewBuildStep(nil))
+	stepImplementations = append(stepImplementations, build.NewBuildStep(nil, internalbuild.NewBuildKit(cfg, args, *registration)))
 	stepImplementations = append(stepImplementations, runpipeline.NewRunPipelinesStep())
 	stepImplementations = append(stepImplementations, deploy.NewDeployStep(watcher.NewNamespaceWatcherImpl(cli.kubeClient), watcher.NewRadixDeploymentWatcher(cli.radixClient, time.Minute*5)))
 	stepImplementations = append(stepImplementations, deployconfig.NewDeployConfigStep(watcher.NewRadixDeploymentWatcher(cli.radixClient, time.Minute*5)))
@@ -172,4 +200,25 @@ func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJ
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msgf("Failed to update status of pipeline job %s", cli.pipelineInfo.PipelineArguments.JobName)
 	}
+}
+
+func loadConfigDataFromConfigMap(ctx context.Context, dynamicClient client.Client, configMapName, configMapNamespace, configMapKey string) ([]byte, error) {
+	configCm := &corev1.ConfigMap{Name: configMapName, Namespace: configMapNamespace}
+	if err := dynamicClient.Get(ctx, client.ObjectKeyFromObject(configCm), configCm); err != nil {
+		return nil, fmt.Errorf("failed to read configmap %s/%s: %w", configMapNamespace, configMapName, err)
+	}
+
+	configYaml, ok := configCm.Data[configMapKey]
+	if !ok {
+		return nil, fmt.Errorf("configmap %s/%s does not contain key '%s'", configMapNamespace, configMapName, configMapKey)
+	}
+	return []byte(configYaml), nil
+}
+
+func loadConfigDataFromFile(file string) ([]byte, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", file, err)
+	}
+	return data, nil
 }

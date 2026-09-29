@@ -1,4 +1,4 @@
-package config
+package configcodec
 
 import (
 	"cmp"
@@ -13,11 +13,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-type CelValidator struct {
+type celValidator struct {
 	environment *cel.Env
 }
 
-func NewCelValidator() (*CelValidator, error) {
+func newCelValidator() (*celValidator, error) {
 	environment, err := cel.NewEnv(
 		cel.Variable("self", cel.DynType),
 		cel.Variable("config", cel.DynType),
@@ -41,10 +41,10 @@ func NewCelValidator() (*CelValidator, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create validation environment: %w", err)
 	}
-	return &CelValidator{environment: environment}, nil
+	return &celValidator{environment: environment}, nil
 }
 
-func (v *CelValidator) ValidateField(expression string, config any, value reflect.Value) (valid bool, err error) {
+func (v *celValidator) ValidateField(expression string, config any, value reflect.Value) (valid bool, err error) {
 	configValue, err := toJSONValue(config)
 	if err != nil {
 		return false, fmt.Errorf("failed to convert config for validation: %w", err)
@@ -74,7 +74,7 @@ func (v *CelValidator) ValidateField(expression string, config any, value reflec
 }
 
 func toJSONValue(value any) (any, error) {
-	valueJSON, err := json.Marshal(value, Marshalers)
+	valueJSON, err := json.Marshal(value, marshalers)
 	if err != nil {
 		return nil, err
 	}

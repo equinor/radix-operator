@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func EnvConfigMapReader(ctx context.Context, c client.Client) (string, error) {
+func EnvConfigMapReader(ctx context.Context, c client.Client) ([]byte, error) {
 	// Load config map before we attempt to read the configuration
 	namespace := os.Getenv("POD_NAMESPACE")
 	if namespace == "" {
@@ -35,18 +35,18 @@ func EnvConfigMapReader(ctx context.Context, c client.Client) (string, error) {
 	log.Ctx(ctx).Info().Msgf("Loading config from configmap %s/%s.%s", namespace, name, key)
 	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 	if err := c.Get(ctx, client.ObjectKeyFromObject(cm), cm); err != nil {
-		return "", fmt.Errorf("failed to load config from cluster: %w", err)
+		return nil, fmt.Errorf("failed to load config from cluster: %w", err)
 	}
 
 	configYaml, ok := cm.Data[key]
 	if !ok {
-		return "", fmt.Errorf("key %q not found in configmap %s/%s", key, namespace, name)
+		return nil, fmt.Errorf("key %q not found in configmap %s/%s", key, namespace, name)
 	}
 
-	return configYaml, nil
+	return []byte(configYaml), nil
 }
 
-func MustEnvConfigMapReader(ctx context.Context, c client.Client) string {
+func MustEnvConfigMapReader(ctx context.Context, c client.Client) []byte {
 	configYaml, err := EnvConfigMapReader(ctx, c)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to read config from configmap")

@@ -22,6 +22,6 @@ type Resources struct {
 	Limits   ResourceRequirements `json:"limits" required:"true"`
 }
 type ResourceRequirements struct {
-	Memory *resource.Quantity `json:"memory" required:"true"`
-	CPU    *resource.Quantity `json:"cpu" required:"true"`
+	Memory resource.Quantity `json:"memory" required:"true"`
+	CPU    resource.Quantity `json:"cpu" required:"true"`
 }

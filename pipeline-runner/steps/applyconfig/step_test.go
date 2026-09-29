@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
 	internaltest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -258,14 +259,20 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      string(radixv1.BuildDeploy),
-			Branch:            buildBranch,
-			JobName:           rjName,
-			ImageTag:          "imgtag",
-			ContainerRegistry: "registry",
-			Clustertype:       "clustertype",
-			Clustername:       "clustername",
-			GitWorkspace:      "/some-workspace",
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       buildBranch,
+			JobName:      rjName,
+			ImageTag:     "imgtag",
+			GitWorkspace: "/some-workspace",
+		},
+		Cfg: config.Config{
+			Common: config.CommonConfig{
+				ClusterName: "clustername",
+				ClusterType: "clustertype",
+			},
+			PipelineRunner: config.PipelineRunnerConfig{
+				ContainerRegistry: "anycontainerregistry",
+			},
 		},
 		RadixApplication:   ra,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: envName1}, {Environment: envName2}, {Environment: envName3}, {Environment: envName4}},
@@ -278,13 +285,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 		return fmt.Sprintf("%s-%s", env, comp)
 	}
 	imagePathFunc := func(env, comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(env, comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.PipelineArguments.Clustertype, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.Cfg.Common.ClusterType, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterNameFunc := func(env, comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.PipelineArguments.Clustername, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.Cfg.Common.ClusterName, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	buildComponentImageFunc := func(env, component, context, dockerfile string) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -436,13 +443,19 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      string(radixv1.BuildDeploy),
-			Branch:            buildBranch,
-			ImageTag:          "anytag",
-			ContainerRegistry: "anyregistry",
-			Clustertype:       "anyclustertype",
-			Clustername:       "anyclustername",
-			GitWorkspace:      "/some-workspace",
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       buildBranch,
+			ImageTag:     "anytag",
+			GitWorkspace: "/some-workspace",
+		},
+		Cfg: config.Config{
+			Common: config.CommonConfig{
+				ClusterName: "anyclustername",
+				ClusterType: "anyclustertype",
+			},
+			PipelineRunner: config.PipelineRunnerConfig{
+				ContainerRegistry: "anycontainerregistry",
+			},
 		},
 		RadixApplication:   ra,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
@@ -455,13 +468,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 		return fmt.Sprintf("%s-%s", envName, comp)
 	}
 	imagePathFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustertype, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterType, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterNameFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustername, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterName, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	buildComponentImageFunc := func(component string, runtime *radixv1.Runtime) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -601,13 +614,19 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      string(radixv1.BuildDeploy),
-			Branch:            buildBranch,
-			ImageTag:          "imgtag",
-			ContainerRegistry: "registry",
-			Clustertype:       "clustertype",
-			Clustername:       "clustername",
-			GitWorkspace:      "/some-workspace",
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       buildBranch,
+			ImageTag:     "imgtag",
+			GitWorkspace: "/some-workspace",
+		},
+		Cfg: config.Config{
+			Common: config.CommonConfig{
+				ClusterName: "clustername",
+				ClusterType: "clustertype",
+			},
+			PipelineRunner: config.PipelineRunnerConfig{
+				ContainerRegistry: "registry",
+			},
 		},
 		RadixApplication:   ra,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
@@ -622,13 +641,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 		return fmt.Sprintf("%s-%s", envName, comp)
 	}
 	imagePathFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustertype, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterType, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterNameFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustername, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterName, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	buildComponentImageFunc := func(component, context, dockerfile string) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -735,13 +754,19 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 	pipelineInfo := model.PipelineInfo{
 		RadixApplication: ra,
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
-			Branch:            buildBranch,
-			ImageTag:          "imgtag",
-			Clustertype:       "clustertype",
-			Clustername:       "clustername",
-			ContainerRegistry: "registry",
-			GitWorkspace:      "/some-workspace",
+			PipelineType: "build-deploy",
+			Branch:       buildBranch,
+			ImageTag:     "imgtag",
+			GitWorkspace: "/some-workspace",
+		},
+		Cfg: config.Config{
+			Common: config.CommonConfig{
+				ClusterName: "clustername",
+				ClusterType: "clustertype",
+			},
+			PipelineRunner: config.PipelineRunnerConfig{
+				ContainerRegistry: "registry",
+			},
 		},
 		BuildContext:       buildCtx,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: envName, ActiveRadixDeployment: currentRd}},
@@ -757,13 +782,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 		return fmt.Sprintf("%s-%s", envName, comp)
 	}
 	imagePathFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustertype, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterType, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterNameFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustername, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterName, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	buildComponentImageFunc := func(component, dockerfile string) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -853,13 +878,19 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 		return builder.BuildRD()
 	}
 	pipelineArgs := model.PipelineArguments{
-		PipelineType:      string(radixv1.BuildDeploy),
-		Branch:            buildBranch,
-		ImageTag:          "imgtag",
-		ContainerRegistry: "registry",
-		Clustertype:       "clustertype",
-		Clustername:       "clustername",
-		GitWorkspace:      "/some-workspace",
+		PipelineType: string(radixv1.BuildDeploy),
+		Branch:       buildBranch,
+		ImageTag:     "imgtag",
+		GitWorkspace: "/some-workspace",
+	}
+	cfg := config.Config{
+		Common: config.CommonConfig{
+			ClusterName: "clustername",
+			ClusterType: "clustertype",
+		},
+		PipelineRunner: config.PipelineRunnerConfig{
+			ContainerRegistry: "registry",
+		},
 	}
 	type testSpec struct {
 		name                          string
@@ -873,13 +904,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 		return fmt.Sprintf("%s-%s", envName, comp)
 	}
 	imagePathFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", pipelineArgs.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineArgs.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.Clustertype, pipelineArgs.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), cfg.Common.ClusterType, pipelineArgs.ImageTag)
 	}
 	imagePathClusterNameFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineArgs.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.Clustername, pipelineArgs.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), cfg.Common.ClusterName, pipelineArgs.ImageTag)
 	}
 	buildComponentImageFunc := func(component string) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -1256,6 +1287,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 			}
 			pipelineInfo := model.PipelineInfo{
 				PipelineArguments:  pipelineArgs,
+				Cfg:                cfg,
 				RadixApplication:   ra,
 				BuildContext:       test.prepareBuildCtx,
 				TargetEnvironments: []model.TargetEnvironment{{Environment: envName, ActiveRadixDeployment: existingRd}},
@@ -1604,9 +1636,9 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 				pipeline.PipelineArguments.GitRef = "main"
 				pipeline.PipelineArguments.GitRefType = "tag"
 			case radixv1.Promote:
-				pipeline.PipelineArguments.FromEnvironment = "dev"
+				pipeline.PipelineArguments.PromoteFromEnvironment = "dev"
 				pipeline.PipelineArguments.ToEnvironment = "dev"
-				pipeline.PipelineArguments.DeploymentName = "depl"
+				pipeline.PipelineArguments.PromoteDeploymentName = "depl"
 			}
 
 			applyStep := applyconfig.NewApplyConfigStep()
@@ -1710,11 +1742,11 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImagesSetFromSourceDeployment(
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			AppName:         appName,
-			PipelineType:    string(radixv1.Promote),
-			FromEnvironment: fromEnv,
-			ToEnvironment:   toEnv,
-			DeploymentName:  deploymentName,
+			AppName:                appName,
+			PipelineType:           string(radixv1.Promote),
+			PromoteFromEnvironment: fromEnv,
+			ToEnvironment:          toEnv,
+			PromoteDeploymentName:  deploymentName,
 		},
 		RadixApplication: ra,
 	}
@@ -1758,11 +1790,11 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImages_MissingFromEnvironmentO
 		s.Run(ts.name, func() {
 			pipelineInfo := model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					AppName:         appName,
-					PipelineType:    string(radixv1.Promote),
-					FromEnvironment: ts.fromEnvironment,
-					ToEnvironment:   "prod",
-					DeploymentName:  ts.deploymentName,
+					AppName:                appName,
+					PipelineType:           string(radixv1.Promote),
+					PromoteFromEnvironment: ts.fromEnvironment,
+					ToEnvironment:          "prod",
+					PromoteDeploymentName:  ts.deploymentName,
 				},
 				RadixApplication: ra,
 			}
@@ -1788,11 +1820,11 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImages_SourceDeploymentNotFoun
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			AppName:         appName,
-			PipelineType:    string(radixv1.Promote),
-			FromEnvironment: fromEnv,
-			ToEnvironment:   toEnv,
-			DeploymentName:  "nonexistent-deployment",
+			AppName:                appName,
+			PipelineType:           string(radixv1.Promote),
+			PromoteFromEnvironment: fromEnv,
+			ToEnvironment:          toEnv,
+			PromoteDeploymentName:  "nonexistent-deployment",
 		},
 		RadixApplication: ra,
 	}

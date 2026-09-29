@@ -147,60 +147,49 @@ func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfig
 
 	// Base arguments for all types of pipeline
 	args := []string{
-		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
-		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
-		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsMemory, job.cfg.PipelineRunner.Builder.Resources.Requests.Memory.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesRequestsCPU, job.cfg.PipelineRunner.Builder.Resources.Requests.CPU.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsMemory, job.cfg.PipelineRunner.Builder.Resources.Limits.Memory.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderResourcesLimitsCPU, job.cfg.PipelineRunner.Builder.Resources.Limits.CPU.String()),
-		fmt.Sprintf("--%s=%s", flags.ExternalRegistryAuthSecret, job.cfg.Common.ExternalRegistryAuthSecret),
-
-		// Pass tekton and builder images
-		fmt.Sprintf("--%s=%s", flags.BuilderImage, job.cfg.PipelineRunner.Builder.Image.String()),
-		fmt.Sprintf("--%s=%s", flags.BuilderSeccompProfileLocalHostProfile, job.cfg.PipelineRunner.Builder.SeccompProfileLocalhostProfile),
+		fmt.Sprintf("--%s=%s", flags.AppName, appName),
+		fmt.Sprintf("--%s=%s", flags.JobName, jobName),
+		fmt.Sprintf("--%s=%s", flags.PipelineType, pipeline.Type),
 
 		// Used for tagging source of image
-		fmt.Sprintf("--%s=%s", flags.ClusterType, job.cfg.Common.ClusterType),
-		fmt.Sprintf("--%s=%s", flags.ClusterName, job.cfg.Common.ClusterName),
-		fmt.Sprintf("--%s=%s", flags.ContainerRegistry, job.cfg.PipelineRunner.ContainerRegistry),
-		fmt.Sprintf("--%s=%s", flags.CacheContainerRegistry, job.cfg.PipelineRunner.CacheContainerRegistry),
-		fmt.Sprintf("--%s=%s", defaults.RadixGithubWorkspaceEnvironmentVariable, workspace),
-		fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName),
-		fmt.Sprintf("--%s=%v", defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, job.radixJob.Spec.TriggeredFromWebhook),
-	}
+		fmt.Sprintf("--%s=%s", flags.GitWorkspace, workspace),
+		fmt.Sprintf("--%s=%s", flags.RadixConfigFile, radixConfigFullName),
+		fmt.Sprintf("--%s=%v", flags.TriggeredFromWebhook, job.radixJob.Spec.TriggeredFromWebhook),
 
-	// Pass git clone init container images
-	args = append(args, fmt.Sprintf("--%s=%s", flags.GitCloneImage, job.cfg.PipelineRunner.GitCloneImage.String()))
+		// Pipeline config flags
+		fmt.Sprintf("--%s=%s", flags.ConfigMapName, job.getPipelineConfigMapName()),
+		fmt.Sprintf("--%s=%s", flags.ConfigMapNamespace, job.radixJob.Namespace),
+		fmt.Sprintf("--%s=%s", flags.ConfigMapKey, configMapKeyLabel),
+	}
 
 	switch pipeline.Type {
 	case radixv1.BuildDeploy, radixv1.Build:
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch)) //nolint:staticcheck
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitRefEnvironmentVariable, jobSpec.Build.GitRef))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixGitRefTypeEnvironmentVariable, jobSpec.Build.GitRefType))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, jobSpec.Build.ToEnvironment))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.ImageTag, jobSpec.Build.ImageTag))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.Branch, jobSpec.Build.Branch)) //nolint:staticcheck
+		args = append(args, fmt.Sprintf("--%s=%s", flags.GitRef, jobSpec.Build.GitRef))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.GitRefType, jobSpec.Build.GitRefType))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.ToEnvironment, jobSpec.Build.ToEnvironment))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.CommitID, jobSpec.Build.CommitID))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.PushImage, getPushImageTag(jobSpec.Build.PushImage)))
 		if jobSpec.Build.OverrideUseBuildCache != nil {
-			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixOverrideUseBuildCacheEnvironmentVariable, *jobSpec.Build.OverrideUseBuildCache))
+			args = append(args, fmt.Sprintf("--%s=%v", flags.OverrideUseBuildCache, *jobSpec.Build.OverrideUseBuildCache))
 		}
 		if jobSpec.Build.RefreshBuildCache != nil {
-			args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixRefreshBuildCacheEnvironmentVariable, *jobSpec.Build.RefreshBuildCache))
+			args = append(args, fmt.Sprintf("--%s=%v", flags.RefreshBuildCache, *jobSpec.Build.RefreshBuildCache))
 		}
 	case radixv1.Promote:
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteFromEnvironmentEnvironmentVariable, jobSpec.Promote.FromEnvironment))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, jobSpec.Promote.ToEnvironment))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.PromoteDeploymentName, jobSpec.Promote.DeploymentName))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.PromoteFromEnvironment, jobSpec.Promote.FromEnvironment))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.ToEnvironment, jobSpec.Promote.ToEnvironment))
 	case radixv1.Deploy:
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, jobSpec.Deploy.ToEnvironment))
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Deploy.CommitID))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.ToEnvironment, jobSpec.Deploy.ToEnvironment))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.CommitID, jobSpec.Deploy.CommitID))
 		for componentName, imageTagName := range jobSpec.Deploy.ImageTagNames {
-			args = append(args, fmt.Sprintf("--%s=%s=%s", defaults.RadixImageTagNameEnvironmentVariable, componentName, imageTagName))
+			args = append(args, fmt.Sprintf("--%s=%s=%s", flags.ComponentsImageTagName, componentName, imageTagName))
 		}
-		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixComponentsToDeployVariable, strings.Join(jobSpec.Deploy.ComponentsToDeploy, ",")))
+		args = append(args, fmt.Sprintf("--%s=%s", flags.ComponentsToDeploy, strings.Join(jobSpec.Deploy.ComponentsToDeploy, ",")))
 	case radixv1.ApplyConfig:
-		args = append(args, fmt.Sprintf("--%s=%v", defaults.RadixPipelineApplyConfigDeployExternalDNSFlag, jobSpec.ApplyConfig.DeployExternalDNS))
+		args = append(args, fmt.Sprintf("--%s=%v", flags.ApplyConfigDeployExternalDNS, jobSpec.ApplyConfig.DeployExternalDNS))
 	}
 
 	return args

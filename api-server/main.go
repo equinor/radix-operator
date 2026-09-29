@@ -37,6 +37,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/event"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -88,7 +89,9 @@ func loadConfig(ctx context.Context) config.Config {
 		log.Fatal().Err(err).Msg("Failed to create config reader client")
 	}
 	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
-	return config.MustParse(cfgYaml)
+	var cfg config.Config
+	configcodec.MustDecode(cfgYaml, &cfg)
+	return cfg
 }
 
 func initializeTokenValidator(c config.Config) token.ValidatorInterface {

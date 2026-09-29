@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/internal/runner"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/logger"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -24,8 +23,6 @@ import (
 	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-var overrideUseBuildCache, refreshBuildCache model.BoolPtr
-
 // Requirements to run, pipeline must have:
 // - access to create Jobs in "app" namespace it runs under
 // - access to create RD in all namespaces
@@ -34,8 +31,7 @@ var overrideUseBuildCache, refreshBuildCache model.BoolPtr
 // - a secret radix-snyk-service-account with access token to SNYK service account
 
 func main() {
-	pipelineArgs := &model.PipelineArguments{}
-	logger.InitLogger(pipelineArgs.LogLevel)
+	pipelineArgs := model.PipelineArguments{}
 
 	cmd := &cobra.Command{
 		Use: "run",
@@ -58,18 +54,19 @@ func main() {
 		},
 	}
 
-	err := setPipelineArgsFromArguments(cmd, pipelineArgs, os.Args[1:])
+	err := setPipelineArgsFromArguments(cmd, &pipelineArgs, os.Args[1:])
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to parse args")
 		os.Exit(1)
 	}
 
+	logger.InitLogger(pipelineArgs.LogLevel)
+
 	cmd.Run(nil, nil)
 }
 
-// runs os.Exit(1) if error
-func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (*runner.PipelineRunner, error) {
-	kubeclient, radixClient, kedaClient, secretProviderClient, _, tektonClient := utils.GetKubernetesClient()
+func prepareRunner(ctx context.Context, pipelineArgs model.PipelineArguments) (*runner.PipelineRunner, error) {
+	kubeclient, radixClient, _, _, _, tektonClient := utils.GetKubernetesClient()
 
 	cfg := k8sconfig.GetConfigOrDie()
 	cfg.WarningHandler = utils.ZerologWarningHandlerAdapter(log.Warn)
@@ -83,7 +80,7 @@ func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (
 		return nil, err
 	}
 
-	pipelineRunner := runner.NewRunner(kubeclient, radixClient, kedaClient, dynamicClient, secretProviderClient, tektonClient, pipelineDefinition, pipelineArgs.AppName)
+	pipelineRunner := runner.NewRunner(kubeclient, radixClient, dynamicClient, tektonClient, pipelineDefinition, pipelineArgs.AppName)
 
 	err = pipelineRunner.PrepareRun(ctx, pipelineArgs)
 	if err != nil {
@@ -94,58 +91,50 @@ func prepareRunner(ctx context.Context, pipelineArgs *model.PipelineArguments) (
 }
 
 func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.PipelineArguments, arguments []string) error {
-	cmd.Flags().StringVar(&pipelineArgs.AppName, defaults.RadixAppEnvironmentVariable, "", "Radix application name")
-	cmd.Flags().StringVar(&pipelineArgs.JobName, defaults.RadixPipelineJobEnvironmentVariable, "", "Pipeline job name")
-	cmd.Flags().StringVar(&pipelineArgs.PipelineType, defaults.RadixPipelineTypeEnvironmentVariable, "", "Pipeline type")
-	cmd.Flags().StringVar(&pipelineArgs.Branch, defaults.RadixBranchEnvironmentVariable, "", "Branch to deploy to. Deprecated - use GIT_REF instead") //nolint:staticcheck
-	cmd.Flags().StringVar(&pipelineArgs.GitRef, defaults.RadixGitRefEnvironmentVariable, "", "Branch or tag to build from")
-	cmd.Flags().StringVar(&pipelineArgs.GitRefType, defaults.RadixGitRefTypeEnvironmentVariable, "", "Git ref type")
-	cmd.Flags().StringVar(&pipelineArgs.CommitID, defaults.RadixCommitIdEnvironmentVariable, "", "Commit ID to build from")
-	cmd.Flags().StringVar(&pipelineArgs.DeploymentName, defaults.RadixPromoteDeploymentEnvironmentVariable, "", "Radix deployment name to promote")
-	cmd.Flags().StringVar(&pipelineArgs.FromEnvironment, defaults.RadixPromoteFromEnvironmentEnvironmentVariable, "", "Radix application environment name to promote from")
-	cmd.Flags().StringVar(&pipelineArgs.ToEnvironment, defaults.RadixPipelineJobToEnvironmentEnvironmentVariable, "", "Radix application environment name to build-deploy or promote to")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.Image, flags.BuilderImage, "", "Radix Build Kit Image Builder container image")
-	cmd.Flags().StringVar(&pipelineArgs.SeccompProfileFileName, flags.BuilderSeccompProfileLocalHostProfile, "", "Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node")
-	cmd.Flags().StringVar(&pipelineArgs.Clustertype, flags.ClusterType, "", "Cluster type")
-	cmd.Flags().StringVar(&pipelineArgs.Clustername, flags.ClusterName, "", "Cluster name")
-	cmd.Flags().StringVar(&pipelineArgs.ContainerRegistry, flags.ContainerRegistry, "", "Container registry")
-	cmd.Flags().StringVar(&pipelineArgs.CacheContainerRegistry, flags.CacheContainerRegistry, "", "App Container registry")
-	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, defaults.RadixConfigFileEnvironmentVariable, "", "Radix config file name. Example: radixconfig.yaml")
-	cmd.Flags().StringVar(&pipelineArgs.ImageTag, defaults.RadixImageTagEnvironmentVariable, "latest", "Docker image tag")
+	cmd.Flags().StringVar(&pipelineArgs.AppName, flags.AppName, "", "Radix application name")
+	cmd.Flags().StringVar(&pipelineArgs.JobName, flags.JobName, "", "Pipeline job name")
+	cmd.Flags().StringVar(&pipelineArgs.PipelineType, flags.PipelineType, "", "Pipeline type")
+	cmd.Flags().StringVar(&pipelineArgs.Branch, flags.Branch, "", "Branch to deploy to. Deprecated - use GIT_REF instead") //nolint:staticcheck
+	cmd.Flags().StringVar(&pipelineArgs.GitRef, flags.GitRef, "", "Branch or tag to build from")
+	cmd.Flags().StringVar(&pipelineArgs.GitRefType, flags.GitRefType, "", "Git ref type")
+	cmd.Flags().StringVar(&pipelineArgs.CommitID, flags.CommitID, "", "Commit ID to build from")
+	cmd.Flags().StringVar(&pipelineArgs.PromoteDeploymentName, flags.PromoteDeploymentName, "", "Radix deployment name to promote")
+	cmd.Flags().StringVar(&pipelineArgs.PromoteFromEnvironment, flags.PromoteFromEnvironment, "", "Radix application environment name to promote from")
+	cmd.Flags().StringVar(&pipelineArgs.ToEnvironment, flags.ToEnvironment, "", "Radix application environment name to build-deploy or promote to")
+	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, flags.RadixConfigFile, "", "Radix config file name. Example: radixconfig.yaml")
+	cmd.Flags().StringVar(&pipelineArgs.ImageTag, flags.ImageTag, "latest", "Docker image tag")
 	cmd.Flags().StringVar(&pipelineArgs.LogLevel, flags.LogLevel, "INFO", "Log level: ERROR, WARN, INFO (default), DEBUG")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsMemory, flags.BuilderResourcesLimitsMemory, "2000M", "Image builder resource limit memory")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesLimitsCPU, flags.BuilderResourcesLimitsCPU, "1000m", "Image builder resource limit CPU")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsCPU, flags.BuilderResourcesRequestsCPU, "200m", "Image builder resource requests CPU")
-	cmd.Flags().StringVar(&pipelineArgs.Builder.ResourcesRequestsMemory, flags.BuilderResourcesRequestsMemory, "500M", "Image builder resource requests memory")
-	cmd.Flags().StringVar(&pipelineArgs.ExternalContainerRegistryDefaultAuthSecret, flags.ExternalRegistryAuthSecret, "", "Name of secret of type `kubernetes.io/dockerconfigjson` containign default credentials for external container registries")
-	cmd.Flags().Var(&overrideUseBuildCache, defaults.RadixOverrideUseBuildCacheEnvironmentVariable, "Optional. Overrides configured or default useBuildCache option. It is applicable when the useBuildKit option is set as true.")
-	cmd.Flags().Var(&refreshBuildCache, defaults.RadixRefreshBuildCacheEnvironmentVariable, "Optional. Forces to rebuild cache when useBuildKit and useBuildCache or overrideUseBuildCache are true.")
+	cmd.Flags().StringToStringVar(&pipelineArgs.ImageTagNames, flags.ComponentsImageTagName, make(map[string]string), "Image tag names for components (optional)")
+	cmd.Flags().StringSliceVar(&pipelineArgs.ComponentsToDeploy, flags.ComponentsToDeploy, make([]string, 0), "The list of components to deploy (optional)")
+	cmd.Flags().BoolVar(&pipelineArgs.ApplyConfigOptions.DeployExternalDNS, flags.ApplyConfigDeployExternalDNS, false, "Deploy changes to External DNS configuration with the 'apply-config' pipeline")
+	cmd.Flags().StringVar(&pipelineArgs.GitWorkspace, flags.GitWorkspace, git.Workspace, fmt.Sprintf("(Optional) Workspace path to the cloned GitHub repository. Default %s", git.Workspace))
+	cmd.Flags().BoolVar(&pipelineArgs.TriggeredFromWebhook, flags.TriggeredFromWebhook, false, "Indicates if the pipeline was triggered from a webhook")
+	cmd.Flags().StringVar(&pipelineArgs.ConfigMapName, flags.ConfigMapName, "", "Config map name containing the pipeline configuration")
+	cmd.Flags().StringVar(&pipelineArgs.ConfigMapNamespace, flags.ConfigMapNamespace, "", "Config map namespace containing the pipeline configuration")
+	cmd.Flags().StringVar(&pipelineArgs.ConfigMapKey, flags.ConfigMapKey, "", "Config map key containing the pipeline configuration")
+
 	var pushImage string
-	cmd.Flags().StringVar(&pushImage, defaults.RadixPushImageEnvironmentVariable, "0", "Push docker image to a repository")
+	cmd.Flags().StringVar(&pushImage, flags.PushImage, "0", "Push docker image to a repository")
+
+	var overrideUseBuildCache model.BoolPtr
+	cmd.Flags().Var(&overrideUseBuildCache, flags.OverrideUseBuildCache, "Optional. Overrides configured or default useBuildCache option. It is applicable when the useBuildKit option is set as true.")
+
+	var refreshBuildCache model.BoolPtr
+	cmd.Flags().Var(&refreshBuildCache, flags.RefreshBuildCache, "Optional. Forces to rebuild cache when useBuildKit and useBuildCache or overrideUseBuildCache are true.")
+
 	var debug string
-	cmd.Flags().StringVar(&debug, "DEBUG", "false", "Debug information")
-	cmd.Flags().StringToStringVar(&pipelineArgs.ImageTagNames, defaults.RadixImageTagNameEnvironmentVariable, make(map[string]string), "Image tag names for components (optional)")
-	cmd.Flags().StringSliceVar(&pipelineArgs.ComponentsToDeploy, defaults.RadixComponentsToDeployVariable, make([]string, 0), "The list of components to deploy (optional)")
-	// Git clone init container images
-	cmd.Flags().StringVar(&pipelineArgs.GitCloneGitImage, flags.GitCloneImage, "alpine/git:latest", "Container image with git used by git clone init containers")
-	cmd.Flags().BoolVar(&pipelineArgs.ApplyConfigOptions.DeployExternalDNS, defaults.RadixPipelineApplyConfigDeployExternalDNSFlag, false, "Deploy changes to External DNS configuration with the 'apply-config' pipeline")
-	cmd.Flags().StringVar(&pipelineArgs.GitWorkspace, defaults.RadixGithubWorkspaceEnvironmentVariable, git.Workspace, fmt.Sprintf("(Optional) Workspace path to the cloned GitHub repository. Default %s", git.Workspace))
-	cmd.Flags().BoolVar(&pipelineArgs.TriggeredFromWebhook, defaults.RadixPipelineJobTriggeredFromWebhookEnvironmentVariable, false, "Indicates if the pipeline was triggered from a webhook")
+	cmd.Flags().StringVar(&debug, flags.Debug, "false", "Debug information")
 
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
 		return fmt.Errorf("failed to parse command arguments: %w", err)
 	}
+
 	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)
 	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(radixv1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push
 	pipelineArgs.OverrideUseBuildCache = overrideUseBuildCache.Get()
 	pipelineArgs.RefreshBuildCache = refreshBuildCache.Get()
 	pipelineArgs.Debug, _ = strconv.ParseBool(debug)
-	if len(pipelineArgs.ImageTagNames) > 0 {
-		log.Info().Msg("Image tag names provided:")
-		for componentName, imageTagName := range pipelineArgs.ImageTagNames {
-			log.Info().Msgf("- %s:%s", componentName, imageTagName)
-		}
-	}
+
 	return nil
 }

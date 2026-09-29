@@ -31,6 +31,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	httputils "github.com/equinor/radix-operator/pkg/apis/utils/http"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -112,7 +113,10 @@ func loadConfig(ctx context.Context) config.Config {
 	}
 
 	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
-	return config.MustParse(cfgYaml)
+	var cfg config.Config
+	configcodec.MustDecode(cfgYaml, &cfg)
+	return cfg
+
 }
 
 func initializeApp(ctx context.Context, cfg config.Config) (*App, error) {
@@ -343,6 +347,7 @@ func (a *App) createJobController(ctx context.Context) *common.Controller {
 		a.kubeUtil.KubeClient(),
 		a.kubeUtil,
 		a.kubeUtil.RadixClient(),
+		a.dynamicClient,
 		a.eventRecorder,
 		a.cfg)
 

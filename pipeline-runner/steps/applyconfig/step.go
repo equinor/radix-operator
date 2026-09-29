@@ -152,12 +152,12 @@ func (step *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.C
 }
 
 func (step *ApplyConfigStepImplementation) setPromoteDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	if pipelineInfo.PipelineArguments.FromEnvironment == "" || pipelineInfo.PipelineArguments.DeploymentName == "" {
+	if pipelineInfo.PipelineArguments.PromoteFromEnvironment == "" || pipelineInfo.PipelineArguments.PromoteDeploymentName == "" {
 		return nil
 	}
 
-	fromNs := operatorutils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
-	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(fromNs).Get(ctx, pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
+	fromNs := operatorutils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.PromoteFromEnvironment)
+	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(fromNs).Get(ctx, pipelineInfo.PipelineArguments.PromoteDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		if kubeerrors.IsNotFound(err) {
 			return nil
@@ -353,11 +353,11 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			imageName := fmt.Sprintf("%s-%s", envNameForName, componentName)
 			containerName := fmt.Sprintf("build-%s-%s", componentName, envNameForName)
 			appName := pipelineInfo.RadixApplication.GetName()
-			containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
+			containerRegistry := pipelineInfo.Cfg.PipelineRunner.ContainerRegistry
 			imageTag := pipelineInfo.PipelineArguments.ImageTag
 			imagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, imageTag)
-			clusterTypeImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.PipelineArguments.Clustertype, imageTag))
-			clusterNameImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.PipelineArguments.Clustername, imageTag))
+			clusterTypeImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.Cfg.Common.ClusterType, imageTag))
+			clusterNameImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.Cfg.Common.ClusterName, imageTag))
 			buildComponentImages = append(buildComponentImages, pipeline.BuildComponentImage{
 				ComponentName:        componentName,
 				EnvName:              envName,
@@ -388,6 +388,13 @@ func getLengthLimitedName(name string) string {
 
 // Set information about components and image to use for each environment when creating RadixDeployments
 func setPipelineDeployEnvironmentComponentImages(pipelineInfo *model.PipelineInfo, environmentImageSourceMap environmentComponentImageSourceMap) {
+	if len(pipelineInfo.PipelineArguments.ImageTagNames) > 0 {
+		log.Info().Msg("Image tag names provided:")
+		for componentName, imageTagName := range pipelineInfo.PipelineArguments.ImageTagNames {
+			log.Info().Msgf("- %s:%s", componentName, imageTagName)
+		}
+	}
+
 	pipelineInfo.DeployEnvironmentComponentImages = make(pipeline.DeployEnvironmentComponentImages)
 	for envName, imageSources := range environmentImageSourceMap {
 		pipelineInfo.DeployEnvironmentComponentImages[envName] = slice.Reduce(imageSources, make(pipeline.DeployComponentImages), func(acc pipeline.DeployComponentImages, cis componentImageSource) pipeline.DeployComponentImages {
