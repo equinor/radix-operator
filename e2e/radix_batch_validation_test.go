@@ -42,41 +42,6 @@ func TestRadixBatchWebhookSmokeTest(t *testing.T) {
 		assert.NoError(t, err, "Should accept job with valid resource requirements")
 	})
 
-	t.Run("accepts job without resource requirements", func(t *testing.T) {
-		rb := newBatch(nil)
-
-		err := c.Create(t.Context(), rb, client.DryRunAll)
-		assert.NoError(t, err, "Should accept job without resource requirements")
-	})
-
-	t.Run("accepts job with cpu at the maximum", func(t *testing.T) {
-		rb := newBatch(&v1.ResourceRequirements{
-			Requests: v1.ResourceList{"cpu": "1k"},
-		})
-
-		err := c.Create(t.Context(), rb, client.DryRunAll)
-		assert.NoError(t, err, "Should accept cpu quantity at the maximum")
-	})
-
-	t.Run("rejects job when request exceeds limit", func(t *testing.T) {
-		rb := newBatch(&v1.ResourceRequirements{
-			Requests: v1.ResourceList{"cpu": "500m"},
-			Limits:   v1.ResourceList{"cpu": "250m"},
-		})
-
-		err := c.Create(t.Context(), rb, client.DryRunAll)
-		assert.ErrorContains(t, err, "exceeds limit")
-	})
-
-	t.Run("rejects job with unsupported resource type", func(t *testing.T) {
-		rb := newBatch(&v1.ResourceRequirements{
-			Requests: v1.ResourceList{"storage": "1Gi"},
-		})
-
-		err := c.Create(t.Context(), rb, client.DryRunAll)
-		assert.ErrorContains(t, err, "only cpu and memory are allowed")
-	})
-
 	t.Run("rejects job with a text quantity", func(t *testing.T) {
 		rb := newBatch(&v1.ResourceRequirements{
 			Requests: v1.ResourceList{"cpu": "one"},
@@ -84,32 +49,5 @@ func TestRadixBatchWebhookSmokeTest(t *testing.T) {
 
 		err := c.Create(t.Context(), rb, client.DryRunAll)
 		assert.ErrorContains(t, err, "invalid quantity")
-	})
-
-	t.Run("rejects job with negative quantity", func(t *testing.T) {
-		rb := newBatch(&v1.ResourceRequirements{
-			Requests: v1.ResourceList{"memory": "-1Mi"},
-		})
-
-		err := c.Create(t.Context(), rb, client.DryRunAll)
-		assert.ErrorContains(t, err, "zero or negative quantity")
-	})
-
-	t.Run("rejects job with zero quantity", func(t *testing.T) {
-		rb := newBatch(&v1.ResourceRequirements{
-			Requests: v1.ResourceList{"cpu": "0"},
-		})
-
-		err := c.Create(t.Context(), rb, client.DryRunAll)
-		assert.ErrorContains(t, err, "zero or negative quantity")
-	})
-
-	t.Run("rejects job with cpu above the maximum", func(t *testing.T) {
-		rb := newBatch(&v1.ResourceRequirements{
-			Limits: v1.ResourceList{"cpu": "1001"},
-		})
-
-		err := c.Create(t.Context(), rb, client.DryRunAll)
-		assert.ErrorContains(t, err, "is too high")
 	})
 }

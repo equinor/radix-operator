@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	ErrCPUResourceRequirementTooHigh = errors.New("cpu resource requirement cannot exceed 1k")
-	ErrInvalidResourceFormat         = errors.New("invalid resource format")
-	ErrInvalidResourceType           = errors.New("invalid resource type")
-	ErrZeroOrNegativeResourceQuantity   = errors.New("resource quantity must be greater than zero")
-	ErrRequestedResourceExceedsLimit = errors.New("requested resource exceeds limit")
+	ErrCPUResourceRequirementTooHigh  = errors.New("cpu resource requirement cannot exceed 1k")
+	ErrInvalidResourceFormat          = errors.New("invalid resource format")
+	ErrInvalidResourceType            = errors.New("invalid resource type")
+	ErrZeroOrNegativeResourceQuantity = errors.New("resource quantity must be greater than zero")
+	ErrRequestedResourceExceedsLimit  = errors.New("requested resource exceeds limit")
 )
 
 var (
