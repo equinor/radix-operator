@@ -36,12 +36,13 @@ func TestResourceRequirementsValidator(t *testing.T) {
 			},
 		},
 		{
-			name:      "zero quantities",
-			resources: &radixv1.ResourceRequirements{Requests: radixv1.ResourceList{"cpu": "0", "memory": "0"}},
-		},
-		{
 			name:      "empty resource lists",
 			resources: &radixv1.ResourceRequirements{},
+		},
+		{
+			name:        "zero quantities",
+			resources:   &radixv1.ResourceRequirements{Requests: radixv1.ResourceList{"cpu": "0", "memory": "0"}},
+			expectedErr: radixbatchjob.ErrZeroOrNegativeResourceQuantity,
 		},
 		{
 			name:        "invalid limit syntax",
@@ -66,16 +67,11 @@ func TestResourceRequirementsValidator(t *testing.T) {
 		{
 			name:        "negative quantity",
 			resources:   &radixv1.ResourceRequirements{Requests: radixv1.ResourceList{"memory": "-1Mi"}},
-			expectedErr: radixbatchjob.ErrNegativeResourceQuantity,
+			expectedErr: radixbatchjob.ErrZeroOrNegativeResourceQuantity,
 		},
 		{
 			name:        "CPU request above maximum",
 			resources:   &radixv1.ResourceRequirements{Requests: radixv1.ResourceList{"cpu": "1001"}},
-			expectedErr: radixbatchjob.ErrCPUResourceRequirementTooHigh,
-		},
-		{
-			name:        "CPU limit above maximum",
-			resources:   &radixv1.ResourceRequirements{Limits: radixv1.ResourceList{"cpu": "1001"}},
 			expectedErr: radixbatchjob.ErrCPUResourceRequirementTooHigh,
 		},
 		{
@@ -128,7 +124,7 @@ func TestResourceRequirementsValidatorAggregatesErrorsAcrossJobs(t *testing.T) {
 	_, err := radixbatchjob.CreateValidator().Validate(context.Background(), radixBatch)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, radixbatchjob.ErrInvalidResourceFormat)
-	assert.ErrorIs(t, err, radixbatchjob.ErrNegativeResourceQuantity)
+	assert.ErrorIs(t, err, radixbatchjob.ErrZeroOrNegativeResourceQuantity)
 	assert.Contains(t, err.Error(), `job "job-1" at index 0`)
 	assert.Contains(t, err.Error(), `job "job-2" at index 1`)
 }

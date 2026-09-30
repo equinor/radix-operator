@@ -14,7 +14,7 @@ var (
 	ErrCPUResourceRequirementTooHigh = errors.New("cpu resource requirement cannot exceed 1k")
 	ErrInvalidResourceFormat         = errors.New("invalid resource format")
 	ErrInvalidResourceType           = errors.New("invalid resource type")
-	ErrNegativeResourceQuantity      = errors.New("resource quantity cannot be negative")
+	ErrZeroOrNegativeResourceQuantity   = errors.New("resource quantity must be greater than zero")
 	ErrRequestedResourceExceedsLimit = errors.New("requested resource exceeds limit")
 )
 
@@ -68,8 +68,8 @@ func validateResourceList(resources radixv1.ResourceList, field string, jobIndex
 		}
 		quantities[resourceName] = quantity
 
-		if quantity.Sign() < 0 {
-			errs = append(errs, fmt.Errorf("job %q at index %d resources.%s.%s has negative quantity %q: %w", jobName, jobIndex, field, resourceName, value, ErrNegativeResourceQuantity))
+		if quantity.Sign() <= 0 {
+			errs = append(errs, fmt.Errorf("job %q at index %d resources.%s.%s has zero or negative quantity %q: %w", jobName, jobIndex, field, resourceName, value, ErrZeroOrNegativeResourceQuantity))
 		}
 		if resourceName == "cpu" && quantity.Cmp(maximumCPUQuantity) > 0 {
 			errs = append(errs, fmt.Errorf("job %q at index %d resources.%s.cpu quantity %q is too high: %w", jobName, jobIndex, field, value, ErrCPUResourceRequirementTooHigh))
