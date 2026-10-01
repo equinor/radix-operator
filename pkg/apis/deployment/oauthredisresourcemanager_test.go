@@ -129,6 +129,53 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 	}
 }
 
+func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_PodTemplateFromConfigIsMerged() {
+	appName := "anyapp"
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+		WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234", SessionStoreType: v1.SessionStoreSystemManaged}})).
+		BuildRD()
+
+	nodeSelector := map[string]string{"kubernetes.io/os": "linux", "nodepool": "anypool"}
+	tolerations := []corev1.Toleration{{Key: "anykey", Operator: corev1.TolerationOpEqual, Value: "anyvalue", Effect: corev1.TaintEffectNoSchedule}}
+	preferredNodeAffinity := []corev1.PreferredSchedulingTerm{{
+		Weight: 1,
+		Preference: corev1.NodeSelectorTerm{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{Key: "anylabel", Operator: corev1.NodeSelectorOpIn, Values: []string{"anyvalue"}},
+			},
+		},
+	}}
+
+	cfg := s.cfg
+	cfg.Runtime.Oauth2SessionStoreTemplate = corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			NodeSelector: nodeSelector,
+			Tolerations:  tolerations,
+			Affinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: preferredNodeAffinity},
+			},
+		},
+	}
+
+	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), cfg}
+	s.Require().NoError(sut.Sync(context.Background()))
+
+	deploys, err := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+	s.Require().NoError(err)
+	s.Require().Len(deploys.Items, 1)
+
+	podSpec := deploys.Items[0].Spec.Template.Spec
+	s.Equal(nodeSelector, podSpec.NodeSelector)
+	s.Equal(tolerations, podSpec.Tolerations)
+	s.Require().NotNil(podSpec.Affinity)
+	s.Require().NotNil(podSpec.Affinity.NodeAffinity)
+	s.Equal(preferredNodeAffinity, podSpec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
+	// The aux component affinity must survive the merge with the config template.
+	s.Equal(utils.GetAffinityForOAuthAuxComponent().NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution, podSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+}
+
 func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 	appName := "anyapp"
 	type scenarioDef struct{ rd *v1.RadixDeployment }

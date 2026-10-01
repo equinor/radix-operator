@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	"github.com/equinor/radix-operator/pkg/apis/utils/kubemerge"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
@@ -225,12 +226,15 @@ func (o *oauthRedisResourceManager) getCurrentAndDesiredDeployment(ctx context.C
 	if err != nil && !kubeerrors.IsNotFound(err) {
 		return nil, nil, err
 	}
-	desiredDeployment := o.getDesiredDeployment(component)
+	desiredDeployment, err := o.getDesiredDeployment(component)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	return currentDeployment, desiredDeployment, nil
 }
 
-func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) *appsv1.Deployment {
+func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
 	componentName := component.GetName()
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
 	readinessProbe := getReadinessProbeWithDefaultsFromEnv(o.cfg, v1.OAuthRedisPortNumber)
@@ -249,6 +253,62 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 	const (
 		volumeNameRedisData = "redis-data"
 	)
+
+	podTemplate, err := kubemerge.MergePodTemplate(o.cfg.Runtime.Oauth2SessionStoreTemplate, corev1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: radixlabels.Merge(
+				radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
+			),
+		},
+		Spec: corev1.PodSpec{
+			ImagePullSecrets: imagePullSecrets,
+			Containers: []corev1.Container{
+				{
+					Name:            componentName,
+					Image:           o.oauthRedisDockerImage,
+					ImagePullPolicy: corev1.PullAlways,
+					Env:             o.getEnvVars(component),
+					Args: []string{
+						"redis-server",
+						"--save", "3600 1 300 100 60 10000",
+						"--dir", "/data",
+						"--appendonly", "yes",
+						"--protected-mode", "yes",
+						"--requirepass", "$(REDIS_PASSWORD)",
+					},
+					Ports: []corev1.ContainerPort{
+						{
+							Name:          v1.OAuthRedisPortName,
+							ContainerPort: v1.OAuthRedisPortNumber,
+						},
+					},
+					ReadinessProbe: readinessProbe,
+					SecurityContext: securitycontext.Container(
+						securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
+						securitycontext.WithReadOnlyRootFileSystem(new(true)),
+						securitycontext.WithContainerRunAsUser(1001),
+					),
+					Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      volumeNameRedisData,
+							MountPath: "/data",
+						},
+					},
+				},
+			},
+			SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
+			Affinity:        utils.GetAffinityForOAuthAuxComponent(),
+			Volumes: []corev1.Volume{
+				o.getEmptyDirVolume(volumeNameRedisData),
+			},
+			AutomountServiceAccountToken: new(false),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge pod spec: %w", err)
+	}
+
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            deploymentName,
@@ -260,61 +320,11 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 			Selector: &metav1.LabelSelector{
 				MatchLabels: radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
 			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: radixlabels.Merge(
-						radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
-					),
-				},
-				Spec: corev1.PodSpec{
-					ImagePullSecrets: imagePullSecrets,
-					Containers: []corev1.Container{
-						{
-							Name:            componentName,
-							Image:           o.oauthRedisDockerImage,
-							ImagePullPolicy: corev1.PullAlways,
-							Env:             o.getEnvVars(component),
-							Args: []string{
-								"redis-server",
-								"--save", "3600 1 300 100 60 10000",
-								"--dir", "/data",
-								"--appendonly", "yes",
-								"--protected-mode", "yes",
-								"--requirepass", "$(REDIS_PASSWORD)",
-							},
-							Ports: []corev1.ContainerPort{
-								{
-									Name:          v1.OAuthRedisPortName,
-									ContainerPort: v1.OAuthRedisPortNumber,
-								},
-							},
-							ReadinessProbe: readinessProbe,
-							SecurityContext: securitycontext.Container(
-								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-								securitycontext.WithReadOnlyRootFileSystem(new(true)),
-								securitycontext.WithContainerRunAsUser(1001),
-							),
-							Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      volumeNameRedisData,
-									MountPath: "/data",
-								},
-							},
-						},
-					},
-					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
-					Affinity:        utils.GetAffinityForOAuthAuxComponent(),
-					Volumes: []corev1.Volume{
-						o.getEmptyDirVolume(volumeNameRedisData),
-					},
-					AutomountServiceAccountToken: new(false),
-				},
-			},
+			Template: podTemplate,
 		},
 	}
 	oauthutil.MergeAuxOAuthRedisComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component) //nolint:staticcheck
-	return desiredDeployment
+	return desiredDeployment, nil
 }
 
 func (o *oauthRedisResourceManager) getEmptyDirVolume(name string) corev1.Volume {
