@@ -15,6 +15,5 @@ type CommonConfig struct {
 
 type OAuth2ProxyConfig struct {
 	ProxyImage    ContainerImage `json:"proxyImage" required:"true"`
-	RedisImage    ContainerImage `json:"redisImage" required:"true"`
 	ProxyDefaults radixv1.OAuth2 `json:"proxyDefaults"`
 }

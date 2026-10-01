@@ -20,6 +20,7 @@ import (
 	"go.uber.org/mock/gomock"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -49,10 +50,85 @@ func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
 	s.cfg = config.Config{
 		Common: config.CommonConfig{
 			AppAliasBaseURL: "app.dev.radix.equinor.com",
-			OAuth2Proxy: config.OAuth2ProxyConfig{
-				RedisImage: config.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
+			OAuth2Proxy:     config.OAuth2ProxyConfig{
+				//RedisImage: config.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
 			},
 			ExternalRegistryAuthSecret: "someSecret",
+		},
+		Runtime: config.RuntimeConfig{
+			Oauth2SessionStoreTemplate: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					SecurityContext: &corev1.PodSecurityContext{
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: corev1.SeccompProfileTypeRuntimeDefault,
+						},
+						RunAsNonRoot: new(true),
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "redis-data", EmptyDir: &corev1.EmptyDirVolumeSource{},
+						},
+					},
+					AutomountServiceAccountToken: new(false),
+					Containers: []corev1.Container{
+						{
+							Name:            "session-store",
+							Image:           "someredisimage:latest",
+							ImagePullPolicy: corev1.PullAlways,
+							Args: []string{
+								"redis-server",
+								"--save",
+								"3600 1 300 100 60 10000",
+								"--dir",
+								"/data",
+								"--appendonly",
+								"yes",
+								"--protected-mode",
+								"yes",
+								"--requirepass",
+								"$(REDIS_PASSWORD)",
+							},
+							Ports: []corev1.ContainerPort{
+								{
+									ContainerPort: 6379,
+								},
+							},
+							ReadinessProbe: &corev1.Probe{
+								TCPSocket: &corev1.TCPSocketAction{
+									Port: intstr.FromInt(6379),
+								},
+								InitialDelaySeconds: 10,
+								PeriodSeconds:       10,
+								TimeoutSeconds:      5,
+								SuccessThreshold:    1,
+								FailureThreshold:    3,
+							},
+							SecurityContext: &corev1.SecurityContext{
+								SeccompProfile: &corev1.SeccompProfile{
+									Type: corev1.SeccompProfileTypeRuntimeDefault,
+								},
+								RunAsUser:              new(int64(1001)),
+								ReadOnlyRootFilesystem: new(true),
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("100Mi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("10m"),
+									corev1.ResourceMemory: resource.MustParse("100Mi"),
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "redis-data",
+									MountPath: "/data",
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }

@@ -15,9 +15,6 @@ config:
       proxyImage:
         repository: quay.io/oauth2-proxy/oauth2-proxy
         tag: latest
-      redisImage:
-        repository: docker.io/redis
-        tag: latest
       proxyDefaults:
         scope: "openid profile email"
         proxyPrefix: "/oauth2"
@@ -162,6 +159,66 @@ config:
 
   runtime:
     defaultArchitecture: amd64
+    jobSchedulerTemplate: {}
+    jobSchedulerAuxTemplate: {}
+    pipelineRunnerTemplate: {}
+    oauth2ProxyTemplate: {}
+    oauth2SessionStoreTemplate: 
+      # Spec requirements: 
+      # 1. The container name must be "session-store"
+      # 2. This container must listen to redis on port 6379 
+      spec:
+        securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+          runAsNonRoot: true
+        volumes:
+          - name: "redis-data"
+            emptyDir: {}
+        automountServiceAccountToken: false
+        containers: 
+          - name: "session-store"
+            image: "docker.io/redis:latest"
+            imagePullPolicy: "Always"
+            args: 
+              - "redis-server"
+              - "--save"
+              - "3600 1 300 100 60 10000"
+              - "--dir"
+              - "/data"
+              - "--appendonly"
+              - "yes"
+              - "--protected-mode"
+              - "yes"
+              - "--requirepass"
+              - "$(REDIS_PASSWORD)"
+            ports:
+              - containerPort: 6379
+            readinessProbe: 
+              tcpSocket:
+                port: 6379
+              initialDelaySeconds: 10
+              periodSeconds: 10
+              timeoutSeconds: 5
+              successThreshold: 1
+              failureThreshold: 3
+            securityContext:
+              seccompProfile:
+                type: RuntimeDefault
+              readOnlyRootFilesystem: true
+              runAsUser: 1001
+            resources: 
+              limits:
+                memory: 100Mi
+              requests:
+                cpu: 10m
+                memory: 100Mi
+            volumeMounts:
+              - name: "redis-data"
+                mountPath: "/data"
+        
+
+    
     specialNodeTypes: {}
       # gpu-nvidia-v1:
       #   description: "Nvidia GPU node"
