@@ -20,6 +20,7 @@ import (
 	"go.uber.org/mock/gomock"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -49,10 +50,85 @@ func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
 	s.cfg = config.Config{
 		Common: config.CommonConfig{
 			AppAliasBaseURL: "app.dev.radix.equinor.com",
-			OAuth2Proxy: config.OAuth2ProxyConfig{
-				RedisImage: config.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
+			OAuth2Proxy:     config.OAuth2ProxyConfig{
+				//RedisImage: config.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
 			},
 			ExternalRegistryAuthSecret: "someSecret",
+		},
+		Runtime: config.RuntimeConfig{
+			Oauth2SessionStoreTemplate: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					SecurityContext: &corev1.PodSecurityContext{
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: corev1.SeccompProfileTypeRuntimeDefault,
+						},
+						RunAsNonRoot: new(true),
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "redis-data", EmptyDir: &corev1.EmptyDirVolumeSource{},
+						},
+					},
+					AutomountServiceAccountToken: new(false),
+					Containers: []corev1.Container{
+						{
+							Name:            "session-store",
+							Image:           "someredisimage:latest",
+							ImagePullPolicy: corev1.PullAlways,
+							Args: []string{
+								"redis-server",
+								"--save",
+								"3600 1 300 100 60 10000",
+								"--dir",
+								"/data",
+								"--appendonly",
+								"yes",
+								"--protected-mode",
+								"yes",
+								"--requirepass",
+								"$(REDIS_PASSWORD)",
+							},
+							Ports: []corev1.ContainerPort{
+								{
+									ContainerPort: 6379,
+								},
+							},
+							ReadinessProbe: &corev1.Probe{
+								TCPSocket: &corev1.TCPSocketAction{
+									Port: intstr.FromInt(6379),
+								},
+								InitialDelaySeconds: 10,
+								PeriodSeconds:       10,
+								TimeoutSeconds:      5,
+								SuccessThreshold:    1,
+								FailureThreshold:    3,
+							},
+							SecurityContext: &corev1.SecurityContext{
+								SeccompProfile: &corev1.SeccompProfile{
+									Type: corev1.SeccompProfileTypeRuntimeDefault,
+								},
+								RunAsUser:              new(int64(1001)),
+								ReadOnlyRootFilesystem: new(true),
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("100Mi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("10m"),
+									corev1.ResourceMemory: resource.MustParse("100Mi"),
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "redis-data",
+									MountPath: "/data",
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -127,6 +203,53 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 			s.Equal(test.expectRestartEnvVar, envVarExist)
 		})
 	}
+}
+
+func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_PodTemplateFromConfigIsMerged() {
+	appName := "anyapp"
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+		WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").
+			WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234", SessionStoreType: v1.SessionStoreSystemManaged}})).
+		BuildRD()
+
+	nodeSelector := map[string]string{"kubernetes.io/os": "linux", "nodepool": "anypool"}
+	tolerations := []corev1.Toleration{{Key: "anykey", Operator: corev1.TolerationOpEqual, Value: "anyvalue", Effect: corev1.TaintEffectNoSchedule}}
+	preferredNodeAffinity := []corev1.PreferredSchedulingTerm{{
+		Weight: 1,
+		Preference: corev1.NodeSelectorTerm{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{Key: "anylabel", Operator: corev1.NodeSelectorOpIn, Values: []string{"anyvalue"}},
+			},
+		},
+	}}
+
+	cfg := s.cfg
+	cfg.Runtime.Oauth2SessionStoreTemplate = corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			NodeSelector: nodeSelector,
+			Tolerations:  tolerations,
+			Affinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: preferredNodeAffinity},
+			},
+		},
+	}
+
+	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), cfg}
+	s.Require().NoError(sut.Sync(context.Background()))
+
+	deploys, err := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+	s.Require().NoError(err)
+	s.Require().Len(deploys.Items, 1)
+
+	podSpec := deploys.Items[0].Spec.Template.Spec
+	s.Equal(nodeSelector, podSpec.NodeSelector)
+	s.Equal(tolerations, podSpec.Tolerations)
+	s.Require().NotNil(podSpec.Affinity)
+	s.Require().NotNil(podSpec.Affinity.NodeAffinity)
+	s.Equal(preferredNodeAffinity, podSpec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
+	// The aux component affinity must survive the merge with the config template.
+	s.Equal(utils.GetAffinityForOAuthAuxComponent().NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution, podSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
