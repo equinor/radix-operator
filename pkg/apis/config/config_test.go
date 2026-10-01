@@ -85,7 +85,7 @@ func TestParse_HappyPath(t *testing.T) {
 		},
 		Runtime: config.RuntimeConfig{
 			DefaultArchitecture: "amd64",
-			NodeTypes: map[string]config.NodeTypeConfig{
+			SpecialNodeTypes: map[string]config.NodeTypeConfig{
 				"gpu-nvidia-v1": {
 					Description:     "Nvidia GPU node",
 					Architecture:    "amd64",

@@ -27,7 +27,7 @@ common:
         skipDiscovery: false
 runtime:
   defaultArchitecture: amd64
-  nodeTypes:
+  specialNodeTypes:
     gpu-nvidia-v1:
       description: "Nvidia GPU node"
       architecture: amd64
