@@ -25,6 +25,57 @@ common:
       oidc:
         issuerUrl: "https://issuer.com"
         skipDiscovery: false
+runtime:
+  defaultArchitecture: amd64
+  specialNodeTypes:
+    gpu-nvidia-v1:
+      description: "Nvidia GPU node"
+      architecture: amd64
+      template:
+        spec:
+          nodeSelector:
+            kubernetes.io/os: linux
+            nodetype: gpu-nvidia-v1
+      builderTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/os: linux
+            nodetype: gpu-nvidia-v1
+  architectures:
+    amd64:
+      enabled: true
+      builderTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: amd64
+            kubernetes.io/os: linux
+      jobTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: amd64
+            kubernetes.io/os: linux
+      componentTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: amd64
+            kubernetes.io/os: linux
+    arm64:
+      enabled: false
+      builderTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: arm64
+            kubernetes.io/os: linux
+      jobTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: arm64
+            kubernetes.io/os: linux
+      componentTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: arm64
+            kubernetes.io/os: linux
 pipelineRunner:
   containerRegistry: "any.registry.com"
   cacheContainerRegistry: "app.registry.com"
