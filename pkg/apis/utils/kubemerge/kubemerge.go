@@ -3,6 +3,7 @@ package kubemerge
 import (
 	// k8s types rely on v1 omitempty semantics; json/v2 drops empty structs like `emptyDir: {}`.
 	"encoding/json"
+	"errors"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -20,7 +21,27 @@ import (
 //   - atomic lists such as command, args and tolerations are replaced by overlay
 //   - empty overlay values cannot clear base values
 //   - setting env value does not remove a base valueFrom; both end up set
-func MergePodTemplate(base corev1.PodTemplateSpec, overlay corev1.PodTemplateSpec) (corev1.PodTemplateSpec, error) {
+func MergePodTemplate(templates ...corev1.PodTemplateSpec) (corev1.PodTemplateSpec, error) {
+	if len(templates) == 0 {
+		return corev1.PodTemplateSpec{}, errors.New("no templates provided")
+	}
+
+	if len(templates) == 1 {
+		return templates[0], nil
+	}
+
+	base := templates[0]
+	for i := 1; i < len(templates); i++ {
+		var err error
+		base, err = mergeTwoPodTemplates(base, templates[i])
+		if err != nil {
+			return corev1.PodTemplateSpec{}, err
+		}
+	}
+	return base, nil
+}
+
+func mergeTwoPodTemplates(base, overlay corev1.PodTemplateSpec) (corev1.PodTemplateSpec, error) {
 	original, err := json.Marshal(base)
 	if err != nil {
 		return corev1.PodTemplateSpec{}, err

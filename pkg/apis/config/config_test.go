@@ -103,11 +103,14 @@ func TestParse_HappyPath(t *testing.T) {
 					ComponentTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
 				},
 			},
-			Oauth2SessionStoreTemplate: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Image: "docker.io/redis:v8.6.0",
+			Oauth2SessionStoreTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "session-store",
+								Image: "docker.io/redis:v8.6.0",
+							},
 						},
 					},
 				},

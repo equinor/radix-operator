@@ -90,16 +90,41 @@ func Test_MergePodTemplate_HappyPath(t *testing.T) {
 		},
 	}
 
-	got, err := kubemerge.MergePodTemplate(base, overlay)
+	overlay2 := corev1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:      map[string]string{"app": "overlay2"},
+			Annotations: map[string]string{"overlay2-annotation": "1"},
+		},
+		Spec: corev1.PodSpec{
+			NodeSelector:     map[string]string{"zone": "b"},
+			ImagePullSecrets: []corev1.LocalObjectReference{{Name: "overlay2-secret"}},
+			Containers: []corev1.Container{
+				{
+					Name:  "main",
+					Image: "main:3",
+					Env:   []corev1.EnvVar{{Name: "OVERRIDE", Value: "overlay2"}},
+					Resources: corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("256Mi")},
+					},
+				},
+				{
+					Name:  "sidecar",
+					Image: "sidecar:2",
+				},
+			},
+		},
+	}
+
+	got, err := kubemerge.MergePodTemplate(base, overlay, overlay2)
 	require.NoError(t, err)
 
-	assert.Equal(t, map[string]string{"app": "overlay", "keep": "yes", "extra": "yes"}, got.Labels)
-	assert.Equal(t, map[string]string{"base-annotation": "1"}, got.Annotations)
-	assert.Equal(t, "base-sa", got.Spec.ServiceAccountName, "fields not set in overlay must be kept")
-	assert.Equal(t, map[string]string{"pool": "base", "zone": "a"}, got.Spec.NodeSelector)
+	assert.Equal(t, map[string]string{"app": "overlay2", "keep": "yes", "extra": "yes"}, got.Labels)
+	assert.Equal(t, map[string]string{"base-annotation": "1", "overlay2-annotation": "1"}, got.Annotations)
+	assert.Equal(t, "base-sa", got.Spec.ServiceAccountName, "fields not set in overlays must be kept")
+	assert.Equal(t, map[string]string{"pool": "base", "zone": "b"}, got.Spec.NodeSelector)
 
 	assert.ElementsMatch(t, []corev1.LocalObjectReference{
-		{Name: "base-secret"}, {Name: "shared-secret"}, {Name: "overlay-secret"},
+		{Name: "base-secret"}, {Name: "shared-secret"}, {Name: "overlay-secret"}, {Name: "overlay2-secret"},
 	}, got.Spec.ImagePullSecrets, "imagePullSecrets are merged by name without duplicates")
 
 	require.Len(t, got.Spec.Volumes, 2)
@@ -115,14 +140,14 @@ func Test_MergePodTemplate_HappyPath(t *testing.T) {
 	for _, c := range got.Spec.Containers {
 		containers[c.Name] = c
 	}
-	assert.Equal(t, "sidecar:1", containers["sidecar"].Image, "base-only container is kept")
-	assert.Equal(t, "added:1", containers["added"].Image, "overlay-only container is added")
+	assert.Equal(t, "sidecar:2", containers["sidecar"].Image, "container skipped by overlay is still overridden by overlay2")
+	assert.Equal(t, "added:1", containers["added"].Image, "container added by overlay is kept when not in overlay2")
 
 	main := containers["main"]
-	assert.Equal(t, "main:2", main.Image)
+	assert.Equal(t, "main:3", main.Image, "last overlay wins")
 	assert.ElementsMatch(t, []corev1.EnvVar{
 		{Name: "KEEP", Value: "base"},
-		{Name: "OVERRIDE", Value: "overlay"},
+		{Name: "OVERRIDE", Value: "overlay2"},
 		{Name: "NEW", Value: "overlay"},
 	}, main.Env, "env is merged by name and overlay wins")
 	assert.ElementsMatch(t, []corev1.ContainerPort{
@@ -135,7 +160,7 @@ func Test_MergePodTemplate_HappyPath(t *testing.T) {
 		{Name: "config", MountPath: "/config"},
 	}, main.VolumeMounts)
 	assert.True(t, main.Resources.Requests.Cpu().Equal(resource.MustParse("100m")))
-	assert.True(t, main.Resources.Limits.Memory().Equal(resource.MustParse("128Mi")))
+	assert.True(t, main.Resources.Limits.Memory().Equal(resource.MustParse("256Mi")))
 }
 
 func Test_MergePodTemplate_EnvValueFromIsMergedWithValue(t *testing.T) {

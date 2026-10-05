@@ -14,7 +14,7 @@ spec:
     - name: web
       src: .
       runtime:
-        architecture: {{ARCH}}
+        architecture: { { ARCH } }
       ports:
         - name: http
           port: 8080

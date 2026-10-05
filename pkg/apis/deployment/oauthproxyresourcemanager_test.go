@@ -69,11 +69,13 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 			},
 		},
 		Runtime: config.RuntimeConfig{
-			Oauth2SessionStoreTemplate: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Image: "redis:123",
+			Oauth2SessionStoreTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Image: "redis:123",
+							},
 						},
 					},
 				},

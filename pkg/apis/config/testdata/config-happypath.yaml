@@ -8,9 +8,6 @@ common:
     proxyImage:
       tag: v7.6.2
       repository: quay.io/oauth2-proxy/oauth2-proxy
-    redisImage:
-      tag: v8.6.0
-      repository: docker.io/redis
     proxyDefaults:
       scope: "openid profile email"
       proxyPrefix: "/oauth2"
@@ -27,6 +24,12 @@ common:
         skipDiscovery: false
 runtime:
   defaultArchitecture: amd64
+  oauth2SessionStoreTemplate:
+    base:
+      spec:
+        containers:
+          - name: session-store
+            image: docker.io/redis:v8.6.0
   specialNodeTypes:
     gpu-nvidia-v1:
       description: "Nvidia GPU node"

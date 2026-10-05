@@ -26,6 +26,7 @@ import (
 
 const (
 	redisPasswordEnvironmentVariable = "REDIS_PASSWORD"
+	SessionStoreContainerName        = "session-store"
 )
 
 // NewOAuthRedisResourceManager creates a new RedisResourceManager
@@ -244,17 +245,15 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: o.cfg.Common.ExternalRegistryAuthSecret})
 	}
 
-	podTemplate, err := kubemerge.MergePodTemplate(o.cfg.Runtime.Oauth2SessionStoreTemplate, corev1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: radixlabels.Merge(
-				radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
-			),
-		},
+	podTemplate, err := kubemerge.MergePodTemplate(o.cfg.Runtime.Oauth2SessionStoreTemplate.Base, o.cfg.Runtime.Oauth2SessionStoreTemplate.Overlay, corev1.PodTemplateSpec{
+		Labels: radixlabels.Merge(
+			radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
+		),
 		Spec: corev1.PodSpec{
 			ImagePullSecrets: imagePullSecrets,
 			Containers: []corev1.Container{
 				{
-					Name: "session-store",
+					Name: SessionStoreContainerName,
 					Env:  o.getEnvVars(component),
 				},
 			},
@@ -265,11 +264,9 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 	}
 
 	desiredDeployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            deploymentName,
-			Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(o.rd),
-			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
-		},
+		Name:            deploymentName,
+		Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(o.rd),
+		OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: new(replicas),
 			Selector: &metav1.LabelSelector{
@@ -281,16 +278,6 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 	oauthutil.MergeAuxOAuthRedisComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component) //nolint:staticcheck
 	return desiredDeployment, nil
 }
-
-func (o *oauthRedisResourceManager) getEmptyDirVolume(name string) corev1.Volume {
-	return corev1.Volume{
-		Name: name,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
 func (o *oauthRedisResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
 	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {
@@ -305,8 +292,8 @@ func (o *oauthRedisResourceManager) createEnvVarWithSecretRef(envVarName, secret
 		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
-				Key:                  key,
+				Name: secretName,
+				Key:  key,
 			},
 		},
 	}
