@@ -57,10 +57,6 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 			DNSZone:         s.dnsZone,
 			AppAliasBaseURL: s.appAliasDnsZone,
 			OAuth2Proxy: config.OAuth2ProxyConfig{
-				RedisImage: config.ContainerImage{
-					Repository: "redis",
-					Tag:        "123",
-				},
 				ProxyImage: config.ContainerImage{
 					Repository: "oauth2-proxy",
 					Tag:        "456",
@@ -68,6 +64,17 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 				ProxyDefaults: radixv1.OAuth2{
 					OIDC: &radixv1.OAuth2OIDC{
 						IssuerURL: "https://oidc_issuer_url",
+					},
+				},
+			},
+		},
+		Runtime: config.RuntimeConfig{
+			Oauth2SessionStoreTemplate: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "redis:123",
+						},
 					},
 				},
 			},

@@ -60,10 +60,6 @@ func TestParse_HappyPath(t *testing.T) {
 					Repository: "quay.io/oauth2-proxy/oauth2-proxy",
 					Tag:        "v7.6.2",
 				},
-				RedisImage: config.ContainerImage{
-					Repository: "docker.io/redis",
-					Tag:        "v8.6.0",
-				},
 				ProxyDefaults: v1.OAuth2{
 					Scope:                  "openid profile email",
 					ProxyPrefix:            "/oauth2",
@@ -105,6 +101,15 @@ func TestParse_HappyPath(t *testing.T) {
 					BuilderTemplate:   podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
 					JobTemplate:       podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
 					ComponentTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
+				},
+			},
+			Oauth2SessionStoreTemplate: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "docker.io/redis:v8.6.0",
+						},
+					},
 				},
 			},
 		},
