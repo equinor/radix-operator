@@ -10,11 +10,16 @@ type RuntimeConfig struct {
 	DefaultArchitecture string                      `json:"defaultArchitecture" required:"true" validate:"self in config.runtime.architectures && config.runtime.architectures[self].enabled"`
 	SpecialNodeTypes    map[string]NodeTypeConfig   `json:"specialNodeTypes"`
 
-	JobSchedulerTemplate       corev1.PodTemplateSpec `json:"jobSchedulerTemplate"`
-	JobSchedulerAuxTemplate    corev1.PodTemplateSpec `json:"jobSchedulerAuxTemplate"`
-	PipelineRunnerTemplate     corev1.PodTemplateSpec `json:"pipelineRunnerTemplate"`
-	Oauth2ProxyTemplate        corev1.PodTemplateSpec `json:"oauth2ProxyTemplate"`
-	Oauth2SessionStoreTemplate corev1.PodTemplateSpec `json:"oauth2SessionStoreTemplate"`
+	JobSchedulerTemplate       corev1.PodTemplateSpec      `json:"jobSchedulerTemplate"`
+	JobSchedulerAuxTemplate    corev1.PodTemplateSpec      `json:"jobSchedulerAuxTemplate"`
+	PipelineRunnerTemplate     corev1.PodTemplateSpec      `json:"pipelineRunnerTemplate"`
+	Oauth2ProxyTemplate        corev1.PodTemplateSpec      `json:"oauth2ProxyTemplate"`
+	Oauth2SessionStoreTemplate RuntimeBaseOverlayPodConfig `json:"oauth2SessionStoreTemplate"`
+}
+
+type RuntimeBaseOverlayPodConfig struct {
+	Base    corev1.PodTemplateSpec `json:"base"`
+	Overlay corev1.PodTemplateSpec `json:"overlay"`
 }
 
 type NodeTypeConfig struct {

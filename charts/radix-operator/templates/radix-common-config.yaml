@@ -57,5 +57,10 @@ data:
         "port" (include "radix-api-server.port" . | int)
         "metricsPort" (include "radix-api-server.metricsPort" . | int)
       )
+      "runtime" (dict
+        "oauth2SessionStoreTemplate" (dict
+          "base" (.Values.config.runtime.oauth2SessionStoreTemplate.base | default (.Files.Get "files/oauth2-session-store-base.yaml" | fromYaml))
+        )
+      )
     -}}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}
