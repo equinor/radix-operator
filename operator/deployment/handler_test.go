@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
+	corev1 "k8s.io/api/core/v1"
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -51,16 +52,23 @@ func (s *handlerSuite) SetupTest() {
 	s.config = config.Config{
 		Common: config.CommonConfig{
 			OAuth2Proxy: config.OAuth2ProxyConfig{
-				RedisImage: config.ContainerImage{
-					Repository: "redis",
-					Tag:        "123",
-				},
 				ProxyImage: config.ContainerImage{
 					Repository: "oauth2-proxy",
 					Tag:        "456",
 				},
 			},
 			ExternalRegistryAuthSecret: "anySecret",
+		},
+		Runtime: config.RuntimeConfig{
+			Oauth2SessionStoreTemplate: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "redis:123",
+						},
+					},
+				},
+			},
 		},
 	}
 	s.eventRecorder = &record.FakeRecorder{}
