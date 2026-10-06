@@ -621,6 +621,55 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	s.Equal("redis://server-aux-oauth-redis:6379", redisConnectUrlEnvVar.Value, "Invalid env var OAUTH2_PROXY_REDIS_CONNECTION_URL")
 }
 
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_PodTemplateFromConfigIsMerged() {
+	appName, envName, componentName := "anyapp", "qa", "server"
+	cfg := s.cfg
+	cfg.Common.ExternalRegistryAuthSecret = "someSecret"
+	cfg.Runtime.Oauth2ProxyTemplate = config.RuntimeBaseOverlayPodConfig{
+		Base: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{
+					Name:            "proxy",
+					Image:           "someproxyimage:latest",
+					ImagePullPolicy: corev1.PullAlways,
+				}},
+			},
+		},
+		Overlay: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{
+					Name:  "proxy",
+					Image: "someproxyimage:v1.2.3",
+				}},
+			},
+		},
+	}
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithPort("http", 8080).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "1234"}})).
+		BuildRD()
+
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, cfg)
+	s.Require().NoError(sut.Sync(context.Background()))
+
+	deploys, err := s.kubeClient.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(deploys.Items, 1)
+
+	podSpec := deploys.Items[0].Spec.Template.Spec
+	s.Equal([]corev1.LocalObjectReference{{Name: "someSecret"}}, podSpec.ImagePullSecrets)
+	s.Equal(new(false), podSpec.AutomountServiceAccountToken)
+	s.Require().Len(podSpec.Containers, 1)
+	container := podSpec.Containers[0]
+	s.Equal("proxy", container.Name)
+	s.Equal("someproxyimage:v1.2.3", container.Image)
+	s.Equal(corev1.PullAlways, container.ImagePullPolicy)
+	s.Equal("1234", s.getEnvVarValueByName("OAUTH2_PROXY_CLIENT_ID", container.Env))
+}
+
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentFailed_Upstream_PublicPort_NotFound() {
 	appName, envName, componentName := "anyapp", "qa", "server"
 
