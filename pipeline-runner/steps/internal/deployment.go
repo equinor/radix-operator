@@ -36,7 +36,7 @@ func ConstructForTargetEnvironment(ctx context.Context, pipelineInfo *model.Pipe
 	}
 	componentImages := pipelineInfo.DeployEnvironmentComponentImages[targetEnv.Environment]
 
-	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, pipelineInfo.RadixApplication, targetEnv.ActiveRadixDeployment, targetEnv.Environment, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
+	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, pipelineInfo.RadixApplication, targetEnv.ActiveRadixDeployment, targetEnv.Environment, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents, pipelineInfo.Cfg.Common.CertificateAutomation.DefaultIssuer)
 	if err != nil {
 		return nil, err
 	}
