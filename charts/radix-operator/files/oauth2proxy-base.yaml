@@ -3,13 +3,10 @@ spec:
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
-  volumes:
-    - name: "redis-data"
-      emptyDir: {}
   automountServiceAccountToken: false
   containers:
-    - name: "session-store"
-      image: "docker.io/redis:latest"
+    - name: "proxy"
+      image: "quay.io/oauth2-proxy/oauth2-proxy:latest"
       imagePullPolicy: "Always"
       ports:
         - containerPort: 4180

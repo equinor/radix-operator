@@ -578,8 +578,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 					Env:  envVars,
 				},
 			},
-			ServiceAccountName:           oauth2.GetServiceAccountName(componentName),
-			AutomountServiceAccountToken: new(false),
+			ServiceAccountName: oauth2.GetServiceAccountName(componentName),
 		},
 	})
 	if err != nil {
