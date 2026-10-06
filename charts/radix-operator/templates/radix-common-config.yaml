@@ -58,6 +58,9 @@ data:
         "metricsPort" (include "radix-api-server.metricsPort" . | int)
       )
       "runtime" (dict
+        "oauth2ProxyTemplate" (dict
+          "base" (.Values.config.runtime.oauth2ProxyTemplate.base | default (.Files.Get "files/oauth2proxy-base.yaml" | fromYaml))
+        )
         "oauth2SessionStoreTemplate" (dict
           "base" (.Values.config.runtime.oauth2SessionStoreTemplate.base | default (.Files.Get "files/oauth2-session-store-base.yaml" | fromYaml))
         )

@@ -1,0 +1,34 @@
+spec:
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  volumes:
+    - name: "redis-data"
+      emptyDir: {}
+  automountServiceAccountToken: false
+  containers:
+    - name: "session-store"
+      image: "docker.io/redis:latest"
+      imagePullPolicy: "Always"
+      ports:
+        - containerPort: 4180
+      readinessProbe:
+        failureThreshold: 3
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        successThreshold: 1
+        tcpSocket:
+          port: 4180
+        timeoutSeconds: 1
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        readOnlyRootFilesystem: true
+        runAsUser: 1001
+      resources:
+        limits:
+          memory: 100M
+        requests:
+          cpu: 10m
+          memory: 100M

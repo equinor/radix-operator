@@ -12,9 +12,6 @@ config:
     appAliasBaseURL: ""
     externalRegistryAuthSecret: ""
     oauth2Proxy:
-      proxyImage:
-        repository: quay.io/oauth2-proxy/oauth2-proxy
-        tag: latest
       proxyDefaults:
         scope: "openid profile email"
         proxyPrefix: "/oauth2"
@@ -162,15 +159,23 @@ config:
     jobSchedulerTemplate: {}
     jobSchedulerAuxTemplate: {}
     pipelineRunnerTemplate: {}
-    oauth2ProxyTemplate: {}
+    oauth2ProxyTemplate:
+      # Must expose port 4180!
+      base: null # Defaults to content in file ./files/oauth2proxy-base.yaml
+      overlay:
+        spec:
+          containers:
+            - name: session-store
+              image: "quay.io/oauth2-proxy/oauth2-proxy:latest"
     oauth2SessionStoreTemplate:
+      # Must expose port 6379!
       base: null # Defaults to content in file ./files/oauth2-session-store-base.yaml
       overlay:
         spec:
           containers:
             - name: session-store
               image: "docker.io/redis:latest"
-    
+
     specialNodeTypes: {}
       # gpu-nvidia-v1:
       #   description: "Nvidia GPU node"

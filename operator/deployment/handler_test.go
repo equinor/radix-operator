@@ -51,20 +51,27 @@ func (s *handlerSuite) SetupTest() {
 	s.certClient = certfake.NewSimpleClientset()
 	s.config = config.Config{
 		Common: config.CommonConfig{
-			OAuth2Proxy: config.OAuth2ProxyConfig{
-				ProxyImage: config.ContainerImage{
-					Repository: "oauth2-proxy",
-					Tag:        "456",
-				},
-			},
 			ExternalRegistryAuthSecret: "anySecret",
 		},
 		Runtime: config.RuntimeConfig{
+			Oauth2ProxyTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "proxy",
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:v7.15.4",
+							},
+						},
+					},
+				},
+			},
 			Oauth2SessionStoreTemplate: config.RuntimeBaseOverlayPodConfig{
 				Base: corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
+								Name:  "session-store",
 								Image: "redis:123",
 							},
 						},

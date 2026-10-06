@@ -57,10 +57,6 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 			DNSZone:         s.dnsZone,
 			AppAliasBaseURL: s.appAliasDnsZone,
 			OAuth2Proxy: config.OAuth2ProxyConfig{
-				ProxyImage: config.ContainerImage{
-					Repository: "oauth2-proxy",
-					Tag:        "456",
-				},
 				ProxyDefaults: radixv1.OAuth2{
 					OIDC: &radixv1.OAuth2OIDC{
 						IssuerURL: "https://oidc_issuer_url",
@@ -69,6 +65,23 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 			},
 		},
 		Runtime: config.RuntimeConfig{
+			Oauth2ProxyTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "proxy",
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:v7.6.2",
+								Ports: []corev1.ContainerPort{
+									{
+										ContainerPort: 4180,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 			Oauth2SessionStoreTemplate: config.RuntimeBaseOverlayPodConfig{
 				Base: corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -543,21 +556,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	s.Equal(expectedPodLabels, actualDeploy.Spec.Template.Labels)
 
 	defaultContainer := actualDeploy.Spec.Template.Spec.Containers[0]
-	s.Equal(s.cfg.Common.OAuth2Proxy.ProxyImage.String(), defaultContainer.Image)
+	s.Equal("quay.io/oauth2-proxy/oauth2-proxy:v7.6.2", defaultContainer.Image)
 
-	s.Len(defaultContainer.Ports, 1)
+	s.Require().Len(defaultContainer.Ports, 1)
 	s.Equal(defaults.OAuthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
-	s.Equal(defaults.OAuthProxyPortName, defaultContainer.Ports[0].Name)
-	s.NotNil(defaultContainer.ReadinessProbe)
-	s.Equal(defaults.OAuthProxyPortNumber, defaultContainer.ReadinessProbe.TCPSocket.Port.IntVal)
-
-	expectedAffinity := &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
-			{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-			{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
-		}}}}},
-	}
-	s.Equal(expectedAffinity, actualDeploy.Spec.Template.Spec.Affinity, "oauth2 aux deployment must not use component's runtime config")
 
 	s.Len(defaultContainer.Env, 34)
 	s.Equal("oidc", s.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))
@@ -814,7 +816,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ServiceCreated
 	s.ElementsMatch([]metav1.OwnerReference{getOwnerReferenceOfDeployment(rd)}, actualServices.Items[0].OwnerReferences)
 	s.Equal(corev1.ServiceTypeClusterIP, actualServices.Items[0].Spec.Type)
 	s.Len(actualServices.Items[0].Spec.Ports, 1)
-	s.Equal(corev1.ServicePort{Port: defaults.OAuthProxyPortNumber, TargetPort: intstr.FromString(defaults.OAuthProxyPortName), Protocol: corev1.ProtocolTCP}, actualServices.Items[0].Spec.Ports[0])
+	s.Equal(corev1.ServicePort{Port: defaults.OAuthProxyPortNumber, TargetPort: intstr.FromInt32(defaults.OAuthProxyPortNumber), Protocol: corev1.ProtocolTCP}, actualServices.Items[0].Spec.Ports[0])
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_ComponentRemoved() {

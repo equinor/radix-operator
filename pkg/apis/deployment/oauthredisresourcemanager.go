@@ -260,7 +260,7 @@ func (o *oauthRedisResourceManager) getDesiredDeployment(component v1.RadixCommo
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to merge pod spec: %w", err)
+		return nil, fmt.Errorf("failed to merge pod spec for oauth2 session store: %w", err)
 	}
 
 	desiredDeployment := &appsv1.Deployment{

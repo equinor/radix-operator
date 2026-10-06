@@ -5,9 +5,6 @@ common:
   appAliasBaseURL: "app.dev.radix.equinor.com"
   externalRegistryAuthSecret: anyExternalAuth
   oauth2Proxy:
-    proxyImage:
-      tag: v7.6.2
-      repository: quay.io/oauth2-proxy/oauth2-proxy
     proxyDefaults:
       scope: "openid profile email"
       proxyPrefix: "/oauth2"
@@ -30,6 +27,12 @@ runtime:
         containers:
           - name: session-store
             image: docker.io/redis:v8.6.0
+  oauth2ProxyTemplate:
+    base:
+      spec:
+        containers:
+          - name: proxy
+            image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.4
   specialNodeTypes:
     gpu-nvidia-v1:
       description: "Nvidia GPU node"
