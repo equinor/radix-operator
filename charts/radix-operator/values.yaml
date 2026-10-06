@@ -161,7 +161,7 @@ config:
     pipelineRunnerTemplate: {}
     oauth2ProxyTemplate:
       # Must expose port 4180!
-      base: null # Defaults to content in file ./files/oauth2proxy-base.yaml
+      base: null # Defaults to content in file ./files/oauth2-proxy-base.yaml
       overlay:
         spec:
           containers:
