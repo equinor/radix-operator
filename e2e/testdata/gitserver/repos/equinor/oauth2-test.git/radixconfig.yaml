@@ -1,0 +1,21 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: oauth2-test
+spec:
+  environments:
+    - name: dev
+  components:
+    - name: web
+      image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
+      runtime:
+        architecture: "{{ARCH}}"
+      ports:
+        - name: http
+          port: 8080
+      publicPort: http
+      authentication:
+        oauth2:
+          clientId: 00000000-0000-0000-0000-000000000000
+          credentials: azureWorkloadIdentity
+          sessionStoreType: systemManaged

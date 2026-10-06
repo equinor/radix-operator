@@ -209,45 +209,20 @@ func TestMain(m *testing.M) {
 		log.Fatal().Err(err).Msg("failed to create manager")
 	}
 
-	// Install Prometheus Operator CRDs first
-	if err = internal.InstallPrometheusOperatorCRDs(testContext, testCluster.KubeConfigPath); err != nil {
-		log.Fatal().Err(err).Msg("failed to install Prometheus Operator CRDs")
+	if err = internal.InstallDependencyCRDs(testContext, testCluster.KubeConfigPath); err != nil {
+		log.Fatal().Err(err).Msg("failed to install dependency CRDs")
 	}
 
-	if err = internal.InstallGatewayApiCRDs(testContext, testCluster.KubeConfigPath); err != nil {
-		log.Fatal().Err(err).Msg("failed to install Gateway API CRDs")
-	}
-
-	// Install Helm chart with custom image tags
+	// Install Helm chart with static values from the values file and the generated image tags
 	helmValues := map[string]string{
-		"config.pipelineRunner.containerRegistry":                    "local-kind-repo",
-		"config.pipelineRunner.cacheContainerRegistry":               "local-kind-repo",
-		"config.operator.pipelineImage.repository":                   "local-kind-repo/pipeline-runner",
-		"config.operator.pipelineImage.tag":                          imageTag,
-		"config.operator.jobSchedulerImage.repository":               "local-kind-repo/job-scheduler",
-		"config.operator.jobSchedulerImage.tag":                      imageTag,
-		"config.operator.azureKeyVaultTenantID":                      "01234567-8901-2345-6789-012345678901",
-		"config.operator.gateway.name":                               "some-name",
-		"config.operator.gateway.namespace":                          "some-namespace",
-		"config.operator.certificateAutomation.gatewayClusterIssuer": "some-cluster-issuer",
-		"config.common.appAliasBaseURL":                              "app.example.com",
-		"config.common.clusterName":                                  "weekly-e2e",
-		"config.common.clusterType":                                  "test",
-		"config.common.dnsZone":                                      "radix.example.com",
-		"config.apiServer.logLevel":                                  "debug",
-		"config.apiServer.logPrettyPrint":                            "true",
-		"config.apiServer.prometheusUrl":                             "http://prometheus.svc",
-		"config.apiServer.authenticators.azure.issuer":               "https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/",
-		"config.apiServer.authenticators.azure.audience":             "6dae42f8-4368-4678-94ff-3960e28e3630",
-		"rbac.createApp.groups[0]":                                   "123",
-		"image.pullPolicy":                                           "IfNotPresent",
-		"config.operator.pipelineImagePullPolicy":                    "IfNotPresent",
+		"config.operator.pipelineImage.tag":     imageTag,
+		"config.operator.jobSchedulerImage.tag": imageTag,
 	}
 	for _, spec := range componentSpecs {
 		helmValues[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName
 		helmValues[fmt.Sprintf("%s.tag", spec.HelmValueKey)] = imageTag
 	}
-	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator", "../charts/radix-operator", helmValues); err != nil {
+	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator", "../charts/radix-operator", "testdata/radix-operator-values.yaml", helmValues); err != nil {
 		log.Fatal().Err(err).Msg("failed to install radix-operator helm chart")
 	}
 
