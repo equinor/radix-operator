@@ -81,6 +81,7 @@ func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
 	})
 
 	t.Run("accepts RadixApplication when RadixRegistration exists", func(t *testing.T) {
+		t.Parallel()
 		appName := "test-webhook-app"
 		appNamespace := appName + "-app"
 
@@ -166,6 +167,7 @@ func TestRadixApplicationEnvironmentsValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -242,6 +244,7 @@ func TestRadixApplicationEnvironmentNameValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -300,6 +303,7 @@ func TestRadixApplicationEnvBuildFromValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -363,6 +367,7 @@ func TestRadixApplicationEnvBuildFromTypeValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -398,6 +403,7 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	t.Run("valid - unique component and job names", func(t *testing.T) {
+		t.Parallel()
 		ra := &v1.RadixApplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      appName,
@@ -421,6 +427,7 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 	})
 
 	t.Run("invalid - duplicate name in components and jobs", func(t *testing.T) {
+		t.Parallel()
 		ra := &v1.RadixApplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      appName,
@@ -483,6 +490,7 @@ func TestRadixApplicationComponentNameValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -562,6 +570,7 @@ func TestRadixApplicationComponentPortValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -682,6 +691,7 @@ func TestRadixApplicationEgressRuleValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -745,6 +755,7 @@ func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -863,6 +874,7 @@ func TestRadixApplicationAzureKeyVaultUseAzureIdentityValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,

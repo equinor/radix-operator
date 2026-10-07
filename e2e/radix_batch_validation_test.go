@@ -33,6 +33,7 @@ func TestRadixBatchWebhookSmokeTest(t *testing.T) {
 	}
 
 	t.Run("accepts job with valid resource requirements", func(t *testing.T) {
+		t.Parallel()
 		rb := newBatch(&v1.ResourceRequirements{
 			Requests: v1.ResourceList{"cpu": "250m", "memory": "256Mi"},
 			Limits:   v1.ResourceList{"cpu": "1", "memory": "1Gi"},
@@ -43,6 +44,7 @@ func TestRadixBatchWebhookSmokeTest(t *testing.T) {
 	})
 
 	t.Run("rejects job with a text quantity", func(t *testing.T) {
+		t.Parallel()
 		rb := newBatch(&v1.ResourceRequirements{
 			Requests: v1.ResourceList{"cpu": "one"},
 		})

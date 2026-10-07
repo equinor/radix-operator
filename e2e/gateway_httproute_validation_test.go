@@ -28,6 +28,7 @@ func createHttpRouteAndNamespaceForTest(t *testing.T, c client.Client, appName s
 
 // TestGatewayWebhookHttpRouteValidation tests that the webhook is working by verifying createHttpRouteUsableValidator
 func TestGatewayWebhookHttpRouteValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-httproute-validation"
 	createHttpRouteAndNamespaceForTest(t, c, appName)

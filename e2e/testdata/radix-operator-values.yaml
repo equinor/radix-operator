@@ -23,6 +23,17 @@ config:
     cacheContainerRegistry: local-kind-repo
 
   operator:
+    logLevel: debug
+    logPrettyPrint: true
+    registrationControllerThreads: 21
+    applicationControllerThreads: 21
+    environmentControllerThreads: 21
+    deploymentControllerThreads: 21
+    jobControllerThreads: 21
+    alertControllerThreads: 21
+    kubeClientRateLimitBurst: 500
+    kubeClientRateLimitQPS: 500
+    
     pipelineImage:
       repository: local-kind-repo/pipeline-runner
     pipelineImagePullPolicy: IfNotPresent

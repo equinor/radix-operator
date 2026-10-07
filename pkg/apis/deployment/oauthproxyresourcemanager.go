@@ -36,6 +36,7 @@ const (
 	oauth2ProxyEntraIdFederatedTokenAuthEnvironmentVariable = "OAUTH2_PROXY_ENTRA_ID_FEDERATED_TOKEN_AUTH"
 	oauth2ProxySkipAuthRoutesEnvironmentVariable            = "OAUTH2_PROXY_SKIP_AUTH_ROUTES"
 	oauthProxyRedisConnectionUrlEnvironmentVariable         = "OAUTH2_PROXY_REDIS_CONNECTION_URL"
+	ProxyContainerName                                      = "proxy"
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
@@ -574,7 +575,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 			ImagePullSecrets: imagePullSecrets,
 			Containers: []corev1.Container{
 				{
-					Name: "proxy",
+					Name: ProxyContainerName,
 					Env:  envVars,
 				},
 			},

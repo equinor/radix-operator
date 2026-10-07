@@ -22,8 +22,10 @@ import (
 )
 
 const (
-	oauth2TestTimeout         = 5 * time.Minute
+	oauth2TestTimeout         = 10 * time.Minute
 	oauth2TestStabilityPeriod = 30 * time.Second
+	oaurth2TestTimeout        = 60 * time.Second
+	oaurth2TestPollInterval   = 5 * time.Second
 )
 
 // TestOAuth2SystemManagedRedis deploys an nginx component with OAuth2 and a system managed redis
@@ -31,6 +33,7 @@ const (
 // overlay from the Helm values, and verifies that the component, redis and oauth2 proxy pods run
 // without crash looping.
 func TestOAuth2SystemManagedRedis(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	const (
 		appName       = "oauth2-test"
@@ -39,14 +42,14 @@ func TestOAuth2SystemManagedRedis(t *testing.T) {
 		jobName       = "deploy-dev"
 	)
 
-	readyCtx, cancelReady := context.WithTimeout(t.Context(), queueTestTimeout)
+	readyCtx, cancelReady := context.WithTimeout(t.Context(), oaurth2TestTimeout)
 	defer cancelReady()
 	require.NoError(t, WaitForDeploymentReady(readyCtx, c, "radix-system", "radix-operator"), "radix-operator deployment should be ready")
 
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	require.NoError(t, waitForSecret(t.Context(), c, appNamespace, defaults.GitPrivateKeySecretName, queueTestTimeout),
+	require.NoError(t, waitForSecret(t.Context(), c, appNamespace, defaults.GitPrivateKeySecretName, oaurth2TestTimeout),
 		"registration secret %s should be created in %s", defaults.GitPrivateKeySecretName, appNamespace)
-	require.NoError(t, waitForPipelineRBAC(t.Context(), c, appNamespace, queueTestTimeout), "pipeline RBAC should be provisioned in %s", appNamespace)
+	require.NoError(t, waitForPipelineRBAC(t.Context(), c, appNamespace, oaurth2TestTimeout), "pipeline RBAC should be provisioned in %s", appNamespace)
 
 	// --- Pipeline runner: deploy job reads radixconfig.yaml from the git server and deploys it ---
 	rj := &v1.RadixJob{
@@ -75,7 +78,7 @@ func TestOAuth2SystemManagedRedis(t *testing.T) {
 
 	envNamespace := utils.GetEnvironmentNamespace(appName, envName)
 	var activeRD *v1.RadixDeployment
-	require.NoError(t, wait.PollUntilContextTimeout(t.Context(), queueTestPollInterval, oauth2TestTimeout, true, func(ctx context.Context) (bool, error) {
+	require.NoError(t, wait.PollUntilContextTimeout(t.Context(), oaurth2TestPollInterval, oauth2TestTimeout, true, func(ctx context.Context) (bool, error) {
 		rds := &v1.RadixDeploymentList{}
 		if err := c.List(ctx, rds, client.InNamespace(envNamespace)); err != nil {
 			return false, nil

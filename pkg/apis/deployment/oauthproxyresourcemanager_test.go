@@ -70,7 +70,7 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name:  "proxy",
+								Name:  ProxyContainerName,
 								Image: "quay.io/oauth2-proxy/oauth2-proxy:v7.6.2",
 								Ports: []corev1.ContainerPort{
 									{
@@ -629,7 +629,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_PodTemplateFro
 		Base: corev1.PodTemplateSpec{
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{{
-					Name:            "proxy",
+					Name:            ProxyContainerName,
 					Image:           "someproxyimage:latest",
 					ImagePullPolicy: corev1.PullAlways,
 				}},
@@ -639,7 +639,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_PodTemplateFro
 		Overlay: corev1.PodTemplateSpec{
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{{
-					Name:  "proxy",
+					Name:  ProxyContainerName,
 					Image: "someproxyimage:v1.2.3",
 				}},
 			},
@@ -665,7 +665,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_PodTemplateFro
 	s.Equal(new(false), podSpec.AutomountServiceAccountToken)
 	s.Require().Len(podSpec.Containers, 1)
 	container := podSpec.Containers[0]
-	s.Equal("proxy", container.Name)
+	s.Equal(ProxyContainerName, container.Name)
 	s.Equal("someproxyimage:v1.2.3", container.Image)
 	s.Equal(corev1.PullAlways, container.ImagePullPolicy)
 	s.Equal("1234", s.getEnvVarValueByName("OAUTH2_PROXY_CLIENT_ID", container.Env))
