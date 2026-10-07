@@ -5,7 +5,7 @@
 {{- $_ := required "config.operator.azureKeyVaultTenantID is required" .Values.config.operator.azureKeyVaultTenantID -}}
 {{- $_ := required "config.operator.gateway.name is required" .Values.config.operator.gateway.name -}}
 {{- $_ := required "config.operator.gateway.namespace is required" .Values.config.operator.gateway.namespace -}}
-{{- $_ := required "config.operator.certificateAutomation.gatewayClusterIssuer is required" .Values.config.operator.certificateAutomation.gatewayClusterIssuer -}}
+{{- $_ := required "config.common.certificateAutomation.defaultIssuer is required" .Values.config.common.certificateAutomation.defaultIssuer -}}
 {{- $_ := required "config.pipelineRunner.cacheContainerRegistry is required" .Values.config.pipelineRunner.cacheContainerRegistry -}}
 {{- $_ := required "config.pipelineRunner.containerRegistry is required" .Values.config.pipelineRunner.containerRegistry -}}
 {{- $_ := required "config.apiServer.prometheusUrl is required" .Values.config.apiServer.prometheusUrl -}}
