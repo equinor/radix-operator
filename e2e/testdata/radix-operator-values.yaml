@@ -38,7 +38,6 @@ config:
   # Mirrors the radix-flux override; "{{ARCH}}" is replaced with the host architecture at install time.
   runtime:
     oauth2ProxyTemplate:
-      base: null # Defaults to content in file ./files/oauth2-proxy-base.yaml
       overlay:
         spec:
           affinity:
