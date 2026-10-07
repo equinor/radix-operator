@@ -105,6 +105,20 @@ func TestParse_HappyPath(t *testing.T) {
 						Containers: []corev1.Container{
 							{
 								Name:  "session-store",
+								Image: "docker.io/redis:latest",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1001)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "session-store",
 								Image: "docker.io/redis:v8.6.0",
 							},
 						},
@@ -117,7 +131,21 @@ func TestParse_HappyPath(t *testing.T) {
 						Containers: []corev1.Container{
 							{
 								Name:  "proxy",
-								Image: "quay.io/oauth2-proxy/oauth2-proxy:v7.15.4",
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:latest",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1001)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "proxy",
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:v7.15.0",
 							},
 						},
 					},
