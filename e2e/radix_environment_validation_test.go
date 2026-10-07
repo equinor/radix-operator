@@ -11,6 +11,7 @@ import (
 
 // TestRadixEnvironmentEnvNameValidation tests the CEL validation rule on RadixEnvironmentSpec.EnvName
 func TestRadixEnvironmentEnvNameValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	testCases := []struct {

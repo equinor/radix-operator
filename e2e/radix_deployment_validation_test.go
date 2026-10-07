@@ -14,6 +14,7 @@ import (
 
 // TestRadixDeploymentKubebuilderValidations tests that kubebuilder validation rules are applied
 func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	t.Run("AppName validation applied", func(t *testing.T) {

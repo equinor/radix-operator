@@ -12,6 +12,7 @@ import (
 // TestRadixBatchWebhookSmokeTest tests that the resource requirements validator is
 // registered for RadixBatch admission.
 func TestRadixBatchWebhookSmokeTest(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	newBatch := func(resources *v1.ResourceRequirements) *v1.RadixBatch {
