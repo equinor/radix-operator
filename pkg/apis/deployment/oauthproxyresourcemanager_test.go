@@ -633,6 +633,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_PodTemplateFro
 					Image:           "someproxyimage:latest",
 					ImagePullPolicy: corev1.PullAlways,
 				}},
+				AutomountServiceAccountToken: new(false),
 			},
 		},
 		Overlay: corev1.PodTemplateSpec{
