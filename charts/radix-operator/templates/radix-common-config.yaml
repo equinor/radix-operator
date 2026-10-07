@@ -12,6 +12,14 @@
 {{- if le (len (.Values.config.apiServer.authenticators | default dict)) 0 }}
 {{- fail "apiServer.authenticators must have at least one entry" }}
 {{- end }}
+{{- $defaultArch := .Values.config.runtime.defaultArchitecture | toString }}
+{{- $architectures := .Values.config.runtime.architectures | default dict }}
+{{- if not (hasKey $architectures $defaultArch) }}
+{{- fail (printf "config.runtime.architectures must contain a key matching config.runtime.defaultArchitecture (%q)" $defaultArch) }}
+{{- end }}
+{{- if not (get $architectures $defaultArch).enabled }}
+{{- fail (printf "config.runtime.architectures.%s.enabled must be true because it is config.runtime.defaultArchitecture" $defaultArch) }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
