@@ -62,6 +62,16 @@ var testConfig = config.Config{
 		DNSZone:     "dev.radix.equinor.com",
 		ClusterName: testClusterName,
 		ClusterType: "development",
+		CertificateAutomation: config.CertificateAutomationConfig{
+			DefaultIssuer: "digicert",
+			Issuers: map[string]config.CertificateIssuerConfig{
+				"digicert": {
+					ClusterIssuerName: "digicert-http01-gateway",
+					Duration:          10000 * time.Hour,
+					RenewBefore:       5000 * time.Hour,
+				},
+			},
+		},
 	},
 	PipelineRunner: config.PipelineRunnerConfig{
 		ContainerRegistry: "any.container.registry",
@@ -82,11 +92,6 @@ var testConfig = config.Config{
 		AzureKeyVaultTenantID:  "123456789",
 		KubernetesAPIPort:      543,
 		DeploymentHistoryLimit: 10,
-		CertificateAutomation: config.CertificateAutomationConfig{
-			GatewayClusterIssuer: "test-gateway-cert-issuer",
-			Duration:             10000 * time.Hour,
-			RenewBefore:          5000 * time.Hour,
-		},
 	},
 }
 
@@ -3740,10 +3745,10 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 		assert.Empty(t, cert.OwnerReferences)
 		expectedCertSpec := cmv1.CertificateSpec{
 			DNSNames:    []string{fqdn},
-			Duration:    &metav1.Duration{Duration: testConfig.Operator.CertificateAutomation.Duration},
-			RenewBefore: &metav1.Duration{Duration: testConfig.Operator.CertificateAutomation.RenewBefore},
+			Duration:    &metav1.Duration{Duration: testConfig.Common.CertificateAutomation.Issuers["digicert"].Duration},
+			RenewBefore: &metav1.Duration{Duration: testConfig.Common.CertificateAutomation.Issuers["digicert"].RenewBefore},
 			IssuerRef: v1.ObjectReference{
-				Name:  testConfig.Operator.CertificateAutomation.GatewayClusterIssuer,
+				Name:  testConfig.Common.CertificateAutomation.Issuers["digicert"].ClusterIssuerName,
 				Kind:  "ClusterIssuer",
 				Group: "cert-manager.io",
 			},
@@ -3919,27 +3924,37 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 
 	// Duration and RenewBefore not below min values
 	cfg := config.Config{
-		Operator: config.OperatorConfig{
+		Common: config.CommonConfig{
 			CertificateAutomation: config.CertificateAutomationConfig{
-				GatewayClusterIssuer: "anyissuer",
-				Duration:             10000 * time.Hour,
-				RenewBefore:          1000 * time.Hour,
+				DefaultIssuer: "digicert",
+				Issuers: map[string]config.CertificateIssuerConfig{
+					"digicert": {
+						ClusterIssuerName: "digicert-http01-gateway",
+						Duration:          8760 * time.Hour,
+						RenewBefore:       720 * time.Hour,
+					},
+				},
 			},
 		},
 	}
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ := certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
-	assert.Equal(t, cfg.Operator.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
-	assert.Equal(t, cfg.Operator.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
+	assert.Equal(t, cfg.Common.CertificateAutomation.Issuers["digicert"].Duration, cert.Spec.Duration.Duration)
+	assert.Equal(t, cfg.Common.CertificateAutomation.Issuers["digicert"].RenewBefore, cert.Spec.RenewBefore.Duration)
 
 	// Duration below min value
 	cfg = config.Config{
-		Operator: config.OperatorConfig{
+		Common: config.CommonConfig{
 			CertificateAutomation: config.CertificateAutomationConfig{
-				GatewayClusterIssuer: "anyissuer",
-				Duration:             2159 * time.Hour,
-				RenewBefore:          1000 * time.Hour,
+				DefaultIssuer: "digicert",
+				Issuers: map[string]config.CertificateIssuerConfig{
+					"digicert": {
+						ClusterIssuerName: "digicert-http01-gateway",
+						Duration:          2159 * time.Hour,
+						RenewBefore:       1000 * time.Hour,
+					},
+				},
 			},
 		},
 	}
@@ -3948,15 +3963,20 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, 2160*time.Hour, cert.Spec.Duration.Duration)
-	assert.Equal(t, cfg.Operator.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
+	assert.Equal(t, cfg.Common.CertificateAutomation.Issuers["digicert"].RenewBefore, cert.Spec.RenewBefore.Duration)
 
 	// RenewBefore below min value
 	cfg = config.Config{
-		Operator: config.OperatorConfig{
+		Common: config.CommonConfig{
 			CertificateAutomation: config.CertificateAutomationConfig{
-				GatewayClusterIssuer: "anyissuer",
-				Duration:             10000 * time.Hour,
-				RenewBefore:          359 * time.Hour,
+				DefaultIssuer: "digicert",
+				Issuers: map[string]config.CertificateIssuerConfig{
+					"digicert": {
+						ClusterIssuerName: "digicert-http01-gateway",
+						Duration:          10000 * time.Hour,
+						RenewBefore:       359 * time.Hour,
+					},
+				},
 			},
 		},
 	}
@@ -3964,7 +3984,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
-	assert.Equal(t, cfg.Operator.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
+	assert.Equal(t, cfg.Common.CertificateAutomation.Issuers["digicert"].Duration, cert.Spec.Duration.Duration)
 	assert.Equal(t, 360*time.Hour, cert.Spec.RenewBefore.Duration)
 }
 
@@ -3983,31 +4003,42 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 
 	// Duration and RenewBefore not below min values
 	cfg := config.Config{
-		Operator: config.OperatorConfig{
+		Common: config.CommonConfig{
 			CertificateAutomation: config.CertificateAutomationConfig{
-				Duration:    10000 * time.Hour,
-				RenewBefore: 1000 * time.Hour,
+				//DefaultIssuer: "digicert",
+				// Issuers: map[string]config.CertificateIssuerConfig{
+				// 	"digicert": {
+				// 		ClusterIssuerName: "digicert-http01-gateway",
+				// 		Duration:          10000 * time.Hour,
+				// 		RenewBefore:       1000 * time.Hour,
+				// 	},
+				// },
 			},
 		},
 	}
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
-	assert.ErrorContains(t, syncer.OnSync(context.Background()), "cluster issuer not set in certificate automation config")
+	assert.ErrorContains(t, syncer.OnSync(context.Background()), "list of issuers is empty in certificate automation config")
 }
 
 func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 	fqdn := "any.example.com"
-	gatewayClusterIssuer := "gateway-issuer"
+	gatewayClusterIssuer := "digicert-http01-gateway"
 	envName := "dev"
 
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 
 	cfg := config.Config{
-		Operator: config.OperatorConfig{
+		Common: config.CommonConfig{
 			CertificateAutomation: config.CertificateAutomationConfig{
-				GatewayClusterIssuer: gatewayClusterIssuer,
-				Duration:             10000 * time.Hour,
-				RenewBefore:          1000 * time.Hour,
+				DefaultIssuer: "digicert",
+				Issuers: map[string]config.CertificateIssuerConfig{
+					"digicert": {
+						ClusterIssuerName: "digicert-http01-gateway",
+						Duration:          10000 * time.Hour,
+						RenewBefore:       1000 * time.Hour,
+					},
+				},
 			},
 		},
 	}

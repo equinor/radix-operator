@@ -32,6 +32,9 @@ config:
         oidc:
           issuerUrl: ""
           skipDiscovery: false
+    certificateAutomation:
+      defaultIssuer: "" # Optional If set, must be a valid value from issuers. Add this validation a cel expressing in CommonConfig struct
+      issuers: {} # map of issers. Default empty. 
   pipelineRunner:
     containerRegistry: ""
     cacheContainerRegistry: ""
@@ -120,11 +123,6 @@ config:
       name: ""
       namespace: ""
       sectionName: "https"
-
-    certificateAutomation:
-      duration: "2160h"
-      renewBefore: "720h"
-      gatewayClusterIssuer: ""
 
     pipelineImage:
       repository: "ghcr.io/equinor/radix/pipeline"

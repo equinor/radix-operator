@@ -325,12 +325,25 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificate(ctx context.Conte
 }
 
 func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
-	if len(deploy.config.Operator.CertificateAutomation.GatewayClusterIssuer) == 0 {
-		return errors.New("gateway cluster issuer not set in certificate automation config")
+	if len(deploy.config.Common.CertificateAutomation.Issuers) == 0 {
+		return errors.New("list of issuers is empty in certificate automation config")
+	}
+	if externalDns.CertificateAutomation.Issuer == "" && deploy.config.Common.CertificateAutomation.DefaultIssuer == "" {
+		return errors.New("issuer is not set for external DNS and default issuer is available in certificate automation config")
 	}
 
-	duration := max(deploy.config.Operator.CertificateAutomation.Duration, minCertDuration)
-	renewBefore := max(deploy.config.Operator.CertificateAutomation.RenewBefore, minCertRenewBefore)
+	issuer := externalDns.CertificateAutomation.Issuer
+	if issuer == "" {
+		issuer = deploy.config.Common.CertificateAutomation.DefaultIssuer
+	}
+
+	selectedIssuer, ok := deploy.config.Common.CertificateAutomation.Issuers[issuer]
+	if !ok {
+		return errors.New("selected issuer is not found in the list of issuers in certificate automation config")
+	}
+
+	duration := max(selectedIssuer.Duration, minCertDuration)
+	renewBefore := max(selectedIssuer.RenewBefore, minCertRenewBefore)
 
 	certificate := &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -343,7 +356,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 			IssuerRef: cmmeta.ObjectReference{
 				Group: cm.GroupName,
 				Kind:  cmv1.ClusterIssuerKind,
-				Name:  deploy.config.Operator.CertificateAutomation.GatewayClusterIssuer,
+				Name:  selectedIssuer.ClusterIssuerName,
 			},
 			Duration:    &metav1.Duration{Duration: duration},
 			RenewBefore: &metav1.Duration{Duration: renewBefore},

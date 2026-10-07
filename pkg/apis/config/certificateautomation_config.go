@@ -3,7 +3,7 @@ package config
 import "time"
 
 type CertificateAutomationConfig struct {
-	DefaultIssuer string                             `json:"defaultIssuer" validate:"self in ['digicert','letsencrypt']"`
+	DefaultIssuer string                             `json:"defaultIssuer" validate:"self in config.common.certificateAutomation.issuers"`
 	Issuers       map[string]CertificateIssuerConfig `json:"issuers"`
 }
 
