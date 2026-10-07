@@ -16,16 +16,15 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	oauth2TestTimeout         = 10 * time.Minute
+	oauth2TestTimeout         = 5 * time.Minute
 	oauth2TestStabilityPeriod = 30 * time.Second
 	oaurth2TestTimeout        = 60 * time.Second
-	oaurth2TestPollInterval   = 5 * time.Second
+	oaurth2TestPollInterval   = 100 * time.Millisecond
 )
 
 // TestOAuth2SystemManagedRedis deploys an nginx component with OAuth2 and a system managed redis
@@ -53,7 +52,7 @@ func TestOAuth2SystemManagedRedis(t *testing.T) {
 
 	// --- Pipeline runner: deploy job reads radixconfig.yaml from the git server and deploys it ---
 	rj := &v1.RadixJob{
-		ObjectMeta: metav1.ObjectMeta{Name: jobName, Namespace: appNamespace},
+		Name: jobName, Namespace: appNamespace,
 		Spec: v1.RadixJobSpec{
 			AppName:      appName,
 			PipeLineType: v1.Deploy,
@@ -64,12 +63,13 @@ func TestOAuth2SystemManagedRedis(t *testing.T) {
 	require.NoError(t, c.Create(t.Context(), rj), "should create deploy job")
 
 	cond, err := waitForJobCondition(t.Context(), c, appNamespace, jobName, v1.RadixJobCondition.IsDone, oauth2TestTimeout)
-	require.NoError(t, err, "deploy job should finish, last condition: %s", cond)
-	if cond != v1.JobSucceeded {
-		finished := &v1.RadixJob{}
-		_ = c.Get(t.Context(), client.ObjectKeyFromObject(rj), finished)
-		require.Failf(t, "deploy job did not succeed", "condition: %s, steps: %+v", cond, finished.Status.Steps)
+	if err != nil || cond != v1.JobSucceeded {
+		t.Logf("deploy job failed or did not succeed, last condition: %s, error: %v", cond, err)
+		logRadixJobDiagnostics(t, c, appNamespace, jobName)
+		logRadixOperatorLogs(t, c, appName)
 	}
+	require.NoError(t, err, "deploy job should finish, last condition: %s", cond)
+	require.Equal(t, v1.JobSucceeded, cond, "deploy job should succeed")
 
 	ra := &v1.RadixApplication{}
 	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: appNamespace, Name: appName}, ra), "pipeline should apply the RadixApplication")
