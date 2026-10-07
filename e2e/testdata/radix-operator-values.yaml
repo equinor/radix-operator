@@ -37,6 +37,27 @@ config:
 
   # Mirrors the radix-flux override; "{{ARCH}}" is replaced with the host architecture at install time.
   runtime:
+    oauth2ProxyTemplate:
+      base: null # Defaults to content in file ./files/oauth2-proxy-base.yaml
+      overlay:
+        spec:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/os
+                        operator: In
+                        values:
+                          - linux
+                      - key: kubernetes.io/arch
+                        operator: In
+                        values:
+                          - "{{ARCH}}"
+          containers:
+            - name: proxy
+              image: "quay.io/oauth2-proxy/oauth2-proxy:v7.15.4"
+
     oauth2SessionStoreTemplate:
       overlay:
         spec:

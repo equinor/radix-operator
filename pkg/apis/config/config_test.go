@@ -56,10 +56,6 @@ func TestParse_HappyPath(t *testing.T) {
 			AppAliasBaseURL:            "app.dev.radix.equinor.com",
 			ExternalRegistryAuthSecret: "anyExternalAuth",
 			OAuth2Proxy: config.OAuth2ProxyConfig{
-				ProxyImage: config.ContainerImage{
-					Repository: "quay.io/oauth2-proxy/oauth2-proxy",
-					Tag:        "v7.6.2",
-				},
 				ProxyDefaults: v1.OAuth2{
 					Scope:                  "openid profile email",
 					ProxyPrefix:            "/oauth2",
@@ -109,7 +105,47 @@ func TestParse_HappyPath(t *testing.T) {
 						Containers: []corev1.Container{
 							{
 								Name:  "session-store",
+								Image: "docker.io/redis:latest",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1001)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "session-store",
 								Image: "docker.io/redis:v8.6.0",
+							},
+						},
+					},
+				},
+			},
+			Oauth2ProxyTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "proxy",
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:latest",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1001)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "proxy",
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:v7.15.0",
 							},
 						},
 					},
@@ -405,15 +441,16 @@ func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
 
 // A field without an env tag is overridden by the uppercased field path, with dots replaced by underscores.
 func TestParse_EnvOverrideFromFieldPath(t *testing.T) {
-	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYIMAGE_REPOSITORY", "ghcr.io/equinor/oauth2-proxy")
-	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYIMAGE_TAG", "v1.2.3")
+	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYDEFAULTS_SCOPE", "openid email")
+	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYDEFAULTS_COOKIE_NAME", "_custom_cookie")
 
 	var cfg config.Config
 	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
 
 	require.NoError(t, err)
-	expected := config.ContainerImage{Repository: "ghcr.io/equinor/oauth2-proxy", Tag: "v1.2.3"}
-	assert.Equal(t, expected, cfg.Common.OAuth2Proxy.ProxyImage)
+	assert.Equal(t, "openid email", cfg.Common.OAuth2Proxy.ProxyDefaults.Scope)
+	require.NotNil(t, cfg.Common.OAuth2Proxy.ProxyDefaults.Cookie)
+	assert.Equal(t, "_custom_cookie", cfg.Common.OAuth2Proxy.ProxyDefaults.Cookie.Name)
 }
 
 func TestParse_EnvTagTakesPrecedenceOverFieldPath(t *testing.T) {

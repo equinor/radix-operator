@@ -12,13 +12,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	"github.com/equinor/radix-operator/pkg/apis/utils/kubemerge"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/utils/random"
-	"github.com/equinor/radix-operator/pkg/apis/utils/resources"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
@@ -487,17 +486,15 @@ func (o *oauthProxyResourceManager) buildOAuthProxySecret(appName string, compon
 func (o *oauthProxyResourceManager) buildServiceSpec(component radixv1.RadixCommonDeployComponent) *corev1.Service {
 	serviceName := utils.GetAuxOAuthProxyComponentServiceName(component.GetName())
 	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            serviceName,
-			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
-		},
+		Name:            serviceName,
+		OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
 			Selector: radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
 			Ports: []corev1.ServicePort{
 				{
 					Port:       defaults.OAuthProxyPortNumber,
-					TargetPort: intstr.FromString(defaults.OAuthProxyPortName),
+					TargetPort: intstr.FromInt32(defaults.OAuthProxyPortNumber),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
@@ -550,7 +547,6 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 	componentName := component.GetName()
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	oauth2 := component.GetAuthentication().GetOAuth2()
-	readinessProbe := getReadinessProbeWithDefaultsFromEnv(o.config, defaults.OAuthProxyPortNumber)
 
 	var replicas int32 = 1
 	if isComponentStopped(component) || component.HasZeroReplicas() {
@@ -568,53 +564,37 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component radixv1.Radix
 		return nil, err
 	}
 
-	desiredDeployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            deploymentName,
-			Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(o.rd),
-			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
+	podTemplate, err := kubemerge.MergePodTemplate(o.config.Runtime.Oauth2ProxyTemplate.Base, o.config.Runtime.Oauth2ProxyTemplate.Overlay, corev1.PodTemplateSpec{
+		Labels: radixlabels.Merge(
+			radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
+			radixlabels.ForApplicationID(o.rr.Spec.AppID),
+			radixlabels.ForOAuthProxyPodWithRadixIdentity(oauth2),
+		),
+		Spec: corev1.PodSpec{
+			ImagePullSecrets: imagePullSecrets,
+			Containers: []corev1.Container{
+				{
+					Name: "proxy",
+					Env:  envVars,
+				},
+			},
+			ServiceAccountName: oauth2.GetServiceAccountName(componentName),
 		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge pod spec for oauth2proxy: %w", err)
+	}
+
+	desiredDeployment := &appsv1.Deployment{
+		Name:            deploymentName,
+		Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(o.rd),
+		OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: new(replicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
 			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: radixlabels.Merge(
-						radixlabels.ForAuxOAuthProxyComponent(o.rd.Spec.AppName, component), //nolint:staticcheck
-						radixlabels.ForApplicationID(o.rr.Spec.AppID),
-						radixlabels.ForOAuthProxyPodWithRadixIdentity(oauth2),
-					),
-				},
-				Spec: corev1.PodSpec{
-					ImagePullSecrets: imagePullSecrets,
-					Containers: []corev1.Container{
-						{
-							Name:            componentName,
-							Image:           o.config.Common.OAuth2Proxy.ProxyImage.String(),
-							ImagePullPolicy: corev1.PullAlways,
-							Env:             envVars,
-							Ports: []corev1.ContainerPort{
-								{
-									Name:          defaults.OAuthProxyPortName,
-									ContainerPort: defaults.OAuthProxyPortNumber,
-								},
-							},
-							ReadinessProbe: readinessProbe,
-							SecurityContext: securitycontext.Container(
-								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-								securitycontext.WithReadOnlyRootFileSystem(new(true)),
-							),
-							Resources: resources.New(resources.WithMemoryMega(100), resources.WithCPUMilli(10)),
-						},
-					},
-					SecurityContext:              securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
-					Affinity:                     utils.GetAffinityForOAuthAuxComponent(),
-					ServiceAccountName:           oauth2.GetServiceAccountName(componentName),
-					AutomountServiceAccountToken: new(false),
-				},
-			},
+			Template: podTemplate,
 		},
 	}
 	oauthutil.MergeAuxOAuthProxyComponentResourceLabels(desiredDeployment, o.rd.Spec.AppName, component) //nolint:staticcheck

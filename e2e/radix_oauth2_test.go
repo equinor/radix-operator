@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -79,7 +81,7 @@ func TestOAuth2SystemManagedRedis(t *testing.T) {
 			return false, nil
 		}
 		for i := range rds.Items {
-			if rds.Items[i].Status.Condition == v1.DeploymentActive {
+			if rds.Items[i].Status.Condition == v1.DeploymentActive && rds.Items[i].Status.ReconcileStatus == v1.RadixDeploymentReconcileSucceeded {
 				activeRD = &rds.Items[i]
 				return true, nil
 			}
@@ -88,20 +90,24 @@ func TestOAuth2SystemManagedRedis(t *testing.T) {
 	}), "an active RadixDeployment should exist in %s", envNamespace)
 	rdComponent := activeRD.GetComponentByName(componentName)
 	require.NotNil(t, rdComponent, "RadixDeployment should contain component %s", componentName)
-	assert.Equal(t, v1.SessionStoreSystemManaged, rdComponent.Authentication.OAuth2.SessionStoreType)
-	assert.Equal(t, v1.AzureWorkloadIdentity, rdComponent.Authentication.OAuth2.Credentials)
+	require.Equal(t, v1.SessionStoreSystemManaged, rdComponent.Authentication.OAuth2.SessionStoreType)
+	require.Equal(t, v1.Secret, rdComponent.Authentication.OAuth2.Credentials)
+
+	oauthSecrets := &corev1.SecretList{}
+	require.NoError(t, c.List(t.Context(), oauthSecrets, client.InNamespace(envNamespace), client.MatchingLabels{
+		kube.RadixAppLabel:                    appName,
+		kube.RadixAuxiliaryComponentLabel:     componentName,
+		kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthProxyAuxiliaryComponentType,
+	}))
+	require.Len(t, oauthSecrets.Items, 1, "one OAuth secret should exist in %s", envNamespace)
+	oauthSecret := &oauthSecrets.Items[0]
+	clientSecret := random.RandString(32)
+	require.NotEmpty(t, clientSecret)
+	oauthSecret.Data[defaults.OAuthClientSecretKeyName] = []byte(clientSecret)
+	require.NoError(t, c.Update(t.Context(), oauthSecret), "should update OAuth client secret")
 
 	redisName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
 	proxyName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
-
-	proxySAName := rdComponent.Authentication.OAuth2.GetServiceAccountName(componentName)
-	require.NoError(t, wait.PollUntilContextTimeout(t.Context(), queueTestPollInterval, oauth2TestTimeout, true, func(ctx context.Context) (bool, error) {
-		sa := &corev1.ServiceAccount{}
-		if err := c.Get(ctx, client.ObjectKey{Namespace: envNamespace, Name: proxySAName}, sa); err != nil {
-			return false, nil
-		}
-		return sa.Annotations["azure.workload.identity/client-id"] == rdComponent.Authentication.OAuth2.ClientID, nil
-	}), "oauth2 proxy service account %s should be annotated with the workload identity client id", proxySAName)
 
 	// Max restarts per deployment; the proxy may restart once while redis is starting.
 	deployments := map[string]int32{componentName: 0, redisName: 0, proxyName: 1}
