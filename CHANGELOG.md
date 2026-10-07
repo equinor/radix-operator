@@ -2,7 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.131.0](https://github.com/equinor/radix-operator/compare/v1.130.0..v1.131.0) - 2026-09-29
+## [1.131.1](https://github.com/equinor/radix-operator/compare/v1.131.0..v1.131.1) - 2026-10-02
+
+### 🐛 Bug Fixes
+
+- Add validation on radix batch jobs (#1980) - ([5cc9fd8](https://github.com/equinor/radix-operator/commit/5cc9fd8edb4bcc2a9590a80f5537735116a8332d)) by @herda1 in [#1980](https://github.com/equinor/radix-operator/pull/1980)
+
+
+### ◀️ Revert
+
+- Remove obsolete code tied to migration of clusters. (#1983) - ([6dd1653](https://github.com/equinor/radix-operator/commit/6dd16537ceb43fceeba0ad54889ceb6bbf01de9e)) by @jacobsolbergholm in [#1983](https://github.com/equinor/radix-operator/pull/1983)
+
+
+## [1.131.0](https://github.com/equinor/radix-operator/compare/v1.130.0..v1.131.0) - 2026-09-30
 
 ### 🚀 Features
 
