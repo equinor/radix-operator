@@ -19,10 +19,13 @@ spec:
           port: 4180
         timeoutSeconds: 1
       securityContext:
+        allowPrivilegeEscalation: false
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 1001
         seccompProfile:
           type: RuntimeDefault
-        readOnlyRootFilesystem: true
-        runAsUser: 1001
       resources:
         limits:
           memory: 100M
