@@ -239,6 +239,18 @@ spec:
                         description: RadixDeployExternalDNS is the spec for an external
                           DNS alias
                         properties:
+                          certificateAutomation:
+                            description: Certificate issuer properties
+                            properties:
+                              issuer:
+                                description: Certificate issuer
+                                enum:
+                                - digicert
+                                - letsencrypt
+                                type: string
+                            required:
+                            - issuer
+                            type: object
                           fqdn:
                             description: Fully qualified domain name (FQDN), e.g.
                               myapp.example.com.

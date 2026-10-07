@@ -3176,6 +3176,23 @@
                 "pattern": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$",
                 "type": "string"
               },
+              "certificateAutomation": {
+                "description": "Certificate issuer properties",
+                "properties": {
+                  "issuer": {
+                    "description": "Certificate issuer",
+                    "enum": [
+                      "digicert",
+                      "letsencrypt"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "issuer"
+                ],
+                "type": "object"
+              },
               "component": {
                 "description": "Name of the component that shall receive the incoming requests.",
                 "maxLength": 63,
