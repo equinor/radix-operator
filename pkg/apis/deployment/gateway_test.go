@@ -74,9 +74,10 @@ func (s *GatewayTestSuite) setupTest() {
 	s.testUtils = &handlerTestUtils
 	s.cfg = config.Config{
 		Common: config.CommonConfig{
-			DNSZone:         testDNSZone,
-			ClusterName:     testClusterName,
-			AppAliasBaseURL: testAppAliasBaseURL,
+			DNSZone:               testDNSZone,
+			ClusterName:           testClusterName,
+			AppAliasBaseURL:       testAppAliasBaseURL,
+			CertificateAutomation: testConfig.Common.CertificateAutomation,
 		},
 		Operator: config.OperatorConfig{
 			Gateway: config.GatewayConfig{
@@ -84,7 +85,6 @@ func (s *GatewayTestSuite) setupTest() {
 				Namespace:   testGatewayNamespace,
 				SectionName: testGatewaySectionName,
 			},
-			CertificateAutomation: testConfig.Operator.CertificateAutomation,
 		},
 	}
 }

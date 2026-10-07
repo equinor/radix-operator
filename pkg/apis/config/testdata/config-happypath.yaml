@@ -113,6 +113,18 @@ runtime:
   #         nodeSelector:
   #           kubernetes.io/arch: arm64
   #           kubernetes.io/os: linux
+  certificateAutomation:
+    defaultIssuer: "digicert"
+    issuers:
+      digicert:
+        clusterIssuerName: digicert-http01-gateway
+        renewBefore: 768h
+        duration: 2160h
+      letsencrypt:
+        clusterIssuerName: letsencrypt-http01-gateway
+        renewBefore: 768h
+        duration: 2160h
+  
 pipelineRunner:
   containerRegistry: "any.registry.com"
   cacheContainerRegistry: "app.registry.com"
@@ -190,10 +202,6 @@ operator:
         level: "env-warn-level"
         version: "env-warn-version"
   deploymentHistoryLimit: 10
-  certificateAutomation:
-    gatewayClusterIssuer: "any-cluster-issuer"
-    duration: 8760h
-    renewBefore: 720h
   gateway:
     name: "gateway"
     namespace: "istio-system"
