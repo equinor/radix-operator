@@ -2836,6 +2836,103 @@ func Test_validateNotificationsRA(t *testing.T) {
 	}
 }
 
+func Test_ValidateApplicationCanBeAppliedWithCertificateAutomation(t *testing.T) {
+	validIssuers := map[string]config.CertificateIssuerConfig{
+		"digicert":    {ClusterIssuerName: "digicert-http01-gateway"},
+		"letsencrypt": {ClusterIssuerName: "letsencrypt-http01-gateway"},
+	}
+	externalAlias := func(useAutomation bool, certAutomation *radixv1.CertificateAutomation) updateRAFunc {
+		return func(ra *radixv1.RadixApplication) {
+			ra.Spec.DNSExternalAlias = []radixv1.ExternalAlias{
+				{
+					Alias:                    "some.alias.com",
+					Component:                ra.Spec.Components[0].Name,
+					Environment:              ra.Spec.Environments[0].Name,
+					UseCertificateAutomation: useAutomation,
+					CertificateAutomation:    certAutomation,
+				},
+			}
+		}
+	}
+
+	var testScenarios = []struct {
+		name                  string
+		certificateAutomation config.CertificateAutomationConfig
+		updateRA              updateRAFunc
+		expectedError         error
+	}{
+		{
+			name:                  "no external alias, no error even without configured issuers",
+			certificateAutomation: config.CertificateAutomationConfig{},
+			updateRA:              func(ra *radixv1.RadixApplication) {},
+			expectedError:         nil,
+		},
+		{
+			name:                  "no issuers configured for the cluster",
+			certificateAutomation: config.CertificateAutomationConfig{},
+			updateRA:              externalAlias(true, &radixv1.CertificateAutomation{Issuer: "digicert"}),
+			expectedError:         radixapplication.ErrMissingConfiguredCertificateAutomationIssuers,
+		},
+		{
+			name:                  "automation disabled, issuer not required",
+			certificateAutomation: config.CertificateAutomationConfig{Issuers: validIssuers},
+			updateRA:              externalAlias(false, nil),
+			expectedError:         nil,
+		},
+		{
+			name:                  "automation enabled with an explicit valid issuer",
+			certificateAutomation: config.CertificateAutomationConfig{Issuers: validIssuers},
+			updateRA:              externalAlias(true, &radixv1.CertificateAutomation{Issuer: "letsencrypt"}),
+			expectedError:         nil,
+		},
+		{
+			name:                  "automation enabled, no issuer specified, falls back to default issuer",
+			certificateAutomation: config.CertificateAutomationConfig{DefaultIssuer: "digicert", Issuers: validIssuers},
+			updateRA:              externalAlias(true, nil),
+			expectedError:         nil,
+		},
+		{
+			name:                  "automation enabled, no issuer specified and no default issuer configured",
+			certificateAutomation: config.CertificateAutomationConfig{Issuers: validIssuers},
+			updateRA:              externalAlias(true, nil),
+			expectedError:         radixapplication.ErrMissingCertificateAutomationIssuer,
+		},
+		{
+			name:                  "automation enabled, certificateAutomation set but issuer left empty",
+			certificateAutomation: config.CertificateAutomationConfig{DefaultIssuer: "digicert", Issuers: validIssuers},
+			updateRA:              externalAlias(true, &radixv1.CertificateAutomation{Issuer: ""}),
+			expectedError:         radixapplication.ErrNoSpecifiedCertificateAutomationIssuer,
+		},
+		{
+			name:                  "automation enabled with an unknown issuer",
+			certificateAutomation: config.CertificateAutomationConfig{Issuers: validIssuers},
+			updateRA:              externalAlias(true, &radixv1.CertificateAutomation{Issuer: "unknown-issuer"}),
+			expectedError:         radixapplication.ErrInvalidCertificateAutomationIssuer,
+		},
+	}
+
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			ra := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			testcase.updateRA(ra)
+
+			testCfg := cfg
+			testCfg.Common.CertificateAutomation = testcase.certificateAutomation
+
+			validator := radixapplication.CreateOnlineValidator(client, testCfg)
+			_, err := validator.Validate(context.Background(), ra)
+
+			if testcase.expectedError == nil {
+				assert.NoError(t, err)
+				return
+			}
+			assert.Error(t, err)
+			assert.True(t, errors.Is(err, testcase.expectedError), "Expected error is not contained in list of errors: %v", err)
+		})
+	}
+}
+
 func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 	const (
 		raAppName         = "testapp"

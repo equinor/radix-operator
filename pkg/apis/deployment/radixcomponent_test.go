@@ -285,7 +285,7 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 	deployComponent, _ := GetRadixComponentsForEnv(context.Background(), ra, nil, "prod", componentImages, envVarsMap, nil, "digicert")
 	assert.Equal(t, 2, len(deployComponent))
 	assert.Len(t, deployComponent, 2)
-	assert.ElementsMatch(t, []radixv1.RadixDeployExternalDNS{{FQDN: "some.alias.com", UseCertificateAutomation: true, CertificateAutomation: radixv1.CertificateAutomation{Issuer: "digicert"}}, {FQDN: "another.alias.com", UseCertificateAutomation: false}}, deployComponent[0].ExternalDNS)
+	assert.ElementsMatch(t, []radixv1.RadixDeployExternalDNS{{FQDN: "some.alias.com", UseCertificateAutomation: true, CertificateAutomation: &radixv1.CertificateAutomation{Issuer: "digicert"}}, {FQDN: "another.alias.com", UseCertificateAutomation: false}}, deployComponent[0].ExternalDNS)
 	assert.ElementsMatch(t, []radixv1.RadixDeployExternalDNS{{FQDN: "athird.alias.com", UseCertificateAutomation: false}}, deployComponent[1].ExternalDNS)
 
 	deployComponent, _ = GetRadixComponentsForEnv(context.Background(), ra, nil, "dev", componentImages, envVarsMap, nil, "digicert")
