@@ -68,6 +68,9 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 			Volumes: git.GetJobVolumes(),
 		},
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge pod spec for pipeline runner: %w", err)
+	}
 
 	jobCfg := batchv1.Job{
 		Name:   jobName,
