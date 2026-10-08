@@ -311,7 +311,7 @@ func getExternalDNSAliasForComponentEnvironment(radixApplication *radixv1.RadixA
 				if externalAlias.CertificateAutomation != nil {
 					issuer = externalAlias.CertificateAutomation.Issuer
 				}
-				ed.CertificateAutomation = radixv1.CertificateAutomation{Issuer: issuer}
+				ed.CertificateAutomation = &radixv1.CertificateAutomation{Issuer: issuer}
 			}
 			dnsExternalAlias = append(dnsExternalAlias, ed)
 		}

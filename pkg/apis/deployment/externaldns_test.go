@@ -842,7 +842,7 @@ func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_ErrorWhe
 	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{
 		FQDN:                     "app.example.com",
 		UseCertificateAutomation: true,
-		CertificateAutomation:    radixv1.CertificateAutomation{Issuer: "nonexisting"},
+		CertificateAutomation:    &radixv1.CertificateAutomation{Issuer: "nonexisting"},
 	})
 	s.EqualError(err, "selected issuer is not found in the list of issuers in certificate automation config")
 }
@@ -880,7 +880,7 @@ func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_UsesIssu
 	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{
 		FQDN:                     fqdn,
 		UseCertificateAutomation: true,
-		CertificateAutomation:    radixv1.CertificateAutomation{Issuer: "letsencrypt"},
+		CertificateAutomation:    &radixv1.CertificateAutomation{Issuer: "letsencrypt"},
 	})
 	s.Require().NoError(err)
 

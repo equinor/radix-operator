@@ -362,6 +362,7 @@ type CertificateAutomation struct {
 	// Certificate issuer
 	// +kubebuilder:validation:Enum=digicert;letsencrypt
 	// +required
+	// TODO: Remove kubebuilder validation
 	Issuer string `json:"issuer"`
 }
 
