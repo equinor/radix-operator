@@ -10,57 +10,66 @@ spec:
   automountServiceAccountToken: false
   restartPolicy: Never
   containers:
-  - name: radix-pipeline
-    image: ghcr.io/equinor/radix/pipeline:{{ .Chart.AppVersion }}
-    imagePullPolicy: "Always"
-    securityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - ALL
-      privileged: false
-      readOnlyRootFilesystem: true
-      runAsNonRoot: true
-      runAsUser: 1000
-      runAsGroup: 1000
-      seccompProfile:
-        type: RuntimeDefault
-    resources:
-      limits:
-        cpu: 500m
-        memory: 2000Mi
-      requests:
-        cpu: 100m
-        memory: 250Mi
+    - name: radix-pipeline
+      image: ghcr.io/equinor/radix/pipeline:{{ .Chart.AppVersion }}
+      imagePullPolicy: "Always"
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      resources:
+        limits:
+          cpu: 500m
+          memory: 2000Mi
+        requests:
+          cpu: 100m
+          memory: 250Mi
   initContainers:
-  - name: clone-config
-    image: docker.io/alpine/git:latest
-    imagePullPolicy: "Always"
-    command:
-    - sh
-    - -c
-    - |
-      umask 002 && \
-      git config --global --add safe.directory "$RADIX_CLONE_DIR" && \
-      git clone -b "$RADIX_CLONE_BRANCH" --verbose --progress -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && \
-      (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them") && \
-      chmod -R g+r "$RADIX_CLONE_DIR/.git"
-    resources:
-      limits:
-        cpu: "1"
-        memory: 2G
-      requests:
-        cpu: 100m
-        memory: 250M
-    securityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-        - ALL
-      privileged: false
-      readOnlyRootFilesystem: true
-      runAsGroup: 1000
-      runAsNonRoot: true
-      runAsUser: 65534
-      seccompProfile:
-        type: RuntimeDefault
+    - name: clone-config
+      image: docker.io/alpine/git:latest
+      imagePullPolicy: "Always"
+      command:
+        - sh
+        - -c
+        - |
+          umask 002 && \
+          git config --global --add safe.directory "$RADIX_CLONE_DIR" && \
+          git clone -b "$RADIX_CLONE_BRANCH" --verbose --progress -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && \
+          (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them") && \
+          chmod -R g+r "$RADIX_CLONE_DIR/.git"
+      resources:
+        limits:
+          cpu: "1"
+          memory: 2G
+        requests:
+          cpu: 100m
+          memory: 250M
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      env:
+        - name: HOME
+          value: /home/clone
+      volumeMounts:
+        - name: home
+          mountPath: /home/clone
+  volumes:
+    - name: home
+      emptyDir: {}

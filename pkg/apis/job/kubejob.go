@@ -18,12 +18,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	runAsUser  = 1000
-	runAsGroup = 1000
-	fsGroup    = 1000
-)
-
 func (job *Job) createPipelineJob(ctx context.Context) error {
 	namespace := job.radixJob.Namespace
 
