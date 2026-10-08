@@ -853,7 +853,7 @@ func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_UsesDefa
 		DefaultIssuer: "digicert",
 		Issuers: map[string]config.CertificateIssuerConfig{
 			"digicert":    {ClusterIssuerName: "digicert-http01-gateway", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour},
-			"letsencrypt": {ClusterIssuerName: "letsencrypt-http01-gateway", Duration: 11000 * time.Hour, RenewBefore: 6000 * time.Hour},
+			"letsencrypt": {ClusterIssuerName: "letsencrypt-http01", Duration: 11000 * time.Hour, RenewBefore: 6000 * time.Hour},
 		},
 	})
 
@@ -873,7 +873,7 @@ func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_UsesIssu
 		DefaultIssuer: "digicert",
 		Issuers: map[string]config.CertificateIssuerConfig{
 			"digicert":    {ClusterIssuerName: "digicert-http01-gateway", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour},
-			"letsencrypt": {ClusterIssuerName: "letsencrypt-http01-gateway", Duration: 11000 * time.Hour, RenewBefore: 6000 * time.Hour},
+			"letsencrypt": {ClusterIssuerName: "letsencrypt-http01", Duration: 11000 * time.Hour, RenewBefore: 6000 * time.Hour},
 		},
 	})
 
@@ -886,7 +886,7 @@ func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_UsesIssu
 
 	cert, err := s.certClient.CertmanagerV1().Certificates(s.namespace()).Get(context.Background(), fqdn, metav1.GetOptions{})
 	s.Require().NoError(err)
-	s.Equal("letsencrypt-http01-gateway", cert.Spec.IssuerRef.Name)
+	s.Equal("letsencrypt-http01", cert.Spec.IssuerRef.Name)
 	s.Equal(11000*time.Hour, cert.Spec.Duration.Duration)
 	s.Equal(6000*time.Hour, cert.Spec.RenewBefore.Duration)
 }
