@@ -9,12 +9,10 @@ import (
 
 	"github.com/equinor/radix-operator/pipeline-runner/flags"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -88,15 +86,15 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 				Tag:        "latest",
 			},
 		},
+		Runtime: config.RuntimeConfig{
+			PipelineRunnerTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base:    corev1.PodTemplateSpec{},
+				Overlay: corev1.PodTemplateSpec{},
+			},
+		},
 		Operator: config.OperatorConfig{
 			PipelineJobsHistoryLimit:       3,
 			PipelineJobsHistoryPeriodLimit: 24 * time.Hour,
-
-			PipelineImage: config.ContainerImage{
-				Repository: "docker.io/anypipeline",
-				Tag:        "tag",
-			},
-			PipelineImagePullPolicy: corev1.PullAlways,
 		},
 	}
 }
@@ -229,9 +227,55 @@ func (s *RadixJobTestSuite) Test_QueuedJob_ReconcileStatus() {
 	s.False(secondJob.Status.Reconciled.IsZero())
 }
 
+func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated_ConfigFromBaseAndOverlay() {
+	appID := ulid.Make()
+	appName := "anyapp"
+
+	cfg := s.cfg
+	cfg.Runtime.PipelineRunnerTemplate.Base = corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:            "radix-pipeline",
+					Image:           "someimage:latest",
+					ImagePullPolicy: corev1.PullAlways,
+				},
+			},
+			ImagePullSecrets: []corev1.LocalObjectReference{{Name: "anypullsecret"}},
+		},
+	}
+	cfg.Runtime.PipelineRunnerTemplate.Overlay = corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "radix-pipeline",
+					Image: "someimage:v1.2.3",
+				},
+			},
+			PriorityClassName: "anypriorityclass",
+		},
+	}
+
+	_, _, err := s.applyJobWithSync(
+		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID.String()).WithRadixConfigFullName("some-radixconfig.yaml"),
+		utils.NewJobBuilder().WithJobName("anyjobname").WithAppName(appName).WithPipelineType(radixv1.BuildDeploy),
+		cfg)
+	s.Require().NoError(err)
+
+	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(jobs.Items, 1)
+	job := jobs.Items[0]
+	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
+	s.Require().Equal("radix-pipeline", job.Spec.Template.Spec.Containers[0].Name)
+	s.Equal("someimage:v1.2.3", job.Spec.Template.Spec.Containers[0].Image)
+	s.Equal(corev1.PullAlways, job.Spec.Template.Spec.Containers[0].ImagePullPolicy)
+	s.Equal("anypriorityclass", job.Spec.Template.Spec.PriorityClassName)
+	s.Contains(job.Spec.Template.Spec.ImagePullSecrets, corev1.LocalObjectReference{Name: "anypullsecret"})
+}
+
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	appID := ulid.Make()
-	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, pipelineTag, configFileName := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "docker.io/anypipeline:tag", "some-radixconfig.yaml"
+	appName, jobName, gitRef, gitRefType, envName, deploymentName, commitID, imageTag, configFileName := "anyapp", "anyjobname", "anytag", string(radixv1.GitRefTag), "anyenv", "anydeploy", "anycommit", "anyimagetag", "some-radixconfig.yaml"
 	rj, _, err := s.applyJobWithSync(
 		utils.NewRegistrationBuilder().WithName(appName).WithAppID(appID.String()).WithRadixConfigFullName(configFileName),
 		utils.NewJobBuilder().
@@ -256,165 +300,116 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 	expectedJobAnnotations := map[string]string{kube.RadixBranchAnnotation: "", kube.RadixGitRefAnnotation: gitRef, kube.RadixGitRefTypeAnnotation: gitRefType}
 	s.Equal(expectedJobAnnotations, job.Annotations)
 	podTemplate := job.Spec.Template
-	s.Equal(annotations.ForClusterAutoscalerSafeToEvict(false), podTemplate.Annotations)
 	s.Equal(new(int32(0)), job.Spec.BackoffLimit)
 	s.Equal(new(int32(86400)), job.Spec.TTLSecondsAfterFinished)
 
-	s.Equal(corev1.RestartPolicyNever, podTemplate.Spec.RestartPolicy)
-	expectedTolerations := []corev1.Toleration{{Key: kube.NodeTaintJobsKey, Effect: corev1.TaintEffectNoSchedule, Operator: corev1.TolerationOpExists}}
-	s.ElementsMatch(expectedTolerations, podTemplate.Spec.Tolerations)
-	expectedAffinity := &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
-		{Key: kube.RadixJobNodeLabel, Operator: corev1.NodeSelectorOpExists},
-		{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-		{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(radixv1.RuntimeArchitectureArm64)}},
-	}}}}}}
-	s.Equal(expectedAffinity, podTemplate.Spec.Affinity)
-	expectedSecurityCtx := &corev1.PodSecurityContext{FSGroup: new(int64(1000)), RunAsNonRoot: new(true), SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault}}
-	s.Equal(expectedSecurityCtx, podTemplate.Spec.SecurityContext)
+	expectedContainer := corev1.Container{
 
-	expectedContainers := []corev1.Container{
-		{
-			Name:            "radix-pipeline",
-			Image:           pipelineTag,
-			ImagePullPolicy: corev1.PullAlways,
-			Args: []string{
-				fmt.Sprintf("--%s=%s", flags.AppName, appName),
-				fmt.Sprintf("--%s=%s", flags.JobName, jobName),
-				fmt.Sprintf("--%s=%s", flags.PipelineType, radixv1.BuildDeploy),
-				fmt.Sprintf("--%s=%s", flags.GitWorkspace, "/workspace"),
-				fmt.Sprintf("--%s=%s", flags.RadixConfigFile, configFileName),
-				fmt.Sprintf("--%s=%v", flags.TriggeredFromWebhook, false),
-				fmt.Sprintf("--%s=%s", flags.ConfigMapName, jobName),
-				fmt.Sprintf("--%s=%s", flags.ConfigMapNamespace, utils.GetAppNamespace(appName)),
-				fmt.Sprintf("--%s=%s", flags.ConfigMapKey, configMapKeyLabel),
-				fmt.Sprintf("--%s=%s", flags.ImageTag, imageTag),
-				fmt.Sprintf("--%s=%s", flags.Branch, ""),
-				fmt.Sprintf("--%s=%s", flags.GitRef, gitRef),
-				fmt.Sprintf("--%s=%s", flags.GitRefType, gitRefType),
-				fmt.Sprintf("--%s=%s", flags.ToEnvironment, envName),
-				fmt.Sprintf("--%s=%s", flags.CommitID, commitID),
-				fmt.Sprintf("--%s=%s", flags.PushImage, "1"),
+		Name: "radix-pipeline",
+		Args: []string{
+			fmt.Sprintf("--%s=%s", flags.AppName, appName),
+			fmt.Sprintf("--%s=%s", flags.JobName, jobName),
+			fmt.Sprintf("--%s=%s", flags.PipelineType, radixv1.BuildDeploy),
+			fmt.Sprintf("--%s=%s", flags.GitWorkspace, "/workspace"),
+			fmt.Sprintf("--%s=%s", flags.RadixConfigFile, configFileName),
+			fmt.Sprintf("--%s=%v", flags.TriggeredFromWebhook, false),
+			fmt.Sprintf("--%s=%s", flags.ConfigMapName, jobName),
+			fmt.Sprintf("--%s=%s", flags.ConfigMapNamespace, utils.GetAppNamespace(appName)),
+			fmt.Sprintf("--%s=%s", flags.ConfigMapKey, configMapKeyLabel),
+			fmt.Sprintf("--%s=%s", flags.ImageTag, imageTag),
+			fmt.Sprintf("--%s=%s", flags.Branch, ""),
+			fmt.Sprintf("--%s=%s", flags.GitRef, gitRef),
+			fmt.Sprintf("--%s=%s", flags.GitRefType, gitRefType),
+			fmt.Sprintf("--%s=%s", flags.ToEnvironment, envName),
+			fmt.Sprintf("--%s=%s", flags.CommitID, commitID),
+			fmt.Sprintf("--%s=%s", flags.PushImage, "1"),
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "build-context",
+				MountPath: "/workspace",
+				ReadOnly:  false,
 			},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      "build-context",
-					MountPath: "/workspace",
-					ReadOnly:  false,
-				},
-				{
-					Name:      "pod-labels",
-					MountPath: "/pod-labels",
-					ReadOnly:  false,
-				},
-			},
-			Resources: corev1.ResourceRequirements{
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("2000Mi"),
-				},
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("100m"),
-					corev1.ResourceMemory: resource.MustParse("250Mi"),
-				},
-			},
-			SecurityContext: &corev1.SecurityContext{
-				Privileged:               new(false),
-				AllowPrivilegeEscalation: new(false),
-				RunAsNonRoot:             new(true),
-				ReadOnlyRootFilesystem:   new(true),
-				RunAsUser:                new(int64(1000)),
-				RunAsGroup:               new(int64(1000)),
-				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-				SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+			{
+				Name:      "pod-labels",
+				MountPath: "/pod-labels",
+				ReadOnly:  false,
 			},
 		},
 	}
 
-	expectedInitContainers := []corev1.Container{
-		{
-			Name:            "clone-config",
-			Image:           s.cfg.PipelineRunner.GitCloneImage.String(),
-			Command:         []string{"sh", "-c", `umask 002 && git config --global --add safe.directory "$RADIX_CLONE_DIR" && git clone -b "$RADIX_CLONE_BRANCH" --verbose --progress -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them") && chmod -R g+r "$RADIX_CLONE_DIR/.git"`},
-			ImagePullPolicy: corev1.PullIfNotPresent,
-			Env: []corev1.EnvVar{
-				{Name: "HOME", Value: "/home/clone"},
-				{Name: "RADIX_CLONE_REPO", Value: ""},
-				{Name: "RADIX_CLONE_BRANCH", Value: ""},
-				{Name: "RADIX_CLONE_DIR", Value: "/workspace"},
-				{Name: "RADIX_CLONE_COMMIT", Value: ""},
+	expectedInitContainer := corev1.Container{
+
+		Name:            "clone-config",
+		Image:           s.cfg.PipelineRunner.GitCloneImage.String(),
+		Command:         []string{"sh", "-c", `umask 002 && git config --global --add safe.directory "$RADIX_CLONE_DIR" && git clone -b "$RADIX_CLONE_BRANCH" --verbose --progress -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them") && chmod -R g+r "$RADIX_CLONE_DIR/.git"`},
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Env: []corev1.EnvVar{
+			{Name: "HOME", Value: "/home/clone"},
+			{Name: "RADIX_CLONE_REPO", Value: ""},
+			{Name: "RADIX_CLONE_BRANCH", Value: ""},
+			{Name: "RADIX_CLONE_DIR", Value: "/workspace"},
+			{Name: "RADIX_CLONE_COMMIT", Value: ""},
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "build-context",
+				MountPath: "/workspace",
+				ReadOnly:  false,
 			},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      "build-context",
-					MountPath: "/workspace",
-					ReadOnly:  false,
-				},
-				{
-					Name:      "git-ssh-keys",
-					MountPath: "/.ssh",
-					ReadOnly:  true,
-				},
-				{
-					Name:      "builder-home",
-					MountPath: "/home/clone",
-					ReadOnly:  false,
-				},
+			{
+				Name:      "git-ssh-keys",
+				MountPath: "/.ssh",
+				ReadOnly:  true,
 			},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(100, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(250, resource.Mega),
-				},
-				Limits: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceCPU:    *resource.NewScaledQuantity(1000, resource.Milli),
-					corev1.ResourceMemory: *resource.NewScaledQuantity(2000, resource.Mega),
-				},
-			},
-			SecurityContext: &corev1.SecurityContext{
-				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-				RunAsNonRoot:             new(true),
-				RunAsUser:                new(int64(65534)),
-				RunAsGroup:               new(int64(1000)),
-				SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
-				ReadOnlyRootFilesystem:   new(true),
-				AllowPrivilegeEscalation: new(false),
-				Privileged:               new(false),
-				ProcMount:                nil,
+			{
+				Name:      "builder-home",
+				MountPath: "/home/clone",
+				ReadOnly:  false,
 			},
 		},
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("250M"),
+			},
+			Limits: map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("2G"),
+			},
+		},
+		SecurityContext: &corev1.SecurityContext{
+			Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
+			RunAsNonRoot:             new(true),
+			RunAsUser:                new(int64(65534)),
+			RunAsGroup:               new(int64(1000)),
+			SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+			ReadOnlyRootFilesystem:   new(true),
+			AllowPrivilegeEscalation: new(false),
+			Privileged:               new(false),
+			ProcMount:                nil,
+		},
 	}
+
 	expectedVolumes := []corev1.Volume{
 		{Name: "build-context"},
 		{Name: "builder-home"},
-		{Name: "git-ssh-keys", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "git-ssh-keys", DefaultMode: new(int32(256))}}},
-		{Name: "pod-labels", VolumeSource: corev1.VolumeSource{DownwardAPI: &corev1.DownwardAPIVolumeSource{Items: []corev1.DownwardAPIVolumeFile{{Path: "labels", FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.labels"}}}}}},
+		{Name: "git-ssh-keys", Secret: &corev1.SecretVolumeSource{SecretName: "git-ssh-keys", DefaultMode: new(int32(256))}},
+		{Name: "pod-labels", DownwardAPI: &corev1.DownwardAPIVolumeSource{Items: []corev1.DownwardAPIVolumeFile{{Path: "labels", FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.labels"}}}}},
 	}
 
 	expectedPodLabels := map[string]string{kube.RadixJobNameLabel: jobName, kube.RadixAppLabel: "anyapp", kube.RadixAppIDLabel: appID.String()}
+
 	s.Equal(expectedPodLabels, podTemplate.Labels)
-	expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
-	s.Equal(expectedPodAnnotations, podTemplate.Annotations)
-	expectedPodSpec := corev1.PodSpec{
-		ImagePullSecrets:             []corev1.LocalObjectReference{{Name: "an-external-registry-secret"}},
-		RestartPolicy:                corev1.RestartPolicyNever,
-		Tolerations:                  expectedTolerations,
-		Affinity:                     expectedAffinity,
-		ServiceAccountName:           "radix-pipeline",
-		AutomountServiceAccountToken: new(true),
-		SecurityContext:              expectedSecurityCtx,
-		Containers:                   expectedContainers,
-		Volumes:                      expectedVolumes,
-	}
-
-	actualInitContainers := podTemplate.Spec.InitContainers
-	podTemplate.Spec.InitContainers = nil
-
-	s.Equal(expectedPodSpec, podTemplate.Spec)
-	s.Require().Equal(len(expectedInitContainers), len(actualInitContainers))
-	for i := range expectedInitContainers {
-		s.Equal(expectedInitContainers[i], actualInitContainers[i], "init container %s not equal", expectedInitContainers[i].Name)
-	}
-
+	s.ElementsMatch([]corev1.LocalObjectReference{{Name: "an-external-registry-secret"}}, podTemplate.Spec.ImagePullSecrets)
+	s.Equal("radix-pipeline", podTemplate.Spec.ServiceAccountName)
+	s.Require().NotNil(podTemplate.Spec.AutomountServiceAccountToken)
+	s.True(*podTemplate.Spec.AutomountServiceAccountToken)
+	s.Equal(expectedVolumes, podTemplate.Spec.Volumes)
+	s.Require().Len(podTemplate.Spec.Containers, 1)
+	s.Equal(expectedContainer, podTemplate.Spec.Containers[0])
+	s.Require().Len(podTemplate.Spec.InitContainers, 1)
+	s.Equal(expectedInitContainer, podTemplate.Spec.InitContainers[0])
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineConfigMapCreatedAndUpdatedWhenJobIsRecreated() {

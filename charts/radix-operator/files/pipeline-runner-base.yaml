@@ -1,0 +1,44 @@
+metadata:
+  annotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+spec:
+  securityContext:
+    fsGroup: 1000
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  containers:
+    - name: radix-pipeline
+      image: ghcr.io/equinor/radix/pipeline:{{ .Chart.AppVersion }}
+      imagePullPolicy: "Always"
+      ports:
+        - containerPort: 4180
+      readinessProbe:
+        failureThreshold: 3
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        successThreshold: 1
+        tcpSocket:
+          port: 4180
+        timeoutSeconds: 1
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      resources:
+        limits:
+          cpu: 500m
+          memory: 2000Mi
+        requests:
+          cpu: 100m
+          memory: 250Mi

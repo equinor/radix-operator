@@ -151,6 +151,32 @@ func TestParse_HappyPath(t *testing.T) {
 					},
 				},
 			},
+			PipelineRunnerTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "radix-pipeline",
+								Image: "ghcr.io/equinor/radix/pipeline:1.0.0",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1000)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "radix-pipeline",
+								Image: "ghcr.io/equinor/radix/pipeline:1.2.0",
+							},
+						},
+					},
+				},
+			},
 		},
 		PipelineRunner: config.PipelineRunnerConfig{
 			ContainerRegistry:      "any.registry.com",
@@ -266,12 +292,6 @@ func TestParse_HappyPath(t *testing.T) {
 			OrphanedEnvironmentsCleanupCron:     "0 0 * * *",
 			PipelineJobsHistoryLimit:            5,
 			PipelineJobsHistoryPeriodLimit:      720 * time.Hour,
-
-			PipelineImage: config.ContainerImage{
-				Repository: "ghcr.io/equinor/radix-pipeline",
-				Tag:        "v1.0.0",
-			},
-			PipelineImagePullPolicy: corev1.PullAlways,
 		},
 		Webhook: config.WebhookConfig{
 			LogLevel:                 "info",
@@ -770,57 +790,6 @@ func TestEnvConfigMapReader(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, "test-cluster", cfg.Common.ClusterName)
 			assert.Equal(t, "info", cfg.Operator.LogLevel)
-		})
-	}
-}
-
-func TestPipelineJobConfigs(t *testing.T) {
-	tests := map[string]struct {
-		modifyConfig MutateConfigFunc
-		errorPath    string
-	}{
-		"Always is valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.PipelineImagePullPolicy = corev1.PullAlways
-			},
-		},
-		"Never is valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.PipelineImagePullPolicy = corev1.PullNever
-			},
-		},
-		"IfNotPresent is valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.PipelineImagePullPolicy = corev1.PullIfNotPresent
-			},
-		},
-		"blank is not valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.PipelineImagePullPolicy = ""
-			},
-			errorPath: "Operator.PipelineImagePullPolicy",
-		},
-		"x is not valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.PipelineImagePullPolicy = "x"
-			},
-			errorPath: "Operator.PipelineImagePullPolicy",
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			configYaml := []byte(mutateConfig(t, test.modifyConfig))
-
-			var cfg config.Config
-			err := configcodec.Decode(configYaml, &cfg)
-			if test.errorPath == "" {
-				require.NoError(t, err)
-				return
-			}
-
-			require.Error(t, err)
-			assert.ErrorContains(t, err, test.errorPath)
 		})
 	}
 }

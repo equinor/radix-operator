@@ -11,8 +11,8 @@ import (
 
 // InstallRadixOperator installs or upgrades the radix-operator Helm chart so it runs
 // with the expected image tags and configuration, whether or not it is already installed.
-func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releaseName, chartPath, valuesFile string, values map[string]string) error {
-	renderedValuesFile, err := renderValuesFile(valuesFile)
+func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releaseName, chartPath, valuesFile, imageTag string, helmValues map[string]string) error {
+	renderedValuesFile, err := renderValuesFile(valuesFile, imageTag)
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releas
 	}
 
 	// --set values take precedence over the values file
-	for key, value := range values {
+	for key, value := range helmValues {
 		args = append(args, "--set", fmt.Sprintf("%s=%v", key, value))
 	}
 
@@ -48,8 +48,8 @@ func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releas
 	return nil
 }
 
-// renderValuesFile writes a copy of valuesFile to a temp file with archPlaceholder replaced by the host architecture.
-func renderValuesFile(valuesFile string) (string, error) {
+// renderValuesFile writes a copy of valuesFile to a temp file with archPlaceholder replaced by the host architecture and imageTag replaced by the provided image tag.
+func renderValuesFile(valuesFile, imageTag string) (string, error) {
 	content, err := os.ReadFile(valuesFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to read helm values file %s: %w", valuesFile, err)
@@ -59,7 +59,9 @@ func renderValuesFile(valuesFile string) (string, error) {
 		return "", err
 	}
 	defer func() { _ = f.Close() }()
-	if _, err := f.Write(bytes.ReplaceAll(content, []byte(archPlaceholder), []byte(runtime.GOARCH))); err != nil {
+	content = bytes.ReplaceAll(content, []byte(archPlaceholder), []byte(runtime.GOARCH))
+	content = bytes.ReplaceAll(content, []byte(imageTagPlaceholder), []byte(imageTag))
+	if _, err := f.Write(content); err != nil {
 		return "", err
 	}
 	return f.Name(), nil

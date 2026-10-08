@@ -12,13 +12,13 @@ type RuntimeConfig struct {
 
 	JobSchedulerTemplate       corev1.PodTemplateSpec      `json:"jobSchedulerTemplate"`
 	JobSchedulerAuxTemplate    corev1.PodTemplateSpec      `json:"jobSchedulerAuxTemplate"`
-	PipelineRunnerTemplate     corev1.PodTemplateSpec      `json:"pipelineRunnerTemplate"`
+	PipelineRunnerTemplate     RuntimeBaseOverlayPodConfig `json:"pipelineRunnerTemplate"`
 	Oauth2ProxyTemplate        RuntimeBaseOverlayPodConfig `json:"oauth2ProxyTemplate"`
 	Oauth2SessionStoreTemplate RuntimeBaseOverlayPodConfig `json:"oauth2SessionStoreTemplate"`
 }
 
 type RuntimeBaseOverlayPodConfig struct {
-	Base    corev1.PodTemplateSpec `json:"base"`
+	Base    corev1.PodTemplateSpec `json:"base" required:"true"`
 	Overlay corev1.PodTemplateSpec `json:"overlay"`
 }
 

@@ -50,6 +50,20 @@ runtime:
         containers:
           - name: proxy
             image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.0
+  pipelineRunnerTemplate:
+    base:
+      spec:
+        containers:
+          - name: radix-pipeline
+            image: ghcr.io/equinor/radix/pipeline:1.0.0
+    overlay:
+      spec:
+        automountServiceAccountToken: false
+        securityContext:
+          runAsUser: 1000
+        containers:
+          - name: radix-pipeline
+            image: ghcr.io/equinor/radix/pipeline:1.2.0
   specialNodeTypes:
     gpu-nvidia-v1:
       description: "Nvidia GPU node"
@@ -188,11 +202,6 @@ operator:
   orphanedEnvironmentsCleanupCron: "0 0 * * *"
   pipelineJobsHistoryLimit: 5
   pipelineJobsHistoryPeriodLimit: "720h"
-
-  pipelineImage:
-    repository: ghcr.io/equinor/radix-pipeline
-    tag: v1.0.0
-  pipelineImagePullPolicy: "Always"
 
 webhook:
   logLevel: info

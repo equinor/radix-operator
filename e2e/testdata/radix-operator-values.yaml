@@ -1,5 +1,14 @@
 image:
   pullPolicy: IfNotPresent
+  tag: "{{IMAGE_TAG}}"
+
+radixWebhook:
+  image:
+    tag: "{{IMAGE_TAG}}"
+
+radixApiServer:
+  image:
+    tag: "{{IMAGE_TAG}}"
 
 rbac:
   createApp:
@@ -34,11 +43,8 @@ config:
     kubeClientRateLimitBurst: 500
     kubeClientRateLimitQPS: 500
     
-    pipelineImage:
-      repository: local-kind-repo/pipeline-runner
-    pipelineImagePullPolicy: IfNotPresent
     jobSchedulerImage:
-      repository: local-kind-repo/job-scheduler
+      tag: "{{IMAGE_TAG}}"
     azureKeyVaultTenantID: 01234567-8901-2345-6789-012345678901
     gateway:
       name: some-name
@@ -48,6 +54,26 @@ config:
 
   # Mirrors the radix-flux override; "{{ARCH}}" is replaced with the host architecture at install time.
   runtime:
+    pipelineRunnerTemplate:
+      overlay:
+        spec:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/os
+                        operator: In
+                        values:
+                          - linux
+                      - key: kubernetes.io/arch
+                        operator: In
+                        values:
+                          - "{{ARCH}}"
+          containers:
+          - name: radix-pipeline
+            image: local-kind-repo/pipeline-runner:{{IMAGE_TAG}}
+            imagePullPolicy: IfNotPresent
     oauth2ProxyTemplate:
       overlay:
         spec:
