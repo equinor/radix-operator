@@ -70,6 +70,9 @@ config:
                         operator: In
                         values:
                           - "{{ARCH}}"
+          initContainers:
+          - name: clone-config
+            imagePullPolicy: IfNotPresent
           containers:
           - name: radix-pipeline
             image: local-kind-repo/pipeline-runner:{{IMAGE_TAG}}

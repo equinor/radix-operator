@@ -241,6 +241,13 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated_ConfigFromBaseAn
 					ImagePullPolicy: corev1.PullAlways,
 				},
 			},
+			InitContainers: []corev1.Container{
+				{
+					Name:    "clone-config",
+					Image:   "git:latest",
+					Command: []string{"sh", "-c", "echo Cloning config"},
+				},
+			},
 			ImagePullSecrets: []corev1.LocalObjectReference{{Name: "anypullsecret"}},
 		},
 	}
@@ -250,6 +257,12 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated_ConfigFromBaseAn
 				{
 					Name:  "radix-pipeline",
 					Image: "someimage:v1.2.3",
+				},
+			},
+			InitContainers: []corev1.Container{
+				{
+					Name:  "clone-config",
+					Image: "git:1.0.0",
 				},
 			},
 			PriorityClassName: "anypriorityclass",
@@ -265,12 +278,18 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated_ConfigFromBaseAn
 	jobs, _ := s.kubeClient.BatchV1().Jobs(utils.GetAppNamespace(appName)).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := jobs.Items[0]
+	s.Equal("anypriorityclass", job.Spec.Template.Spec.PriorityClassName)
+
+	s.Contains(job.Spec.Template.Spec.ImagePullSecrets, corev1.LocalObjectReference{Name: "anypullsecret"})
 	s.Require().Len(job.Spec.Template.Spec.Containers, 1)
 	s.Require().Equal("radix-pipeline", job.Spec.Template.Spec.Containers[0].Name)
 	s.Equal("someimage:v1.2.3", job.Spec.Template.Spec.Containers[0].Image)
 	s.Equal(corev1.PullAlways, job.Spec.Template.Spec.Containers[0].ImagePullPolicy)
-	s.Equal("anypriorityclass", job.Spec.Template.Spec.PriorityClassName)
-	s.Contains(job.Spec.Template.Spec.ImagePullSecrets, corev1.LocalObjectReference{Name: "anypullsecret"})
+
+	s.Require().Len(job.Spec.Template.Spec.InitContainers, 1)
+	s.Require().Equal("clone-config", job.Spec.Template.Spec.InitContainers[0].Name)
+	s.Equal("git:1.0.0", job.Spec.Template.Spec.InitContainers[0].Image)
+	s.Equal([]string{"sh", "-c", "echo Cloning config"}, job.Spec.Template.Spec.InitContainers[0].Command)
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
@@ -340,10 +359,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 
 	expectedInitContainer := corev1.Container{
 
-		Name:            "clone-config",
-		Image:           s.cfg.PipelineRunner.GitCloneImage.String(),
-		Command:         []string{"sh", "-c", `umask 002 && git config --global --add safe.directory "$RADIX_CLONE_DIR" && git clone -b "$RADIX_CLONE_BRANCH" --verbose --progress -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them") && chmod -R g+r "$RADIX_CLONE_DIR/.git"`},
-		ImagePullPolicy: corev1.PullIfNotPresent,
+		Name: "clone-config",
 		Env: []corev1.EnvVar{
 			{Name: "HOME", Value: "/home/clone"},
 			{Name: "RADIX_CLONE_REPO", Value: ""},
@@ -367,27 +383,6 @@ func (s *RadixJobTestSuite) TestObjectSynced_PipelineJobCreated() {
 				MountPath: "/home/clone",
 				ReadOnly:  false,
 			},
-		},
-		Resources: corev1.ResourceRequirements{
-			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("100m"),
-				corev1.ResourceMemory: resource.MustParse("250M"),
-			},
-			Limits: map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceCPU:    resource.MustParse("1"),
-				corev1.ResourceMemory: resource.MustParse("2G"),
-			},
-		},
-		SecurityContext: &corev1.SecurityContext{
-			Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-			RunAsNonRoot:             new(true),
-			RunAsUser:                new(int64(65534)),
-			RunAsGroup:               new(int64(1000)),
-			SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
-			ReadOnlyRootFilesystem:   new(true),
-			AllowPrivilegeEscalation: new(false),
-			Privileged:               new(false),
-			ProcMount:                nil,
 		},
 	}
 
