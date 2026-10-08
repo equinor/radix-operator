@@ -153,7 +153,8 @@ type RadixDeployExternalDNS struct {
 
 	// Certificate issuer properties
 	// +optional
-	CertificateAutomation CertificateAutomation `json:"certificateAutomation,omitempty"`
+	// TODO: Should this have been omitzero instead of omitempty and pointer?
+	CertificateAutomation *CertificateAutomation `json:"certificateAutomation,omitempty"`
 }
 
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service etc
