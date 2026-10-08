@@ -2839,7 +2839,7 @@ func Test_validateNotificationsRA(t *testing.T) {
 func Test_ValidateApplicationCanBeAppliedWithCertificateAutomation(t *testing.T) {
 	validIssuers := map[string]config.CertificateIssuerConfig{
 		"digicert":    {ClusterIssuerName: "digicert-http01-gateway"},
-		"letsencrypt": {ClusterIssuerName: "letsencrypt-http01-gateway"},
+		"letsencrypt": {ClusterIssuerName: "letsencrypt-http01"},
 	}
 	externalAlias := func(useAutomation bool, certAutomation *radixv1.CertificateAutomation) updateRAFunc {
 		return func(ra *radixv1.RadixApplication) {

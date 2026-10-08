@@ -33,7 +33,7 @@ common:
         renewBefore: 768h
         duration: 2160h
       letsencrypt:
-        clusterIssuerName: letsencrypt-http01-gateway
+        clusterIssuerName: letsencrypt-http01
         renewBefore: 768h
         duration: 2160h
   

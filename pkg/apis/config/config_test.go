@@ -91,7 +91,7 @@ func TestParse_HappyPath(t *testing.T) {
 						Duration:          2160 * time.Hour,
 					},
 					"letsencrypt": {
-						ClusterIssuerName: "letsencrypt-http01-gateway",
+						ClusterIssuerName: "letsencrypt-http01",
 						RenewBefore:       768 * time.Hour,
 						Duration:          2160 * time.Hour,
 					},
