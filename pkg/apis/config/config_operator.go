@@ -3,7 +3,6 @@ package config
 import (
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -49,10 +48,8 @@ type OperatorConfig struct {
 	OrphanedEnvironmentsRetentionPeriod time.Duration               `json:"orphanedEnvironmentsRetentionPeriod" required:"true" validate:"compareDuration(self, '5m') >= 0"`
 	OrphanedEnvironmentsCleanupCron     string                      `json:"orphanedEnvironmentsCleanupCron" required:"true"`
 
-	PipelineJobsHistoryLimit       int               `json:"pipelineJobsHistoryLimit" required:"true" validate:"self >= 3"`
-	PipelineJobsHistoryPeriodLimit time.Duration     `json:"pipelineJobsHistoryPeriodLimit" required:"true" validate:"compareDuration(self, '24h') >= 0"`
-	PipelineImage                  ContainerImage    `json:"pipelineImage" required:"true"`
-	PipelineImagePullPolicy        corev1.PullPolicy `json:"pipelineImagePullPolicy" required:"true" validate:"self in ['Always','IfNotPresent','Never']"`
+	PipelineJobsHistoryLimit       int           `json:"pipelineJobsHistoryLimit" required:"true" validate:"self >= 3"`
+	PipelineJobsHistoryPeriodLimit time.Duration `json:"pipelineJobsHistoryPeriodLimit" required:"true" validate:"compareDuration(self, '24h') >= 0"`
 }
 
 type PodSecurityStandardConfig struct {

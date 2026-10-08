@@ -20,13 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	oauth2TestTimeout         = 5 * time.Minute
-	oauth2TestStabilityPeriod = 30 * time.Second
-	oaurth2TestTimeout        = 60 * time.Second
-	oaurth2TestPollInterval   = 100 * time.Millisecond
-)
-
 // TestOAuth2SystemManagedRedis deploys an nginx component with OAuth2 and a system managed redis
 // session store through the pipeline runner, using the radix-flux style oauth2SessionStoreTemplate
 // overlay from the Helm values, and verifies that the component, redis and oauth2 proxy pods run
@@ -34,6 +27,12 @@ const (
 func TestOAuth2SystemManagedRedis(t *testing.T) {
 	t.Parallel()
 	c := getClient(t)
+	const (
+		oauth2TestTimeout         = 5 * time.Minute
+		oauth2TestStabilityPeriod = 30 * time.Second
+		oaurth2TestTimeout        = 60 * time.Second
+		oaurth2TestPollInterval   = 100 * time.Millisecond
+	)
 	const (
 		appName       = "oauth2-test"
 		envName       = "dev"

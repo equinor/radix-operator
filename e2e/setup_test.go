@@ -58,16 +58,15 @@ var componentSpecs = []struct {
 		HelmValueKey: "radixWebhook.image",
 	},
 	{
-		Name:         "radix-pipeline-runner",
-		Dockerfile:   "pipeline.Dockerfile",
-		ImageName:    "local-kind-repo/pipeline-runner",
-		HelmValueKey: "radixPipelineRunner.image",
+		Name:       "radix-pipeline-runner",
+		Dockerfile: "pipeline.Dockerfile",
+		ImageName:  "local-kind-repo/pipeline-runner",
 	},
 	{
 		Name:         "radix-job-scheduler",
 		Dockerfile:   "job-scheduler.Dockerfile",
 		ImageName:    "local-kind-repo/job-scheduler",
-		HelmValueKey: "radixJobScheduler.image",
+		HelmValueKey: "config.operator.jobSchedulerImage",
 	},
 	{
 		Name:         "radix-api-server",
@@ -214,15 +213,14 @@ func TestMain(m *testing.M) {
 	}
 
 	// Install Helm chart with static values from the values file and the generated image tags
-	helmValues := map[string]string{
-		"config.operator.pipelineImage.tag":     imageTag,
-		"config.operator.jobSchedulerImage.tag": imageTag,
-	}
+	helmValues := map[string]string{}
 	for _, spec := range componentSpecs {
+		if spec.HelmValueKey == "" {
+			continue
+		}
 		helmValues[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName
-		helmValues[fmt.Sprintf("%s.tag", spec.HelmValueKey)] = imageTag
 	}
-	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator", "../charts/radix-operator", "testdata/radix-operator-values.yaml", helmValues); err != nil {
+	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator", "../charts/radix-operator", "testdata/radix-operator-values.yaml", imageTag, helmValues); err != nil {
 		log.Fatal().Err(err).Msg("failed to install radix-operator helm chart")
 	}
 
