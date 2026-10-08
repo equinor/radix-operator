@@ -33,8 +33,8 @@ config:
           issuerUrl: ""
           skipDiscovery: false
     certificateAutomation:
-      defaultIssuer: "" # Required. Must match a key in issuers
-      issuers: {} # Map of issuer name to issuer config
+      defaultIssuer: "" # Optional. If set, must match a key in issuers
+      issuers: {} # Map of issuer name to issuer config. Default empty
   pipelineRunner:
     containerRegistry: ""
     cacheContainerRegistry: ""
