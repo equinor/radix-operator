@@ -828,7 +828,7 @@ func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_ErrorWhe
 	})
 
 	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{FQDN: "app.example.com", UseCertificateAutomation: true})
-	s.EqualError(err, "issuer is not set for external DNS and default issuer is available in certificate automation config")
+	s.EqualError(err, "issuer is not set for external DNS and no default issuer is available in certificate automation config")
 }
 
 func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_ErrorWhenIssuerNotInIssuerList() {
