@@ -248,6 +248,21 @@ func Test_MergePodTemplate_NestedNilFieldsKeepBaseValues(t *testing.T) {
 	assert.Equal(t, new(int32(0o444)), got.Spec.Volumes[0].Projected.DefaultMode)
 }
 
+func Test_MergePodTemplate_VolumeSourcesAreMerged(t *testing.T) {
+	base := podWithContainer(corev1.Container{Name: "main"})
+	base.Spec.Volumes = []corev1.Volume{{Name: "data", EmptyDir: &corev1.EmptyDirVolumeSource{Medium: corev1.StorageMediumMemory}}}
+
+	overlay := podWithContainer(corev1.Container{Name: "main"})
+	overlay.Spec.Volumes = []corev1.Volume{{Name: "data", CSI: &corev1.CSIVolumeSource{Driver: "csi.example.com"}}}
+
+	got, err := kubemerge.MergePodTemplate(base, overlay)
+	require.NoError(t, err)
+
+	require.Len(t, got.Spec.Volumes, 1)
+	assert.Equal(t, &corev1.EmptyDirVolumeSource{Medium: corev1.StorageMediumMemory}, got.Spec.Volumes[0].EmptyDir)
+	assert.Equal(t, &corev1.CSIVolumeSource{Driver: "csi.example.com"}, got.Spec.Volumes[0].CSI)
+}
+
 func Test_MergePodTemplate_ProbeHandlerIsNotReplaced(t *testing.T) {
 	base := podWithContainer(corev1.Container{Name: "main", ReadinessProbe: &corev1.Probe{
 		TCPSocket:           &corev1.TCPSocketAction{Port: intstr.FromInt32(6379)},
