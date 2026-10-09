@@ -5,12 +5,13 @@ import (
 )
 
 type CommonConfig struct {
-	DNSZone                    string            `json:"dnsZone" required:"true"`
-	ClusterName                string            `json:"clusterName" required:"true"`
-	ClusterType                string            `json:"clusterType" required:"true"`
-	AppAliasBaseURL            string            `json:"appAliasBaseURL" required:"true"`
-	ExternalRegistryAuthSecret string            `json:"externalRegistryAuthSecret"`
-	OAuth2Proxy                OAuth2ProxyConfig `json:"oauth2Proxy"`
+	DNSZone                    string                      `json:"dnsZone" required:"true"`
+	ClusterName                string                      `json:"clusterName" required:"true"`
+	ClusterType                string                      `json:"clusterType" required:"true"`
+	AppAliasBaseURL            string                      `json:"appAliasBaseURL" required:"true"`
+	ExternalRegistryAuthSecret string                      `json:"externalRegistryAuthSecret"`
+	OAuth2Proxy                OAuth2ProxyConfig           `json:"oauth2Proxy"`
+	CertificateAutomation      CertificateAutomationConfig `json:"certificateAutomation" required:"true"`
 }
 
 type OAuth2ProxyConfig struct {

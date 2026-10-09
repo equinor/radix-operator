@@ -72,6 +72,7 @@ func CreateOnlineValidator(client client.Client, cfg config.Config) *Validator {
 	onlineValidators := []validatorFunc{
 		createRRExistValidator(client),
 		createDNSAliasAvailableValidator(client, cfg.Webhook.ReservedDNSAliases, cfg.Webhook.ReservedDNSAppAliases),
+		createCertificateAutomationValidator(cfg.Common.CertificateAutomation),
 		createNamespaceUsableValidator(client),
 		createComponentAuthenticationValidator(cfg),
 	}

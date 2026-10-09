@@ -32,6 +32,9 @@ config:
         oidc:
           issuerUrl: ""
           skipDiscovery: false
+    certificateAutomation:
+      defaultIssuer: "" # Optional. If set, must match a key in issuers
+      issuers: {} # Map of issuer name to issuer config. Default empty
   pipelineRunner:
     containerRegistry: ""
     cacheContainerRegistry: ""
@@ -120,11 +123,6 @@ config:
       name: ""
       namespace: ""
       sectionName: "https"
-
-    certificateAutomation:
-      duration: "2160h"
-      renewBefore: "720h"
-      gatewayClusterIssuer: ""
 
     pipelineImage:
       repository: "ghcr.io/equinor/radix/pipeline"

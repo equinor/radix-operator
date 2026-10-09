@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"testing"
+	"time"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/config"
@@ -70,14 +71,14 @@ func (s *ExternalDNSTestSuite) setupTest() {
 	s.testUtils = &handlerTestUtils
 	s.cfg = config.Config{
 		Common: config.CommonConfig{
-			AppAliasBaseURL: testAppAliasBaseURL,
+			AppAliasBaseURL:       testAppAliasBaseURL,
+			CertificateAutomation: testConfig.Common.CertificateAutomation,
 		},
 		Operator: config.OperatorConfig{
 			Gateway: config.GatewayConfig{
 				Name:      edTestGatewayName,
 				Namespace: edTestGatewayNamespace,
 			},
-			CertificateAutomation: testConfig.Operator.CertificateAutomation,
 		},
 	}
 }
@@ -794,4 +795,98 @@ func (s *ExternalDNSTestSuite) TestOAuth2BackendRef_WhenOAuth2Enabled() {
 	expectedOAuthServiceName := utils.GetAuxOAuthProxyComponentServiceName(edTestComponentName)
 	s.Equal(gatewayapiv1.ObjectName(expectedOAuthServiceName), route.Spec.Rules[0].BackendRefs[0].Name)
 	s.Equal(gatewayapiv1.PortNumber(defaults.OAuthProxyPortNumber), *route.Spec.Rules[0].BackendRefs[0].Port)
+}
+
+func (s *ExternalDNSTestSuite) deploymentWithCertificateAutomation(certAutomation config.CertificateAutomationConfig) *Deployment {
+	cfg := s.cfg
+	cfg.Common.CertificateAutomation = certAutomation
+
+	return &Deployment{
+		kubeclient:      s.kubeClient,
+		radixclient:     s.radixClient,
+		kubeutil:        s.kubeUtil,
+		dynamicClient:   s.dynamicClient,
+		certClient:      s.certClient,
+		registration:    &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: edTestAppName}},
+		radixDeployment: &radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: s.namespace()}},
+		config:          cfg,
+	}
+}
+
+func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_ErrorWhenIssuerListIsEmpty() {
+	deploy := s.deploymentWithCertificateAutomation(config.CertificateAutomationConfig{DefaultIssuer: "digicert"})
+
+	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{FQDN: "app.example.com", UseCertificateAutomation: true})
+	s.EqualError(err, "list of issuers is empty in certificate automation config")
+}
+
+func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_ErrorWhenIssuerAndDefaultIssuerNotSet() {
+	deploy := s.deploymentWithCertificateAutomation(config.CertificateAutomationConfig{
+		Issuers: map[string]config.CertificateIssuerConfig{
+			"digicert": {ClusterIssuerName: "digicert-http01-gateway", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour},
+		},
+	})
+
+	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{FQDN: "app.example.com", UseCertificateAutomation: true})
+	s.EqualError(err, "issuer is not set for external DNS and no default issuer is available in certificate automation config")
+}
+
+func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_ErrorWhenIssuerNotInIssuerList() {
+	deploy := s.deploymentWithCertificateAutomation(config.CertificateAutomationConfig{
+		DefaultIssuer: "digicert",
+		Issuers: map[string]config.CertificateIssuerConfig{
+			"digicert": {ClusterIssuerName: "digicert-http01-gateway", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour},
+		},
+	})
+
+	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{
+		FQDN:                     "app.example.com",
+		UseCertificateAutomation: true,
+		CertificateAutomation:    &radixv1.CertificateAutomation{Issuer: "nonexisting"},
+	})
+	s.EqualError(err, "selected issuer is not found in the list of issuers in certificate automation config")
+}
+
+func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_UsesDefaultIssuerWhenIssuerNotSet() {
+	const fqdn = "app.example.com"
+	deploy := s.deploymentWithCertificateAutomation(config.CertificateAutomationConfig{
+		DefaultIssuer: "digicert",
+		Issuers: map[string]config.CertificateIssuerConfig{
+			"digicert":    {ClusterIssuerName: "digicert-http01-gateway", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour},
+			"letsencrypt": {ClusterIssuerName: "letsencrypt-http01", Duration: 11000 * time.Hour, RenewBefore: 6000 * time.Hour},
+		},
+	})
+
+	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true})
+	s.Require().NoError(err)
+
+	cert, err := s.certClient.CertmanagerV1().Certificates(s.namespace()).Get(context.Background(), fqdn, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal("digicert-http01-gateway", cert.Spec.IssuerRef.Name)
+	s.Equal(10000*time.Hour, cert.Spec.Duration.Duration)
+	s.Equal(5000*time.Hour, cert.Spec.RenewBefore.Duration)
+}
+
+func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_UsesIssuerFromExternalDns() {
+	const fqdn = "app.example.com"
+	deploy := s.deploymentWithCertificateAutomation(config.CertificateAutomationConfig{
+		DefaultIssuer: "digicert",
+		Issuers: map[string]config.CertificateIssuerConfig{
+			"digicert":    {ClusterIssuerName: "digicert-http01-gateway", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour},
+			"letsencrypt": {ClusterIssuerName: "letsencrypt-http01", Duration: 11000 * time.Hour, RenewBefore: 6000 * time.Hour},
+		},
+	})
+
+	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{
+		FQDN:                     fqdn,
+		UseCertificateAutomation: true,
+		CertificateAutomation:    &radixv1.CertificateAutomation{Issuer: "letsencrypt"},
+	})
+	s.Require().NoError(err)
+
+	cert, err := s.certClient.CertmanagerV1().Certificates(s.namespace()).Get(context.Background(), fqdn, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal("letsencrypt-http01", cert.Spec.IssuerRef.Name)
+	s.Equal(11000*time.Hour, cert.Spec.Duration.Duration)
+	s.Equal(6000*time.Hour, cert.Spec.RenewBefore.Duration)
 }

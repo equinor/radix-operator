@@ -351,6 +351,17 @@ type ExternalAlias struct {
 	// +kubebuilder:default:=false
 	// +optional
 	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
+
+	// Certificate issuer properties
+	// +optional
+	CertificateAutomation *CertificateAutomation `json:"certificateAutomation,omitempty"`
+}
+
+type CertificateAutomation struct {
+
+	// Certificate issuer
+	// +required
+	Issuer string `json:"issuer,omitempty"`
 }
 
 // DNSAlias defines mapping between an DNS alias and a component and environment.

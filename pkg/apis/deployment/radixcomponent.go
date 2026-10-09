@@ -17,7 +17,7 @@ var (
 	mergoTranformers mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}, mergoutils.ResourceQuantityTransformer{}}}
 )
 
-func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.RadixApplication, currentRadixDeployment *radixv1.RadixDeployment, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
+func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.RadixApplication, currentRadixDeployment *radixv1.RadixDeployment, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent, defaultIssuer string) ([]radixv1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	var deployComponents []radixv1.RadixDeployComponent
 	preservingDeployComponentMap := slice.Reduce(preservingDeployComponents, make(map[string]radixv1.RadixDeployComponent), func(acc map[string]radixv1.RadixDeployComponent, component radixv1.RadixDeployComponent) map[string]radixv1.RadixDeployComponent {
@@ -69,7 +69,7 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		deployComponent.Resources = getRadixCommonComponentResources(&radixComponent, environmentSpecificConfig)
 		deployComponent.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig, defaultEnvVars)
 		deployComponent.AlwaysPullImageOnDeploy = getRadixComponentAlwaysPullImageOnDeployFlag(&radixComponent, environmentSpecificConfig)
-		deployComponent.ExternalDNS = getExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
+		deployComponent.ExternalDNS = getExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env, defaultIssuer)
 		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
 		deployComponent.HealthChecks = getRadixCommonComponentHealthChecks(&radixComponent, environmentSpecificConfig)
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
@@ -300,12 +300,20 @@ func getRadixComponentPort(radixComponent *radixv1.RadixComponent) string {
 	return radixComponent.PublicPort
 }
 
-func getExternalDNSAliasForComponentEnvironment(radixApplication *radixv1.RadixApplication, component, env string) []radixv1.RadixDeployExternalDNS {
+func getExternalDNSAliasForComponentEnvironment(radixApplication *radixv1.RadixApplication, component, env string, defaultIssuer string) []radixv1.RadixDeployExternalDNS {
 	dnsExternalAlias := make([]radixv1.RadixDeployExternalDNS, 0)
 
 	for _, externalAlias := range radixApplication.Spec.DNSExternalAlias {
 		if externalAlias.Component == component && externalAlias.Environment == env {
-			dnsExternalAlias = append(dnsExternalAlias, radixv1.RadixDeployExternalDNS{FQDN: externalAlias.Alias, UseCertificateAutomation: externalAlias.UseCertificateAutomation})
+			ed := radixv1.RadixDeployExternalDNS{FQDN: externalAlias.Alias, UseCertificateAutomation: externalAlias.UseCertificateAutomation}
+			if externalAlias.UseCertificateAutomation {
+				issuer := defaultIssuer
+				if externalAlias.CertificateAutomation != nil {
+					issuer = externalAlias.CertificateAutomation.Issuer
+				}
+				ed.CertificateAutomation = &radixv1.CertificateAutomation{Issuer: issuer}
+			}
+			dnsExternalAlias = append(dnsExternalAlias, ed)
 		}
 	}
 

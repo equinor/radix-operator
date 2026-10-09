@@ -125,4 +125,9 @@ var (
 	ErrCronScheduleEmpty      = errors.New("cron schedule must contain at least one entry")
 	ErrCronTimeZoneInvalid    = errors.New("cron time zone is invalid")
 	ErrCronConcurrencyInvalid = errors.New("cron concurrency policy is invalid")
+
+	ErrMissingConfiguredCertificateAutomationIssuers = errors.New("missing configured certificate automation issuers")
+	ErrMissingCertificateAutomationIssuer            = errors.New("missing certificate automation issuer")
+	ErrInvalidCertificateAutomationIssuer            = errors.New("invalid selected certificate automation issuer")
+	WarnUnusedCertificateAutomation                  = "unused certificate automation configuration"
 )

@@ -391,7 +391,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 						RunAsUser:        new(int64(1000)),
 						PublicPort:       "8080",
 						ExternalDNS: []v1.RadixDeployExternalDNS{
-							{FQDN: "myapp.example.com", UseCertificateAutomation: true},
+							{FQDN: "myapp.example.com", UseCertificateAutomation: true, CertificateAutomation: &v1.CertificateAutomation{Issuer: e2eDefaultCertificateIssuer}},
 						},
 					},
 				},

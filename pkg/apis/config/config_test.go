@@ -82,6 +82,21 @@ func TestParse_HappyPath(t *testing.T) {
 					},
 				},
 			},
+			CertificateAutomation: config.CertificateAutomationConfig{
+				DefaultIssuer: "digicert",
+				Issuers: map[string]config.CertificateIssuerConfig{
+					"digicert": {
+						ClusterIssuerName: "digicert-http01-gateway",
+						RenewBefore:       768 * time.Hour,
+						Duration:          2160 * time.Hour,
+					},
+					"letsencrypt": {
+						ClusterIssuerName: "letsencrypt-http01",
+						RenewBefore:       768 * time.Hour,
+						Duration:          2160 * time.Hour,
+					},
+				},
+			},
 		},
 		PipelineRunner: config.PipelineRunnerConfig{
 			ContainerRegistry:      "any.registry.com",
@@ -187,11 +202,6 @@ func TestParse_HappyPath(t *testing.T) {
 				Name:        "gateway",
 				Namespace:   "istio-system",
 				SectionName: "https",
-			},
-			CertificateAutomation: config.CertificateAutomationConfig{
-				GatewayClusterIssuer: "any-cluster-issuer",
-				Duration:             8760 * time.Hour,
-				RenewBefore:          720 * time.Hour,
 			},
 			OrphanedEnvironmentsRetentionPeriod: 720 * time.Hour,
 			OrphanedEnvironmentsCleanupCron:     "0 0 * * *",
@@ -478,11 +488,47 @@ func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
 
 }
 
+func TestParse_CertificateAutomationDefaultIssuerValidation(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"default issuer defined in issuers should pass": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Common.CertificateAutomation.DefaultIssuer = "letsencrypt"
+			},
+			expectedError: ``,
+		},
+		"default issuer not defined in issuers should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Common.CertificateAutomation.DefaultIssuer = "nonexisting"
+			},
+			expectedError: `failed to validate config: field "Common.CertificateAutomation.DefaultIssuer" did not pass validation expression`,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
+
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
+
+			if test.expectedError == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Empty(t, cfg)
+			assert.ErrorContains(t, err, test.expectedError)
+		})
+	}
+}
+
 func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
 	configYaml := []byte(mutateConfig(t, func(cfg *config.Config) {
 		cfg.Operator.JobSchedulerImage = config.ContainerImage{}
 	}))
-
 	var cfg config.Config
 	err := configcodec.Decode(configYaml, &cfg)
 

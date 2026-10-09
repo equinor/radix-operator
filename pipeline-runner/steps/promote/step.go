@@ -101,7 +101,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(ctx, radixApplication, activeRadixDeployment, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment])
+	err = mergeWithRadixApplication(ctx, radixApplication, activeRadixDeployment, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment], pipelineInfo.Cfg.Common.CertificateAutomation.DefaultIssuer)
 	if err != nil {
 		return err
 	}
@@ -137,9 +137,9 @@ func areArgumentsValid(arguments model.PipelineArguments) error {
 	return nil
 }
 
-func mergeWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages) error {
+func mergeWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages, defaultIssuer string) error {
 	defaultEnvVars := getDefaultEnvVarsFromRadixDeployment(radixDeployment)
-	if err := mergeComponentsWithRadixApplication(ctx, radixConfig, activeRadixDeployment, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
+	if err := mergeComponentsWithRadixApplication(ctx, radixConfig, activeRadixDeployment, radixDeployment, environment, defaultEnvVars, componentImages, defaultIssuer); err != nil {
 		return err
 	}
 
@@ -177,8 +177,8 @@ func mergeJobComponentsWithRadixApplication(ctx context.Context, radixConfig *v1
 	return nil
 }
 
-func mergeComponentsWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
-	newEnvComponents, err := deployment.GetRadixComponentsForEnv(ctx, radixConfig, activeRadixDeployment, environment, componentImages, defaultEnvVars, nil)
+func mergeComponentsWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages, defaultIssuer string) error {
+	newEnvComponents, err := deployment.GetRadixComponentsForEnv(ctx, radixConfig, activeRadixDeployment, environment, componentImages, defaultEnvVars, nil, defaultIssuer)
 	if err != nil {
 		return err
 	}
