@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
@@ -49,37 +48,7 @@ func (s *handlerSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
-	s.config = config.Config{
-		Common: config.CommonConfig{
-			ExternalRegistryAuthSecret: "anySecret",
-		},
-		Runtime: config.RuntimeConfig{
-			Oauth2ProxyTemplate: config.RuntimeBaseOverlayPodConfig{
-				Base: corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "proxy",
-								Image: "quay.io/oauth2-proxy/oauth2-proxy:v7.15.4",
-							},
-						},
-					},
-				},
-			},
-			Oauth2SessionStoreTemplate: config.RuntimeBaseOverlayPodConfig{
-				Base: corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "session-store",
-								Image: "redis:123",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	s.config = config.Config{}
 	s.eventRecorder = &record.FakeRecorder{}
 }
 
