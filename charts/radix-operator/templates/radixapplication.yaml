@@ -3210,9 +3210,6 @@ spec:
                       properties:
                         issuer:
                           description: Certificate issuer
-                          enum:
-                          - digicert
-                          - letsencrypt
                           type: string
                       required:
                       - issuer

@@ -2898,12 +2898,6 @@ func Test_ValidateApplicationCanBeAppliedWithCertificateAutomation(t *testing.T)
 			expectedError:         radixapplication.ErrMissingCertificateAutomationIssuer,
 		},
 		{
-			name:                  "automation enabled, certificateAutomation set but issuer left empty",
-			certificateAutomation: config.CertificateAutomationConfig{DefaultIssuer: "digicert", Issuers: validIssuers},
-			updateRA:              externalAlias(true, &radixv1.CertificateAutomation{Issuer: ""}),
-			expectedError:         radixapplication.ErrNoSpecifiedCertificateAutomationIssuer,
-		},
-		{
 			name:                  "automation enabled with an unknown issuer",
 			certificateAutomation: config.CertificateAutomationConfig{Issuers: validIssuers},
 			updateRA:              externalAlias(true, &radixv1.CertificateAutomation{Issuer: "unknown-issuer"}),

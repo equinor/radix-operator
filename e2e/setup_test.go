@@ -39,6 +39,15 @@ var (
 	testManager manager.Manager
 )
 
+// e2eCertificateIssuers maps certificate automation issuer name to cluster issuer name.
+var e2eCertificateIssuers = map[string]string{
+	"digicert":    "digicert-http01-gateway",
+	"letsencrypt": "letsencrypt-http01",
+}
+
+// e2eDefaultCertificateIssuer must be a key in e2eCertificateIssuers.
+const e2eDefaultCertificateIssuer = "digicert"
+
 var componentSpecs = []struct {
 	Name         string
 	Dockerfile   string
@@ -220,28 +229,37 @@ func TestMain(m *testing.M) {
 
 	// Install Helm chart with custom image tags
 	helmValues := map[string]string{
-		"config.pipelineRunner.containerRegistry":                    "local-kind-repo",
-		"config.pipelineRunner.cacheContainerRegistry":               "local-kind-repo",
-		"config.operator.pipelineImage.repository":                   "local-kind-repo/pipeline-runner",
-		"config.operator.pipelineImage.tag":                          imageTag,
-		"config.operator.jobSchedulerImage.repository":               "local-kind-repo/job-scheduler",
-		"config.operator.jobSchedulerImage.tag":                      imageTag,
-		"config.operator.azureKeyVaultTenantID":                      "01234567-8901-2345-6789-012345678901",
-		"config.operator.gateway.name":                               "some-name",
-		"config.operator.gateway.namespace":                          "some-namespace",
-		"config.operator.certificateAutomation.gatewayClusterIssuer": "some-cluster-issuer",
-		"config.common.appAliasBaseURL":                              "app.example.com",
-		"config.common.clusterName":                                  "weekly-e2e",
-		"config.common.clusterType":                                  "test",
-		"config.common.dnsZone":                                      "radix.example.com",
-		"config.apiServer.logLevel":                                  "debug",
-		"config.apiServer.logPrettyPrint":                            "true",
-		"config.apiServer.prometheusUrl":                             "http://prometheus.svc",
-		"config.apiServer.authenticators.azure.issuer":               "https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/",
-		"config.apiServer.authenticators.azure.audience":             "6dae42f8-4368-4678-94ff-3960e28e3630",
-		"rbac.createApp.groups[0]":                                   "123",
-		"image.pullPolicy":                                           "IfNotPresent",
-		"config.operator.pipelineImagePullPolicy":                    "IfNotPresent",
+		"config.pipelineRunner.containerRegistry":           "local-kind-repo",
+		"config.pipelineRunner.cacheContainerRegistry":      "local-kind-repo",
+		"config.operator.pipelineImage.repository":          "local-kind-repo/pipeline-runner",
+		"config.operator.pipelineImage.tag":                 imageTag,
+		"config.operator.jobSchedulerImage.repository":      "local-kind-repo/job-scheduler",
+		"config.operator.jobSchedulerImage.tag":             imageTag,
+		"config.operator.azureKeyVaultTenantID":             "01234567-8901-2345-6789-012345678901",
+		"config.operator.gateway.name":                      "some-name",
+		"config.operator.gateway.namespace":                 "some-namespace",
+		"config.common.certificateAutomation.defaultIssuer": e2eDefaultCertificateIssuer,
+		"config.common.appAliasBaseURL":                     "app.example.com",
+		"config.common.clusterName":                         "weekly-e2e",
+		"config.common.clusterType":                         "test",
+		"config.common.dnsZone":                             "radix.example.com",
+		"config.apiServer.logLevel":                         "debug",
+		"config.apiServer.logPrettyPrint":                   "true",
+		"config.apiServer.prometheusUrl":                    "http://prometheus.svc",
+		"config.apiServer.authenticators.azure.issuer":      "https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/",
+		"config.apiServer.authenticators.azure.audience":    "6dae42f8-4368-4678-94ff-3960e28e3630",
+		"rbac.createApp.groups[0]":                          "123",
+		"image.pullPolicy":                                  "IfNotPresent",
+		"config.operator.pipelineImagePullPolicy":           "IfNotPresent",
+	}
+	if _, ok := e2eCertificateIssuers[e2eDefaultCertificateIssuer]; !ok {
+		log.Fatal().Msgf("default certificate issuer %q is not in e2eCertificateIssuers", e2eDefaultCertificateIssuer)
+	}
+	for name, clusterIssuerName := range e2eCertificateIssuers {
+		prefix := fmt.Sprintf("config.common.certificateAutomation.issuers.%s", name)
+		helmValues[prefix+".clusterIssuerName"] = clusterIssuerName
+		helmValues[prefix+".duration"] = "2160h"
+		helmValues[prefix+".renewBefore"] = "768h"
 	}
 	for _, spec := range componentSpecs {
 		helmValues[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName

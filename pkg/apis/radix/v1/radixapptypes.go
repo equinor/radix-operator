@@ -360,10 +360,8 @@ type ExternalAlias struct {
 type CertificateAutomation struct {
 
 	// Certificate issuer
-	// +kubebuilder:validation:Enum=digicert;letsencrypt
 	// +required
-	// TODO: Remove kubebuilder validation
-	Issuer string `json:"issuer"`
+	Issuer string `json:"issuer,omitempty"`
 }
 
 // DNSAlias defines mapping between an DNS alias and a component and environment.

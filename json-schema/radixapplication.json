@@ -3181,10 +3181,6 @@
                 "properties": {
                   "issuer": {
                     "description": "Certificate issuer",
-                    "enum": [
-                      "digicert",
-                      "letsencrypt"
-                    ],
                     "type": "string"
                   }
                 },
