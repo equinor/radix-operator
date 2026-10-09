@@ -42,6 +42,7 @@ func MergePodTemplate(templates ...corev1.PodTemplateSpec) (corev1.PodTemplateSp
 }
 
 func mergeTwoPodTemplates(base, overlay corev1.PodTemplateSpec) (corev1.PodTemplateSpec, error) {
+	overlay = *overlay.DeepCopy()
 	original, err := json.Marshal(base)
 	if err != nil {
 		return corev1.PodTemplateSpec{}, err
