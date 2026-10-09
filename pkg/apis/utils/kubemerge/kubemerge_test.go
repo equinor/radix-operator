@@ -8,16 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func Test_MergePodTemplate_HappyPath(t *testing.T) {
 	base := corev1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:      map[string]string{"app": "base", "keep": "yes"},
-			Annotations: map[string]string{"base-annotation": "1"},
-		},
+		Labels:      map[string]string{"app": "base", "keep": "yes"},
+		Annotations: map[string]string{"base-annotation": "1"},
 		Spec: corev1.PodSpec{
 			ServiceAccountName: "base-sa",
 			NodeSelector:       map[string]string{"pool": "base"},
@@ -26,7 +23,7 @@ func Test_MergePodTemplate_HappyPath(t *testing.T) {
 				{Name: "shared-secret"},
 			},
 			Volumes: []corev1.Volume{
-				{Name: "tmp", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+				{Name: "tmp", EmptyDir: &corev1.EmptyDirVolumeSource{}},
 			},
 			Containers: []corev1.Container{
 				{
@@ -53,9 +50,7 @@ func Test_MergePodTemplate_HappyPath(t *testing.T) {
 		},
 	}
 	overlay := corev1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{"app": "overlay", "extra": "yes"},
-		},
+		Labels: map[string]string{"app": "overlay", "extra": "yes"},
 		Spec: corev1.PodSpec{
 			NodeSelector: map[string]string{"zone": "a"},
 			ImagePullSecrets: []corev1.LocalObjectReference{
@@ -63,7 +58,7 @@ func Test_MergePodTemplate_HappyPath(t *testing.T) {
 				{Name: "overlay-secret"},
 			},
 			Volumes: []corev1.Volume{
-				{Name: "config", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: "cm"}}}},
+				{Name: "config", ConfigMap: &corev1.ConfigMapVolumeSource{Name: "cm"}},
 			},
 			Containers: []corev1.Container{
 				{
@@ -91,10 +86,8 @@ func Test_MergePodTemplate_HappyPath(t *testing.T) {
 	}
 
 	overlay2 := corev1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:      map[string]string{"app": "overlay2"},
-			Annotations: map[string]string{"overlay2-annotation": "1"},
-		},
+		Labels:      map[string]string{"app": "overlay2"},
+		Annotations: map[string]string{"overlay2-annotation": "1"},
 		Spec: corev1.PodSpec{
 			NodeSelector:     map[string]string{"zone": "b"},
 			ImagePullSecrets: []corev1.LocalObjectReference{{Name: "overlay2-secret"}},
@@ -165,7 +158,7 @@ func Test_MergePodTemplate_HappyPath(t *testing.T) {
 
 func Test_MergePodTemplate_EnvValueFromIsMergedWithValue(t *testing.T) {
 	base := podWithContainer(corev1.Container{Name: "main", Env: []corev1.EnvVar{
-		{Name: "SECRET", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "s"}, Key: "k"}}},
+		{Name: "SECRET", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Name: "s", Key: "k"}}},
 	}})
 	overlay := podWithContainer(corev1.Container{Name: "main", Env: []corev1.EnvVar{{Name: "SECRET", Value: "plain"}}})
 
@@ -240,12 +233,12 @@ func Test_MergePodTemplate_OverlayWithoutContainersKeepsBaseContainers(t *testin
 }
 
 func Test_MergePodTemplate_NestedNilFieldsKeepBaseValues(t *testing.T) {
-	sources := []corev1.VolumeProjection{{ConfigMap: &corev1.ConfigMapProjection{LocalObjectReference: corev1.LocalObjectReference{Name: "cm"}}}}
+	sources := []corev1.VolumeProjection{{ConfigMap: &corev1.ConfigMapProjection{Name: "cm"}}}
 	base := podWithContainer(corev1.Container{Name: "main"})
-	base.Spec.Volumes = []corev1.Volume{{Name: "proj", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{Sources: sources}}}}
+	base.Spec.Volumes = []corev1.Volume{{Name: "proj", Projected: &corev1.ProjectedVolumeSource{Sources: sources}}}
 
 	overlay := podWithContainer(corev1.Container{Name: "main"})
-	overlay.Spec.Volumes = []corev1.Volume{{Name: "proj", VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{DefaultMode: new(int32(0o444))}}}}
+	overlay.Spec.Volumes = []corev1.Volume{{Name: "proj", Projected: &corev1.ProjectedVolumeSource{DefaultMode: new(int32(0o444))}}}
 
 	got, err := kubemerge.MergePodTemplate(base, overlay)
 	require.NoError(t, err)
@@ -257,12 +250,12 @@ func Test_MergePodTemplate_NestedNilFieldsKeepBaseValues(t *testing.T) {
 
 func Test_MergePodTemplate_ProbeHandlerIsNotReplaced(t *testing.T) {
 	base := podWithContainer(corev1.Container{Name: "main", ReadinessProbe: &corev1.Probe{
-		ProbeHandler:        corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt32(6379)}},
+		TCPSocket:           &corev1.TCPSocketAction{Port: intstr.FromInt32(6379)},
 		InitialDelaySeconds: 10,
 		PeriodSeconds:       10,
 	}})
 	overlay := podWithContainer(corev1.Container{Name: "main", ReadinessProbe: &corev1.Probe{
-		ProbeHandler:  corev1.ProbeHandler{TCPSocket: nil, HTTPGet: &corev1.HTTPGetAction{Path: "/healthz", Port: intstr.FromInt32(8080)}},
+		TCPSocket: nil, HTTPGet: &corev1.HTTPGetAction{Path: "/healthz", Port: intstr.FromInt32(8080)},
 		PeriodSeconds: 5,
 	}})
 
