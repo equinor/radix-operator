@@ -52,7 +52,8 @@ const (
 	// archPlaceholder in any committed file is replaced with the host runtime architecture so the
 	// build and runtime pods schedule on the local kind node. runtime.GOARCH already uses the same
 	// values as Radix (amd64/arm64), and the kind node shares the host architecture.
-	archPlaceholder = "{{ARCH}}"
+	archPlaceholder     = "{{ARCH}}"
+	imageTagPlaceholder = "{{IMAGE_TAG}}"
 )
 
 // BuildGitServerImage builds the e2e git server image from e2e/testdata/gitserver/git-server.Dockerfile.

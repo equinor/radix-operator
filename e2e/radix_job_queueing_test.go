@@ -30,6 +30,7 @@ const (
 //     order, with jobs targeting the same environment running one at a time while jobs targeting
 //     different environments are independent.
 func TestRadixJobQueueingOrder(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "queue-order-test"
 

@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -48,11 +49,31 @@ func TestOAuthRedisResourceManagerTestSuite(t *testing.T) {
 func (s *OAuthRedisResourceManagerTestSuite) SetupSuite() {
 	s.cfg = config.Config{
 		Common: config.CommonConfig{
-			AppAliasBaseURL: "app.dev.radix.equinor.com",
-			OAuth2Proxy: config.OAuth2ProxyConfig{
-				RedisImage: config.ContainerImage{Repository: "someredisimage", Tag: "v1234.123.123"},
-			},
+			AppAliasBaseURL:            "app.dev.radix.equinor.com",
 			ExternalRegistryAuthSecret: "someSecret",
+		},
+		Runtime: config.RuntimeConfig{
+			Oauth2SessionStoreTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:            SessionStoreContainerName,
+								Image:           "someredisimage:latest",
+								ImagePullPolicy: corev1.PullAlways,
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  SessionStoreContainerName,
+							Image: "someredisimage:v1.2.3",
+						}},
+					},
+				},
+			},
 		},
 	}
 }
@@ -86,7 +107,6 @@ func (s *OAuthRedisResourceManagerTestSuite) TestNewOAuthRedisResourceManager() 
 	s.Equal(rd, sut.rd)
 	s.Equal(rr, sut.rr)
 	s.Equal(s.kubeUtil, sut.kubeutil)
-	s.Equal(s.cfg.Common.OAuth2Proxy.RedisImage.String(), sut.oauthRedisDockerImage)
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() {
@@ -119,7 +139,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 	}
 	for _, test := range tests {
 		s.Run(test.name, func() {
-			sut := &oauthRedisResourceManager{test.rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.cfg}
+			sut := &oauthRedisResourceManager{test.rd, rr, s.kubeUtil, zerolog.Nop(), s.cfg}
 			err := sut.Sync(context.Background())
 			s.Nil(err)
 			deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
@@ -127,6 +147,58 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_ComponentRestartEnvVar() 
 			s.Equal(test.expectRestartEnvVar, envVarExist)
 		})
 	}
+}
+
+func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_PodTemplateFromConfigIsMerged() {
+	appName := "anyapp"
+	compBuilder := utils.NewDeployComponentBuilder().
+		WithName("comp").
+		WithPublicPort("http").
+		WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234", SessionStoreType: v1.SessionStoreSystemManaged}})
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").
+		WithComponent(compBuilder).
+		BuildRD()
+
+	secretName := utils.GetAuxiliaryComponentSecretName("comp", v1.OAuthProxyAuxiliaryComponentSuffix)
+	expectedPodTemplate := corev1.PodTemplateSpec{
+		Labels: radixlabels.ForAuxOAuthRedisComponent(appName, new(compBuilder.BuildComponent())),
+		Spec: corev1.PodSpec{
+			ImagePullSecrets: []corev1.LocalObjectReference{
+				{Name: s.cfg.Common.ExternalRegistryAuthSecret},
+			},
+			Containers: []corev1.Container{
+				{
+					Name:            SessionStoreContainerName,
+					Image:           "someredisimage:v1.2.3",
+					ImagePullPolicy: corev1.PullAlways,
+					Env: []corev1.EnvVar{{
+						Name: redisPasswordEnvironmentVariable,
+						ValueFrom: &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								Name: secretName,
+								Key:  defaults.OAuthRedisPasswordKeyName,
+							},
+						},
+					}},
+				},
+			},
+		},
+	}
+
+	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, zerolog.Nop(), s.cfg}
+	s.Require().NoError(sut.Sync(context.Background()))
+
+	deploys, err := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+	s.Require().NoError(err)
+	s.Require().Len(deploys.Items, 1)
+
+	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: "comp", kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthRedisAuxiliaryComponentType}
+	s.Equal(expectedLabels, deploys.Items[0].Labels)
+	s.ElementsMatch([]metav1.OwnerReference{getOwnerReferenceOfDeployment(rd)}, deploys.Items[0].OwnerReferences)
+
+	podSpec := deploys.Items[0].Spec.Template
+	s.Equal(expectedPodTemplate, podSpec)
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
@@ -142,7 +214,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 
 	for _, scenario := range scenarios {
-		sut := &oauthRedisResourceManager{scenario.rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.cfg}
+		sut := &oauthRedisResourceManager{scenario.rd, rr, s.kubeUtil, zerolog.Nop(), s.cfg}
 		err := sut.Sync(context.Background())
 		s.Nil(err)
 		deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
@@ -233,82 +305,13 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OauthDeploymentReplicas()
 	for _, test := range tests {
 		s.Run(test.name, func() {
 			s.setupTest()
-			sut := &oauthRedisResourceManager{test.rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.cfg}
+			sut := &oauthRedisResourceManager{test.rd, rr, s.kubeUtil, zerolog.Nop(), s.cfg}
 			err := sut.Sync(context.Background())
 			s.Nil(err)
 			deploys, _ := sut.kubeutil.KubeClient().AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
 			s.Equal(test.expectedReplicas, *deploys.Items[0].Spec.Replicas)
 		})
 	}
-}
-
-func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisDeploymentCreated() {
-	appName, envName, componentName := "anyapp", "qa", "server"
-	envNs := utils.GetEnvironmentNamespace(appName, envName)
-	inputOAuth := &v1.OAuth2{ClientID: "1234", SessionStoreType: v1.SessionStoreSystemManaged}
-
-	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
-	rd := utils.NewDeploymentBuilder().
-		WithAppName(appName).
-		WithEnvironment(envName).
-		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: inputOAuth}).WithRuntime(&v1.Runtime{Architecture: "customarch"})).
-		BuildRD()
-
-	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.cfg}
-	err := sut.Sync(context.Background())
-	s.Require().NoError(err, "failed to sync oauth redis manager")
-
-	actualDeploys, _ := s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
-	s.Require().Len(actualDeploys.Items, 1)
-
-	actualDeploy, ok := slice.FindFirst(actualDeploys.Items, func(deploy appsv1.Deployment) bool {
-		return deploy.Name == utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthRedisAuxiliaryComponentSuffix)
-	})
-	s.Require().True(ok, "oauth2 redis deployment not found")
-	s.ElementsMatch([]metav1.OwnerReference{getOwnerReferenceOfDeployment(rd)}, actualDeploy.OwnerReferences)
-
-	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: v1.OAuthRedisAuxiliaryComponentType}
-	s.Equal(expectedLabels, actualDeploy.Labels)
-	s.Len(actualDeploy.Spec.Template.Spec.Containers, 1)
-	s.Equal(expectedLabels, actualDeploy.Spec.Template.Labels)
-	redisDataVolume, redisDataVolumeExists := slice.FindFirst(actualDeploy.Spec.Template.Spec.Volumes, func(volume corev1.Volume) bool { return volume.Name == "redis-data" })
-	s.True(redisDataVolumeExists, "Missing volume redis-data")
-	s.NotNil(redisDataVolume.EmptyDir, "Missing EmptyDir in the volume redis-data")
-
-	defaultContainer := actualDeploy.Spec.Template.Spec.Containers[0]
-	s.Equal(sut.oauthRedisDockerImage, defaultContainer.Image)
-
-	s.Len(defaultContainer.Ports, 1)
-	s.Equal(v1.OAuthRedisPortNumber, defaultContainer.Ports[0].ContainerPort)
-	s.Equal(v1.OAuthRedisPortName, defaultContainer.Ports[0].Name)
-	s.NotNil(defaultContainer.ReadinessProbe)
-	s.Equal(v1.OAuthRedisPortNumber, defaultContainer.ReadinessProbe.TCPSocket.Port.IntVal)
-
-	expectedArgs := []string{
-		"redis-server",
-		"--save", "3600 1 300 100 60 10000",
-		"--dir", "/data",
-		"--appendonly", "yes",
-		"--protected-mode", "yes",
-		"--requirepass", "$(REDIS_PASSWORD)",
-	}
-	s.Equal(expectedArgs, defaultContainer.Args, "Unexpected args in oauth redis container")
-
-	redisDataVolumeMount, redisDataVolumeMountExists := slice.FindFirst(defaultContainer.VolumeMounts, func(volumeMount corev1.VolumeMount) bool { return volumeMount.Name == "redis-data" })
-	s.True(redisDataVolumeMountExists, "Missing volume redis-data")
-	s.Equal("/data", redisDataVolumeMount.MountPath, "Missing EmptyDir in the volume-mount redis-data")
-
-	expectedAffinity := &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
-			{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-			{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
-		}}}}},
-	}
-	s.Equal(expectedAffinity, actualDeploy.Spec.Template.Spec.Affinity, "oauth2 aux deployment must not use component's runtime config")
-
-	s.Len(defaultContainer.Env, 1)
-	secretName := utils.GetAuxiliaryComponentSecretName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
-	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthRedisPasswordKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName(redisPasswordEnvironmentVariable, defaultContainer.Env))
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisServiceCreated() {
@@ -321,7 +324,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisServiceCreated(
 		WithEnvironment(envName).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreSystemManaged}})).
 		BuildRD()
-	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.cfg}
+	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, zerolog.Nop(), s.cfg}
 	err := sut.Sync(context.Background())
 	s.Nil(err)
 
@@ -348,7 +351,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisUninstall() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component1Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreSystemManaged}})).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreSystemManaged}})).
 		BuildRD()
-	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.cfg}
+	sut := &oauthRedisResourceManager{rd, rr, s.kubeUtil, zerolog.Nop(), s.cfg}
 	err := sut.Sync(context.Background())
 	s.NoError(err, "failed to sync oauth redis manager")
 
@@ -367,7 +370,7 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_Sync_OAuthRedisUninstall() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component1Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreSystemManaged}})).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{})).
 		BuildRD()
-	sut = &oauthRedisResourceManager{rd, rr, s.kubeUtil, "redis:123", zerolog.Nop(), s.cfg}
+	sut = &oauthRedisResourceManager{rd, rr, s.kubeUtil, zerolog.Nop(), s.cfg}
 	err = sut.Sync(context.Background())
 	s.Nil(err)
 	actualDeploys, err = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
@@ -419,15 +422,6 @@ func (s *OAuthRedisResourceManagerTestSuite) Test_GarbageCollect() {
 	s.Require().NoError(err, "failed to list services")
 	s.Len(actualServices.Items, 5)
 	s.ElementsMatch([]string{"svc1", "svc2", "svc5", "svc6", "svc7"}, s.getObjectNames(actualServices.Items))
-}
-
-func (*OAuthRedisResourceManagerTestSuite) getEnvVarValueFromByName(name string, envvars []corev1.EnvVar) corev1.EnvVarSource {
-	for _, envvar := range envvars {
-		if envvar.Name == name && envvar.ValueFrom != nil {
-			return *envvar.ValueFrom
-		}
-	}
-	return corev1.EnvVarSource{}
 }
 
 func (s *OAuthRedisResourceManagerTestSuite) getObjectNames(items any) []string {

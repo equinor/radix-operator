@@ -48,21 +48,7 @@ func (s *handlerSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
 	s.dynamicClient = test.CreateClient()
 	s.certClient = certfake.NewSimpleClientset()
-	s.config = config.Config{
-		Common: config.CommonConfig{
-			OAuth2Proxy: config.OAuth2ProxyConfig{
-				RedisImage: config.ContainerImage{
-					Repository: "redis",
-					Tag:        "123",
-				},
-				ProxyImage: config.ContainerImage{
-					Repository: "oauth2-proxy",
-					Tag:        "456",
-				},
-			},
-			ExternalRegistryAuthSecret: "anySecret",
-		},
-	}
+	s.config = config.Config{}
 	s.eventRecorder = &record.FakeRecorder{}
 }
 

@@ -56,14 +56,6 @@ func TestParse_HappyPath(t *testing.T) {
 			AppAliasBaseURL:            "app.dev.radix.equinor.com",
 			ExternalRegistryAuthSecret: "anyExternalAuth",
 			OAuth2Proxy: config.OAuth2ProxyConfig{
-				ProxyImage: config.ContainerImage{
-					Repository: "quay.io/oauth2-proxy/oauth2-proxy",
-					Tag:        "v7.6.2",
-				},
-				RedisImage: config.ContainerImage{
-					Repository: "docker.io/redis",
-					Tag:        "v8.6.0",
-				},
 				ProxyDefaults: v1.OAuth2{
 					Scope:                  "openid profile email",
 					ProxyPrefix:            "/oauth2",
@@ -79,6 +71,109 @@ func TestParse_HappyPath(t *testing.T) {
 					OIDC: &v1.OAuth2OIDC{
 						IssuerURL:     "https://issuer.com",
 						SkipDiscovery: new(false),
+					},
+				},
+			},
+		},
+		Runtime: config.RuntimeConfig{
+			// DefaultArchitecture: "amd64",
+			// SpecialNodeTypes: map[string]config.NodeTypeConfig{
+			// 	"gpu-nvidia-v1": {
+			// 		Description:     "Nvidia GPU node",
+			// 		Architecture:    "amd64",
+			// 		Template:        podTemplateWithNodeSelector(map[string]string{"kubernetes.io/os": "linux", "nodetype": "gpu-nvidia-v1"}),
+			// 		BuilderTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/os": "linux", "nodetype": "gpu-nvidia-v1"}),
+			// 	},
+			// },
+			// Architectures: map[string]config.ArchitectureSpec{
+			// 	"amd64": {
+			// 		Enabled:           true,
+			// 		BuilderTemplate:   podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "amd64", "kubernetes.io/os": "linux"}),
+			// 		JobTemplate:       podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "amd64", "kubernetes.io/os": "linux"}),
+			// 		ComponentTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "amd64", "kubernetes.io/os": "linux"}),
+			// 	},
+			// 	"arm64": {
+			// 		Enabled:           false,
+			// 		BuilderTemplate:   podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
+			// 		JobTemplate:       podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
+			// 		ComponentTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
+			// 	},
+			// },
+			Oauth2SessionStoreTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "session-store",
+								Image: "docker.io/redis:latest",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1001)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "session-store",
+								Image: "docker.io/redis:v8.6.0",
+							},
+						},
+					},
+				},
+			},
+			Oauth2ProxyTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "proxy",
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:latest",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1001)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "proxy",
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:v7.15.0",
+							},
+						},
+					},
+				},
+			},
+			PipelineRunnerTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "radix-pipeline",
+								Image: "ghcr.io/equinor/radix/pipeline:1.0.0",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1000)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "radix-pipeline",
+								Image: "ghcr.io/equinor/radix/pipeline:1.2.0",
+							},
+						},
 					},
 				},
 			},
@@ -197,12 +292,6 @@ func TestParse_HappyPath(t *testing.T) {
 			OrphanedEnvironmentsCleanupCron:     "0 0 * * *",
 			PipelineJobsHistoryLimit:            5,
 			PipelineJobsHistoryPeriodLimit:      720 * time.Hour,
-
-			PipelineImage: config.ContainerImage{
-				Repository: "ghcr.io/equinor/radix-pipeline",
-				Tag:        "v1.0.0",
-			},
-			PipelineImagePullPolicy: corev1.PullAlways,
 		},
 		Webhook: config.WebhookConfig{
 			LogLevel:                 "info",
@@ -372,15 +461,16 @@ func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
 
 // A field without an env tag is overridden by the uppercased field path, with dots replaced by underscores.
 func TestParse_EnvOverrideFromFieldPath(t *testing.T) {
-	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYIMAGE_REPOSITORY", "ghcr.io/equinor/oauth2-proxy")
-	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYIMAGE_TAG", "v1.2.3")
+	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYDEFAULTS_SCOPE", "openid email")
+	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYDEFAULTS_COOKIE_NAME", "_custom_cookie")
 
 	var cfg config.Config
 	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
 
 	require.NoError(t, err)
-	expected := config.ContainerImage{Repository: "ghcr.io/equinor/oauth2-proxy", Tag: "v1.2.3"}
-	assert.Equal(t, expected, cfg.Common.OAuth2Proxy.ProxyImage)
+	assert.Equal(t, "openid email", cfg.Common.OAuth2Proxy.ProxyDefaults.Scope)
+	require.NotNil(t, cfg.Common.OAuth2Proxy.ProxyDefaults.Cookie)
+	assert.Equal(t, "_custom_cookie", cfg.Common.OAuth2Proxy.ProxyDefaults.Cookie.Name)
 }
 
 func TestParse_EnvTagTakesPrecedenceOverFieldPath(t *testing.T) {
@@ -477,6 +567,80 @@ func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
 	}
 
 }
+
+// func TestParse_RuntimeDefaultArchitectureValidation(t *testing.T) {
+// 	tests := map[string]struct {
+// 		mutateConfig  MutateConfigFunc
+// 		expectedError string
+// 	}{
+// 		"enabled architecture should pass": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.DefaultArchitecture = "amd64"
+// 			},
+// 		},
+// 		"disabled architecture should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.DefaultArchitecture = "arm64"
+// 			},
+// 			expectedError: `field "Runtime.DefaultArchitecture" did not pass validation expression`,
+// 		},
+// 		"architecture enabled alongside the default should pass": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				arm64 := cfg.Runtime.Architectures["arm64"]
+// 				arm64.Enabled = true
+// 				cfg.Runtime.Architectures["arm64"] = arm64
+// 				cfg.Runtime.DefaultArchitecture = "arm64"
+// 			},
+// 		},
+// 		"architecture not defined as a key should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.DefaultArchitecture = "s390x"
+// 			},
+// 			expectedError: `field "Runtime.DefaultArchitecture" did not pass validation expression`,
+// 		},
+// 		"architecture matching a node type name should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.DefaultArchitecture = "gpu-nvidia-v1"
+// 			},
+// 			expectedError: `field "Runtime.DefaultArchitecture" did not pass validation expression`,
+// 		},
+// 		"missing default architecture should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.DefaultArchitecture = ""
+// 			},
+// 			expectedError: `field "Runtime.DefaultArchitecture" is required but not set`,
+// 		},
+// 		"empty architectures should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.Architectures = map[string]config.ArchitectureSpec{}
+// 			},
+// 			expectedError: `field "Runtime.Architectures" did not pass validation expression`,
+// 		},
+// 		"omitted architectures should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.Architectures = nil
+// 			},
+// 			expectedError: `field "Runtime.Architectures" did not pass validation expression`,
+// 		},
+// 	}
+
+// 	for name, test := range tests {
+// 		t.Run(name, func(t *testing.T) {
+// 			configYaml := []byte(mutateConfig(t, test.mutateConfig))
+
+// 			var cfg config.Config
+// 			err := configcodec.Decode(configYaml, &cfg)
+// 			if test.expectedError == "" {
+// 				require.NoError(t, err)
+// 				return
+// 			}
+
+// 			require.Error(t, err)
+// 			assert.ErrorContains(t, err, test.expectedError)
+// 			assert.Empty(t, cfg)
+// 		})
+// 	}
+// }
 
 func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
 	configYaml := []byte(mutateConfig(t, func(cfg *config.Config) {
@@ -630,61 +794,14 @@ func TestEnvConfigMapReader(t *testing.T) {
 	}
 }
 
-func TestPipelineJobConfigs(t *testing.T) {
-	tests := map[string]struct {
-		modifyConfig MutateConfigFunc
-		errorPath    string
-	}{
-		"Always is valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.PipelineImagePullPolicy = corev1.PullAlways
-			},
-		},
-		"Never is valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.PipelineImagePullPolicy = corev1.PullNever
-			},
-		},
-		"IfNotPresent is valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.PipelineImagePullPolicy = corev1.PullIfNotPresent
-			},
-		},
-		"blank is not valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.PipelineImagePullPolicy = ""
-			},
-			errorPath: "Operator.PipelineImagePullPolicy",
-		},
-		"x is not valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.Operator.PipelineImagePullPolicy = "x"
-			},
-			errorPath: "Operator.PipelineImagePullPolicy",
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			configYaml := []byte(mutateConfig(t, test.modifyConfig))
-
-			var cfg config.Config
-			err := configcodec.Decode(configYaml, &cfg)
-			if test.errorPath == "" {
-				require.NoError(t, err)
-				return
-			}
-
-			require.Error(t, err)
-			assert.ErrorContains(t, err, test.errorPath)
-		})
-	}
-}
-
 func MustParseUrl(u string) url.URL {
 	x, err := url.Parse(u)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse url")
 	}
 	return *x
+}
+
+func podTemplateWithNodeSelector(selector map[string]string) corev1.PodTemplateSpec {
+	return corev1.PodTemplateSpec{Spec: corev1.PodSpec{NodeSelector: selector}}
 }

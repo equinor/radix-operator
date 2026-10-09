@@ -14,9 +14,11 @@ import (
 
 // TestRadixDeploymentKubebuilderValidations tests that kubebuilder validation rules are applied
 func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	t.Run("AppName validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -35,6 +37,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Environment validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -53,6 +56,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Component Name validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -79,6 +83,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Component Image validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -105,6 +110,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Component Replicas validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -131,6 +137,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Component ReplicasOverride validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -157,6 +164,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Component RunAsUser validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -183,6 +191,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("ExternalDNS FQDN validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -221,6 +230,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job Name validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -247,6 +257,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job Image validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -273,6 +284,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job SchedulerPort validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -299,6 +311,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job TimeLimitSeconds validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -325,6 +338,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job BackoffLimit validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -351,6 +365,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job RunAsUser validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
@@ -377,6 +392,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Complete valid RadixDeployment accepted", func(t *testing.T) {
+		t.Parallel()
 		rd := &v1.RadixDeployment{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-complete", Namespace: "default"},
 			Spec: v1.RadixDeploymentSpec{

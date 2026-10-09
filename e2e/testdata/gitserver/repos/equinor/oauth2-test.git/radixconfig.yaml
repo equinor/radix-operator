@@ -1,24 +1,20 @@
 apiVersion: radix.equinor.com/v1
 kind: RadixApplication
 metadata:
-  name: queue-order-test
+  name: oauth2-test
 spec:
   environments:
     - name: dev
-      build:
-        from: dev
-    - name: prod
-      build:
-        from: prod
   components:
     - name: web
-      src: .
+      image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
       runtime:
         architecture: "{{ARCH}}"
       ports:
         - name: http
           port: 8080
       publicPort: http
-      environmentConfig:
-        - environment: dev
-        - environment: prod
+      authentication:
+        oauth2:
+          clientId: 00000000-0000-0000-0000-000000000000
+          sessionStoreType: systemManaged

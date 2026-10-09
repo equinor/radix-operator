@@ -12,12 +12,6 @@ config:
     appAliasBaseURL: ""
     externalRegistryAuthSecret: ""
     oauth2Proxy:
-      proxyImage:
-        repository: quay.io/oauth2-proxy/oauth2-proxy
-        tag: latest
-      redisImage:
-        repository: docker.io/redis
-        tag: latest
       proxyDefaults:
         scope: "openid profile email"
         proxyPrefix: "/oauth2"
@@ -126,11 +120,6 @@ config:
       renewBefore: "720h"
       gatewayClusterIssuer: ""
 
-    pipelineImage:
-      repository: "ghcr.io/equinor/radix/pipeline"
-      tag: "" # Fallback to .Chart.AppVersion
-    pipelineImagePullPolicy: "Always"
-
   webhook:
     logLevel: info
     logPrettyPrint: false
@@ -159,6 +148,71 @@ config:
     #    audience: ""
     prometheusUrl: ""
     podNamespace: "$__env(POD_NAMESPACE)"
+
+  runtime:
+    pipelineRunnerTemplate:
+      base: null # Defaults to content in file ./files/pipeline-runner-base.yaml
+      overlay: null
+    
+    oauth2ProxyTemplate:
+      # Must expose port 4180!
+      base: null # Defaults to content in file ./files/oauth2-proxy-base.yaml
+      overlay: null
+    oauth2SessionStoreTemplate:
+      # Must expose port 6379!
+      base: null # Defaults to content in file ./files/oauth2-session-store-base.yaml
+      overlay: null
+
+    # defaultArchitecture: amd64
+    # jobSchedulerTemplate: {}
+    # jobSchedulerAuxTemplate: {}
+    # specialNodeTypes: {}
+      # gpu-nvidia-v1:
+      #   description: "Nvidia GPU node"
+      #   architecture: amd64
+      #   template:
+      #     spec:
+      #       nodeSelector:
+      #         nodetype: gpu-nvidia-v1
+      #   builderTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         nodetype: gpu-nvidia-v1
+    # architectures: {}
+      # amd64:
+      #   enabled: true
+      #   builderTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: amd64
+      #         kubernetes.io/os: linux
+      #   jobTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: amd64
+      #         kubernetes.io/os: linux
+      #   componentTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: amd64
+      #         kubernetes.io/os: linux
+      # arm64:
+      #   enabled: true
+      #   builderTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: arm64
+      #         kubernetes.io/os: linux
+      #   jobTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: arm64
+      #         kubernetes.io/os: linux
+      #   componentTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: arm64
+      #         kubernetes.io/os: linux
 
 replicaCount: 1
 

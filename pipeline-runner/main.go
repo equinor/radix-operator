@@ -27,8 +27,6 @@ import (
 // - access to create Jobs in "app" namespace it runs under
 // - access to create RD in all namespaces
 // - a secret git-ssh-keys containing deployment key to git repo provided in RR
-// - a secret radix-sp-acr-azure with credentials to access our private ACR
-// - a secret radix-snyk-service-account with access token to SNYK service account
 
 func main() {
 	pipelineArgs := model.PipelineArguments{}

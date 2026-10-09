@@ -14,6 +14,7 @@ import (
 )
 
 func TestRadixApiServerIsRunning(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	t.Run("deployment is ready", func(t *testing.T) {
