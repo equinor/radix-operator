@@ -153,7 +153,6 @@ type RadixDeployExternalDNS struct {
 
 	// Certificate issuer properties
 	// +optional
-	// TODO: Should this have been omitzero instead of omitempty and pointer?
 	CertificateAutomation *CertificateAutomation `json:"certificateAutomation,omitempty"`
 }
 

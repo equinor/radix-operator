@@ -128,6 +128,6 @@ var (
 
 	ErrMissingConfiguredCertificateAutomationIssuers = errors.New("missing configured certificate automation issuers")
 	ErrMissingCertificateAutomationIssuer            = errors.New("missing certificate automation issuer")
-	ErrNoSpecifiedCertificateAutomationIssuer        = errors.New("no specified certificate automation issuer")
 	ErrInvalidCertificateAutomationIssuer            = errors.New("invalid selected certificate automation issuer")
+	WarnUnusedCertificateAutomation                  = errors.New("unused certificate automation configuration")
 )
