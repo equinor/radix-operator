@@ -11,6 +11,7 @@ import (
 func createCertificateAutomationValidator(certificateAutomationConfig config.CertificateAutomationConfig) validatorFunc {
 	return func(ctx context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
 		var errs []error
+		var wrns []string
 
 		if ra.Spec.DNSExternalAlias == nil {
 			return nil, errs
@@ -22,15 +23,15 @@ func createCertificateAutomationValidator(certificateAutomationConfig config.Cer
 
 		for _, extAlias := range ra.Spec.DNSExternalAlias {
 			if !extAlias.UseCertificateAutomation {
+				if extAlias.CertificateAutomation != nil {
+					wrns = append(wrns, fmt.Sprintf("external alias %s: %s", extAlias.Alias, WarnUnusedCertificateAutomation))
+				}
+
 				continue
 			}
 
 			if extAlias.CertificateAutomation == nil && certificateAutomationConfig.DefaultIssuer == "" {
 				errs = append(errs, fmt.Errorf("external alias %s: %w", extAlias.Alias, ErrMissingCertificateAutomationIssuer))
-			}
-
-			if extAlias.CertificateAutomation != nil && extAlias.CertificateAutomation.Issuer == "" {
-				errs = append(errs, fmt.Errorf("external alias %s: %w", extAlias.Alias, ErrNoSpecifiedCertificateAutomationIssuer))
 			}
 
 			selectedIssuer := certificateAutomationConfig.DefaultIssuer
@@ -43,6 +44,6 @@ func createCertificateAutomationValidator(certificateAutomationConfig config.Cer
 			}
 		}
 
-		return nil, errs
+		return wrns, errs
 	}
 }

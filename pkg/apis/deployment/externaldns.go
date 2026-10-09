@@ -325,17 +325,11 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificate(ctx context.Conte
 }
 
 func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
-
-	// TODO: Redundant due to check in webhook?
 	if len(deploy.config.Common.CertificateAutomation.Issuers) == 0 {
 		return errors.New("list of issuers is empty in certificate automation config")
 	}
 	if externalDns.CertificateAutomation == nil && deploy.config.Common.CertificateAutomation.DefaultIssuer == "" {
 		return errors.New("issuer is not set for external DNS and no default issuer is available in certificate automation config")
-	}
-
-	if externalDns.CertificateAutomation != nil && externalDns.CertificateAutomation.Issuer == "" {
-		return errors.New("no specified certificate automation issuer")
 	}
 
 	issuer := deploy.config.Common.CertificateAutomation.DefaultIssuer
