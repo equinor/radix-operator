@@ -802,6 +802,6 @@ func MustParseUrl(u string) url.URL {
 	return *x
 }
 
-func podTemplateWithNodeSelector(selector map[string]string) corev1.PodTemplateSpec {
-	return corev1.PodTemplateSpec{Spec: corev1.PodSpec{NodeSelector: selector}}
-}
+// func podTemplateWithNodeSelector(selector map[string]string) corev1.PodTemplateSpec {
+// 	return corev1.PodTemplateSpec{Spec: corev1.PodSpec{NodeSelector: selector}}
+// }
