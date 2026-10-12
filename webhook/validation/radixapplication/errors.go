@@ -127,7 +127,7 @@ var (
 	ErrCronConcurrencyInvalid = errors.New("cron concurrency policy is invalid")
 
 	ErrMissingConfiguredCertificateAutomationIssuers = errors.New("missing configured certificate automation issuers")
-	ErrMissingCertificateAutomationIssuer            = errors.New("missing certificate automation issuer")
+	ErrMissingCertificateAutomationIssuer            = errors.New("certificateAutomation.issuer must be set when useCertificateAutomation is true, as no default issuer is configured for this cluster")
 	ErrInvalidCertificateAutomationIssuer            = errors.New("invalid selected certificate automation issuer")
 	WarnUnusedCertificateAutomation                  = "unused certificate automation configuration"
 )
