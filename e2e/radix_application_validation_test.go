@@ -58,9 +58,11 @@ func createRadixRegistrationAndNamespaceForTest(t *testing.T, c client.Client, a
 
 // TestRadixApplicationWebhookSmokeTest tests that the webhook is working by verifying createRRExistValidator
 func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	t.Run("rejects RadixApplication when RadixRegistration does not exist", func(t *testing.T) {
+		t.Parallel()
 		ra := &v1.RadixApplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "nonexistent-app",
@@ -81,6 +83,7 @@ func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
 	})
 
 	t.Run("accepts RadixApplication when RadixRegistration exists", func(t *testing.T) {
+		t.Parallel()
 		appName := "test-webhook-app"
 		appNamespace := appName + "-app"
 
@@ -133,6 +136,7 @@ func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
 
 // TestRadixApplicationEnvironmentsValidation tests Environments field validation (MinItems=1)
 func TestRadixApplicationEnvironmentsValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-env-validation"
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
@@ -166,6 +170,7 @@ func TestRadixApplicationEnvironmentsValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -189,6 +194,7 @@ func TestRadixApplicationEnvironmentsValidation(t *testing.T) {
 
 // TestRadixApplicationEnvironmentNameValidation tests Environment.Name validation (MinLength=1, MaxLength=63, Pattern)
 func TestRadixApplicationEnvironmentNameValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-env-name"
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
@@ -242,6 +248,7 @@ func TestRadixApplicationEnvironmentNameValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -267,6 +274,7 @@ func TestRadixApplicationEnvironmentNameValidation(t *testing.T) {
 
 // TestRadixApplicationEnvBuildFromValidation tests EnvBuild.From field validation (MinLength=1, MaxLength=255)
 func TestRadixApplicationEnvBuildFromValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-envbuild-from"
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
@@ -300,6 +308,7 @@ func TestRadixApplicationEnvBuildFromValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -330,6 +339,7 @@ func TestRadixApplicationEnvBuildFromValidation(t *testing.T) {
 
 // TestRadixApplicationEnvBuildFromTypeValidation tests EnvBuild.FromType enum validation
 func TestRadixApplicationEnvBuildFromTypeValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-envbuild-fromtype"
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
@@ -363,6 +373,7 @@ func TestRadixApplicationEnvBuildFromTypeValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -393,11 +404,13 @@ func TestRadixApplicationEnvBuildFromTypeValidation(t *testing.T) {
 
 // TestRadixApplicationComponentJobNameUniqueness tests CEL validation for unique component and job names
 func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-name-uniqueness"
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	t.Run("valid - unique component and job names", func(t *testing.T) {
+		t.Parallel()
 		ra := &v1.RadixApplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      appName,
@@ -421,6 +434,7 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 	})
 
 	t.Run("invalid - duplicate name in components and jobs", func(t *testing.T) {
+		t.Parallel()
 		ra := &v1.RadixApplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      appName,
@@ -445,6 +459,7 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 
 // TestRadixApplicationComponentNameValidation tests RadixComponent.Name validation (MinLength=1, MaxLength=50, Pattern)
 func TestRadixApplicationComponentNameValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-component-name"
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
@@ -483,6 +498,7 @@ func TestRadixApplicationComponentNameValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -509,6 +525,7 @@ func TestRadixApplicationComponentNameValidation(t *testing.T) {
 
 // TestRadixApplicationComponentPortValidation tests ComponentPort validation
 func TestRadixApplicationComponentPortValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-port-validation"
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
@@ -562,6 +579,7 @@ func TestRadixApplicationComponentPortValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -591,6 +609,7 @@ func TestRadixApplicationComponentPortValidation(t *testing.T) {
 
 // TestRadixApplicationEgressRuleValidation tests EgressRule validation (MinItems for destinations and ports)
 func TestRadixApplicationEgressRuleValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-egress-validation"
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
@@ -682,6 +701,7 @@ func TestRadixApplicationEgressRuleValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -712,6 +732,7 @@ func TestRadixApplicationEgressRuleValidation(t *testing.T) {
 
 // TestRadixApplicationComponentReplicasValidation tests Component.Replicas validation (Minimum=0)
 func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-replicas"
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
@@ -745,6 +766,7 @@ func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,
@@ -775,6 +797,7 @@ func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
 // TestRadixApplicationAzureKeyVaultUseAzureIdentityValidation tests that a component with an Azure Key Vault
 // using useAzureIdentity requires identity.azure.clientId in the common or the relevant environment config.
 func TestRadixApplicationAzureKeyVaultUseAzureIdentityValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-akv-identity"
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
@@ -863,6 +886,7 @@ func TestRadixApplicationAzureKeyVaultUseAzureIdentityValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appName,

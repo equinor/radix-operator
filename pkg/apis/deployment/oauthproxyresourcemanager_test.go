@@ -57,17 +57,39 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 			DNSZone:         s.dnsZone,
 			AppAliasBaseURL: s.appAliasDnsZone,
 			OAuth2Proxy: config.OAuth2ProxyConfig{
-				RedisImage: config.ContainerImage{
-					Repository: "redis",
-					Tag:        "123",
-				},
-				ProxyImage: config.ContainerImage{
-					Repository: "oauth2-proxy",
-					Tag:        "456",
-				},
 				ProxyDefaults: radixv1.OAuth2{
 					OIDC: &radixv1.OAuth2OIDC{
 						IssuerURL: "https://oidc_issuer_url",
+					},
+				},
+			},
+		},
+		Runtime: config.RuntimeConfig{
+			Oauth2ProxyTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  ProxyContainerName,
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:v7.6.2",
+								Ports: []corev1.ContainerPort{
+									{
+										ContainerPort: 4180,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Oauth2SessionStoreTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Image: "redis:123",
+							},
+						},
 					},
 				},
 			},
@@ -534,21 +556,10 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	s.Equal(expectedPodLabels, actualDeploy.Spec.Template.Labels)
 
 	defaultContainer := actualDeploy.Spec.Template.Spec.Containers[0]
-	s.Equal(s.cfg.Common.OAuth2Proxy.ProxyImage.String(), defaultContainer.Image)
+	s.Equal("quay.io/oauth2-proxy/oauth2-proxy:v7.6.2", defaultContainer.Image)
 
-	s.Len(defaultContainer.Ports, 1)
+	s.Require().Len(defaultContainer.Ports, 1)
 	s.Equal(defaults.OAuthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
-	s.Equal(defaults.OAuthProxyPortName, defaultContainer.Ports[0].Name)
-	s.NotNil(defaultContainer.ReadinessProbe)
-	s.Equal(defaults.OAuthProxyPortNumber, defaultContainer.ReadinessProbe.TCPSocket.Port.IntVal)
-
-	expectedAffinity := &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{MatchExpressions: []corev1.NodeSelectorRequirement{
-			{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorOS}},
-			{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{defaults.DefaultNodeSelectorArchitecture}},
-		}}}}},
-	}
-	s.Equal(expectedAffinity, actualDeploy.Spec.Template.Spec.Affinity, "oauth2 aux deployment must not use component's runtime config")
 
 	s.Len(defaultContainer.Env, 34)
 	s.Equal("oidc", s.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))
@@ -608,6 +619,56 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	})
 	s.True(redisConnectUrlExists, "Env var OAUTH2_PROXY_REDIS_CONNECTION_URL should be present when SessionStoreType is systemManaged")
 	s.Equal("redis://server-aux-oauth-redis:6379", redisConnectUrlEnvVar.Value, "Invalid env var OAUTH2_PROXY_REDIS_CONNECTION_URL")
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_PodTemplateFromConfigIsMerged() {
+	appName, envName, componentName := "anyapp", "qa", "server"
+	cfg := s.cfg
+	cfg.Common.ExternalRegistryAuthSecret = "someSecret"
+	cfg.Runtime.Oauth2ProxyTemplate = config.RuntimeBaseOverlayPodConfig{
+		Base: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{
+					Name:            ProxyContainerName,
+					Image:           "someproxyimage:latest",
+					ImagePullPolicy: corev1.PullAlways,
+				}},
+				AutomountServiceAccountToken: new(false),
+			},
+		},
+		Overlay: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{
+					Name:  ProxyContainerName,
+					Image: "someproxyimage:v1.2.3",
+				}},
+			},
+		},
+	}
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithPort("http", 8080).WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "1234"}})).
+		BuildRD()
+
+	sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, cfg)
+	s.Require().NoError(sut.Sync(context.Background()))
+
+	deploys, err := s.kubeClient.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(deploys.Items, 1)
+
+	podSpec := deploys.Items[0].Spec.Template.Spec
+	s.Equal([]corev1.LocalObjectReference{{Name: "someSecret"}}, podSpec.ImagePullSecrets)
+	s.Equal(new(false), podSpec.AutomountServiceAccountToken)
+	s.Require().Len(podSpec.Containers, 1)
+	container := podSpec.Containers[0]
+	s.Equal(ProxyContainerName, container.Name)
+	s.Equal("someproxyimage:v1.2.3", container.Image)
+	s.Equal(corev1.PullAlways, container.ImagePullPolicy)
+	s.Equal("1234", s.getEnvVarValueByName("OAUTH2_PROXY_CLIENT_ID", container.Env))
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentFailed_Upstream_PublicPort_NotFound() {
@@ -805,7 +866,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_ServiceCreated
 	s.ElementsMatch([]metav1.OwnerReference{getOwnerReferenceOfDeployment(rd)}, actualServices.Items[0].OwnerReferences)
 	s.Equal(corev1.ServiceTypeClusterIP, actualServices.Items[0].Spec.Type)
 	s.Len(actualServices.Items[0].Spec.Ports, 1)
-	s.Equal(corev1.ServicePort{Port: defaults.OAuthProxyPortNumber, TargetPort: intstr.FromString(defaults.OAuthProxyPortName), Protocol: corev1.ProtocolTCP}, actualServices.Items[0].Spec.Ports[0])
+	s.Equal(corev1.ServicePort{Port: defaults.OAuthProxyPortNumber, TargetPort: intstr.FromInt32(defaults.OAuthProxyPortNumber), Protocol: corev1.ProtocolTCP}, actualServices.Items[0].Spec.Ports[0])
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect_ComponentRemoved() {

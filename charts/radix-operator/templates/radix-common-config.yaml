@@ -32,9 +32,6 @@ data:
         "jobSchedulerImage" (dict
           "tag" (.Values.config.operator.jobSchedulerImage.tag | default .Chart.AppVersion)
         )
-        "pipelineImage" (dict
-          "tag" (.Values.config.operator.pipelineImage.tag | default .Chart.AppVersion)
-        )
       )
       "webhook" (dict
         "port" (include "radix-webhook.port" . | int)
@@ -48,6 +45,17 @@ data:
       "apiServer" (dict
         "port" (include "radix-api-server.port" . | int)
         "metricsPort" (include "radix-api-server.metricsPort" . | int)
+      )
+      "runtime" (dict
+        "oauth2ProxyTemplate" (dict
+          "base" (.Values.config.runtime.oauth2ProxyTemplate.base | default (tpl (.Files.Get "files/oauth2-proxy-base.yaml") . | fromYaml))
+        )
+        "oauth2SessionStoreTemplate" (dict
+          "base" (.Values.config.runtime.oauth2SessionStoreTemplate.base | default (tpl (.Files.Get "files/oauth2-session-store-base.yaml") . | fromYaml))
+        )
+        "pipelineRunnerTemplate" (dict
+          "base" (.Values.config.runtime.pipelineRunnerTemplate.base | default (tpl (.Files.Get "files/pipeline-runner-base.yaml") . | fromYaml))
+        )
       )
     -}}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}

@@ -7,10 +7,9 @@ import (
 )
 
 const (
-	OAuthProxyPortName              = "http"
-	OAuthProxyPortNumber      int32 = 4180
 	OAuthProxyProviderOIDC          = "oidc"
 	OAuthProxyProviderEntraId       = "entra-id"
+	OAuthProxyPortNumber      int32 = 4180
 )
 
 func MergeOAuth2(original, override v1.OAuth2) (v1.OAuth2, error) {

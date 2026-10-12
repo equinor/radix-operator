@@ -11,27 +11,17 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	"github.com/equinor/radix-operator/pkg/apis/utils/kubemerge"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	runAsUser  = 1000
-	runAsGroup = 1000
-	fsGroup    = 1000
 )
 
 func (job *Job) createPipelineJob(ctx context.Context) error {
 	namespace := job.radixJob.Namespace
 
-	jobConfig, err := job.getPipelineJobConfig(ctx)
+	jobConfig, err := job.getPipelineJobConfig()
 	if err != nil {
 		return err
 	}
@@ -40,9 +30,8 @@ func (job *Job) createPipelineJob(ctx context.Context) error {
 	return err
 }
 
-func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) {
+func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 	radixConfigFullName := getRadixConfigFullName(job.registration)
-	log.Ctx(ctx).Info().Msgf("Using image: %s", job.cfg.Operator.PipelineImage.String())
 
 	var imagePullSecrets []corev1.LocalObjectReference
 
@@ -62,72 +51,44 @@ func (job *Job) getPipelineJobConfig(ctx context.Context) (*batchv1.Job, error) 
 	containerArguments := job.getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName, job.radixJob.Spec, pipeline)
 	initContainers := job.getInitContainersForRadixConfig(workspace)
 
-	jobCfg := batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   jobName,
-			Labels: getPipelineJobLabels(appName, jobName, job.radixJob.Spec, pipeline),
-			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:     job.radixJob.Spec.Build.Branch, //nolint:staticcheck
-				kube.RadixGitRefAnnotation:     job.radixJob.Spec.Build.GitRef,
-				kube.RadixGitRefTypeAnnotation: string(job.radixJob.Spec.Build.GitRefType),
+	podTemplate, err := kubemerge.MergePodTemplate(job.cfg.Runtime.PipelineRunnerTemplate.Base, job.cfg.Runtime.PipelineRunnerTemplate.Overlay, corev1.PodTemplateSpec{
+		Labels: getPipelineJobPodLabels(jobName, appName, job.registration.Spec.AppID),
+		Spec: corev1.PodSpec{
+			ImagePullSecrets:             imagePullSecrets,
+			ServiceAccountName:           defaults.PipelineServiceAccountName,
+			AutomountServiceAccountToken: new(true),
+			InitContainers:               initContainers,
+			Containers: []corev1.Container{
+				{
+					Name:         defaults.RadixPipelineJobPipelineContainerName,
+					VolumeMounts: git.GetJobContainerVolumeMounts(workspace),
+					Args:         containerArguments,
+				},
 			},
-			OwnerReferences: GetOwnerReference(job.radixJob),
+			Volumes: git.GetJobVolumes(),
 		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge pod spec for pipeline runner: %w", err)
+	}
+
+	jobCfg := batchv1.Job{
+		Name:   jobName,
+		Labels: getPipelineJobLabels(appName, jobName, job.radixJob.Spec, pipeline),
+		Annotations: map[string]string{
+			kube.RadixBranchAnnotation:     job.radixJob.Spec.Build.Branch, //nolint:staticcheck
+			kube.RadixGitRefAnnotation:     job.radixJob.Spec.Build.GitRef,
+			kube.RadixGitRefTypeAnnotation: string(job.radixJob.Spec.Build.GitRefType),
+		},
+		OwnerReferences: GetOwnerReference(job.radixJob),
 		Spec: batchv1.JobSpec{
 			BackoffLimit:            new(int32(0)),
 			TTLSecondsAfterFinished: new(int32(86400)),
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels:      getPipelineJobPodLabels(jobName, appName, job.registration.Spec.AppID),
-					Annotations: annotations.ForClusterAutoscalerSafeToEvict(false),
-				},
-				Spec: corev1.PodSpec{
-					ImagePullSecrets:             imagePullSecrets,
-					ServiceAccountName:           defaults.PipelineServiceAccountName,
-					AutomountServiceAccountToken: new(true),
-					SecurityContext: securitycontext.Pod(
-						securitycontext.WithPodFSGroup(fsGroup),
-						securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
-					InitContainers: initContainers,
-					Containers: []corev1.Container{
-						{
-							Name:            defaults.RadixPipelineJobPipelineContainerName,
-							Image:           job.cfg.Operator.PipelineImage.String(),
-							ImagePullPolicy: job.cfg.Operator.PipelineImagePullPolicy,
-							VolumeMounts:    git.GetJobContainerVolumeMounts(workspace),
-							Args:            containerArguments,
-							SecurityContext: securitycontext.Container(
-								securitycontext.WithContainerDropAllCapabilities(),
-								securitycontext.WithContainerSeccompProfileType(corev1.SeccompProfileTypeRuntimeDefault),
-								securitycontext.WithContainerRunAsGroup(runAsGroup),
-								securitycontext.WithContainerRunAsUser(runAsUser),
-								securitycontext.WithReadOnlyRootFileSystem(new(true))),
-							Resources: getPipelineRunnerResources(),
-						},
-					},
-					Volumes:       git.GetJobVolumes(),
-					RestartPolicy: "Never",
-					Affinity:      utils.GetAffinityForPipelineJob(string(radixv1.RuntimeArchitectureArm64)),
-					Tolerations:   utils.GetPipelineJobPodSpecTolerations(),
-				},
-			},
+			Template:                podTemplate,
 		},
 	}
 
 	return &jobCfg, nil
-}
-
-func getPipelineRunnerResources() corev1.ResourceRequirements {
-	return corev1.ResourceRequirements{
-		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("500m"),
-			corev1.ResourceMemory: resource.MustParse("2000Mi"),
-		},
-		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("100m"),
-			corev1.ResourceMemory: resource.MustParse("250Mi"),
-		},
-	}
 }
 
 func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) string {
@@ -140,7 +101,7 @@ func getRadixConfigFullName(radixRegistration *radixv1.RadixRegistration) string
 
 func (job *Job) getInitContainersForRadixConfig(workspace string) []corev1.Container {
 	rr := job.registration
-	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, false, false, git.CloneConfigContainerName, job.cfg.PipelineRunner.GitCloneImage.String())
+	return git.CloneInitContainersWithContainerName(rr.Spec.CloneURL, rr.Spec.ConfigBranch, "", workspace, git.CloneConfigContainerName)
 }
 
 func (job *Job) getPipelineJobArguments(appName, jobName, workspace, radixConfigFullName string, jobSpec radixv1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {

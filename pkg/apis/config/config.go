@@ -6,4 +6,5 @@ type Config struct {
 	Common         CommonConfig         `json:"common"`
 	Webhook        WebhookConfig        `json:"webhook"`
 	ApiServer      ApiServerConfig      `json:"apiServer"`
+	Runtime        RuntimeConfig        `json:"runtime" required:"true"`
 }

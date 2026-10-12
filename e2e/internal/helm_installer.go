@@ -1,15 +1,23 @@
 package internal
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 )
 
 // InstallRadixOperator installs or upgrades the radix-operator Helm chart so it runs
 // with the expected image tags and configuration, whether or not it is already installed.
-func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releaseName, chartPath string, values map[string]string) error {
+func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releaseName, chartPath, valuesFile, imageTag string, helmValues map[string]string) error {
+	renderedValuesFile, err := renderValuesFile(valuesFile, imageTag)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(renderedValuesFile) }()
+
 	// Build helm upgrade --install command
 	args := []string{
 		"upgrade", "--install",
@@ -19,10 +27,11 @@ func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releas
 		"--create-namespace",
 		"--wait",
 		"--timeout", "5m",
+		"--values", renderedValuesFile,
 	}
 
-	// Add additional values
-	for key, value := range values {
+	// --set values take precedence over the values file
+	for key, value := range helmValues {
 		args = append(args, "--set", fmt.Sprintf("%s=%v", key, value))
 	}
 
@@ -37,6 +46,25 @@ func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releas
 	}
 
 	return nil
+}
+
+// renderValuesFile writes a copy of valuesFile to a temp file with archPlaceholder replaced by the host architecture and imageTag replaced by the provided image tag.
+func renderValuesFile(valuesFile, imageTag string) (string, error) {
+	content, err := os.ReadFile(valuesFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to read helm values file %s: %w", valuesFile, err)
+	}
+	f, err := os.CreateTemp("", "radix-operator-values-*.yaml")
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = f.Close() }()
+	content = bytes.ReplaceAll(content, []byte(archPlaceholder), []byte(runtime.GOARCH))
+	content = bytes.ReplaceAll(content, []byte(imageTagPlaceholder), []byte(imageTag))
+	if _, err := f.Write(content); err != nil {
+		return "", err
+	}
+	return f.Name(), nil
 }
 
 // UninstallRadixOperator uninstalls the radix-operator Helm release if it is installed. This is

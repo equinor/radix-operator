@@ -226,7 +226,7 @@ helm-render:
 	helm template ./charts/radix-operator $(HELM-ARGS)
 
 .PHONY: generate
-generate: bootstrap code-gen helmresources mocks swagger
+generate: bootstrap bootstrap-e2e code-gen helmresources mocks swagger
 
 .PHONY: verify-generate
 verify-generate: bootstrap tidy generate
@@ -255,3 +255,16 @@ endif
 ifndef HAS_SWAGGER
 	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.36.4
 endif
+
+E2E_ASSETS_DIR             := ./e2e/internal/manifests
+E2E_CERT_MANAGER_VERSION   := v1.15.4
+E2E_KEDA_VERSION           := 2.20.1
+E2E_PROMETHEUS_OP_VERSION  := v0.82.0
+E2E_GATEWAY_API_VERSION    := v1.5.1
+
+.PHONY: bootstrap-e2e
+bootstrap-e2e:
+	curl -fsSL -o $(E2E_ASSETS_DIR)/cert-manager-crds.yaml https://github.com/cert-manager/cert-manager/releases/download/$(E2E_CERT_MANAGER_VERSION)/cert-manager.crds.yaml
+	curl -fsSL -o $(E2E_ASSETS_DIR)/keda-crds.yaml https://github.com/kedacore/keda/releases/download/v$(E2E_KEDA_VERSION)/keda-$(E2E_KEDA_VERSION)-crds.yaml
+	curl -fsSL -o $(E2E_ASSETS_DIR)/prometheus-operator-stripped-down-crds.yaml https://github.com/prometheus-operator/prometheus-operator/releases/download/$(E2E_PROMETHEUS_OP_VERSION)/stripped-down-crds.yaml
+	curl -fsSL -o $(E2E_ASSETS_DIR)/gateway-api-standard-install.yaml https://github.com/kubernetes-sigs/gateway-api/releases/download/$(E2E_GATEWAY_API_VERSION)/standard-install.yaml

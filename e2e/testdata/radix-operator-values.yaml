@@ -1,0 +1,127 @@
+image:
+  pullPolicy: IfNotPresent
+  tag: "{{IMAGE_TAG}}"
+
+radixWebhook:
+  image:
+    tag: "{{IMAGE_TAG}}"
+
+radixApiServer:
+  image:
+    tag: "{{IMAGE_TAG}}"
+
+rbac:
+  createApp:
+    groups:
+      - "123"
+
+config:
+  common:
+    appAliasBaseURL: app.example.com
+    clusterName: weekly-e2e
+    clusterType: test
+    dnsZone: radix.example.com
+    oauth2Proxy:
+      proxyDefaults:
+        oidc:
+          # oauth2-proxy exits on startup without a discoverable issuer
+          issuerUrl: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
+
+  pipelineRunner:
+    containerRegistry: local-kind-repo
+    cacheContainerRegistry: local-kind-repo
+
+  operator:
+    logLevel: debug
+    logPrettyPrint: true
+    registrationControllerThreads: 21
+    applicationControllerThreads: 21
+    environmentControllerThreads: 21
+    deploymentControllerThreads: 21
+    jobControllerThreads: 21
+    alertControllerThreads: 21
+    kubeClientRateLimitBurst: 500
+    kubeClientRateLimitQPS: 500
+    
+    jobSchedulerImage:
+      tag: "{{IMAGE_TAG}}"
+    azureKeyVaultTenantID: 01234567-8901-2345-6789-012345678901
+    gateway:
+      name: some-name
+      namespace: some-namespace
+    certificateAutomation:
+      gatewayClusterIssuer: some-cluster-issuer
+
+  # Mirrors the radix-flux override; "{{ARCH}}" is replaced with the host architecture at install time.
+  runtime:
+    pipelineRunnerTemplate:
+      overlay:
+        spec:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/os
+                        operator: In
+                        values:
+                          - linux
+                      - key: kubernetes.io/arch
+                        operator: In
+                        values:
+                          - "{{ARCH}}"
+          initContainers:
+          - name: clone-config
+            imagePullPolicy: IfNotPresent
+          containers:
+          - name: radix-pipeline
+            image: local-kind-repo/pipeline-runner:{{IMAGE_TAG}}
+            imagePullPolicy: IfNotPresent
+    oauth2ProxyTemplate:
+      overlay:
+        spec:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/os
+                        operator: In
+                        values:
+                          - linux
+                      - key: kubernetes.io/arch
+                        operator: In
+                        values:
+                          - "{{ARCH}}"
+          containers:
+            - name: proxy
+              image: "quay.io/oauth2-proxy/oauth2-proxy:v7.15.4"
+
+    oauth2SessionStoreTemplate:
+      overlay:
+        spec:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/os
+                        operator: In
+                        values:
+                          - linux
+                      - key: kubernetes.io/arch
+                        operator: In
+                        values:
+                          - "{{ARCH}}"
+          containers:
+            - name: session-store
+              image: docker.io/redis:7.4.2
+
+  apiServer:
+    logLevel: debug
+    logPrettyPrint: true
+    prometheusUrl: http://prometheus.svc
+    authenticators:
+      azure:
+        issuer: https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/
+        audience: 6dae42f8-4368-4678-94ff-3960e28e3630

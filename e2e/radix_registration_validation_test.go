@@ -10,11 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // TestRadixRegistrationCloneURLValidation tests CloneURL validation rules
 func TestRadixRegistrationCloneURLValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	testCases := []struct {
 		name        string
@@ -60,6 +62,7 @@ func TestRadixRegistrationCloneURLValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			rr := &v1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-cloneurl-validation",
@@ -88,6 +91,7 @@ func TestRadixRegistrationCloneURLValidation(t *testing.T) {
 
 // TestRadixRegistrationConfigBranchValidation tests ConfigBranch validation rules
 func TestRadixRegistrationConfigBranchValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	testCases := []struct {
 		name         string
@@ -208,6 +212,7 @@ func TestRadixRegistrationConfigBranchValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			rr := &v1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-configbranch-validation",
@@ -236,6 +241,7 @@ func TestRadixRegistrationConfigBranchValidation(t *testing.T) {
 
 // TestRadixRegistrationRadixConfigFullNameValidation tests RadixConfigFullName validation rules
 func TestRadixRegistrationRadixConfigFullNameValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	testCases := []struct {
 		name                string
@@ -296,6 +302,7 @@ func TestRadixRegistrationRadixConfigFullNameValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			rr := &v1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-radixconfig-validation",
@@ -325,6 +332,7 @@ func TestRadixRegistrationRadixConfigFullNameValidation(t *testing.T) {
 
 // TestRadixRegistrationConfigurationItemValidation tests ConfigurationItem validation rules
 func TestRadixRegistrationConfigurationItemValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	testCases := []struct {
 		name              string
@@ -355,6 +363,7 @@ func TestRadixRegistrationConfigurationItemValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			rr := &v1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-configitem-validation",
@@ -383,6 +392,7 @@ func TestRadixRegistrationConfigurationItemValidation(t *testing.T) {
 
 // TestRadixRegistrationAdGroupsValidation tests AdGroups validation rules
 func TestRadixRegistrationAdGroupsValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	testCases := []struct {
 		name        string
@@ -413,6 +423,7 @@ func TestRadixRegistrationAdGroupsValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			rr := &v1.RadixRegistration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-adgroups-validation",
@@ -441,6 +452,7 @@ func TestRadixRegistrationAdGroupsValidation(t *testing.T) {
 
 // TestRadixRegistrationImmutableAppID tests that AppID is immutable
 func TestRadixRegistrationImmutableAppID(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	// Create a RadixRegistration with AppID
 	appID := v1.ULID{ULID: ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader)}
@@ -479,6 +491,7 @@ func TestRadixRegistrationImmutableAppID(t *testing.T) {
 
 // TestRadixRegistrationImmutableCreator tests that Creator is immutable
 func TestRadixRegistrationImmutableCreator(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	// Create a RadixRegistration with Creator
@@ -514,6 +527,7 @@ func TestRadixRegistrationImmutableCreator(t *testing.T) {
 
 // TestRadixRegistrationMutableFields tests that mutable fields can be updated
 func TestRadixRegistrationMutableFields(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	// Create a RadixRegistration
@@ -534,12 +548,17 @@ func TestRadixRegistrationMutableFields(t *testing.T) {
 	err := c.Create(t.Context(), rr)
 	require.NoError(t, err, "Should be able to create RadixRegistration")
 
-	// Update mutable fields
-	rr.Spec.Owner = "new@owner.com"
-	rr.Spec.AdGroups = []string{"test-group", "new-group"}
-	rr.Spec.ConfigBranch = "develop"
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := c.Get(t.Context(), client.ObjectKey{Name: rr.Name}, rr); err != nil {
+			return err
+		}
+		// Update mutable fields
+		rr.Spec.Owner = "new@owner.com"
+		rr.Spec.AdGroups = []string{"test-group", "new-group"}
+		rr.Spec.ConfigBranch = "develop"
 
-	err = c.Update(t.Context(), rr)
+		return c.Update(t.Context(), rr)
+	})
 
 	// Should succeed because these fields are mutable
 	assert.NoError(t, err, "Should allow updating mutable fields")
@@ -553,6 +572,7 @@ func TestRadixRegistrationMutableFields(t *testing.T) {
 
 // TestRadixRegistrationUniqueAppID tests that AppID must be unique across RadixRegistrations
 func TestRadixRegistrationUniqueAppID(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	// Create first RadixRegistration with AppID
 	appID := v1.ULID{ULID: ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader)}
@@ -600,6 +620,7 @@ func TestRadixRegistrationUniqueAppID(t *testing.T) {
 
 // TestRadixRegistrationEmptyAppIDNotUnique tests that empty AppID is allowed and not checked for uniqueness
 func TestRadixRegistrationEmptyAppIDNotUnique(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	// Create two RadixRegistrations without AppID
@@ -643,6 +664,7 @@ func TestRadixRegistrationEmptyAppIDNotUnique(t *testing.T) {
 
 // TestRadixRegistrationRequiresAdGroups tests that a RadixRegistration cannot be created without admin groups
 func TestRadixRegistrationRequiresAdGroups(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	rr := &v1.RadixRegistration{
