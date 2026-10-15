@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.131.1](https://github.com/equinor/radix-operator/compare/v1.131.0..v1.131.1) - 2026-10-02
+## [1.132.0](https://github.com/equinor/radix-operator/compare/v1.131.1..v1.132.0) - 2026-10-12
+
+### 🚀 Features
+
+- Migrate Oauth2 Proxy and Session Store pod config to helm chart  (#1991) - ([d387959](https://github.com/equinor/radix-operator/commit/d38795961286d47fc9210fdee418c607c623fbcb)) by @Richard87 in [#1991](https://github.com/equinor/radix-operator/pull/1991)
+
+
+## [1.131.1](https://github.com/equinor/radix-operator/compare/v1.131.0..v1.131.1) - 2026-10-07
 
 ### 🐛 Bug Fixes
 
