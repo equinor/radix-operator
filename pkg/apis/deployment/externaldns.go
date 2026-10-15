@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -326,10 +325,10 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificate(ctx context.Conte
 
 func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
 	if len(deploy.config.Common.CertificateAutomation.Issuers) == 0 {
-		return errors.New("list of issuers is empty in certificate automation config")
+		return fmt.Errorf("external DNS %s: list of issuers is empty in certificate automation config", externalDns.FQDN)
 	}
 	if externalDns.CertificateAutomation == nil && deploy.config.Common.CertificateAutomation.DefaultIssuer == "" {
-		return errors.New("issuer is not set for external DNS and no default issuer is available in certificate automation config")
+		return fmt.Errorf("external DNS %s: issuer is not set and no default issuer is available in certificate automation config", externalDns.FQDN)
 	}
 
 	issuer := deploy.config.Common.CertificateAutomation.DefaultIssuer
@@ -339,7 +338,7 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 
 	selectedIssuer, ok := deploy.config.Common.CertificateAutomation.Issuers[issuer]
 	if !ok {
-		return errors.New("selected issuer is not found in the list of issuers in certificate automation config")
+		return fmt.Errorf("external DNS %s: selected issuer %q is not found in the list of issuers in certificate automation config", externalDns.FQDN, issuer)
 	}
 
 	duration := max(selectedIssuer.Duration, minCertDuration)
