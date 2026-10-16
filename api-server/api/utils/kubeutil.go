@@ -76,9 +76,7 @@ func getUserClientConfig(token string, impersonation accounts.Impersonation, opt
 	kubeConfig := &restclient.Config{
 		Host:        cfg.Host,
 		BearerToken: token,
-		TLSClientConfig: restclient.TLSClientConfig{
-			Insecure: true,
-		},
+		Insecure:    true,
 	}
 
 	if impersonation.PerformImpersonation() {

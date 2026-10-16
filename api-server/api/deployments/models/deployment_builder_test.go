@@ -22,11 +22,9 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 
 		b := NewDeploymentBuilder().WithRadixDeployment(
 			&radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       deploymentName,
-					Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
-					Generation: 2,
-				},
+				Name:       deploymentName,
+				Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
+				Generation: 2,
 				Spec: radixv1.RadixDeploymentSpec{
 					Environment: envName,
 					Components: []radixv1.RadixDeployComponent{
@@ -77,11 +75,9 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 		failureMessage := "reconciliation failed"
 		b := NewDeploymentBuilder().WithRadixDeployment(
 			&radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       deploymentName,
-					Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
-					Generation: 3,
-				},
+				Name:       deploymentName,
+				Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
+				Generation: 3,
 				Spec: radixv1.RadixDeploymentSpec{
 					Environment: envName,
 				},
@@ -106,11 +102,9 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 
 		b := NewDeploymentBuilder().WithRadixDeployment(
 			&radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       deploymentName,
-					Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
-					Generation: 5,
-				},
+				Name:       deploymentName,
+				Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
+				Generation: 5,
 				Spec: radixv1.RadixDeploymentSpec{
 					Environment: envName,
 				},
@@ -135,11 +129,9 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 
 		b := NewDeploymentBuilder().WithRadixDeployment(
 			&radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       deploymentName,
-					Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
-					Generation: 5,
-				},
+				Name:       deploymentName,
+				Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
+				Generation: 5,
 				Spec: radixv1.RadixDeploymentSpec{
 					Environment: envName,
 				},
@@ -163,11 +155,9 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 
 		b := NewDeploymentBuilder().WithRadixDeployment(
 			&radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       deploymentName,
-					Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
-					Generation: 3,
-				},
+				Name:       deploymentName,
+				Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
+				Generation: 3,
 				Spec: radixv1.RadixDeploymentSpec{
 					Environment: envName,
 				},
@@ -191,9 +181,7 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 		t.Parallel()
 		b := NewDeploymentBuilder().WithPipelineJob(
 			&radixv1.RadixJob{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: jobName,
-				},
+				Name: jobName,
 				Spec: radixv1.RadixJobSpec{
 					PipeLineType: radixv1.BuildDeploy,
 					Build: radixv1.RadixBuildSpec{
@@ -219,13 +207,11 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 		t.Parallel()
 		b := NewDeploymentBuilder().WithRadixDeployment(
 			&radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: deploymentName,
-					Annotations: map[string]string{
-						kube.RadixGitRefAnnotation:                            "main",
-						kube.RadixGitRefTypeAnnotation:                        "branch",
-						kube.RadixDeploymentPromotedFromEnvironmentAnnotation: promoteFromEnv,
-					},
+				Name: deploymentName,
+				Annotations: map[string]string{
+					kube.RadixGitRefAnnotation:                            "main",
+					kube.RadixGitRefTypeAnnotation:                        "branch",
+					kube.RadixDeploymentPromotedFromEnvironmentAnnotation: promoteFromEnv,
 				},
 			},
 		)
@@ -240,9 +226,7 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 		t.Parallel()
 		b := NewDeploymentBuilder().WithPipelineJob(
 			&radixv1.RadixJob{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: jobName,
-				},
+				Name: jobName,
 				Spec: radixv1.RadixJobSpec{
 					PipeLineType: radixv1.Deploy,
 					Deploy: radixv1.RadixDeploySpec{
@@ -253,7 +237,7 @@ func Test_DeploymentBuilder_BuildDeploymentSummary(t *testing.T) {
 				},
 			},
 		).WithRadixDeployment(&radixv1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "rd1"},
+			Name: "rd1",
 			Spec: radixv1.RadixDeploymentSpec{
 				Components: []radixv1.RadixDeployComponent{
 					{Name: "comp1"},
@@ -298,12 +282,10 @@ func Test_DeploymentBuilder_BuildDeployment(t *testing.T) {
 
 		b := NewDeploymentBuilder().WithRadixDeployment(
 			&radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       deploymentName,
-					Namespace:  deploymentNamespace,
-					Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
-					Generation: 1,
-				},
+				Name:       deploymentName,
+				Namespace:  deploymentNamespace,
+				Labels:     map[string]string{kube.RadixJobNameLabel: jobName},
+				Generation: 1,
 				Spec: radixv1.RadixDeploymentSpec{
 					Environment: envName,
 				},
@@ -339,9 +321,7 @@ func Test_DeploymentBuilder_BuildDeployment(t *testing.T) {
 			WithRadixRegistration(rr).
 			WithPipelineJob(
 				&radixv1.RadixJob{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: jobName,
-					},
+					Name: jobName,
 					Spec: radixv1.RadixJobSpec{
 						PipeLineType: radixv1.Deploy,
 						Deploy: radixv1.RadixDeploySpec{
@@ -362,11 +342,9 @@ func Test_DeploymentBuilder_BuildDeployment(t *testing.T) {
 			}},
 		}).WithRadixDeployment(
 			&radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentName,
-					Namespace: deploymentNamespace,
-					Labels:    map[string]string{kube.RadixJobNameLabel: jobName},
-				},
+				Name:      deploymentName,
+				Namespace: deploymentNamespace,
+				Labels:    map[string]string{kube.RadixJobNameLabel: jobName},
 				Spec: radixv1.RadixDeploymentSpec{
 					Environment: envName,
 					Components: []radixv1.RadixDeployComponent{

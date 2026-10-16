@@ -651,11 +651,11 @@ func (s *secretHandlerTestSuite) assertSecrets(scenario *getSecretScenario, secr
 
 func (s *secretHandlerTestSuite) prepareTestRun(scenario *getSecretScenario, appName, envName, deploymentName string) *controllertest.TestUtils {
 	_, environmentControllerTestUtils, _, kubeClient, radixClient, _, _, secretClient, _ := setupTest(s.T(), nil)
-	_, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}, metav1.CreateOptions{})
+	_, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), &v1.RadixRegistration{Name: appName}, metav1.CreateOptions{})
 	require.NoError(s.T(), err)
 	appAppNamespace := operatorutils.GetAppNamespace(appName)
 	ra := &v1.RadixApplication{
-		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appAppNamespace},
+		Name: appName, Namespace: appAppNamespace,
 		Spec: v1.RadixApplicationSpec{
 			Environments: []v1.Environment{{Name: envName}},
 			Components:   testGetRadixComponents(scenario.components, envName),
@@ -665,14 +665,14 @@ func (s *secretHandlerTestSuite) prepareTestRun(scenario *getSecretScenario, app
 	_, _ = radixClient.RadixV1().RadixApplications(appAppNamespace).Create(context.Background(), ra, metav1.CreateOptions{})
 	envNamespace := operatorutils.GetEnvironmentNamespace(appName, envName)
 	re := &v1.RadixEnvironment{
-		ObjectMeta: metav1.ObjectMeta{Name: envNamespace},
-		Spec:       v1.RadixEnvironmentSpec{AppName: appName, EnvName: envName},
+		Name: envNamespace,
+		Spec: v1.RadixEnvironmentSpec{AppName: appName, EnvName: envName},
 	}
 	_, err = radixClient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{})
 	require.NoError(s.T(), err)
 
 	radixDeployment := v1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: deploymentName},
+		Name: deploymentName,
 		Spec: v1.RadixDeploymentSpec{
 			Environment: envName,
 			Components:  scenario.components,
@@ -688,12 +688,10 @@ func (s *secretHandlerTestSuite) prepareTestRun(scenario *getSecretScenario, app
 	}
 	for _, secret := range scenario.existingSecrets {
 		_, _ = kubeClient.CoreV1().Secrets(envNamespace).Create(context.Background(), &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secret.secretName,
-				Namespace: envNamespace,
-				Labels:    secret.labels,
-			},
-			Data: secret.secretData,
+			Name:      secret.secretName,
+			Namespace: envNamespace,
+			Labels:    secret.labels,
+			Data:      secret.secretData,
 		}, metav1.CreateOptions{})
 	}
 	for _, component := range rd.Spec.Components {
@@ -736,12 +734,10 @@ func (s *secretHandlerTestSuite) createPodForRadixComponent(kubeClient kubernete
 		labels[kube.RadixJobTypeLabel] = kube.RadixJobTypeJobSchedule
 	}
 	_, _ = kubeClient.CoreV1().Pods(envNamespace).Create(context.Background(), &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              replicaName,
-			Namespace:         envNamespace,
-			Labels:            labels,
-			CreationTimestamp: metav1.Now(),
-		},
+		Name:              replicaName,
+		Namespace:         envNamespace,
+		Labels:            labels,
+		CreationTimestamp: metav1.Now(),
 	}, metav1.CreateOptions{})
 }
 
@@ -752,12 +748,10 @@ func (s *secretHandlerTestSuite) createJobForRadixJobComponent(kubeClient kubern
 		kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
 	}
 	_, _ = kubeClient.BatchV1().Jobs(envNamespace).Create(context.Background(), &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              componentName,
-			Namespace:         envNamespace,
-			Labels:            labels,
-			CreationTimestamp: metav1.Now(),
-		},
+		Name:              componentName,
+		Namespace:         envNamespace,
+		Labels:            labels,
+		CreationTimestamp: metav1.Now(),
 	}, metav1.CreateOptions{})
 }
 
@@ -821,11 +815,9 @@ func testCreateAzureKeyVaultCsiDriverSecret(kubeClient kubernetes.Interface, sec
 	}
 	namespace := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 	_, err := kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   secretName,
-			Labels: map[string]string{"secrets-store.csi.k8s.io/managed": "true"},
-		},
-		Data: secretData,
+		Name:   secretName,
+		Labels: map[string]string{"secrets-store.csi.k8s.io/managed": "true"},
+		Data:   secretData,
 	}, metav1.CreateOptions{})
 	if err != nil {
 		panic(err)

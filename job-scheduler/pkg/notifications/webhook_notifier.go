@@ -68,12 +68,10 @@ func webhookIsNotEmpty(webhook *string) bool {
 func getRadixBatchEventFromRadixBatch(event events.Event, radixBatch *radixv1.RadixBatch, radixBatchJobStatuses []radixv1.RadixBatchJobStatus, radixDeployJobComponent *radixv1.RadixDeployJobComponent) events.BatchEvent {
 	batchStatus, jobStatuses := getBatchAndJobStatuses(radixBatch, radixDeployJobComponent, radixBatchJobStatuses)
 	return events.BatchEvent{
-		Event: event,
-		BatchStatus: modelsv1.BatchStatus{
-			JobStatus:   batchStatus,
-			JobStatuses: jobStatuses,
-			BatchType:   radixBatch.Labels[kube.RadixBatchTypeLabel],
-		},
+		Event:       event,
+		JobStatus:   batchStatus,
+		JobStatuses: jobStatuses,
+		BatchType:   radixBatch.Labels[kube.RadixBatchTypeLabel],
 	}
 }
 

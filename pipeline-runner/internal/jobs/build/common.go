@@ -76,19 +76,15 @@ func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev
 		},
 		{
 			Name: git.GitSSHKeyVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName:  git.GitSSHKeyVolumeName,
-					DefaultMode: new(volumeDefaultMode),
-				},
+			Secret: &corev1.SecretVolumeSource{
+				SecretName:  git.GitSSHKeyVolumeName,
+				DefaultMode: new(volumeDefaultMode),
 			},
 		},
 		{
 			Name: git.CloneRepoHomeVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
-				},
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
 			},
 		},
 	}
@@ -97,18 +93,14 @@ func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev
 		volumes = append(volumes,
 			corev1.Volume{
 				Name: getTmpVolumeNameForContainer(image.ContainerName),
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{
-						SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
-					},
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
 				},
 			},
 			corev1.Volume{
 				Name: getVarVolumeNameForContainer(image.ContainerName),
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{
-						SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
-					},
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
 				},
 			},
 		)

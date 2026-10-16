@@ -77,16 +77,12 @@ func (kubeutil *Kube) BuildLimitRange(namespace, name, appName string, defaultRe
 	defaultRequest[corev1.ResourceMemory] = *defaultRequestMemory
 
 	limitRange := &corev1.LimitRange{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "LimitRange",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels: map[string]string{
-				RadixAppLabel: appName,
-			},
+		APIVersion: "v1",
+		Kind:       "LimitRange",
+		Name:       name,
+		Namespace:  namespace,
+		Labels: map[string]string{
+			RadixAppLabel: appName,
 		},
 		Spec: corev1.LimitRangeSpec{
 			Limits: []corev1.LimitRangeItem{

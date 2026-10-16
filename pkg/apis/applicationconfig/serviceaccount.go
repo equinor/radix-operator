@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -39,14 +38,12 @@ func (app *ApplicationConfig) applySubPipelineServiceAccounts(ctx context.Contex
 		saName := utils.GetSubPipelineServiceAccountName(env.Name)
 
 		sa := &corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      saName,
-				Namespace: appNs,
-				Labels: radixlabels.Merge(
-					radixlabels.ForServiceAccountIsForSubPipeline(),
-					radixlabels.ForEnvironmentName(env.Name),
-				),
-			},
+			Name:      saName,
+			Namespace: appNs,
+			Labels: radixlabels.Merge(
+				radixlabels.ForServiceAccountIsForSubPipeline(),
+				radixlabels.ForEnvironmentName(env.Name),
+			),
 		}
 
 		_, err := app.kubeutil.ApplyServiceAccount(ctx, sa)

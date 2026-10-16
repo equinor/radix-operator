@@ -62,8 +62,8 @@ func (s *HandlerTestSuite) Test_GetAlertingConfig() {
 	s.Run("RadixAlert exist in namespace, incorrect appname label", func() {
 		incorrectLabelNs, incorrectLabelAppName := "incorrect-label-ns", "any-app"
 		incorrectlLabelRal := radixv1.RadixAlert{
-			ObjectMeta: metav1.ObjectMeta{Name: "any-alert", Labels: map[string]string{kube.RadixAppLabel: incorrectLabelAppName}, Generation: 1},
-			Status:     radixv1.RadixAlertStatus{ObservedGeneration: 1, ReconcileStatus: radixv1.RadixAlertReconcileSucceeded},
+			Name: "any-alert", Labels: map[string]string{kube.RadixAppLabel: incorrectLabelAppName}, Generation: 1,
+			Status: radixv1.RadixAlertStatus{ObservedGeneration: 1, ReconcileStatus: radixv1.RadixAlertReconcileSucceeded},
 		}
 		_, err := s.accounts.UserAccount.RadixClient.RadixV1().RadixAlerts(incorrectLabelNs).Create(context.Background(), &incorrectlLabelRal, metav1.CreateOptions{})
 		require.NoError(s.T(), err)
@@ -77,8 +77,8 @@ func (s *HandlerTestSuite) Test_GetAlertingConfig() {
 
 	s.Run("multiple RadixAlerts exists in namespace", func() {
 		multipleAlertNs, multipleAlertApp := "multiple-alert-ns", "multiple-alert"
-		multipleRal1 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "alert1", Labels: map[string]string{kube.RadixAppLabel: multipleAlertApp}}}
-		multipleRal2 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "alert2", Labels: map[string]string{kube.RadixAppLabel: multipleAlertApp}}}
+		multipleRal1 := radixv1.RadixAlert{Name: "alert1", Labels: map[string]string{kube.RadixAppLabel: multipleAlertApp}}
+		multipleRal2 := radixv1.RadixAlert{Name: "alert2", Labels: map[string]string{kube.RadixAppLabel: multipleAlertApp}}
 		_, err := s.accounts.UserAccount.RadixClient.RadixV1().RadixAlerts(multipleAlertNs).Create(context.Background(), &multipleRal1, metav1.CreateOptions{})
 		require.NoError(s.T(), err)
 		_, err = s.accounts.UserAccount.RadixClient.RadixV1().RadixAlerts(multipleAlertNs).Create(context.Background(), &multipleRal2, metav1.CreateOptions{})
@@ -93,8 +93,8 @@ func (s *HandlerTestSuite) Test_GetAlertingConfig() {
 	s.Run("RadixAlert not reconciled", func() {
 		notReconciledNs, notReconciledApp := "not-reconciled-ns", "not-reconciled-app"
 		notReconciledRal := radixv1.RadixAlert{
-			ObjectMeta: metav1.ObjectMeta{Name: "alert1", Labels: map[string]string{kube.RadixAppLabel: notReconciledApp}},
-			Status:     radixv1.RadixAlertStatus{},
+			Name: "alert1", Labels: map[string]string{kube.RadixAppLabel: notReconciledApp},
+			Status: radixv1.RadixAlertStatus{},
 		}
 		_, err := s.accounts.UserAccount.RadixClient.RadixV1().RadixAlerts(notReconciledNs).Create(context.Background(), &notReconciledRal, metav1.CreateOptions{})
 		require.NoError(s.T(), err)
@@ -109,8 +109,8 @@ func (s *HandlerTestSuite) Test_GetAlertingConfig() {
 	s.Run("RadixAlert incorrect generation reconciled", func() {
 		notReconciledNs, notReconciledApp := "not-reconciled-ns", "not-reconciled-app"
 		notReconciledRal := radixv1.RadixAlert{
-			ObjectMeta: metav1.ObjectMeta{Name: "alert1", Labels: map[string]string{kube.RadixAppLabel: notReconciledApp}, Generation: 2},
-			Status:     radixv1.RadixAlertStatus{ObservedGeneration: 1, ReconcileStatus: radixv1.RadixAlertReconcileSucceeded},
+			Name: "alert1", Labels: map[string]string{kube.RadixAppLabel: notReconciledApp}, Generation: 2,
+			Status: radixv1.RadixAlertStatus{ObservedGeneration: 1, ReconcileStatus: radixv1.RadixAlertReconcileSucceeded},
 		}
 		_, err := s.accounts.UserAccount.RadixClient.RadixV1().RadixAlerts(notReconciledNs).Create(context.Background(), &notReconciledRal, metav1.CreateOptions{})
 		require.NoError(s.T(), err)
@@ -125,8 +125,8 @@ func (s *HandlerTestSuite) Test_GetAlertingConfig() {
 	s.Run("RadixAlert reconcile failed", func() {
 		notReconciledNs, notReconciledApp := "not-reconciled-ns", "not-reconciled-app"
 		notReconciledRal := radixv1.RadixAlert{
-			ObjectMeta: metav1.ObjectMeta{Name: "alert1", Labels: map[string]string{kube.RadixAppLabel: notReconciledApp}, Generation: 2},
-			Status:     radixv1.RadixAlertStatus{ObservedGeneration: 2, ReconcileStatus: radixv1.RadixAlertReconcileFailed},
+			Name: "alert1", Labels: map[string]string{kube.RadixAppLabel: notReconciledApp}, Generation: 2,
+			Status: radixv1.RadixAlertStatus{ObservedGeneration: 2, ReconcileStatus: radixv1.RadixAlertReconcileFailed},
 		}
 		_, err := s.accounts.UserAccount.RadixClient.RadixV1().RadixAlerts(notReconciledNs).Create(context.Background(), &notReconciledRal, metav1.CreateOptions{})
 		require.NoError(s.T(), err)
@@ -141,7 +141,7 @@ func (s *HandlerTestSuite) Test_GetAlertingConfig() {
 	s.Run("RadixAlert configured and reconciled", func() {
 		appNs, appName, alertName, alertNames := "myapp-app", "myapp", "alert", []string{"alert1", "alert2", "alert3"}
 		ral := radixv1.RadixAlert{
-			ObjectMeta: metav1.ObjectMeta{Name: alertName, Labels: map[string]string{kube.RadixAppLabel: appName}, Generation: 2},
+			Name: alertName, Labels: map[string]string{kube.RadixAppLabel: appName}, Generation: 2,
 			Spec: radixv1.RadixAlertSpec{
 				Receivers: radixv1.ReceiverMap{
 					"receiver1": radixv1.Receiver{
@@ -161,7 +161,7 @@ func (s *HandlerTestSuite) Test_GetAlertingConfig() {
 		_, err := s.accounts.UserAccount.RadixClient.RadixV1().RadixAlerts(appNs).Create(context.Background(), &ral, metav1.CreateOptions{})
 		require.NoError(s.T(), err)
 		secret := corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: operatoralert.GetAlertSecretName(alertName)},
+			Name: operatoralert.GetAlertSecretName(alertName),
 			Data: map[string][]byte{
 				operatoralert.GetSlackConfigSecretKeyName("receiver2"): []byte("data"),
 			},
@@ -207,11 +207,11 @@ func (s *HandlerTestSuite) Test_DisableAlerting() {
 	namespace, appName := "myapp-app", "myapp"
 
 	fixture := func() {
-		ral1 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "alert1", Labels: map[string]string{kube.RadixAppLabel: appName}}}
-		ral2 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "alert2", Labels: map[string]string{kube.RadixAppLabel: appName}}}
-		ral3 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "alert3", Labels: map[string]string{kube.RadixAppLabel: "another-app"}}}
-		ral4 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "alert4"}}
-		ral5 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "alert5", Labels: map[string]string{kube.RadixAppLabel: appName}}}
+		ral1 := radixv1.RadixAlert{Name: "alert1", Labels: map[string]string{kube.RadixAppLabel: appName}}
+		ral2 := radixv1.RadixAlert{Name: "alert2", Labels: map[string]string{kube.RadixAppLabel: appName}}
+		ral3 := radixv1.RadixAlert{Name: "alert3", Labels: map[string]string{kube.RadixAppLabel: "another-app"}}
+		ral4 := radixv1.RadixAlert{Name: "alert4"}
+		ral5 := radixv1.RadixAlert{Name: "alert5", Labels: map[string]string{kube.RadixAppLabel: appName}}
 		_, err := s.accounts.UserAccount.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), &ral1, metav1.CreateOptions{})
 		require.NoError(s.T(), err)
 		_, err = s.accounts.UserAccount.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), &ral2, metav1.CreateOptions{})
@@ -251,11 +251,11 @@ func (s *HandlerTestSuite) Test_UpdateAlertingConfig() {
 	aSecretValue := "anysecretvalue"
 
 	fixture := func() {
-		app1Alert1 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "app1-alert1", Labels: map[string]string{kube.RadixAppLabel: appName1}}}
-		app1Alert2 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "app1-alert2", Labels: map[string]string{kube.RadixAppLabel: appName1}}}
-		app2Alert1 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "app2-alert1", Labels: map[string]string{kube.RadixAppLabel: appName2}}}
-		app3Alert1 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "app3-alert1", Labels: map[string]string{kube.RadixAppLabel: appName3}}}
-		app4Alert1 := radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "app4-alert1", Labels: map[string]string{kube.RadixAppLabel: appName4}}}
+		app1Alert1 := radixv1.RadixAlert{Name: "app1-alert1", Labels: map[string]string{kube.RadixAppLabel: appName1}}
+		app1Alert2 := radixv1.RadixAlert{Name: "app1-alert2", Labels: map[string]string{kube.RadixAppLabel: appName1}}
+		app2Alert1 := radixv1.RadixAlert{Name: "app2-alert1", Labels: map[string]string{kube.RadixAppLabel: appName2}}
+		app3Alert1 := radixv1.RadixAlert{Name: "app3-alert1", Labels: map[string]string{kube.RadixAppLabel: appName3}}
+		app4Alert1 := radixv1.RadixAlert{Name: "app4-alert1", Labels: map[string]string{kube.RadixAppLabel: appName4}}
 
 		_, err := s.accounts.UserAccount.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), &app1Alert1, metav1.CreateOptions{})
 		require.NoError(s.T(), err)
@@ -269,7 +269,7 @@ func (s *HandlerTestSuite) Test_UpdateAlertingConfig() {
 		require.NoError(s.T(), err)
 
 		secret := corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: operatoralert.GetAlertSecretName("app4-alert1")},
+			Name: operatoralert.GetAlertSecretName("app4-alert1"),
 			Data: map[string][]byte{
 				operatoralert.GetSlackConfigSecretKeyName("receiver1"): []byte(aSecretValue),
 				operatoralert.GetSlackConfigSecretKeyName("receiver2"): []byte(aSecretValue),

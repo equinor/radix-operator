@@ -106,8 +106,8 @@ func Test_webhookNotifier_Notify(t *testing.T) {
 			args: args{
 				event: events.Update,
 				radixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch)},
-					Status:     radixv1.RadixBatchStatus{Condition: radixv1.RadixBatchCondition{Type: radixv1.BatchConditionTypeWaiting}}},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch),
+					Status: radixv1.RadixBatchStatus{Condition: radixv1.RadixBatchCondition{Type: radixv1.BatchConditionTypeWaiting}}},
 				updatedJobStatuses: []radixv1.RadixBatchJobStatus{{Name: "job1"}}},
 		},
 		{name: "No webhook request for other job component",
@@ -115,8 +115,8 @@ func Test_webhookNotifier_Notify(t *testing.T) {
 			args: args{
 				event: events.Update,
 				radixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch)},
-					Spec:       radixv1.RadixBatchSpec{RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{Job: "otherjobcomponent"}},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch),
+					Spec: radixv1.RadixBatchSpec{RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{Job: "otherjobcomponent"}},
 					Status: radixv1.RadixBatchStatus{
 						Condition: radixv1.RadixBatchCondition{
 							Type:    radixv1.BatchConditionTypeWaiting,
@@ -132,7 +132,7 @@ func Test_webhookNotifier_Notify(t *testing.T) {
 			args: args{
 				event: events.Update,
 				radixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch)},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch),
 					Status: radixv1.RadixBatchStatus{
 						Condition: radixv1.RadixBatchCondition{
 							Type:    radixv1.BatchConditionTypeWaiting,
@@ -148,8 +148,8 @@ func Test_webhookNotifier_Notify(t *testing.T) {
 			args: args{
 				event: events.Update,
 				radixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch)},
-					Spec:       radixv1.RadixBatchSpec{RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{Job: jobComponentName}},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch),
+					Spec: radixv1.RadixBatchSpec{RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{Job: jobComponentName}},
 					Status: radixv1.RadixBatchStatus{
 						Condition: radixv1.RadixBatchCondition{
 							Type:    radixv1.BatchConditionTypeWaiting,
@@ -165,8 +165,8 @@ func Test_webhookNotifier_Notify(t *testing.T) {
 			args: args{
 				event: events.Update,
 				radixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch)},
-					Spec:       radixv1.RadixBatchSpec{RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{Job: jobComponentName}},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch),
+					Spec: radixv1.RadixBatchSpec{RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{Job: jobComponentName}},
 					Status: radixv1.RadixBatchStatus{
 						Condition: radixv1.RadixBatchCondition{
 							Type:           radixv1.BatchConditionTypeActive,
@@ -184,7 +184,7 @@ func Test_webhookNotifier_Notify(t *testing.T) {
 			args: args{
 				event: events.Update,
 				radixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch)},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch),
 					Spec: radixv1.RadixBatchSpec{
 						RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{Job: jobComponentName},
 						Jobs:                  []radixv1.RadixBatchJob{{Name: "job1"}, {Name: "job2"}, {Name: "job3"}},
@@ -223,7 +223,7 @@ func Test_webhookNotifier_Notify(t *testing.T) {
 			args: args{
 				event: events.Update,
 				radixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeJob)},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeJob),
 					Spec: radixv1.RadixBatchSpec{
 						RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{Job: jobComponentName},
 						Jobs:                  []radixv1.RadixBatchJob{{Name: "job1"}},

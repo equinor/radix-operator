@@ -182,15 +182,11 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 	}
 
 	radixRegistration := &v1.RadixRegistration{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1.SchemeGroupVersion.Identifier(),
-			Kind:       v1.KindRadixRegistration,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        rb.name,
-			UID:         rb.uid,
-			Annotations: rb.annotations,
-		},
+		APIVersion:  v1.SchemeGroupVersion.Identifier(),
+		Kind:        v1.KindRadixRegistration,
+		Name:        rb.name,
+		UID:         rb.uid,
+		Annotations: rb.annotations,
 		Spec: v1.RadixRegistrationSpec{
 			AppID:               v1.ULID{ULID: ulid.MustParse(appId)},
 			CloneURL:            cloneURL,

@@ -48,7 +48,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_NotFound() {
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 	expectedDnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: v1.ObjectMeta{Name: "any-dns-alias"},
+		Name: "any-dns-alias",
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     "any-app",
 			Component:   "any-component",
@@ -68,7 +68,7 @@ func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsError() {
 
 func (s *handlerTestSuite) Test_RadixDNSAliases_ReturnsNoError() {
 	expectedDnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: v1.ObjectMeta{Name: "any-dns-alias"},
+		Name: "any-dns-alias",
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     "any-app",
 			Component:   "any-component",

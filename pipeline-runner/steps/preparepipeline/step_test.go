@@ -215,7 +215,7 @@ func (s *stepTestSuite) Test_TargetEnvironments_Deploy() {
 	)
 	var (
 		targetNs string                  = utils.GetEnvironmentNamespace(appName, targetEnv)
-		activeRd radixv1.RadixDeployment = radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "rd3", Namespace: targetNs}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
+		activeRd radixv1.RadixDeployment = radixv1.RadixDeployment{Name: "rd3", Namespace: targetNs, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
 	)
 
 	tests := map[string]struct {
@@ -228,16 +228,16 @@ func (s *stepTestSuite) Test_TargetEnvironments_Deploy() {
 		},
 		"no active deployment exist in env namespace": {
 			existingRDs: []radixv1.RadixDeployment{
-				{ObjectMeta: metav1.ObjectMeta{Name: "rd1", Namespace: targetNs}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "rd2", Namespace: targetNs}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "rd3", Namespace: "otherns"}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}},
+				{Name: "rd1", Namespace: targetNs},
+				{Name: "rd2", Namespace: targetNs, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "rd3", Namespace: "otherns", Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}},
 			},
 			expectedTargetEnvironments: []model.TargetEnvironment{{Environment: targetEnv}},
 		},
 		" active deployment exist in env namespace": {
 			existingRDs: []radixv1.RadixDeployment{
-				{ObjectMeta: metav1.ObjectMeta{Name: "rd1", Namespace: targetNs}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "rd2", Namespace: targetNs}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "rd1", Namespace: targetNs},
+				{Name: "rd2", Namespace: targetNs, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
 				activeRd,
 			},
 			expectedTargetEnvironments: []model.TargetEnvironment{{Environment: targetEnv, ActiveRadixDeployment: &activeRd}},
@@ -295,8 +295,8 @@ func (s *stepTestSuite) Test_TargetEnvironments_BuildDeploy() {
 	var (
 		env1Ns       string                  = utils.GetEnvironmentNamespace(appName, env1Name)
 		env2Ns       string                  = utils.GetEnvironmentNamespace(appName, env2Name)
-		activeRdEnv1 radixv1.RadixDeployment = radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "env1-active", Namespace: env1Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
-		activeRdEnv2 radixv1.RadixDeployment = radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "env2-active", Namespace: env2Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
+		activeRdEnv1 radixv1.RadixDeployment = radixv1.RadixDeployment{Name: "env1-active", Namespace: env1Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
+		activeRdEnv2 radixv1.RadixDeployment = radixv1.RadixDeployment{Name: "env2-active", Namespace: env2Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
 	)
 
 	tests := map[string]struct {
@@ -320,8 +320,8 @@ func (s *stepTestSuite) Test_TargetEnvironments_BuildDeploy() {
 				{Name: "otherenv", Build: radixv1.EnvBuild{From: "other"}},
 			},
 			existingRDs: []radixv1.RadixDeployment{
-				{ObjectMeta: metav1.ObjectMeta{Name: "env1-inactive", Namespace: env1Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "env2-inactive", Namespace: env2Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "env1-inactive", Namespace: env1Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "env2-inactive", Namespace: env2Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
 			},
 			expectedTargetEnvironments: []model.TargetEnvironment{{Environment: env1Name}, {Environment: env2Name}},
 		},
@@ -332,9 +332,9 @@ func (s *stepTestSuite) Test_TargetEnvironments_BuildDeploy() {
 				{Name: "otherenv", Build: radixv1.EnvBuild{From: "other"}},
 			},
 			existingRDs: []radixv1.RadixDeployment{
-				{ObjectMeta: metav1.ObjectMeta{Name: "env1-inactive", Namespace: env1Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "env1-inactive", Namespace: env1Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
 				activeRdEnv1,
-				{ObjectMeta: metav1.ObjectMeta{Name: "env2-inactive", Namespace: env2Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "env2-inactive", Namespace: env2Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
 				activeRdEnv2,
 			},
 			expectedTargetEnvironments: []model.TargetEnvironment{{Environment: env1Name, ActiveRadixDeployment: &activeRdEnv1}, {Environment: env2Name, ActiveRadixDeployment: &activeRdEnv2}},
@@ -952,11 +952,9 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 					pipeline.Spec.Tasks = append(pipeline.Spec.Tasks, pipelinev1.PipelineTask{Name: "identity", TaskRef: &pipelinev1.TaskRef{Name: "task1"}})
 				}),
 				tasks: []pipelinev1.Task{{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "task1",
-						Annotations: map[string]string{"azure.workload.identity/skip-containers": "skip-id"},
-						Labels:      map[string]string{labels.AzureWorkloadIdentityUse: "true"},
-					},
+					Name:        "task1",
+					Annotations: map[string]string{"azure.workload.identity/skip-containers": "skip-id"},
+					Labels:      map[string]string{labels.AzureWorkloadIdentityUse: "true"},
 					Spec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{
 						{Name: "get-secret"}, {Name: "skip-id"}},
 					}},
@@ -987,11 +985,9 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 					pipeline.Spec.Tasks = append(pipeline.Spec.Tasks, pipelinev1.PipelineTask{Name: "identity", TaskRef: &pipelinev1.TaskRef{Name: "task1"}})
 				}),
 				tasks: []pipelinev1.Task{{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "task1",
-						Annotations: map[string]string{"azure.workload.identity/skip-containers": "skip-id;unknown-step"},
-						Labels:      map[string]string{labels.AzureWorkloadIdentityUse: "true"},
-					},
+					Name:        "task1",
+					Annotations: map[string]string{"azure.workload.identity/skip-containers": "skip-id;unknown-step"},
+					Labels:      map[string]string{labels.AzureWorkloadIdentityUse: "true"},
 					Spec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{
 						{Name: "get-secret"}, {Name: "skip-id"}},
 					}},
@@ -1033,7 +1029,7 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 				tasks: []pipelinev1.Task{
 					*getTestTask(nil),
 					{
-						ObjectMeta: metav1.ObjectMeta{Name: "finallytask1"},
+						Name: "finallytask1",
 						Spec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{{
 							Name:            "cleanup",
 							SecurityContext: &corev1.SecurityContext{RunAsUser: new(int64(0)), Privileged: new(true)},
@@ -1995,7 +1991,7 @@ func (s *stepTestSuite) Test_EnvironmentSubPipelineComponentNames() {
 
 func (s *stepTestSuite) applyRadixDeployments(rdList []radixv1.RadixDeployment) {
 	for _, rd := range rdList {
-		_, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: rd.GetNamespace()}}, metav1.CreateOptions{})
+		_, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{Name: rd.GetNamespace()}, metav1.CreateOptions{})
 		if err != nil {
 			s.True(k8errs.IsAlreadyExists(err))
 		}
@@ -2007,7 +2003,7 @@ func (s *stepTestSuite) applyRadixDeployments(rdList []radixv1.RadixDeployment) 
 
 func getTestPipeline(modify func(pipeline *pipelinev1.Pipeline)) *pipelinev1.Pipeline {
 	pl := &pipelinev1.Pipeline{
-		ObjectMeta: metav1.ObjectMeta{Name: "pipeline1"},
+		Name: "pipeline1",
 		Spec: pipelinev1.PipelineSpec{
 			Tasks: []pipelinev1.PipelineTask{},
 		},
@@ -2030,7 +2026,7 @@ func getComponentBuilder() utils.RadixApplicationComponentBuilder {
 
 func getTestTask(modify func(task *pipelinev1.Task)) *pipelinev1.Task {
 	task := &pipelinev1.Task{
-		ObjectMeta: metav1.ObjectMeta{Name: "task1"},
+		Name: "task1",
 		Spec: pipelinev1.TaskSpec{
 			Steps: []pipelinev1.Step{{Name: "step1"}},
 		},

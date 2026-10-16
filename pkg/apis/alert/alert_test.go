@@ -80,7 +80,7 @@ func (s *alertTestSuite) Test_New() {
 }
 
 func (s *alertTestSuite) Test_ReconcileStatus() {
-	ral := &radixv1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Namespace: "any-ns", Generation: 42}}
+	ral := &radixv1.RadixAlert{Name: "any-name", Namespace: "any-ns", Generation: 42}
 	err := s.dynamicClient.Create(context.Background(), ral)
 	s.Require().NoError(err)
 
@@ -113,14 +113,14 @@ func (s *alertTestSuite) Test_ReconcileStatus() {
 func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 	appName, alertName, alertUID, namespace := "any-app", "any-alert", types.UID("alert-uid"), "any-ns"
 	rr := &radixv1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{Name: appName},
-		Spec:       radixv1.RadixRegistrationSpec{AdGroups: []string{"admin"}, ReaderAdGroups: []string{"reader"}},
+		Name: appName,
+		Spec: radixv1.RadixRegistrationSpec{AdGroups: []string{"admin"}, ReaderAdGroups: []string{"reader"}},
 	}
 	err := s.dynamicClient.Create(context.Background(), rr)
 	s.Require().NoError(err)
 	radixAlert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: appName}, UID: alertUID},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: appName}, UID: alertUID,
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixAlert))
 
@@ -146,8 +146,8 @@ func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 func (s *alertTestSuite) Test_OnSync_Rbac_SkipCreateOnMissingRR() {
 	appName, alertName, alertUID, namespace := "any-app", "any-alert", types.UID("alert-uid"), "any-ns"
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: appName}, UID: alertUID},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: appName}, UID: alertUID,
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
 
@@ -166,17 +166,17 @@ func (s *alertTestSuite) Test_OnSync_Rbac_SkipCreateOnMissingRR() {
 func (s *alertTestSuite) Test_OnSync_Rbac_DeleteExistingOnMissingRR() {
 	appName, alertName, alertUID, namespace := "any-app", "any-alert", types.UID("alert-uid"), "any-ns"
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: appName}, UID: alertUID},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: appName}, UID: alertUID,
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
-	err := s.dynamicClient.Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretAdminRoleName(alertName), Namespace: namespace}})
+	err := s.dynamicClient.Create(context.Background(), &rbacv1.Role{Name: getAlertConfigSecretAdminRoleName(alertName), Namespace: namespace})
 	s.Nil(err)
-	err = s.dynamicClient.Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretAdminRoleName(alertName), Namespace: namespace}})
+	err = s.dynamicClient.Create(context.Background(), &rbacv1.RoleBinding{Name: getAlertConfigSecretAdminRoleName(alertName), Namespace: namespace})
 	s.Nil(err)
-	err = s.dynamicClient.Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretReaderRoleName(alertName), Namespace: namespace}})
+	err = s.dynamicClient.Create(context.Background(), &rbacv1.Role{Name: getAlertConfigSecretReaderRoleName(alertName), Namespace: namespace})
 	s.Nil(err)
-	err = s.dynamicClient.Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretReaderRoleName(alertName), Namespace: namespace}})
+	err = s.dynamicClient.Create(context.Background(), &rbacv1.RoleBinding{Name: getAlertConfigSecretReaderRoleName(alertName), Namespace: namespace})
 	s.Nil(err)
 
 	sut := s.createAlertSyncer(radixalert)
@@ -195,11 +195,11 @@ func (s *alertTestSuite) Test_OnSync_Rbac_CreateWithOwnerReference() {
 	namespace, appName := "any-ns", "any-app"
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName},
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
-	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}
+	rr := &radixv1.RadixRegistration{Name: appName}
 	err := s.dynamicClient.Create(context.Background(), rr)
 	s.Require().NoError(err)
 
@@ -229,22 +229,22 @@ func (s *alertTestSuite) Test_OnSync_Rbac_UpdateWithOwnerReference() {
 	namespace, appName := "any-ns", "any-app"
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName},
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	err := s.dynamicClient.Create(context.Background(), radixalert)
 	s.Require().NoError(err)
-	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}
+	rr := &radixv1.RadixRegistration{Name: appName}
 	err = s.dynamicClient.Create(context.Background(), rr)
 	s.Require().NoError(err)
 
-	err = s.dynamicClient.Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretAdminRoleName(alertName), Namespace: namespace}})
+	err = s.dynamicClient.Create(context.Background(), &rbacv1.Role{Name: getAlertConfigSecretAdminRoleName(alertName), Namespace: namespace})
 	s.Nil(err)
-	err = s.dynamicClient.Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretAdminRoleName(alertName), Namespace: namespace}})
+	err = s.dynamicClient.Create(context.Background(), &rbacv1.RoleBinding{Name: getAlertConfigSecretAdminRoleName(alertName), Namespace: namespace})
 	s.Nil(err)
-	err = s.dynamicClient.Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretReaderRoleName(alertName), Namespace: namespace}})
+	err = s.dynamicClient.Create(context.Background(), &rbacv1.Role{Name: getAlertConfigSecretReaderRoleName(alertName), Namespace: namespace})
 	s.Nil(err)
-	err = s.dynamicClient.Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretReaderRoleName(alertName), Namespace: namespace}})
+	err = s.dynamicClient.Create(context.Background(), &rbacv1.RoleBinding{Name: getAlertConfigSecretReaderRoleName(alertName), Namespace: namespace})
 	s.Nil(err)
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
@@ -274,11 +274,11 @@ func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
 	readerGroups, readerUsers := []string{"reader1", "reader2"}, []string{"readerUser1", "readerUser2"}
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName},
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
-	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{AdGroups: adminGroups, AdUsers: adminUsers, ReaderAdGroups: readerGroups, ReaderAdUsers: readerUsers}}
+	rr := &radixv1.RadixRegistration{Name: appName, Spec: radixv1.RadixRegistrationSpec{AdGroups: adminGroups, AdUsers: adminUsers, ReaderAdGroups: readerGroups, ReaderAdUsers: readerUsers}}
 	err := s.dynamicClient.Create(context.Background(), rr)
 	s.Require().NoError(err)
 
@@ -329,7 +329,7 @@ func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
 func (s *alertTestSuite) Test_OnSync_Secret_RemoveOrphanedKeys() {
 	alertName, namespace, receiver1, receiver2 := "any-alert", "any-ns", "receiver1", "receiver2"
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace},
+		Name: alertName, Namespace: namespace,
 		Spec: radixv1.RadixAlertSpec{
 			Receivers: radixv1.ReceiverMap{
 				receiver1: radixv1.Receiver{SlackConfig: radixv1.SlackConfig{Enabled: true}},
@@ -339,7 +339,7 @@ func (s *alertTestSuite) Test_OnSync_Secret_RemoveOrphanedKeys() {
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: GetAlertSecretName(alertName), Namespace: namespace},
+		Name: GetAlertSecretName(alertName), Namespace: namespace,
 		Data: map[string][]byte{
 			GetSlackConfigSecretKeyName("orphaned1"): []byte("foo"),
 			GetSlackConfigSecretKeyName(receiver1):   []byte(receiver1),
@@ -365,8 +365,8 @@ func (s *alertTestSuite) Test_OnSync_Secret_CreateWithOwnerReference() {
 	namespace := "any-ns"
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID,
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
@@ -385,11 +385,11 @@ func (s *alertTestSuite) Test_OnSync_Secret_UpdateWithOwnerReference() {
 	namespace := "any-ns"
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID,
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
-	err := s.dynamicClient.Create(context.Background(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: GetAlertSecretName(alertName), Namespace: namespace}})
+	err := s.dynamicClient.Create(context.Background(), &corev1.Secret{Name: GetAlertSecretName(alertName), Namespace: namespace})
 	s.Nil(err)
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
@@ -407,8 +407,8 @@ func (s *alertTestSuite) Test_OnSync_Secret_CreateWithAppLabel() {
 	namespace, appName := "any-ns", "any-app"
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName},
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
 
@@ -425,8 +425,8 @@ func (s *alertTestSuite) Test_OnSync_Secret_CreateWithoutAppLabel() {
 	namespace := "any-ns"
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID,
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
 
@@ -443,11 +443,11 @@ func (s *alertTestSuite) Test_OnSync_Secret_UpdateSetAppLabel() {
 	namespace, appName := "any-ns", "any-app"
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName},
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
-	err := s.dynamicClient.Create(context.Background(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: GetAlertSecretName(alertName), Namespace: namespace}})
+	err := s.dynamicClient.Create(context.Background(), &corev1.Secret{Name: GetAlertSecretName(alertName), Namespace: namespace})
 	s.Nil(err)
 
 	sut := s.createAlertSyncer(radixalert)
@@ -463,11 +463,11 @@ func (s *alertTestSuite) Test_OnSync_Secret_UpdateRemoveAppLabel() {
 	namespace := "any-ns"
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID,
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
-	err := s.dynamicClient.Create(context.Background(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: GetAlertSecretName(alertName), Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: "any-app"}}})
+	err := s.dynamicClient.Create(context.Background(), &corev1.Secret{Name: GetAlertSecretName(alertName), Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: "any-app"}})
 	s.Nil(err)
 
 	sut := s.createAlertSyncer(radixalert)
@@ -483,8 +483,8 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_CreateWithOwnerReference
 	namespace := "any-ns"
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID,
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(context.Background(), radixalert))
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
@@ -493,7 +493,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_CreateWithOwnerReference
 	err := sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
-	actualAmr := &v1alpha1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(alertName), Namespace: namespace}}
+	actualAmr := &v1alpha1.AlertmanagerConfig{Name: getAlertmanagerConfigName(alertName), Namespace: namespace}
 	s.Require().NoError(s.dynamicClient.Get(s.T().Context(), client.ObjectKeyFromObject(actualAmr), actualAmr))
 	s.Len(actualAmr.OwnerReferences, 1, "alertmanagerconfig ownerReference length not as expected")
 	s.Equal(expectedAlertOwnerRef, actualAmr.OwnerReferences[0], "alertmanagerconfig ownerReference not as expected")
@@ -503,14 +503,14 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_UpdateWithOwnerReference
 	namespace := "any-ns"
 	alertName, alertUID := "alert", types.UID("alertuid")
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace, UID: alertUID},
-		Spec:       radixv1.RadixAlertSpec{},
+		Name: alertName, Namespace: namespace, UID: alertUID,
+		Spec: radixv1.RadixAlertSpec{},
 	}
 	s.Require().NoError(s.dynamicClient.Create(s.T().Context(), radixalert))
 
 	// Pre-create AlertmanagerConfig
 	s.Require().NoError(s.dynamicClient.Create(s.T().Context(), &v1alpha1.AlertmanagerConfig{
-		ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(alertName), Namespace: namespace},
+		Name: getAlertmanagerConfigName(alertName), Namespace: namespace,
 	}))
 
 	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
@@ -519,7 +519,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_UpdateWithOwnerReference
 	err := sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
-	actualAmr := &v1alpha1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(alertName), Namespace: namespace}}
+	actualAmr := &v1alpha1.AlertmanagerConfig{Name: getAlertmanagerConfigName(alertName), Namespace: namespace}
 	err = s.dynamicClient.Get(s.T().Context(), client.ObjectKeyFromObject(actualAmr), actualAmr)
 	s.Require().NoError(err)
 	s.Len(actualAmr.OwnerReferences, 1, "alertmanagerconfig ownerReference length not as expected")
@@ -531,7 +531,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	namespace := "any-ns"
 	alertName := "alert"
 	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, Namespace: namespace},
+		Name: alertName, Namespace: namespace,
 		Spec: radixv1.RadixAlertSpec{
 			Receivers: radixv1.ReceiverMap{
 				"rec1": radixv1.Receiver{SlackConfig: radixv1.SlackConfig{Enabled: true}},
@@ -562,8 +562,8 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 		return v1alpha1.SlackConfig{
 			SendResolved: new(resolvable),
 			APIURL: &corev1.SecretKeySelector{
-				Key:                  GetSlackConfigSecretKeyName(receiverName),
-				LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(alertName)}},
+				Key:  GetSlackConfigSecretKeyName(receiverName),
+				Name: GetAlertSecretName(alertName)},
 			Title:     new(slackTemplate.title),
 			TitleLink: slackTemplate.titleLink,
 			Text:      new(slackTemplate.text),
@@ -604,7 +604,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	s.Require().NoError(err)
 
 	// Receivers
-	actualAmr := &v1alpha1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(alertName), Namespace: namespace}}
+	actualAmr := &v1alpha1.AlertmanagerConfig{Name: getAlertmanagerConfigName(alertName), Namespace: namespace}
 	err = s.dynamicClient.Get(s.T().Context(), client.ObjectKeyFromObject(actualAmr), actualAmr)
 	s.Require().NoError(err)
 	s.Len(actualAmr.Spec.Receivers, 5)
@@ -669,7 +669,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 
-	actualAmr = &v1alpha1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(alertName), Namespace: namespace}}
+	actualAmr = &v1alpha1.AlertmanagerConfig{Name: getAlertmanagerConfigName(alertName), Namespace: namespace}
 	err = s.dynamicClient.Get(s.T().Context(), client.ObjectKeyFromObject(actualAmr), actualAmr)
 	s.Require().NoError(err)
 	s.Len(actualAmr.Spec.Receivers, 3)

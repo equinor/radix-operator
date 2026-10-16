@@ -52,9 +52,7 @@ func (app *Application) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 		}
 
 		desired = &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
+			Name: name,
 		}
 	} else {
 		desired = currentInternal.DeepCopy()

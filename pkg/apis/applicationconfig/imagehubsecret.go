@@ -13,7 +13,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/docker"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) error {
@@ -53,11 +52,9 @@ func (app *ApplicationConfig) getCurrentAndDesiredImageHubSecret(ctx context.Con
 			return nil, nil, fmt.Errorf("failed to get private image hub secret: %w", err)
 		}
 		desired = &corev1.Secret{
-			Type: corev1.SecretTypeDockerConfigJson,
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.PrivateImageHubSecretName,
-				Namespace: ns,
-			},
+			Type:      corev1.SecretTypeDockerConfigJson,
+			Name:      defaults.PrivateImageHubSecretName,
+			Namespace: ns,
 		}
 	} else {
 		desired = currentInternal.DeepCopy()

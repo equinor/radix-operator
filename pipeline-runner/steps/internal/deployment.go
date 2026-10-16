@@ -121,17 +121,15 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 	}
 
 	radixDeployment := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      deployName,
-			Namespace: utils.GetEnvironmentNamespace(appName, env),
-			Labels: map[string]string{
-				kube.RadixAppLabel:     appName,
-				kube.RadixEnvLabel:     env,
-				kube.RadixCommitLabel:  commitID,
-				kube.RadixJobNameLabel: jobName,
-			},
-			Annotations: deploymentAnnotations,
+		Name:      deployName,
+		Namespace: utils.GetEnvironmentNamespace(appName, env),
+		Labels: map[string]string{
+			kube.RadixAppLabel:     appName,
+			kube.RadixEnvLabel:     env,
+			kube.RadixCommitLabel:  commitID,
+			kube.RadixJobNameLabel: jobName,
 		},
+		Annotations: deploymentAnnotations,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName:          appName, //nolint:staticcheck
 			Environment:      env,

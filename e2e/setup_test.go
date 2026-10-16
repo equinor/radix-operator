@@ -23,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -357,11 +356,9 @@ func labelNodesForRadixJobs(ctx context.Context, c client.Client) error {
 // are required by the job- and registration-controllers. The function is idempotent.
 func createClusterPrerequisites(ctx context.Context, c client.Client, gitKnownHosts string) error {
 	knownHostsSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "radix-known-hosts-git",
-			Namespace: corev1.NamespaceDefault,
-		},
-		Type: corev1.SecretTypeOpaque,
+		Name:      "radix-known-hosts-git",
+		Namespace: corev1.NamespaceDefault,
+		Type:      corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
 			"known_hosts": []byte(gitKnownHosts),
 		},
@@ -392,11 +389,9 @@ func createClusterPrerequisites(ctx context.Context, c client.Client, gitKnownHo
 	}
 	for _, name := range acrSecretNames {
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: corev1.NamespaceDefault,
-			},
-			Type: corev1.SecretTypeOpaque,
+			Name:      name,
+			Namespace: corev1.NamespaceDefault,
+			Type:      corev1.SecretTypeOpaque,
 			StringData: map[string]string{
 				"sp_credentials.json": "{}",
 			},
@@ -451,7 +446,7 @@ func cleanupClusterResources(ctx context.Context, c client.Client) error {
 	// (e.g. the api-server HTTPRoute) created during the next Helm install against a webhook whose
 	// pod is not yet serving, causing the install to fail with "connection refused".
 	webhookConfig := &admissionregistrationv1.ValidatingWebhookConfiguration{
-		ObjectMeta: metav1.ObjectMeta{Name: "radix-webhook-configuration"},
+		Name: "radix-webhook-configuration",
 	}
 	if err := c.Delete(ctx, webhookConfig); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete validating webhook configuration: %w", err)

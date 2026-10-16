@@ -99,7 +99,7 @@ func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Cont
 	oauth2enabled := component.GetAuthentication().GetOAuth2() != nil
 	logger.Debug().Msgf("Reconciling HTTPRoute for external dns %s. OAuth2 enabled: %t", ed.FQDN, oauth2enabled)
 
-	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}}
+	route := &gatewayapiv1.HTTPRoute{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}
 	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, route, func() error {
 
 		lsGVK, err := deploy.dynamicClient.GroupVersionKindFor(&parentListenerSet)
@@ -145,14 +145,14 @@ func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Cont
 					},
 				},
 			},
-			CommonRouteSpec: gatewayapiv1.CommonRouteSpec{ParentRefs: []gatewayapiv1.ParentReference{
+			ParentRefs: []gatewayapiv1.ParentReference{
 				{
 					Group:     new(gatewayapiv1.Group(lsGVK.Group)),
 					Kind:      new(gatewayapiv1.Kind(lsGVK.Kind)),
 					Name:      gatewayapiv1.ObjectName(parentListenerSet.Name),
 					Namespace: new(gatewayapiv1.Namespace(parentListenerSet.Namespace)),
 				},
-			}},
+			},
 		}
 
 		route.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
@@ -173,7 +173,7 @@ func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Co
 	logger := log.Ctx(ctx)
 	logger.Debug().Msgf("Reconciling ListenerSet for %s", ed.FQDN)
 
-	ls := gatewayapiv1.ListenerSet{ObjectMeta: metav1.ObjectMeta{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}}
+	ls := gatewayapiv1.ListenerSet{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, &ls, func() error {
 		ls.Labels = kubelabels.Merge(ls.Labels, labels.ForExternalDNSResource(deploy.registration.Name, ed))
@@ -333,14 +333,12 @@ func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Conte
 	renewBefore := max(deploy.config.Operator.CertificateAutomation.RenewBefore, minCertRenewBefore)
 
 	certificate := &cmv1.Certificate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      externalDns.FQDN,
-			Namespace: deploy.radixDeployment.Namespace,
-			Labels:    labels.ForExternalDNSResource(deploy.registration.Name, externalDns),
-		},
+		Name:      externalDns.FQDN,
+		Namespace: deploy.radixDeployment.Namespace,
+		Labels:    labels.ForExternalDNSResource(deploy.registration.Name, externalDns),
 		Spec: cmv1.CertificateSpec{
 			DNSNames: []string{externalDns.FQDN},
-			IssuerRef: cmmeta.ObjectReference{
+			IssuerRef: cmmeta.IssuerReference{
 				Group: cm.GroupName,
 				Kind:  cmv1.ClusterIssuerKind,
 				Name:  deploy.config.Operator.CertificateAutomation.GatewayClusterIssuer,
@@ -410,11 +408,9 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context
 			return fmt.Errorf("failed to get current external DNS secret: %w", err)
 		}
 		desiredSecret = &corev1.Secret{
-			Type: corev1.SecretTypeTLS,
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: ns,
-			},
+			Type:      corev1.SecretTypeTLS,
+			Name:      secretName,
+			Namespace: ns,
 			Data: map[string][]byte{
 				corev1.TLSCertKey:       nil,
 				corev1.TLSPrivateKeyKey: nil,

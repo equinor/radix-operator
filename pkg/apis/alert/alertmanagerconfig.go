@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -45,7 +44,7 @@ func (list alertConfigList) Any(anyFunc func(c AlertConfig) bool) bool {
 func (syncer *alertSyncer) reconcileAlertManagerConfig(ctx context.Context) error {
 	ns := syncer.radixAlert.Namespace
 
-	config := &v1alpha1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(syncer.radixAlert.Name), Namespace: ns}}
+	config := &v1alpha1.AlertmanagerConfig{Name: getAlertmanagerConfigName(syncer.radixAlert.Name), Namespace: ns}
 	op, err := controllerutil.CreateOrUpdate(ctx, syncer.dynamicClient, config, func() error {
 		receivers := syncer.getAlertmanagerConfigReceivers()
 		routes := syncer.getAlertmanagerConfigRoutes(ctx)
@@ -116,8 +115,8 @@ func (syncer *alertSyncer) buildAlertmanagerConfigReceiver(receiver *radixv1.Rec
 			{
 				SendResolved: &resolvable,
 				APIURL: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(syncer.radixAlert.Name)},
-					Key:                  GetSlackConfigSecretKeyName(receiverName),
+					Name: GetAlertSecretName(syncer.radixAlert.Name),
+					Key:  GetSlackConfigSecretKeyName(receiverName),
 				},
 				Text:      new(syncer.slackMessageTemplate.text),
 				Title:     new(syncer.slackMessageTemplate.title),

@@ -239,11 +239,9 @@ func createPipelinePod(kubeclient kubernetes.Interface, namespace, jobName strin
 
 func getPodSpecForAPipelineJob(jobName string) *corev1.Pod {
 	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: jobName,
-			Labels: map[string]string{
-				"job-name": jobName,
-			},
+		Name: jobName,
+		Labels: map[string]string{
+			"job-name": jobName,
 		},
 	}
 }

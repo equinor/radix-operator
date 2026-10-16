@@ -90,15 +90,13 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 	}
 
 	desiredJobAuxDeployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            jobAuxKubeDeploymentName,
-			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)},
-			Labels: radixlabels.Merge(
-				radixlabels.ForApplicationName(deploy.registration.Name),
-				radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
-			),
-			Annotations: radixannotations.ForKubernetesDeploymentObservedGeneration(deploy.radixDeployment),
-		},
+		Name:            jobAuxKubeDeploymentName,
+		OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)},
+		Labels: radixlabels.Merge(
+			radixlabels.ForApplicationName(deploy.registration.Name),
+			radixlabels.ForJobAuxObject(deployComponent.GetName(), kube.RadixJobTypeManagerAux),
+		),
+		Annotations: radixannotations.ForKubernetesDeploymentObservedGeneration(deploy.radixDeployment),
 		Spec: appsv1.DeploymentSpec{
 			Replicas: new(int32(1)),
 			Selector: &metav1.LabelSelector{
@@ -190,7 +188,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 	log.Ctx(ctx).Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName) //nolint:staticcheck
 
 	desiredDeployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
+		Labels: make(map[string]string), Annotations: make(map[string]string),
 		Spec: appsv1.DeploymentSpec{
 			Replicas: new(defaults.DefaultReplicas),
 			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
@@ -493,11 +491,9 @@ func getDefaultReadinessProbeForComponent(cfg config.Config, component v1.RadixC
 
 func getReadinessProbeWithDefaultsFromEnv(cfg config.Config, componentPort int32) *corev1.Probe {
 	return &corev1.Probe{
-		ProbeHandler: corev1.ProbeHandler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: componentPort,
-				},
+		TCPSocket: &corev1.TCPSocketAction{
+			Port: intstr.IntOrString{
+				IntVal: componentPort,
 			},
 		},
 		InitialDelaySeconds: cfg.Operator.ReadinessProbeInitialDelaySeconds,

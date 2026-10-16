@@ -164,24 +164,24 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			assert.Equal(t, expectedPodSecurityContext, job.Spec.Template.Spec.SecurityContext)
 			expectedVolumes := []corev1.Volume{
 				{Name: git.BuildContextVolumeName},
-				{Name: git.GitSSHKeyVolumeName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: new(int32(256))}}},
-				{Name: fmt.Sprintf("tmp-%s", ci.ContainerName), VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
-				{Name: fmt.Sprintf("var-%s", ci.ContainerName), VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
-				{Name: defaults.PrivateImageHubSecretName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}}},
-				{Name: "radix-image-builder-home", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
-				{Name: "build-kit-run", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
-				{Name: "build-kit-root", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}}},
-				{Name: git.CloneRepoHomeVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}}},
+				{Name: git.GitSSHKeyVolumeName, Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: new(int32(256))}},
+				{Name: fmt.Sprintf("tmp-%s", ci.ContainerName), EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
+				{Name: fmt.Sprintf("var-%s", ci.ContainerName), EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
+				{Name: defaults.PrivateImageHubSecretName, Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}},
+				{Name: "radix-image-builder-home", EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}},
+				{Name: "build-kit-run", EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
+				{Name: "build-kit-root", EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
+				{Name: git.CloneRepoHomeVolumeName, EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}},
 			}
 			if len(cfg.Common.ExternalRegistryAuthSecret) > 0 {
 				expectedVolumes = append(expectedVolumes, corev1.Volume{
-					Name: cfg.Common.ExternalRegistryAuthSecret, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: cfg.Common.ExternalRegistryAuthSecret}},
+					Name: cfg.Common.ExternalRegistryAuthSecret, Secret: &corev1.SecretVolumeSource{SecretName: cfg.Common.ExternalRegistryAuthSecret},
 				})
 			}
 
 			if len(buildSecrets) > 0 {
 				expectedVolumes = append(expectedVolumes, corev1.Volume{
-					Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}},
+					Name: defaults.BuildSecretsName, Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName},
 				})
 			}
 			assert.ElementsMatch(t, expectedVolumes, job.Spec.Template.Spec.Volumes)
@@ -240,8 +240,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 					Name: "BUILDAH_USERNAME",
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
-							Key:                  "username",
+							Name: defaults.AzureACRServicePrincipleBuildahSecretName,
+							Key:  "username",
 						},
 					},
 				},
@@ -249,8 +249,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 					Name: "BUILDAH_PASSWORD",
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
-							Key:                  "password",
+							Name: defaults.AzureACRServicePrincipleBuildahSecretName,
+							Key:  "password",
 						},
 					},
 				},
@@ -258,8 +258,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 					Name: "BUILDAH_CACHE_USERNAME",
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
-							Key:                  "username",
+							Name: defaults.AzureACRTokenPasswordAppRegistrySecretName,
+							Key:  "username",
 						},
 					},
 				},
@@ -267,8 +267,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 					Name: "BUILDAH_CACHE_PASSWORD",
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
-							Key:                  "password",
+							Name: defaults.AzureACRTokenPasswordAppRegistrySecretName,
+							Key:  "password",
 						},
 					},
 				},

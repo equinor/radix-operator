@@ -620,8 +620,8 @@ func (s *secretHandlerTestSuite) TestSecretHandler_ChangeSecrets() {
 			appEnvNamespace := operatorUtils.GetEnvironmentNamespace(appName, envName)
 			if scenario.secretExists {
 				_, _ = kubeClient.CoreV1().Secrets(appEnvNamespace).Create(context.Background(), &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{Name: scenario.secretName, Namespace: appEnvNamespace},
-					Data:       map[string][]byte{scenario.secretDataKey: []byte(scenario.secretValue)},
+					Name: scenario.secretName, Namespace: appEnvNamespace,
+					Data: map[string][]byte{scenario.secretDataKey: []byte(scenario.secretValue)},
 				}, metav1.CreateOptions{})
 			}
 			_, err := radixClient.RadixV1().RadixDeployments(appEnvNamespace).Create(context.Background(), createActiveRadixDeployment(envName, componentName1, scenario.credentialsType), metav1.CreateOptions{})
@@ -651,7 +651,7 @@ func createActiveRadixDeployment(envName, componentName string, credentialsType 
 		deployComponent.Identity = &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "some-client-id"}}
 	}
 	return &v1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "deployment-name"},
+		Name: "deployment-name",
 		Spec: v1.RadixDeploymentSpec{
 			Environment: envName,
 			Components:  []v1.RadixDeployComponent{deployComponent},
@@ -709,7 +709,7 @@ func (s *secretHandlerTestSuite) prepareTestRun(ctrl *gomock.Controller, scenari
 	}
 	appAppNamespace := operatorUtils.GetAppNamespace(appName)
 	ra := &v1.RadixApplication{
-		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appAppNamespace},
+		Name: appName, Namespace: appAppNamespace,
 		Spec: v1.RadixApplicationSpec{
 			Environments: []v1.Environment{{Name: envName}},
 			Components:   testGetRadixComponents(scenario.components, envName),
@@ -718,7 +718,7 @@ func (s *secretHandlerTestSuite) prepareTestRun(ctrl *gomock.Controller, scenari
 	}
 	_, _ = radixClient.RadixV1().RadixApplications(appAppNamespace).Create(context.Background(), ra, metav1.CreateOptions{})
 	radixDeployment := v1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: deploymentName},
+		Name: deploymentName,
 		Spec: v1.RadixDeploymentSpec{
 			Environment: envName,
 			Components:  scenario.components,
@@ -732,12 +732,10 @@ func (s *secretHandlerTestSuite) prepareTestRun(ctrl *gomock.Controller, scenari
 	}
 	for _, secret := range scenario.existingSecrets {
 		_, _ = kubeClient.CoreV1().Secrets(envNamespace).Create(context.Background(), &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secret.secretName,
-				Namespace: envNamespace,
-				Labels:    secret.labels,
-			},
-			Data: secret.secretData,
+			Name:      secret.secretName,
+			Namespace: envNamespace,
+			Labels:    secret.labels,
+			Data:      secret.secretData,
 		}, metav1.CreateOptions{})
 	}
 	for _, component := range rd.Spec.Components {
@@ -781,12 +779,10 @@ func (s *secretHandlerTestSuite) createPodForRadixComponent(userAccount *account
 		labels[kube.RadixJobTypeLabel] = kube.RadixJobTypeJobSchedule
 	}
 	_, _ = userAccount.Client.CoreV1().Pods(envNamespace).Create(context.Background(), &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              replicaName,
-			Namespace:         envNamespace,
-			Labels:            labels,
-			CreationTimestamp: metav1.Now(),
-		},
+		Name:              replicaName,
+		Namespace:         envNamespace,
+		Labels:            labels,
+		CreationTimestamp: metav1.Now(),
 	}, metav1.CreateOptions{})
 }
 
@@ -797,12 +793,10 @@ func (s *secretHandlerTestSuite) createJobForRadixJobComponent(userAccount *acco
 		kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
 	}
 	_, _ = userAccount.Client.BatchV1().Jobs(envNamespace).Create(context.Background(), &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              componentName,
-			Namespace:         envNamespace,
-			Labels:            labels,
-			CreationTimestamp: metav1.Now(),
-		},
+		Name:              componentName,
+		Namespace:         envNamespace,
+		Labels:            labels,
+		CreationTimestamp: metav1.Now(),
 	}, metav1.CreateOptions{})
 }
 
@@ -964,7 +958,7 @@ func testCreateSecretProviderClassPodStatusesForAzureKeyVault(secretProviderClie
 	for replicaName, secretProviderClassObjects := range secretProviderClassObjectsMap {
 		_, err := secretProviderClient.SecretsstoreV1().SecretProviderClassPodStatuses(namespace).Create(context.Background(),
 			&secretsstorev1.SecretProviderClassPodStatus{
-				ObjectMeta: metav1.ObjectMeta{Name: random.RandString(10)}, // Name is not important
+				Name: random.RandString(10), // Name is not important
 				Status: secretsstorev1.SecretProviderClassPodStatusStatus{
 					PodName:                 replicaName,
 					SecretProviderClassName: secretProviderClassName,

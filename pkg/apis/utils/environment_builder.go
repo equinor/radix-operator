@@ -152,17 +152,13 @@ func (eb *EnvironmentBuilderStruct) BuildRE() *radixv1.RadixEnvironment {
 	}
 
 	radixEnvironment := &radixv1.RadixEnvironment{
-		TypeMeta: meta.TypeMeta{
-			APIVersion: radixv1.SchemeGroupVersion.Identifier(),
-			Kind:       radixv1.KindRadixEnvironment,
-		},
-		ObjectMeta: meta.ObjectMeta{
-			Name:            uniqueName,
-			Labels:          eb.Labels,
-			ResourceVersion: eb.ResourceVersion,
-			UID:             eb.UID,
-			OwnerReferences: eb.Owners,
-		},
+		APIVersion:      radixv1.SchemeGroupVersion.Identifier(),
+		Kind:            radixv1.KindRadixEnvironment,
+		Name:            uniqueName,
+		Labels:          eb.Labels,
+		ResourceVersion: eb.ResourceVersion,
+		UID:             eb.UID,
+		OwnerReferences: eb.Owners,
 		Spec: radixv1.RadixEnvironmentSpec{
 			AppName: eb.AppName,
 			EnvName: eb.EnvironmentName,

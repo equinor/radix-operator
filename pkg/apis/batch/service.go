@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (s *syncer) reconcileService(ctx context.Context, batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
@@ -33,11 +32,9 @@ func (s *syncer) buildService(batchJobName, appName string, componentPorts []rad
 	labels := s.batchJobIdentifierLabel(batchJobName, appName)
 	selector := s.batchJobIdentifierLabel(batchJobName, appName)
 	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            serviceName,
-			Labels:          labels,
-			OwnerReferences: ownerReference(s.radixBatch),
-		},
+		Name:            serviceName,
+		Labels:          labels,
+		OwnerReferences: ownerReference(s.radixBatch),
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
 			Ports:    utils.GetServicePorts(componentPorts),

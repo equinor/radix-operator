@@ -70,7 +70,7 @@ func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerError() {
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	jobName, namespace := "any-job", "ns"
-	job := &v1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: jobName, Labels: map[string]string{kube.RadixAppLabel: rr.Name}}}
+	job := &v1.RadixBatch{Name: jobName, Labels: map[string]string{kube.RadixAppLabel: rr.Name}}
 	job, _ = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 	expectedError := fmt.Errorf("error")
 
@@ -87,7 +87,7 @@ func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerNoError() {
 	s.Require().NoError(err)
 
 	jobName, namespace := "any-job", "ns"
-	job := &v1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: jobName, Labels: map[string]string{kube.RadixAppLabel: rr.Name}}}
+	job := &v1.RadixBatch{Name: jobName, Labels: map[string]string{kube.RadixAppLabel: rr.Name}}
 	job, _ = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 
 	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, s.eventRecorder, config.Config{}, WithSyncerFactory(s.syncerFactory))

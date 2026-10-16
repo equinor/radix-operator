@@ -17,7 +17,7 @@ func taskSpecPipelineTask(name string) pipelinev1.PipelineTask {
 	return pipelinev1.PipelineTask{
 		Name: name,
 		TaskSpec: &pipelinev1.EmbeddedTask{
-			TaskSpec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{{Name: "step1", Image: "alpine"}}},
+			Steps: []pipelinev1.Step{{Name: "step1", Image: "alpine"}},
 		},
 	}
 }

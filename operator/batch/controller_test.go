@@ -35,7 +35,7 @@ func (s *controllerTestSuite) Test_RadixBatchEvents() {
 		}
 	}()
 
-	batch := &v1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: batchName, Namespace: namespace}}
+	batch := &v1.RadixBatch{Name: batchName, Namespace: namespace}
 
 	// Adding a RadixBatch should trigger sync
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, batchName).DoAndReturn(s.SyncedChannelCallback()).Times(1)
@@ -57,14 +57,13 @@ func (s *controllerTestSuite) Test_RadixBatchEvents() {
 	s.WaitForNotSynced("Sync should not be called when updating RadixBatch with no changes")
 
 	// Add Kubernetes Job with ownerreference to RadixBatch should not trigger sync
-	kubejob := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{
+	kubejob := &batchv1.Job{
 		Name:            jobName,
 		Namespace:       namespace,
 		ResourceVersion: "1",
 		OwnerReferences: []metav1.OwnerReference{
 			{APIVersion: v1.SchemeGroupVersion.Identifier(), Kind: v1.KindRadixBatch, Name: batchName, Controller: new(true)},
-		},
-	}}
+		}}
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, batchName).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	kubejob, err = s.KubeClient.BatchV1().Jobs(namespace).Create(context.Background(), kubejob, metav1.CreateOptions{})
 	s.Require().NoError(err)

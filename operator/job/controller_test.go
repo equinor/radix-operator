@@ -42,7 +42,7 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 		s.Require().NoError(err)
 	}()
 
-	rj := &v1.RadixJob{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: jobName}, Spec: v1.RadixJobSpec{AppName: appName}}
+	rj := &v1.RadixJob{Namespace: namespace, Name: jobName, Spec: v1.RadixJobSpec{AppName: appName}}
 
 	// Create RJ should sync and call cleanup
 	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(1).Do(s.cleanupChannelCallback())
@@ -97,7 +97,7 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	s.WaitForNotSynced("Sync called on update RadixJob")
 	s.waitForNotCleanup("Cleanup called on add RadixJob")
 
-	childJob := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{OwnerReferences: jobs.GetOwnerReference(rj)}}
+	childJob := &batchv1.Job{OwnerReferences: jobs.GetOwnerReference(rj)}
 
 	// Create k8s job should not sync
 	handler.EXPECT().CleanupJobHistory(gomock.Any(), appName).Times(0).Do(s.cleanupChannelCallback())

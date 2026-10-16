@@ -13,8 +13,8 @@ func Test_ByPodCreationTimestamp(t *testing.T) {
 	newTime := time.Now()
 	oldTime := newTime.Add(-1 * time.Second)
 
-	oldPod := corev1.Pod{ObjectMeta: v1.ObjectMeta{CreationTimestamp: v1.NewTime(oldTime)}}
-	newPod := corev1.Pod{ObjectMeta: v1.ObjectMeta{CreationTimestamp: v1.NewTime(newTime)}}
+	oldPod := corev1.Pod{CreationTimestamp: v1.NewTime(oldTime)}
+	newPod := corev1.Pod{CreationTimestamp: v1.NewTime(newTime)}
 
 	assert.True(t, ByPodCreationTimestamp(oldPod, newPod))
 	assert.False(t, ByPodCreationTimestamp(newPod, oldPod))
@@ -24,7 +24,7 @@ func Test_Pod(t *testing.T) {
 	less := func(pod corev1.Pod, compareWith corev1.Pod) bool {
 		return pod.Name < compareWith.Name
 	}
-	pod_a, pod_b, pod_c := corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: "a"}}, corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: "b"}}, corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: "c"}}
+	pod_a, pod_b, pod_c := corev1.Pod{Name: "a"}, corev1.Pod{Name: "b"}, corev1.Pod{Name: "c"}
 
 	type list struct {
 		pods []corev1.Pod
