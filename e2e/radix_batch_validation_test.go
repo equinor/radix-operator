@@ -5,7 +5,6 @@ import (
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -17,10 +16,8 @@ func TestRadixBatchWebhookSmokeTest(t *testing.T) {
 
 	newBatch := func(resources *v1.ResourceRequirements) *v1.RadixBatch {
 		return &v1.RadixBatch{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-batch-validation",
-				Namespace: "default",
-			},
+			Name:      "test-batch-validation",
+			Namespace: "default",
 			Spec: v1.RadixBatchSpec{
 				RadixDeploymentJobRef: v1.RadixDeploymentJobComponentSelector{
 					LocalObjectReference: v1.LocalObjectReference{Name: "any-rd"},

@@ -225,21 +225,19 @@ func TestCreateJob(t *testing.T) {
 		defer ctrl.Finish()
 		jobScheduleDescription := models.JobScheduleDescription{
 			Payload: "a_payload",
-			RadixJobComponentConfig: models.RadixJobComponentConfig{
-				Resources: &models.Resources{
-					Requests: models.ResourceList{
-						"cpu":    "20m",
-						"memory": "256M",
-					},
-					Limits: models.ResourceList{
-						"cpu":    "10m",
-						"memory": "128M",
-					},
+			Resources: &models.Resources{
+				Requests: models.ResourceList{
+					"cpu":    "20m",
+					"memory": "256M",
 				},
-				Node: &models.Node{ //nolint:staticcheck
-					Gpu:      "nvidia",
-					GpuCount: "6",
+				Limits: models.ResourceList{
+					"cpu":    "10m",
+					"memory": "128M",
 				},
+			},
+			Node: &models.Node{ //nolint:staticcheck
+				Gpu:      "nvidia",
+				GpuCount: "6",
 			},
 		}
 		createdJob := modelsV1.JobStatus{

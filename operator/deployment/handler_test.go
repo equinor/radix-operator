@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 )
@@ -76,30 +75,30 @@ func (s *handlerSuite) Test_Sync() {
 
 	err := s.radixClient.Tracker().Add(
 		&radixv1.RadixDeployment{
-			ObjectMeta: v1.ObjectMeta{Name: inactiveRdName, Namespace: namespace},
-			Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive},
+			Name: inactiveRdName, Namespace: namespace,
+			Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive},
 		},
 	)
 	s.Require().NoError(err)
 
 	err = s.radixClient.Tracker().Add(
 		&radixv1.RadixDeployment{
-			ObjectMeta: v1.ObjectMeta{Name: activeRdMissingRrName, Namespace: namespace},
-			Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
+			Name: activeRdMissingRrName, Namespace: namespace,
+			Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 		},
 	)
 	s.Require().NoError(err)
 
 	activeRd := &radixv1.RadixDeployment{
-		ObjectMeta: v1.ObjectMeta{Name: activeRdName, Namespace: namespace},
-		Spec:       radixv1.RadixDeploymentSpec{AppName: appName}, //nolint:staticcheck
-		Status:     radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
+		Name: activeRdName, Namespace: namespace,
+		Spec:   radixv1.RadixDeploymentSpec{AppName: appName}, //nolint:staticcheck
+		Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive},
 	}
 	err = s.radixClient.Tracker().Add(activeRd)
 	s.Require().NoError(err)
 
 	rr := &radixv1.RadixRegistration{
-		ObjectMeta: v1.ObjectMeta{Name: appName},
+		Name: appName,
 	}
 	err = s.radixClient.Tracker().Add(rr)
 	s.Require().NoError(err)

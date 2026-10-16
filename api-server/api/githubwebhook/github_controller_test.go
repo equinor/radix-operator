@@ -116,9 +116,7 @@ func createRegistration(t *testing.T, radixClient *radixfake.Clientset, appName 
 func createWebhookSharedSecret(t *testing.T, kubeClient *kubefake.Clientset, appName string) {
 	t.Helper()
 	_, err := kubeClient.CoreV1().Secrets(operatorutils.GetAppNamespace(appName)).Create(t.Context(), &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.WebhookSharedSecretName,
-		},
+		Name: defaults.WebhookSharedSecretName,
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
 			defaults.WebhookSharedSecretKey: []byte(sharedSecret),

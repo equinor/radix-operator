@@ -164,12 +164,10 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	volumes = s.appendPayloadSecretVolumes(batchJob, jobComponent, volumes)
 
 	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            kubeJobName,
-			Labels:          jobLabels,
-			OwnerReferences: ownerReference(s.radixBatch),
-			Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(rd),
-		},
+		Name:            kubeJobName,
+		Labels:          jobLabels,
+		OwnerReferences: ownerReference(s.radixBatch),
+		Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(rd),
 		Spec: batchv1.JobSpec{
 			BackoffLimit:            backoffLimit,
 			TTLSecondsAfterFinished: new(int32(86400)),
@@ -214,12 +212,10 @@ func (s *syncer) appendPayloadSecretVolumes(batchJob *radixv1.RadixBatchJob, rad
 	}
 	return append(volumes, corev1.Volume{
 		Name: jobPayloadVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: batchJob.PayloadSecretRef.Name,
-				Items: []corev1.KeyToPath{
-					{Key: batchJob.PayloadSecretRef.Key, Path: "payload"},
-				},
+		Secret: &corev1.SecretVolumeSource{
+			SecretName: batchJob.PayloadSecretRef.Name,
+			Items: []corev1.KeyToPath{
+				{Key: batchJob.PayloadSecretRef.Key, Path: "payload"},
 			},
 		},
 	})

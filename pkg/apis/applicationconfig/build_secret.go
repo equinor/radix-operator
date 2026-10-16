@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (app *ApplicationConfig) syncBuildSecrets(ctx context.Context) error {
@@ -54,11 +53,9 @@ func (app *ApplicationConfig) getCurrentAndDesiredBuildSecret(ctx context.Contex
 			return nil, nil, err
 		}
 		desired = &corev1.Secret{
-			Type: corev1.SecretTypeOpaque,
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.BuildSecretsName,
-				Namespace: ns,
-			},
+			Type:      corev1.SecretTypeOpaque,
+			Name:      defaults.BuildSecretsName,
+			Namespace: ns,
 		}
 	} else {
 		desired = currentInternal.DeepCopy()

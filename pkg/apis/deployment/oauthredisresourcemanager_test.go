@@ -450,11 +450,9 @@ func (*OAuthRedisResourceManagerTestSuite) getAppNameSelector(appName string) st
 
 func (s *OAuthRedisResourceManagerTestSuite) addDeployment(name, namespace, appName, auxComponentName, auxComponentType string) {
 	deploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
-		},
+		Name:      name,
+		Namespace: namespace,
+		Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 	}
 	_, err := s.kubeClient.AppsV1().Deployments(namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -462,11 +460,9 @@ func (s *OAuthRedisResourceManagerTestSuite) addDeployment(name, namespace, appN
 
 func (s *OAuthRedisResourceManagerTestSuite) addService(name, namespace, appName, auxComponentName, auxComponentType string) {
 	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
-		},
+		Name:      name,
+		Namespace: namespace,
+		Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 	}
 	_, err := s.kubeClient.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
 	s.Require().NoError(err)

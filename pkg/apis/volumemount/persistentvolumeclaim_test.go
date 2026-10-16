@@ -7,17 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_ComparePersistentVolumeClaims(t *testing.T) {
 	validPVC := func(modify func(pvc *corev1.PersistentVolumeClaim)) *corev1.PersistentVolumeClaim {
 		pvc := &corev1.PersistentVolumeClaim{
-			ObjectMeta: v1.ObjectMeta{
-				Namespace: "any",
-				Labels: map[string]string{
-					"any": "any",
-				},
+			Namespace: "any",
+			Labels: map[string]string{
+				"any": "any",
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				Resources: corev1.VolumeResourceRequirements{

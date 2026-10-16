@@ -289,12 +289,10 @@ func createComponentPod(kubeclient kubernetes.Interface, podName, namespace, rad
 
 func getPodSpec(podName, appName, componentName, image string) *corev1.Pod {
 	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: podName,
-			Labels: map[string]string{
-				kube.RadixComponentLabel: componentName,
-				kube.RadixAppLabel:       appName,
-			},
+		Name: podName,
+		Labels: map[string]string{
+			kube.RadixComponentLabel: componentName,
+			kube.RadixAppLabel:       appName,
 		},
 		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: componentName, Image: image}}},
 	}
@@ -835,10 +833,8 @@ func createHorizontalScalingObjects(name string, scaling *v1.RadixHorizontalScal
 	metricStatus := append(externalMetricStatus, resourceMetricStatus...)
 
 	scaler := v1alpha1.ScaledObject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: labelselector.ForComponent(anyAppName, "frontend"),
-		},
+		Name:   name,
+		Labels: labelselector.ForComponent(anyAppName, "frontend"),
 		Spec: v1alpha1.ScaledObjectSpec{
 			MinReplicaCount: scaling.MinReplicas,
 			MaxReplicaCount: &scaling.MaxReplicas,
@@ -853,10 +849,8 @@ func createHorizontalScalingObjects(name string, scaling *v1.RadixHorizontalScal
 	}
 
 	hpa := v2.HorizontalPodAutoscaler{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   fmt.Sprintf("hpa-%s", name),
-			Labels: labelselector.ForComponent(anyAppName, "frontend"),
-		},
+		Name:   fmt.Sprintf("hpa-%s", name),
+		Labels: labelselector.ForComponent(anyAppName, "frontend"),
 		Spec: v2.HorizontalPodAutoscalerSpec{
 			MinReplicas: scaling.MinReplicas,
 			MaxReplicas: scaling.MaxReplicas,

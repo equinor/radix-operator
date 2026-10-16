@@ -29,14 +29,12 @@ func Test_garbageCollectServicesNoLongerInSpec(t *testing.T) {
 				WithComponents().
 				BuildRD(),
 			services: []*corev1.Service{{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "batch-service",
-					Labels: map[string]string{
-						kube.RadixComponentLabel:    "job",
-						kube.RadixJobTypeLabel:      kube.RadixJobTypeJobSchedule,
-						kube.RadixBatchNameLabel:    "batch-1",
-						kube.RadixBatchJobNameLabel: "job-1",
-					},
+				Name: "batch-service",
+				Labels: map[string]string{
+					kube.RadixComponentLabel:    "job",
+					kube.RadixJobTypeLabel:      kube.RadixJobTypeJobSchedule,
+					kube.RadixBatchNameLabel:    "batch-1",
+					kube.RadixBatchJobNameLabel: "job-1",
 				},
 			}},
 			expectedServiceNames: []string{"batch-service"},
@@ -50,12 +48,10 @@ func Test_garbageCollectServicesNoLongerInSpec(t *testing.T) {
 				WithComponents().
 				BuildRD(),
 			services: []*corev1.Service{{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "job-scheduler-service",
-					Labels: map[string]string{
-						kube.RadixComponentLabel: "job",
-						kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
-					},
+				Name: "job-scheduler-service",
+				Labels: map[string]string{
+					kube.RadixComponentLabel: "job",
+					kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
 				},
 			}},
 			expectedServiceNames: []string{},
@@ -73,12 +69,10 @@ func Test_garbageCollectServicesNoLongerInSpec(t *testing.T) {
 				WithComponents().
 				BuildRD(),
 			services: []*corev1.Service{{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "job",
-					Labels: map[string]string{
-						kube.RadixComponentLabel: "job",
-						kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
-					},
+				Name: "job",
+				Labels: map[string]string{
+					kube.RadixComponentLabel: "job",
+					kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
 				},
 			}},
 			expectedServiceNames: []string{"job"},
@@ -95,12 +89,10 @@ func Test_garbageCollectServicesNoLongerInSpec(t *testing.T) {
 				WithComponents().
 				BuildRD(),
 			services: []*corev1.Service{{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "job",
-					Labels: map[string]string{
-						kube.RadixComponentLabel: "job",
-						kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
-					},
+				Name: "job",
+				Labels: map[string]string{
+					kube.RadixComponentLabel: "job",
+					kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
 				},
 			}},
 			expectedServiceNames: []string{},
@@ -118,12 +110,10 @@ func Test_garbageCollectServicesNoLongerInSpec(t *testing.T) {
 				WithComponents().
 				BuildRD(),
 			services: []*corev1.Service{{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "job",
-					Labels: map[string]string{
-						kube.RadixComponentLabel: "job",
-						kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
-					},
+				Name: "job",
+				Labels: map[string]string{
+					kube.RadixComponentLabel: "job",
+					kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
 				},
 			}},
 			expectedServiceNames: []string{},
@@ -136,11 +126,9 @@ func Test_garbageCollectServicesNoLongerInSpec(t *testing.T) {
 				WithComponents(utils.NewDeployComponentBuilder().WithName("component")).
 				BuildRD(),
 			services: []*corev1.Service{{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "component",
-					Labels: map[string]string{
-						kube.RadixComponentLabel: "component",
-					},
+				Name: "component",
+				Labels: map[string]string{
+					kube.RadixComponentLabel: "component",
 				},
 			}},
 			expectedServiceNames: []string{},
@@ -155,11 +143,9 @@ func Test_garbageCollectServicesNoLongerInSpec(t *testing.T) {
 					WithPorts([]rv1.ComponentPort{{Name: "http", Port: 8080}})).
 				BuildRD(),
 			services: []*corev1.Service{{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "component",
-					Labels: map[string]string{
-						kube.RadixComponentLabel: "component",
-					},
+				Name: "component",
+				Labels: map[string]string{
+					kube.RadixComponentLabel: "component",
 				},
 			}},
 			expectedServiceNames: []string{"component"},

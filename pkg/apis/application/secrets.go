@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -77,11 +76,9 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 			return nil, nil, "", err
 		}
 		desired = &corev1.Secret{
-			Type: "Opaque",
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.GitPrivateKeySecretName,
-				Namespace: namespace,
-			},
+			Type:      "Opaque",
+			Name:      defaults.GitPrivateKeySecretName,
+			Namespace: namespace,
 		}
 	} else {
 		desired = currentInternal.DeepCopy()
@@ -133,10 +130,8 @@ func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx cont
 			return nil, nil, err
 		}
 		desired = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.GitPublicKeyConfigMapName,
-				Namespace: namespace,
-			},
+			Name:      defaults.GitPublicKeyConfigMapName,
+			Namespace: namespace,
 		}
 	} else {
 		desired = currentInternal.DeepCopy()
@@ -186,12 +181,10 @@ func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
 	}
 
 	desired := &corev1.Secret{
-		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.WebhookSharedSecretName,
-			Namespace: namespace,
-			Labels:    labels.ForApplicationName(app.registration.Name),
-		},
+		Type:      corev1.SecretTypeOpaque,
+		Name:      defaults.WebhookSharedSecretName,
+		Namespace: namespace,
+		Labels:    labels.ForApplicationName(app.registration.Name),
 		Data: map[string][]byte{
 			defaults.WebhookSharedSecretKey: []byte(rand.Text()),
 		},
@@ -227,11 +220,9 @@ func (app *Application) copySecretData(ctx context.Context, sourceNamespace, tar
 			return fmt.Errorf("failed to get current target secret: %w", err)
 		}
 		desiredSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: targetNamespace,
-			},
-			Type: sourceSecret.Type,
+			Name:      secretName,
+			Namespace: targetNamespace,
+			Type:      sourceSecret.Type,
 		}
 		currentSecret = nil
 	} else {

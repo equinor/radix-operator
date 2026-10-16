@@ -101,10 +101,8 @@ func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1
 		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
 			ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: envVarConfigMapName,
-				},
-				Key: envVarName,
+				Name: envVarConfigMapName,
+				Key:  envVarName,
 			},
 		},
 	}

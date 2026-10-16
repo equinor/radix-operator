@@ -87,7 +87,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	_, client, kubeUtil, radixClient, _ := setupTest(t)
 	defer os.Clearenv()
 
-	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
+	rr := &v1.RadixRegistration{Name: "any-name", Generation: 42}
 	rr, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
 
@@ -261,11 +261,9 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 	_, err := client.CoreV1().Namespaces().Create(
 		context.Background(),
 		&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "any-app-app",
-				Labels: map[string]string{
-					kube.RadixAppLabel: "any-app",
-				},
+			Name: "any-app-app",
+			Labels: map[string]string{
+				kube.RadixAppLabel: "any-app",
 			},
 		},
 		metav1.CreateOptions{})

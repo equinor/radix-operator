@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/webhook/validation/httproute"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
@@ -29,7 +28,7 @@ func Test_Webhook_HttpRoute_ValidationSucceeds_WhenRouteIsNotUnique_ButInSameNam
 func Test_Webhook_HttpRoute_ValidationSkipped_WhenNamespace_IsNotManagedByRadix(t *testing.T) {
 	// Namespace exists but has no kube.RadixAppLabel — treated as non-Radix namespace.
 	nonRadixNs := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: "default"},
+		Name: "default",
 	}
 	httpRoute := test.Load[*gatewayapiv1.HTTPRoute]("./testdata/httproute.yaml")
 	httpRoute.Namespace = "default"
@@ -256,9 +255,7 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenHostnameLabelLength_Is64(t *test
 // required for the HTTPRoute validator to consider the namespace as managed by Radix.
 func radixNamespace(name string) *corev1.Namespace {
 	return &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: map[string]string{kube.RadixAppLabel: name},
-		},
+		Name:   name,
+		Labels: map[string]string{kube.RadixAppLabel: name},
 	}
 }

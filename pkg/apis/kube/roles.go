@@ -147,15 +147,11 @@ func ReadSecretsRule(secretNames []string) RuleBuilder {
 
 func CreateAppRole(appName, roleName string, customLabels map[string]string, ruleBuilders ...RuleBuilder) *rbacv1.Role {
 	role := &rbacv1.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindRole,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-			Labels: map[string]string{
-				RadixAppLabel: appName,
-			},
+		APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
+		Kind:       k8s.KindRole,
+		Name:       roleName,
+		Labels: map[string]string{
+			RadixAppLabel: appName,
 		},
 	}
 

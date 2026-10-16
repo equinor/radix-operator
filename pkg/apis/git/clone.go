@@ -156,22 +156,18 @@ func GetJobVolumes() []corev1.Volume {
 		},
 		{
 			Name: GitSSHKeyVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName:  GitSSHKeyVolumeName,
-					DefaultMode: &defaultMode,
-				},
+			Secret: &corev1.SecretVolumeSource{
+				SecretName:  GitSSHKeyVolumeName,
+				DefaultMode: &defaultMode,
 			},
 		},
 		{
 			Name: podLabelsVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				DownwardAPI: &corev1.DownwardAPIVolumeSource{
-					Items: []corev1.DownwardAPIVolumeFile{
-						{
-							Path:     podLabelsFileName,
-							FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.labels"},
-						},
+			DownwardAPI: &corev1.DownwardAPIVolumeSource{
+				Items: []corev1.DownwardAPIVolumeFile{
+					{
+						Path:     podLabelsFileName,
+						FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.labels"},
 					},
 				},
 			},

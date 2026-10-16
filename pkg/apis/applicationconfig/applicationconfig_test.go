@@ -53,7 +53,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	_, client, kubeUtil, radixClient := setupTest(t)
 
 	rr := &radixv1.RadixRegistration{}
-	ra := &radixv1.RadixApplication{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
+	ra := &radixv1.RadixApplication{Name: "any-name", Generation: 42}
 	ra, err := radixClient.RadixV1().RadixApplications("any-ns").Create(context.Background(), ra, metav1.CreateOptions{})
 	require.NoError(t, err)
 
@@ -140,10 +140,8 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	_, err := radixClient.RadixV1().RadixEnvironments().Create(
 		context.Background(),
 		&radixv1.RadixEnvironment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "any-app-qa",
-				Labels: labels.Set{kube.RadixAppLabel: "any-app"},
-			},
+			Name:   "any-app-qa",
+			Labels: labels.Set{kube.RadixAppLabel: "any-app"},
 		},
 		metav1.CreateOptions{})
 	assert.NoError(t, err)
@@ -151,10 +149,8 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	_, err = radixClient.RadixV1().RadixEnvironments().Create(
 		context.Background(),
 		&radixv1.RadixEnvironment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "any-app-prod",
-				Labels: labels.Set{kube.RadixAppLabel: "any-app"},
-			},
+			Name:   "any-app-prod",
+			Labels: labels.Set{kube.RadixAppLabel: "any-app"},
 		},
 		metav1.CreateOptions{})
 	assert.NoError(t, err)
@@ -197,10 +193,8 @@ func Test_Reconcile_Environment_With_Different_AppLabel_Fails(t *testing.T) {
 	_, err := radixClient.RadixV1().RadixEnvironments().Create(
 		context.Background(),
 		&radixv1.RadixEnvironment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "foo-bar-test",
-				Labels: labels.Set{kube.RadixAppLabel: "foo-bar"},
-			},
+			Name:   "foo-bar-test",
+			Labels: labels.Set{kube.RadixAppLabel: "foo-bar"},
 			Spec: radixv1.RadixEnvironmentSpec{
 				AppName: "foo-bar",
 				EnvName: "test",

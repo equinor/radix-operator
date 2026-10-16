@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/google/cel-go/cel"
-	celtypes "github.com/google/cel-go/common/types"
-	"github.com/google/cel-go/common/types/ref"
+	"cel.dev/cel-go/cel"
+	celtypes "cel.dev/cel-go/common/types"
+	"cel.dev/cel-go/common/types/ref"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 

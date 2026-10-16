@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -163,10 +162,8 @@ func TestNamespaceUsableValidator(t *testing.T) {
 			name: "namespace with same name owned by same app returns no error",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-app",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
+					Name:   "testapp-app",
+					Labels: map[string]string{kube.RadixAppLabel: "testapp"},
 				},
 			},
 			expectedError: nil,
@@ -175,10 +172,8 @@ func TestNamespaceUsableValidator(t *testing.T) {
 			name: "namespace with same name owned by different app returns error",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-app",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
+					Name:   "testapp-app",
+					Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
 				},
 			},
 			expectedError: radixregistration.ErrEnvironmentNameIsNotAvailable,
@@ -187,9 +182,7 @@ func TestNamespaceUsableValidator(t *testing.T) {
 			name: "namespace with same name without radix-app label returns error",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "testapp-app",
-					},
+					Name: "testapp-app",
 				},
 			},
 			expectedError: radixregistration.ErrEnvironmentNameIsNotAvailable,
@@ -198,10 +191,8 @@ func TestNamespaceUsableValidator(t *testing.T) {
 			name: "namespace with different name returns no error",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "otherapp-app",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
+					Name:   "otherapp-app",
+					Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
 				},
 			},
 			expectedError: nil,

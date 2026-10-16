@@ -187,24 +187,20 @@ func (jb *JobBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 // BuildRJ Builds RJ structure based on set variables
 func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 	radixJob := &v1.RadixJob{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1.SchemeGroupVersion.Identifier(),
-			Kind:       v1.KindRadixJob,
+		APIVersion: v1.SchemeGroupVersion.Identifier(),
+		Kind:       v1.KindRadixJob,
+		Name:       jb.jobName,
+		Namespace:  GetAppNamespace(jb.appName),
+		Labels: map[string]string{
+			kube.RadixAppLabel: jb.appName,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      jb.jobName,
-			Namespace: GetAppNamespace(jb.appName),
-			Labels: map[string]string{
-				kube.RadixAppLabel: jb.appName,
-			},
-			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:     jb.branch,
-				kube.RadixGitRefAnnotation:     jb.gitRef,
-				kube.RadixGitRefTypeAnnotation: jb.gitRefType,
-			},
-			Generation:        jb.generation,
-			CreationTimestamp: metav1.Time{Time: jb.created},
+		Annotations: map[string]string{
+			kube.RadixBranchAnnotation:     jb.branch,
+			kube.RadixGitRefAnnotation:     jb.gitRef,
+			kube.RadixGitRefTypeAnnotation: jb.gitRefType,
 		},
+		Generation:        jb.generation,
+		CreationTimestamp: metav1.Time{Time: jb.created},
 		Spec: v1.RadixJobSpec{
 			AppName:      jb.appName,
 			PipeLineType: jb.pipeline,

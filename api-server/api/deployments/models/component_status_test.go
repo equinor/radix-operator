@@ -23,7 +23,7 @@ func TestKubeDeploymentsWithRestartLabel_IsRestarting(t *testing.T) {
 		&radixv1.RadixDeployComponent{EnvironmentVariables: map[string]string{operatordefaults.RadixRestartEnvironmentVariable: time.Now().Format(time.RFC3339)}},
 		createKubeDeployment(0),
 		&radixv1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Generation: 2},
+			Generation: 2,
 			Status:     radixv1.RadixDeployStatus{Reconciled: metav1.NewTime(time.Now().Add(-10 * time.Minute))},
 		})
 
@@ -35,7 +35,7 @@ func TestKubeDeploymentsWithoutReplicas_IsStopped(t *testing.T) {
 		&radixv1.RadixDeployComponent{},
 		createKubeDeployment(0),
 		&radixv1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Generation: 1},
+			Generation: 1,
 		})
 	assert.Equal(t, models.StoppedComponent, status)
 }
@@ -45,7 +45,7 @@ func TestKubeDeployment_IsConsistent(t *testing.T) {
 		&radixv1.RadixDeployComponent{},
 		createKubeDeployment(1),
 		&radixv1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Generation: 1},
+			Generation: 1,
 		})
 	assert.Equal(t, models.ConsistentComponent, status)
 }
@@ -55,17 +55,16 @@ func TestKubeDeployment_IsOutdated(t *testing.T) {
 		&radixv1.RadixDeployComponent{},
 		createKubeDeployment(1),
 		&radixv1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Generation: 2},
+			Generation: 2,
 		})
 	assert.Equal(t, models.ComponentOutdated, status)
 }
 
 func createKubeDeployment(replicas int32) *appsv1.Deployment {
 	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            "helloworld",
-			Annotations:     map[string]string{kube.RadixDeploymentObservedGeneration: "1"},
-			OwnerReferences: []metav1.OwnerReference{{Controller: new(true)}}},
-		Spec: appsv1.DeploymentSpec{Replicas: new(int32(replicas))},
+		Name:            "helloworld",
+		Annotations:     map[string]string{kube.RadixDeploymentObservedGeneration: "1"},
+		OwnerReferences: []metav1.OwnerReference{{Controller: new(true)}},
+		Spec:            appsv1.DeploymentSpec{Replicas: new(int32(replicas))},
 	}
 }

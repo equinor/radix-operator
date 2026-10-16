@@ -47,32 +47,24 @@ func Test_GetJobs(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batch1Name,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job1"}}},
+			Name:   batch1Name,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
+			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job1"}}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batch2Name,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job2"}}},
+			Name:   batch2Name,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
+			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job2"}}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "otherjobbatch",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("othercomponent"), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "anyjob"}}},
+			Name:   "otherjobbatch",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("othercomponent"), labels.ForBatchType(kube.RadixBatchTypeJob)),
+			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "anyjob"}}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "anybatch",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job3"}}},
+			Name:   "anybatch",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
+			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job3"}}},
 		},
 	}
 	for _, rb := range testData {
@@ -188,10 +180,8 @@ func Test_GetJobs_Status(t *testing.T) {
 
 			// Insert test data
 			batch := v1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   anyBatchName,
-					Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-				},
+				Name:   anyBatchName,
+				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 				Spec: v1.RadixBatchSpec{
 					Jobs: []v1.RadixBatchJob{{Name: "no1"}}},
 				Status: v1.RadixBatchStatus{},
@@ -239,10 +229,8 @@ func Test_GetBatch_JobsListStatus_StopIsTrue(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   anyBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   anyBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
 					{Name: "no1", Stop: new(true)},
@@ -370,10 +358,8 @@ func Test_GetSingleJobs_Status_StopIsTrue(t *testing.T) {
 
 			// Insert test data
 			batch := v1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   anyBatchName,
-					Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-				},
+				Name:   anyBatchName,
+				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 				Spec: v1.RadixBatchSpec{
 					Jobs: []v1.RadixBatchJob{
 						{Name: "no1", Stop: new(true)},
@@ -428,37 +414,29 @@ func Test_GetJob(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "job-batch1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   "job-batch1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "job1"}, {Name: "job2"}},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "job-batch2",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "job-batch2",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "job1"}, {Name: "job2"}},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "other-batch1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   "other-batch1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "job1"}},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "other-batch2",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "other-batch2",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "job1"}},
 			},
@@ -540,11 +518,9 @@ func Test_GetJob_AllProps(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        "job-batch1",
-				Labels:      labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-				Annotations: map[string]string{kube.RadixBatchCronScheduleAnnotation: "0 1 * * *"},
-			},
+			Name:        "job-batch1",
+			Labels:      labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
+			Annotations: map[string]string{kube.RadixBatchCronScheduleAnnotation: "0 1 * * *"},
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
 					{
@@ -591,10 +567,8 @@ func Test_GetJob_AllProps(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "job3-batch1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName2), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   "job3-batch1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName2), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
 					{
@@ -747,24 +721,22 @@ func Test_GetJobPayload(t *testing.T) {
 
 	// Insert test data
 	rb := v1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "job-batch1",
-			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-		},
+		Name:   "job-batch1",
+		Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 		Spec: v1.RadixBatchSpec{
 			Jobs: []v1.RadixBatchJob{
 				{Name: "job1"},
 				{Name: "job2", PayloadSecretRef: &v1.PayloadSecretKeySelector{
-					Key:                  "payload1",
-					LocalObjectReference: v1.LocalObjectReference{Name: anySecretName},
+					Key:  "payload1",
+					Name: anySecretName,
 				}},
 				{Name: "job3", PayloadSecretRef: &v1.PayloadSecretKeySelector{
-					Key:                  "missingpayloadkey",
-					LocalObjectReference: v1.LocalObjectReference{Name: anySecretName},
+					Key:  "missingpayloadkey",
+					Name: anySecretName,
 				}},
 				{Name: "job4", PayloadSecretRef: &v1.PayloadSecretKeySelector{
-					Key:                  "payload1",
-					LocalObjectReference: v1.LocalObjectReference{Name: "otherSecret"},
+					Key:  "payload1",
+					Name: "otherSecret",
 				}},
 			},
 		}}
@@ -772,7 +744,7 @@ func Test_GetJobPayload(t *testing.T) {
 	require.NoError(t, err)
 
 	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: anySecretName},
+		Name: anySecretName,
 		Data: map[string][]byte{
 			"payload1": []byte("job1payload"),
 		},
@@ -831,10 +803,8 @@ func Test_GetBatch_JobList(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   anyBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   anyBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "no1"}, {Name: "no2"}, {Name: "no3"}, {Name: "no4"}, {Name: "no5"}, {Name: "no6"}, {Name: "no7"}, {Name: "no8"}}},
 			Status: v1.RadixBatchStatus{
@@ -907,10 +877,8 @@ func Test_GetBatch_JobList_StopFlag(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   anyBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   anyBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "no1", Stop: new(true)}, {Name: "no2", Stop: new(true)}, {Name: "no3", Stop: new(true)}, {Name: "no4", Stop: new(true)}, {Name: "no5", Stop: new(true)}, {Name: "no6", Stop: new(true)}, {Name: "no7", Stop: new(true)}}},
 			Status: v1.RadixBatchStatus{
@@ -981,25 +949,19 @@ func Test_GetBatches_Status(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job2",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job2",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				Condition: v1.RadixBatchCondition{Type: v1.BatchConditionTypeWaiting},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job3",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job3",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				JobStatuses: []v1.RadixBatchJobStatus{
 					{Name: "j1"},
@@ -1025,10 +987,8 @@ func Test_GetBatches_Status(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job4",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job4",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				JobStatuses: []v1.RadixBatchJobStatus{
 					{Name: "j1"},
@@ -1056,19 +1016,15 @@ func Test_GetBatches_Status(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job5",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job5",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				Condition: v1.RadixBatchCondition{Type: v1.BatchConditionTypeCompleted},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job6",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job6",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				Condition: v1.RadixBatchCondition{Type: v1.BatchConditionTypeCompleted},
 				JobStatuses: []v1.RadixBatchJobStatus{
@@ -1100,10 +1056,8 @@ func Test_GetBatches_Status(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job7",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job7",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				Condition: v1.RadixBatchCondition{Type: v1.BatchConditionTypeCompleted},
 				JobStatuses: []v1.RadixBatchJobStatus{
@@ -1134,16 +1088,12 @@ func Test_GetBatches_Status(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-compute1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-compute1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "jobtype-job1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   "jobtype-job1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 		},
 	}
 	for _, rb := range testData {
@@ -1199,10 +1149,8 @@ func Test_GetBatches_JobListShouldHaveJobWithStatusWaiting(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "j1"}},
 			},
@@ -1278,21 +1226,17 @@ func Test_StopJob(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: jobSpecList},
+			Name:   batchTypeBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
+			Spec:   v1.RadixBatchSpec{Jobs: jobSpecList},
 			Status: v1.RadixBatchStatus{
 				JobStatuses: jobStatuses,
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: jobSpecList},
+			Name:   batchTypeJobName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
+			Spec:   v1.RadixBatchSpec{Jobs: jobSpecList},
 			Status: v1.RadixBatchStatus{
 				JobStatuses: jobStatuses,
 			},
@@ -1373,34 +1317,26 @@ func Test_DeleteJob(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   batchTypeBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[0].name}, {Name: jobs[1].name}, {Name: jobs[2].name}, {Name: jobs[3].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[0].jobStatus, jobs[1].jobStatus, jobs[2].jobStatus, jobs[3].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobNames[0],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   batchTypeJobNames[0],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[0].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[0].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobNames[1],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   batchTypeJobNames[1],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[1].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[1].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobNames[2],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   batchTypeJobNames[2],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[2].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[2].jobStatus}},
 		},
@@ -1490,10 +1426,8 @@ func Test_StopBatch(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   batchTypeBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
 					{Name: validJobs[0].name}, {Name: validJobs[1].name}, {Name: validJobs[2].name}, {Name: validJobs[3].name},
@@ -1508,10 +1442,8 @@ func Test_StopBatch(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   batchTypeJobName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
 					{Name: validJobs[0].name}, {Name: validJobs[1].name}, {Name: validJobs[2].name}, {Name: validJobs[3].name},
@@ -1593,34 +1525,26 @@ func Test_DeleteBatch(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchNames[0],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   batchTypeBatchNames[0],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[0].name}, {Name: jobs[1].name}, {Name: jobs[2].name}, {Name: jobs[3].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[0].jobStatus, jobs[1].jobStatus, jobs[2].jobStatus, jobs[3].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchNames[1],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   batchTypeBatchNames[1],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[0].name}, {Name: jobs[1].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[0].jobStatus, jobs[1].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchNames[2],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   batchTypeBatchNames[2],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[2].name}, {Name: jobs[3].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[2].jobStatus, jobs[3].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   batchTypeJobName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[0].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[0].jobStatus}},
 		},
@@ -2098,18 +2022,16 @@ func addRadixBatchWithStatus(radixClient radixclient.Interface, jobName, compone
 		panic(fmt.Sprintf("invalid job name %s", jobName))
 	}
 	batch := v1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      batchName,
-			Namespace: namespace,
-			Labels:    rbLabels,
-		},
+		Name:      batchName,
+		Namespace: namespace,
+		Labels:    rbLabels,
 		Spec: v1.RadixBatchSpec{
 			Jobs: []v1.RadixBatchJob{
 				{
 					Name: batchJobName,
 					PayloadSecretRef: &v1.PayloadSecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{Name: jobName},
-						Key:                  jobName,
+						Name: jobName,
+						Key:  jobName,
 					},
 				},
 			},

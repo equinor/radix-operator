@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
@@ -78,10 +77,8 @@ func createHttpRoute(t *testing.T, c client.Client, name string, namespace strin
 	var portNumber int32 = 8001
 
 	hr := &gatewayapiv1.HTTPRoute{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: gatewayapiv1.HTTPRouteSpec{
 			Hostnames: hostnames,
 			Rules: []gatewayapiv1.HTTPRouteRule{
@@ -95,7 +92,7 @@ func createHttpRoute(t *testing.T, c client.Client, name string, namespace strin
 					},
 					BackendRefs: []gatewayapiv1.HTTPBackendRef{
 						{
-							BackendRef: gatewayapiv1.BackendRef{BackendObjectReference: gatewayapiv1.BackendObjectReference{Name: "web", Port: &portNumber}},
+							Name: "web", Port: &portNumber,
 						},
 					},
 				},

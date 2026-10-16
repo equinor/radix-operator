@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_ComponentNameExistsInRD(t *testing.T) {
@@ -60,26 +59,20 @@ func Test_FindCommonComponentInRD(t *testing.T) {
 
 func Test_NewRadixComponentNameFromLabels(t *testing.T) {
 	nonRadix := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{
-				"anylabel": "component",
-			},
+		Labels: map[string]string{
+			"anylabel": "component",
 		},
 	}
 
 	radixLabelled := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{
-				kube.RadixComponentLabel: "component",
-			},
+		Labels: map[string]string{
+			kube.RadixComponentLabel: "component",
 		},
 	}
 
 	radixAuxLabelled := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{
-				kube.RadixAuxiliaryComponentLabel: "component",
-			},
+		Labels: map[string]string{
+			kube.RadixAuxiliaryComponentLabel: "component",
 		},
 	}
 

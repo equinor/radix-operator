@@ -125,23 +125,17 @@ func Test_CreateBatch(t *testing.T) {
 			batchDescription: common.BatchScheduleDescription{
 				JobScheduleDescriptions: []common.JobScheduleDescription{
 					{
-						JobId: "job1",
-						RadixJobComponentConfig: common.RadixJobComponentConfig{
-							Command: new([]string{"some-command", "arg0"}),
-						},
+						JobId:   "job1",
+						Command: new([]string{"some-command", "arg0"}),
 					},
 					{
 						JobId: "job2",
-						RadixJobComponentConfig: common.RadixJobComponentConfig{
-							Args: new([]string{"job-arg1", "job-arg2"}),
-						},
+						Args:  new([]string{"job-arg1", "job-arg2"}),
 					},
 					{
-						JobId: "job3",
-						RadixJobComponentConfig: common.RadixJobComponentConfig{
-							Command: new([]string{}),
-							Args:    new([]string{}),
-						},
+						JobId:   "job3",
+						Command: new([]string{}),
+						Args:    new([]string{}),
 					},
 				},
 				DefaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
@@ -176,16 +170,12 @@ func Test_CreateBatch(t *testing.T) {
 			batchDescription: common.BatchScheduleDescription{
 				JobScheduleDescriptions: []common.JobScheduleDescription{
 					{
-						JobId: "job1",
-						RadixJobComponentConfig: common.RadixJobComponentConfig{
-							RunAsUser: new(int64(1001)),
-						},
+						JobId:     "job1",
+						RunAsUser: new(int64(1001)),
 					},
 					{
-						JobId: "job2",
-						RadixJobComponentConfig: common.RadixJobComponentConfig{
-							RunAsUser: new(int64(1002)),
-						},
+						JobId:     "job2",
+						RunAsUser: new(int64(1002)),
 					},
 					{
 						JobId:                   "job3",
@@ -326,15 +316,13 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				},
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Resources: &common.Resources{
-						Limits: common.ResourceList{
-							"memory": "21M",
-						},
-						Requests: common.ResourceList{
-							"memory": "10M",
-							"cpu":    "11m",
-						},
+				Resources: &common.Resources{
+					Limits: common.ResourceList{
+						"memory": "21M",
+					},
+					Requests: common.ResourceList{
+						"memory": "10M",
+						"cpu":    "11m",
 					},
 				},
 			},
@@ -354,14 +342,12 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"Resources from job spec only": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Resources: &common.Resources{
-						Limits: common.ResourceList{
-							"memory": "20M",
-						},
-						Requests: common.ResourceList{
-							"memory": "10M",
-						},
+				Resources: &common.Resources{
+					Limits: common.ResourceList{
+						"memory": "20M",
+					},
+					Requests: common.ResourceList{
+						"memory": "10M",
 					},
 				},
 			},
@@ -406,9 +392,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				BackoffLimit: new(int32(2000)),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					BackoffLimit: new(int32(1000)),
-				},
+				BackoffLimit: new(int32(1000)),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				BackoffLimit: new(int32(1000)),
@@ -430,9 +414,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				TimeLimitSeconds: new(int64(2000)),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					TimeLimitSeconds: new(int64(1000)),
-				},
+				TimeLimitSeconds: new(int64(1000)),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				TimeLimitSeconds: new(int64(1000)),
@@ -464,15 +446,13 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				},
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					FailurePolicy: &common.FailurePolicy{
-						Rules: []common.FailurePolicyRule{
-							{
-								Action: common.FailurePolicyRuleActionFailJob,
-								OnExitCodes: common.FailurePolicyRuleOnExitCodes{
-									Operator: common.FailurePolicyRuleOnExitCodesOpNotIn,
-									Values:   []int32{0, 1},
-								},
+				FailurePolicy: &common.FailurePolicy{
+					Rules: []common.FailurePolicyRule{
+						{
+							Action: common.FailurePolicyRuleActionFailJob,
+							OnExitCodes: common.FailurePolicyRuleOnExitCodes{
+								Operator: common.FailurePolicyRuleOnExitCodesOpNotIn,
+								Values:   []int32{0, 1},
 							},
 						},
 					},
@@ -528,9 +508,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				Image: "my-default-image:latest",
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Image: "my-job-image:latest",
-				},
+				Image: "my-job-image:latest",
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Image: "my-job-image:latest",
@@ -539,9 +517,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"No default image, image from job spec": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Image: "my-job-image:latest",
-				},
+				Image: "my-job-image:latest",
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Image: "my-job-image:latest",
@@ -561,10 +537,8 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"Command and Args from job spec": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: new([]string{"sh", "-c"}),
-					Args:    new([]string{"echo hello"}),
-				},
+				Command: new([]string{"sh", "-c"}),
+				Args:    new([]string{"echo hello"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{"sh", "-c"}),
@@ -594,9 +568,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"job single command is set": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: new([]string{"bash"}),
-				},
+				Command: new([]string{"bash"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{"bash"}),
@@ -605,9 +577,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"job command with arguments is set": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: new([]string{"sh", "-c", "echo hello"}),
-				},
+				Command: new([]string{"sh", "-c", "echo hello"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{"sh", "-c", "echo hello"}),
@@ -616,10 +586,8 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"job command is set and args are set": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: new([]string{"sh", "-c"}),
-					Args:    new([]string{"echo hello"}),
-				},
+				Command: new([]string{"sh", "-c"}),
+				Args:    new([]string{"echo hello"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{"sh", "-c"}),
@@ -629,9 +597,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"job only args are set": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Args: new([]string{"--verbose", "--output=json"}),
-				},
+				Args: new([]string{"--verbose", "--output=json"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Args: new([]string{"--verbose", "--output=json"}),
@@ -643,10 +609,8 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				Args:    new([]string{"comp-arg1", "comp-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: new([]string{"job-cmd"}),
-					Args:    new([]string{"job-arg1", "job-arg2"}),
-				},
+				Command: new([]string{"job-cmd"}),
+				Args:    new([]string{"job-arg1", "job-arg2"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{"job-cmd"}),
@@ -658,9 +622,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				Args: new([]string{"comp-arg1", "comp-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: new([]string{"job-cmd"}),
-				},
+				Command: new([]string{"job-cmd"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{"job-cmd"}),
@@ -672,9 +634,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				Command: new([]string{"comp-cmd"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Args: new([]string{"job-arg1", "job-arg2"}),
-				},
+				Args: new([]string{"job-arg1", "job-arg2"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{"comp-cmd"}),
@@ -700,9 +660,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				Args:    new([]string{"comp-arg1", "comp-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: new([]string{"job-cmd"}),
-				},
+				Command: new([]string{"job-cmd"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{"job-cmd"}),
@@ -715,9 +673,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				Args:    new([]string{"comp-arg1", "comp-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Args: new([]string{"job-arg1", "job-arg2"}),
-				},
+				Args: new([]string{"job-arg1", "job-arg2"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{"comp-cmd"}),
@@ -729,9 +685,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				Command: new([]string{"default-cmd"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: new([]string{}),
-				},
+				Command: new([]string{}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{}),
@@ -742,9 +696,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				Args: new([]string{"default-arg1", "default-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Args: new([]string{}),
-				},
+				Args: new([]string{}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Args: new([]string{}),
@@ -756,10 +708,8 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				Args:    new([]string{"default-arg1", "default-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: new([]string{}),
-					Args:    new([]string{}),
-				},
+				Command: new([]string{}),
+				Args:    new([]string{}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Command: new([]string{}),
@@ -771,9 +721,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				RunAsUser: new(int64(1002)),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					RunAsUser: new(int64(1003)),
-				},
+				RunAsUser: new(int64(1003)),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				RunAsUser: new(int64(1003)),
@@ -784,9 +732,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				RunAsUser: new(int64(1002)),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					RunAsUser: nil,
-				},
+				RunAsUser: nil,
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				RunAsUser: new(int64(1002)),

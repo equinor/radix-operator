@@ -47,10 +47,8 @@ func TestValidateTask(t *testing.T) {
 					Steps: []pipelinev1.Step{{}},
 					Volumes: []corev1.Volume{{
 						Name: "testing-secret-mount",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: "test-illegal-secret",
-							},
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: "test-illegal-secret",
 						},
 					}},
 				},
@@ -65,10 +63,8 @@ func TestValidateTask(t *testing.T) {
 					Steps: []pipelinev1.Step{{}},
 					Volumes: []corev1.Volume{{
 						Name: pipelineDefaults.SubstitutionRadixGitDeployKeyTarget,
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: operatorDefaults.GitPrivateKeySecretName,
-							},
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: operatorDefaults.GitPrivateKeySecretName,
 						},
 					}},
 				},
@@ -96,10 +92,8 @@ func TestValidateTask(t *testing.T) {
 					Steps: []pipelinev1.Step{{}},
 					Volumes: []corev1.Volume{{
 						Name: "test-host-path",
-						VolumeSource: corev1.VolumeSource{
-							HostPath: &corev1.HostPathVolumeSource{
-								Path: "/tmp",
-							},
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/tmp",
 						},
 					}},
 				},
@@ -157,10 +151,8 @@ func TestValidateTask(t *testing.T) {
 					Volumes: []corev1.Volume{
 						{
 							Name: "test-host-path",
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/tmp",
-								},
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/tmp",
 							},
 						},
 						{
@@ -168,10 +160,8 @@ func TestValidateTask(t *testing.T) {
 						},
 						{
 							Name: "testing-secret-mount",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: "test-illegal-secret",
-								},
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "test-illegal-secret",
 							},
 						},
 					},
@@ -209,26 +199,26 @@ func TestValidateTask(t *testing.T) {
 
 func TestValidateTask_ReportsEverySecretReference(t *testing.T) {
 	task := pipelinev1.Task{
-		ObjectMeta: v1.ObjectMeta{Name: "Test Task"},
+		Name: "Test Task",
 		Spec: pipelinev1.TaskSpec{
 			Steps: []pipelinev1.Step{{
 				Name: "show-secrets",
 				Env: []corev1.EnvVar{
 					{
 						Name:      "FIRST",
-						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "first-illegal-secret"}}},
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Name: "first-illegal-secret"}},
 					},
 					{
 						Name:      "SECOND",
-						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "second-illegal-secret"}}},
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Name: "second-illegal-secret"}},
 					},
 					{
 						Name:      "ALLOWED",
-						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: pipelineDefaults.SubstitutionRadixBuildSecretsTarget}}},
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Name: pipelineDefaults.SubstitutionRadixBuildSecretsTarget}},
 					},
 				},
 				EnvFrom: []corev1.EnvFromSource{{
-					SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "third-illegal-secret"}},
+					SecretRef: &corev1.SecretEnvSource{Name: "third-illegal-secret"},
 				}},
 			}},
 		},

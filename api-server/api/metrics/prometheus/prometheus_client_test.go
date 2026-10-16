@@ -20,49 +20,49 @@ func TestArguemtsExistsInQuery(t *testing.T) {
 
 	gomock.InOrder(
 		mock.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-			func(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, error) {
+			func(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, v1.Infos, error) {
 
 				assert.Contains(t, query, "app0-.*")
 
-				return nil, nil, nil
+				return nil, nil, nil, nil
 			},
 		),
 		mock.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-			func(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, error) {
+			func(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, v1.Infos, error) {
 
 				assert.Contains(t, query, "app1")
 				assert.Contains(t, query, "dev1")
 
-				return nil, nil, nil
+				return nil, nil, nil, nil
 			},
 		),
 		mock.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-			func(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, error) {
+			func(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, v1.Infos, error) {
 
 				assert.Contains(t, query, "app2")
 				assert.Contains(t, query, "dev2")
 
-				return nil, nil, nil
+				return nil, nil, nil, nil
 			},
 		),
 		mock.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-			func(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, error) {
+			func(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, v1.Infos, error) {
 
 				assert.Contains(t, query, "app3")
 				assert.Contains(t, query, "dev3")
 				assert.Contains(t, query, "24h")
 
-				return nil, nil, nil
+				return nil, nil, nil, nil
 			},
 		),
 		mock.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-			func(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, error) {
+			func(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, v1.Infos, error) {
 
 				assert.Contains(t, query, "app4")
 				assert.Contains(t, query, "dev4")
 				assert.Contains(t, query, "36h")
 
-				return nil, nil, nil
+				return nil, nil, nil, nil
 			},
 		),
 	)

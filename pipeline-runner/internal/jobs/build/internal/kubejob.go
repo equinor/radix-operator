@@ -25,11 +25,9 @@ type KubeJobProps interface {
 // BuildKubeJob builds a Kubernetes job with properties defined by source argument
 func BuildKubeJob(props KubeJobProps) batchv1.Job {
 	return batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        props.JobName(),
-			Labels:      props.JobLabels(),
-			Annotations: props.JobAnnotations(),
-		},
+		Name:        props.JobName(),
+		Labels:      props.JobLabels(),
+		Annotations: props.JobAnnotations(),
 		Spec: batchv1.JobSpec{
 			BackoffLimit:            new(int32(0)),
 			TTLSecondsAfterFinished: new(int32(86400)),

@@ -241,7 +241,7 @@ HAS_SWAGGER        := $(shell command -v swagger;)
 .PHONY: bootstrap
 bootstrap: 
 ifndef HAS_GOLANGCI_LINT
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 endif
 ifndef HAS_MOCKGEN
 	go install go.uber.org/mock/mockgen@v0.6.0
@@ -253,7 +253,7 @@ ifndef HAS_YQ
 	go install github.com/mikefarah/yq/v4@latest
 endif
 ifndef HAS_SWAGGER
-	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.36.4
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.36.6
 endif
 
 E2E_ASSETS_DIR             := ./e2e/internal/manifests

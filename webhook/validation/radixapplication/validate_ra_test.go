@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -218,7 +217,7 @@ func Test_RadixApplicationNameValidation(t *testing.T) {
 func Test_ComponentHostnameValidation(t *testing.T) {
 	newRadixApplication := func(componentName string) *radixv1.RadixApplication {
 		return &radixv1.RadixApplication{
-			ObjectMeta: metav1.ObjectMeta{Name: "app"},
+			Name: "app",
 			Spec: radixv1.RadixApplicationSpec{
 				Environments: []radixv1.Environment{{Name: "dev"}},
 				Components:   []radixv1.RadixComponent{{Name: componentName, Public: true}},
@@ -655,34 +654,26 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid healthchecks are invalid", radixapplication.ErrInvalidHealthCheckProbe, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
-					},
+					HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+					Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+					TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
 				},
 				ReadinessProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
-					},
+					HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+					Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+					TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
 				},
 				StartupProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
-					},
+					HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+					Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+					TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
 				},
 			}
 		}},
 		{"invalid healthchecks are invalid", radixapplication.ErrSuccessThresholdMustBeOne, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet: &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-					},
+					HTTPGet:          &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
 					SuccessThreshold: 5,
 				},
 			}
@@ -2940,10 +2931,8 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "namespace exists with correct radix-app label",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{kube.RadixAppLabel: "testapp"},
 				},
 			},
 			expectError: false,
@@ -2952,16 +2941,12 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "all environment namespaces with correct label",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{kube.RadixAppLabel: "testapp"},
 				},
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-prod",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
+					Name:   "testapp-prod",
+					Labels: map[string]string{kube.RadixAppLabel: "testapp"},
 				},
 			},
 			expectError: false,
@@ -2970,9 +2955,7 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "namespace exists without radix-app label",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "testapp-dev",
-					},
+					Name: "testapp-dev",
 				},
 			},
 			expectError: true,
@@ -2982,10 +2965,8 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "namespace exists with empty labels",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{},
 				},
 			},
 			expectError: true,
@@ -2995,10 +2976,8 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "namespace exists with different radix-app label",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
 				},
 			},
 			expectError: true,
@@ -3008,16 +2987,12 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "one namespace correct, one with wrong label",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{kube.RadixAppLabel: "testapp"},
 				},
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-prod",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
+					Name:   "testapp-prod",
+					Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
 				},
 			},
 			expectError: true,
@@ -3027,10 +3002,8 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "unrelated namespace does not affect validation",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "otherapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
+					Name:   "otherapp-dev",
+					Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
 				},
 			},
 			expectError: false,
@@ -3039,10 +3012,8 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "namespace exists with other labels but not radix-app",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{"some-other-label": "some-value"},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{"some-other-label": "some-value"},
 				},
 			},
 			expectError: true,

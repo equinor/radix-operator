@@ -8,7 +8,6 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -21,16 +20,16 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
-			Spec:       v1.RadixDeploymentSpec{AppName: "myapp", Environment: "dev"},
+			Name: "test-rd", Namespace: "default",
+			Spec: v1.RadixDeploymentSpec{AppName: "myapp", Environment: "dev"},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
 		assert.NoError(t, err, "Valid appName should be accepted")
 
 		// Invalid case - violates pattern
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
-			Spec:       v1.RadixDeploymentSpec{AppName: "MyApp", Environment: "dev"},
+			Name: "test-rd", Namespace: "default",
+			Spec: v1.RadixDeploymentSpec{AppName: "MyApp", Environment: "dev"},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
 		assert.Error(t, err, "Invalid appName should be rejected")
@@ -40,16 +39,16 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
-			Spec:       v1.RadixDeploymentSpec{AppName: "myapp", Environment: "dev"},
+			Name: "test-rd", Namespace: "default",
+			Spec: v1.RadixDeploymentSpec{AppName: "myapp", Environment: "dev"},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
 		assert.NoError(t, err, "Valid environment should be accepted")
 
 		// Invalid case - violates pattern
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
-			Spec:       v1.RadixDeploymentSpec{AppName: "myapp", Environment: "Production"},
+			Name: "test-rd", Namespace: "default",
+			Spec: v1.RadixDeploymentSpec{AppName: "myapp", Environment: "Production"},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
 		assert.Error(t, err, "Invalid environment should be rejected")
@@ -59,7 +58,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -71,7 +70,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - exceeds max length
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -86,7 +85,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -98,7 +97,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - empty
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -113,7 +112,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -125,7 +124,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - exceeds maximum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -140,7 +139,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -152,7 +151,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - negative
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -167,7 +166,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -179,7 +178,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - below minimum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -194,7 +193,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -212,7 +211,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - too short
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -233,7 +232,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -245,7 +244,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - violates pattern
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -260,7 +259,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -272,7 +271,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - empty
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -287,7 +286,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -299,7 +298,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - below minimum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -314,7 +313,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -326,7 +325,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - below minimum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -341,7 +340,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -353,7 +352,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - below minimum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -368,7 +367,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -380,7 +379,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - below minimum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -394,7 +393,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	t.Run("Complete valid RadixDeployment accepted", func(t *testing.T) {
 		t.Parallel()
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-complete", Namespace: "default"},
+			Name: "test-complete", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "production",

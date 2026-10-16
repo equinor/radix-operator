@@ -56,15 +56,13 @@ func (b *deprecatedPersistentVolumeSpecBuilder) BuildSpec(pvcName, pvcNamespace 
 			Namespace:  pvcNamespace,
 			Name:       pvcName,
 		},
-		PersistentVolumeSource: corev1.PersistentVolumeSource{
-			CSI: &corev1.CSIPersistentVolumeSource{
-				Driver:           provisionerBlobCsiAzure,
-				VolumeHandle:     b.getVolumeHandle(),
-				VolumeAttributes: b.getVolumeAttributes(pvcNamespace),
-				NodeStageSecretRef: &corev1.SecretReference{
-					Name:      defaults.GetCsiAzureVolumeMountCredsSecretName(b.deployComponent.GetName(), b.radixVolumeMount.Name),
-					Namespace: pvcNamespace,
-				},
+		CSI: &corev1.CSIPersistentVolumeSource{
+			Driver:           provisionerBlobCsiAzure,
+			VolumeHandle:     b.getVolumeHandle(),
+			VolumeAttributes: b.getVolumeAttributes(pvcNamespace),
+			NodeStageSecretRef: &corev1.SecretReference{
+				Name:      defaults.GetCsiAzureVolumeMountCredsSecretName(b.deployComponent.GetName(), b.radixVolumeMount.Name),
+				Namespace: pvcNamespace,
 			},
 		},
 	}
@@ -164,12 +162,10 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) BuildSpec(pvcName, pvcNamespace s
 			Namespace:  pvcNamespace,
 			Name:       pvcName,
 		},
-		PersistentVolumeSource: corev1.PersistentVolumeSource{
-			CSI: &corev1.CSIPersistentVolumeSource{
-				Driver:           provisionerBlobCsiAzure,
-				VolumeHandle:     b.getVolumeHandle(),
-				VolumeAttributes: b.getVolumeAttributes(pvcNamespace),
-			},
+		CSI: &corev1.CSIPersistentVolumeSource{
+			Driver:           provisionerBlobCsiAzure,
+			VolumeHandle:     b.getVolumeHandle(),
+			VolumeAttributes: b.getVolumeAttributes(pvcNamespace),
 		},
 	}
 

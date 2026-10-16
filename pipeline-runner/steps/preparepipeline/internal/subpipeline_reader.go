@@ -15,7 +15,6 @@ import (
 	"github.com/rs/zerolog/log"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -130,12 +129,10 @@ func hoistEmbeddedTaskSpecs(pipeline *pipelinev1.Pipeline, taskMap map[string]pi
 				continue
 			}
 			task := pipelinev1.Task{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        pipelineSpecTask.Name,
-					Labels:      pipelineSpecTask.TaskSpec.Metadata.Labels,
-					Annotations: pipelineSpecTask.TaskSpec.Metadata.Annotations,
-				},
-				Spec: pipelineSpecTask.TaskSpec.TaskSpec,
+				Name:        pipelineSpecTask.Name,
+				Labels:      pipelineSpecTask.TaskSpec.Metadata.Labels,
+				Annotations: pipelineSpecTask.TaskSpec.Metadata.Annotations,
+				Spec:        pipelineSpecTask.TaskSpec.TaskSpec,
 			}
 			addGitDeployKeyVolume(&task)
 			taskMap[task.Name] = task
@@ -249,11 +246,9 @@ func substituteRadixSecretNames(fileData []byte) []byte {
 func addGitDeployKeyVolume(task *pipelinev1.Task) {
 	task.Spec.Volumes = append(task.Spec.Volumes, v1.Volume{
 		Name: defaults.SubstitutionRadixGitDeployKeyTarget,
-		VolumeSource: v1.VolumeSource{
-			Secret: &v1.SecretVolumeSource{
-				SecretName:  defaults2.GitPrivateKeySecretName,
-				DefaultMode: &privateSshFolderMode,
-			},
+		Secret: &v1.SecretVolumeSource{
+			SecretName:  defaults2.GitPrivateKeySecretName,
+			DefaultMode: &privateSshFolderMode,
 		},
 	})
 }

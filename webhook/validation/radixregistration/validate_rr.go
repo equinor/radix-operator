@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -115,7 +114,7 @@ func createRequireUniqueAppIdValidator(client client.Client) validatorFunc {
 func createNamespaceUsableValidator(kubeClient client.Client) validatorFunc {
 	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
 		envNs := utils.GetEnvironmentNamespace(rr.Name, "app")
-		existingNamespace := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: envNs}}
+		existingNamespace := &corev1.Namespace{Name: envNs}
 		if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(existingNamespace), existingNamespace); err != nil {
 			if k8sErrors.IsNotFound(err) {
 				return "", nil // Namespace does not exist, so it is usable

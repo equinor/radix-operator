@@ -101,9 +101,7 @@ func Test_WithOwner(t *testing.T) {
 func Test_WithRegistrationOwner(t *testing.T) {
 	re := NewEnvironmentBuilder().
 		WithRegistrationOwner(&v1.RadixRegistration{
-			ObjectMeta: meta.ObjectMeta{
-				Name: "RR",
-			},
+			Name: "RR",
 		}).
 		BuildRE()
 

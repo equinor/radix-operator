@@ -294,11 +294,9 @@ func (tu *Utils) CreateClusterPrerequisites() error {
 	_, err := tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.Background(),
 		&corev1.Secret{
-			Type: "Opaque",
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "radix-known-hosts-git",
-				Namespace: corev1.NamespaceDefault,
-			},
+			Type:      "Opaque",
+			Name:      "radix-known-hosts-git",
+			Namespace: corev1.NamespaceDefault,
 			Data: map[string][]byte{
 				"known_hosts": []byte("abcd"),
 			},
@@ -309,10 +307,8 @@ func (tu *Utils) CreateClusterPrerequisites() error {
 	_, err = tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.Background(),
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.AzureACRServicePrincipleBuildahSecretName,
-				Namespace: corev1.NamespaceDefault,
-			},
+			Name:      defaults.AzureACRServicePrincipleBuildahSecretName,
+			Namespace: corev1.NamespaceDefault,
 			StringData: map[string]string{
 				"sp_credentials.json": "{}",
 			},
@@ -323,10 +319,8 @@ func (tu *Utils) CreateClusterPrerequisites() error {
 	_, err = tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.Background(),
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.AzureACRTokenPasswordAppRegistrySecretName,
-				Namespace: corev1.NamespaceDefault,
-			},
+			Name:      defaults.AzureACRTokenPasswordAppRegistrySecretName,
+			Namespace: corev1.NamespaceDefault,
 			StringData: map[string]string{
 				"sp_credentials.json": "{}",
 			},
@@ -353,12 +347,10 @@ func CreateEnvNamespace(kubeclient kubernetes.Interface, appName, environment st
 
 func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns string) {
 	namespace := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ns,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-				kube.RadixEnvLabel: envName,
-			},
+		Name: ns,
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
+			kube.RadixEnvLabel: envName,
 		},
 	}
 
@@ -404,10 +396,8 @@ func RegisterRadixDNSAlias(ctx context.Context, radixClient radixclient.Interfac
 func RegisterRadixDNSAliasBySpec(ctx context.Context, radixClient radixclient.Interface, alias string, aliasesSpec DNSAlias) error {
 	_, err := radixClient.RadixV1().RadixDNSAliases().Create(ctx,
 		&radixv1.RadixDNSAlias{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   alias,
-				Labels: labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
-			},
+			Name:   alias,
+			Labels: labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
 			Spec: radixv1.RadixDNSAliasSpec{
 				AppName:     aliasesSpec.AppName,
 				Environment: aliasesSpec.Environment,
