@@ -253,7 +253,7 @@ ifndef HAS_YQ
 	go install github.com/mikefarah/yq/v4@latest
 endif
 ifndef HAS_SWAGGER
-	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.36.4
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.36.6
 endif
 
 E2E_ASSETS_DIR             := ./e2e/internal/manifests
