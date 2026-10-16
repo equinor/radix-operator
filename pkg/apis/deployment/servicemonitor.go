@@ -75,9 +75,9 @@ func (deploy *Deployment) deleteServiceMonitorForComponent(ctx context.Context, 
 	}
 
 	for _, serviceMonitor := range serviceMonitors.Items {
-		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
+		componentName, ok := RadixComponentNameFromComponentLabel(&serviceMonitor)
 		if ok && component.GetName() == string(componentName) {
-			if err := deploy.dynamicClient.Delete(ctx, serviceMonitor); err != nil {
+			if err := deploy.dynamicClient.Delete(ctx, &serviceMonitor); err != nil {
 				return err
 			}
 		}
@@ -93,13 +93,13 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec(ctx contex
 	}
 
 	for _, serviceMonitor := range serviceMonitors.Items {
-		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
+		componentName, ok := RadixComponentNameFromComponentLabel(&serviceMonitor)
 		if !ok {
 			continue
 		}
 		if deploy.isEligibleForGarbageCollectServiceMonitorsForComponent(componentName) {
 
-			if err := deploy.dynamicClient.Delete(ctx, serviceMonitor); err != nil {
+			if err := deploy.dynamicClient.Delete(ctx, &serviceMonitor); err != nil {
 				return err
 			}
 		}

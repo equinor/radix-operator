@@ -19,7 +19,7 @@ import (
 )
 
 type QueryAPI interface {
-	Query(ctx context.Context, query string, ts time.Time, opts ...prometheusV1.Option) (model.Value, prometheusV1.Warnings, error)
+	Query(ctx context.Context, query string, ts time.Time, opts ...prometheusV1.Option) (model.Value, prometheusV1.Warnings, prometheusV1.Infos, error)
 }
 
 var ErrComponentsIsRequired = errors.New("components is required and must not be empty")
@@ -96,15 +96,15 @@ func getCompSelector(compNames []string) string {
 }
 
 func (c *Client) queryVector(ctx context.Context, appName, query string) ([]metrics.LabeledResults, error) {
-	response, w, err := c.api.Query(ctx, query, time.Now())
+	response, w, i, err := c.api.Query(ctx, query, time.Now())
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("query", query).Msg("fetching vector query")
 		return nil, err
 	}
 	if len(w) > 0 {
-		log.Ctx(ctx).Warn().Str("query", query).Strs("warnings", w).Msgf("fetching vector query")
+		log.Ctx(ctx).Warn().Str("query", query).Strs("infos", i).Strs("warnings", w).Msgf("fetching vector query")
 	} else {
-		log.Ctx(ctx).Trace().Str("query", query).Msgf("fetching vector query")
+		log.Ctx(ctx).Trace().Str("query", query).Strs("infos", i).Msgf("fetching vector query")
 	}
 
 	r, ok := response.(model.Vector)

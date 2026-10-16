@@ -44,7 +44,7 @@ func (m *MockQueryAPI) EXPECT() *MockQueryAPIMockRecorder {
 }
 
 // Query mocks base method.
-func (m *MockQueryAPI) Query(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, error) {
+func (m *MockQueryAPI) Query(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, v1.Infos, error) {
 	m.ctrl.T.Helper()
 	varargs := []any{ctx, query, ts}
 	for _, a := range opts {
@@ -53,8 +53,9 @@ func (m *MockQueryAPI) Query(ctx context.Context, query string, ts time.Time, op
 	ret := m.ctrl.Call(m, "Query", varargs...)
 	ret0, _ := ret[0].(model.Value)
 	ret1, _ := ret[1].(v1.Warnings)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret2, _ := ret[2].(v1.Infos)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
 }
 
 // Query indicates an expected call of Query.

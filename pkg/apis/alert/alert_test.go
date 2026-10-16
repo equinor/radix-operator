@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
@@ -563,9 +564,9 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 			APIURL: &corev1.SecretKeySelector{
 				Key:                  GetSlackConfigSecretKeyName(receiverName),
 				LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(alertName)}},
-			Title:     slackTemplate.title,
+			Title:     new(slackTemplate.title),
 			TitleLink: slackTemplate.titleLink,
-			Text:      slackTemplate.text,
+			Text:      new(slackTemplate.text),
 		}
 	}
 	getRouteByAlertandReceiver := func(routes []v1alpha1.Route, alert, receiver string) (route v1alpha1.Route, found bool) {
@@ -592,9 +593,9 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 			Receiver:       receiverName,
 			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert, MatchType: v1alpha1.MatchEqual}},
 			GroupBy:        alertConfigs[alert].GroupBy,
-			GroupWait:      defaultGroupWait,
-			GroupInterval:  defaultGroupInterval,
-			RepeatInterval: repeateInterval,
+			GroupWait:      new(monitoringv1.NonEmptyDuration(defaultGroupWait)),
+			GroupInterval:  new(monitoringv1.NonEmptyDuration(defaultGroupInterval)),
+			RepeatInterval: new(monitoringv1.NonEmptyDuration(repeateInterval)),
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
@@ -118,8 +119,8 @@ func (syncer *alertSyncer) buildAlertmanagerConfigReceiver(receiver *radixv1.Rec
 					LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(syncer.radixAlert.Name)},
 					Key:                  GetSlackConfigSecretKeyName(receiverName),
 				},
-				Text:      syncer.slackMessageTemplate.text,
-				Title:     syncer.slackMessageTemplate.title,
+				Text:      new(syncer.slackMessageTemplate.text),
+				Title:     new(syncer.slackMessageTemplate.title),
 				TitleLink: syncer.slackMessageTemplate.titleLink,
 			},
 		}
@@ -164,9 +165,9 @@ func (syncer *alertSyncer) getAlertmanagerConfigRoutes(ctx context.Context) []v1
 		routes = append(routes, v1alpha1.Route{
 			Receiver:       getRouteReceiverNameForAlert(alert.Receiver, alertConfig.Resolvable),
 			GroupBy:        alertConfig.GroupBy,
-			GroupWait:      defaultGroupWait,
-			GroupInterval:  defaultGroupInterval,
-			RepeatInterval: getRepeatInterval(alertConfig),
+			GroupWait:      new(monitoringv1.NonEmptyDuration(defaultGroupWait)),
+			GroupInterval:  new(monitoringv1.NonEmptyDuration(defaultGroupInterval)),
+			RepeatInterval: new(monitoringv1.NonEmptyDuration(getRepeatInterval(alertConfig))),
 			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert.Alert, MatchType: v1alpha1.MatchEqual}},
 		})
 	}
