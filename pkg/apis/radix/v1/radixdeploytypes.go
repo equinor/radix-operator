@@ -150,6 +150,10 @@ type RadixDeployExternalDNS struct {
 	// +kubebuilder:default:=false
 	// +optional
 	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
+
+	// Certificate issuer properties
+	// +optional
+	CertificateAutomation *CertificateAutomation `json:"certificateAutomation,omitempty"`
 }
 
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service etc
