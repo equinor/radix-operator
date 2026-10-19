@@ -2865,6 +2865,12 @@ func Test_ValidateApplicationCanBeAppliedWithCertificateAutomation(t *testing.T)
 			expectedError:         radixapplication.ErrMissingConfiguredCertificateAutomationIssuers,
 		},
 		{
+			name:                  "no issuers configured for the cluster, automation disabled",
+			certificateAutomation: config.CertificateAutomationConfig{},
+			updateRA:              externalAlias(false, nil),
+			expectedError:         nil,
+		},
+		{
 			name:                  "automation disabled, issuer not required",
 			certificateAutomation: config.CertificateAutomationConfig{Issuers: validIssuers},
 			updateRA:              externalAlias(false, nil),

@@ -11,7 +11,7 @@ type CommonConfig struct {
 	AppAliasBaseURL            string                      `json:"appAliasBaseURL" required:"true"`
 	ExternalRegistryAuthSecret string                      `json:"externalRegistryAuthSecret"`
 	OAuth2Proxy                OAuth2ProxyConfig           `json:"oauth2Proxy"`
-	CertificateAutomation      CertificateAutomationConfig `json:"certificateAutomation" required:"true"`
+	CertificateAutomation      CertificateAutomationConfig `json:"certificateAutomation"`
 }
 
 type OAuth2ProxyConfig struct {
