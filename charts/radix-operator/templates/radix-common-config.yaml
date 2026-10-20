@@ -11,6 +11,12 @@
 {{- if le (len (.Values.config.apiServer.authenticators | default dict)) 0 }}
 {{- fail "apiServer.authenticators must have at least one entry" }}
 {{- end }}
+{{- $defaultIssuer := .Values.config.common.certificateAutomation.defaultIssuer | toString }}
+{{- $issuers := .Values.config.common.certificateAutomation.issuers | default dict }}
+{{- if not (hasKey $issuers $defaultIssuer) }}
+{{- fail (printf "config.common.certificateAutomation.issuers must contain a key matching config.common.certificateAutomation.defaultIssuer (%q)" $defaultIssuer) }}
+{{- end }}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
