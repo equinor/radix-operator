@@ -351,7 +351,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			componentName := strings.ToLower(imageSource.ComponentName)
 			envNameForName := getLengthLimitedName(envName)
 			imageName := fmt.Sprintf("%s-%s", envNameForName, componentName)
-			containerName := fmt.Sprintf("build-%s-%s", componentName, envNameForName)
+			containerName := "build" //fmt.Sprintf("build-%s-%s", componentName, envNameForName)
 			appName := pipelineInfo.RadixApplication.GetName()
 			containerRegistry := pipelineInfo.Cfg.PipelineRunner.ContainerRegistry
 			imageTag := pipelineInfo.PipelineArguments.ImageTag

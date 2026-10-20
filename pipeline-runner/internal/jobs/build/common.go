@@ -1,7 +1,6 @@
 package build
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -26,22 +25,21 @@ func getJobName(timeStamp time.Time, imageTag, hash string) string {
 	return fmt.Sprintf("radix-builder-%s-%s-%s", ts, imageTag, hash)
 }
 
-func getCommonJobLabels(appName, pipelineJobName, imageTag string) map[string]string {
+func getCommonJobLabels(appName, pipelineJobName, envName, componentName string) map[string]string {
 	return map[string]string{
-		kube.RadixJobNameLabel:  pipelineJobName,
-		kube.RadixAppLabel:      appName,
-		kube.RadixImageTagLabel: imageTag,
-		kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
+		kube.RadixJobNameLabel:   pipelineJobName,
+		kube.RadixAppLabel:       appName,
+		kube.RadixJobTypeLabel:   kube.RadixJobTypeBuild,
+		kube.RadixEnvLabel:       envName,
+		kube.RadixComponentLabel: componentName,
 	}
 }
 
-func getCommonJobAnnotations(branch, gitRef, gitRefType string, componentImages ...pipeline.BuildComponentImage) map[string]string {
-	componentImagesAnnotation, _ := json.Marshal(componentImages)
+func getCommonJobAnnotations(branch, gitRef, gitRefType string) map[string]string {
 	return map[string]string{
-		kube.RadixBranchAnnotation:          branch,
-		kube.RadixGitRefAnnotation:          gitRef,
-		kube.RadixGitRefTypeAnnotation:      gitRefType,
-		kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
+		kube.RadixBranchAnnotation:     branch,
+		kube.RadixGitRefAnnotation:     gitRef,
+		kube.RadixGitRefTypeAnnotation: gitRefType,
 	}
 }
 

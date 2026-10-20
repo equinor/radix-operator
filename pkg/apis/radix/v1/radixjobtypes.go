@@ -332,6 +332,10 @@ type RadixJobStep struct {
 	// +kubebuilder:validation:Optional
 	PodName string `json:"podName,omitempty"`
 
+	// ContainerName is the name of the container executing this step
+	// +kubebuilder:validation:Optional
+	ContainerName string `json:"containerName,omitempty"`
+
 	// Components is the list of components processed in this step
 	// +kubebuilder:validation:Optional
 	Components []string `json:"components,omitempty"`

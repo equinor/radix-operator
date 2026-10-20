@@ -2,11 +2,9 @@ package job
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -17,7 +15,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -518,13 +515,11 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 
 	var steps []v1.RadixJobStep
 	steps = append(steps, getOrchestratorStep(pipelineOrchestratorPod))
-	prepareStepsNames := make(map[string]struct{})
 
 	cloneConfigStep := job.getPreparePipelineSteps(pipelineOrchestratorPod)
 	steps = append(steps, cloneConfigStep)
-	prepareStepsNames[cloneConfigStep.Name] = struct{}{}
 
-	pipelineSteps, err := getPipelineSteps(ctx, pipelineJobs, pipelineJobsPods, prepareStepsNames)
+	pipelineSteps, err := getPipelineSteps(ctx, pipelineJobs, pipelineJobsPods)
 	if err != nil {
 		return nil, err
 	}
@@ -535,11 +530,11 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 func getOrchestratorStep(pod *corev1.Pod) v1.RadixJobStep {
 	containerName := defaults.RadixPipelineJobPipelineContainerName
 	containerStatus := getContainerStatusForContainer(pod, containerName)
-	jobStep := getJobStep(pod.GetName(), containerName, containerStatus)
+	jobStep := getJobStep(pod.GetName(), containerName, containerName, nil, containerStatus)
 	return jobStep
 }
 
-func getPipelineSteps(ctx context.Context, jobs []batchv1.Job, jobPods []corev1.Pod, prepareStepsNames map[string]struct{}) ([]v1.RadixJobStep, error) {
+func getPipelineSteps(ctx context.Context, jobs []batchv1.Job, jobPods []corev1.Pod) ([]v1.RadixJobStep, error) {
 	var steps []v1.RadixJobStep
 	stepJobs := commonslice.FindAll(jobs, func(job batchv1.Job) bool {
 		return job.GetLabels()[kube.RadixJobTypeLabel] != kube.RadixJobTypeJob
@@ -548,116 +543,72 @@ func getPipelineSteps(ctx context.Context, jobs []batchv1.Job, jobPods []corev1.
 		pod, podExists := commonslice.FindFirst(jobPods, func(jobPod corev1.Pod) bool {
 			return jobPod.GetLabels()[jobNameLabel] == jobStep.Name
 		})
+
 		if !podExists {
 			log.Ctx(ctx).Debug().Msgf("Skip the RadixJob step %s - job pod does not exist", jobStep.Name)
 			continue
 		}
 
-		buildComponentImagesMap, buildComponentImages, err := getBuildComponentImagesFromJobAnnotations(&jobStep)
-		if err != nil {
-			return nil, err
+		envName := jobStep.GetLabels()[kube.RadixEnvLabel]
+		if envName == "" {
+			log.Ctx(ctx).Debug().Msgf("Skip the RadixJob step %s - environment label does not exist", jobStep.Name)
+			continue
+		}
+
+		componentName := jobStep.GetLabels()[kube.RadixComponentLabel]
+		if componentName == "" {
+			log.Ctx(ctx).Debug().Msgf("Skip the RadixJob step %s - component label does not exist", jobStep.Name)
+			continue
 		}
 
 		log.Ctx(ctx).Debug().Msgf("Add %d steps for the job %s", len(pod.Spec.Containers), jobStep.Name)
-		steps = append(steps, getJobStepsFromInitContainers(pod, prepareStepsNames, buildComponentImagesMap, buildComponentImages)...)
-		steps = append(steps, getJobStepsFromContainers(ctx, jobStep, pod, buildComponentImagesMap, buildComponentImages, prepareStepsNames)...)
+		steps = append(steps, getJobStepsFromInitContainers(pod, envName, componentName)...)
+		steps = append(steps, getJobStepsFromContainers(pod, envName, componentName)...)
 	}
 	return steps, nil
 }
 
 func (job *Job) getPreparePipelineSteps(jobPod *corev1.Pod) v1.RadixJobStep {
 	cloneContainerStatus := getContainerStatusByName(git.CloneConfigContainerName, jobPod.Status.InitContainerStatuses)
-	cloneConfigStep := getJobStep(jobPod.GetName(), git.CloneConfigContainerName, cloneContainerStatus)
+	cloneConfigStep := getJobStep(jobPod.GetName(), git.CloneConfigContainerName, git.CloneConfigContainerName, nil, cloneContainerStatus)
 	return cloneConfigStep
 }
 
-func getBuildComponentImagesFromJobAnnotations(job *batchv1.Job) (pipeline.BuildComponentImages, []pipeline.BuildComponentImage, error) {
-	buildComponentImagesMap := make(pipeline.BuildComponentImages)
-	if err := getObjectFromJobAnnotation(job, kube.RadixComponentImagesAnnotation, &buildComponentImagesMap); err != nil {
-		return nil, nil, err
-	}
-	buildComponentImages := make([]pipeline.BuildComponentImage, 0)
-	if err := getObjectFromJobAnnotation(job, kube.RadixBuildComponentsAnnotation, &buildComponentImages); err != nil {
-		return nil, nil, err
-	}
-	return buildComponentImagesMap, buildComponentImages, nil
-}
-
-func getJobStepsFromContainers(ctx context.Context, jobStep batchv1.Job, pod corev1.Pod, buildComponentImagesMap pipeline.BuildComponentImages, buildComponentImages []pipeline.BuildComponentImage, prepareStepsNames map[string]struct{}) []v1.RadixJobStep {
+func getJobStepsFromContainers(pod corev1.Pod, envName, componentName string) []v1.RadixJobStep {
 	containerStatuses := commonslice.Reduce(pod.Status.ContainerStatuses, make(map[string]*corev1.ContainerStatus), func(acc map[string]*corev1.ContainerStatus, containerStatus corev1.ContainerStatus) map[string]*corev1.ContainerStatus {
 		acc[containerStatus.Name] = &containerStatus
 		return acc
 	})
+
 	var steps []v1.RadixJobStep
 	for _, container := range pod.Spec.Containers {
-		if _, ok := prepareStepsNames[container.Name]; ok {
-			continue
+		containerName := fmt.Sprintf("%s-%s-%s", container.Name, componentName, envName)
+
+		// TODO: Backward compatibility support for pipeline build jobs using dynamic container names (build-<component>-<environment>).
+		// Remove when all RadixJobs with deprecated build container names are in a completed state.
+		if strings.HasPrefix(container.Name, "build") && len(container.Name) > len("build") {
+			containerName = container.Name
 		}
-		componentNames := getComponentNamesForBuildComponentImagesMap(container.Name, buildComponentImagesMap)
-		componentNames = append(componentNames, getComponentNamesForBuildComponentImages(container.Name, buildComponentImages)...)
-		steps = append(steps, getJobStep(pod.GetName(), container.Name, containerStatuses[container.Name], componentNames...))
-		log.Ctx(ctx).Debug().Msgf("Added step %s for the job %s", container.Name, jobStep.Name)
+
+		steps = append(steps, getJobStep(pod.GetName(), container.Name, containerName, []string{componentName}, containerStatuses[container.Name]))
 	}
 	return steps
 }
 
-func getJobStepsFromInitContainers(pod corev1.Pod, prepareStepsNames map[string]struct{}, buildComponentImagesMap pipeline.BuildComponentImages, buildComponentImages []pipeline.BuildComponentImage) []v1.RadixJobStep {
+func getJobStepsFromInitContainers(pod corev1.Pod, envName, componentName string) []v1.RadixJobStep {
 	containerStatuses := commonslice.Reduce(pod.Status.InitContainerStatuses, make(map[string]*corev1.ContainerStatus), func(acc map[string]*corev1.ContainerStatus, containerStatus corev1.ContainerStatus) map[string]*corev1.ContainerStatus {
 		acc[containerStatus.Name] = &containerStatus
 		return acc
 	})
 	var steps []v1.RadixJobStep
 	for _, container := range pod.Spec.InitContainers {
-		if _, ok := prepareStepsNames[container.Name]; ok || strings.HasPrefix(container.Name, git.InternalContainerPrefix) {
+		if strings.HasPrefix(container.Name, git.InternalContainerPrefix) {
 			continue
 		}
-		var componentNames []string
-		if container.Name == git.CloneContainerName {
-			componentNames = getContainerNames(buildComponentImagesMap, buildComponentImages)
-		}
-		steps = append(steps, getJobStep(pod.GetName(), container.Name, containerStatuses[container.Name], componentNames...))
+
+		steps = append(steps, getJobStep(pod.GetName(), container.Name, fmt.Sprintf("%s-%s-%s", container.Name, componentName, envName), []string{componentName}, containerStatuses[container.Name]))
 	}
 	return steps
-}
-
-func getContainerNames(buildComponentImagesMap pipeline.BuildComponentImages, buildComponentImagesList []pipeline.BuildComponentImage) []string {
-	return append(slices.Collect(maps.Keys(buildComponentImagesMap)),
-		commonslice.Map(buildComponentImagesList, func(componentImage pipeline.BuildComponentImage) string {
-			return fmt.Sprintf("%s-%s", componentImage.ComponentName, componentImage.EnvName)
-		})...)
-}
-
-func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj any) error {
-	annotation := job.GetObjectMeta().GetAnnotations()[annotationName]
-	if !strings.EqualFold(annotation, "") {
-		err := json.Unmarshal([]byte(annotation), obj)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func getComponentNamesForBuildComponentImages(containerName string, componentImages []pipeline.BuildComponentImage) []string {
-	componentNames := make([]string, 0)
-	for _, componentImage := range componentImages {
-		if strings.EqualFold(componentImage.ContainerName, containerName) {
-			componentNames = append(componentNames, componentImage.ComponentName)
-		}
-	}
-	sort.Strings(componentNames)
-	return componentNames
-}
-
-func getComponentNamesForBuildComponentImagesMap(containerName string, componentImages pipeline.BuildComponentImages) []string {
-	componentNames := make([]string, 0)
-	for componentName, componentImage := range componentImages {
-		if strings.EqualFold(componentImage.ContainerName, containerName) {
-			componentNames = append(componentNames, componentName)
-		}
-	}
-	sort.Strings(componentNames)
-	return componentNames
 }
 
 func (job *Job) getPipelineOrchestratorPod(pipelineJobs []corev1.Pod) *corev1.Pod {
@@ -683,12 +634,13 @@ func getContainerStatusByName(name string, containerStatuses []corev1.ContainerS
 	return nil
 }
 
-func getJobStep(podName, containerName string, containerStatus *corev1.ContainerStatus, components ...string) v1.RadixJobStep {
+func getJobStep(podName, containerName, stepName string, components []string, containerStatus *corev1.ContainerStatus) v1.RadixJobStep {
 	step := v1.RadixJobStep{
-		Name:       containerName,
-		PodName:    podName,
-		Components: components,
-		Condition:  v1.JobSucceeded,
+		Name:          stepName,
+		ContainerName: containerName,
+		PodName:       podName,
+		Components:    components,
+		Condition:     v1.JobSucceeded,
 	}
 	switch {
 	case containerStatus == nil:

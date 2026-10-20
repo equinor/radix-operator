@@ -98,14 +98,20 @@ func (step *BuildStepImplementation) getBuildJobs(pipelineInfo *model.PipelineIn
 		secrets = pipelineInfo.RadixApplication.Spec.Build.Secrets
 	}
 	imagesToBuild := slices.Concat(maps.Values(pipelineInfo.BuildComponentImages)...)
-	return step.jobsBuilder.BuildJobs(
-		imagesToBuild,
-		secrets,
-		pipelineInfo.GitCommitHash,
-		pipelineInfo.GitTags,
-		pipelineInfo.IsUsingBuildCache(),
-		pipelineInfo.IsRefreshingBuildCache(),
-	)
+
+	var buildJobs []batchv1.Job
+	for _, componentImage := range imagesToBuild {
+		job := step.jobsBuilder.BuildJob(
+			componentImage,
+			secrets,
+			pipelineInfo.GitCommitHash,
+			pipelineInfo.GitTags,
+			pipelineInfo.IsUsingBuildCache(),
+			pipelineInfo.IsRefreshingBuildCache(),
+		)
+		buildJobs = append(buildJobs, job)
+	}
+	return buildJobs
 }
 
 func (step *BuildStepImplementation) applyBuildJobs(ctx context.Context, pipelineInfo *model.PipelineInfo, jobs []batchv1.Job, namespace string) error {

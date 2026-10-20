@@ -270,6 +270,10 @@ spec:
                     condition:
                       description: Condition describes the current state of the step
                       type: string
+                    containerName:
+                      description: ContainerName is the name of the container executing
+                        this step
+                      type: string
                     ended:
                       description: Ended is the timestamp when the step completed
                         or failed
