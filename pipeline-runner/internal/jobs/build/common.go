@@ -87,18 +87,14 @@ func getCommonPodVolumes() []corev1.Volume {
 		},
 		{
 			Name: getTmpVolumeNameForContainer(),
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
-				},
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
 			},
 		},
 		{
 			Name: getVarVolumeNameForContainer(),
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
-				},
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
 			},
 		},
 	}
