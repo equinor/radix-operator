@@ -71,10 +71,6 @@ var testConfig = config.Config{
 		ReadinessProbePeriodSeconds:        15,
 		DefaultRollingUpdateMaxUnavailable: "25%",
 		DefaultRollingUpdateMaxSurge:       "35%",
-		JobSchedulerImage: config.ContainerImage{
-			Repository: "docker.io/radix-job-scheduler",
-			Tag:        "main-latest",
-		},
 		JobSchedulerAuxImage: config.ContainerImage{
 			Repository: "docker.io/bash",
 			Tag:        "latest",
@@ -86,6 +82,20 @@ var testConfig = config.Config{
 			GatewayClusterIssuer: "test-gateway-cert-issuer",
 			Duration:             10000 * time.Hour,
 			RenewBefore:          5000 * time.Hour,
+		},
+	},
+	Runtime: config.RuntimeConfig{
+		JobSchedulerTemplate: config.RuntimeBaseOverlayPodConfig{
+			Base: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						corev1.Container{
+							Name:  "scheduler",
+							Image: "docker.io/radix-job-scheduler:main-latest",
+						},
+					},
+				},
+			},
 		},
 	},
 }
@@ -2114,7 +2124,7 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 						utils.NewDeployJobComponentBuilder().WithName("job1"),
 					), func(syncer DeploymentSyncer) {
 					if s, ok := syncer.(*Deployment); ok {
-						s.config.Operator.DeploymentHistoryLimit = 2
+						s.cfg.Operator.DeploymentHistoryLimit = 2
 					}
 				})
 				require.NoError(t, err)

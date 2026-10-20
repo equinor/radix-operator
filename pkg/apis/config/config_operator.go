@@ -32,7 +32,6 @@ type OperatorConfig struct {
 	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
 	EnvNsLimitRange LimitRangeConfig `json:"envNsLimitRange" required:"true"`
 
-	JobSchedulerImage   ContainerImage            `json:"jobSchedulerImage" required:"true"`
 	PodSecurityStandard PodSecurityStandardConfig `json:"podSecurityStandard"`
 
 	BatchSafeToRestartJobThreshold int64 `json:"batchSafeToRestartJobThreshold" required:"true"`

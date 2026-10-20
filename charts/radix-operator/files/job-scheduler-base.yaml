@@ -1,0 +1,26 @@
+spec:
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  automountServiceAccountToken: true
+  containers:
+    - image: ghcr.io/equinor/radix/job-scheduler:{{ .Chart.AppVersion }}
+      imagePullPolicy: Always
+      name: scheduler
+      resources:
+        limits:
+          memory: 500M
+        requests:
+          cpu: 20m
+          memory: 500M
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault

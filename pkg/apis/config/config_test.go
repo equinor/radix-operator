@@ -176,6 +176,32 @@ func TestParse_HappyPath(t *testing.T) {
 					},
 				},
 			},
+			JobSchedulerTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "scheduler",
+								Image: "ghcr.io/equinor/radix/job-scheduler:latest",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1000)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "scheduler",
+								Image: "ghcr.io/equinor/radix/job-scheduler:1.2.0",
+							},
+						},
+					},
+				},
+			},
 		},
 		PipelineRunner: config.PipelineRunnerConfig{
 			ContainerRegistry:      "any.registry.com",
@@ -234,11 +260,6 @@ func TestParse_HappyPath(t *testing.T) {
 				DefaultMemory:        new(resource.MustParse("555M")),
 				DefaultRequestMemory: new(resource.MustParse("444M")),
 				DefaultRequestCPU:    new(resource.MustParse("111m")),
-			},
-
-			JobSchedulerImage: config.ContainerImage{
-				Repository: "ghcr.io/equinor/radix-job-scheduler",
-				Tag:        "v1.2.3",
 			},
 			JobSchedulerAuxImage: config.ContainerImage{
 				Repository: "docker.io/bash",
@@ -643,14 +664,14 @@ func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
 
 func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
 	configYaml := []byte(mutateConfig(t, func(cfg *config.Config) {
-		cfg.Operator.JobSchedulerImage = config.ContainerImage{}
+		cfg.Operator.AppNsLimitRange = config.LimitRangeConfig{}
 	}))
 
 	var cfg config.Config
 	err := configcodec.Decode(configYaml, &cfg)
 
 	require.Error(t, err)
-	assert.ErrorContains(t, err, `field "Operator.JobSchedulerImage" is required but not set`)
+	assert.ErrorContains(t, err, `field "Operator.AppNsLimitRange" is required but not set`)
 }
 
 func TestParse_FieldValidator(t *testing.T) {
@@ -660,15 +681,15 @@ func TestParse_FieldValidator(t *testing.T) {
 	}{
 		"repository is required": {
 			mutateConfig: func(cfg *config.Config) {
-				cfg.Operator.JobSchedulerImage.Repository = ""
+				cfg.Operator.AppNsLimitRange.DefaultMemory = nil
 			},
-			expectedError: `field "Operator.JobSchedulerImage" validation failed: repository is required`,
+			expectedError: `field "Operator.AppNsLimitRange.DefaultMemory" is required but not set`,
 		},
 		"tag is required": {
 			mutateConfig: func(cfg *config.Config) {
-				cfg.Operator.JobSchedulerImage.Tag = ""
+				cfg.Operator.AppNsLimitRange.DefaultRequestMemory = nil
 			},
-			expectedError: `field "Operator.JobSchedulerImage" validation failed: tag is required`,
+			expectedError: `field "Operator.AppNsLimitRange.DefaultRequestMemory" is required but not set`,
 		},
 	}
 

@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 )
@@ -18,6 +17,11 @@ type ServiceAccountSpec interface {
 // Service account spec for Radix job scheduler deployment
 type jobSchedulerServiceAccountSpec struct{}
 
+// NewServiceAccountSpec Create ServiceAccountSpec based on RadixDeployment and RadixCommonDeployComponent
+func NewJobSchedulerServiceAccountSpec() ServiceAccountSpec {
+	return &jobSchedulerServiceAccountSpec{}
+}
+
 func (spec *jobSchedulerServiceAccountSpec) ServiceAccountName() string {
 	return defaults.RadixJobSchedulerServiceName
 }
@@ -31,6 +35,11 @@ type radixComponentServiceAccountSpec struct {
 	component v1.RadixCommonDeployComponent
 }
 
+// NewServiceAccountSpec Create ServiceAccountSpec based on RadixDeployment and RadixCommonDeployComponent
+func NewServiceAccountSpec(deployComponent v1.RadixCommonDeployComponent) ServiceAccountSpec {
+	return &radixComponentServiceAccountSpec{component: deployComponent}
+}
+
 func (spec *radixComponentServiceAccountSpec) ServiceAccountName() string {
 	if componentRequiresServiceAccount(spec.component) {
 		return utils.GetComponentServiceAccountName(spec.component.GetName())
@@ -40,13 +49,4 @@ func (spec *radixComponentServiceAccountSpec) ServiceAccountName() string {
 
 func (spec *radixComponentServiceAccountSpec) AutomountServiceAccountToken() *bool {
 	return new(false)
-}
-
-// NewServiceAccountSpec Create ServiceAccountSpec based on RadixDeployment and RadixCommonDeployComponent
-func NewServiceAccountSpec(deployComponent v1.RadixCommonDeployComponent) ServiceAccountSpec {
-	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
-		return &jobSchedulerServiceAccountSpec{}
-	}
-
-	return &radixComponentServiceAccountSpec{component: deployComponent}
 }
