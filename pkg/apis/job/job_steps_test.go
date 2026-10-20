@@ -295,13 +295,6 @@ func (s *RadixJobStepTestSuite) getPipelineJob(name, appName, imageTag string) *
 			kube.RadixJobTypeLabel:  kube.RadixJobTypeJob,
 			kube.RadixImageTagLabel: imageTag,
 			kube.RadixAppLabel:      appName,
-		Name:      name,
-		Namespace: utils.GetAppNamespace(appName),
-		Labels: map[string]string{
-			kube.RadixJobNameLabel:  name,
-			kube.RadixJobTypeLabel:  kube.RadixJobTypeJob,
-			kube.RadixImageTagLabel: imageTag,
-			kube.RadixAppLabel:      appName,
 		},
 	}
 }
@@ -322,9 +315,6 @@ func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, envName
 
 func (s *RadixJobStepTestSuite) getJobPod(podName, radixJobName, jobName, namespace string) *corev1.Pod {
 	return &corev1.Pod{
-		Name:      podName,
-		Namespace: namespace,
-		Labels:    map[string]string{kube.RadixJobNameLabel: radixJobName, jobNameLabel: jobName},
 		Name:      podName,
 		Namespace: namespace,
 		Labels:    map[string]string{kube.RadixJobNameLabel: radixJobName, jobNameLabel: jobName},
