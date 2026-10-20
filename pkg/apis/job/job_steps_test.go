@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -177,10 +178,10 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_BuildAndCloneSteps() {
 			steps: []v1.RadixJobStep{
 				{Condition: v1.JobWaiting, Name: "clone-config", PodName: "pipeline-pod-5", ContainerName: "clone-config"},
 				{Condition: v1.JobWaiting, Name: "radix-pipeline", PodName: "pipeline-pod-5", ContainerName: "radix-pipeline"},
-				{Condition: v1.JobWaiting, Name: "clone-comp1-env1", PodName: "build-pod-5", ContainerName: "clone", Components: []string{"comp1"}},
-				{Condition: v1.JobWaiting, Name: "build-comp1-env1", PodName: "build-pod-5", ContainerName: "build", Components: []string{"comp1"}},
-				{Condition: v1.JobWaiting, Name: "clone-comp2-env2", PodName: "build-pod-6", ContainerName: "clone", Components: []string{"comp2"}},
-				{Condition: v1.JobWaiting, Name: "build-comp2-env2", PodName: "build-pod-6", ContainerName: "build", Components: []string{"comp2"}},
+				{Condition: v1.JobWaiting, Name: "clone-comp1-env1-" + random.RandStringStrSeed(5, "build-pod-5"), PodName: "build-pod-5", ContainerName: "clone", Components: []string{"comp1"}},
+				{Condition: v1.JobWaiting, Name: "build-comp1-env1-" + random.RandStringStrSeed(5, "build-pod-5"), PodName: "build-pod-5", ContainerName: "build", Components: []string{"comp1"}},
+				{Condition: v1.JobWaiting, Name: "clone-comp2-env2-" + random.RandStringStrSeed(5, "build-pod-6"), PodName: "build-pod-6", ContainerName: "clone", Components: []string{"comp2"}},
+				{Condition: v1.JobWaiting, Name: "build-comp2-env2-" + random.RandStringStrSeed(5, "build-pod-6"), PodName: "build-pod-6", ContainerName: "build", Components: []string{"comp2"}},
 			},
 		},
 	}
@@ -225,9 +226,9 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_DeprecatedBuildContainerNames()
 			steps: []v1.RadixJobStep{
 				{Condition: v1.JobWaiting, Name: "clone-config", PodName: "pipeline-pod-5", ContainerName: "clone-config"},
 				{Condition: v1.JobWaiting, Name: "radix-pipeline", PodName: "pipeline-pod-5", ContainerName: "radix-pipeline"},
-				{Condition: v1.JobWaiting, Name: "clone-comp1-env1", PodName: "build-pod-5", ContainerName: "clone", Components: []string{"comp1"}},
-				{Condition: v1.JobWaiting, Name: "build-comp1-env1", PodName: "build-pod-5", ContainerName: "build", Components: []string{"comp1"}},
-				{Condition: v1.JobWaiting, Name: "clone-comp2-env2", PodName: "build-pod-6", ContainerName: "clone", Components: []string{"comp2"}},
+				{Condition: v1.JobWaiting, Name: "clone-comp1-env1-" + random.RandStringStrSeed(5, "build-pod-5"), PodName: "build-pod-5", ContainerName: "clone", Components: []string{"comp1"}},
+				{Condition: v1.JobWaiting, Name: "build-comp1-env1-" + random.RandStringStrSeed(5, "build-pod-5"), PodName: "build-pod-5", ContainerName: "build", Components: []string{"comp1"}},
+				{Condition: v1.JobWaiting, Name: "clone-comp2-env2-" + random.RandStringStrSeed(5, "build-pod-6"), PodName: "build-pod-6", ContainerName: "clone", Components: []string{"comp2"}},
 				{Condition: v1.JobWaiting, Name: "build-custom-name", PodName: "build-pod-6", ContainerName: "build-custom-name", Components: []string{"comp2"}},
 			},
 		},

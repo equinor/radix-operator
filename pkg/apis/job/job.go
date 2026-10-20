@@ -17,6 +17,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
@@ -582,15 +583,15 @@ func getJobStepsFromContainers(pod corev1.Pod, envName, componentName string) []
 
 	var steps []v1.RadixJobStep
 	for _, container := range pod.Spec.Containers {
-		containerName := fmt.Sprintf("%s-%s-%s", container.Name, componentName, envName)
+		stepName := fmt.Sprintf("%s-%s-%s-%s", container.Name, componentName, envName, random.RandStringStrSeed(5, pod.Name))
 
 		// TODO: Backward compatibility support for pipeline build jobs using dynamic container names (build-<component>-<environment>).
 		// Remove when all RadixJobs with deprecated build container names are in a completed state.
 		if strings.HasPrefix(container.Name, defaults.RadixPipelineJobBuildContainerName) && len(container.Name) > len(defaults.RadixPipelineJobBuildContainerName) {
-			containerName = container.Name
+			stepName = container.Name
 		}
 
-		steps = append(steps, getJobStep(pod.GetName(), container.Name, containerName, []string{componentName}, containerStatuses[container.Name]))
+		steps = append(steps, getJobStep(pod.GetName(), container.Name, stepName, []string{componentName}, containerStatuses[container.Name]))
 	}
 	return steps
 }
@@ -606,7 +607,8 @@ func getJobStepsFromInitContainers(pod corev1.Pod, envName, componentName string
 			continue
 		}
 
-		steps = append(steps, getJobStep(pod.GetName(), container.Name, fmt.Sprintf("%s-%s-%s", container.Name, componentName, envName), []string{componentName}, containerStatuses[container.Name]))
+		stepName := fmt.Sprintf("%s-%s-%s-%s", container.Name, componentName, envName, random.RandStringStrSeed(5, pod.Name))
+		steps = append(steps, getJobStep(pod.GetName(), container.Name, stepName, []string{componentName}, containerStatuses[container.Name]))
 	}
 	return steps
 }
