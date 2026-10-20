@@ -554,10 +554,20 @@ func (ac *applicationController) RegisterApplication(accounts accounts.Accounts,
 	//       "$ref": "#/definitions/ApplicationRegistrationUpsertResponse"
 	//   "400":
 	//     description: "Invalid application registration"
+	//     schema:
+	//       "$ref": "#/definitions/ErrorResponseBody"
 	//   "401":
 	//     description: "Unauthorized"
+	//     schema:
+	//       "$ref": "#/definitions/ErrorResponseBody"
+	//   "403":
+	//     description: "Forbidden"
+	//     schema:
+	//       "$ref": "#/definitions/ErrorResponseBody"
 	//   "409":
 	//     description: "Conflict"
+	//     schema:
+	//       "$ref": "#/definitions/ErrorResponseBody"
 	var applicationRegistrationRequest applicationModels.ApplicationRegistrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&applicationRegistrationRequest); err != nil {
 		ac.ErrorResponse(w, r, err)

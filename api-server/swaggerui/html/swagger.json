@@ -105,13 +105,28 @@
             }
           },
           "400": {
-            "description": "Invalid application registration"
+            "description": "Invalid application registration",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponseBody"
+            }
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponseBody"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponseBody"
+            }
           },
           "409": {
-            "description": "Conflict"
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponseBody"
+            }
           }
         }
       }
@@ -7284,6 +7299,41 @@
         }
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/applications/models"
+    },
+    "ErrorResponseBody": {
+      "description": "ErrorResponseBody describes the JSON body written for API errors (see Error.MarshalJSON)",
+      "type": "object",
+      "required": [
+        "type",
+        "message"
+      ],
+      "properties": {
+        "error": {
+          "description": "Underlying error details",
+          "type": "string",
+          "x-go-name": "Err",
+          "example": "Radix Registration failed validation"
+        },
+        "message": {
+          "description": "Message that can be printed out for the user",
+          "type": "string",
+          "x-go-name": "Message",
+          "example": "User should be a member of at least one admin group or their sub-members"
+        },
+        "type": {
+          "description": "Type of error",
+          "type": "string",
+          "enum": [
+            "server",
+            "missing",
+            "user",
+            "forbidden"
+          ],
+          "x-go-name": "Type",
+          "example": "user"
+        }
+      },
+      "x-go-package": "github.com/equinor/radix-operator/api-server/internal/http"
     },
     "Event": {
       "description": "Event holds information about Kubernetes events",
