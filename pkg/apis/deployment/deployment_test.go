@@ -3739,7 +3739,7 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 			DNSNames:    []string{fqdn},
 			Duration:    &metav1.Duration{Duration: testConfig.Common.CertificateAutomation.Issuers["digicert"].Duration},
 			RenewBefore: &metav1.Duration{Duration: testConfig.Common.CertificateAutomation.Issuers["digicert"].RenewBefore},
-			IssuerRef: v1.ObjectReference{
+			IssuerRef: v1.IssuerReference{
 				Name:  testConfig.Common.CertificateAutomation.Issuers["digicert"].ClusterIssuerName,
 				Kind:  "ClusterIssuer",
 				Group: "cert-manager.io",
