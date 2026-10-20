@@ -9,7 +9,6 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -64,9 +63,7 @@ func TestRadixRegistrationCloneURLValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			rr := &v1.RadixRegistration{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-cloneurl-validation",
-				},
+				Name: "test-cloneurl-validation",
 				Spec: v1.RadixRegistrationSpec{
 					CloneURL:          tc.cloneURL,
 					AdGroups:          []string{"test-group"},
@@ -214,9 +211,7 @@ func TestRadixRegistrationConfigBranchValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			rr := &v1.RadixRegistration{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-configbranch-validation",
-				},
+				Name: "test-configbranch-validation",
 				Spec: v1.RadixRegistrationSpec{
 					CloneURL:          "git@github.com:equinor/test-app.git",
 					AdGroups:          []string{"test-group"},
@@ -304,9 +299,7 @@ func TestRadixRegistrationRadixConfigFullNameValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			rr := &v1.RadixRegistration{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-radixconfig-validation",
-				},
+				Name: "test-radixconfig-validation",
 				Spec: v1.RadixRegistrationSpec{
 					CloneURL:            "git@github.com:equinor/test-app.git",
 					AdGroups:            []string{"test-group"},
@@ -365,9 +358,7 @@ func TestRadixRegistrationConfigurationItemValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			rr := &v1.RadixRegistration{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-configitem-validation",
-				},
+				Name: "test-configitem-validation",
 				Spec: v1.RadixRegistrationSpec{
 					CloneURL:          "git@github.com:equinor/test-app.git",
 					AdGroups:          []string{"test-group"},
@@ -425,9 +416,7 @@ func TestRadixRegistrationAdGroupsValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			rr := &v1.RadixRegistration{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-adgroups-validation",
-				},
+				Name: "test-adgroups-validation",
 				Spec: v1.RadixRegistrationSpec{
 					CloneURL:          "git@github.com:equinor/test-app.git",
 					AdGroups:          tc.adGroups,
@@ -458,9 +447,7 @@ func TestRadixRegistrationImmutableAppID(t *testing.T) {
 	appID := v1.ULID{ULID: ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader)}
 
 	rr := &v1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-immutable-appid",
-		},
+		Name: "test-immutable-appid",
 		Spec: v1.RadixRegistrationSpec{
 			AppID:             appID,
 			CloneURL:          "git@github.com:equinor/test-app.git",
@@ -496,9 +483,7 @@ func TestRadixRegistrationImmutableCreator(t *testing.T) {
 
 	// Create a RadixRegistration with Creator
 	rr := &v1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-immutable-creator",
-		},
+		Name: "test-immutable-creator",
 		Spec: v1.RadixRegistrationSpec{
 			CloneURL:          "git@github.com:equinor/test-app2.git",
 			AdGroups:          []string{"test-group"},
@@ -532,9 +517,7 @@ func TestRadixRegistrationMutableFields(t *testing.T) {
 
 	// Create a RadixRegistration
 	rr := &v1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-mutable-fields",
-		},
+		Name: "test-mutable-fields",
 		Spec: v1.RadixRegistrationSpec{
 			CloneURL:          "git@github.com:equinor/test-app3.git",
 			AdGroups:          []string{"test-group"},
@@ -578,9 +561,7 @@ func TestRadixRegistrationUniqueAppID(t *testing.T) {
 	appID := v1.ULID{ULID: ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader)}
 
 	rr1 := &v1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-unique-appid-1",
-		},
+		Name: "test-unique-appid-1",
 		Spec: v1.RadixRegistrationSpec{
 			AppID:             appID,
 			CloneURL:          "git@github.com:equinor/test-app4.git",
@@ -595,9 +576,7 @@ func TestRadixRegistrationUniqueAppID(t *testing.T) {
 
 	// Try to create second RadixRegistration with same AppID
 	rr2 := &v1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-unique-appid-2",
-		},
+		Name: "test-unique-appid-2",
 		Spec: v1.RadixRegistrationSpec{
 			AppID:             appID, // Same AppID
 			CloneURL:          "git@github.com:equinor/test-app5.git",
@@ -625,9 +604,7 @@ func TestRadixRegistrationEmptyAppIDNotUnique(t *testing.T) {
 
 	// Create two RadixRegistrations without AppID
 	rr1 := &v1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-no-appid-1",
-		},
+		Name: "test-no-appid-1",
 		Spec: v1.RadixRegistrationSpec{
 			CloneURL:          "git@github.com:equinor/test-app6.git",
 			AdGroups:          []string{"test-group"},
@@ -640,9 +617,7 @@ func TestRadixRegistrationEmptyAppIDNotUnique(t *testing.T) {
 	require.NoError(t, err, "Should be able to create RadixRegistration without AppID")
 
 	rr2 := &v1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-no-appid-2",
-		},
+		Name: "test-no-appid-2",
 		Spec: v1.RadixRegistrationSpec{
 			CloneURL:          "git@github.com:equinor/test-app7.git",
 			AdGroups:          []string{"test-group"},
@@ -668,7 +643,7 @@ func TestRadixRegistrationRequiresAdGroups(t *testing.T) {
 	c := getClient(t)
 
 	rr := &v1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-require-adgroups"},
+		Name: "test-require-adgroups",
 		Spec: v1.RadixRegistrationSpec{
 			CloneURL:          "git@github.com:equinor/test-require-adgroups.git",
 			ConfigBranch:      "main",

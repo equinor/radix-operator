@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 )
@@ -51,7 +50,7 @@ func TestPrepareRun_LoadsConfigFromConfigMap(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, configcodec.Decode(configYaml, &expectedConfig))
 
-	radixClient := radix.NewSimpleClientset(&v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}) // nolint:staticcheck // SA1019: Ignore linting deprecated fields
+	radixClient := radix.NewSimpleClientset(&v1.RadixRegistration{Name: appName}) // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	dynamicClient := commonTest.CreateClient(&corev1.ConfigMap{
 		Name:      configMapName,
 		Namespace: configMapNamespace,
@@ -134,7 +133,7 @@ func TestPrepareRun_ConfigOverrideFileTakesPrecedence(t *testing.T) {
 	require.NoError(t, os.WriteFile(configFile, configYaml, 0o600))
 	t.Setenv("CONFIG_OVERRIDE_FILENAME", configFile)
 
-	radixClient := radix.NewSimpleClientset(&v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}) // nolint:staticcheck // SA1019: Ignore linting deprecated fields
+	radixClient := radix.NewSimpleClientset(&v1.RadixRegistration{Name: appName}) // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 	pipelineDefinition, err := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
 	require.NoError(t, err)
 	cli := NewRunner(nil, radixClient, commonTest.CreateClient(), nil, pipelineDefinition, appName)

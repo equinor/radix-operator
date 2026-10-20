@@ -32,14 +32,10 @@ func BuildBackendRefForComponentOauth2Service(component radixv1.RadixCommonDeplo
 
 func createBackendRef(serviceName string, servicePort int32) gatewayapiv1.HTTPBackendRef {
 	return gatewayapiv1.HTTPBackendRef{
-		BackendRef: gatewayapiv1.BackendRef{
-			Weight: new(int32(1)),
-			BackendObjectReference: gatewayapiv1.BackendObjectReference{
-				Group: new(gatewayapiv1.Group("")),
-				Kind:  new(gatewayapiv1.Kind("Service")),
-				Name:  gatewayapiv1.ObjectName(serviceName),
-				Port:  &servicePort,
-			},
-		},
+		Weight: new(int32(1)),
+		Group:  new(gatewayapiv1.Group("")),
+		Kind:   new(gatewayapiv1.Kind("Service")),
+		Name:   gatewayapiv1.ObjectName(serviceName),
+		Port:   &servicePort,
 	}
 }

@@ -147,7 +147,7 @@ func (s *RadixJobTestSuite) SetupSubTest() {
 
 func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	rr := &radixv1.RadixRegistration{}
-	rj := &radixv1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
+	rj := &radixv1.RadixJob{Name: "any-name", Generation: 42}
 	rj, err := s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rj, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
@@ -177,7 +177,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	s.False(rj.Status.Reconciled.IsZero())
 
 	// Sync with stop
-	rjStop := &radixv1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: "stop-job", Generation: 20}, Spec: radixv1.RadixJobSpec{Stop: true}}
+	rjStop := &radixv1.RadixJob{Name: "stop-job", Generation: 20, Spec: radixv1.RadixJobSpec{Stop: true}}
 	rjStop, err = s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rjStop, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	expectedGen = rjStop.Generation
@@ -192,7 +192,7 @@ func (s *RadixJobTestSuite) Test_ReconcileStatus() {
 	s.False(rjStop.Status.Reconciled.IsZero())
 
 	// Sync with error
-	rjErr := &radixv1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: "err-job", Generation: 10}}
+	rjErr := &radixv1.RadixJob{Name: "err-job", Generation: 10}
 	rjErr, err = s.radixClient.RadixV1().RadixJobs("any-ns").Create(context.Background(), rjErr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	errorMsg := "any sync error"

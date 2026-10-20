@@ -558,9 +558,7 @@ func Test_GetEnvironmentEvents_Controller(t *testing.T) {
 	commonTestUtils, environmentControllerTestUtils, _, kubeClient, _, _, _, _, _ := setupTest(t, nil)
 	createEvent := func(namespace, eventName string) {
 		_, err := kubeClient.CoreV1().Events(namespace).CreateWithEventNamespaceWithContext(context.Background(), &corev1.Event{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: eventName,
-			},
+			Name: eventName,
 		})
 		require.NoError(t, err)
 	}
@@ -763,7 +761,7 @@ func TestUpdateSecret_OAuth2_UpdatedOk(t *testing.T) {
 
 	// Update client secret when k8s secret exists should set Data
 	secretName := operatorutils.GetAuxiliaryComponentSecretName(anyComponentName, v1.OAuthProxyAuxiliaryComponentSuffix)
-	_, err = client.CoreV1().Secrets(envNs).Create(context.Background(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretName}}, metav1.CreateOptions{})
+	_, err = client.CoreV1().Secrets(envNs).Create(context.Background(), &corev1.Secret{Name: secretName}, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters(
@@ -1077,10 +1075,8 @@ func TestRestartAuxiliaryResource(t *testing.T) {
 
 	envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 	_, err = kubeClient.AppsV1().Deployments(envNs).Create(context.Background(), &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "comp1-aux-resource",
-			Labels: map[string]string{kube.RadixAppLabel: anyAppName, kube.RadixAuxiliaryComponentLabel: anyComponentName, kube.RadixAuxiliaryComponentTypeLabel: auxType},
-		},
+		Name:   "comp1-aux-resource",
+		Labels: map[string]string{kube.RadixAppLabel: anyAppName, kube.RadixAuxiliaryComponentLabel: anyComponentName, kube.RadixAuxiliaryComponentTypeLabel: auxType},
 		Spec:   appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{}}},
 		Status: appsv1.DeploymentStatus{Replicas: 1},
 	}, metav1.CreateOptions{})

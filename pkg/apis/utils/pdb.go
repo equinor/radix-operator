@@ -17,15 +17,11 @@ func GetPDBName(componentName string) string {
 // GetPDBConfig returns a standard PodDisruptionBudget configuration
 func GetPDBConfig(componentName string, namespace string) *v1.PodDisruptionBudget {
 	pdb := &v1.PodDisruptionBudget{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "PodDisruptionBudget",
-			APIVersion: "policy/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      GetPDBName(componentName),
-			Namespace: namespace,
-			Labels:    map[string]string{kube.RadixComponentLabel: componentName},
-		},
+		Kind:       "PodDisruptionBudget",
+		APIVersion: "policy/v1",
+		Name:       GetPDBName(componentName),
+		Namespace:  namespace,
+		Labels:     map[string]string{kube.RadixComponentLabel: componentName},
 		Spec: v1.PodDisruptionBudgetSpec{
 			MinAvailable: &intstr.IntOrString{
 				IntVal: 1,

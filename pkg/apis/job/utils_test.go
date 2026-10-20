@@ -197,5 +197,5 @@ func createRadixJob(name string, created *time.Time) *v1.RadixJob {
 	if created != nil {
 		createdStatus = &metav1.Time{Time: *created}
 	}
-	return &v1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: name}, Status: v1.RadixJobStatus{Created: createdStatus}}
+	return &v1.RadixJob{Name: name, Status: v1.RadixJobStatus{Created: createdStatus}}
 }

@@ -164,13 +164,13 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			}
 			if len(cfg.Common.ExternalRegistryAuthSecret) > 0 {
 				expectedVolumes = append(expectedVolumes, corev1.Volume{
-					Name: cfg.Common.ExternalRegistryAuthSecret, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: cfg.Common.ExternalRegistryAuthSecret}},
+					Name: cfg.Common.ExternalRegistryAuthSecret, Secret: &corev1.SecretVolumeSource{SecretName: cfg.Common.ExternalRegistryAuthSecret},
 				})
 			}
 
 			if len(buildSecrets) > 0 {
 				expectedVolumes = append(expectedVolumes, corev1.Volume{
-					Name: defaults.BuildSecretsName, VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName}},
+					Name: defaults.BuildSecretsName, Secret: &corev1.SecretVolumeSource{SecretName: defaults.BuildSecretsName},
 				})
 			}
 			assert.ElementsMatch(t, expectedVolumes, job.Spec.Template.Spec.Volumes)
@@ -229,8 +229,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 					Name: "BUILDAH_USERNAME",
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
-							Key:                  "username",
+							Name: defaults.AzureACRServicePrincipleBuildahSecretName,
+							Key:  "username",
 						},
 					},
 				},
@@ -238,8 +238,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 					Name: "BUILDAH_PASSWORD",
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
-							Key:                  "password",
+							Name: defaults.AzureACRServicePrincipleBuildahSecretName,
+							Key:  "password",
 						},
 					},
 				},
@@ -247,8 +247,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 					Name: "BUILDAH_CACHE_USERNAME",
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
-							Key:                  "username",
+							Name: defaults.AzureACRTokenPasswordAppRegistrySecretName,
+							Key:  "username",
 						},
 					},
 				},
@@ -256,8 +256,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 					Name: "BUILDAH_CACHE_PASSWORD",
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
-							Key:                  "password",
+							Name: defaults.AzureACRTokenPasswordAppRegistrySecretName,
+							Key:  "password",
 						},
 					},
 				},

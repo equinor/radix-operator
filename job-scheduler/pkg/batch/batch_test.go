@@ -528,7 +528,7 @@ func TestDeleteRadixBatch(t *testing.T) {
 			radixClient, _, _ := testUtil.SetupTest(t, props.appName, props.envName, props.radixJobComponentName, radixDeploymentName1, 1)
 			_, err := radixClient.RadixV1().RadixBatches(operatorutils.GetEnvironmentNamespace(props.appName, props.envName)).Create(context.Background(), tt.existingRadixBatch, metav1.CreateOptions{})
 			require.NoError(t, err)
-			err = DeleteRadixBatch(context.Background(), radixClient, &radixv1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: tt.radixBatchToDelete, Namespace: operatorutils.GetEnvironmentNamespace(props.appName, props.envName)}})
+			err = DeleteRadixBatch(context.Background(), radixClient, &radixv1.RadixBatch{Name: tt.radixBatchToDelete, Namespace: operatorutils.GetEnvironmentNamespace(props.appName, props.envName)})
 			if tt.expectedError != nil {
 				assert.EqualError(t, err, tt.expectedError.Error())
 			} else {
@@ -759,15 +759,13 @@ func createRadixDeployJobComponent(radixDeploymentName string, props testProps, 
 
 func createRadixBatch(batchName, batchId string, props testProps, radixBatchType kube.RadixBatchType, radixDeploymentName string, jobNames []string, batchStatus radixv1.RadixBatchConditionType, jobStatuses jobStatusPhase) *radixv1.RadixBatch {
 	radixBatch := radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      batchName,
-			Namespace: operatorutils.GetEnvironmentNamespace(props.appName, props.envName),
-			Labels: radixLabels.Merge(
-				radixLabels.ForApplicationName(props.appName),
-				radixLabels.ForComponentName(props.radixJobComponentName),
-				radixLabels.ForBatchType(radixBatchType),
-			),
-		},
+		Name:      batchName,
+		Namespace: operatorutils.GetEnvironmentNamespace(props.appName, props.envName),
+		Labels: radixLabels.Merge(
+			radixLabels.ForApplicationName(props.appName),
+			radixLabels.ForComponentName(props.radixJobComponentName),
+			radixLabels.ForBatchType(radixBatchType),
+		),
 		Spec: radixv1.RadixBatchSpec{
 			BatchId: batchId,
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{

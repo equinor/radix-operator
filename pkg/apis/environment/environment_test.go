@@ -112,8 +112,8 @@ func Test_ReconcileStatus(t *testing.T) {
 	rr := &radixv1.RadixRegistration{}
 	ra := &radixv1.RadixApplication{}
 	re := &radixv1.RadixEnvironment{
-		ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42},
-		Spec:       radixv1.RadixEnvironmentSpec{AppName: "any-app", EnvName: "any-env"},
+		Name: "any-name", Generation: 42,
+		Spec: radixv1.RadixEnvironmentSpec{AppName: "any-app", EnvName: "any-env"},
 	}
 	np := networkpolicy.NewNetworkPolicy(client, kubeUtil, config.Config{})
 	re, err := radixClient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{})

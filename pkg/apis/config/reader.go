@@ -9,7 +9,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func EnvConfigMapReader(ctx context.Context, c client.Client) ([]byte, error) {
@@ -33,7 +32,7 @@ func EnvConfigMapReader(ctx context.Context, c client.Client) ([]byte, error) {
 	}
 
 	log.Ctx(ctx).Info().Msgf("Loading config from configmap %s/%s.%s", namespace, name, key)
-	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
+	cm := &corev1.ConfigMap{Namespace: namespace, Name: name}
 	if err := c.Get(ctx, client.ObjectKeyFromObject(cm), cm); err != nil {
 		return nil, fmt.Errorf("failed to load config from cluster: %w", err)
 	}

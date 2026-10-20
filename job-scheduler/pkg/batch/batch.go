@@ -44,18 +44,16 @@ func GetRadixBatchStatus(radixBatch *radixv1.RadixBatch, radixDeployJobComponent
 	batchType := radixBatch.Labels[kube.RadixBatchTypeLabel]
 
 	return &modelsv1.BatchStatus{
-		JobStatus: modelsv1.JobStatus{
-			Name:           radixBatch.Name,
-			BatchId:        pkgInternal.GetBatchId(radixBatch),
-			Created:        new(radixBatch.GetCreationTimestamp().Time),
-			Started:        started,
-			Ended:          ended,
-			Status:         pkgInternal.GetRadixBatchStatus(radixBatch, radixDeployJobComponent),
-			Message:        radixBatch.Status.Condition.Message,
-			DeploymentName: radixBatch.Spec.RadixDeploymentJobRef.Name,
-		},
-		JobStatuses: getRadixBatchJobStatusesFromRadixBatch(radixBatch, radixBatch.Status.JobStatuses),
-		BatchType:   batchType,
+		Name:           radixBatch.Name,
+		BatchId:        pkgInternal.GetBatchId(radixBatch),
+		Created:        new(radixBatch.GetCreationTimestamp().Time),
+		Started:        started,
+		Ended:          ended,
+		Status:         pkgInternal.GetRadixBatchStatus(radixBatch, radixDeployJobComponent),
+		Message:        radixBatch.Status.Condition.Message,
+		DeploymentName: radixBatch.Spec.RadixDeploymentJobRef.Name,
+		JobStatuses:    getRadixBatchJobStatusesFromRadixBatch(radixBatch, radixBatch.Status.JobStatuses),
+		BatchType:      batchType,
 	}
 }
 
@@ -127,10 +125,8 @@ func CopyRadixBatchOrJob(ctx context.Context, radixClient versioned.Interface, s
 	logger := log.Ctx(ctx)
 	logger.Info().Msgf("copy a jobs %s of the batch %s", sourceJobName, sourceRadixBatch.GetName())
 	radixBatch := radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   internal.GenerateBatchName(radixComponentName),
-			Labels: sourceRadixBatch.GetLabels(),
-		},
+		Name:   internal.GenerateBatchName(radixComponentName),
+		Labels: sourceRadixBatch.GetLabels(),
 		Spec: radixv1.RadixBatchSpec{
 			BatchId: sourceRadixBatch.Spec.BatchId,
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{

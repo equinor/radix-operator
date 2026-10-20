@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,7 +43,7 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 
 	// RadixApplication mapping branch "dev" -> environment "dev" and branch "prod" -> environment "prod".
 	ra := &v1.RadixApplication{
-		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+		Name: appName, Namespace: appNamespace,
 		Spec: v1.RadixApplicationSpec{
 			Environments: []v1.Environment{
 				{Name: "dev", Build: v1.EnvBuild{From: "dev"}},
@@ -67,14 +66,14 @@ func TestRadixJobQueueingOrder(t *testing.T) {
 
 	createApplyConfigJob := func(name string) {
 		rj := &v1.RadixJob{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: appNamespace},
-			Spec:       v1.RadixJobSpec{AppName: appName, PipeLineType: v1.ApplyConfig},
+			Name: name, Namespace: appNamespace,
+			Spec: v1.RadixJobSpec{AppName: appName, PipeLineType: v1.ApplyConfig},
 		}
 		require.NoError(t, c.Create(t.Context(), rj), "should create apply-config job %s", name)
 	}
 	createBuildDeployJob := func(name, branch string) {
 		rj := &v1.RadixJob{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: appNamespace},
+			Name: name, Namespace: appNamespace,
 			Spec: v1.RadixJobSpec{
 				AppName:      appName,
 				PipeLineType: v1.BuildDeploy,

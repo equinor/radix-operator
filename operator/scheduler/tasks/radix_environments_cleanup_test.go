@@ -127,8 +127,8 @@ func convertToEnvMap(radixEnvironments []radixv1.RadixEnvironment) map[string]ra
 func createRadixEnvironment(prop envProps) *radixv1.RadixEnvironment {
 	appName := random.RandString(5)
 	return &radixv1.RadixEnvironment{
-		ObjectMeta: metav1.ObjectMeta{Name: appName},
-		Spec:       radixv1.RadixEnvironmentSpec{AppName: appName, EnvName: prop.name},
+		Name: appName,
+		Spec: radixv1.RadixEnvironmentSpec{AppName: appName, EnvName: prop.name},
 		Status: radixv1.RadixEnvironmentStatus{
 			Orphaned:          prop.orphaned,
 			OrphanedTimestamp: prop.orphanedTimestamp,

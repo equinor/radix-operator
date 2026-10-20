@@ -117,9 +117,7 @@ func (app *ApplicationConfig) createOrUpdateDNSAliasClusterRole(ctx context.Cont
 		}
 		current = nil
 		desired = &rbacv1.ClusterRole{
-			ObjectMeta: v1.ObjectMeta{
-				Name: name,
-			},
+			Name: name,
 		}
 	} else {
 		desired = current.DeepCopy()
@@ -169,9 +167,7 @@ func (app *ApplicationConfig) createOrUpdateClusterRoleBinding(ctx context.Conte
 		}
 		current = nil
 		desired = &rbacv1.ClusterRoleBinding{
-			ObjectMeta: v1.ObjectMeta{
-				Name: clusterRole.Name,
-			},
+			Name: clusterRole.Name,
 		}
 	} else {
 		desired = current.DeepCopy()

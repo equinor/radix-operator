@@ -19,46 +19,38 @@ func Test_GetRadixBatchesForJobComponent(t *testing.T) {
 	app, env, comp := "app1", "env1", "c1"
 
 	ns := func(app, env string) string { return fmt.Sprintf("%s-%s", app, env) }
-	matchjob1 := radixv1.RadixBatch{ObjectMeta: metav1.ObjectMeta{
+	matchjob1 := radixv1.RadixBatch{
 		Name:      "matchjob1",
 		Namespace: ns(app, env),
-		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName(comp), radixlabels.ForBatchType(kube.RadixBatchTypeJob)),
-	}}
-	matchjob2 := radixv1.RadixBatch{ObjectMeta: metav1.ObjectMeta{
+		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName(comp), radixlabels.ForBatchType(kube.RadixBatchTypeJob))}
+	matchjob2 := radixv1.RadixBatch{
 		Name:      "matchjob2",
 		Namespace: ns(app, env),
-		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName(comp), radixlabels.ForBatchType(kube.RadixBatchTypeJob)),
-	}}
-	matchbatch1 := radixv1.RadixBatch{ObjectMeta: metav1.ObjectMeta{
+		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName(comp), radixlabels.ForBatchType(kube.RadixBatchTypeJob))}
+	matchbatch1 := radixv1.RadixBatch{
 		Name:      "matchbatch1",
 		Namespace: ns(app, env),
-		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName(comp), radixlabels.ForBatchType(kube.RadixBatchTypeBatch)),
-	}}
-	unmatched1 := radixv1.RadixBatch{ObjectMeta: metav1.ObjectMeta{
+		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName(comp), radixlabels.ForBatchType(kube.RadixBatchTypeBatch))}
+	unmatched1 := radixv1.RadixBatch{
 		Name:      "unmatched1",
 		Namespace: ns(app, env),
-		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName("othercomp"), radixlabels.ForBatchType(kube.RadixBatchTypeJob)),
-	}}
-	unmatched2 := radixv1.RadixBatch{ObjectMeta: metav1.ObjectMeta{
+		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName("othercomp"), radixlabels.ForBatchType(kube.RadixBatchTypeJob))}
+	unmatched2 := radixv1.RadixBatch{
 		Name:      "unmatched2",
 		Namespace: ns(app, env),
-		Labels:    radixlabels.Merge(radixlabels.ForComponentName(comp), radixlabels.ForBatchType(kube.RadixBatchTypeJob)),
-	}}
-	unmatched3 := radixv1.RadixBatch{ObjectMeta: metav1.ObjectMeta{
+		Labels:    radixlabels.Merge(radixlabels.ForComponentName(comp), radixlabels.ForBatchType(kube.RadixBatchTypeJob))}
+	unmatched3 := radixv1.RadixBatch{
 		Name:      "unmatched3",
 		Namespace: ns(app, env),
-		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForBatchType(kube.RadixBatchTypeJob)),
-	}}
-	unmatched4 := radixv1.RadixBatch{ObjectMeta: metav1.ObjectMeta{
+		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForBatchType(kube.RadixBatchTypeJob))}
+	unmatched4 := radixv1.RadixBatch{
 		Name:      "unmatched4",
 		Namespace: ns(app, "otherenv"),
-		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName(comp), radixlabels.ForBatchType(kube.RadixBatchTypeJob)),
-	}}
-	unmatched5 := radixv1.RadixBatch{ObjectMeta: metav1.ObjectMeta{
+		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName(comp), radixlabels.ForBatchType(kube.RadixBatchTypeJob))}
+	unmatched5 := radixv1.RadixBatch{
 		Name:      "unmatched5",
 		Namespace: ns(app, env),
-		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName(comp)),
-	}}
+		Labels:    radixlabels.Merge(radixlabels.ForApplicationName(app), radixlabels.ForComponentName(comp))}
 
 	client := radixfake.NewSimpleClientset() //nolint:staticcheck
 	applyRb := func(rb *radixv1.RadixBatch) error {

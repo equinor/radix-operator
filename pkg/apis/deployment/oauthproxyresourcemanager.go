@@ -463,9 +463,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxySecret(appName string, compon
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	secret := &corev1.Secret{
 		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-		},
+		Name: secretName,
 		Data: make(map[string][]byte),
 	}
 	oauthutil.MergeAuxOAuthProxyComponentResourceLabels(secret, appName, component)
@@ -739,8 +737,8 @@ func (o *oauthProxyResourceManager) createEnvVarWithSecretRef(envVarName, secret
 		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
-				Key:                  key,
+				Name: secretName,
+				Key:  key,
 			},
 		},
 	}

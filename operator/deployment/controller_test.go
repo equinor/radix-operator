@@ -35,13 +35,13 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	s.RadixInformerFactory.WaitForCacheSync(s.Ctx.Done())
 
 	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{Name: appName, Annotations: map[string]string{}}},
+		Name: appName, Annotations: map[string]string{}},
 		metav1.CreateOptions{})
 	s.Require().NoError(err)
 
 	// Create RD should sync
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName, Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: appName}},
+		Name: rdName, Namespace: namespace, Labels: map[string]string{kube.RadixAppLabel: appName},
 		Spec: radixv1.RadixDeploymentSpec{
 			Components: []radixv1.RadixDeployComponent{
 				{Name: "any", PublicPort: "http"},
@@ -92,11 +92,9 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, rdName).Times(0).DoAndReturn(s.SyncedChannelCallback())
 	isController := true
 	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "any-svc",
-			OwnerReferences: []metav1.OwnerReference{
-				{APIVersion: "radix.equinor.com/v1", Kind: "RadixDeployment", Name: rd.Name, Controller: &isController},
-			},
+		Name: "any-svc",
+		OwnerReferences: []metav1.OwnerReference{
+			{APIVersion: "radix.equinor.com/v1", Kind: "RadixDeployment", Name: rd.Name, Controller: &isController},
 		},
 	}
 	svc, err = s.KubeClient.CoreV1().Services(namespace).Create(s.Ctx, svc, metav1.CreateOptions{})

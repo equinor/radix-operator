@@ -33,10 +33,8 @@ func (app *ApplicationConfig) syncEnvironments(ctx context.Context) error {
 
 func (app *ApplicationConfig) buildRadixEnvironment(env radixv1.Environment) (*radixv1.RadixEnvironment, error) {
 	re := &radixv1.RadixEnvironment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   utils.GetEnvironmentNamespace(app.application.Name, env.Name),
-			Labels: labels.ForApplicationName(app.application.Name),
-		},
+		Name:   utils.GetEnvironmentNamespace(app.application.Name, env.Name),
+		Labels: labels.ForApplicationName(app.application.Name),
 		Spec: radixv1.RadixEnvironmentSpec{
 			AppName: app.application.Name,
 			EnvName: env.Name,

@@ -344,12 +344,12 @@ func tarGz(root string) ([]byte, error) {
 }
 
 func applyGitServerResources(ctx context.Context, c client.Client, image string, hostKeyPEM, repoArchive []byte) error {
-	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: gitServerNamespace}}
+	ns := &corev1.Namespace{Name: gitServerNamespace}
 	if _, err := controllerutil.CreateOrUpdate(ctx, c, ns, func() error { return nil }); err != nil {
 		return fmt.Errorf("failed to apply git server namespace: %w", err)
 	}
 
-	hostKeySecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: gitServerName + "-hostkey", Namespace: gitServerNamespace}}
+	hostKeySecret := &corev1.Secret{Name: gitServerName + "-hostkey", Namespace: gitServerNamespace}
 	if _, err := controllerutil.CreateOrUpdate(ctx, c, hostKeySecret, func() error {
 		hostKeySecret.Type = corev1.SecretTypeOpaque
 		hostKeySecret.Data = map[string][]byte{gitServerHostKeyField: hostKeyPEM}
@@ -358,7 +358,7 @@ func applyGitServerResources(ctx context.Context, c client.Client, image string,
 		return fmt.Errorf("failed to apply git server host key secret: %w", err)
 	}
 
-	repoConfigMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: gitServerName + "-repo", Namespace: gitServerNamespace}}
+	repoConfigMap := &corev1.ConfigMap{Name: gitServerName + "-repo", Namespace: gitServerNamespace}
 	if _, err := controllerutil.CreateOrUpdate(ctx, c, repoConfigMap, func() error {
 		repoConfigMap.BinaryData = map[string][]byte{"repo.tar.gz": repoArchive}
 		return nil
@@ -367,7 +367,7 @@ func applyGitServerResources(ctx context.Context, c client.Client, image string,
 	}
 
 	labels := map[string]string{"app": gitServerName}
-	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: gitServerName, Namespace: gitServerNamespace}}
+	deployment := &appsv1.Deployment{Name: gitServerName, Namespace: gitServerNamespace}
 	if _, err := controllerutil.CreateOrUpdate(ctx, c, deployment, func() error {
 		replicas := int32(1)
 		hostKeyMode := int32(0o400)
@@ -390,16 +390,16 @@ func applyGitServerResources(ctx context.Context, c client.Client, image string,
 			Volumes: []corev1.Volume{
 				{
 					Name: "hostkey",
-					VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
+					Secret: &corev1.SecretVolumeSource{
 						SecretName:  hostKeySecret.Name,
 						DefaultMode: &hostKeyMode,
-					}},
+					},
 				},
 				{
 					Name: "repo",
-					VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: repoConfigMap.Name},
-					}},
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						Name: repoConfigMap.Name,
+					},
 				},
 			},
 		}
@@ -408,7 +408,7 @@ func applyGitServerResources(ctx context.Context, c client.Client, image string,
 		return fmt.Errorf("failed to apply git server deployment: %w", err)
 	}
 
-	service := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: gitServerName, Namespace: gitServerNamespace}}
+	service := &corev1.Service{Name: gitServerName, Namespace: gitServerNamespace}
 	if _, err := controllerutil.CreateOrUpdate(ctx, c, service, func() error {
 		service.Spec.Selector = labels
 		service.Spec.Ports = []corev1.ServicePort{{
@@ -462,7 +462,7 @@ func restartDeployment(ctx context.Context, c client.Client, namespace, name str
 	// Use a merge patch instead of get+update so we don't conflict with concurrent status updates
 	// from the deployment controller.
 	patch := fmt.Appendf(nil, `{"spec":{"template":{"metadata":{"annotations":{"e2e/restartedAt":%q}}}}}`, time.Now().Format(time.RFC3339Nano))
-	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
+	deployment := &appsv1.Deployment{Namespace: namespace, Name: name}
 	if err := c.Patch(ctx, deployment, client.RawPatch(types.MergePatchType, patch)); err != nil {
 		return fmt.Errorf("failed to restart deployment %s/%s: %w", namespace, name, err)
 	}

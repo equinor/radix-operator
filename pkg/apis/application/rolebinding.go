@@ -11,7 +11,6 @@ import (
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (app *Application) applyRbacAppNamespace(ctx context.Context) error {
@@ -111,15 +110,11 @@ func (app *Application) pipelineRoleBinding(ctx context.Context, serviceAccount 
 	log.Ctx(ctx).Debug().Msgf("Create rolebinding config %s", defaults.PipelineAppRoleName)
 
 	rolebinding := &rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindRoleBinding,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.PipelineAppRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
+		APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
+		Kind:       k8s.KindRoleBinding,
+		Name:       defaults.PipelineAppRoleName,
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
@@ -144,17 +139,13 @@ func (app *Application) clusterRoleBinding(ctx context.Context, serviceAccount *
 	log.Ctx(ctx).Debug().Msgf("Create clusterrolebinding config %s", clusterRoleBindingName)
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindClusterRoleBinding,
+		APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
+		Kind:       k8s.KindClusterRoleBinding,
+		Name:       clusterRoleBindingName,
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleBindingName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
-			OwnerReferences: ownerReference,
-		},
+		OwnerReferences: ownerReference,
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
@@ -179,17 +170,13 @@ func (app *Application) rrClusterRoleBinding(ctx context.Context, clusterRole *r
 	ownerReference := app.getOwnerReference()
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindClusterRoleBinding,
+		APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
+		Kind:       k8s.KindClusterRoleBinding,
+		Name:       clusterRoleBindingName,
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleBindingName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
-			OwnerReferences: ownerReference,
-		},
+		OwnerReferences: ownerReference,
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,

@@ -415,9 +415,7 @@ func setupTestEnvForHandler(t *testing.T, ts scenario) (EventHandler, *radixfake
 
 func createKubernetesEvent(t *testing.T, client *kubefake.Clientset, namespace, name, eventType, involvedObjectName, involvedObjectKind, uid string) {
 	_, err := client.CoreV1().Events(namespace).CreateWithEventNamespaceWithContext(context.Background(), &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
+		Name: name,
 		InvolvedObject: corev1.ObjectReference{
 			Kind:      involvedObjectKind,
 			Name:      involvedObjectName,
@@ -433,11 +431,9 @@ func createKubernetesPod(client *kubefake.Clientset, name, appName, envName stri
 	namespace := operatorutils.GetEnvironmentNamespace(appName, envName)
 	return client.CoreV1().Pods(namespace).Create(context.Background(),
 		&corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
-				UID:    types.UID(uid),
-				Labels: radixlabels.ForApplicationName(appName),
-			},
+			Name:   name,
+			UID:    types.UID(uid),
+			Labels: radixlabels.ForApplicationName(appName),
 			Status: corev1.PodStatus{
 				ContainerStatuses: []corev1.ContainerStatus{
 					{Started: &started, Ready: ready, RestartCount: restartCount},
@@ -453,7 +449,7 @@ func createRadixApp(t *testing.T, kubeClient *kubefake.Clientset, radixClient *r
 		builder = builder.WithEnvironment(envName, "")
 		_, err := radixClient.RadixV1().RadixEnvironments().Create(context.Background(), operatorutils.NewEnvironmentBuilder().WithAppName(appName).WithEnvironmentName(envName).BuildRE(), metav1.CreateOptions{})
 		require.NoError(t, err)
-		_, err = kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operatorutils.GetEnvironmentNamespace(appName, envName)}}, metav1.CreateOptions{})
+		_, err = kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{Name: operatorutils.GetEnvironmentNamespace(appName, envName)}, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
 	_, err := radixClient.RadixV1().RadixApplications(operatorutils.GetAppNamespace(appName)).Create(context.Background(), builder.BuildRA(), metav1.CreateOptions{})

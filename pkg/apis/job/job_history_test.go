@@ -476,20 +476,16 @@ func (s *RadixJobHistoryTestSuite) createRadixJob(radixClient radixclient.Interf
 
 func createRadixDeployment(appName string, jobName string) *radixv1.RadixDeployment {
 	return &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: random.RandString(10),
-			Labels: labels.Merge(
-				radixlabels.ForApplicationName(appName),
-				radixlabels.ForPipelineJobName(jobName)),
-		},
+		Name: random.RandString(10),
+		Labels: labels.Merge(
+			radixlabels.ForApplicationName(appName),
+			radixlabels.ForPipelineJobName(jobName)),
 	}
 }
 
 func createRadixApplication(appName string) *radixv1.RadixApplication {
 	return &radixv1.RadixApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: appName,
-		},
+		Name: appName,
 		Spec: radixv1.RadixApplicationSpec{
 			Environments: []radixv1.Environment{
 				{Name: env1, Build: radixv1.EnvBuild{From: envBranch1}},
@@ -502,15 +498,13 @@ func createRadixApplication(appName string) *radixv1.RadixApplication {
 
 func createRadixJob(appName, jobName string, created time.Time, statusCondition radixv1.RadixJobCondition, pipelineType radixv1.RadixPipelineType, targetEnv, targetBranch string) *radixv1.RadixJob {
 	radixJob := radixv1.RadixJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: jobName,
-			Labels: radixlabels.Merge(
-				radixlabels.ForApplicationName(appName),
-				radixlabels.ForPipelineJobName(jobName),
-				radixlabels.ForPipelineJobType(),
-				radixlabels.ForPipelineJobPipelineType(pipelineType),
-			),
-		},
+		Name: jobName,
+		Labels: radixlabels.Merge(
+			radixlabels.ForApplicationName(appName),
+			radixlabels.ForPipelineJobName(jobName),
+			radixlabels.ForPipelineJobType(),
+			radixlabels.ForPipelineJobPipelineType(pipelineType),
+		),
 		Spec: radixv1.RadixJobSpec{
 			AppName:      appName,
 			PipeLineType: pipelineType,

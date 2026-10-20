@@ -69,10 +69,8 @@ func (suite *ConfigMapSuite) Test_CreateConfigMap() {
 		namespace := "some-namespace"
 		name := "some-name"
 		configMap, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
-				Labels: labels,
-			}})
+			Name:   name,
+			Labels: labels})
 		assert.Nil(t, err)
 
 		assert.Equal(t, labels, configMap.ObjectMeta.Labels)
@@ -102,10 +100,8 @@ func (suite *ConfigMapSuite) Test_ConfigMapInCluster() {
 		for _, scenario := range scenarios {
 			testEnv := getConfigMapTestEnv()
 			_, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   scenario.cmName,
-					Labels: labels,
-				}})
+				Name:   scenario.cmName,
+				Labels: labels})
 			assert.Nil(t, err)
 
 			configMaps, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).List(context.Background(), metav1.ListOptions{})
@@ -128,8 +124,8 @@ func Test_GetConfigMap(t *testing.T) {
 		namespace := "some-namespace"
 		name := "some-name"
 		testConfigMap := corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
-			Data:       map[string]string{"key1": "value1", "key2": "value2"},
+			Name: name,
+			Data: map[string]string{"key1": "value1", "key2": "value2"},
 		}
 		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &testConfigMap, metav1.CreateOptions{})
 
@@ -146,12 +142,12 @@ func Test_ApplyConfigMap(t *testing.T) {
 	namespace := "some-namespace"
 	name := "some-name"
 	currentConfigMap := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Data:       map[string]string{"key1": "value1", "key2": "value2"},
+		Name: name,
+		Data: map[string]string{"key1": "value1", "key2": "value2"},
 	}
 	desiredConfigMap := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Data:       map[string]string{"key2": "value2changed", "key3": "value3"},
+		Name: name,
+		Data: map[string]string{"key2": "value2changed", "key3": "value3"},
 	}
 
 	t.Run("Patch not existing config-map", func(t *testing.T) {

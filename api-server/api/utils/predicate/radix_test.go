@@ -40,7 +40,7 @@ func Test_IsBatchJobWithName(t *testing.T) {
 
 func Test_IsRadixDeploymentForRadixBatch(t *testing.T) {
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "batchns"},
+		Namespace: "batchns",
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: "deployname"},
@@ -48,22 +48,18 @@ func Test_IsRadixDeploymentForRadixBatch(t *testing.T) {
 		},
 	}
 	sut := IsRadixDeploymentForRadixBatch(batch)
-	assert.True(t, sut(radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{
+	assert.True(t, sut(radixv1.RadixDeployment{
 		Name:      "deployname",
-		Namespace: "batchns",
-	}}))
-	assert.False(t, sut(radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{
+		Namespace: "batchns"}))
+	assert.False(t, sut(radixv1.RadixDeployment{
 		Name:      "otherdeployname",
-		Namespace: "batchns",
-	}}))
-	assert.False(t, sut(radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{
+		Namespace: "batchns"}))
+	assert.False(t, sut(radixv1.RadixDeployment{
 		Name:      "deployname",
-		Namespace: "otherbatchns",
-	}}))
+		Namespace: "otherbatchns"}))
 
 	sut = IsRadixDeploymentForRadixBatch(nil)
-	assert.False(t, sut(radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{
+	assert.False(t, sut(radixv1.RadixDeployment{
 		Name:      "anydeployname",
-		Namespace: "anybatchns",
-	}}))
+		Namespace: "anybatchns"}))
 }

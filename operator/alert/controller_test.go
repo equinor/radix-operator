@@ -24,7 +24,7 @@ func TestControllerSuite(t *testing.T) {
 
 func (s *controllerTestSuite) Test_RadixAlertEvents() {
 	alertName, namespace := "any-alert", "any-ns"
-	alert := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alertName}}
+	alert := &v1.RadixAlert{Name: alertName}
 
 	sut := NewController(context.Background(), s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory)
 	s.RadixInformerFactory.Start(s.Ctx.Done())
@@ -61,9 +61,9 @@ func (s *controllerTestSuite) Test_RadixAlertEvents() {
 
 func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	alert1Name, alert2Name, namespace, appName := "alert1", "alert2", "any-ns", "any-app"
-	alert1 := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alert1Name, Labels: map[string]string{kube.RadixAppLabel: appName}}}
-	alert2 := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alert2Name}}
-	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: v1.RadixRegistrationSpec{Owner: "first-owner", AdGroups: []string{"first-admin-group"}, ReaderAdGroups: []string{"first-reader-group"}}}
+	alert1 := &v1.RadixAlert{Name: alert1Name, Labels: map[string]string{kube.RadixAppLabel: appName}}
+	alert2 := &v1.RadixAlert{Name: alert2Name}
+	rr := &v1.RadixRegistration{Name: appName, Spec: v1.RadixRegistrationSpec{Owner: "first-owner", AdGroups: []string{"first-admin-group"}, ReaderAdGroups: []string{"first-reader-group"}}}
 	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	if err != nil {
 		s.Require().NoError(err)

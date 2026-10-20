@@ -236,14 +236,12 @@ func buildPipelineJob(ctx context.Context, appName string, pipeline radixv1.Radi
 	}
 
 	job := radixv1.RadixJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: jobName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
-			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: jobSpec.GitRef,
-			},
+		Name: jobName,
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
+		},
+		Annotations: map[string]string{
+			kube.RadixBranchAnnotation: jobSpec.GitRef,
 		},
 		Spec: radixv1.RadixJobSpec{
 			AppName:              appName,

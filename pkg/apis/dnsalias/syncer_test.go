@@ -82,10 +82,10 @@ func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dns
 }
 
 func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
-	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: "app"}}
+	rr := &radixv1.RadixRegistration{Name: "app"}
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	rda := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}, Spec: radixv1.RadixDNSAliasSpec{AppName: "app"}}
+	rda := &radixv1.RadixDNSAlias{Name: "any-name", Generation: 42, Spec: radixv1.RadixDNSAliasSpec{AppName: "app"}}
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), rda, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
@@ -159,7 +159,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
 	s.Require().NoError(err)
 
 	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Name: aliasName,
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: envName,
@@ -255,7 +255,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_WithOAuth2() {
 	s.Require().NoError(err)
 
 	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Name: aliasName,
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: envName,
@@ -312,7 +312,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Deleted_WhenComponentNotPublic()
 	s.Require().NoError(err)
 
 	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Name: aliasName,
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: envName,
@@ -380,7 +380,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_ChangeDNSAliasComponent() {
 	s.Require().NoError(err)
 
 	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Name: aliasName,
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: envName,
@@ -482,7 +482,7 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_HTTPRoutes() {
 			s.Require().NoError(err)
 
 			dnsAlias := &radixv1.RadixDNSAlias{
-				ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+				Name: aliasName,
 				Spec: radixv1.RadixDNSAliasSpec{
 					AppName:     appName,
 					Environment: envName,
@@ -557,7 +557,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_MultiplePortsUsesPublicPort() {
 	s.Require().NoError(err)
 
 	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Name: aliasName,
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: envName,

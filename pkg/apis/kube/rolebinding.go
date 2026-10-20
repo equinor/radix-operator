@@ -54,14 +54,10 @@ func GetRolebindingToRoleForServiceAccountWithLabels(roleName, serviceAccountNam
 
 func getRoleBindingForSubjects(roleName, kind string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindRoleBinding,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   roleName,
-			Labels: labels,
-		},
+		APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
+		Kind:       k8s.KindRoleBinding,
+		Name:       roleName,
+		Labels:     labels,
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     kind,
@@ -180,14 +176,10 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(ctx context.Context, clusterrolebi
 // ApplyClusterRoleBindingToServiceAccount Creates cluster-role-binding as a link between cluster role and service account
 func (kubeutil *Kube) ApplyClusterRoleBindingToServiceAccount(ctx context.Context, roleName string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
 	rolebinding := &rbacv1.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindClusterRoleBinding,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s", serviceAccount.Namespace, serviceAccount.Name),
-			OwnerReferences: ownerReference,
-		},
+		APIVersion:      rbacv1.SchemeGroupVersion.Identifier(),
+		Kind:            k8s.KindClusterRoleBinding,
+		Name:            fmt.Sprintf("%s-%s", serviceAccount.Namespace, serviceAccount.Name),
+		OwnerReferences: ownerReference,
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     k8s.KindClusterRole,
@@ -207,15 +199,11 @@ func (kubeutil *Kube) ApplyClusterRoleBindingToServiceAccount(ctx context.Contex
 // ApplyRoleBindingToServiceAccount Creates role-binding as a link between role and service account
 func (kubeutil *Kube) ApplyRoleBindingToServiceAccount(ctx context.Context, roleKind, roleName, namespace string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
 	rolebinding := &rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindRoleBinding,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-%s-%s", roleName, strings.ToLower(roleKind), serviceAccount.Name),
-			Namespace:       namespace,
-			OwnerReferences: ownerReference,
-		},
+		APIVersion:      rbacv1.SchemeGroupVersion.Identifier(),
+		Kind:            k8s.KindRoleBinding,
+		Name:            fmt.Sprintf("%s-%s-%s", roleName, strings.ToLower(roleKind), serviceAccount.Name),
+		Namespace:       namespace,
+		OwnerReferences: ownerReference,
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     roleKind,

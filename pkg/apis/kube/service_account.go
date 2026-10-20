@@ -18,10 +18,8 @@ import (
 // CreateServiceAccount create a service account
 func (kubeutil *Kube) CreateServiceAccount(ctx context.Context, namespace, name string) (*corev1.ServiceAccount, error) {
 	serviceAccount := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 	}
 
 	return kubeutil.ApplyServiceAccount(ctx, &serviceAccount)

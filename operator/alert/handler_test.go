@@ -66,7 +66,7 @@ func (s *handlerTestSuite) Test_RadixAlertNotFound() {
 
 func (s *handlerTestSuite) Test_RadixAlertExist_AlertSyncerReturnError() {
 	alertName, namespace := "alert", "ns"
-	alert := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alertName}}
+	alert := &v1.RadixAlert{Name: alertName}
 	alert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert, metav1.CreateOptions{})
 	expectedError := fmt.Errorf("error")
 
@@ -79,7 +79,7 @@ func (s *handlerTestSuite) Test_RadixAlertExist_AlertSyncerReturnError() {
 
 func (s *handlerTestSuite) Test_RadixAlertExist_AlertSyncerReturnNil() {
 	alertName, namespace := "alert", "ns"
-	alert := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alertName}}
+	alert := &v1.RadixAlert{Name: alertName}
 	alert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert, metav1.CreateOptions{})
 
 	sut := NewHandler(s.kubeClient, s.kubeUtil, s.dynamicClient, s.eventRecorder, config.Config{}, WithAlertSyncerFactory(s.syncerFactory))

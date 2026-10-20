@@ -187,10 +187,8 @@ func (o *oauthRedisResourceManager) createOrUpdateService(ctx context.Context, c
 func (o *oauthRedisResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
 	serviceName := utils.GetAuxOAuthRedisServiceName(component.GetName())
 	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            serviceName,
-			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
-		},
+		Name:            serviceName,
+		OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
 			Selector: radixlabels.ForAuxOAuthRedisComponent(o.rd.Spec.AppName, component), //nolint:staticcheck

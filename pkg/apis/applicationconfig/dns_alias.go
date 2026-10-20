@@ -117,10 +117,8 @@ func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*ra
 
 func (app *ApplicationConfig) buildRadixDNSAlias(appName string, dnsAlias radixv1.DNSAlias) (*radixv1.RadixDNSAlias, error) {
 	rda := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   dnsAlias.Alias,
-			Labels: labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(dnsAlias.Component), labels.ForEnvironmentName(dnsAlias.Environment)),
-		},
+		Name:   dnsAlias.Alias,
+		Labels: labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(dnsAlias.Component), labels.ForEnvironmentName(dnsAlias.Environment)),
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: dnsAlias.Environment,

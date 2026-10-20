@@ -32,12 +32,10 @@ func TestGetBatches(t *testing.T) {
 		defer ctrl.Finish()
 		batchHandler := mock.NewMockBatchHandler(ctrl)
 		batchState := modelsV1.BatchStatus{
-			JobStatus: modelsV1.JobStatus{
-				Name:    "batchname",
-				Started: new(time.Now()),
-				Ended:   new(time.Now().Add(1 * time.Minute)),
-				Status:  "batchstatus",
-			},
+			Name:      "batchname",
+			Started:   new(time.Now()),
+			Ended:     new(time.Now().Add(1 * time.Minute)),
+			Status:    "batchstatus",
 			BatchType: string(kube.RadixBatchTypeBatch),
 		}
 		ctx := context.Background()
@@ -100,12 +98,10 @@ func TestGetBatch(t *testing.T) {
 		batchName := "batchname"
 		batchHandler := mock.NewMockBatchHandler(ctrl)
 		batchState := modelsV1.BatchStatus{
-			JobStatus: modelsV1.JobStatus{
-				Name:    batchName,
-				Started: new(time.Now()),
-				Ended:   new(time.Now().Add(1 * time.Minute)),
-				Status:  "batchstatus",
-			},
+			Name:      batchName,
+			Started:   new(time.Now()),
+			Ended:     new(time.Now().Add(1 * time.Minute)),
+			Status:    "batchstatus",
 			BatchType: string(kube.RadixBatchTypeBatch),
 		}
 		ctx := context.Background()
@@ -195,12 +191,10 @@ func TestCreateBatch(t *testing.T) {
 		defer ctrl.Finish()
 		batchScheduleDescription := models.BatchScheduleDescription{}
 		createdBatch := modelsV1.BatchStatus{
-			JobStatus: modelsV1.JobStatus{
-				Name:    "newbatch",
-				Started: new(time.Now()),
-				Ended:   new(time.Now().Add(1 * time.Minute)),
-				Status:  "batchstatus",
-			},
+			Name:      "newbatch",
+			Started:   new(time.Now()),
+			Ended:     new(time.Now().Add(1 * time.Minute)),
+			Status:    "batchstatus",
 			BatchType: string(kube.RadixBatchTypeBatch),
 		}
 		batchHandler := mock.NewMockBatchHandler(ctrl)
@@ -234,32 +228,28 @@ func TestCreateBatch(t *testing.T) {
 			JobScheduleDescriptions: []models.JobScheduleDescription{
 				{
 					Payload: "a_payload",
-					RadixJobComponentConfig: models.RadixJobComponentConfig{
-						Resources: &models.Resources{
-							Requests: models.ResourceList{
-								"cpu":    "20m",
-								"memory": "256M",
-							},
-							Limits: models.ResourceList{
-								"cpu":    "10m",
-								"memory": "128M",
-							},
+					Resources: &models.Resources{
+						Requests: models.ResourceList{
+							"cpu":    "20m",
+							"memory": "256M",
 						},
-						Node: &models.Node{ //nolint:staticcheck
-							Gpu:      "nvidia",
-							GpuCount: "6",
+						Limits: models.ResourceList{
+							"cpu":    "10m",
+							"memory": "128M",
 						},
+					},
+					Node: &models.Node{ //nolint:staticcheck
+						Gpu:      "nvidia",
+						GpuCount: "6",
 					},
 				},
 			},
 		}
 		createdBatch := modelsV1.BatchStatus{
-			JobStatus: modelsV1.JobStatus{
-				Name:    "newbatch",
-				Started: new(time.Now()),
-				Ended:   new(time.Now().Add(1 * time.Minute)),
-				Status:  "batchstatus",
-			},
+			Name:      "newbatch",
+			Started:   new(time.Now()),
+			Ended:     new(time.Now().Add(1 * time.Minute)),
+			Status:    "batchstatus",
 			BatchType: string(kube.RadixBatchTypeBatch),
 		}
 		batchHandler := mock.NewMockBatchHandler(ctrl)

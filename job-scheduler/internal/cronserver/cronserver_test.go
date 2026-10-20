@@ -37,15 +37,13 @@ func newTestServer(t *testing.T, jobComponent *radixv1.RadixDeployJobComponent, 
 // createCronBatch builds a cron RadixBatch for the test job component with the given condition and jobs.
 func createCronBatch(name string, condition radixv1.RadixBatchConditionType, jobNames ...string) *radixv1.RadixBatch {
 	b := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: testNamespace,
-			Labels: radixLabels.Merge(
-				radixLabels.ForApplicationName(testAppName),
-				radixLabels.ForComponentName(testJobComponent),
-				radixLabels.ForBatchCron(true),
-			),
-		},
+		Name:      name,
+		Namespace: testNamespace,
+		Labels: radixLabels.Merge(
+			radixLabels.ForApplicationName(testAppName),
+			radixLabels.ForComponentName(testJobComponent),
+			radixLabels.ForBatchCron(true),
+		),
 		Status: radixv1.RadixBatchStatus{
 			Condition: radixv1.RadixBatchCondition{Type: condition},
 		},

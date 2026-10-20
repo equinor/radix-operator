@@ -18,7 +18,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -739,8 +738,8 @@ func TestEnvConfigMapReader(t *testing.T) {
 	}{
 		"defaults are used when env vars are not set": {
 			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{Name: "radix-common-config", Namespace: "default"},
-				Data:       map[string]string{"configYaml": configHappyYaml},
+				Name: "radix-common-config", Namespace: "default",
+				Data: map[string]string{"configYaml": configHappyYaml},
 			},
 		},
 		"env vars select namespace, name and key": {
@@ -750,21 +749,21 @@ func TestEnvConfigMapReader(t *testing.T) {
 				"RADIX_COMMON_CONFIG_KEY":  "customKey",
 			},
 			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{Name: "custom-config", Namespace: "radix-system"},
-				Data:       map[string]string{"customKey": configHappyYaml},
+				Name: "custom-config", Namespace: "radix-system",
+				Data: map[string]string{"customKey": configHappyYaml},
 			},
 		},
 		"configmap not found": {
 			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{Name: "other-config", Namespace: "default"},
-				Data:       map[string]string{"configYaml": configHappyYaml},
+				Name: "other-config", Namespace: "default",
+				Data: map[string]string{"configYaml": configHappyYaml},
 			},
 			expectErr: true,
 		},
 		"key not found in configmap": {
 			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{Name: "radix-common-config", Namespace: "default"},
-				Data:       map[string]string{"someOtherKey": configHappyYaml},
+				Name: "radix-common-config", Namespace: "default",
+				Data: map[string]string{"someOtherKey": configHappyYaml},
 			},
 			expectErr: true,
 		},

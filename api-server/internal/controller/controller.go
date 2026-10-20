@@ -37,8 +37,7 @@ func (c *DefaultController) ErrorResponse(w http.ResponseWriter, r *http.Request
 func logError(ctx context.Context, err error) {
 	event := log.Ctx(ctx).Warn().Err(err)
 
-	var httpErr *radixhttp.Error
-	if errors.As(err, &httpErr) {
+	if httpErr, ok := errors.AsType[*radixhttp.Error](err); ok {
 		event.Str("user_message", httpErr.Message)
 	}
 

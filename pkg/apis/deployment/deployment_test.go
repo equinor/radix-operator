@@ -872,7 +872,7 @@ func getDeploymentsForRadixJobAux(deployments []appsv1.Deployment) []appsv1.Depl
 func Test_ReconcileStatus(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 	rr := &radixv1.RadixRegistration{}
-	rd := &radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "any-rd", Generation: 42}}
+	rd := &radixv1.RadixDeployment{Name: "any-rd", Generation: 42}
 	rd, err := radixclient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	require.NoError(t, err)
 
@@ -1089,7 +1089,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
 		_, err := client.CoreV1().ServiceAccounts("any-app-any-env").Create(
 			context.Background(),
-			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName}}},
+			&corev1.ServiceAccount{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName}},
 			metav1.CreateOptions{})
 		require.NoError(t, err)
 		_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -1109,7 +1109,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
 		_, err := client.CoreV1().ServiceAccounts("any-app-any-env").Create(
 			context.Background(),
-			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "any-other-label": "any-value"}}},
+			&corev1.ServiceAccount{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "any-other-label": "any-value"}},
 			metav1.CreateOptions{})
 		require.NoError(t, err)
 		_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -1137,7 +1137,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		// A service account that must not be deleted
 		_, err := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).Create(
 			context.Background(),
-			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: anyOtherServiceAccountName, Labels: map[string]string{kube.RadixComponentLabel: "anything"}}},
+			&corev1.ServiceAccount{Name: anyOtherServiceAccountName, Labels: map[string]string{kube.RadixComponentLabel: "anything"}},
 			metav1.CreateOptions{})
 		require.NoError(t, err)
 		// Deploy component with Azure identity must create custom SA
@@ -2138,7 +2138,7 @@ func addRadixBatches(radixclient radixclient.Interface, envNamespace string, dep
 	var errs []error
 	for _, jobName := range jobNames {
 		_, err := radixclient.RadixV1().RadixBatches(envNamespace).Create(context.Background(), &radixv1.RadixBatch{
-			ObjectMeta: metav1.ObjectMeta{Name: deploymentName + jobName},
+			Name: deploymentName + jobName,
 			Spec: radixv1.RadixBatchSpec{
 				RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 					LocalObjectReference: radixv1.LocalObjectReference{Name: deploymentName},
@@ -3096,10 +3096,8 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 
 			_, err := client.BatchV1().Jobs(namespace).Create(context.Background(),
 				&batchv1.Job{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   name,
-						Labels: labels,
-					},
+					Name:   name,
+					Labels: labels,
 				},
 				metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -3114,10 +3112,8 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 
 			_, err := client.CoreV1().Secrets(namespace).Create(context.Background(),
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   name,
-						Labels: labels,
-					},
+					Name:   name,
+					Labels: labels,
 				},
 				metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -3132,10 +3128,8 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 
 			_, err := client.CoreV1().Services(namespace).Create(context.Background(),
 				&corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   name,
-						Labels: labels,
-					},
+					Name:   name,
+					Labels: labels,
 				},
 				metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -3652,10 +3646,8 @@ func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 		}
 
 		return &radixv1.RadixBatch{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
-				Labels: lbl,
-			},
+			Name:   name,
+			Labels: lbl,
 		}
 	}
 
@@ -3742,7 +3734,7 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 			DNSNames:    []string{fqdn},
 			Duration:    &metav1.Duration{Duration: testConfig.Operator.CertificateAutomation.Duration},
 			RenewBefore: &metav1.Duration{Duration: testConfig.Operator.CertificateAutomation.RenewBefore},
-			IssuerRef: v1.ObjectReference{
+			IssuerRef: v1.IssuerReference{
 				Name:  testConfig.Operator.CertificateAutomation.GatewayClusterIssuer,
 				Kind:  "ClusterIssuer",
 				Group: "cert-manager.io",
@@ -4058,8 +4050,8 @@ func Test_ExternalDNS_GarbageCollectResourceNoLongerInSpec(t *testing.T) {
 	// Simulate that cert-manager creates Certificate secrets
 	for _, cert := range certs.Items {
 		_, err := kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: cert.Spec.SecretName, Labels: cert.Spec.SecretTemplate.Labels},
-			Type:       corev1.SecretTypeTLS,
+			Name: cert.Spec.SecretName, Labels: cert.Spec.SecretTemplate.Labels,
+			Type: corev1.SecretTypeTLS,
 		}, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
@@ -4267,7 +4259,7 @@ func serviceMonitorByNameExists(name string, serviceMonitors *monitoringv1.Servi
 func getServiceMonitorByName(name string, serviceMonitors *monitoringv1.ServiceMonitorList) *monitoringv1.ServiceMonitor {
 	for _, serviceMonitor := range serviceMonitors.Items {
 		if serviceMonitor.Name == name {
-			return serviceMonitor
+			return &serviceMonitor
 		}
 	}
 

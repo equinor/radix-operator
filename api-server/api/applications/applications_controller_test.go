@@ -112,7 +112,7 @@ func createPrometheusHandlerMock(t *testing.T, mockHandler *func(handler *mock.M
 	if mockHandler != nil {
 		(*mockHandler)(promQueryApi)
 	} else {
-		promQueryApi.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(&model.Vector{}, nil, nil)
+		promQueryApi.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(&model.Vector{}, nil, nil, nil)
 	}
 	return metricsHandler
 }

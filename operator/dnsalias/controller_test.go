@@ -59,8 +59,8 @@ func (s *controllerTestSuite) Test_RadixDNSAliasEvents() {
 
 	appNamespace := utils.GetAppNamespace(appName1)
 	_, err = s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.Background(), &radixv1.RadixApplication{
-		ObjectMeta: metav1.ObjectMeta{Name: appName1},
-		Spec:       radixv1.RadixApplicationSpec{DNSAlias: []radixv1.DNSAlias{{Alias: aliasName, Environment: envName1, Component: componentName1}}}}, metav1.CreateOptions{})
+		Name: appName1,
+		Spec: radixv1.RadixApplicationSpec{DNSAlias: []radixv1.DNSAlias{{Alias: aliasName, Environment: envName1, Component: componentName1}}}}, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
 	// Updating the RadixDNSAlias with component should trigger a sync

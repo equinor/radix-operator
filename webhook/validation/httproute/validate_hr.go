@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -52,7 +51,7 @@ func (validator *Validator) Validate(ctx context.Context, hr *gatewayapiv1.HTTPR
 func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 	return func(ctx context.Context, route *gatewayapiv1.HTTPRoute) ([]string, []error) {
 		// Only validate HTTPRoute if it is in a namespace managed by radix, otherwise skip validation to avoid blocking non-radix HTTPRoutes
-		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: route.Namespace}}
+		ns := corev1.Namespace{Name: route.Namespace}
 		if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(&ns), &ns); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msgf("failed to get namespace %s", route.Namespace)
 			return nil, []error{fmt.Errorf("failed to get namespace %s: %w", route.Namespace, err)}

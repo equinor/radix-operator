@@ -8,12 +8,11 @@ import (
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_GetRadixDNSAliases(t *testing.T) {
 	matched1 := radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: "matched1"},
+		Name: "matched1",
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName: "app1", Environment: "env1", Component: "comp1",
 		},
@@ -22,7 +21,7 @@ func Test_GetRadixDNSAliases(t *testing.T) {
 			Message:         "",
 		},
 	}
-	matched2 := radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: "matched2"}, Spec: radixv1.RadixDNSAliasSpec{
+	matched2 := radixv1.RadixDNSAlias{Name: "matched2", Spec: radixv1.RadixDNSAliasSpec{
 		AppName: "app1", Environment: "env1", Component: "comp1",
 	},
 		Status: radixv1.RadixDNSAliasStatus{
@@ -30,11 +29,11 @@ func Test_GetRadixDNSAliases(t *testing.T) {
 			Message:         "Some error",
 		},
 	}
-	unmatched := radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: "unmatched"}, Spec: radixv1.RadixDNSAliasSpec{
+	unmatched := radixv1.RadixDNSAlias{Name: "unmatched", Spec: radixv1.RadixDNSAliasSpec{
 		AppName: "app2", Environment: "env1", Component: "comp1",
 	}}
 	client := radixfake.NewSimpleClientset(&matched1, &matched2, &unmatched) //nolint:staticcheck
-	ra := &radixv1.RadixApplication{ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+	ra := &radixv1.RadixApplication{Name: "app1",
 		Spec: radixv1.RadixApplicationSpec{
 			DNSAlias: []radixv1.DNSAlias{
 				{Alias: "matched1", Environment: "env1", Component: "comp1"},

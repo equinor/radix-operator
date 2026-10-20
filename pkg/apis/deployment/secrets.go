@@ -158,11 +158,9 @@ func (deploy *Deployment) createOrUpdateComponentRuntimeSecret(ctx context.Conte
 			return fmt.Errorf("failed to get current secret: %w", err)
 		}
 		desiredSecret = &corev1.Secret{
-			Type: corev1.SecretTypeOpaque,
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: ns,
-			},
+			Type:      corev1.SecretTypeOpaque,
+			Name:      secretName,
+			Namespace: ns,
 		}
 		currentSecret = nil
 	} else {
@@ -200,15 +198,13 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 	secretType := corev1.SecretTypeOpaque
 	secret := corev1.Secret{
 		Type: secretType,
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:                          appName,
-				kube.RadixComponentLabel:                    componentName,
-				kube.RadixSecretRefTypeLabel:                string(radixv1.RadixSecretRefTypeAzureKeyVault),
-				kube.RadixSecretRefNameLabel:                strings.ToLower(azKeyVaultName),
-				defaults.SecretUsedBySecretStoreDriverLabel: "true", // used by CSI Azure Key vault secret store driver for secret rotation
-			},
+		Name: secretName,
+		Labels: map[string]string{
+			kube.RadixAppLabel:                          appName,
+			kube.RadixComponentLabel:                    componentName,
+			kube.RadixSecretRefTypeLabel:                string(radixv1.RadixSecretRefTypeAzureKeyVault),
+			kube.RadixSecretRefNameLabel:                strings.ToLower(azKeyVaultName),
+			defaults.SecretUsedBySecretStoreDriverLabel: "true", // used by CSI Azure Key vault secret store driver for secret rotation
 		},
 	}
 

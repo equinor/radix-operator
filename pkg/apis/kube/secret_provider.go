@@ -171,15 +171,13 @@ func buildSecretProviderClass(appName, radixDeploymentName, radixDeployComponent
 	secretRefName = strings.ToLower(secretRefName)
 	className := GetComponentSecretProviderClassName(radixDeploymentName, radixDeployComponentName, radixSecretRefType, secretRefName)
 	return &secretsstorev1.SecretProviderClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: className,
-			Labels: map[string]string{
-				RadixAppLabel:           appName,
-				RadixDeploymentLabel:    radixDeploymentName,
-				RadixComponentLabel:     radixDeployComponentName,
-				RadixSecretRefTypeLabel: string(radixSecretRefType),
-				RadixSecretRefNameLabel: secretRefName,
-			},
+		Name: className,
+		Labels: map[string]string{
+			RadixAppLabel:           appName,
+			RadixDeploymentLabel:    radixDeploymentName,
+			RadixComponentLabel:     radixDeployComponentName,
+			RadixSecretRefTypeLabel: string(radixSecretRefType),
+			RadixSecretRefNameLabel: secretRefName,
 		},
 		Spec: secretsstorev1.SecretProviderClassSpec{
 			Provider: azureSecureStorageProvider,
