@@ -139,14 +139,12 @@ func (deploy *Deployment) getScalerConfig(componentName string, config *radixv1.
 	triggers := getScalingTriggers(componentName, config)
 
 	scaler := &kedav1.ScaledObject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: componentName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:       appName,
-				kube.RadixComponentLabel: componentName,
-			},
-			OwnerReferences: ownerReference,
+		Name: componentName,
+		Labels: map[string]string{
+			kube.RadixAppLabel:       appName,
+			kube.RadixComponentLabel: componentName,
 		},
+		OwnerReferences: ownerReference,
 		Spec: kedav1.ScaledObjectSpec{
 			MinReplicaCount: config.MinReplicas,
 			MaxReplicaCount: new(config.MaxReplicas),
@@ -358,16 +356,14 @@ func (deploy *Deployment) getTriggerAuths(componentName string, config *radixv1.
 
 func (deploy *Deployment) getTriggerAuthentication(componentName, triggerName string, authentication radixv1.RadixHorizontalScalingAuthentication) kedav1.TriggerAuthentication {
 	return kedav1.TriggerAuthentication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: utils.GetTriggerAuthenticationName(componentName, triggerName),
-			Labels: map[string]string{
-				kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName, //nolint:staticcheck
-				kube.RadixComponentLabel: componentName,
-				kube.RadixTriggerLabel:   triggerName,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				getOwnerReferenceOfDeployment(deploy.radixDeployment),
-			},
+		Name: utils.GetTriggerAuthenticationName(componentName, triggerName),
+		Labels: map[string]string{
+			kube.RadixAppLabel:       deploy.radixDeployment.Spec.AppName, //nolint:staticcheck
+			kube.RadixComponentLabel: componentName,
+			kube.RadixTriggerLabel:   triggerName,
+		},
+		OwnerReferences: []metav1.OwnerReference{
+			getOwnerReferenceOfDeployment(deploy.radixDeployment),
 		},
 		Spec: kedav1.TriggerAuthenticationSpec{
 			PodIdentity: &kedav1.AuthPodIdentity{

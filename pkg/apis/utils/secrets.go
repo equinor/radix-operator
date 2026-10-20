@@ -63,10 +63,8 @@ func createEnvVarWithSecretRef(secretName, envVarName string) corev1.EnvVar {
 		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: secretName,
-				},
-				Key: envVarName,
+				Name: secretName,
+				Key:  envVarName,
 			},
 		},
 	}

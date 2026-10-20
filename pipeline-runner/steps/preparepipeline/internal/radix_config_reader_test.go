@@ -45,7 +45,7 @@ func Test_LoadRadixApplication(t *testing.T) {
 		t.Run(ts.name, func(t *testing.T) {
 			rxClient := radixclientfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
 			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
-				ObjectMeta: metav1.ObjectMeta{Name: appName},
+				Name: appName,
 			}, metav1.CreateOptions{})
 			require.NoError(t, err)
 			pipelineInfo := &model.PipelineInfo{

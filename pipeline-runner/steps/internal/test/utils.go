@@ -15,8 +15,8 @@ import (
 // CreateBuildSecret Create a build secret
 func CreateBuildSecret(kubeClient kubernetes.Interface, appName string, data map[string][]byte) error {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName},
-		Data:       data,
+		Name: defaults.BuildSecretsName,
+		Data: data,
 	}
 
 	_, err := kubeClient.CoreV1().Secrets(utils.GetAppNamespace(appName)).Create(context.Background(), secret, metav1.CreateOptions{})

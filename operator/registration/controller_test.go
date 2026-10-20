@@ -33,7 +33,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	}()
 
 	// Create RR should sync
-	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}
+	rr := &radixv1.RadixRegistration{Name: appName}
 	s.Handler.EXPECT().Sync(gomock.Any(), "", appName).Times(1).DoAndReturn(s.SyncedChannelCallback())
 	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(s.Ctx, rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -71,11 +71,9 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	s.Handler.EXPECT().Sync(gomock.Any(), "", appName).Times(0).DoAndReturn(s.SyncedChannelCallback())
 	isController := true
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "any-ns",
-			OwnerReferences: []metav1.OwnerReference{
-				{APIVersion: "radix.equinor.com/v1", Kind: "RadixRegistration", Name: rr.Name, Controller: &isController},
-			},
+		Name: "any-ns",
+		OwnerReferences: []metav1.OwnerReference{
+			{APIVersion: "radix.equinor.com/v1", Kind: "RadixRegistration", Name: rr.Name, Controller: &isController},
 		},
 	}
 	ns, err = s.KubeClient.CoreV1().Namespaces().Create(s.Ctx, ns, metav1.CreateOptions{})
@@ -84,7 +82,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 
 	// Add Git deploy secret should not sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", appName).Times(0).DoAndReturn(s.SyncedChannelCallback())
-	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: defaults.GitPrivateKeySecretName, Namespace: ns.Name}}
+	secret := &corev1.Secret{Name: defaults.GitPrivateKeySecretName, Namespace: ns.Name}
 	secret, err = s.KubeClient.CoreV1().Secrets(secret.Namespace).Create(s.Ctx, secret, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called")
@@ -103,7 +101,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 
 	// Test arbitrary secret should not sync
 	s.Handler.EXPECT().Sync(gomock.Any(), "", appName).Times(0).DoAndReturn(s.SyncedChannelCallback())
-	arbitrarySecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "any-secret", Namespace: ns.Name}}
+	arbitrarySecret := &corev1.Secret{Name: "any-secret", Namespace: ns.Name}
 	arbitrarySecret, err = s.KubeClient.CoreV1().Secrets(arbitrarySecret.Namespace).Create(s.Ctx, arbitrarySecret, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	s.WaitForNotSynced("Sync should not be called")

@@ -141,10 +141,8 @@ func createOrUpdateVolumeMountSecret(ctx context.Context, kubeUtil *kube.Kube, a
 			return fmt.Errorf("failed to get current volume mount secret: %w", err)
 		}
 		desiredSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: namespace,
-			},
+			Name:      secretName,
+			Namespace: namespace,
 		}
 		currentSecret = nil
 	} else {

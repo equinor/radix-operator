@@ -199,10 +199,8 @@ func TestCreateJob(t *testing.T) {
 		expectedBatchJob := radixv1.RadixBatchJob{
 			Name: jobName,
 			PayloadSecretRef: &radixv1.PayloadSecretKeySelector{
-				Key: jobName,
-				LocalObjectReference: radixv1.LocalObjectReference{
-					Name: fmt.Sprintf("%s-payloads-0", batchName),
-				},
+				Key:  jobName,
+				Name: fmt.Sprintf("%s-payloads-0", batchName),
 			},
 		}
 		assert.Equal(t, expectedBatchJob, batchJob)
@@ -260,16 +258,14 @@ func TestCreateJob(t *testing.T) {
 		handler := New(kubeUtil, env, &radixDeployJobComponent)
 
 		jobRequestConfig := models.JobScheduleDescription{
-			RadixJobComponentConfig: models.RadixJobComponentConfig{
-				Resources: &models.Resources{
-					Requests: models.ResourceList{
-						"cpu":    "50m",
-						"memory": "60M",
-					},
-					Limits: models.ResourceList{
-						"cpu":    "100m",
-						"memory": "120M",
-					},
+			Resources: &models.Resources{
+				Requests: models.ResourceList{
+					"cpu":    "50m",
+					"memory": "60M",
+				},
+				Limits: models.ResourceList{
+					"cpu":    "100m",
+					"memory": "120M",
 				},
 			},
 		}
@@ -360,11 +356,9 @@ func TestCreateJob(t *testing.T) {
 		require.NoError(t, err)
 		handler := New(kubeUtil, modelsEnv.NewEnv(), &radixDeployJobComponent)
 		jobStatus, err := handler.CreateJob(context.TODO(), &models.JobScheduleDescription{
-			RadixJobComponentConfig: models.RadixJobComponentConfig{
-				Node: &models.Node{ //nolint:staticcheck
-					Gpu:      "gpu1, gpu2",
-					GpuCount: "2",
-				},
+			Node: &models.Node{ //nolint:staticcheck
+				Gpu:      "gpu1, gpu2",
+				GpuCount: "2",
 			},
 		}, "")
 		require.NoError(t, err)
@@ -402,15 +396,13 @@ func TestCreateJob(t *testing.T) {
 		require.NoError(t, err)
 		handler := New(kubeUtil, modelsEnv.NewEnv(), &radixDeployJobComponent)
 		jobStatus, err := handler.CreateJob(context.TODO(), &models.JobScheduleDescription{
-			RadixJobComponentConfig: models.RadixJobComponentConfig{
-				FailurePolicy: &models.FailurePolicy{
-					Rules: []models.FailurePolicyRule{
-						{
-							Action: models.FailurePolicyRuleActionFailJob,
-							OnExitCodes: models.FailurePolicyRuleOnExitCodes{
-								Operator: models.FailurePolicyRuleOnExitCodesOpIn,
-								Values:   []int32{42},
-							},
+			FailurePolicy: &models.FailurePolicy{
+				Rules: []models.FailurePolicyRule{
+					{
+						Action: models.FailurePolicyRuleActionFailJob,
+						OnExitCodes: models.FailurePolicyRuleOnExitCodes{
+							Operator: models.FailurePolicyRuleOnExitCodesOpIn,
+							Values:   []int32{42},
 						},
 					},
 				},

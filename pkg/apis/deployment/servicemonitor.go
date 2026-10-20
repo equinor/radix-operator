@@ -24,7 +24,7 @@ func (deploy *Deployment) createOrUpdateServiceMonitor(ctx context.Context, depl
 
 	namespace := deploy.radixDeployment.Namespace
 	componentName := deployComponent.GetName()
-	sb := &monitoringv1.ServiceMonitor{ObjectMeta: metav1.ObjectMeta{Name: componentName, Namespace: namespace}}
+	sb := &monitoringv1.ServiceMonitor{Name: componentName, Namespace: namespace}
 	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, sb, func() error {
 		if sb.ObjectMeta.Labels == nil {
 			sb.ObjectMeta.Labels = map[string]string{}
@@ -75,9 +75,9 @@ func (deploy *Deployment) deleteServiceMonitorForComponent(ctx context.Context, 
 	}
 
 	for _, serviceMonitor := range serviceMonitors.Items {
-		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
+		componentName, ok := RadixComponentNameFromComponentLabel(&serviceMonitor)
 		if ok && component.GetName() == string(componentName) {
-			if err := deploy.dynamicClient.Delete(ctx, serviceMonitor); err != nil {
+			if err := deploy.dynamicClient.Delete(ctx, &serviceMonitor); err != nil {
 				return err
 			}
 		}
@@ -93,13 +93,13 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec(ctx contex
 	}
 
 	for _, serviceMonitor := range serviceMonitors.Items {
-		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
+		componentName, ok := RadixComponentNameFromComponentLabel(&serviceMonitor)
 		if !ok {
 			continue
 		}
 		if deploy.isEligibleForGarbageCollectServiceMonitorsForComponent(componentName) {
 
-			if err := deploy.dynamicClient.Delete(ctx, serviceMonitor); err != nil {
+			if err := deploy.dynamicClient.Delete(ctx, &serviceMonitor); err != nil {
 				return err
 			}
 		}

@@ -48,7 +48,7 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 			func(host dnsInfo) bool { return host.dnsType != dnsTypeExternal })
 	}
 
-	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: component.GetName(), Namespace: deploy.radixDeployment.Namespace}}
+	route := &gatewayapiv1.HTTPRoute{Name: component.GetName(), Namespace: deploy.radixDeployment.Namespace}
 	if len(hosts) == 0 {
 		err := deploy.dynamicClient.Delete(ctx, route)
 		if client.IgnoreNotFound(err) != nil {
@@ -106,7 +106,7 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 					},
 				},
 			},
-			CommonRouteSpec: gatewayapiv1.CommonRouteSpec{ParentRefs: parentRefs},
+			ParentRefs: parentRefs,
 		}
 
 		route.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}

@@ -14,16 +14,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func createRadixJob(appName, jobName string) *v1.RadixJob {
 	return &v1.RadixJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobName,
-			Namespace: utils.GetAppNamespace(appName),
-		},
+		Name:      jobName,
+		Namespace: utils.GetAppNamespace(appName),
 		Spec: v1.RadixJobSpec{
 			AppName:      appName,
 			PipeLineType: v1.Deploy,

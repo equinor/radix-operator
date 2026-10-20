@@ -5,7 +5,6 @@ import (
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -50,9 +49,7 @@ func TestRadixEnvironmentEnvNameValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			re := &v1.RadixEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-envname-validation",
-				},
+				Name: "test-envname-validation",
 				Spec: v1.RadixEnvironmentSpec{
 					AppName: "myapp",
 					EnvName: tc.envName,

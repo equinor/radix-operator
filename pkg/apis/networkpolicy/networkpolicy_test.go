@@ -74,14 +74,12 @@ func TestUpdateEnvEgressRules_NoRulesAndNilAllowRadix_DeletesExistingPolicies(t 
 
 	// Pre-create a user-defined network policy
 	existing := &networkingv1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      userDefinedEgressPolicyName,
-			Namespace: ns,
-			Labels: map[string]string{
-				kube.RadixAppLabel:                      appName,
-				kube.RadixEnvLabel:                      envName,
-				kube.RadixUserDefinedNetworkPolicyLabel: strconv.FormatBool(true),
-			},
+		Name:      userDefinedEgressPolicyName,
+		Namespace: ns,
+		Labels: map[string]string{
+			kube.RadixAppLabel:                      appName,
+			kube.RadixEnvLabel:                      envName,
+			kube.RadixUserDefinedNetworkPolicyLabel: strconv.FormatBool(true),
 		},
 		Spec: networkingv1.NetworkPolicySpec{
 			PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeEgress},
@@ -121,14 +119,12 @@ func TestUpdateEnvEgressRules_EmptyRulesAndNilAllowRadix_DeletesExistingPolicies
 
 	// Pre-create a user-defined network policy
 	existing := &networkingv1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      userDefinedEgressPolicyName,
-			Namespace: ns,
-			Labels: map[string]string{
-				kube.RadixAppLabel:                      appName,
-				kube.RadixEnvLabel:                      envName,
-				kube.RadixUserDefinedNetworkPolicyLabel: strconv.FormatBool(true),
-			},
+		Name:      userDefinedEgressPolicyName,
+		Namespace: ns,
+		Labels: map[string]string{
+			kube.RadixAppLabel:                      appName,
+			kube.RadixEnvLabel:                      envName,
+			kube.RadixUserDefinedNetworkPolicyLabel: strconv.FormatBool(true),
 		},
 		Spec: networkingv1.NetworkPolicySpec{
 			PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeEgress},

@@ -107,8 +107,8 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretExist() {
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().WithAppName(anyAppName).WithBuildSecrets("secret1", "secret2").BuildRA()
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName, Namespace: utils.GetAppNamespace(anyAppName)},
-		Data:       map[string][]byte{"any": []byte("data")},
+		Name: defaults.BuildSecretsName, Namespace: utils.GetAppNamespace(anyAppName),
+		Data: map[string][]byte{"any": []byte("data")},
 	}
 	secret, _ = s.kubeClient.CoreV1().Secrets(utils.GetAppNamespace(anyAppName)).Create(context.Background(), secret, metav1.CreateOptions{})
 
@@ -857,7 +857,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 	raWithoutSecret := raBuilder.WithBuildSecrets().BuildRA()
 	oldRa := defaultRa.DeepCopy()
 	oldRa.Spec.Components[0].Variables = radixv1.EnvVarsMap{"anyvar": "anyvalue"}
-	currentBuildSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName}, Data: map[string][]byte{buildSecretName: []byte("anydata")}}
+	currentBuildSecret := &corev1.Secret{Name: defaults.BuildSecretsName, Data: map[string][]byte{buildSecretName: []byte("anydata")}}
 	oldBuildSecret := currentBuildSecret.DeepCopy()
 	oldBuildSecret.Data[buildSecretName] = []byte("newdata")
 	radixDeploymentFactory := func(annotations map[string]string, condition radixv1.RadixDeployCondition, componentBuilders []utils.DeployComponentBuilder, jobBuilders []utils.DeployJobComponentBuilder) *radixv1.RadixDeployment {
@@ -1616,7 +1616,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 			s.Require().NoError(err)
 
 			for _, env := range []string{"anyapp-app", "anyapp-dev"} {
-				_, err = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: env}}, metav1.CreateOptions{})
+				_, err = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{Name: env}, metav1.CreateOptions{})
 				s.Require().NoError(err, "create env %s", env)
 			}
 

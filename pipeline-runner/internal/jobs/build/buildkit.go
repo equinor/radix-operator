@@ -146,34 +146,26 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 	volumes = append(volumes,
 		corev1.Volume{
 			Name: defaults.PrivateImageHubSecretName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: defaults.PrivateImageHubSecretName,
-				},
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: defaults.PrivateImageHubSecretName,
 			},
 		},
 		corev1.Volume{
 			Name: buildKitHomeVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
-				},
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
 			},
 		},
 		corev1.Volume{
 			Name: buildKitRunVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
-				},
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
 			},
 		},
 		corev1.Volume{
 			Name: buildKitRootVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
-				},
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				SizeLimit: resource.NewScaledQuantity(100, resource.Giga), // buildah puts container overlays there, which can be as large as several gigabytes
 			},
 		},
 	)
@@ -182,10 +174,8 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 		volumes = append(volumes,
 			corev1.Volume{
 				Name: c.cfg.Common.ExternalRegistryAuthSecret,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: c.cfg.Common.ExternalRegistryAuthSecret,
-					},
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: c.cfg.Common.ExternalRegistryAuthSecret,
 				},
 			},
 		)
@@ -195,10 +185,8 @@ func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
 		volumes = append(volumes,
 			corev1.Volume{
 				Name: defaults.BuildSecretsName,
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: defaults.BuildSecretsName,
-					},
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: defaults.BuildSecretsName,
 				},
 			},
 		)
@@ -309,8 +297,8 @@ func (c *buildKitKubeJobProps) getPodContainerEnvVars() []corev1.EnvVar {
 			Name: "BUILDAH_USERNAME",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
-					Key:                  "username",
+					Name: defaults.AzureACRServicePrincipleBuildahSecretName,
+					Key:  "username",
 				},
 			},
 		},
@@ -318,8 +306,8 @@ func (c *buildKitKubeJobProps) getPodContainerEnvVars() []corev1.EnvVar {
 			Name: "BUILDAH_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRServicePrincipleBuildahSecretName},
-					Key:                  "password",
+					Name: defaults.AzureACRServicePrincipleBuildahSecretName,
+					Key:  "password",
 				},
 			},
 		},
@@ -327,8 +315,8 @@ func (c *buildKitKubeJobProps) getPodContainerEnvVars() []corev1.EnvVar {
 			Name: "BUILDAH_CACHE_USERNAME",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
-					Key:                  "username",
+					Name: defaults.AzureACRTokenPasswordAppRegistrySecretName,
+					Key:  "username",
 				},
 			},
 		},
@@ -336,8 +324,8 @@ func (c *buildKitKubeJobProps) getPodContainerEnvVars() []corev1.EnvVar {
 			Name: "BUILDAH_CACHE_PASSWORD",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: defaults.AzureACRTokenPasswordAppRegistrySecretName},
-					Key:                  "password",
+					Name: defaults.AzureACRTokenPasswordAppRegistrySecretName,
+					Key:  "password",
 				},
 			},
 		},

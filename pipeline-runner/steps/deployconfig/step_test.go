@@ -738,7 +738,7 @@ func (s *deployConfigTestSuite) createUsedNamespaces(ts scenario) {
 	}
 	usedNamespaces := slices.Collect(maps.Keys(usedNamespacesSet))
 	for _, namespace := range usedNamespaces {
-		_, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.GetEnvironmentNamespace(appName, namespace)}}, metav1.CreateOptions{})
+		_, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{Name: utils.GetEnvironmentNamespace(appName, namespace)}, metav1.CreateOptions{})
 		s.Require().NoError(err)
 	}
 }

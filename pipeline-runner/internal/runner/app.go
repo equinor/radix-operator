@@ -175,10 +175,8 @@ func (cli *PipelineRunner) UpdateStatus(ctx context.Context, condition v1.RadixJ
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		rj := &v1.RadixJob{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      cli.pipelineInfo.PipelineArguments.JobName,
-				Namespace: utils.GetAppNamespace(cli.appName),
-			},
+			Name:      cli.pipelineInfo.PipelineArguments.JobName,
+			Namespace: utils.GetAppNamespace(cli.appName),
 		}
 
 		err := cli.dynamicClient.Get(ctx, client.ObjectKeyFromObject(rj), rj)

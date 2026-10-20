@@ -45,8 +45,8 @@ func TestDeploy_WaitActiveDeployment(t *testing.T) {
 
 			if ts.hasRadixDevelopment {
 				_, err := radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), &radixv1.RadixDeployment{
-					ObjectMeta: metav1.ObjectMeta{Name: radixDeploymentName},
-					Status:     ts.radixDeploymentStatus,
+					Name:   radixDeploymentName,
+					Status: ts.radixDeploymentStatus,
 				}, metav1.CreateOptions{})
 				require.NoError(tt, err)
 			}
@@ -64,6 +64,6 @@ func TestDeploy_WaitActiveDeployment(t *testing.T) {
 }
 
 func createNamespace(kubeClient *kubernetes.Clientset, namespace string) error {
-	_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
+	_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{Name: namespace}, metav1.CreateOptions{})
 	return err
 }

@@ -105,18 +105,16 @@ func AddRadixBatchWithStatus(radixClient radixclient.Interface, jobName, compone
 		panic(fmt.Sprintf("invalid job name %s", jobName))
 	}
 	batch := v1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      batchName,
-			Namespace: namespace,
-			Labels:    labels,
-		},
+		Name:      batchName,
+		Namespace: namespace,
+		Labels:    labels,
 		Spec: v1.RadixBatchSpec{
 			Jobs: []v1.RadixBatchJob{
 				{
 					Name: batchJobName,
 					PayloadSecretRef: &v1.PayloadSecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{Name: jobName},
-						Key:                  jobName,
+						Name: jobName,
+						Key:  jobName,
 					},
 				},
 			},
@@ -146,18 +144,16 @@ func CreateSecretForTest(appName, secretName, jobName, radixJobComponentName, na
 	_, err := kubeClient.CoreV1().Secrets(namespace).Create(
 		context.TODO(),
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: secretName,
-				Labels: radixLabels.Merge(
-					radixLabels.ForApplicationName(appName),
-					radixLabels.ForComponentName(radixJobComponentName),
-					radixLabels.ForBatchName(batchName),
-					radixLabels.ForJobScheduleJobType(),
-					radixLabels.ForRadixSecretType(kube.RadixSecretJobPayload),
-				),
-				CreationTimestamp: metav1.NewTime(twoDaysAgo),
-			},
-			Data: map[string][]byte{batchJobName: []byte("secret")},
+			Name: secretName,
+			Labels: radixLabels.Merge(
+				radixLabels.ForApplicationName(appName),
+				radixLabels.ForComponentName(radixJobComponentName),
+				radixLabels.ForBatchName(batchName),
+				radixLabels.ForJobScheduleJobType(),
+				radixLabels.ForRadixSecretType(kube.RadixSecretJobPayload),
+			),
+			CreationTimestamp: metav1.NewTime(twoDaysAgo),
+			Data:              map[string][]byte{batchJobName: []byte("secret")},
 		},
 		metav1.CreateOptions{},
 	)

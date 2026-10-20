@@ -105,7 +105,7 @@ func (s *syncerTestSuite) setupTest() {
 
 func (s *syncerTestSuite) Test_ReconcileStatus() {
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "any-rd", Namespace: "any-ns"},
+		Name: "any-rd", Namespace: "any-ns",
 		Spec: radixv1.RadixDeploymentSpec{
 			Jobs: []radixv1.RadixDeployJobComponent{
 				{Name: "job"},
@@ -115,7 +115,7 @@ func (s *syncerTestSuite) Test_ReconcileStatus() {
 	rd, err := s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(s.T().Context(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	rb := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: "any-name", Namespace: rd.Namespace, Generation: 42},
+		Name: "any-name", Namespace: rd.Namespace, Generation: 42,
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{
@@ -179,8 +179,8 @@ func (s *syncerTestSuite) Test_ShouldSkipReconcileResourcesWhenBatchConditionIsD
 			jobName, namespace := fmt.Sprintf("any-job-%d", i), "any-ns"
 			expectedStatus := radixv1.RadixBatchStatus{Condition: radixv1.RadixBatchCondition{Type: conditionType}}
 			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: jobName},
-				Status:     expectedStatus,
+				Name:   jobName,
+				Status: expectedStatus,
 			}
 			batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 			s.Require().NoError(err)
@@ -204,7 +204,7 @@ func (s *syncerTestSuite) Test_ServiceCreated() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -217,7 +217,7 @@ func (s *syncerTestSuite) Test_ServiceCreated() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -254,7 +254,7 @@ func (s *syncerTestSuite) Test_ServiceNotCreatedWhenPortsIsEmpty() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name := "job1"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -266,7 +266,7 @@ func (s *syncerTestSuite) Test_ServiceNotCreatedWhenPortsIsEmpty() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -290,7 +290,7 @@ func (s *syncerTestSuite) Test_ServiceNotCreatedWhenPortsIsEmpty() {
 func (s *syncerTestSuite) Test_ServiceNotCreatedForJobWithPhaseDone() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -315,7 +315,7 @@ func (s *syncerTestSuite) Test_ServiceNotCreatedForJobWithPhaseDone() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -341,7 +341,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 	appName, batchName, componentName, namespace, rdName, imageName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "any-image"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -354,7 +354,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -443,7 +443,7 @@ func (s *syncerTestSuite) Test_BatchJobVariableOverridesComponentEnvVar() {
 	appName, batchName, componentName, namespace, rdName, imageName := "any-app", "any-batch", "update-database", "any-ns", "any-rd", "any-image"
 	jobName := "job1"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -455,7 +455,7 @@ func (s *syncerTestSuite) Test_BatchJobVariableOverridesComponentEnvVar() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -503,11 +503,11 @@ func (s *syncerTestSuite) Test_BatchWithCustomImages() {
 	const imageName1, imageName2, imageName3, imageName3new = "any-image:tag1", "any-image:tag2", "any-image:tag3", "any-image:tag3-new"
 	const imageId1, imageId2, imageId3 = "image-digest1", "image-digest2", "image-digest3"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.Merge(
+		Name: batchName, Labels: radixlabels.Merge(
 			radixlabels.ForJobScheduleJobType(),
 			radixlabels.ForApplicationName(appName),
 			radixlabels.ForComponentName(componentName),
-		)},
+		),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -521,7 +521,7 @@ func (s *syncerTestSuite) Test_BatchWithCustomImages() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -599,12 +599,10 @@ func (s *syncerTestSuite) createPodForJob(kubeJob batchv1.Job, namespace string,
 		kubeJob.GetLabels(),
 	)
 	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      kubeJob.Name + "-pod",
-			Namespace: namespace,
-			Labels:    podLabels,
-		},
-		Spec: kubeJob.Spec.Template.Spec,
+		Name:      kubeJob.Name + "-pod",
+		Namespace: namespace,
+		Labels:    podLabels,
+		Spec:      kubeJob.Spec.Template.Spec,
 		Status: corev1.PodStatus{
 			ContainerStatuses: []corev1.ContainerStatus{
 				{
@@ -623,7 +621,7 @@ func (s *syncerTestSuite) Test_Batch_AffinityFromRuntime() {
 	appName, batchName, componentName, namespace, rdName, imageName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "any-image"
 	jobName, runtimeArch := "job1", "customarch"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -635,7 +633,7 @@ func (s *syncerTestSuite) Test_Batch_AffinityFromRuntime() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -706,7 +704,7 @@ func (s *syncerTestSuite) Test_Batch_ImagePullSecrets() {
 			appName, envName, batchName, jobComponentName, rdName, jobName := "any-app", "any-env", "any-batch", "compute", "any-rd", "any-jobname"
 			namespace := utils.GetEnvironmentNamespace(appName, envName)
 			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 				Spec: radixv1.RadixBatchSpec{
 					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -745,7 +743,7 @@ func (s *syncerTestSuite) Test_Batch_ImagePullSecrets() {
 func (s *syncerTestSuite) Test_JobNotCreatedForJobWithPhaseDone() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -770,7 +768,7 @@ func (s *syncerTestSuite) Test_JobNotCreatedForJobWithPhaseDone() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -795,7 +793,7 @@ func (s *syncerTestSuite) Test_BatchJobTimeLimitSeconds() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -808,7 +806,7 @@ func (s *syncerTestSuite) Test_BatchJobTimeLimitSeconds() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -837,7 +835,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithJobComponentDefault() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -850,7 +848,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithJobComponentDefault() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -879,7 +877,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithoutJobComponentDefault()
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -892,7 +890,7 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithoutJobComponentDefault()
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -920,7 +918,7 @@ func (s *syncerTestSuite) Test_JobWithIdentity() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	jobName := "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -930,7 +928,7 @@ func (s *syncerTestSuite) Test_JobWithIdentity() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -960,7 +958,7 @@ func (s *syncerTestSuite) Test_JobWithPayload() {
 	appName, batchName, componentName, namespace, rdName, payloadPath, secretName, secretKey := "any-app", "any-job", "compute", "any-ns", "any-rd", "/mnt/path", "any-payload-secret", "any-payload-key"
 	jobName := "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -970,15 +968,15 @@ func (s *syncerTestSuite) Test_JobWithPayload() {
 				{
 					Name: jobName,
 					PayloadSecretRef: &radixv1.PayloadSecretKeySelector{
-						LocalObjectReference: radixv1.LocalObjectReference{Name: secretName},
-						Key:                  secretKey,
+						Name: secretName,
+						Key:  secretKey,
 					},
 				},
 			},
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -990,12 +988,10 @@ func (s *syncerTestSuite) Test_JobWithPayload() {
 		},
 	}
 	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-			Labels: radixlabels.Merge(radixlabels.ForJobScheduleJobType(),
-				radixlabels.ForApplicationName(appName),
-				radixlabels.ForComponentName(componentName), radixlabels.ForBatchName(batchName)),
-		},
+		Name: secretName,
+		Labels: radixlabels.Merge(radixlabels.ForJobScheduleJobType(),
+			radixlabels.ForApplicationName(appName),
+			radixlabels.ForComponentName(componentName), radixlabels.ForBatchName(batchName)),
 		Data: map[string][]byte{secretKey: []byte("any-payload")},
 	}
 
@@ -1014,11 +1010,9 @@ func (s *syncerTestSuite) Test_JobWithPayload() {
 	s.Require().Len(jobs.Items[0].Spec.Template.Spec.Volumes, 1)
 	s.Equal(corev1.Volume{
 		Name: jobPayloadVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: secretName,
-				Items:      []corev1.KeyToPath{{Key: secretKey, Path: "payload"}},
-			},
+		Secret: &corev1.SecretVolumeSource{
+			SecretName: secretName,
+			Items:      []corev1.KeyToPath{{Key: secretKey, Path: "payload"}},
 		},
 	}, jobs.Items[0].Spec.Template.Spec.Volumes[0])
 	s.Len(jobs.Items[0].Spec.Template.Spec.Containers[0].VolumeMounts, 1)
@@ -1039,7 +1033,7 @@ func (s *syncerTestSuite) Test_ReadOnlyFileSystem() {
 	for name, test := range tests {
 		s.Run(name, func() {
 			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 				Spec: radixv1.RadixBatchSpec{
 					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1052,7 +1046,7 @@ func (s *syncerTestSuite) Test_ReadOnlyFileSystem() {
 			}
 
 			rd := &radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{Name: rdName},
+				Name: rdName,
 				Spec: radixv1.RadixDeploymentSpec{
 					AppName: appName,
 					Jobs: []radixv1.RadixDeployJobComponent{
@@ -1094,7 +1088,7 @@ func (s *syncerTestSuite) Test_RunAsUser() {
 	for name, test := range tests {
 		s.Run(name, func() {
 			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 				Spec: radixv1.RadixBatchSpec{
 					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1107,7 +1101,7 @@ func (s *syncerTestSuite) Test_RunAsUser() {
 			}
 
 			rd := &radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{Name: rdName},
+				Name: rdName,
 				Spec: radixv1.RadixDeploymentSpec{
 					AppName: appName,
 					Jobs: []radixv1.RadixDeployJobComponent{
@@ -1137,7 +1131,7 @@ func (s *syncerTestSuite) Test_JobWithResources() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1153,7 +1147,7 @@ func (s *syncerTestSuite) Test_JobWithResources() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -1192,7 +1186,7 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	jobName := "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1202,7 +1196,7 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -1235,7 +1229,7 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts_Deprecated() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	jobName := "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1245,7 +1239,7 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts_Deprecated() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -1278,7 +1272,7 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-app-dev", "any-rd"
 	jobName := "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1288,7 +1282,7 @@ func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName:     appName,
 			Environment: "dev",
@@ -1328,7 +1322,7 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 	job1Name, job2Name := "job1", "job2"
 	arch := "customarch"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1341,7 +1335,7 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -1392,7 +1386,7 @@ func (s *syncerTestSuite) Test_StopJob() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1405,7 +1399,7 @@ func (s *syncerTestSuite) Test_StopJob() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -1439,7 +1433,7 @@ func (s *syncerTestSuite) Test_StopJob() {
 func (s *syncerTestSuite) Test_SyncErrorWhenJobMissingInRadixDeployment() {
 	appName, batchName, componentName, namespace, rdName, missingComponentName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "incorrect-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -1449,7 +1443,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenJobMissingInRadixDeployment() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -1478,7 +1472,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenJobMissingInRadixDeployment() {
 func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
 	batchName, namespace, missingRdName, anyJobComponentName := "any-batch", "any-ns", "missing-rd", "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: missingRdName},
@@ -1504,7 +1498,7 @@ func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
 func (s *syncerTestSuite) Test_HandleJobStopWhenMissingRadixDeploymentConfig() {
 	batchName, namespace, missingRdName, anyJobComponentName := "any-batch", "any-ns", "missing-rd", "any-job"
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: missingRdName},
@@ -2012,14 +2006,14 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 		s.Run(testName, func() {
 
 			rd := &radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{Name: rdName},
-				Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Jobs: []radixv1.RadixDeployJobComponent{{Name: jobComponentName}}},
+				Name: rdName,
+				Spec: radixv1.RadixDeploymentSpec{AppName: appName, Jobs: []radixv1.RadixDeployJobComponent{{Name: jobComponentName}}},
 			}
 			_, err := s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
 			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 				Spec: radixv1.RadixBatchSpec{
 					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{LocalObjectReference: radixv1.LocalObjectReference{Name: rdName}, Job: jobComponentName},
 					Jobs:                  []radixv1.RadixBatchJob{{Name: batchJobName, Stop: &test.job.stop}},
@@ -2035,13 +2029,11 @@ func (s *syncerTestSuite) Test_BatchJobStatus() {
 			// Create k8s jobs required for building batch status
 			if kubeJob := test.job.kubeJob; kubeJob != nil {
 				j := &batchv1.Job{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:              getKubeJobName(batchName, batchJobName),
-						Namespace:         namespace,
-						Labels:            jobLabelsFunc(batchJobName),
-						CreationTimestamp: kubeJob.creationTimestamp,
-					},
-					Status: kubeJob.status,
+					Name:              getKubeJobName(batchName, batchJobName),
+					Namespace:         namespace,
+					Labels:            jobLabelsFunc(batchJobName),
+					CreationTimestamp: kubeJob.creationTimestamp,
+					Status:            kubeJob.status,
 				}
 				_, err = s.kubeClient.BatchV1().Jobs(namespace).Create(context.Background(), j, metav1.CreateOptions{})
 				s.Require().NoError(err)
@@ -2171,14 +2163,14 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 		s.Run(testName, func() {
 
 			rd := &radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{Name: rdName},
-				Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Jobs: []radixv1.RadixDeployJobComponent{{Name: jobComponentName}}},
+				Name: rdName,
+				Spec: radixv1.RadixDeploymentSpec{AppName: appName, Jobs: []radixv1.RadixDeployJobComponent{{Name: jobComponentName}}},
 			}
 			_, err := s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
 			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 				Spec: radixv1.RadixBatchSpec{
 					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{LocalObjectReference: radixv1.LocalObjectReference{Name: rdName}, Job: jobComponentName},
 					Jobs:                  []radixv1.RadixBatchJob{},
@@ -2188,12 +2180,10 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 				batch.Spec.Jobs = append(batch.Spec.Jobs, radixv1.RadixBatchJob{Name: batchJobName, Stop: &job.stop})
 
 				j := &batchv1.Job{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      getKubeJobName(batchName, batchJobName),
-						Namespace: namespace,
-						Labels:    jobLabelsFunc(batchJobName),
-					},
-					Status: job.kubeJobStatus,
+					Name:      getKubeJobName(batchName, batchJobName),
+					Namespace: namespace,
+					Labels:    jobLabelsFunc(batchJobName),
+					Status:    job.kubeJobStatus,
 				}
 				_, err = s.kubeClient.BatchV1().Jobs(namespace).Create(context.Background(), j, metav1.CreateOptions{})
 				s.Require().NoError(err)
@@ -2226,7 +2216,7 @@ func (s *syncerTestSuite) Test_ShouldRestartBatchJobNotRestartedBefore() {
 		restartTime      = "2020-01-01T08:00:00Z"
 	)
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -2248,17 +2238,15 @@ func (s *syncerTestSuite) Test_ShouldRestartBatchJobNotRestartedBefore() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName}},
 		},
 	}
 	kubeJob := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "any-previous-job-name",
-			Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJob1Name)),
-		},
+		Name:   "any-previous-job-name",
+		Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJob1Name)),
 	}
 	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -2291,7 +2279,7 @@ func (s *syncerTestSuite) Test_ShouldRestartBatchJobWithNewRestartTimestamp() {
 		oldRestartTime   = "2020-01-01T07:00:00Z"
 	)
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -2313,17 +2301,15 @@ func (s *syncerTestSuite) Test_ShouldRestartBatchJobWithNewRestartTimestamp() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName}},
 		},
 	}
 	kubeJob := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "any-previous-job-name",
-			Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJob1Name)),
-		},
+		Name:   "any-previous-job-name",
+		Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJob1Name)),
 	}
 	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -2356,7 +2342,7 @@ func (s *syncerTestSuite) Test_ShouldNotRestartBatchJobWhenAlreadyRestarted() {
 		exitingKubeJobName = "any-exiting-kube-job"
 	)
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -2378,17 +2364,15 @@ func (s *syncerTestSuite) Test_ShouldNotRestartBatchJobWhenAlreadyRestarted() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName}},
 		},
 	}
 	kubeJob := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   exitingKubeJobName,
-			Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJob1Name)),
-		},
+		Name:   exitingKubeJobName,
+		Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJob1Name)),
 	}
 	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -2421,7 +2405,7 @@ func (s *syncerTestSuite) Test_ShouldKeepRestartStatusOnSync() {
 		exitingKubeJobName = "any-exiting-kube-job"
 	)
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -2443,7 +2427,7 @@ func (s *syncerTestSuite) Test_ShouldKeepRestartStatusOnSync() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName}},
@@ -2471,7 +2455,7 @@ func (s *syncerTestSuite) Test_RestartCorrectlyHandledWithIntermediateStatusUpda
 		restartTime      = "2020-01-01T08:00:00Z"
 	)
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -2501,17 +2485,15 @@ func (s *syncerTestSuite) Test_RestartCorrectlyHandledWithIntermediateStatusUpda
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs:    []radixv1.RadixDeployJobComponent{{Name: jobComponentName}},
 		},
 	}
 	kubeJob := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "any-previous-job-name",
-			Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJobName)),
-		},
+		Name:   "any-previous-job-name",
+		Labels: radixlabels.Merge(radixlabels.ForBatchName(batchName), radixlabels.ForBatchJobName(batchJobName)),
 	}
 	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -2559,7 +2541,7 @@ func (s *syncerTestSuite) Test_FailurePolicy() {
 		},
 	}
 	batch := &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -2572,7 +2554,7 @@ func (s *syncerTestSuite) Test_FailurePolicy() {
 		},
 	}
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Name: rdName,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
@@ -2663,7 +2645,7 @@ func (s *syncerTestSuite) Test_CommandAndArgs() {
 				BuildRD()
 
 			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 				Spec: radixv1.RadixBatchSpec{
 					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 						LocalObjectReference: radixv1.LocalObjectReference{Name: rd.GetName()},
@@ -2801,7 +2783,7 @@ func (s *syncerTestSuite) Test_SafeToRestartAnnotation() {
 			namespace := utils.GetEnvironmentNamespace(appName, envName)
 
 			batch := &radixv1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{Name: batchName, Labels: radixlabels.ForJobScheduleJobType()},
+				Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 				Spec: radixv1.RadixBatchSpec{
 					RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 						LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
@@ -2818,7 +2800,7 @@ func (s *syncerTestSuite) Test_SafeToRestartAnnotation() {
 			}
 
 			rd := &radixv1.RadixDeployment{
-				ObjectMeta: metav1.ObjectMeta{Name: rdName},
+				Name: rdName,
 				Spec: radixv1.RadixDeploymentSpec{
 					AppName: appName,
 					Jobs: []radixv1.RadixDeployJobComponent{

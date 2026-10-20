@@ -42,14 +42,12 @@ func setupAuxLogTest(t *testing.T, commonTestUtils *commontest.Utils, kubeclient
 
 	envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 	_, err = kubeclient.CoreV1().Pods(envNs).Create(context.Background(), &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      anyAuxPod,
-			Namespace: envNs,
-			Labels: map[string]string{
-				kube.RadixAppLabel:                    anyAppName,
-				kube.RadixAuxiliaryComponentLabel:     anyComponentName,
-				kube.RadixAuxiliaryComponentTypeLabel: anyAuxType,
-			},
+		Name:      anyAuxPod,
+		Namespace: envNs,
+		Labels: map[string]string{
+			kube.RadixAppLabel:                    anyAppName,
+			kube.RadixAuxiliaryComponentLabel:     anyComponentName,
+			kube.RadixAuxiliaryComponentTypeLabel: anyAuxType,
 		},
 	}, metav1.CreateOptions{})
 	require.NoError(t, err)
@@ -115,14 +113,12 @@ func TestGetOAuthAuxiliaryResourcePodLog_Errors(t *testing.T) {
 			if tt.podName == anyAuxPod {
 				envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 				_, err = kubeclient.CoreV1().Pods(envNs).Create(context.Background(), &corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      anyAuxPod,
-						Namespace: envNs,
-						Labels: map[string]string{
-							kube.RadixAppLabel:                    anyAppName,
-							kube.RadixAuxiliaryComponentLabel:     anyComponentName,
-							kube.RadixAuxiliaryComponentTypeLabel: anyAuxType,
-						},
+					Name:      anyAuxPod,
+					Namespace: envNs,
+					Labels: map[string]string{
+						kube.RadixAppLabel:                    anyAppName,
+						kube.RadixAuxiliaryComponentLabel:     anyComponentName,
+						kube.RadixAuxiliaryComponentTypeLabel: anyAuxType,
 					},
 				}, metav1.CreateOptions{})
 				require.NoError(t, err)

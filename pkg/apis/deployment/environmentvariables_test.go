@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
@@ -167,13 +166,13 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 
 	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
 		//goland:noinspection GoUnhandledErrorResult
-		_, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{
+		_, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{Name: kube.GetEnvVarsConfigMapName(componentName), Data: map[string]string{
 			"VAR1":          "val1",
 			"OUTDATED_VAR1": "val1z",
 		}})
 		require.NoError(t, err)
 
-		existingEnvVarsMetadataConfigMap := corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsMetadataConfigMapName(componentName)}}
+		existingEnvVarsMetadataConfigMap := corev1.ConfigMap{Name: kube.GetEnvVarsMetadataConfigMapName(componentName)}
 		//goland:noinspection GoUnhandledErrorResult
 		err = kube.SetEnvVarsMetadataMapToConfigMap(&existingEnvVarsMetadataConfigMap,
 			map[string]kube.EnvVarMetadata{

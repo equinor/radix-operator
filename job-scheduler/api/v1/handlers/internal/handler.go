@@ -227,16 +227,14 @@ func (h *Handler) createRadixBatch(ctx context.Context, namespace, appName, radi
 	}
 	logger.Debug().Msgf("Built Radix Batch with %d jobs", len(radixBatchJobs))
 	radixBatch := radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: batchName,
-			Labels: radixLabels.Merge(
-				radixLabels.ForApplicationName(appName),
-				radixLabels.ForComponentName(radixJobComponentName),
-				radixLabels.ForBatchType(radixBatchType),
-				radixLabels.ForBatchCron(cronSchedule != ""),
-			),
-			Annotations: radixAnnotations.ForBatchCronSchedule(cronSchedule),
-		},
+		Name: batchName,
+		Labels: radixLabels.Merge(
+			radixLabels.ForApplicationName(appName),
+			radixLabels.ForComponentName(radixJobComponentName),
+			radixLabels.ForBatchType(radixBatchType),
+			radixLabels.ForBatchCron(cronSchedule != ""),
+		),
+		Annotations: radixAnnotations.ForBatchCronSchedule(cronSchedule),
 		Spec: radixv1.RadixBatchSpec{
 			BatchId: batchScheduleDescription.BatchId,
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
@@ -332,8 +330,8 @@ func (h *Handler) createRadixBatchJobPayloadSecrets(ctx context.Context, namespa
 		logger.Debug().Msgf("New accumulated payload size: %d", newAccumulatedPayloadSecretSize)
 		logger.Debug().Msgf("Added a reference to the payload secret %s, key %s", payloadsSecret.GetName(), radixBatchJob.Name)
 		radixBatchJob.PayloadSecretRef = &radixv1.PayloadSecretKeySelector{
-			LocalObjectReference: radixv1.LocalObjectReference{Name: payloadsSecret.GetName()},
-			Key:                  radixBatchJob.Name,
+			Name: payloadsSecret.GetName(),
+			Key:  radixBatchJob.Name,
 		}
 	}
 	if len(errs) > 0 {
@@ -365,16 +363,14 @@ func buildPayloadSecret(ctx context.Context, appName, radixJobComponentName, bat
 	secretName := fmt.Sprintf("%s-payloads-%d", batchName, secretIndex)
 	logger.Debug().Msgf("build payload secret %s", secretName)
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-			Labels: radixLabels.Merge(
-				radixLabels.ForApplicationName(appName),
-				radixLabels.ForComponentName(radixJobComponentName),
-				radixLabels.ForBatchName(batchName),
-				radixLabels.ForJobScheduleJobType(),
-				radixLabels.ForRadixSecretType(kube.RadixSecretJobPayload),
-			),
-		},
+		Name: secretName,
+		Labels: radixLabels.Merge(
+			radixLabels.ForApplicationName(appName),
+			radixLabels.ForComponentName(radixJobComponentName),
+			radixLabels.ForBatchName(batchName),
+			radixLabels.ForJobScheduleJobType(),
+			radixLabels.ForRadixSecretType(kube.RadixSecretJobPayload),
+		),
 		Data: make(map[string][]byte),
 	}
 }

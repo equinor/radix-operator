@@ -232,10 +232,8 @@ func (c *githubController) recordPushEventFailure(appName string, err error) {
 // GitHub webhook handler.
 func radixApplicationEventTarget(appName string) *radixv1.RadixApplication {
 	return &radixv1.RadixApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      appName,
-			Namespace: operatorutils.GetAppNamespace(appName),
-		},
+		Name:      appName,
+		Namespace: operatorutils.GetAppNamespace(appName),
 	}
 }
 

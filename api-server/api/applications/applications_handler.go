@@ -540,7 +540,7 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 
 func createRoleToGetConfigMap(ctx context.Context, kubeClient kubernetes.Interface, namespace, roleName string, labels map[string]string, configMapName string) (*rbacv1.Role, error) {
 	return kubeClient.RbacV1().Roles(namespace).Create(ctx, &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{GenerateName: roleName, Labels: labels},
+		GenerateName: roleName, Labels: labels,
 		Rules: []rbacv1.PolicyRule{{
 			Verbs:         []string{"get"},
 			APIGroups:     []string{""},
@@ -567,16 +567,14 @@ func createRoleBindingForRole(ctx context.Context, kubeClient kubernetes.Interfa
 		})
 	}
 	newRoleBinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: roleBindingName,
-			Labels:       labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-					Kind:       k8s.KindRole,
-					Name:       role.GetName(),
-					UID:        role.GetUID(),
-				},
+		GenerateName: roleBindingName,
+		Labels:       labels,
+		OwnerReferences: []metav1.OwnerReference{
+			{
+				APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
+				Kind:       k8s.KindRole,
+				Name:       role.GetName(),
+				UID:        role.GetUID(),
 			},
 		},
 		RoleRef: rbacv1.RoleRef{

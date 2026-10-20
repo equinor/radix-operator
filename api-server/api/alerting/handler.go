@@ -265,7 +265,7 @@ func (h *handler) createDefaultRadixAlert(ctx context.Context) (*radixv1.RadixAl
 
 func (h *handler) buildDefaultRadixAlertSpec() *radixv1.RadixAlert {
 	radixAlert := radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: defaultAlertConfigName, Labels: map[string]string{kube.RadixAppLabel: h.appName}},
+		Name: defaultAlertConfigName, Labels: map[string]string{kube.RadixAppLabel: h.appName},
 		Spec: radixv1.RadixAlertSpec{
 			Receivers: h.buildDefaultRadixAlertReceivers(),
 			Alerts:    h.buildDefaultRadixAlertAlerts(),

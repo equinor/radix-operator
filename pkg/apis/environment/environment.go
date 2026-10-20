@@ -127,9 +127,7 @@ func (env *Environment) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 		}
 
 		desired = &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: namespace,
-			},
+			Name: namespace,
 		}
 	} else {
 		desired = currentInternal.DeepCopy()
@@ -178,15 +176,11 @@ func (env *Environment) applyAdGroupRoleBinding(ctx context.Context) error {
 func (env *Environment) applyRadixPipelineRunnerRoleBinding(ctx context.Context) error {
 	namespace := utils.GetEnvironmentNamespace(env.environment.Spec.AppName, env.environment.Spec.EnvName)
 	roleBinding := &rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindRoleBinding,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.PipelineEnvRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: env.environment.Spec.AppName,
-			},
+		APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
+		Kind:       k8s.KindRoleBinding,
+		Name:       defaults.PipelineEnvRoleName,
+		Labels: map[string]string{
+			kube.RadixAppLabel: env.environment.Spec.AppName,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,

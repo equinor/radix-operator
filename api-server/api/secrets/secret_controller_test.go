@@ -116,9 +116,7 @@ func executeUpdateSecretTest(t *testing.T, oldSecretValue, updateSecret, updateC
 	ns := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 
 	namespace := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ns,
-		},
+		Name: ns,
 	}
 	_, err = kubeclient.CoreV1().Namespaces().Create(context.Background(), &namespace, metav1.CreateOptions{})
 	if err != nil {
@@ -128,9 +126,7 @@ func executeUpdateSecretTest(t *testing.T, oldSecretValue, updateSecret, updateC
 	// Component secret
 	secretObject := corev1.Secret{
 		Type: "Opaque",
-		ObjectMeta: metav1.ObjectMeta{
-			Name: operatorutils.GetComponentSecretName(anyComponentName),
-		},
+		Name: operatorutils.GetComponentSecretName(anyComponentName),
 		Data: map[string][]byte{anyEnvironmentName: []byte(oldSecretValue)},
 	}
 	_, err = kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &secretObject, metav1.CreateOptions{})
@@ -141,9 +137,7 @@ func executeUpdateSecretTest(t *testing.T, oldSecretValue, updateSecret, updateC
 	// Job secret
 	secretObject = corev1.Secret{
 		Type: "Opaque",
-		ObjectMeta: metav1.ObjectMeta{
-			Name: operatorutils.GetComponentSecretName(anyJobName),
-		},
+		Name: operatorutils.GetComponentSecretName(anyJobName),
 		Data: map[string][]byte{anyEnvironmentName: []byte(oldSecretValue)},
 	}
 	_, err = kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &secretObject, metav1.CreateOptions{})
@@ -301,9 +295,9 @@ func (s *externalDNSSecretTestSuite) setupTestResources(appName, envName, compon
 
 func (s *externalDNSSecretTestSuite) setupSecretForExternalDNS(namespace, fqdn string, cert []byte, privateKey []byte) error {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: fqdn},
-		Type:       corev1.SecretTypeTLS,
-		Data:       map[string][]byte{corev1.TLSCertKey: cert, corev1.TLSPrivateKeyKey: privateKey},
+		Name: fqdn,
+		Type: corev1.SecretTypeTLS,
+		Data: map[string][]byte{corev1.TLSCertKey: cert, corev1.TLSPrivateKeyKey: privateKey},
 	}
 	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 	return err

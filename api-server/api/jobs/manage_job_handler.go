@@ -85,12 +85,10 @@ func (jh JobHandler) createPipelineJob(ctx context.Context, appName string, job 
 func (jh JobHandler) buildPipelineJobToRerunFrom(ctx context.Context, radixJob *radixv1.RadixJob) *radixv1.RadixJob {
 	rerunJobName, imageTag := GetUniqueJobName()
 	rerunRadixJob := radixv1.RadixJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        rerunJobName,
-			Labels:      radixJob.Labels,
-			Annotations: radixJob.Annotations,
-		},
-		Spec: radixJob.Spec,
+		Name:        rerunJobName,
+		Labels:      radixJob.Labels,
+		Annotations: radixJob.Annotations,
+		Spec:        radixJob.Spec,
 	}
 	if rerunRadixJob.Annotations == nil {
 		rerunRadixJob.Annotations = make(map[string]string)

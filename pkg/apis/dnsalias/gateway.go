@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -20,7 +19,7 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 
 	namespace := utils.GetEnvironmentNamespace(s.radixDNSAlias.Spec.AppName, s.radixDNSAlias.Spec.Environment)
 	routeName := fmt.Sprintf("%s.custom-alias", s.radixDNSAlias.Name)
-	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: namespace}}
+	route := &gatewayapiv1.HTTPRoute{Name: routeName, Namespace: namespace}
 
 	if _, hasPublicPort := s.component.GetPublicPortNumber(); !hasPublicPort {
 		err := s.dynamicClient.Delete(ctx, route)
@@ -81,7 +80,7 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 					},
 				},
 			},
-			CommonRouteSpec: gatewayapiv1.CommonRouteSpec{ParentRefs: parentRefs},
+			ParentRefs: parentRefs,
 		}
 
 		return controllerutil.SetControllerReference(s.radixDNSAlias, route, s.dynamicClient.Scheme())

@@ -209,8 +209,8 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 	}
 
 	jobsToReturn := []batchv1.Job{
-		{ObjectMeta: metav1.ObjectMeta{Name: "job1", Namespace: utils.GetAppNamespace(appName)}},
-		{ObjectMeta: metav1.ObjectMeta{Name: "job2", Namespace: utils.GetAppNamespace(appName)}},
+		{Name: "job1", Namespace: utils.GetAppNamespace(appName)},
+		{Name: "job2", Namespace: utils.GetAppNamespace(appName)},
 	}
 	jobsBuilder.EXPECT().BuildJobs(
 		gomock.InAnyOrder(slices.Concat(env1Components, env2Components)),

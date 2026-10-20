@@ -237,19 +237,15 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 	}
 
 	radixDeployment := &v1.RadixDeployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1.SchemeGroupVersion.Identifier(),
-			Kind:       v1.KindRadixDeployment,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              deployName,
-			Annotations:       db.annotations,
-			Namespace:         GetEnvironmentNamespace(db.AppName, db.Environment),
-			Labels:            db.Labels,
-			CreationTimestamp: metav1.Time{Time: db.Created},
-			ResourceVersion:   db.ResourceVersion,
-			UID:               db.UID,
-		},
+		APIVersion:        v1.SchemeGroupVersion.Identifier(),
+		Kind:              v1.KindRadixDeployment,
+		Name:              deployName,
+		Annotations:       db.annotations,
+		Namespace:         GetEnvironmentNamespace(db.AppName, db.Environment),
+		Labels:            db.Labels,
+		CreationTimestamp: metav1.Time{Time: db.Created},
+		ResourceVersion:   db.ResourceVersion,
+		UID:               db.UID,
 		Spec: v1.RadixDeploymentSpec{
 			AppName:          db.AppName, //nolint:staticcheck
 			Components:       components,
