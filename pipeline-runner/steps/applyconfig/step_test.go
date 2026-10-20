@@ -297,7 +297,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 		return pipeline.BuildComponentImage{
 			ComponentName:        component,
 			EnvName:              env,
-			ContainerName:        "build",
 			Context:              context,
 			Dockerfile:           dockerfile,
 			ImageName:            imageNameFunc(env, component),
@@ -480,7 +479,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 		return pipeline.BuildComponentImage{
 			ComponentName:        component,
 			EnvName:              envName,
-			ContainerName:        "build",
 			Context:              "/some-workspace/",
 			Dockerfile:           "Dockerfile",
 			ImageName:            imageNameFunc(component),
@@ -653,7 +651,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 		return pipeline.BuildComponentImage{
 			ComponentName:        component,
 			EnvName:              envName,
-			ContainerName:        "build",
 			Context:              context,
 			Dockerfile:           dockerfile,
 			ImageName:            imageNameFunc(component),
@@ -794,7 +791,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 		return pipeline.BuildComponentImage{
 			ComponentName:        component,
 			EnvName:              envName,
-			ContainerName:        "build",
 			Context:              "/some-workspace/",
 			Dockerfile:           dockerfile,
 			ImageName:            imageNameFunc(component),
@@ -916,7 +912,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 		return pipeline.BuildComponentImage{
 			ComponentName:        component,
 			EnvName:              envName,
-			ContainerName:        "build",
 			Context:              "/some-workspace/",
 			Dockerfile:           "Dockerfile",
 			ImageName:            imageNameFunc(component),

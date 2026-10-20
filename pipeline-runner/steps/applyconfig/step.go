@@ -351,7 +351,6 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			componentName := strings.ToLower(imageSource.ComponentName)
 			envNameForName := getLengthLimitedName(envName)
 			imageName := fmt.Sprintf("%s-%s", envNameForName, componentName)
-			containerName := "build" //fmt.Sprintf("build-%s-%s", componentName, envNameForName)
 			appName := pipelineInfo.RadixApplication.GetName()
 			containerRegistry := pipelineInfo.Cfg.PipelineRunner.ContainerRegistry
 			imageTag := pipelineInfo.PipelineArguments.ImageTag
@@ -361,7 +360,6 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			buildComponentImages = append(buildComponentImages, pipeline.BuildComponentImage{
 				ComponentName:        componentName,
 				EnvName:              envName,
-				ContainerName:        containerName,
 				Context:              getContext(pipelineInfo.GetGitWorkspace(), imageSource.Source.Folder),
 				Dockerfile:           getDockerfileName(imageSource.Source.DockefileName),
 				ImageName:            imageName,

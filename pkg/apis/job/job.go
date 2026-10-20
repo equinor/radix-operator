@@ -586,7 +586,7 @@ func getJobStepsFromContainers(pod corev1.Pod, envName, componentName string) []
 
 		// TODO: Backward compatibility support for pipeline build jobs using dynamic container names (build-<component>-<environment>).
 		// Remove when all RadixJobs with deprecated build container names are in a completed state.
-		if strings.HasPrefix(container.Name, "build") && len(container.Name) > len("build") {
+		if strings.HasPrefix(container.Name, defaults.RadixPipelineJobBuildContainerName) && len(container.Name) > len(defaults.RadixPipelineJobBuildContainerName) {
 			containerName = container.Name
 		}
 

@@ -99,7 +99,7 @@ func (c *buildKitKubeJobProps) PodLabels() map[string]string {
 
 func (c *buildKitKubeJobProps) PodAnnotations() map[string]string {
 	annotations := getCommonPodAnnotations()
-	annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", c.componentImage.ContainerName)] = "unconfined"
+	annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", defaults.RadixPipelineJobBuildContainerName)] = "unconfined"
 	return annotations
 }
 
@@ -129,7 +129,7 @@ func (c *buildKitKubeJobProps) PodImagePullSecrets() []corev1.LocalObjectReferen
 }
 
 func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
-	volumes := getCommonPodVolumes([]pipeline.BuildComponentImage{c.componentImage})
+	volumes := getCommonPodVolumes()
 
 	volumes = append(volumes,
 		corev1.Volume{
@@ -201,7 +201,7 @@ func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
 
 func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {
 	container := corev1.Container{
-		Name:            c.componentImage.ContainerName,
+		Name:            defaults.RadixPipelineJobBuildContainerName,
 		Image:           c.cfg.PipelineRunner.Builder.Image.String(),
 		ImagePullPolicy: corev1.PullAlways,
 		Args:            c.getPodContainerArgs(),
@@ -335,7 +335,7 @@ func (c *buildKitKubeJobProps) getPodContainerEnvVars() []corev1.EnvVar {
 }
 
 func (c *buildKitKubeJobProps) getPodContainerVolumeMounts() []corev1.VolumeMount {
-	volumeMounts := getCommonPodContainerVolumeMounts(c.componentImage, c.pipelineArgs.GitWorkspace)
+	volumeMounts := getCommonPodContainerVolumeMounts(c.pipelineArgs.GitWorkspace)
 
 	volumeMounts = append(volumeMounts,
 		corev1.VolumeMount{

@@ -4,6 +4,9 @@ const (
 	// RadixPipelineJobPipelineContainerName The container name of the Radix pipeline orchestration job
 	RadixPipelineJobPipelineContainerName = "radix-pipeline"
 
+	// RadixPipelineJobBuildContainerName The container name of the Radix pipeline build job
+	RadixPipelineJobBuildContainerName = "build"
+
 	// DefaultRadixConfigFileName Default name for the radix configuration file
 	DefaultRadixConfigFileName = "radixconfig.yaml"
 

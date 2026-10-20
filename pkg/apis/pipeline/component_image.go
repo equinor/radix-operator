@@ -20,7 +20,6 @@ type DeployEnvironmentComponentImages map[string]DeployComponentImages
 type BuildComponentImage struct {
 	ComponentName        string
 	EnvName              string
-	ContainerName        string
 	Context              string
 	Dockerfile           string
 	ImageName            string
