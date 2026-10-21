@@ -15,7 +15,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	"github.com/equinor/radix-operator/pkg/apis/utils/random"
@@ -532,7 +531,7 @@ func (job *Job) getJobSteps(ctx context.Context, pipelineJobs []batchv1.Job) ([]
 func getOrchestratorStep(pod *corev1.Pod) v1.RadixJobStep {
 	containerName := defaults.RadixPipelineJobPipelineContainerName
 	containerStatus := getContainerStatusForContainer(pod, containerName)
-	jobStep := getJobStep(pod.GetName(), containerName, containerName, radixv1.RadixJobStepTypePipelineRunner, nil, nil, containerStatus)
+	jobStep := getJobStep(pod.GetName(), containerName, containerName, v1.RadixJobStepTypePipelineRunner, nil, nil, containerStatus)
 	return jobStep
 }
 
@@ -572,7 +571,7 @@ func getPipelineSteps(ctx context.Context, jobs []batchv1.Job, jobPods []corev1.
 
 func (job *Job) getPreparePipelineSteps(jobPod *corev1.Pod) v1.RadixJobStep {
 	cloneContainerStatus := getContainerStatusByName(git.CloneConfigContainerName, jobPod.Status.InitContainerStatuses)
-	cloneConfigStep := getJobStep(jobPod.GetName(), git.CloneConfigContainerName, git.CloneConfigContainerName, radixv1.RadixJobStepTypeCloneConfig, nil, nil, cloneContainerStatus)
+	cloneConfigStep := getJobStep(jobPod.GetName(), git.CloneConfigContainerName, git.CloneConfigContainerName, v1.RadixJobStepTypeCloneConfig, nil, nil, cloneContainerStatus)
 	return cloneConfigStep
 }
 
@@ -596,7 +595,7 @@ func getJobStepsFromContainers(pod corev1.Pod, envName, componentName string) []
 			stepName = container.Name
 		}
 
-		steps = append(steps, getJobStep(pod.GetName(), container.Name, stepName, radixv1.RadixJobStepTypeBuild, []string{componentName}, []string{envName}, containerStatuses[container.Name]))
+		steps = append(steps, getJobStep(pod.GetName(), container.Name, stepName, v1.RadixJobStepTypeBuild, []string{componentName}, []string{envName}, containerStatuses[container.Name]))
 	}
 	return steps
 }
@@ -613,7 +612,7 @@ func getJobStepsFromInitContainers(pod corev1.Pod, envName, componentName string
 		}
 
 		stepName := fmt.Sprintf("%s-%s-%s-%s", container.Name, componentName, envName, random.RandStringStrSeed(5, pod.Name))
-		steps = append(steps, getJobStep(pod.GetName(), container.Name, stepName, radixv1.RadixJobStepTypeClone, []string{componentName}, []string{envName}, containerStatuses[container.Name]))
+		steps = append(steps, getJobStep(pod.GetName(), container.Name, stepName, v1.RadixJobStepTypeClone, []string{componentName}, []string{envName}, containerStatuses[container.Name]))
 	}
 	return steps
 }
@@ -641,7 +640,7 @@ func getContainerStatusByName(name string, containerStatuses []corev1.ContainerS
 	return nil
 }
 
-func getJobStep(podName, containerName, stepName string, stepType radixv1.RadixJobStepType, components, environments []string, containerStatus *corev1.ContainerStatus) v1.RadixJobStep {
+func getJobStep(podName, containerName, stepName string, stepType v1.RadixJobStepType, components, environments []string, containerStatus *corev1.ContainerStatus) v1.RadixJobStep {
 	step := v1.RadixJobStep{
 		Name:          stepName,
 		Type:          stepType,
