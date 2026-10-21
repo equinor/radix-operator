@@ -9032,12 +9032,17 @@
       "type": "object",
       "properties": {
         "components": {
-          "description": "Components associated components",
+          "description": "Components lists components associated with this step",
           "type": "array",
           "items": {
             "type": "string"
           },
           "x-go-name": "Components"
+        },
+        "containerName": {
+          "description": "ContainerName for the step's container",
+          "type": "string",
+          "x-go-name": "ContainerName"
         },
         "ended": {
           "description": "Ended timestamp",
@@ -9045,11 +9050,24 @@
           "format": "date-time",
           "x-go-name": "Ended"
         },
+        "environments": {
+          "description": "Environments lists environments associated with this step",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Environments"
+        },
         "name": {
           "description": "Name of the step",
           "type": "string",
           "x-go-name": "Name",
           "example": "build"
+        },
+        "podName": {
+          "description": "Pod name for the step",
+          "type": "string",
+          "x-go-name": "PodName"
         },
         "started": {
           "description": "Started timestamp",
@@ -9074,6 +9092,21 @@
         },
         "subPipelineTaskStep": {
           "$ref": "#/definitions/SubPipelineTaskStep"
+        },
+        "type": {
+          "description": "Type of the step\nCloneConfig StepTypeCloneConfig\nPipelineRunner StepTypePipelineRunner\nClone StepTypeClone\nBuild StepTypeBuild\nSubPipelineStep StepTypeSubPipelineStep\nUnknown StepTypeUnknown",
+          "type": "string",
+          "enum": [
+            "CloneConfig",
+            "PipelineRunner",
+            "Clone",
+            "Build",
+            "SubPipelineStep",
+            "Unknown"
+          ],
+          "x-go-enum-desc": "CloneConfig StepTypeCloneConfig\nPipelineRunner StepTypePipelineRunner\nClone StepTypeClone\nBuild StepTypeBuild\nSubPipelineStep StepTypeSubPipelineStep\nUnknown StepTypeUnknown",
+          "x-go-name": "Type",
+          "example": "Build"
         }
       },
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/jobs/models"

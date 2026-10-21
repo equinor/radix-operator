@@ -18,6 +18,7 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/utils/predicate"
 	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	crdUtils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -386,10 +387,13 @@ func (jh JobHandler) getJobStepsFromRadixJob(ctx context.Context, job *v1.RadixJ
 
 	for _, jobStep := range job.Status.Steps {
 		step := jobModels.Step{
-			Name:       jobStep.Name,
-			Status:     string(jobStep.Condition),
-			PodName:    jobStep.PodName,
-			Components: jobStep.Components,
+			Name:          jobStep.Name,
+			Type:          resolveStepTypeFromJobStep(jobStep),
+			Status:        string(jobStep.Condition),
+			PodName:       jobStep.PodName,
+			ContainerName: jobStep.ContainerName,
+			Components:    jobStep.Components,
+			Environments:  jobStep.Environments,
 		}
 		if jobStep.Started != nil {
 			step.Started = &jobStep.Started.Time
@@ -397,7 +401,7 @@ func (jh JobHandler) getJobStepsFromRadixJob(ctx context.Context, job *v1.RadixJ
 		if jobStep.Ended != nil {
 			step.Ended = &jobStep.Ended.Time
 		}
-		if strings.HasPrefix(step.Name, "build-") {
+		if jobStep.Type == v1.RadixJobStepTypeBuild || strings.HasPrefix(step.Name, operatorDefaults.RadixPipelineJobBuildContainerName) {
 			buildSteps = append(buildSteps, step)
 		} else {
 			steps = append(steps, step)
@@ -412,6 +416,36 @@ func (jh JobHandler) getJobStepsFromRadixJob(ctx context.Context, job *v1.RadixJ
 
 	sort.Slice(buildSteps, func(i, j int) bool { return buildSteps[i].Name < buildSteps[j].Name })
 	return append(steps, buildSteps...), nil
+}
+
+func resolveStepTypeFromJobStep(jobStep v1.RadixJobStep) jobModels.StepType {
+	if len(jobStep.Type) > 0 {
+		switch jobStep.Type {
+		case v1.RadixJobStepTypeCloneConfig:
+			return jobModels.StepTypeCloneConfig
+		case v1.RadixJobStepTypePipelineRunner:
+			return jobModels.StepTypePipelineRunner
+		case v1.RadixJobStepTypeClone:
+			return jobModels.StepTypeClone
+		case v1.RadixJobStepTypeBuild:
+			return jobModels.StepTypeBuild
+		default:
+			return jobModels.StepTypeUnknown
+		}
+	}
+
+	switch {
+	case jobStep.Name == git.CloneConfigContainerName:
+		return jobModels.StepTypeCloneConfig
+	case jobStep.Name == operatorDefaults.RadixPipelineJobPipelineContainerName:
+		return jobModels.StepTypePipelineRunner
+	case strings.HasPrefix(jobStep.Name, git.CloneContainerName):
+		return jobModels.StepTypeClone
+	case strings.HasPrefix(jobStep.Name, operatorDefaults.RadixPipelineJobBuildContainerName):
+		return jobModels.StepTypeBuild
+	}
+
+	return jobModels.StepTypeUnknown
 }
 
 func (jh JobHandler) getSubPipelineTasksSteps(ctx context.Context, appName, jobName string) ([]jobModels.Step, error) {
@@ -437,6 +471,7 @@ func (jh JobHandler) getSubPipelineTasksSteps(ctx context.Context, appName, jobN
 func (jh JobHandler) getTaskRunStepModel(envName, pipelineName, pipelineRunName, taskName, taskKubeName string, taskStep pipelinev1.StepState) jobModels.Step {
 	stepModel := jobModels.Step{
 		Name: "sub-pipeline-step",
+		Type: jobModels.StepTypeSubPipelineStep,
 		SubPipelineTaskStep: &jobModels.SubPipelineTaskStep{
 			Name:            taskStep.Name,
 			PipelineName:    pipelineName,
