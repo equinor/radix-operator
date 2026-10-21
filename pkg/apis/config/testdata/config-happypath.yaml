@@ -77,6 +77,21 @@ runtime:
         containers:
           - name: scheduler
             image: ghcr.io/equinor/radix/job-scheduler:1.2.0
+  jobSchedulerAuxTemplate:
+    base:
+      spec:
+        containers:
+          - name: aux
+            image: docker.io/bash:latest
+    overlay:
+      spec:
+        automountServiceAccountToken: false
+        securityContext:
+          runAsUser: 1000
+        containers:
+          - name: aux
+            image: docker.io/bash:5.3.20-alpine3.24
+            
   # specialNodeTypes:
   #   gpu-nvidia-v1:
   #     description: "Nvidia GPU node"

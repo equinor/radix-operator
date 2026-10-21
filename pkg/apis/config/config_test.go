@@ -202,6 +202,32 @@ func TestParse_HappyPath(t *testing.T) {
 					},
 				},
 			},
+			JobSchedulerAuxTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "aux",
+								Image: "docker.io/bash:latest",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1000)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "aux",
+								Image: "docker.io/bash:5.3.20-alpine3.24",
+							},
+						},
+					},
+				},
+			},
 		},
 		PipelineRunner: config.PipelineRunnerConfig{
 			ContainerRegistry:      "any.registry.com",
@@ -260,10 +286,6 @@ func TestParse_HappyPath(t *testing.T) {
 				DefaultMemory:        new(resource.MustParse("555M")),
 				DefaultRequestMemory: new(resource.MustParse("444M")),
 				DefaultRequestCPU:    new(resource.MustParse("111m")),
-			},
-			JobSchedulerAuxImage: config.ContainerImage{
-				Repository: "docker.io/bash",
-				Tag:        "latest",
 			},
 			PodSecurityStandard: config.PodSecurityStandardConfig{
 				AppNamespace: config.PodSecurityStandardPolicyConfig{

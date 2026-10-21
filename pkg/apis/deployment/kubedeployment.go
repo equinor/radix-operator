@@ -248,10 +248,6 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	return nil
 }
 
-func (deploy *Deployment) getDeployComponentExistingVolumes(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, deployment *appsv1.Deployment) ([]corev1.Volume, error) {
-	return deployment.Spec.Template.Spec.Volumes, nil
-}
-
 func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 	const branchKey, commitIDKey = "radix-branch", "radix-commit"
 	rdLabels := deploy.radixDeployment.Labels

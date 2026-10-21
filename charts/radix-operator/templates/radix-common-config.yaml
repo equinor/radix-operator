@@ -59,6 +59,9 @@ data:
         "jobSchedulerTemplate" (dict
           "base" (.Values.config.runtime.jobSchedulerTemplate.base | default (tpl (.Files.Get "files/job-scheduler-base.yaml") . | fromYaml))
         )
+        "jobSchedulerAuxTemplate" (dict
+          "base" (.Values.config.runtime.jobSchedulerAuxTemplate.base | default (tpl (.Files.Get "files/job-scheduler-aux-base.yaml") . | fromYaml))
+        )
       )
     -}}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}

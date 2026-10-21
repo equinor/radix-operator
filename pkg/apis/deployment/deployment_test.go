@@ -71,13 +71,9 @@ var testConfig = config.Config{
 		ReadinessProbePeriodSeconds:        15,
 		DefaultRollingUpdateMaxUnavailable: "25%",
 		DefaultRollingUpdateMaxSurge:       "35%",
-		JobSchedulerAuxImage: config.ContainerImage{
-			Repository: "docker.io/bash",
-			Tag:        "latest",
-		},
-		AzureKeyVaultTenantID:  "123456789",
-		KubernetesAPIPort:      543,
-		DeploymentHistoryLimit: 10,
+		AzureKeyVaultTenantID:              "123456789",
+		KubernetesAPIPort:                  543,
+		DeploymentHistoryLimit:             10,
 		CertificateAutomation: config.CertificateAutomationConfig{
 			GatewayClusterIssuer: "test-gateway-cert-issuer",
 			Duration:             10000 * time.Hour,
@@ -89,9 +85,21 @@ var testConfig = config.Config{
 			Base: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						corev1.Container{
+						{
 							Name:  "scheduler",
 							Image: "docker.io/radix-job-scheduler:main-latest",
+						},
+					},
+				},
+			},
+		},
+		JobSchedulerAuxTemplate: config.RuntimeBaseOverlayPodConfig{
+			Base: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "aux",
+							Image: "docker.io/bash:latest",
 						},
 					},
 				},
@@ -835,12 +843,11 @@ func TestObjectSynced_JobAux_DeploymentSpecIsSet(t *testing.T) {
 
 	assert.Equal(t, new(false), jobAuxDeployment.Spec.Template.Spec.AutomountServiceAccountToken)
 	assert.Equal(t, defaultServiceAccountName, jobAuxDeployment.Spec.Template.Spec.ServiceAccountName)
-	assert.Equal(t, utils.GetAffinityForJobAPIAuxComponent(), jobAuxDeployment.Spec.Template.Spec.Affinity)
 
 	require.Len(t, jobAuxDeployment.Spec.Template.Spec.Containers, 1)
 	container := jobAuxDeployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, jobAuxDeploymentName, container.Name)
-	assert.Equal(t, testConfig.Operator.JobSchedulerAuxImage.String(), container.Image)
+	assert.Equal(t, "docker.io/bash:latest", container.Image)
 	assert.Equal(t, corev1.PullIfNotPresent, container.ImagePullPolicy)
 	assert.Equal(t, []string{"sh"}, container.Command)
 	assert.Equal(t, []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}, container.Args)

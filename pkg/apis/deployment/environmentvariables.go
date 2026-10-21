@@ -38,7 +38,7 @@ func getEnvironmentVariables(appName string, cfg config.Config, radixDeployment 
 	var envVars = getEnvVars(envVarConfigMap, deployComponent.GetEnvironmentVariables())
 
 	envVars = appendDefaultEnvVars(envVars, cfg, currentEnvironment, namespace, appName, deployComponent)
-	
+
 	envVars = append(envVars, utils.GetEnvVarsFromSecrets(deployComponent.GetName(), deployComponent.GetSecrets())...)
 	envVars = append(envVars, utils.GetEnvVarsFromAzureKeyVaultSecretRefs(radixDeployment.GetName(), deployComponent.GetName(), deployComponent.GetSecretRefs())...)
 

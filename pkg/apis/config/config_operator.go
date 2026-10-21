@@ -38,8 +38,6 @@ type OperatorConfig struct {
 
 	AzureKeyVaultTenantID string `json:"azureKeyVaultTenantID" required:"true"`
 
-	JobSchedulerAuxImage ContainerImage `json:"jobSchedulerAuxImage" required:"true"`
-
 	KubernetesAPIPort                   int32                       `json:"kubernetesAPIPort" required:"true"`
 	DeploymentHistoryLimit              int                         `json:"deploymentHistoryLimit" required:"true" validate:"self >= 3"`
 	Gateway                             GatewayConfig               `json:"gateway" required:"true"`

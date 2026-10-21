@@ -102,10 +102,6 @@ config:
       defaultRequestMemory: 500M
       defaultRequestCPU: 100m
 
-    jobSchedulerAuxImage:
-      repository: docker.io/bash
-      tag: "latest"
-
     gateway:
       name: ""
       namespace: ""
@@ -163,7 +159,11 @@ config:
     jobSchedulerTemplate:
       base: null # Defaults to content in file ./files/job-scheduler-base.yaml
       overlay: null
-    # jobSchedulerAuxTemplate: {}
+
+    jobSchedulerAuxTemplate:
+      base: null # Defaults to content in file ./files/job-scheduler-aux-base.yaml
+      overlay: null
+
     # specialNodeTypes: {}
     # gpu-nvidia-v1:
     #   description: "Nvidia GPU node"

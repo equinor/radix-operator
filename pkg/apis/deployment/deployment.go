@@ -191,7 +191,11 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		ctx := log.Ctx(ctx).With().Str("jobComponent", jobComponent.Name).Logger().WithContext(ctx)
 		if err := deploy.reconcileJobSchedulerComponent(ctx, jobComponent); err != nil {
-			errs = append(errs, fmt.Errorf("failed to sync job %s: %w", jobComponent.GetName(), err))
+			errs = append(errs, fmt.Errorf("failed to reconcile job %s: %w", jobComponent.GetName(), err))
+		}
+
+		if err := deploy.reconcileJobSchedulerAuxComponent(ctx, jobComponent); err != nil {
+			errs = append(errs, fmt.Errorf("failed to reconcile job aux component %s: %w", jobComponent.GetName(), err))
 		}
 	}
 	// If any error occurred when syncing of components
