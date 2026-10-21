@@ -28,6 +28,29 @@ func (e *Error) Error() string {
 	return e.Message
 }
 
+// ErrorResponseBody describes the JSON body written for API errors (see Error.MarshalJSON)
+// swagger:model ErrorResponseBody
+type ErrorResponseBody struct {
+	// Type of error
+	//
+	// required: true
+	// enum: server,missing,user,forbidden
+	// example: user
+	Type string `json:"type"`
+
+	// Message that can be printed out for the user
+	//
+	// required: true
+	// example: User should be a member of at least one admin group or their sub-members
+	Message string `json:"message"`
+
+	// Underlying error details
+	//
+	// required: false
+	// example: Radix Registration failed validation
+	Err string `json:"error,omitempty"`
+}
+
 // Type Type of error
 type Type string
 
