@@ -244,6 +244,7 @@ spec:
                             properties:
                               issuer:
                                 description: Certificate issuer
+                                minLength: 1
                                 type: string
                             required:
                             - issuer
