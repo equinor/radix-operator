@@ -28,7 +28,7 @@ func createCertificateAutomationValidator(certificateAutomationConfig config.Cer
 			}
 
 			selectedIssuer := certificateAutomationConfig.DefaultIssuer
-			if extAlias.CertificateAutomation != nil && extAlias.CertificateAutomation.Issuer != "" {
+			if extAlias.CertificateAutomation != nil {
 				selectedIssuer = extAlias.CertificateAutomation.Issuer
 			}
 

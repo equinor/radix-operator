@@ -358,6 +358,7 @@ type ExternalAlias struct {
 type CertificateAutomation struct {
 
 	// Certificate issuer
+	// +kubebuilder:validation:MinLength=1
 	// +required
 	Issuer string `json:"issuer,omitempty"`
 }
