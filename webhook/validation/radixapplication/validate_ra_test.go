@@ -1335,10 +1335,9 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 	setComponentAndJobsVolumeMounts := []setVolumeMountsFunc{setRaComponentVolumeMounts, setRaJobsVolumeMounts}
 
 	var testScenarios = map[string]struct {
-		volumeMounts    volumeMountsFunc
-		updateRA        []setVolumeMountsFunc
-		expectedError   error
-		expectedWarning string
+		volumeMounts  volumeMountsFunc
+		updateRA      []setVolumeMountsFunc
+		expectedError error
 	}{
 		"name not set": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1415,55 +1414,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			updateRA:      setComponentAndJobsVolumeMounts,
 			expectedError: radixapplication.ErrVolumeMountMissingType,
-		},
-		"deprecated azure-blob: valid": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type:    "azure-blob",
-						Name:    "some_name",
-						Path:    "some_path",
-						Storage: "any-storage",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:        setComponentAndJobsVolumeMounts,
-			expectedError:   nil,
-			expectedWarning: radixapplication.WarnDeprecatedFieldVolumeMountTypeUsed,
-		},
-		"deprecated azure-blob: missing container": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type: "azure-blob",
-						Name: "some_name",
-						Path: "some_path",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:        setComponentAndJobsVolumeMounts,
-			expectedError:   radixapplication.ErrVolumeMountMissingStorage,
-			expectedWarning: radixapplication.WarnDeprecatedFieldVolumeMountTypeUsed,
-		},
-		"deprecated common: invalid type": {
-			volumeMounts: func() []radixv1.RadixVolumeMount {
-				volumeMounts := []radixv1.RadixVolumeMount{
-					{
-						Type: "invalid",
-						Name: "some_name",
-						Path: "some_path",
-					},
-				}
-
-				return volumeMounts
-			},
-			updateRA:        setComponentAndJobsVolumeMounts,
-			expectedError:   radixapplication.ErrVolumeMountInvalidType,
-			expectedWarning: radixapplication.WarnDeprecatedFieldVolumeMountTypeUsed,
 		},
 		"blobfuse2: valid": {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
@@ -1835,20 +1785,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					assert.ErrorIs(t, err, scenario.expectedError)
 				}
 
-				if scenario.expectedWarning == "" {
-					assert.Empty(t, wnrs)
-				} else {
-					found := false
-					for _, wrn := range wnrs {
-						if strings.Contains(wrn, scenario.expectedWarning) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						assert.Failf(t, "expected warning '%s' not found in '%s'", scenario.expectedWarning, strings.Join(wnrs, ", "))
-					}
-				}
+				assert.Empty(t, wnrs)
 			}
 		})
 	}

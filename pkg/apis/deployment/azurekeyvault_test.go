@@ -135,7 +135,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 					t.Logf("created secret provider class %s", spc.Name)
 				}
 			}
-			volumes, err := volumemount.GetVolumes(context.Background(), deployment.kubeutil, namespace, radixDeployComponent, deployment.radixDeployment.GetName(), nil)
+			volumes, _, err := volumemount.EnsureComponentVolumes(context.Background(), deployment.kubeutil, deployment.radixDeployment, radixDeployComponent, nil)
 			require.NoError(t, err, "failed to get volumes")
 			assert.Len(t, volumes, len(scenario.expectedVolumeProps))
 			if len(scenario.expectedVolumeProps) == 0 {

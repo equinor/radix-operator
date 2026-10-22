@@ -1463,16 +1463,6 @@
                       "items": {
                         "description": "RadixVolumeMount defines an external storage resource.",
                         "properties": {
-                          "accessMode": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nAccess mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                            "enum": [
-                              "ReadOnlyMany",
-                              "ReadWriteOnce",
-                              "ReadWriteMany",
-                              ""
-                            ],
-                            "type": "string"
-                          },
                           "blobFuse2": {
                             "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                             "properties": {
@@ -1638,10 +1628,6 @@
                             ],
                             "type": "object"
                           },
-                          "container": {
-                            "description": "Deprecated: Only required by the deprecated type: blob.",
-                            "type": "string"
-                          },
                           "emptyDir": {
                             "description": "EmptyDir settings for EmptyDir volume",
                             "properties": {
@@ -1664,10 +1650,6 @@
                             ],
                             "type": "object"
                           },
-                          "gid": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nGID defines the group ID (number) which will be set as owner of the mounted volume.",
-                            "type": "string"
-                          },
                           "name": {
                             "description": "User-defined name of the volume mount.\nMust be unique for the component.",
                             "maxLength": 40,
@@ -1677,35 +1659,6 @@
                           "path": {
                             "description": "Path defines in which directory the external storage is mounted.",
                             "minLength": 1,
-                            "type": "string"
-                          },
-                          "requestsStorage": {
-                            "anyOf": [
-                              {
-                                "type": "integer"
-                              },
-                              {
-                                "type": "string"
-                              }
-                            ],
-                            "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
-                            "x-kubernetes-int-or-string": true
-                          },
-                          "storage": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nStorage defines the name of the container in the external storage resource.",
-                            "type": "string"
-                          },
-                          "type": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nType defines the storage type.",
-                            "enum": [
-                              "azure-blob",
-                              ""
-                            ],
-                            "type": "string"
-                          },
-                          "uid": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nUID defines the user ID (number) which will be set as owner of the mounted volume.",
                             "type": "string"
                           }
                         },
@@ -2838,16 +2791,6 @@
                 "items": {
                   "description": "RadixVolumeMount defines an external storage resource.",
                   "properties": {
-                    "accessMode": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nAccess mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                      "enum": [
-                        "ReadOnlyMany",
-                        "ReadWriteOnce",
-                        "ReadWriteMany",
-                        ""
-                      ],
-                      "type": "string"
-                    },
                     "blobFuse2": {
                       "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                       "properties": {
@@ -3013,10 +2956,6 @@
                       ],
                       "type": "object"
                     },
-                    "container": {
-                      "description": "Deprecated: Only required by the deprecated type: blob.",
-                      "type": "string"
-                    },
                     "emptyDir": {
                       "description": "EmptyDir settings for EmptyDir volume",
                       "properties": {
@@ -3039,10 +2978,6 @@
                       ],
                       "type": "object"
                     },
-                    "gid": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nGID defines the group ID (number) which will be set as owner of the mounted volume.",
-                      "type": "string"
-                    },
                     "name": {
                       "description": "User-defined name of the volume mount.\nMust be unique for the component.",
                       "maxLength": 40,
@@ -3052,35 +2987,6 @@
                     "path": {
                       "description": "Path defines in which directory the external storage is mounted.",
                       "minLength": 1,
-                      "type": "string"
-                    },
-                    "requestsStorage": {
-                      "anyOf": [
-                        {
-                          "type": "integer"
-                        },
-                        {
-                          "type": "string"
-                        }
-                      ],
-                      "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                      "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
-                      "x-kubernetes-int-or-string": true
-                    },
-                    "storage": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nStorage defines the name of the container in the external storage resource.",
-                      "type": "string"
-                    },
-                    "type": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nType defines the storage type.",
-                      "enum": [
-                        "azure-blob",
-                        ""
-                      ],
-                      "type": "string"
-                    },
-                    "uid": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nUID defines the user ID (number) which will be set as owner of the mounted volume.",
                       "type": "string"
                     }
                   },
@@ -3946,16 +3852,6 @@
                       "items": {
                         "description": "RadixVolumeMount defines an external storage resource.",
                         "properties": {
-                          "accessMode": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nAccess mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                            "enum": [
-                              "ReadOnlyMany",
-                              "ReadWriteOnce",
-                              "ReadWriteMany",
-                              ""
-                            ],
-                            "type": "string"
-                          },
                           "blobFuse2": {
                             "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                             "properties": {
@@ -4121,10 +4017,6 @@
                             ],
                             "type": "object"
                           },
-                          "container": {
-                            "description": "Deprecated: Only required by the deprecated type: blob.",
-                            "type": "string"
-                          },
                           "emptyDir": {
                             "description": "EmptyDir settings for EmptyDir volume",
                             "properties": {
@@ -4147,10 +4039,6 @@
                             ],
                             "type": "object"
                           },
-                          "gid": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nGID defines the group ID (number) which will be set as owner of the mounted volume.",
-                            "type": "string"
-                          },
                           "name": {
                             "description": "User-defined name of the volume mount.\nMust be unique for the component.",
                             "maxLength": 40,
@@ -4160,35 +4048,6 @@
                           "path": {
                             "description": "Path defines in which directory the external storage is mounted.",
                             "minLength": 1,
-                            "type": "string"
-                          },
-                          "requestsStorage": {
-                            "anyOf": [
-                              {
-                                "type": "integer"
-                              },
-                              {
-                                "type": "string"
-                              }
-                            ],
-                            "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
-                            "x-kubernetes-int-or-string": true
-                          },
-                          "storage": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nStorage defines the name of the container in the external storage resource.",
-                            "type": "string"
-                          },
-                          "type": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nType defines the storage type.",
-                            "enum": [
-                              "azure-blob",
-                              ""
-                            ],
-                            "type": "string"
-                          },
-                          "uid": {
-                            "description": "Deprecated: use BlobFuse2 instead.\nUID defines the user ID (number) which will be set as owner of the mounted volume.",
                             "type": "string"
                           }
                         },
@@ -4602,16 +4461,6 @@
                 "items": {
                   "description": "RadixVolumeMount defines an external storage resource.",
                   "properties": {
-                    "accessMode": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nAccess mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                      "enum": [
-                        "ReadOnlyMany",
-                        "ReadWriteOnce",
-                        "ReadWriteMany",
-                        ""
-                      ],
-                      "type": "string"
-                    },
                     "blobFuse2": {
                       "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2",
                       "properties": {
@@ -4777,10 +4626,6 @@
                       ],
                       "type": "object"
                     },
-                    "container": {
-                      "description": "Deprecated: Only required by the deprecated type: blob.",
-                      "type": "string"
-                    },
                     "emptyDir": {
                       "description": "EmptyDir settings for EmptyDir volume",
                       "properties": {
@@ -4803,10 +4648,6 @@
                       ],
                       "type": "object"
                     },
-                    "gid": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nGID defines the group ID (number) which will be set as owner of the mounted volume.",
-                      "type": "string"
-                    },
                     "name": {
                       "description": "User-defined name of the volume mount.\nMust be unique for the component.",
                       "maxLength": 40,
@@ -4816,35 +4657,6 @@
                     "path": {
                       "description": "Path defines in which directory the external storage is mounted.",
                       "minLength": 1,
-                      "type": "string"
-                    },
-                    "requestsStorage": {
-                      "anyOf": [
-                        {
-                          "type": "integer"
-                        },
-                        {
-                          "type": "string"
-                        }
-                      ],
-                      "description": "Deprecated: use BlobFuse2 instead.\nMore info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
-                      "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
-                      "x-kubernetes-int-or-string": true
-                    },
-                    "storage": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nStorage defines the name of the container in the external storage resource.",
-                      "type": "string"
-                    },
-                    "type": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nType defines the storage type.",
-                      "enum": [
-                        "azure-blob",
-                        ""
-                      ],
-                      "type": "string"
-                    },
-                    "uid": {
-                      "description": "Deprecated: use BlobFuse2 instead.\nUID defines the user ID (number) which will be set as owner of the mounted volume.",
                       "type": "string"
                     }
                   },

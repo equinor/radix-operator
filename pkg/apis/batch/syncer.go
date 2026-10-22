@@ -14,7 +14,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -98,16 +97,18 @@ func (s *syncer) reconcile(ctx context.Context) error {
 		return err
 	}
 
-	actualVolumesGetter := sync.OnceValues(func() ([]corev1.Volume, error) {
-		existingVolumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, s.kubeUtil, namespace, jobComponent.GetName())
+	// Volumes are ensured at most once per reconcile, and only when a Kubernetes Job is going to be created.
+	// The RadixDeployment referenced by the batch may be an older, inactive RadixDeployment; its jobs get the storage defined in it.
+	jobVolumesGetter := sync.OnceValues(func() (*jobVolumes, error) {
+		auxVolumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, s.kubeUtil, namespace, jobComponent.GetName())
 		if err != nil {
 			return nil, err
 		}
-		desiredVolumes, err := volumemount.GetVolumes(ctx, s.kubeUtil, namespace, jobComponent, rd.Name, existingVolumes)
+		volumes, volumeMounts, err := volumemount.EnsureComponentVolumes(ctx, s.kubeUtil, rd, jobComponent, auxVolumes)
 		if err != nil {
 			return nil, err
 		}
-		return volumemount.CreateOrUpdatePVCVolumeResourcesForDeployComponent(ctx, s.kubeUtil.KubeClient(), rd, jobComponent, desiredVolumes)
+		return &jobVolumes{volumes: volumes, volumeMounts: volumeMounts}, nil
 	})
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
@@ -115,7 +116,7 @@ func (s *syncer) reconcile(ctx context.Context) error {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}
 
-		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs, actualVolumesGetter); err != nil {
+		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs, jobVolumesGetter); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile kubejob: %w", batchJob.Name, err)
 		}
 

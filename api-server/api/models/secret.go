@@ -119,7 +119,7 @@ func getCredentialSecretsForBlobVolumes(ctx context.Context, secretList []corev1
 	for _, volumeMount := range component.GetVolumeMounts() {
 		volumeMountType := volumeMount.GetVolumeMountType()
 		switch volumeMountType {
-		case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
+		case radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
 			accountKeySecret, accountNameSecret := getCsiAzureSecrets(ctx, secretList, component, volumeMount)
 			if accountKeySecret != nil {
 				secrets = append(secrets, *accountKeySecret)
