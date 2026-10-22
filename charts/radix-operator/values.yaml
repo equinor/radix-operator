@@ -118,10 +118,6 @@ config:
       namespace: ""
       sectionName: "https"
 
-    certificateAutomation:
-      duration: "2160h"
-      renewBefore: "720h"
-      gatewayClusterIssuer: ""
     pipelineImage:
       repository: "ghcr.io/equinor/radix/pipeline"
       tag: "" # Fallback to .Chart.AppVersion
