@@ -1,7 +1,6 @@
 package build_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"path"
 	"testing"
@@ -21,7 +20,6 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -88,9 +86,9 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 	require.Equal(t, pushImage, args.PushImage)
 	require.Equal(t, externalRegistrySecret, cfg.Common.ExternalRegistryAuthSecret)
 	componentImages := []pipeline.BuildComponentImage{
-		{ComponentName: "c1", EnvName: "c1env", ContainerName: "c1container", Context: "c1ctx", Dockerfile: "c1dockerfile", ImageName: "c1imagename", ImagePath: "c1image", ClusterTypeImagePath: "c1clustertypeimage", ClusterNameImagePath: "c1clusternameimage"},
-		{ComponentName: "c2", EnvName: "c2env", ContainerName: "c2container", Context: "c2ctx", Dockerfile: "c2dockerfile", ImageName: "c2imagename", ImagePath: "c2image", ClusterTypeImagePath: "c2clustertypeimage", ClusterNameImagePath: "c2clusternameimage", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
-		{ComponentName: "c3", EnvName: "c3env", ContainerName: "c3container", Context: "c3ctx", Dockerfile: "c3dockerfile", ImageName: "c2imagename", ImagePath: "c2image", ClusterTypeImagePath: "c3clustertypeimage", ClusterNameImagePath: "c3clusternameimage", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
+		{ComponentName: "c1", EnvName: "c1env", Context: "c1ctx", Dockerfile: "c1dockerfile", ImageName: "c1imagename", ImagePath: "c1image", ClusterTypeImagePath: "c1clustertypeimage", ClusterNameImagePath: "c1clusternameimage"},
+		{ComponentName: "c2", EnvName: "c2env", Context: "c2ctx", Dockerfile: "c2dockerfile", ImageName: "c2imagename", ImagePath: "c2image", ClusterTypeImagePath: "c2clustertypeimage", ClusterNameImagePath: "c2clusternameimage", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}},
+		{ComponentName: "c3", EnvName: "c3env", Context: "c3ctx", Dockerfile: "c3dockerfile", ImageName: "c2imagename", ImagePath: "c2image", ClusterTypeImagePath: "c3clustertypeimage", ClusterNameImagePath: "c3clusternameimage", Runtime: &radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}},
 	}
 	rr := radixv1.RadixRegistration{Spec: radixv1.RadixRegistrationSpec{
 		CloneURL: cloneURL,
@@ -98,33 +96,24 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 	}}
 
 	sut := build.NewBuildKit(cfg, args, rr)
-	jobs := sut.BuildJobs(componentImages, buildSecrets, gitCommitHash, gitTags, useBuildCache, refreshBuildCache)
-	require.Len(t, jobs, len(componentImages))
 
 	for _, ci := range componentImages {
 		t.Run(fmt.Sprintf("%s-%s", ci.EnvName, ci.ComponentName), func(t *testing.T) {
-			job, ok := slice.FindFirst(jobs, func(j batchv1.Job) bool {
-				return j.Labels[kube.RadixEnvLabel] == ci.EnvName && j.Labels[kube.RadixComponentLabel] == ci.ComponentName
-			})
-			require.True(t, ok)
-			assert.NotEmpty(t, job)
+			job := sut.BuildJob(ci, buildSecrets, gitCommitHash, gitTags, useBuildCache, refreshBuildCache)
 
 			// Check job
 			expectedJobLabels := map[string]string{
 				kube.RadixJobNameLabel:   args.JobName,
 				kube.RadixAppLabel:       args.AppName,
-				kube.RadixImageTagLabel:  args.ImageTag,
 				kube.RadixJobTypeLabel:   kube.RadixJobTypeBuild,
 				kube.RadixEnvLabel:       ci.EnvName,
 				kube.RadixComponentLabel: ci.ComponentName,
 			}
 			assert.Equal(t, expectedJobLabels, job.Labels)
-			componentImagesAnnotation, _ := json.Marshal([]pipeline.BuildComponentImage{ci})
 			expectedJobAnnotations := map[string]string{
-				kube.RadixBranchAnnotation:          args.Branch, //nolint:staticcheck
-				kube.RadixGitRefAnnotation:          args.GitRef,
-				kube.RadixGitRefTypeAnnotation:      args.GitRefType,
-				kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
+				kube.RadixBranchAnnotation:     args.Branch, //nolint:staticcheck
+				kube.RadixGitRefAnnotation:     args.GitRef,
+				kube.RadixGitRefTypeAnnotation: args.GitRefType,
 			}
 			assert.Equal(t, expectedJobAnnotations, job.Annotations)
 			assert.Equal(t, new(int32(0)), job.Spec.BackoffLimit)
@@ -138,7 +127,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			}
 			assert.Equal(t, expectedPodLabels, job.Spec.Template.Labels)
 			expectedPodAnnotations := annotations.ForClusterAutoscalerSafeToEvict(false)
-			expectedPodAnnotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", ci.ContainerName)] = "unconfined"
+			expectedPodAnnotations["container.apparmor.security.beta.kubernetes.io/build"] = "unconfined"
 			assert.Equal(t, expectedPodAnnotations, job.Spec.Template.Annotations)
 			assert.Equal(t, corev1.RestartPolicyNever, job.Spec.Template.Spec.RestartPolicy)
 			expectedImagePullSecrets := []corev1.LocalObjectReference{}
@@ -165,8 +154,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			expectedVolumes := []corev1.Volume{
 				{Name: git.BuildContextVolumeName},
 				{Name: git.GitSSHKeyVolumeName, Secret: &corev1.SecretVolumeSource{SecretName: git.GitSSHKeyVolumeName, DefaultMode: new(int32(256))}},
-				{Name: fmt.Sprintf("tmp-%s", ci.ContainerName), EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
-				{Name: fmt.Sprintf("var-%s", ci.ContainerName), EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
+				{Name: "tmp-build", EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
+				{Name: "var-build", EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
 				{Name: defaults.PrivateImageHubSecretName, Secret: &corev1.SecretVolumeSource{SecretName: defaults.PrivateImageHubSecretName}},
 				{Name: "radix-image-builder-home", EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}},
 				{Name: "build-kit-run", EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
@@ -210,7 +199,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			// Check container
 			require.Len(t, job.Spec.Template.Spec.Containers, 1)
 			c := job.Spec.Template.Spec.Containers[0]
-			assert.Equal(t, ci.ContainerName, c.Name)
+			assert.Equal(t, "build", c.Name)
 			assert.Equal(t, cfg.PipelineRunner.Builder.Image.String(), c.Image)
 			assert.Equal(t, corev1.PullAlways, c.ImagePullPolicy)
 			expectedResources := corev1.ResourceRequirements{
@@ -276,8 +265,8 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			assert.ElementsMatch(t, expectedEnvVars, c.Env)
 			expectedVolumeMounts := []corev1.VolumeMount{
 				{Name: git.BuildContextVolumeName, MountPath: gitWorkspace},
-				{Name: fmt.Sprintf("tmp-%s", ci.ContainerName), MountPath: "/tmp", ReadOnly: false},
-				{Name: fmt.Sprintf("var-%s", ci.ContainerName), MountPath: "/var", ReadOnly: false},
+				{Name: "tmp-build", MountPath: "/tmp", ReadOnly: false},
+				{Name: "var-build", MountPath: "/var", ReadOnly: false},
 				{Name: "build-kit-run", MountPath: "/run", ReadOnly: false},
 				{Name: "build-kit-root", MountPath: "/root", ReadOnly: false},
 				{Name: defaults.PrivateImageHubSecretName, MountPath: "/radix-private-image-hubs", ReadOnly: true},

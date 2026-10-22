@@ -1,13 +1,12 @@
 package build
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -26,22 +25,21 @@ func getJobName(timeStamp time.Time, imageTag, hash string) string {
 	return fmt.Sprintf("radix-builder-%s-%s-%s", ts, imageTag, hash)
 }
 
-func getCommonJobLabels(appName, pipelineJobName, imageTag string) map[string]string {
+func getCommonJobLabels(appName, pipelineJobName, envName, componentName string) map[string]string {
 	return map[string]string{
-		kube.RadixJobNameLabel:  pipelineJobName,
-		kube.RadixAppLabel:      appName,
-		kube.RadixImageTagLabel: imageTag,
-		kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
+		kube.RadixJobNameLabel:   pipelineJobName,
+		kube.RadixAppLabel:       appName,
+		kube.RadixJobTypeLabel:   kube.RadixJobTypeBuild,
+		kube.RadixEnvLabel:       envName,
+		kube.RadixComponentLabel: componentName,
 	}
 }
 
-func getCommonJobAnnotations(branch, gitRef, gitRefType string, componentImages ...pipeline.BuildComponentImage) map[string]string {
-	componentImagesAnnotation, _ := json.Marshal(componentImages)
+func getCommonJobAnnotations(branch, gitRef, gitRefType string) map[string]string {
 	return map[string]string{
-		kube.RadixBranchAnnotation:          branch,
-		kube.RadixGitRefAnnotation:          gitRef,
-		kube.RadixGitRefTypeAnnotation:      gitRefType,
-		kube.RadixBuildComponentsAnnotation: string(componentImagesAnnotation),
+		kube.RadixBranchAnnotation:     branch,
+		kube.RadixGitRefAnnotation:     gitRef,
+		kube.RadixGitRefTypeAnnotation: gitRefType,
 	}
 }
 
@@ -69,7 +67,7 @@ func getCommonPodInitContainers(cloneURL, gitRefName, gitCommitID, workspace, gi
 	return git.CloneInitContainersWithSourceCode(cloneURL, gitRefName, gitCommitID, workspace, gitImage)
 }
 
-func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev1.Volume {
+func getCommonPodVolumes() []corev1.Volume {
 	volumes := []corev1.Volume{
 		{
 			Name: git.BuildContextVolumeName,
@@ -87,51 +85,46 @@ func getCommonPodVolumes(componentImages []pipeline.BuildComponentImage) []corev
 				SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
 			},
 		},
-	}
-
-	for _, image := range componentImages {
-		volumes = append(volumes,
-			corev1.Volume{
-				Name: getTmpVolumeNameForContainer(image.ContainerName),
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
-				},
+		{
+			Name: getTmpVolumeNameForContainer(),
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
 			},
-			corev1.Volume{
-				Name: getVarVolumeNameForContainer(image.ContainerName),
-				EmptyDir: &corev1.EmptyDirVolumeSource{
-					SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
-				},
+		},
+		{
+			Name: getVarVolumeNameForContainer(),
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				SizeLimit: resource.NewScaledQuantity(100, resource.Giga),
 			},
-		)
+		},
 	}
 
 	return volumes
 }
 
-func getCommonPodContainerVolumeMounts(componentImage pipeline.BuildComponentImage, workspace string) []corev1.VolumeMount {
+func getCommonPodContainerVolumeMounts(workspace string) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
 			Name:      git.BuildContextVolumeName,
 			MountPath: workspace,
 		},
 		{
-			Name:      getTmpVolumeNameForContainer(componentImage.ContainerName), // image-builder creates a script there
+			Name:      getTmpVolumeNameForContainer(), // image-builder creates a script there
 			MountPath: "/tmp",
 			ReadOnly:  false,
 		},
 		{
-			Name:      getVarVolumeNameForContainer(componentImage.ContainerName), // image-builder creates files there
+			Name:      getVarVolumeNameForContainer(), // image-builder creates files there
 			MountPath: "/var",
 			ReadOnly:  false,
 		},
 	}
 }
 
-func getTmpVolumeNameForContainer(containerName string) string {
-	return fmt.Sprintf("tmp-%s", containerName)
+func getTmpVolumeNameForContainer() string {
+	return fmt.Sprintf("tmp-%s", defaults.RadixPipelineJobBuildContainerName)
 }
 
-func getVarVolumeNameForContainer(containerName string) string {
-	return fmt.Sprintf("var-%s", containerName)
+func getVarVolumeNameForContainer() string {
+	return fmt.Sprintf("var-%s", defaults.RadixPipelineJobBuildContainerName)
 }

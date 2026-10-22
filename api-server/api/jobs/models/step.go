@@ -2,14 +2,32 @@ package models
 
 import "time"
 
+// StepType Enumeration of the types of job steps
+// swagger:enum StepType
+type StepType string
+
+const (
+	StepTypeCloneConfig     StepType = "CloneConfig"
+	StepTypePipelineRunner  StepType = "PipelineRunner"
+	StepTypeClone           StepType = "Clone"
+	StepTypeBuild           StepType = "Build"
+	StepTypeSubPipelineStep StepType = "SubPipelineStep"
+	StepTypeUnknown         StepType = "Unknown"
+)
+
 // Step holds general information about job step
 // swagger:model Step
 type Step struct {
 	// Name of the step
 	//
-	// required: false
+	// required: true
 	// example: build
 	Name string `json:"name"`
+
+	// Type of the step
+	//
+	// example: Build
+	Type StepType `json:"type"`
 
 	// Status of the step
 	//
@@ -32,15 +50,25 @@ type Step struct {
 	// example: 2006-01-02T15:04:05Z
 	Ended *time.Time `json:"ended"`
 
-	// Pod name
+	// Pod name for the step
 	//
 	// required: false
-	PodName string `json:"-"`
+	PodName string `json:"podName"`
 
-	// Components associated components
+	// ContainerName for the step's container
+	//
+	// required: false
+	ContainerName string `json:"containerName,omitempty"`
+
+	// Components lists components associated with this step
 	//
 	// required: false
 	Components []string `json:"components,omitempty"`
+
+	// Environments lists environments associated with this step
+	//
+	// required: false
+	Environments []string `json:"environments,omitempty"`
 
 	// SubPipelineTaskStep sub pipeline task step
 	//

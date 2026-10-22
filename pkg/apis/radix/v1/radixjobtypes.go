@@ -311,10 +311,31 @@ type RadixJobList struct {
 	Items           []RadixJob `json:"items"`
 }
 
+type RadixJobStepType string
+
+const (
+	// Clone repo for pipeline runner
+	RadixJobStepTypeCloneConfig RadixJobStepType = "clone-config"
+
+	// Pipeline runner step
+	RadixJobStepTypePipelineRunner RadixJobStepType = "pipeline-runner"
+
+	// Clone repo for build step
+	RadixJobStepTypeClone RadixJobStepType = "clone"
+
+	// Build component
+	RadixJobStepTypeBuild RadixJobStepType = "build"
+)
+
 // RadixJobStep holds status for a single step
 type RadixJobStep struct {
 	// Name is the name of the pipeline step
+	// Must be unique within the list of steps for a given job
 	Name string `json:"name"`
+
+	// Type is the type of the pipeline step
+	// +kubebuilder:validation:Optional
+	Type RadixJobStepType `json:"type,omitempty"`
 
 	// Condition describes the current state of the step
 	// +kubebuilder:validation:Optional
@@ -332,9 +353,17 @@ type RadixJobStep struct {
 	// +kubebuilder:validation:Optional
 	PodName string `json:"podName,omitempty"`
 
+	// ContainerName is the name of the container executing this step
+	// +kubebuilder:validation:Optional
+	ContainerName string `json:"containerName,omitempty"`
+
 	// Components is the list of components processed in this step
 	// +kubebuilder:validation:Optional
 	Components []string `json:"components,omitempty"`
+
+	// Environments is the list of environments processed in this step
+	// +kubebuilder:validation:Optional
+	Environments []string `json:"environments,omitempty"`
 }
 
 // GetGitRefOrDefault Get git event ref or "branch" by default

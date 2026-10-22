@@ -270,13 +270,25 @@ spec:
                     condition:
                       description: Condition describes the current state of the step
                       type: string
+                    containerName:
+                      description: ContainerName is the name of the container executing
+                        this step
+                      type: string
                     ended:
                       description: Ended is the timestamp when the step completed
                         or failed
                       format: date-time
                       type: string
+                    environments:
+                      description: Environments is the list of environments processed
+                        in this step
+                      items:
+                        type: string
+                      type: array
                     name:
-                      description: Name is the name of the pipeline step
+                      description: |-
+                        Name is the name of the pipeline step
+                        Must be unique within the list of steps for a given job
                       type: string
                     podName:
                       description: PodName is the name of the pod executing this step
@@ -285,6 +297,9 @@ spec:
                       description: Started is the timestamp when the step started
                         execution
                       format: date-time
+                      type: string
+                    type:
+                      description: Type is the type of the pipeline step
                       type: string
                   required:
                   - name

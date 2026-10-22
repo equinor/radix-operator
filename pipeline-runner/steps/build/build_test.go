@@ -2,7 +2,6 @@ package build_test
 
 import (
 	"fmt"
-	"slices"
 	"testing"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -110,7 +109,6 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 	rj := utils.ARadixBuildDeployJob().WithJobName(jobName).WithAppName(appName).BuildRJ()
 	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(s.T().Context(), rj, metav1.CreateOptions{})
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
-	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
 	jobsBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
 	cli := build.NewBuildStep(jobWaiter, jobsBuilder)
 	cli.Init(s.T().Context(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
@@ -138,7 +136,6 @@ func (s *buildTestSuite) Test_WithBuildSecrets_Validation() {
 	s.ErrorContains(err, fmt.Sprintf("build secret %s has not been set", secretName))
 
 	// secret correctly set
-	jobsBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	pipelineInfo.BuildSecret = &corev1.Secret{Data: map[string][]byte{secretName: []byte("anyvalue")}}
 	err = cli.Run(s.T().Context(), pipelineInfo)
 	s.NoError(err)
@@ -154,9 +151,7 @@ func (s *buildTestSuite) Test_AppWithoutBuildSecrets_Validation() {
 	rj := utils.ARadixBuildDeployJob().WithJobName(jobName).WithAppName(appName).BuildRJ()
 	_, _ = s.radixClient.RadixV1().RadixJobs(utils.GetAppNamespace(appName)).Create(s.T().Context(), rj, metav1.CreateOptions{})
 	jobWaiter := internalwait.NewMockJobCompletionWaiter(s.ctrl)
-	jobWaiter.EXPECT().Wait(gomock.Any()).Return(nil).AnyTimes()
 	jobsBuilder := buildjobmock.NewMockJobsBuilder(gomock.NewController(s.T()))
-	jobsBuilder.EXPECT().BuildJobs(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 	cli := build.NewBuildStep(jobWaiter, jobsBuilder)
 	cli.Init(s.T().Context(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
@@ -211,15 +206,13 @@ func (s *buildTestSuite) Test_JobsBuilderCalledAndJobsCreated() {
 	jobsToReturn := []batchv1.Job{
 		{Name: "job1", Namespace: utils.GetAppNamespace(appName)},
 		{Name: "job2", Namespace: utils.GetAppNamespace(appName)},
+		{Name: "job3", Namespace: utils.GetAppNamespace(appName)},
+		{Name: "job4", Namespace: utils.GetAppNamespace(appName)},
 	}
-	jobsBuilder.EXPECT().BuildJobs(
-		gomock.InAnyOrder(slices.Concat(env1Components, env2Components)),
-		gomock.InAnyOrder(buildSecrets),
-		pipelineInfo.GitCommitHash,
-		pipelineInfo.GitTags,
-		gomock.Any(),
-		gomock.Any(),
-	).Return(jobsToReturn).Times(1)
+	jobsBuilder.EXPECT().BuildJob(env1Components[0], gomock.InAnyOrder(buildSecrets), pipelineInfo.GitCommitHash, pipelineInfo.GitTags, gomock.Any(), gomock.Any()).Return(jobsToReturn[0]).Times(1)
+	jobsBuilder.EXPECT().BuildJob(env1Components[1], gomock.InAnyOrder(buildSecrets), pipelineInfo.GitCommitHash, pipelineInfo.GitTags, gomock.Any(), gomock.Any()).Return(jobsToReturn[1]).Times(1)
+	jobsBuilder.EXPECT().BuildJob(env2Components[1], gomock.InAnyOrder(buildSecrets), pipelineInfo.GitCommitHash, pipelineInfo.GitTags, gomock.Any(), gomock.Any()).Return(jobsToReturn[2]).Times(1)
+	jobsBuilder.EXPECT().BuildJob(env2Components[0], gomock.InAnyOrder(buildSecrets), pipelineInfo.GitCommitHash, pipelineInfo.GitTags, gomock.Any(), gomock.Any()).Return(jobsToReturn[3]).Times(1)
 
 	err := cli.Run(s.T().Context(), pipelineInfo)
 	s.NoError(err)
