@@ -20,7 +20,7 @@ const (
 type Step struct {
 	// Name of the step
 	//
-	// required: false
+	// required: true
 	// example: build
 	Name string `json:"name"`
 
@@ -58,7 +58,7 @@ type Step struct {
 	// ContainerName for the step's container
 	//
 	// required: false
-	ContainerName string `json:"containerName"`
+	ContainerName string `json:"containerName,omitempty"`
 
 	// Components lists components associated with this step
 	//

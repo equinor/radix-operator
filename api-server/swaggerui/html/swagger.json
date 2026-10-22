@@ -9030,6 +9030,9 @@
     "Step": {
       "description": "Step holds general information about job step",
       "type": "object",
+      "required": [
+        "name"
+      ],
       "properties": {
         "components": {
           "description": "Components lists components associated with this step",
