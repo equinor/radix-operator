@@ -209,7 +209,7 @@ func getDeployment(t *testing.T, deploymentBuilder utils.DeploymentBuilder) *Dep
 	rd, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, certClient,
 		deploymentBuilder)
 	require.NoError(t, err)
-	return &Deployment{radixclient: radixClient, kubeutil: kubeUtil, radixDeployment: rd, config: testConfig}
+	return &Deployment{radixclient: radixClient, kubeutil: kubeUtil, radixDeployment: rd, cfg: testConfig}
 }
 
 func getRdBuilderWithComponentBuilders(appName string, environment string, componentBuilders func() []utils.DeployComponentBuilder) utils.DeploymentBuilder {

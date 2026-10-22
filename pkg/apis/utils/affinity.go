@@ -38,35 +38,6 @@ func GetAffinityForPipelineJob(nodeArch string) *corev1.Affinity {
 	}
 }
 
-func GetAffinityForOAuthAuxComponent() *corev1.Affinity {
-	return &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					{
-						MatchExpressions: getNodeSelectorRequirementsForRuntimeEnvironment(string(radixv1.RuntimeArchitectureAmd64)),
-					},
-				},
-			},
-		},
-	}
-}
-
-// GetAffinityForJobAPIAuxComponent Gets job API pod specific affinity
-func GetAffinityForJobAPIAuxComponent() *corev1.Affinity {
-	return &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					{
-						MatchExpressions: getNodeSelectorRequirementsForRuntimeEnvironment(string(radixv1.RuntimeArchitectureAmd64)),
-					},
-				},
-			},
-		},
-	}
-}
-
 func getNodeAffinityForDeployComponent(ctx context.Context, component radixv1.RadixCommonDeployComponent) *corev1.NodeAffinity {
 	var nodeSelectorRequirements []corev1.NodeSelectorRequirement
 

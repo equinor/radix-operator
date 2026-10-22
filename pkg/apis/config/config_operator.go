@@ -32,14 +32,11 @@ type OperatorConfig struct {
 	AppNsLimitRange LimitRangeConfig `json:"appNsLimitRange" required:"true"`
 	EnvNsLimitRange LimitRangeConfig `json:"envNsLimitRange" required:"true"`
 
-	JobSchedulerImage   ContainerImage            `json:"jobSchedulerImage" required:"true"`
 	PodSecurityStandard PodSecurityStandardConfig `json:"podSecurityStandard"`
 
 	BatchSafeToRestartJobThreshold int64 `json:"batchSafeToRestartJobThreshold" required:"true"`
 
 	AzureKeyVaultTenantID string `json:"azureKeyVaultTenantID" required:"true"`
-
-	JobSchedulerAuxImage ContainerImage `json:"jobSchedulerAuxImage" required:"true"`
 
 	KubernetesAPIPort                   int32                       `json:"kubernetesAPIPort" required:"true"`
 	DeploymentHistoryLimit              int                         `json:"deploymentHistoryLimit" required:"true" validate:"self >= 3"`

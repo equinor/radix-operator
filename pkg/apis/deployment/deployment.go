@@ -11,7 +11,6 @@ import (
 	certclient "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -38,7 +37,7 @@ type Deployment struct {
 	registration        *v1.RadixRegistration
 	radixDeployment     *v1.RadixDeployment
 	auxResourceManagers []AuxiliaryResourceManager
-	config              config.Config
+	cfg                 config.Config
 }
 
 // Test if NewDeploymentSyncer implements DeploymentSyncerFactory
@@ -55,7 +54,7 @@ func NewDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, r
 		registration:        registration,
 		radixDeployment:     radixDeployment,
 		auxResourceManagers: auxResourceManagers,
-		config:              config,
+		cfg:                 config,
 	}
 }
 
@@ -101,8 +100,8 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 		return fmt.Errorf("failed to sync deployment %s for application %s: %w", deploy.radixDeployment.Name, deploy.radixDeployment.Spec.AppName, err) //nolint:staticcheck
 	}
 
-	deploy.maintainHistoryLimit(ctx, deploy.config.Operator.DeploymentHistoryLimit)
-	return metrics.RequestedResources(deploy.config, deploy.registration, deploy.radixDeployment)
+	deploy.maintainHistoryLimit(ctx, deploy.cfg.Operator.DeploymentHistoryLimit)
+	return metrics.RequestedResources(deploy.cfg, deploy.registration, deploy.radixDeployment)
 }
 
 func (deploy *Deployment) syncStatus(ctx context.Context, reconcileErr error) error {
@@ -191,9 +190,12 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 	}
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		ctx := log.Ctx(ctx).With().Str("jobComponent", jobComponent.Name).Logger().WithContext(ctx)
-		jobSchedulerComponent := internal.NewJobSchedulerComponent(deploy.config, &jobComponent, deploy.radixDeployment)
-		if err := deploy.syncDeploymentForRadixComponent(ctx, jobSchedulerComponent); err != nil {
-			errs = append(errs, fmt.Errorf("failed to sync job %s: %w", jobSchedulerComponent.GetName(), err))
+		if err := deploy.reconcileJobSchedulerComponent(ctx, jobComponent); err != nil {
+			errs = append(errs, fmt.Errorf("failed to reconcile job %s: %w", jobComponent.GetName(), err))
+		}
+
+		if err := deploy.reconcileJobSchedulerAuxComponent(ctx, jobComponent); err != nil {
+			errs = append(errs, fmt.Errorf("failed to reconcile job aux component %s: %w", jobComponent.GetName(), err))
 		}
 	}
 	// If any error occurred when syncing of components
@@ -223,12 +225,12 @@ func (deploy *Deployment) syncAuxiliaryResources(ctx context.Context) error {
 }
 
 func (deploy *Deployment) configureRbac(ctx context.Context) error {
-	rbacFunc := GetDeploymentRbacConfigurators(ctx, deploy)
-	for _, rbac := range rbacFunc {
-		if err := rbac(); err != nil {
+	if hasJobComponent(deploy.radixDeployment) {
+		if err := configureRbacForRadixJobComponents(ctx, deploy); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 

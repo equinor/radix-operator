@@ -56,6 +56,12 @@ data:
         "pipelineRunnerTemplate" (dict
           "base" (.Values.config.runtime.pipelineRunnerTemplate.base | default (tpl (.Files.Get "files/pipeline-runner-base.yaml") . | fromYaml))
         )
+        "jobSchedulerTemplate" (dict
+          "base" (.Values.config.runtime.jobSchedulerTemplate.base | default (tpl (.Files.Get "files/job-scheduler-base.yaml") . | fromYaml))
+        )
+        "jobSchedulerAuxTemplate" (dict
+          "base" (.Values.config.runtime.jobSchedulerAuxTemplate.base | default (tpl (.Files.Get "files/job-scheduler-aux-base.yaml") . | fromYaml))
+        )
       )
     -}}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}

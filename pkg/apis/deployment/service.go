@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -27,11 +26,6 @@ func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *
 		getOwnerReferenceOfDeployment(radixDeployment),
 	}
 
-	selector := map[string]string{kube.RadixComponentLabel: component.GetName()}
-	if internal.IsDeployComponentJobSchedulerDeployment(component) {
-		selector[kube.RadixPodIsJobSchedulerLabel] = "true"
-	}
-
 	service := &corev1.Service{
 		Name: component.GetName(),
 		Labels: map[string]string{
@@ -41,7 +35,7 @@ func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *
 		OwnerReferences: ownerReference,
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: selector,
+			Selector: map[string]string{kube.RadixComponentLabel: component.GetName()},
 			Ports:    utils.GetServicePorts(componentPorts),
 		},
 	}

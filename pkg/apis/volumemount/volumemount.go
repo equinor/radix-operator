@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
-	internalDeployment "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/random"
@@ -187,10 +186,6 @@ func getCsiAzurePvsForNamespace(ctx context.Context, kubeClient kubernetes.Inter
 }
 
 func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.VolumeMount, error) {
-	if internalDeployment.IsDeployComponentJobSchedulerDeployment(deployComponent) {
-		return nil, nil
-	}
-
 	var volumeMounts []corev1.VolumeMount
 	for _, volumeMount := range deployComponent.GetVolumeMounts() {
 		name, err := GetVolumeMountVolumeName(&volumeMount, deployComponent.GetName())
