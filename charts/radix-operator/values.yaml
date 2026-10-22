@@ -118,11 +118,6 @@ config:
       namespace: ""
       sectionName: "https"
 
-    pipelineImage:
-      repository: "ghcr.io/equinor/radix/pipeline"
-      tag: "" # Fallback to .Chart.AppVersion
-    pipelineImagePullPolicy: "Always"
-
   webhook:
     logLevel: info
     logPrettyPrint: false
