@@ -434,6 +434,7 @@ func resolveStepTypeFromJobStep(jobStep v1.RadixJobStep) jobModels.StepType {
 		}
 	}
 
+	// TODO: Remove when all RadixJobs have steps with Type property
 	switch {
 	case jobStep.Name == git.CloneConfigContainerName:
 		return jobModels.StepTypeCloneConfig

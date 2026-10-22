@@ -330,6 +330,7 @@ const (
 // RadixJobStep holds status for a single step
 type RadixJobStep struct {
 	// Name is the name of the pipeline step
+	// Must be unique within the list of steps for a given job
 	Name string `json:"name"`
 
 	// Type is the type of the pipeline step

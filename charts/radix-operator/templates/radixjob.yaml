@@ -286,7 +286,9 @@ spec:
                         type: string
                       type: array
                     name:
-                      description: Name is the name of the pipeline step
+                      description: |-
+                        Name is the name of the pipeline step
+                        Must be unique within the list of steps for a given job
                       type: string
                     podName:
                       description: PodName is the name of the pod executing this step
