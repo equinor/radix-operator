@@ -293,6 +293,28 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 	assert.Len(t, deployComponent[0].ExternalDNS, 0)
 }
 
+func TestGetRadixComponentsForEnv_ExternalAliasWithExplicitIssuer_OverridesDefaultIssuer(t *testing.T) {
+	componentImages := make(pipeline.DeployComponentImages)
+	componentImages["app"] = pipeline.DeployComponentImage{ImagePath: "imagepath"}
+
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithComponents(utils.NewApplicationComponentBuilder().WithName("app")).
+		BuildRA()
+	ra.Spec.DNSExternalAlias = []radixv1.ExternalAlias{
+		{Alias: "explicit.alias.com", Environment: "prod", Component: "app", UseCertificateAutomation: true, CertificateAutomation: &radixv1.CertificateAutomation{Issuer: "letsencrypt"}},
+		{Alias: "default.alias.com", Environment: "prod", Component: "app", UseCertificateAutomation: true},
+	}
+
+	deployComponents, err := GetRadixComponentsForEnv(context.Background(), ra, nil, "prod", componentImages, make(radixv1.EnvVarsMap), nil, "digicert")
+	require.NoError(t, err)
+	require.Len(t, deployComponents, 1)
+	assert.ElementsMatch(t, []radixv1.RadixDeployExternalDNS{
+		{FQDN: "explicit.alias.com", UseCertificateAutomation: true, CertificateAutomation: &radixv1.CertificateAutomation{Issuer: "letsencrypt"}},
+		{FQDN: "default.alias.com", UseCertificateAutomation: true, CertificateAutomation: &radixv1.CertificateAutomation{Issuer: "digicert"}},
+	}, deployComponents[0].ExternalDNS)
+}
+
 func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *testing.T) {
 	anyImagePath := "imagepath"
 	componentImages := make(pipeline.DeployComponentImages)
